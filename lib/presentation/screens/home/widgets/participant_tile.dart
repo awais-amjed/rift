@@ -1,0 +1,234 @@
+import 'package:flutter/material.dart';
+import 'package:livekit_client/livekit_client.dart';
+
+import '../../../theme/custom_colors.dart';
+import 'participant_context_menu.dart';
+
+/// Displays a single participant's video or avatar fallback tile.
+class ParticipantTileWidget extends StatefulWidget {
+  final Participant participant;
+  final bool isMuted;
+
+  const ParticipantTileWidget({
+    super.key,
+    required this.participant,
+    this.isMuted = false,
+  });
+
+  @override
+  State<ParticipantTileWidget> createState() => _ParticipantTileWidgetState();
+}
+
+class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
+  TrackPublication? _videoPub;
+  bool _isSpeaking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateVideoTrack();
+    widget.participant.addListener(_onParticipantChanged);
+  }
+
+  @override
+  void didUpdateWidget(ParticipantTileWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.participant != widget.participant) {
+      oldWidget.participant.removeListener(_onParticipantChanged);
+      widget.participant.addListener(_onParticipantChanged);
+    }
+    _updateVideoTrack();
+  }
+
+  @override
+  void dispose() {
+    widget.participant.removeListener(_onParticipantChanged);
+    super.dispose();
+  }
+
+  void _onParticipantChanged() {
+    if (mounted) {
+      setState(() {
+        _updateVideoTrack();
+        _isSpeaking = widget.participant.isSpeaking;
+      });
+    }
+  }
+
+  void _updateVideoTrack() {
+    _videoPub = widget.participant.videoTrackPublications
+        .where((t) => t.source == TrackSource.camera && t.track != null)
+        .cast<TrackPublication?>()
+        .firstOrNull;
+    _isSpeaking = widget.participant.isSpeaking;
+  }
+
+  void _showContextMenu(BuildContext context) {
+    if (widget.participant is LocalParticipant) return;
+    showDialog(
+      context: context,
+      builder: (_) => ParticipantContextMenu(
+        identity: widget.participant.identity,
+        name: widget.participant.name ?? widget.participant.identity,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasVideo = _videoPub != null;
+    final isSpeaking = _isSpeaking && !widget.isMuted;
+    final name = widget.participant.name ?? widget.participant.identity;
+
+    return GestureDetector(
+      onSecondaryTap: () => _showContextMenu(context),
+      onLongPress: () => _showContextMenu(context),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: isDark
+              ? CustomColors.bgSecondaryDark
+              : CustomColors.bgTertiaryLight,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSpeaking
+                ? CustomColors.primary
+                : isDark
+                ? CustomColors.borderPrimaryDark
+                : CustomColors.borderPrimaryLight,
+            width: isSpeaking ? 2 : 1,
+          ),
+          boxShadow: isSpeaking
+              ? [
+                  BoxShadow(
+                    color: CustomColors.primary.withOpacity(0.3),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  ),
+                ]
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Video or avatar
+              if (hasVideo && _videoPub!.track is VideoTrack)
+                VideoTrackRenderer(
+                  _videoPub!.track as VideoTrack,
+                  fit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                )
+              else
+                _AvatarPlaceholder(name: name, isDark: isDark),
+              // Name + mic badge
+              Positioned(
+                bottom: 12,
+                left: 12,
+                child: _NameBadge(
+                  name: name,
+                  isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                  isMuted: widget.isMuted,
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarPlaceholder extends StatelessWidget {
+  final String name;
+  final bool isDark;
+
+  const _AvatarPlaceholder({required this.name, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 112,
+        height: 112,
+        decoration: BoxDecoration(
+          color: isDark
+              ? CustomColors.bgTertiaryDark
+              : CustomColors.bgActiveLight,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark
+                ? CustomColors.borderPrimaryDark
+                : CustomColors.borderPrimaryLight,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: TextStyle(
+            fontSize: 40,
+            fontWeight: FontWeight.w700,
+            color: isDark
+                ? CustomColors.textTertiaryDark
+                : CustomColors.textTertiaryLight,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NameBadge extends StatelessWidget {
+  final String name;
+  final bool isMicEnabled;
+  final bool isMuted;
+  final bool isDark;
+
+  const _NameBadge({
+    required this.name,
+    required this.isMicEnabled,
+    required this.isMuted,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color:
+            (isDark
+                    ? CustomColors.bgTertiaryDark
+                    : CustomColors.bgSecondaryLight)
+                .withOpacity(0.9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDark
+              ? CustomColors.borderPrimaryDark
+              : CustomColors.borderPrimaryLight,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            name,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark
+                  ? CustomColors.textPrimaryDark
+                  : CustomColors.textPrimaryLight,
+            ),
+          ),
+          if (!isMicEnabled || isMuted) ...[
+            const SizedBox(width: 6),
+            Icon(Icons.mic_off, size: 13, color: CustomColors.error),
+          ],
+        ],
+      ),
+    );
+  }
+}

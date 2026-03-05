@@ -8,6 +8,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sizer/sizer.dart';
 import 'package:keyboard_dismisser/keyboard_dismisser.dart';
 
+import 'logic/cubits/app/app_cubit.dart';
+import 'logic/cubits/server/server_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'presentation/routing/app_routes.dart';
@@ -45,7 +47,11 @@ class _MyAppState extends State<MyApp> {
     return ToastificationWrapper(
       child: KeyboardDismisser(
         child: MultiBlocProvider(
-          providers: [BlocProvider(create: (_) => ThemeCubit())],
+          providers: [
+            BlocProvider(create: (_) => ThemeCubit()),
+            BlocProvider(create: (_) => ServerCubit()),
+            BlocProvider(create: (_) => AppCubit()),
+          ],
           child: Sizer(
             builder: (context, orientation, screenType) {
               return BlocBuilder<ThemeCubit, ThemeState>(
