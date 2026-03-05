@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/repositories/server_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
@@ -95,10 +96,7 @@ class _CreateServerFormState extends State<CreateServerForm> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
+    final borderColor = context.read<ThemeCubit>().state.borderPrimary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,7 +191,7 @@ class _SectionDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textTertiary = context.read<ThemeCubit>().state.textTertiary;
     return Row(
       children: [
         Text(
@@ -202,9 +200,7 @@ class _SectionDivider extends StatelessWidget {
             fontSize: 10,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.8,
-            color: isDark
-                ? CustomColors.textTertiaryDark
-                : CustomColors.textTertiaryLight,
+            color: textTertiary,
           ),
         ),
         const SizedBox(width: 10),

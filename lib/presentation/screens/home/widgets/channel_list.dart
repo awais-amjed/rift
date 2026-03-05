@@ -291,27 +291,16 @@ class _VoiceChannelTile extends StatelessWidget {
 class _EmptyChannels extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeState = context.read<ThemeCubit>().state;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.tag,
-            size: 32,
-            color: isDark
-                ? CustomColors.textQuaternaryDark
-                : CustomColors.textQuaternaryLight,
-          ),
+          Icon(Icons.tag, size: 32, color: themeState.textQuaternary),
           const SizedBox(height: 8),
           Text(
             'No channels yet',
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark
-                  ? CustomColors.textTertiaryDark
-                  : CustomColors.textTertiaryLight,
-            ),
+            style: TextStyle(fontSize: 13, color: themeState.textTertiary),
           ),
         ],
       ),

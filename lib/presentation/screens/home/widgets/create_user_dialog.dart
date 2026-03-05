@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/classes/server_user.dart';
 import '../../../../data/repositories/server_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
@@ -92,22 +93,12 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? CustomColors.bgSecondaryDark
-        : CustomColors.bgSecondaryLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
-    final textQuaternary = isDark
-        ? CustomColors.textQuaternaryDark
-        : CustomColors.textQuaternaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bgColor = themeState.bgSecondary;
+    final borderColor = themeState.borderPrimary;
+    final textPrimary = themeState.textPrimary;
+    final textTertiary = themeState.textTertiary;
+    final textQuaternary = themeState.textQuaternary;
 
     return Dialog(
       backgroundColor: bgColor,

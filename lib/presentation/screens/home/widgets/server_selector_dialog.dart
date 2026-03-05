@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/server.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import 'create_server_form.dart';
 import 'join_server_form.dart';
@@ -53,19 +53,11 @@ class _ServerSelectorDialogState extends State<ServerSelectorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? CustomColors.bgSecondaryDark
-        : CustomColors.bgSecondaryLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bgColor = themeState.bgSecondary;
+    final borderColor = themeState.borderPrimary;
+    final textPrimary = themeState.textPrimary;
+    final textTertiary = themeState.textTertiary;
 
     return Dialog(
       backgroundColor: bgColor,
@@ -207,16 +199,10 @@ class _ServerListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
-    final hoverColor = isDark
-        ? CustomColors.bgHoverDark
-        : CustomColors.bgHoverLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final textPrimary = themeState.textPrimary;
+    final textTertiary = themeState.textTertiary;
+    final hoverColor = themeState.bgHover;
 
     return Material(
       color: Colors.transparent,
@@ -321,13 +307,9 @@ class _AddServerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hoverColor = isDark
-        ? CustomColors.bgHoverDark
-        : CustomColors.bgHoverLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final hoverColor = themeState.bgHover;
+    final borderColor = themeState.borderPrimary;
 
     return Material(
       color: Colors.transparent,
@@ -369,16 +351,10 @@ class _EmptyServerList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
-    final textQuaternary = isDark
-        ? CustomColors.textQuaternaryDark
-        : CustomColors.textQuaternaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final textPrimary = themeState.textPrimary;
+    final textTertiary = themeState.textTertiary;
+    final textQuaternary = themeState.textQuaternary;
 
     return Column(
       children: [
@@ -387,9 +363,7 @@ class _EmptyServerList extends StatelessWidget {
           width: 64,
           height: 64,
           decoration: BoxDecoration(
-            color: isDark
-                ? CustomColors.bgTertiaryDark
-                : CustomColors.bgTertiaryLight,
+            color: themeState.bgTertiary,
             shape: BoxShape.circle,
           ),
           child: Icon(Icons.dns_outlined, size: 32, color: textQuaternary),
@@ -479,22 +453,12 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? CustomColors.bgTertiaryDark
-        : CustomColors.bgTertiaryLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
-    final hoverColor = isDark
-        ? CustomColors.bgHoverDark
-        : CustomColors.bgHoverLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bgColor = themeState.bgTertiary;
+    final borderColor = themeState.borderPrimary;
+    final textPrimary = themeState.textPrimary;
+    final textTertiary = themeState.textTertiary;
+    final hoverColor = themeState.bgHover;
 
     return Material(
       color: bgColor,
@@ -515,9 +479,7 @@ class _ModeCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? CustomColors.bgSecondaryDark
-                      : CustomColors.bgSecondaryLight,
+                  color: themeState.bgSecondary,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 22, color: CustomColors.primary),

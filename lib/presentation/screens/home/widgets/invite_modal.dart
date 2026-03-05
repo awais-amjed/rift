@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/repositories/server_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../theme/custom_colors.dart';
 
@@ -61,25 +62,13 @@ class _InviteModalState extends State<InviteModal> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? CustomColors.bgPrimaryDark
-        : CustomColors.bgPrimaryLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
-    final textQuaternary = isDark
-        ? CustomColors.textQuaternaryDark
-        : CustomColors.textQuaternaryLight;
-    final bgSecondary = isDark
-        ? CustomColors.bgSecondaryDark
-        : CustomColors.bgSecondaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bgColor = themeState.bgPrimary;
+    final borderColor = themeState.borderPrimary;
+    final textPrimary = themeState.textPrimary;
+    final textTertiary = themeState.textTertiary;
+    final textQuaternary = themeState.textQuaternary;
+    final bgSecondary = themeState.bgSecondary;
 
     return BlocBuilder<ServerCubit, ServerState>(
       builder: (context, serverState) {
@@ -304,10 +293,7 @@ class _CopyableField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hoverColor = isDark
-        ? CustomColors.bgHoverDark
-        : CustomColors.bgHoverLight;
+    final hoverColor = context.read<ThemeCubit>().state.bgHover;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

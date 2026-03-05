@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'channel_list.dart';
 import 'create_channel_dialog.dart';
 import 'invite_modal.dart';
@@ -96,13 +96,9 @@ class _SidebarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? CustomColors.sidebarBgDark
-        : CustomColors.sidebarBgLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bgColor = themeState.sidebarBg;
+    final borderColor = themeState.borderPrimary;
 
     return Container(
       decoration: BoxDecoration(
@@ -112,7 +108,9 @@ class _SidebarContent extends StatelessWidget {
             ? null
             : [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
+                  color: Colors.black.withValues(
+                    alpha: themeState.isDarkTheme ? 0.4 : 0.12,
+                  ),
                   blurRadius: 24,
                   offset: const Offset(4, 0),
                 ),
@@ -133,10 +131,7 @@ class _SidebarContent extends StatelessWidget {
 class _ServerHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
+    final textTertiary = context.read<ThemeCubit>().state.textTertiary;
 
     return BlocBuilder<ServerCubit, ServerState>(
       builder: (context, serverState) {
@@ -271,13 +266,9 @@ class _ChannelListWrapper extends StatelessWidget {
 class _SidebarTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? CustomColors.bgSecondaryDark
-        : CustomColors.bgSecondaryLight;
-    final iconColor = isDark
-        ? CustomColors.textSecondaryDark
-        : CustomColors.textSecondaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bgColor = themeState.bgSecondary;
+    final iconColor = themeState.textSecondary;
 
     return Positioned(
       left: 0,
@@ -294,14 +285,12 @@ class _SidebarTab extends StatelessWidget {
                 topRight: Radius.circular(8),
                 bottomRight: Radius.circular(8),
               ),
-              border: Border.all(
-                color: isDark
-                    ? CustomColors.borderPrimaryDark
-                    : CustomColors.borderPrimaryLight,
-              ),
+              border: Border.all(color: themeState.borderPrimary),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                  color: Colors.black.withValues(
+                    alpha: themeState.isDarkTheme ? 0.3 : 0.1,
+                  ),
                   blurRadius: 8,
                   offset: const Offset(2, 0),
                 ),

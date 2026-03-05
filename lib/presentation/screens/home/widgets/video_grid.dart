@@ -8,6 +8,7 @@ import '../../../../data/classes/participant_info.dart';
 import '../../../../data/repositories/server_repository.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import 'control_bar.dart';
 import 'participant_tile.dart';
@@ -316,7 +317,7 @@ class _WaitingForParticipants extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeState = context.read<ThemeCubit>().state;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -324,9 +325,7 @@ class _WaitingForParticipants extends StatelessWidget {
           Icon(
             Icons.people_outline,
             size: 64,
-            color: isDark
-                ? CustomColors.textQuaternaryDark
-                : CustomColors.textQuaternaryLight,
+            color: themeState.textQuaternary,
           ),
           const SizedBox(height: 16),
           Text(
@@ -334,20 +333,13 @@ class _WaitingForParticipants extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: isDark
-                  ? CustomColors.textPrimaryDark
-                  : CustomColors.textPrimaryLight,
+              color: themeState.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'You\'re the first one here',
-            style: TextStyle(
-              fontSize: 14,
-              color: isDark
-                  ? CustomColors.textTertiaryDark
-                  : CustomColors.textTertiaryLight,
-            ),
+            style: TextStyle(fontSize: 14, color: themeState.textTertiary),
           ),
         ],
       ),
@@ -360,16 +352,10 @@ class _NoChannelView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark
-        ? CustomColors.bgSecondaryDark
-        : CustomColors.bgSecondaryLight;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bg = themeState.bgSecondary;
+    final textPrimary = themeState.textPrimary;
+    final textTertiary = themeState.textTertiary;
 
     return Container(
       color: bg,
@@ -404,16 +390,10 @@ class _ConnectingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark
-        ? CustomColors.bgSecondaryDark
-        : CustomColors.bgSecondaryLight;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bg = themeState.bgSecondary;
+    final textPrimary = themeState.textPrimary;
+    final textTertiary = themeState.textTertiary;
 
     return Container(
       color: bg,
@@ -457,13 +437,9 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark
-        ? CustomColors.bgSecondaryDark
-        : CustomColors.bgSecondaryLight;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bg = themeState.bgSecondary;
+    final textPrimary = themeState.textPrimary;
 
     return Container(
       color: bg,

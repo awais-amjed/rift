@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/server.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 
 /// Displays the currently selected server in the sidebar header.
@@ -13,16 +15,10 @@ class ServerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
-    final hoverColor = isDark
-        ? CustomColors.bgHoverDark
-        : CustomColors.bgHoverLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final textPrimary = themeState.textPrimary;
+    final borderColor = themeState.borderPrimary;
+    final hoverColor = themeState.bgHover;
 
     return Material(
       color: Colors.transparent,
@@ -116,19 +112,11 @@ class NoServerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
-    final hoverColor = isDark
-        ? CustomColors.bgHoverDark
-        : CustomColors.bgHoverLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
-    final textQuaternary = isDark
-        ? CustomColors.textQuaternaryDark
-        : CustomColors.textQuaternaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final borderColor = themeState.borderPrimary;
+    final hoverColor = themeState.bgHover;
+    final textTertiary = themeState.textTertiary;
+    final textQuaternary = themeState.textQuaternary;
 
     return Material(
       color: Colors.transparent,
@@ -147,9 +135,7 @@ class NoServerButton extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? CustomColors.bgTertiaryDark
-                      : CustomColors.bgTertiaryLight,
+                  color: themeState.bgTertiary,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
