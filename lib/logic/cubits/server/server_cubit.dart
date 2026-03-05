@@ -4,12 +4,15 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_user.dart';
+import '../../../data/repositories/server_repository.dart';
 
 part 'server_cubit.g.dart';
 
 part 'server_state.dart';
 
 class ServerCubit extends HydratedCubit<ServerState> {
+  final ServerRepository _repository = ServerRepository();
+
   ServerCubit() : super(const ServerState());
 
   // ──────────────────────────────────────────────────────────
@@ -87,6 +90,41 @@ class ServerCubit extends HydratedCubit<ServerState> {
       );
     }).toList();
     emit(state.copyWith(servers: updated));
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // API Operations
+  // ──────────────────────────────────────────────────────────
+
+  /// Create an access/invite token for the selected server.
+  Future<({bool success, String? token, String? error})> createAccessToken({
+    bool isServerAdmin = false,
+    bool isChannelManager = false,
+    bool canCreateTokens = false,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, token: null, error: 'No server selected');
+    }
+
+    final response = await _repository.createAccessToken(
+      server.supabaseUrl,
+      server.token,
+      isServerAdmin: isServerAdmin,
+      isChannelManager: isChannelManager,
+      canCreateTokens: canCreateTokens,
+    );
+
+    if (response.success) {
+      final token = response.data['token'] as String;
+      return (success: true, token: token, error: null);
+    } else {
+      return (
+        success: false,
+        token: null,
+        error: response.error ?? 'Failed to generate invite token',
+      );
+    }
   }
 
   // ──────────────────────────────────────────────────────────

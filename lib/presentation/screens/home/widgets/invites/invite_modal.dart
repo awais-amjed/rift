@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/repositories/server_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/custom_colors.dart';
+import 'widgets/copyable_field.dart';
 
 /// Modal to generate and copy an invite token for a server.
 class InviteModal extends StatefulWidget {
@@ -17,8 +17,6 @@ class InviteModal extends StatefulWidget {
 }
 
 class _InviteModalState extends State<InviteModal> {
-  final _repository = ServerRepository();
-
   bool _isGenerating = false;
   String? _inviteToken;
   String? _error;
@@ -26,31 +24,24 @@ class _InviteModalState extends State<InviteModal> {
   bool _copiedUrl = false;
 
   Future<void> _generate() async {
-    final server = context.read<ServerCubit>().state.selectedServer;
-    if (server == null) return;
-
     setState(() {
       _isGenerating = true;
       _error = null;
       _inviteToken = null;
     });
 
-    final response = await _repository.createAccessToken(
-      server.supabaseUrl,
-      server.token,
-    );
+    final result = await context.read<ServerCubit>().createAccessToken();
 
     if (!mounted) return;
 
-    setState(() => _isGenerating = false);
-
-    if (response.success) {
-      setState(() => _inviteToken = response.data['token'] as String);
-    } else {
-      setState(
-        () => _error = response.error ?? 'Failed to generate invite token',
-      );
-    }
+    setState(() {
+      _isGenerating = false;
+      if (result.success) {
+        _inviteToken = result.token;
+      } else {
+        _error = result.error;
+      }
+    });
   }
 
   void _copyToClipboard(String text, void Function(bool) setCopied) async {
@@ -147,7 +138,7 @@ class _InviteModalState extends State<InviteModal> {
                             textColor: themeState.textTertiary,
                           ),
                           const SizedBox(height: 6),
-                          _CopyableField(
+                          CopyableField(
                             value: server?.supabaseUrl ?? '',
                             copied: _copiedUrl,
                             onCopy: () {
@@ -168,7 +159,7 @@ class _InviteModalState extends State<InviteModal> {
                             textColor: themeState.textTertiary,
                           ),
                           const SizedBox(height: 6),
-                          _CopyableField(
+                          CopyableField(
                             value: _inviteToken,
                             placeholder: _isGenerating
                                 ? 'Generating...'
@@ -274,85 +265,6 @@ class _FieldLabel extends StatelessWidget {
         letterSpacing: 0.8,
         color: textColor,
       ),
-    );
-  }
-}
-
-class _CopyableField extends StatelessWidget {
-  final String? value;
-  final String? placeholder;
-  final bool copied;
-  final VoidCallback? onCopy;
-  final Color bgColor;
-  final Color borderColor;
-  final Color textColor;
-  final Color? placeholderColor;
-
-  const _CopyableField({
-    this.value,
-    this.placeholder,
-    required this.copied,
-    this.onCopy,
-    required this.bgColor,
-    required this.borderColor,
-    required this.textColor,
-    this.placeholderColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: value != null
-                    ? Text(
-                        value!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontFamily: 'monospace',
-                          color: textColor,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      )
-                    : Text(
-                        placeholder ?? '',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontStyle: FontStyle.italic,
-                          color: placeholderColor ?? textColor,
-                        ),
-                      ),
-              ),
-              if (onCopy != null)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(6),
-                    hoverColor: themeState.bgHover,
-                    onTap: onCopy,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        copied ? Icons.check : Icons.copy,
-                        size: 15,
-                        color: copied ? CustomColors.success : textColor,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
