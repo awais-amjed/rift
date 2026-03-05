@@ -24,33 +24,42 @@ class Sidebar extends StatelessWidget {
       buildWhen: (prev, curr) =>
           prev.isPinned != curr.isPinned || prev.isHovered != curr.isHovered,
       builder: (context, appState) {
-        final visible = appState.isPinned || appState.isHovered;
+        // When collapsed, keep 24px width for hover zone and tab
+        const collapsedWidth = 24.0;
 
-        return Stack(
-          children: [
-            // Hover trigger zone (only when not pinned)
-            if (!appState.isPinned)
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 8,
-                child: MouseRegion(
-                  onEnter: (_) => context.read<AppCubit>().setIsHovered(true),
-                  cursor: SystemMouseCursors.resizeRight,
-                  child: const SizedBox.expand(),
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          width: appState.isPinned ? _kSidebarWidth : collapsedWidth,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Sidebar panel (only visible when pinned)
+              if (appState.isPinned)
+                SizedBox(
+                  width: _kSidebarWidth,
+                  child: _SidebarContent(isPinned: true),
                 ),
-              ),
-            // Sidebar panel
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              width: appState.isPinned ? _kSidebarWidth : 0,
-              child: _SidebarContent(isPinned: appState.isPinned),
-            ),
-            if (!appState.isPinned && appState.isHovered)
-              _FloatingSidebar(isHovered: appState.isHovered),
-          ],
+              // Floating sidebar (shown when hovering and not pinned)
+              if (!appState.isPinned && appState.isHovered)
+                _FloatingSidebar(isHovered: appState.isHovered),
+              // Always show hover trigger zone when not pinned
+              if (!appState.isPinned)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: collapsedWidth,
+                  child: MouseRegion(
+                    onEnter: (_) => context.read<AppCubit>().setIsHovered(true),
+                    cursor: SystemMouseCursors.resizeRight,
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              // Visual tab indicator when sidebar is hidden
+              if (!appState.isPinned && !appState.isHovered) _SidebarTab(),
+            ],
+          ),
         );
       },
     );
@@ -103,7 +112,7 @@ class _SidebarContent extends StatelessWidget {
             ? null
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
                   blurRadius: 24,
                   offset: const Offset(4, 0),
                 ),
@@ -254,6 +263,54 @@ class _ChannelListWrapper extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// Visual tab indicator that appears when sidebar is hidden
+class _SidebarTab extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark
+        ? CustomColors.bgSecondaryDark
+        : CustomColors.bgSecondaryLight;
+    final iconColor = isDark
+        ? CustomColors.textSecondaryDark
+        : CustomColors.textSecondaryLight;
+
+    return Positioned(
+      left: 0,
+      top: 12,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => context.read<AppCubit>().setIsPinned(true),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(8),
+                bottomRight: Radius.circular(8),
+              ),
+              border: Border.all(
+                color: isDark
+                    ? CustomColors.borderPrimaryDark
+                    : CustomColors.borderPrimaryLight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(2, 0),
+                ),
+              ],
+            ),
+            child: Icon(Icons.chevron_right, size: 18, color: iconColor),
+          ),
+        ),
+      ),
     );
   }
 }
