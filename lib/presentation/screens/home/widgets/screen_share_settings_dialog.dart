@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/screen_share_settings.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../common/app_button.dart';
 
@@ -54,22 +55,14 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
+    final themeState = context.read<ThemeCubit>().state;
+    final bgColor = themeState.isDarkTheme
         ? const Color(0xFF1E1E21)
         : CustomColors.bgSecondaryLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textSecondary = isDark
-        ? CustomColors.textSecondaryDark
-        : CustomColors.textSecondaryLight;
-    final textQuaternary = isDark
-        ? CustomColors.textQuaternaryDark
-        : CustomColors.textQuaternaryLight;
+    final borderColor = themeState.borderPrimary;
+    final textPrimary = themeState.textPrimary;
+    final textSecondary = themeState.textSecondary;
+    final textQuaternary = themeState.textQuaternary;
 
     return Dialog(
       backgroundColor: bgColor,
@@ -192,14 +185,12 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                   ),
                   decoration: BoxDecoration(
                     color: _shareAudio
-                        ? CustomColors.primary.withOpacity(0.08)
-                        : isDark
-                        ? CustomColors.bgTertiaryDark
-                        : CustomColors.bgTertiaryLight,
+                        ? CustomColors.primary.withValues(alpha: 0.08)
+                        : themeState.bgTertiary,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _shareAudio
-                          ? CustomColors.primary.withOpacity(0.35)
+                          ? CustomColors.primary.withValues(alpha: 0.35)
                           : borderColor,
                     ),
                   ),
@@ -253,9 +244,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? CustomColors.bgTertiaryDark
-                      : CustomColors.bgTertiaryLight,
+                  color: themeState.bgTertiary,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: borderColor),
                 ),
@@ -324,7 +313,7 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textTertiary = context.read<ThemeCubit>().state.textTertiary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -334,9 +323,7 @@ class _Section extends StatelessWidget {
             fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.8,
-            color: isDark
-                ? CustomColors.textTertiaryDark
-                : CustomColors.textTertiaryLight,
+            color: textTertiary,
           ),
         ),
         const SizedBox(height: 8),
@@ -355,7 +342,7 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeState = context.read<ThemeCubit>().state;
 
     return GestureDetector(
       onTap: onTap,
@@ -363,18 +350,10 @@ class _Chip extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: active
-              ? CustomColors.primary
-              : isDark
-              ? CustomColors.bgTertiaryDark
-              : CustomColors.bgTertiaryLight,
+          color: active ? CustomColors.primary : themeState.bgTertiary,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active
-                ? CustomColors.primary
-                : isDark
-                ? CustomColors.borderPrimaryDark
-                : CustomColors.borderPrimaryLight,
+            color: active ? CustomColors.primary : themeState.borderPrimary,
           ),
         ),
         child: Text(
@@ -382,11 +361,7 @@ class _Chip extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: active
-                ? Colors.white
-                : isDark
-                ? CustomColors.textSecondaryDark
-                : CustomColors.textSecondaryLight,
+            color: active ? Colors.white : themeState.textSecondary,
           ),
         ),
       ),
@@ -401,17 +376,13 @@ class _TogglePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgActive = context.read<ThemeCubit>().state.bgActive;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       width: 40,
       height: 22,
       decoration: BoxDecoration(
-        color: active
-            ? CustomColors.primary
-            : isDark
-            ? CustomColors.bgActiveDark
-            : CustomColors.bgActiveLight,
+        color: active ? CustomColors.primary : bgActive,
         borderRadius: BorderRadius.circular(11),
       ),
       child: AnimatedAlign(

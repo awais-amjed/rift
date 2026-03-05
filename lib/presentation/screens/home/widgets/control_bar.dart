@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import 'screen_share_settings_dialog.dart';
 
@@ -100,23 +101,23 @@ class _ControlBarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
+    final themeState = context.read<ThemeCubit>().state;
+    final bgColor = themeState.isDarkTheme
         ? const Color(0xFF1E1E21)
         : CustomColors.bgSecondaryLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
+    final borderColor = themeState.borderPrimary;
 
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: bgColor.withOpacity(0.9),
+        color: bgColor.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
+            color: Colors.black.withValues(
+              alpha: themeState.isDarkTheme ? 0.4 : 0.1,
+            ),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -211,28 +212,22 @@ class _ControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeState = context.read<ThemeCubit>().state;
 
     Color bgColor = Colors.transparent;
     Color iconColor;
 
     if (isActive) {
-      bgColor = CustomColors.primary.withOpacity(0.15);
+      bgColor = CustomColors.primary.withValues(alpha: 0.15);
       iconColor = CustomColors.primary;
     } else if (isError) {
-      bgColor = CustomColors.error.withOpacity(0.1);
+      bgColor = CustomColors.error.withValues(alpha: 0.1);
       iconColor = CustomColors.error;
     } else if (isDimmed) {
-      bgColor = isDark
-          ? CustomColors.bgTertiaryDark
-          : CustomColors.bgTertiaryLight;
-      iconColor = isDark
-          ? CustomColors.textTertiaryDark
-          : CustomColors.textTertiaryLight;
+      bgColor = themeState.bgTertiary;
+      iconColor = themeState.textTertiary;
     } else {
-      iconColor = isDark
-          ? CustomColors.textSecondaryDark
-          : CustomColors.textSecondaryLight;
+      iconColor = themeState.textSecondary;
     }
 
     return Tooltip(
@@ -242,9 +237,7 @@ class _ControlButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          hoverColor: isDark
-              ? CustomColors.bgHoverDark
-              : CustomColors.bgHoverLight,
+          hoverColor: themeState.bgHover,
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(14),
