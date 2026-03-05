@@ -78,67 +78,73 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.read<ThemeCubit>().state.isDarkTheme;
-    final hasVideo = _videoPub != null;
-    final isSpeaking = _isSpeaking && !widget.isMuted;
-    final name = widget.participant.name;
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        final hasVideo = _videoPub != null;
+        final isSpeaking = _isSpeaking && !widget.isMuted;
+        final name = widget.participant.name;
 
-    return GestureDetector(
-      onSecondaryTap: () => _showContextMenu(context),
-      onLongPress: () => _showContextMenu(context),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: isDark
-              ? CustomColors.bgSecondaryDark
-              : CustomColors.bgTertiaryLight,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSpeaking
-                ? CustomColors.primary
-                : isDark
-                ? CustomColors.borderPrimaryDark
-                : CustomColors.borderPrimaryLight,
-            width: isSpeaking ? 2 : 1,
-          ),
-          boxShadow: isSpeaking
-              ? [
-                  BoxShadow(
-                    color: CustomColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 12,
-                    spreadRadius: 2,
-                  ),
-                ]
-              : null,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(13),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Video or avatar
-              if (hasVideo && _videoPub!.track is VideoTrack)
-                VideoTrackRenderer(
-                  _videoPub!.track as VideoTrack,
-                  fit: VideoViewFit.contain,
-                )
-              else
-                _AvatarPlaceholder(name: name, isDark: isDark),
-              // Name + mic badge
-              Positioned(
-                bottom: 12,
-                left: 12,
-                child: _NameBadge(
-                  name: name,
-                  isMicEnabled: widget.participant.isMicrophoneEnabled(),
-                  isMuted: widget.isMuted,
-                  isDark: isDark,
-                ),
+        return GestureDetector(
+          onSecondaryTap: () => _showContextMenu(context),
+          onLongPress: () => _showContextMenu(context),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: themeState.isDarkTheme
+                  ? CustomColors.bgSecondaryDark
+                  : CustomColors.bgTertiaryLight,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSpeaking
+                    ? CustomColors.primary
+                    : themeState.isDarkTheme
+                    ? CustomColors.borderPrimaryDark
+                    : CustomColors.borderPrimaryLight,
+                width: isSpeaking ? 2 : 1,
               ),
-            ],
+              boxShadow: isSpeaking
+                  ? [
+                      BoxShadow(
+                        color: CustomColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Video or avatar
+                  if (hasVideo && _videoPub!.track is VideoTrack)
+                    VideoTrackRenderer(
+                      _videoPub!.track as VideoTrack,
+                      fit: VideoViewFit.contain,
+                    )
+                  else
+                    _AvatarPlaceholder(
+                      name: name,
+                      isDark: themeState.isDarkTheme,
+                    ),
+                  // Name + mic badge
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    child: _NameBadge(
+                      name: name,
+                      isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                      isMuted: widget.isMuted,
+                      isDark: themeState.isDarkTheme,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

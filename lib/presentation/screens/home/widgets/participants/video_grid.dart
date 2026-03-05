@@ -317,32 +317,35 @@ class _WaitingForParticipants extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.people_outline,
-            size: 64,
-            color: themeState.textQuaternary,
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.people_outline,
+                size: 64,
+                color: themeState.textQuaternary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Waiting for others...',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: themeState.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'You\'re the first one here',
+                style: TextStyle(fontSize: 14, color: themeState.textTertiary),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Waiting for others...',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: themeState.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'You\'re the first one here',
-            style: TextStyle(fontSize: 14, color: themeState.textTertiary),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -352,35 +355,37 @@ class _NoChannelView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final bg = themeState.bgSecondary;
-    final textPrimary = themeState.textPrimary;
-    final textTertiary = themeState.textTertiary;
-
-    return Container(
-      color: bg,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🎙️', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 16),
-            Text(
-              'No Channel Selected',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: textPrimary,
-              ),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Container(
+          color: themeState.bgSecondary,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🎙️', style: TextStyle(fontSize: 64)),
+                const SizedBox(height: 16),
+                Text(
+                  'No Channel Selected',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: themeState.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Select a voice channel from the sidebar to join',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: themeState.textTertiary,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Select a voice channel from the sidebar to join',
-              style: TextStyle(fontSize: 14, color: textTertiary),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -390,42 +395,44 @@ class _ConnectingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final bg = themeState.bgSecondary;
-    final textPrimary = themeState.textPrimary;
-    final textTertiary = themeState.textTertiary;
-
-    return Container(
-      color: bg,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 64,
-              height: 64,
-              child: CircularProgressIndicator(
-                strokeWidth: 4,
-                color: CustomColors.primary,
-              ),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Container(
+          color: themeState.bgSecondary,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 4,
+                    color: CustomColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Connecting...',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: themeState.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Joining voice channel',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: themeState.textTertiary,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Connecting...',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Joining voice channel',
-              style: TextStyle(fontSize: 14, color: textTertiary),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -437,38 +444,41 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final bg = themeState.bgSecondary;
-    final textPrimary = themeState.textPrimary;
-
-    return Container(
-      color: bg,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('⚠️', style: TextStyle(fontSize: 64)),
-            const SizedBox(height: 16),
-            Text(
-              'Connection Error',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: textPrimary,
-              ),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Container(
+          color: themeState.bgSecondary,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('⚠️', style: TextStyle(fontSize: 64)),
+                const SizedBox(height: 16),
+                Text(
+                  'Connection Error',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: themeState.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: Text(
+                    error,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: CustomColors.error,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48),
-              child: Text(
-                error,
-                style: const TextStyle(fontSize: 14, color: CustomColors.error),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

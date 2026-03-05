@@ -15,41 +15,42 @@ class ServerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final textPrimary = themeState.textPrimary;
-    final borderColor = themeState.borderPrimary;
-    final hoverColor = themeState.bgHover;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        hoverColor: hoverColor,
-        child: Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: borderColor)),
-          ),
-          child: Row(
-            children: [
-              _ServerAvatar(server: server),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  server.name,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: textPrimary,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            hoverColor: themeState.bgHover,
+            child: Container(
+              height: 64,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: themeState.borderPrimary),
                 ),
               ),
-            ],
+              child: Row(
+                children: [
+                  _ServerAvatar(server: server),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      server.name,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: themeState.textPrimary,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -112,63 +113,66 @@ class NoServerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final borderColor = themeState.borderPrimary;
-    final hoverColor = themeState.bgHover;
-    final textTertiary = themeState.textTertiary;
-    final textQuaternary = themeState.textQuaternary;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        hoverColor: hoverColor,
-        child: Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: borderColor)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: themeState.bgTertiary,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.dns_outlined,
-                  size: 16,
-                  color: textQuaternary,
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            hoverColor: themeState.bgHover,
+            child: Container(
+              height: 64,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: themeState.borderPrimary),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'No Server Selected',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: textTertiary,
-                      ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: themeState.bgTertiary,
+                      shape: BoxShape.circle,
                     ),
-                    Text(
-                      'Click to add',
-                      style: TextStyle(fontSize: 11, color: textQuaternary),
+                    child: Icon(
+                      Icons.dns_outlined,
+                      size: 16,
+                      color: themeState.textQuaternary,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'No Server Selected',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: themeState.textTertiary,
+                          ),
+                        ),
+                        Text(
+                          'Click to add',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: themeState.textQuaternary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

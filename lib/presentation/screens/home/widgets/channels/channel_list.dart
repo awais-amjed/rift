@@ -144,135 +144,140 @@ class _VoiceChannelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        Color bgColor;
+        Color textColor;
+        Color iconColor;
+        BorderSide? borderSide;
 
-    Color bgColor;
-    Color textColor;
-    Color iconColor;
-    BorderSide? borderSide;
+        if (isSelected) {
+          bgColor = themeState.channelActiveBg;
+          textColor = themeState.channelActiveText;
+          iconColor = CustomColors.primary;
+          borderSide = BorderSide(color: themeState.channelActiveBorder);
+        } else {
+          bgColor = Colors.transparent;
+          textColor = themeState.textSecondary;
+          iconColor = themeState.textQuaternary;
+          borderSide = null;
+        }
 
-    if (isSelected) {
-      bgColor = themeState.channelActiveBg;
-      textColor = themeState.channelActiveText;
-      iconColor = CustomColors.primary;
-      borderSide = BorderSide(color: themeState.channelActiveBorder);
-    } else {
-      bgColor = Colors.transparent;
-      textColor = themeState.textSecondary;
-      iconColor = themeState.textQuaternary;
-      borderSide = null;
-    }
+        final hoverColor = themeState.bgHover;
 
-    final hoverColor = themeState.bgHover;
+        return BlocBuilder<AppCubit, AppState>(
+          builder: (context, appState) {
+            final participants = isSelected ? appState.participants : [];
 
-    return BlocBuilder<AppCubit, AppState>(
-      builder: (context, appState) {
-        final participants = isSelected ? appState.participants : [];
-
-        return Column(
-          children: [
-            Material(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                hoverColor: hoverColor,
-                onTap: onTap,
-                child: Container(
-                  decoration: borderSide != null
-                      ? BoxDecoration(
-                          border: Border.all(
-                            color: borderSide.color,
-                            width: borderSide.width,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        )
-                      : null,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.volume_up, size: 17, color: iconColor),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          channel.name,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: textColor,
-                          ),
-                        ),
+            return Column(
+              children: [
+                Material(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    hoverColor: hoverColor,
+                    onTap: onTap,
+                    child: Container(
+                      decoration: borderSide != null
+                          ? BoxDecoration(
+                              border: Border.all(
+                                color: borderSide.color,
+                                width: borderSide.width,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            )
+                          : null,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
                       ),
-                      if (isSelected && participants.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: CustomColors.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${participants.length}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: CustomColors.primary,
+                      child: Row(
+                        children: [
+                          Icon(Icons.volume_up, size: 17, color: iconColor),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              channel.name,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: textColor,
+                              ),
                             ),
                           ),
-                        ),
-                      if (isSelected && participants.isEmpty)
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: CustomColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Participant list under active channel
-            if (isSelected && participants.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: Container(
-                  margin: const EdgeInsets.only(top: 2, bottom: 4),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                        color: themeState.borderPrimary,
-                        width: 1.5,
+                          if (isSelected && participants.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: CustomColors.primary.withValues(
+                                  alpha: 0.15,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '${participants.length}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: CustomColors.primary,
+                                ),
+                              ),
+                            ),
+                          if (isSelected && participants.isEmpty)
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: CustomColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                  child: Column(
-                    children: participants
-                        .map(
-                          (p) => ParticipantListItem(
-                            participant: p,
-                            setting: appState.participantSettings[p.identity],
-                            onLongPress: () {
-                              _showParticipantContextMenu(
-                                context,
-                                p.identity,
-                                p.name,
-                              );
-                            },
-                          ),
-                        )
-                        .toList(),
-                  ),
                 ),
-              ),
-          ],
+                // Participant list under active channel
+                if (isSelected && participants.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 2, bottom: 4),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: themeState.borderPrimary,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        children: participants
+                            .map(
+                              (p) => ParticipantListItem(
+                                participant: p,
+                                setting:
+                                    appState.participantSettings[p.identity],
+                                onLongPress: () {
+                                  _showParticipantContextMenu(
+                                    context,
+                                    p.identity,
+                                    p.name,
+                                  );
+                                },
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         );
       },
     );
@@ -293,19 +298,22 @@ class _VoiceChannelTile extends StatelessWidget {
 class _EmptyChannels extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.tag, size: 32, color: themeState.textQuaternary),
-          const SizedBox(height: 8),
-          Text(
-            'No channels yet',
-            style: TextStyle(fontSize: 13, color: themeState.textTertiary),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.tag, size: 32, color: themeState.textQuaternary),
+              const SizedBox(height: 8),
+              Text(
+                'No channels yet',
+                style: TextStyle(fontSize: 13, color: themeState.textTertiary),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

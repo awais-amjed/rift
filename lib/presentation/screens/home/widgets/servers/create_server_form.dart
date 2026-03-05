@@ -96,89 +96,91 @@ class _CreateServerFormState extends State<CreateServerForm> {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = context.read<ThemeCubit>().state.borderPrimary;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_error != null) _ErrorBanner(message: _error!),
-
-        AppTextField(
-          controller: _nameCtrl,
-          label: 'Server Name',
-          hint: 'My Server',
-          enabled: !_isLoading,
-          autofocus: true,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 18),
-
-        // Supabase section
-        _SectionDivider(
-          label: 'Supabase Configuration',
-          borderColor: borderColor,
-        ),
-        const SizedBox(height: 12),
-        AppTextField(
-          controller: _supabaseUrlCtrl,
-          label: 'Supabase URL',
-          hint: 'https://xxxxx.supabase.co',
-          enabled: !_isLoading,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 18),
-
-        // LiveKit section
-        _SectionDivider(
-          label: 'LiveKit Configuration',
-          borderColor: borderColor,
-        ),
-        const SizedBox(height: 12),
-        AppTextField(
-          controller: _livekitUrlCtrl,
-          label: 'LiveKit URL',
-          hint: 'wss://xxxxx.livekit.cloud',
-          enabled: !_isLoading,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 12),
-        AppTextField(
-          controller: _apiKeyCtrl,
-          label: 'LiveKit API Key',
-          hint: 'API Key',
-          enabled: !_isLoading,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 12),
-        AppTextField(
-          controller: _secretKeyCtrl,
-          label: 'LiveKit Secret Key',
-          hint: 'Secret Key',
-          obscureText: true,
-          enabled: !_isLoading,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 20),
-
-        Row(
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: AppButton(
-                label: _isLoading ? 'Creating...' : 'Create Server',
-                onPressed: _canSubmit && !_isLoading ? _submit : null,
-                isLoading: _isLoading,
-                expanded: true,
-              ),
+            if (_error != null) _ErrorBanner(message: _error!),
+
+            AppTextField(
+              controller: _nameCtrl,
+              label: 'Server Name',
+              hint: 'My Server',
+              enabled: !_isLoading,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(width: 10),
-            AppButton(
-              label: 'Back',
-              variant: AppButtonVariant.secondary,
-              onPressed: _isLoading ? null : widget.onCancel,
+            const SizedBox(height: 18),
+
+            // Supabase section
+            _SectionDivider(
+              label: 'Supabase Configuration',
+              borderColor: themeState.borderPrimary,
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              controller: _supabaseUrlCtrl,
+              label: 'Supabase URL',
+              hint: 'https://xxxxx.supabase.co',
+              enabled: !_isLoading,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 18),
+
+            // LiveKit section
+            _SectionDivider(
+              label: 'LiveKit Configuration',
+              borderColor: themeState.borderPrimary,
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              controller: _livekitUrlCtrl,
+              label: 'LiveKit URL',
+              hint: 'wss://xxxxx.livekit.cloud',
+              enabled: !_isLoading,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              controller: _apiKeyCtrl,
+              label: 'LiveKit API Key',
+              hint: 'API Key',
+              enabled: !_isLoading,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              controller: _secretKeyCtrl,
+              label: 'LiveKit Secret Key',
+              hint: 'Secret Key',
+              obscureText: true,
+              enabled: !_isLoading,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: _isLoading ? 'Creating...' : 'Create Server',
+                    onPressed: _canSubmit && !_isLoading ? _submit : null,
+                    isLoading: _isLoading,
+                    expanded: true,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                AppButton(
+                  label: 'Back',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: _isLoading ? null : widget.onCancel,
+                ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -191,21 +193,24 @@ class _SectionDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTertiary = context.read<ThemeCubit>().state.textTertiary;
-    return Row(
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-            color: textTertiary,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Divider(color: borderColor, height: 1)),
-      ],
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Row(
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: themeState.textTertiary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Divider(color: borderColor, height: 1)),
+          ],
+        );
+      },
     );
   }
 }

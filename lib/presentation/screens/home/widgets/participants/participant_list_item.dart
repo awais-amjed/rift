@@ -123,18 +123,20 @@ class _MicIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textQuaternary = context.read<ThemeCubit>().state.textQuaternary;
-
-    if (isMuted) {
-      return Icon(
-        Icons.volume_off,
-        size: 11,
-        color: CustomColors.error.withValues(alpha: 0.7),
-      );
-    }
-    if (isMicEnabled) {
-      return Icon(Icons.mic, size: 11, color: textQuaternary);
-    }
-    return Icon(Icons.mic_off, size: 11, color: CustomColors.error);
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        if (isMuted) {
+          return Icon(
+            Icons.volume_off,
+            size: 11,
+            color: CustomColors.error.withValues(alpha: 0.7),
+          );
+        }
+        if (isMicEnabled) {
+          return Icon(Icons.mic, size: 11, color: themeState.textQuaternary);
+        }
+        return Icon(Icons.mic_off, size: 11, color: CustomColors.error);
+      },
+    );
   }
 }

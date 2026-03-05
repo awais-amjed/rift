@@ -53,66 +53,71 @@ class _ServerSelectorDialogState extends State<ServerSelectorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final bgColor = themeState.bgSecondary;
-    final borderColor = themeState.borderPrimary;
-    final textPrimary = themeState.textPrimary;
-    final textTertiary = themeState.textTertiary;
-
-    return Dialog(
-      backgroundColor: bgColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: borderColor),
-      ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 448, maxHeight: 600),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 16, 14),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _title,
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: textPrimary,
-                          ),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Dialog(
+          backgroundColor: themeState.bgSecondary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: themeState.borderPrimary),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 448, maxHeight: 600),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 16, 14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _title,
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: themeState.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _subtitle,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: themeState.textTertiary,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _subtitle,
-                          style: TextStyle(fontSize: 12, color: textTertiary),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(
+                          Icons.close,
+                          size: 18,
+                          color: themeState.textTertiary,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close, size: 18, color: textTertiary),
+                ),
+                Divider(height: 1, color: themeState.borderPrimary),
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildContent(),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Divider(height: 1, color: borderColor),
-            // Content
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: _buildContent(),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -199,76 +204,83 @@ class _ServerListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final textPrimary = themeState.textPrimary;
-    final textTertiary = themeState.textTertiary;
-    final hoverColor = themeState.bgHover;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        hoverColor: hoverColor,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              // Avatar
-              _ServerAvatar(server: server),
-              const SizedBox(width: 12),
-              // Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            hoverColor: themeState.bgHover,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  // Avatar
+                  _ServerAvatar(server: server),
+                  const SizedBox(width: 12),
+                  // Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          server.name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: themeState.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          server.supabaseUrl,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: themeState.textTertiary,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Selected indicator
+                  if (isSelected) ...[
                     Text(
-                      server.name,
-                      style: TextStyle(
-                        fontSize: 14,
+                      'Active',
+                      style: const TextStyle(
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: textPrimary,
+                        color: CustomColors.primary,
                       ),
                     ),
-                    Text(
-                      server.supabaseUrl,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: textTertiary,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.check,
+                      size: 16,
+                      color: CustomColors.primary,
                     ),
                   ],
-                ),
-              ),
-              // Selected indicator
-              if (isSelected) ...[
-                Text(
-                  'Active',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: CustomColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.check, size: 16, color: CustomColors.primary),
-              ],
-              // Delete
-              if (canDelete)
-                IconButton(
-                  onPressed: onDelete,
-                  icon: Icon(Icons.close, size: 15, color: textTertiary),
-                  style: IconButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
+                  // Delete
+                  if (canDelete)
+                    IconButton(
+                      onPressed: onDelete,
+                      icon: Icon(
+                        Icons.close,
+                        size: 15,
+                        color: themeState.textTertiary,
+                      ),
+                      style: IconButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -307,39 +319,39 @@ class _AddServerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final hoverColor = themeState.bgHover;
-    final borderColor = themeState.borderPrimary;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        hoverColor: hoverColor,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
             borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.add, size: 18, color: CustomColors.primary),
-              const SizedBox(width: 8),
-              Text(
-                'Add Server',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: CustomColors.primary,
-                ),
+            hoverColor: themeState.bgHover,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border.all(color: themeState.borderPrimary),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.add, size: 18, color: CustomColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Add Server',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: CustomColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -351,54 +363,60 @@ class _EmptyServerList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final textPrimary = themeState.textPrimary;
-    final textTertiary = themeState.textTertiary;
-    final textQuaternary = themeState.textQuaternary;
-
-    return Column(
-      children: [
-        const SizedBox(height: 24),
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: themeState.bgTertiary,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.dns_outlined, size: 32, color: textQuaternary),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'No Servers Yet',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Get started by adding your first server',
-          style: TextStyle(fontSize: 13, color: textTertiary),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 24),
-        ElevatedButton.icon(
-          onPressed: onAddServer,
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Add Your First Server'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: CustomColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Column(
+          children: [
+            const SizedBox(height: 24),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: themeState.bgTertiary,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.dns_outlined,
+                size: 32,
+                color: themeState.textQuaternary,
+              ),
             ),
-          ),
-        ),
-        const SizedBox(height: 16),
-      ],
+            const SizedBox(height: 16),
+            Text(
+              'No Servers Yet',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: themeState.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Get started by adding your first server',
+              style: TextStyle(fontSize: 13, color: themeState.textTertiary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onAddServer,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Your First Server'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: CustomColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
     );
   }
 }
@@ -453,63 +471,63 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final bgColor = themeState.bgTertiary;
-    final borderColor = themeState.borderPrimary;
-    final textPrimary = themeState.textPrimary;
-    final textTertiary = themeState.textTertiary;
-    final hoverColor = themeState.bgHover;
-
-    return Material(
-      color: bgColor,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        hoverColor: hoverColor,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Material(
+          color: themeState.bgTertiary,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: themeState.bgSecondary,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 22, color: CustomColors.primary),
+            hoverColor: themeState.bgHover,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: themeState.borderPrimary),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: textPrimary,
-                      ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: themeState.bgSecondary,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(fontSize: 12, color: textTertiary),
+                    child: Icon(icon, size: 22, color: CustomColors.primary),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: themeState.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: themeState.textTertiary,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  Icon(Icons.chevron_right, color: themeState.textTertiary),
+                ],
               ),
-              Icon(Icons.chevron_right, color: textTertiary),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
