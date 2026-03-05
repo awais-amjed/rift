@@ -5,7 +5,7 @@ import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../servers/server_button.dart';
-import '../../servers/server_selector_dialog.dart';
+import '../../servers/server_selector/server_selector_dialog.dart';
 
 /// Header section of the sidebar with server button and pin toggle.
 class SidebarHeader extends StatelessWidget {
