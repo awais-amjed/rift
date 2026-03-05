@@ -97,9 +97,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
               border: Border.all(
                 color: isSpeaking
                     ? CustomColors.primary
-                    : themeState.isDarkTheme
-                    ? CustomColors.borderPrimaryDark
-                    : CustomColors.borderPrimaryLight,
+                    : themeState.borderPrimary,
                 width: isSpeaking ? 2 : 1,
               ),
               boxShadow: isSpeaking
@@ -136,7 +134,6 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       name: name,
                       isMicEnabled: widget.participant.isMicrophoneEnabled(),
                       isMuted: widget.isMuted,
-                      isDark: themeState.isDarkTheme,
                     ),
                   ),
                 ],
@@ -157,33 +154,31 @@ class _AvatarPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 112,
-        height: 112,
-        decoration: BoxDecoration(
-          color: isDark
-              ? CustomColors.bgTertiaryDark
-              : CustomColors.bgActiveLight,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark
-                ? CustomColors.borderPrimaryDark
-                : CustomColors.borderPrimaryLight,
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Center(
+          child: Container(
+            width: 112,
+            height: 112,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? CustomColors.bgTertiaryDark
+                  : CustomColors.bgActiveLight,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: themeState.borderPrimary),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.w700,
+                color: themeState.textTertiary,
+              ),
+            ),
           ),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : '?',
-          style: TextStyle(
-            fontSize: 40,
-            fontWeight: FontWeight.w700,
-            color: isDark
-                ? CustomColors.textTertiaryDark
-                : CustomColors.textTertiaryLight,
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -192,51 +187,47 @@ class _NameBadge extends StatelessWidget {
   final String name;
   final bool isMicEnabled;
   final bool isMuted;
-  final bool isDark;
 
   const _NameBadge({
     required this.name,
     required this.isMicEnabled,
     required this.isMuted,
-    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color:
-            (isDark
-                    ? CustomColors.bgTertiaryDark
-                    : CustomColors.bgSecondaryLight)
-                .withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDark
-              ? CustomColors.borderPrimaryDark
-              : CustomColors.borderPrimaryLight,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            name,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isDark
-                  ? CustomColors.textPrimaryDark
-                  : CustomColors.textPrimaryLight,
-            ),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color:
+                (themeState.isDarkTheme
+                        ? CustomColors.bgTertiaryDark
+                        : CustomColors.bgSecondaryLight)
+                    .withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: themeState.borderPrimary),
           ),
-          if (!isMicEnabled || isMuted) ...[
-            const SizedBox(width: 6),
-            Icon(Icons.mic_off, size: 13, color: CustomColors.error),
-          ],
-        ],
-      ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: themeState.textPrimary,
+                ),
+              ),
+              if (!isMicEnabled || isMuted) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.mic_off, size: 13, color: CustomColors.error),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }
