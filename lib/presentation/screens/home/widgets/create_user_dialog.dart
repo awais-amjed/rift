@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/channel.dart';
 import '../../../../data/classes/server_user.dart';
 import '../../../../data/repositories/server_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -131,7 +130,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: CustomColors.primary.withOpacity(0.1),
+                      color: CustomColors.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -170,10 +169,10 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: CustomColors.error.withOpacity(0.1),
+                    color: CustomColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: CustomColors.error.withOpacity(0.3),
+                      color: CustomColors.error.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(

@@ -73,7 +73,7 @@ class _ServerAvatar extends StatelessWidget {
           width: 32,
           height: 32,
           fit: BoxFit.cover,
-          errorWidget: (_, __, ___) => _InitialAvatar(name: server.name),
+          errorWidget: (_, _, _) => _InitialAvatar(name: server.name),
         ),
       );
     }

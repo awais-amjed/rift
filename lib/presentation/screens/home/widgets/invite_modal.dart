@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/server.dart';
 import '../../../../data/repositories/server_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/helper_methods.dart';
 import '../../../common/app_button.dart';
 import '../../../theme/custom_colors.dart';
 
@@ -107,7 +105,7 @@ class _InviteModalState extends State<InviteModal> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: CustomColors.primary.withOpacity(0.1),
+                          color: CustomColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(

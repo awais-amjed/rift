@@ -84,7 +84,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: CustomColors.primary.withOpacity(0.12),
+                      color: CustomColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(

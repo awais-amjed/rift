@@ -211,7 +211,7 @@ class _VoiceChannelTile extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: CustomColors.primary.withOpacity(0.15),
+                            color: CustomColors.primary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(

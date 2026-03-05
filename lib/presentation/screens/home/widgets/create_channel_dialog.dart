@@ -125,10 +125,10 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: CustomColors.error.withOpacity(0.1),
+                    color: CustomColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: CustomColors.error.withOpacity(0.3),
+                      color: CustomColors.error.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(

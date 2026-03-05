@@ -23,7 +23,7 @@ class VideoGrid extends StatefulWidget {
 class _VideoGridState extends State<VideoGrid> {
   final _repository = ServerRepository();
   Room? _room;
-  List<EventsListener<RoomEvent>> _listeners = [];
+  final List<EventsListener<RoomEvent>> _listeners = [];
 
   String? _currentChannelId;
   bool _isConnecting = false;

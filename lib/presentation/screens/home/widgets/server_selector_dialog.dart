@@ -159,8 +159,6 @@ class _ServerList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return BlocBuilder<ServerCubit, ServerState>(
       builder: (context, state) {
         if (state.servers.isEmpty) {
@@ -327,9 +325,6 @@ class _AddServerButton extends StatelessWidget {
     final hoverColor = isDark
         ? CustomColors.bgHoverDark
         : CustomColors.bgHoverLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
     final borderColor = isDark
         ? CustomColors.borderPrimaryDark
         : CustomColors.borderPrimaryLight;

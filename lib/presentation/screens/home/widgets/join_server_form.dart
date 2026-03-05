@@ -105,8 +105,6 @@ class _JoinServerFormState extends State<JoinServerForm> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -177,9 +175,9 @@ class _ErrorBanner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: CustomColors.error.withOpacity(0.1),
+        color: CustomColors.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: CustomColors.error.withOpacity(0.3)),
+        border: Border.all(color: CustomColors.error.withValues(alpha: 0.3)),
       ),
       child: Text(
         message,
