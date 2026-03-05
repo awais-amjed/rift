@@ -1,8 +1,11 @@
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_user.dart';
+
+part 'server_cubit.g.dart';
 
 part 'server_state.dart';
 

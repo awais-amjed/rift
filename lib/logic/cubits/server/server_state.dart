@@ -1,11 +1,13 @@
 part of 'server_cubit.dart';
 
+@JsonSerializable(explicitToJson: true)
 class ServerState {
   final List<Server> servers;
   final String? selectedServerId;
 
   const ServerState({this.servers = const [], this.selectedServerId});
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   Server? get selectedServer {
     if (selectedServerId == null) {
       return servers.isNotEmpty ? servers.first : null;
@@ -29,19 +31,8 @@ class ServerState {
     );
   }
 
-  factory ServerState.fromJson(Map<String, dynamic> json) {
-    return ServerState(
-      servers:
-          (json['servers'] as List<dynamic>?)
-              ?.map((s) => Server.fromJson(s as Map<String, dynamic>))
-              .toList() ??
-          [],
-      selectedServerId: json['selectedServerId'] as String?,
-    );
-  }
+  factory ServerState.fromJson(Map<String, dynamic> json) =>
+      _$ServerStateFromJson(json);
 
-  Map<String, dynamic> toJson() => {
-    'servers': servers.map((s) => s.toJson()).toList(),
-    'selectedServerId': selectedServerId,
-  };
+  Map<String, dynamic> toJson() => _$ServerStateToJson(this);
 }

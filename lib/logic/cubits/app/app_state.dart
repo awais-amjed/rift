@@ -1,5 +1,6 @@
 part of 'app_cubit.dart';
 
+@JsonSerializable(explicitToJson: true)
 class AppState {
   // ── Persisted ──────────────────────────────────────────────
   final bool isPinned;
@@ -9,8 +10,11 @@ class AppState {
   final Map<String, ParticipantSetting> participantSettings;
 
   // ── Transient (not stored in JSON) ─────────────────────────
+  @JsonKey(includeFromJson: false, includeToJson: false)
   final bool isHovered;
+  @JsonKey(includeFromJson: false, includeToJson: false)
   final String? selectedChannelId;
+  @JsonKey(includeFromJson: false, includeToJson: false)
   final List<ParticipantInfo> participants;
 
   const AppState({
@@ -49,37 +53,8 @@ class AppState {
     );
   }
 
-  factory AppState.fromJson(Map<String, dynamic> json) {
-    final settingsMap = <String, ParticipantSetting>{};
-    final raw = json['participantSettings'] as Map<String, dynamic>?;
-    if (raw != null) {
-      raw.forEach((key, value) {
-        settingsMap[key] = ParticipantSetting.fromJson(
-          value as Map<String, dynamic>,
-        );
-      });
-    }
+  factory AppState.fromJson(Map<String, dynamic> json) =>
+      _$AppStateFromJson(json);
 
-    return AppState(
-      isPinned: json['isPinned'] as bool? ?? true,
-      audioEnabled: json['audioEnabled'] as bool? ?? true,
-      videoEnabled: json['videoEnabled'] as bool? ?? false,
-      screenShareSettings: json['screenShareSettings'] != null
-          ? ScreenShareSettings.fromJson(
-              json['screenShareSettings'] as Map<String, dynamic>,
-            )
-          : const ScreenShareSettings(),
-      participantSettings: settingsMap,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'isPinned': isPinned,
-    'audioEnabled': audioEnabled,
-    'videoEnabled': videoEnabled,
-    'screenShareSettings': screenShareSettings.toJson(),
-    'participantSettings': participantSettings.map(
-      (key, value) => MapEntry(key, value.toJson()),
-    ),
-  };
+  Map<String, dynamic> toJson() => _$AppStateToJson(this);
 }
