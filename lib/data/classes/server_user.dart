@@ -15,12 +15,9 @@ class ServerUser {
 
   factory ServerUser.fromJson(Map<String, dynamic> json) {
     return ServerUser(
-      id: json['id'] as String? ?? '',
-      username: json['username'] as String? ?? '',
-      displayName:
-          json['display_name'] as String? ??
-          json['displayName'] as String? ??
-          '',
+      id: json['id'] as String,
+      username: json['username'] as String,
+      displayName: json['display_name'] as String,
       permissions: json['permissions'] != null
           ? UserPermissions.fromJson(
               json['permissions'] as Map<String, dynamic>,

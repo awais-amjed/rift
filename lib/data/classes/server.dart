@@ -28,10 +28,8 @@ class Server {
     String token,
     Map<String, dynamic> serverDetails,
   ) {
-    final serverId =
-        '${supabaseUrl}-${token.substring(0, token.length.clamp(0, 8))}';
     return Server(
-      id: serverId,
+      id: serverDetails['server_id'] as String,
       name: serverDetails['name'] as String? ?? 'Server',
       iconUrl: serverDetails['icon_url'] as String?,
       supabaseUrl: supabaseUrl,

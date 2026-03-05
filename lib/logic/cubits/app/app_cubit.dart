@@ -1,6 +1,7 @@
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 
 import '../../../data/classes/participant_info.dart';
+import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
 
 part 'app_state.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/participant_info.dart';
-import '../../../../data/classes/screen_share_settings.dart';
+import '../../../../data/classes/participant_setting.dart';
 import '../../../theme/custom_colors.dart';
 
 /// A single participant row inside an active voice channel.
@@ -39,9 +39,7 @@ class ParticipantListItem extends StatelessWidget {
     return GestureDetector(
       onLongPress: participant.isLocal ? null : onLongPress,
       child: Material(
-        color: isSpeaking
-            ? CustomColors.primary.withOpacity(0.08)
-            : Colors.transparent,
+        color: isSpeaking ? CustomColors.primary.withValues(alpha: 0.08) : null,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
@@ -61,8 +59,10 @@ class ParticipantListItem extends StatelessWidget {
                     boxShadow: isSpeaking
                         ? [
                             BoxShadow(
-                              color: CustomColors.primary.withOpacity(0.3),
-                              blurRadius: 4,
+                              color: CustomColors.primary.withValues(
+                                alpha: 0.3,
+                              ),
+                              blurRadius: 6,
                               spreadRadius: 1,
                             ),
                           ]
@@ -131,7 +131,7 @@ class _MicIcon extends StatelessWidget {
       return Icon(
         Icons.volume_off,
         size: 11,
-        color: CustomColors.error.withOpacity(0.7),
+        color: CustomColors.error.withValues(alpha: 0.7),
       );
     }
     if (isMicEnabled) {
