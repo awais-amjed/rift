@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/repositories/server_repository.dart';
-import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../common/app_button.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../../../data/repositories/server_repository.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/app_button.dart';
+import '../../../../theme/custom_colors.dart';
 
 /// Modal to generate and copy an invite token for a server.
 class InviteModal extends StatefulWidget {

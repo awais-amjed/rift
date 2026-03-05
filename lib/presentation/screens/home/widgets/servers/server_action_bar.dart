@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/user_permissions.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../data/classes/user_permissions.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
 
 /// Shows invite and create-channel action buttons based on user permissions.
 class ServerActionBar extends StatelessWidget {

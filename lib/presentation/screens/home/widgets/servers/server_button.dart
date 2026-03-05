@@ -2,9 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/server.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../../../data/classes/server.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/custom_colors.dart';
 
 /// Displays the currently selected server in the sidebar header.
 class ServerButton extends StatelessWidget {

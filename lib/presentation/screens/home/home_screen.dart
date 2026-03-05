@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/server/server_cubit.dart';
-import 'widgets/create_user_dialog.dart';
-import 'widgets/server_selector_dialog.dart';
+import 'widgets/profile/create_user_dialog.dart';
+import 'widgets/servers/server_selector_dialog.dart';
 import 'widgets/sidebar.dart';
-import 'widgets/video_grid.dart';
+import 'widgets/participants/video_grid.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

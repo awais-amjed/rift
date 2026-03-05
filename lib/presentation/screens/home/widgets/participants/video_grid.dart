@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-import '../../../../data/classes/participant_info.dart';
-import '../../../../data/repositories/server_repository.dart';
-import '../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/custom_colors.dart';
-import 'control_bar.dart';
+import '../../../../../data/classes/participant_info.dart';
+import '../../../../../data/repositories/server_repository.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/custom_colors.dart';
+import '../controls/control_bar.dart';
 import 'participant_tile.dart';
 
 /// Main video/audio area. Connects to LiveKit and renders participant tiles.

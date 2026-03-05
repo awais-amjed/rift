@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/channel.dart';
-import '../../../../data/enums/channel_type.dart';
-import '../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/custom_colors.dart';
-import 'participant_list_item.dart';
-import 'participant_context_menu.dart';
+import '../../../../../data/classes/channel.dart';
+import '../../../../../data/enums/channel_type.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/custom_colors.dart';
+import '../participants/participant_list_item.dart';
+import '../participants/participant_context_menu.dart';
 
 /// Lists all channels grouped by type. Voice channels show live participants.
 class ChannelList extends StatelessWidget {
@@ -71,17 +71,20 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textQuaternary = context.read<ThemeCubit>().state.textQuaternary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.8,
-          color: textQuaternary,
-        ),
+      child: BlocBuilder<ThemeCubit, ThemeState>(
+        builder: (context, themeState) {
+          return Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+              color: themeState.textQuaternary,
+            ),
+          );
+        },
       ),
     );
   }
@@ -94,36 +97,35 @@ class _TextChannelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final textSecondary = themeState.textSecondary;
-    final textQuaternary = themeState.textQuaternary;
-    final hoverColor = themeState.bgHover;
-
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        hoverColor: hoverColor,
-        onTap: () {},
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Row(
-            children: [
-              Icon(Icons.tag, size: 17, color: textQuaternary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  channel.name,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: textSecondary,
+      child: BlocBuilder<ThemeCubit, ThemeState>(
+        builder: (context, themeState) {
+          return InkWell(
+            borderRadius: BorderRadius.circular(10),
+            hoverColor: themeState.bgHover,
+            onTap: () {},
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.tag, size: 17, color: themeState.textQuaternary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      channel.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: themeState.textSecondary,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

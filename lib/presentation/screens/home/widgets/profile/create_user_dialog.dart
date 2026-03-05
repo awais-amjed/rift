@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/server_user.dart';
-import '../../../../data/repositories/server_repository.dart';
-import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../logic/helper_methods.dart';
-import '../../../common/app_button.dart';
-import '../../../common/app_text_field.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../../../data/classes/server_user.dart';
+import '../../../../../data/repositories/server_repository.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
+import '../../../../common/app_button.dart';
+import '../../../../common/app_text_field.dart';
+import '../../../../theme/custom_colors.dart';
 
 /// Dialog shown when user is in a server but has no profile yet.
 class CreateUserDialog extends StatefulWidget {

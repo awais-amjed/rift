@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/custom_colors.dart';
 import 'participant_context_menu.dart';
 
 /// Displays a single participant's video or avatar fallback tile.

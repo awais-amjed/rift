@@ -26,13 +26,11 @@ class AppModal extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final bgColor = themeState.bgSecondary;
         final borderColor = themeState.borderPrimary;
-        final textPrimary = themeState.textPrimary;
         final textTertiary = themeState.textTertiary;
 
         return Dialog(
-          backgroundColor: bgColor,
+          backgroundColor: themeState.bgSecondary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
             side: BorderSide(color: borderColor),
@@ -60,7 +58,7 @@ class AppModal extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
-                                color: textPrimary,
+                                color: themeState.textPrimary,
                               ),
                             ),
                             if (subtitle != null) ...[

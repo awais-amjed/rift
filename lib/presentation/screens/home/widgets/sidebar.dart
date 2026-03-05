@@ -4,13 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import 'channel_list.dart';
-import 'create_channel_dialog.dart';
-import 'invite_modal.dart';
-import 'server_action_bar.dart';
-import 'server_button.dart';
-import 'server_selector_dialog.dart';
-import 'user_profile.dart';
+import 'channels/channel_list.dart';
+import 'channels/create_channel_dialog.dart';
+import 'invites/invite_modal.dart';
+import 'servers/server_action_bar.dart';
+import 'servers/server_button.dart';
+import 'servers/server_selector_dialog.dart';
+import 'profile/user_profile.dart';
 
 const double _kSidebarWidth = 280;
 

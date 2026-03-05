@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/channel.dart';
-import '../../../../data/enums/channel_type.dart';
-import '../../../../data/repositories/server_repository.dart';
-import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../logic/helper_methods.dart';
-import '../../../common/app_button.dart';
-import '../../../common/app_text_field.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../../../data/classes/channel.dart';
+import '../../../../../data/enums/channel_type.dart';
+import '../../../../../data/repositories/server_repository.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
+import '../../../../common/app_button.dart';
+import '../../../../common/app_text_field.dart';
+import '../../../../theme/custom_colors.dart';
 
 /// Dialog to create a new channel (text or voice) in the current server.
 class CreateChannelDialog extends StatefulWidget {

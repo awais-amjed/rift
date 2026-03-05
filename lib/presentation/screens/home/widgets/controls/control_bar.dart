@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-import '../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/custom_colors.dart';
-import 'screen_share_settings_dialog.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/custom_colors.dart';
+import '../screen_share_settings_dialog.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 class ControlBar extends StatelessWidget {

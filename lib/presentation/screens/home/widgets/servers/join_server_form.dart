@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/repositories/server_repository.dart';
-import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/helper_methods.dart';
-import '../../../common/app_button.dart';
-import '../../../common/app_text_field.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../../../data/repositories/server_repository.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
+import '../../../../common/app_button.dart';
+import '../../../../common/app_text_field.dart';
+import '../../../../theme/custom_colors.dart';
 
 /// Form to join an existing server using a Supabase URL and access token.
 class JoinServerForm extends StatefulWidget {
