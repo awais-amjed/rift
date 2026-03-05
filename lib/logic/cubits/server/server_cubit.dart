@@ -127,6 +127,65 @@ class ServerCubit extends HydratedCubit<ServerState> {
     }
   }
 
+  /// Create a new channel in the selected server.
+  Future<({bool success, String? error})> createChannel({
+    required String name,
+    required String channelType,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, error: 'No server selected');
+    }
+
+    final response = await _repository.createChannel(
+      server.supabaseUrl,
+      server.token,
+      name: name,
+      channelType: channelType,
+    );
+
+    if (response.success) {
+      // Refresh server details to get updated channel list
+      await refreshServerDetails();
+      return (success: true, error: null);
+    } else {
+      return (
+        success: false,
+        error: response.error ?? 'Failed to create channel',
+      );
+    }
+  }
+
+  /// Refresh the channel list and other details for the selected server.
+  Future<({bool success, String? error})> refreshServerDetails() async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, error: 'No server selected');
+    }
+
+    final response = await _repository.getServerDetails(
+      server.supabaseUrl,
+      server.token,
+    );
+
+    if (response.success) {
+      final rawChannels = response.data['channels'] as List<dynamic>?;
+      final channels =
+          rawChannels
+              ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
+              .toList() ??
+          [];
+
+      updateServer(server.id, channels: channels);
+      return (success: true, error: null);
+    } else {
+      return (
+        success: false,
+        error: response.error ?? 'Failed to refresh server details',
+      );
+    }
+  }
+
   // ──────────────────────────────────────────────────────────
   // Hydration
   // ──────────────────────────────────────────────────────────

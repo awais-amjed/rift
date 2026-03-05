@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/classes/channel.dart';
 import '../../../../../data/enums/channel_type.dart';
-import '../../../../../data/repositories/server_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -20,7 +18,6 @@ class CreateChannelDialog extends StatefulWidget {
 }
 
 class _CreateChannelDialogState extends State<CreateChannelDialog> {
-  final _repository = ServerRepository();
   final _nameCtrl = TextEditingController();
 
   ChannelType _type = ChannelType.text;
@@ -38,47 +35,24 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   Future<void> _submit() async {
     if (!_canSubmit) return;
 
-    final server = context.read<ServerCubit>().state.selectedServer;
-    if (server == null) return;
-
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    final createResponse = await _repository.createChannel(
-      server.supabaseUrl,
-      server.token,
+    final result = await context.read<ServerCubit>().createChannel(
       name: _nameCtrl.text.trim(),
       channelType: _type.name,
     );
 
     if (!mounted) return;
 
-    if (!createResponse.success) {
+    if (!result.success) {
       setState(() {
-        _error = createResponse.error;
+        _error = result.error;
         _isLoading = false;
       });
       return;
-    }
-
-    // Refresh channel list
-    final detailsResponse = await _repository.getServerDetails(
-      server.supabaseUrl,
-      server.token,
-    );
-
-    if (!mounted) return;
-
-    if (detailsResponse.success) {
-      final rawChannels = detailsResponse.data['channels'] as List<dynamic>?;
-      final channels =
-          rawChannels
-              ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
-              .toList() ??
-          [];
-      context.read<ServerCubit>().updateServer(server.id, channels: channels);
     }
 
     HelperMethods.showSuccess(message: 'Channel created!');
