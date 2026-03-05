@@ -8,7 +8,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sizer/sizer.dart';
 import 'package:keyboard_dismisser/keyboard_dismisser.dart';
 
+import 'data/repositories/server_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
+import 'logic/cubits/livekit/livekit_cubit.dart';
 import 'logic/cubits/server/server_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/helper_methods.dart';
@@ -51,6 +53,12 @@ class _MyAppState extends State<MyApp> {
             BlocProvider(create: (_) => ThemeCubit()),
             BlocProvider(create: (_) => ServerCubit()),
             BlocProvider(create: (_) => AppCubit()),
+            BlocProvider(
+              create: (context) => LiveKitCubit(
+                repository: ServerRepository(),
+                appCubit: context.read<AppCubit>(),
+              ),
+            ),
           ],
           child: Sizer(
             builder: (context, orientation, screenType) {

@@ -1,39 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:livekit_client/livekit_client.dart';
 
-import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import '../screen_share_settings_dialog.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 class ControlBar extends StatelessWidget {
-  final Room room;
   final VoidCallback onLeave;
 
-  const ControlBar({super.key, required this.room, required this.onLeave});
+  const ControlBar({super.key, required this.onLeave});
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AppCubit, AppState>(
+    return BlocBuilder<LiveKitCubit, LiveKitState>(
       builder: (context, state) {
-        final localParticipant = room.localParticipant;
-        final isMicEnabled = localParticipant?.isMicrophoneEnabled() ?? false;
-        final isCameraEnabled = localParticipant?.isCameraEnabled() ?? false;
-        final isScreenSharing =
-            localParticipant?.isScreenShareEnabled() ?? false;
-
         return Positioned(
           bottom: 32,
           left: 0,
           right: 0,
           child: Center(
             child: _ControlBarContent(
-              room: room,
-              isMicEnabled: isMicEnabled,
-              isCameraEnabled: isCameraEnabled,
-              isScreenSharing: isScreenSharing,
+              isMicEnabled: state.isMicEnabled,
+              isCameraEnabled: state.isCameraEnabled,
+              isScreenSharing: state.isScreenSharing,
               onLeave: onLeave,
             ),
           ),
@@ -44,14 +35,12 @@ class ControlBar extends StatelessWidget {
 }
 
 class _ControlBarContent extends StatelessWidget {
-  final Room room;
   final bool isMicEnabled;
   final bool isCameraEnabled;
   final bool isScreenSharing;
   final VoidCallback onLeave;
 
   const _ControlBarContent({
-    required this.room,
     required this.isMicEnabled,
     required this.isCameraEnabled,
     required this.isScreenSharing,
@@ -59,8 +48,10 @@ class _ControlBarContent extends StatelessWidget {
   });
 
   Future<void> _handleScreenShare(BuildContext context) async {
+    final livekitCubit = context.read<LiveKitCubit>();
+
     if (isScreenSharing) {
-      await room.localParticipant?.setScreenShareEnabled(false);
+      await livekitCubit.toggleScreenShare();
       return;
     }
 
@@ -71,31 +62,22 @@ class _ControlBarContent extends StatelessWidget {
     if (settings == null) return;
 
     try {
-      await room.localParticipant?.setScreenShareEnabled(
-        true,
-        screenShareCaptureOptions: ScreenShareCaptureOptions(
-          useiOSBroadcastExtension: false,
-        ),
-      );
+      await livekitCubit.toggleScreenShare();
     } catch (e) {
       debugPrint('Screen share failed: $e');
     }
   }
 
   Future<void> _toggleMic(BuildContext context) async {
-    final next = !isMicEnabled;
-    await room.localParticipant?.setMicrophoneEnabled(next);
-    context.read<AppCubit>().setAudioEnabled(next);
+    await context.read<LiveKitCubit>().toggleMicrophone();
   }
 
   Future<void> _toggleCamera(BuildContext context) async {
-    final next = !isCameraEnabled;
-    await room.localParticipant?.setCameraEnabled(next);
-    context.read<AppCubit>().setVideoEnabled(next);
+    await context.read<LiveKitCubit>().toggleCamera();
   }
 
   Future<void> _leave(BuildContext context) async {
-    await room.disconnect();
+    await context.read<LiveKitCubit>().disconnect();
     onLeave();
   }
 

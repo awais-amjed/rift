@@ -1,0 +1,257 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:livekit_client/livekit_client.dart';
+
+import '../../../data/classes/participant_info.dart';
+import '../../../data/repositories/server_repository.dart';
+import '../app/app_cubit.dart';
+
+part 'livekit_state.dart';
+
+/// Cubit managing LiveKit room connections, participants, and media controls.
+class LiveKitCubit extends Cubit<LiveKitState> {
+  final ServerRepository _repository;
+  final AppCubit _appCubit;
+  final List<EventsListener<RoomEvent>> _listeners = [];
+
+  LiveKitCubit({
+    required ServerRepository repository,
+    required AppCubit appCubit,
+  }) : _repository = repository,
+       _appCubit = appCubit,
+       super(const LiveKitState());
+
+  // ──────────────────────────────────────────────────────────
+  // Connection Management
+  // ──────────────────────────────────────────────────────────
+
+  /// Connect to a LiveKit channel.
+  Future<void> connectToChannel({
+    required String channelId,
+    required String supabaseUrl,
+    required String token,
+    required String livekitUrl,
+    bool? micEnabled,
+    bool? cameraEnabled,
+  }) async {
+    emit(
+      state.copyWith(
+        connectionState: LiveKitConnectionState.connecting,
+        currentChannelId: channelId,
+        clearError: true,
+      ),
+    );
+
+    // Get LiveKit token from server
+    final response = await _repository.getChannelToken(
+      supabaseUrl,
+      token,
+      channelId,
+    );
+
+    if (!response.success) {
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: response.error ?? 'Failed to get channel token',
+        ),
+      );
+      return;
+    }
+
+    final livekitToken = response.data['token'] as String;
+    final room = Room(
+      roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
+    );
+
+    _setupRoomListeners(room);
+
+    try {
+      final useMicEnabled = micEnabled ?? state.isMicEnabled;
+      final useCameraEnabled = cameraEnabled ?? state.isCameraEnabled;
+
+      await room.connect(
+        livekitUrl,
+        livekitToken,
+        fastConnectOptions: FastConnectOptions(
+          microphone: TrackOption(enabled: useMicEnabled),
+          camera: TrackOption(enabled: useCameraEnabled),
+        ),
+      );
+
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.connected,
+          room: room,
+          isMicEnabled: useMicEnabled,
+          isCameraEnabled: useCameraEnabled,
+        ),
+      );
+
+      _syncParticipants();
+    } catch (e) {
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: 'Failed to connect: $e',
+        ),
+      );
+      room.dispose();
+    }
+  }
+
+  /// Disconnect from the current room.
+  Future<void> disconnect() async {
+    await _cleanupRoom();
+    _appCubit.setParticipants([]);
+    _appCubit.setSelectedChannelId(null);
+
+    emit(
+      state.copyWith(
+        connectionState: LiveKitConnectionState.disconnected,
+        clearRoom: true,
+        clearChannelId: true,
+        clearError: true,
+        participants: [],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Media Controls
+  // ──────────────────────────────────────────────────────────
+
+  /// Toggle microphone on/off.
+  Future<void> toggleMicrophone() async {
+    final room = state.room;
+    if (room == null) return;
+
+    final next = !state.isMicEnabled;
+    await room.localParticipant?.setMicrophoneEnabled(next);
+    _appCubit.setAudioEnabled(next);
+    emit(state.copyWith(isMicEnabled: next));
+    _syncParticipants();
+  }
+
+  /// Toggle camera on/off.
+  Future<void> toggleCamera() async {
+    final room = state.room;
+    if (room == null) return;
+
+    final next = !state.isCameraEnabled;
+    await room.localParticipant?.setCameraEnabled(next);
+    _appCubit.setVideoEnabled(next);
+    emit(state.copyWith(isCameraEnabled: next));
+    _syncParticipants();
+  }
+
+  /// Toggle screen sharing on/off.
+  Future<void> toggleScreenShare({
+    ScreenShareCaptureOptions? captureOptions,
+  }) async {
+    final room = state.room;
+    if (room == null) return;
+
+    final next = !state.isScreenSharing;
+
+    try {
+      await room.localParticipant?.setScreenShareEnabled(
+        next,
+        screenShareCaptureOptions:
+            captureOptions ??
+            ScreenShareCaptureOptions(useiOSBroadcastExtension: false),
+      );
+      emit(state.copyWith(isScreenSharing: next));
+      _syncParticipants();
+    } catch (e) {
+      emit(state.copyWith(error: 'Screen share failed: $e'));
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Internal Methods
+  // ──────────────────────────────────────────────────────────
+
+  void _setupRoomListeners(Room room) {
+    final listener = room.createListener();
+    _listeners.add(listener);
+
+    listener
+      ..on<ParticipantConnectedEvent>((e) => _syncParticipants())
+      ..on<ParticipantDisconnectedEvent>((e) => _syncParticipants())
+      ..on<TrackPublishedEvent>((e) => _syncParticipants())
+      ..on<TrackUnpublishedEvent>((e) => _syncParticipants())
+      ..on<ActiveSpeakersChangedEvent>((e) => _syncParticipants())
+      ..on<TrackMutedEvent>((e) => _syncParticipants())
+      ..on<TrackUnmutedEvent>((e) => _syncParticipants())
+      ..on<RoomDisconnectedEvent>((e) {
+        if (state.connectionState != LiveKitConnectionState.disconnected) {
+          emit(
+            state.copyWith(
+              connectionState: LiveKitConnectionState.disconnected,
+              clearRoom: true,
+            ),
+          );
+          _appCubit.setSelectedChannelId(null);
+        }
+      });
+  }
+
+  void _syncParticipants() {
+    final room = state.room;
+    if (room == null) return;
+
+    final allParticipants = <Participant>[
+      if (room.localParticipant != null) room.localParticipant!,
+      ...room.remoteParticipants.values,
+    ];
+
+    // Update state with current participants
+    emit(
+      state.copyWith(
+        participants: allParticipants,
+        isMicEnabled:
+            room.localParticipant?.isMicrophoneEnabled() ?? state.isMicEnabled,
+        isCameraEnabled:
+            room.localParticipant?.isCameraEnabled() ?? state.isCameraEnabled,
+        isScreenSharing:
+            room.localParticipant?.isScreenShareEnabled() ??
+            state.isScreenSharing,
+      ),
+    );
+
+    // Sync to AppCubit for UI display
+    final infos = allParticipants
+        .map(
+          (p) => ParticipantInfo(
+            identity: p.sid,
+            name: p.name,
+            isSpeaking: p.isSpeaking,
+            isMicrophoneEnabled: p.isMicrophoneEnabled(),
+            isCameraEnabled: p.isCameraEnabled(),
+            isLocal: p is LocalParticipant,
+          ),
+        )
+        .toList();
+
+    _appCubit.setParticipants(infos);
+  }
+
+  Future<void> _cleanupRoom() async {
+    for (final l in _listeners) {
+      l.dispose();
+    }
+    _listeners.clear();
+
+    final room = state.room;
+    if (room != null) {
+      await room.disconnect();
+      room.dispose();
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _cleanupRoom();
+    return super.close();
+  }
+}
