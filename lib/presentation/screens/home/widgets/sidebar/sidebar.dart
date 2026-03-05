@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import 'floating_sidebar.dart';
-import 'sidebar_content.dart';
-import 'sidebar_tab.dart';
+import 'widgets/sidebar_content.dart';
+import 'widgets/sidebar_tab.dart';
 
 /// Collapsible sidebar with server selector, channel list, and user profile.
 class Sidebar extends StatelessWidget {

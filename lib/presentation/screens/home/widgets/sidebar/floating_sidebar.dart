@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
-import 'sidebar_content.dart';
+import 'widgets/sidebar_content.dart';
 
 /// Floating sidebar shown when hovered (not pinned).
 class FloatingSidebar extends StatelessWidget {

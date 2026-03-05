@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../channels/create_channel_dialog.dart';
-import '../invites/invite_modal.dart';
-import '../servers/server_action_bar.dart';
+import '../../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../channels/create_channel_dialog.dart';
+import '../../invites/invite_modal.dart';
+import '../../servers/server_action_bar.dart';
 
 /// Action bar with invite and create channel buttons (if user has permissions).
 class SidebarActions extends StatelessWidget {
