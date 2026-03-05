@@ -68,8 +68,8 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     showDialog(
       context: context,
       builder: (_) => ParticipantContextMenu(
-        identity: widget.participant.identity,
-        name: widget.participant.name ?? widget.participant.identity,
+        identity: widget.participant.sid,
+        name: widget.participant.name,
       ),
     );
   }
@@ -79,7 +79,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasVideo = _videoPub != null;
     final isSpeaking = _isSpeaking && !widget.isMuted;
-    final name = widget.participant.name ?? widget.participant.identity;
+    final name = widget.participant.name;
 
     return GestureDetector(
       onSecondaryTap: () => _showContextMenu(context),
@@ -102,7 +102,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           boxShadow: isSpeaking
               ? [
                   BoxShadow(
-                    color: CustomColors.primary.withOpacity(0.3),
+                    color: CustomColors.primary.withValues(alpha: 0.3),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),
@@ -118,7 +118,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
               if (hasVideo && _videoPub!.track is VideoTrack)
                 VideoTrackRenderer(
                   _videoPub!.track as VideoTrack,
-                  fit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                  fit: VideoViewFit.contain,
                 )
               else
                 _AvatarPlaceholder(name: name, isDark: isDark),
@@ -202,7 +202,7 @@ class _NameBadge extends StatelessWidget {
             (isDark
                     ? CustomColors.bgTertiaryDark
                     : CustomColors.bgSecondaryLight)
-                .withOpacity(0.9),
+                .withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isDark
