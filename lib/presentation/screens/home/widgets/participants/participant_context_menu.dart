@@ -20,18 +20,19 @@ class ParticipantContextMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
+        final bgColor = themeState.isDarkTheme
+            ? const Color(0xFF1E1E21)
+            : CustomColors.bgSecondaryLight;
+        final borderColor = themeState.borderPrimary;
+        final textPrimary = themeState.textPrimary;
+        final textSecondary = themeState.textSecondary;
+        final textQuaternary = themeState.textQuaternary;
+
         return BlocBuilder<AppCubit, AppState>(
           builder: (context, state) {
             final setting = state.participantSettings[identity];
             final isMuted = setting?.muted ?? false;
             final volume = setting?.volume ?? 1.0;
-            final bgColor = themeState.isDarkTheme
-                ? const Color(0xFF1E1E21)
-                : CustomColors.bgSecondaryLight;
-            final borderColor = themeState.borderPrimary;
-            final textPrimary = themeState.textPrimary;
-            final textSecondary = themeState.textSecondary;
-            final textQuaternary = themeState.textQuaternary;
 
             return Dialog(
               backgroundColor: bgColor,

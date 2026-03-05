@@ -62,188 +62,196 @@ class _InviteModalState extends State<InviteModal> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final bgColor = themeState.bgPrimary;
-    final borderColor = themeState.borderPrimary;
-    final textPrimary = themeState.textPrimary;
-    final textTertiary = themeState.textTertiary;
-    final textQuaternary = themeState.textQuaternary;
-    final bgSecondary = themeState.bgSecondary;
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return BlocBuilder<ServerCubit, ServerState>(
+          builder: (context, serverState) {
+            final server = serverState.selectedServer;
 
-    return BlocBuilder<ServerCubit, ServerState>(
-      builder: (context, serverState) {
-        final server = serverState.selectedServer;
-
-        return Dialog(
-          backgroundColor: bgColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: borderColor),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 448),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 14, 16),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: CustomColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.person_add_outlined,
-                          size: 18,
-                          color: CustomColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Invite to ${server?.name ?? 'Server'}',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: textPrimary,
+            return Dialog(
+              backgroundColor: themeState.bgPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: themeState.borderPrimary),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 448),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 14, 16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: CustomColors.primary.withValues(
+                                alpha: 0.1,
                               ),
+                              borderRadius: BorderRadius.circular(10),
                             ),
+                            child: const Icon(
+                              Icons.person_add_outlined,
+                              size: 18,
+                              color: CustomColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Invite to ${server?.name ?? 'Server'}',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: themeState.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  'Generate a one-time access token',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: themeState.textTertiary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: Icon(
+                              Icons.close,
+                              size: 18,
+                              color: themeState.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(height: 1, color: themeState.borderPrimary),
+
+                    // Body
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Server URL
+                          _FieldLabel(
+                            label: 'Server URL',
+                            textColor: themeState.textTertiary,
+                          ),
+                          const SizedBox(height: 6),
+                          _CopyableField(
+                            value: server?.supabaseUrl ?? '',
+                            copied: _copiedUrl,
+                            onCopy: () {
+                              _copyToClipboard(
+                                server?.supabaseUrl ?? '',
+                                (v) => setState(() => _copiedUrl = v),
+                              );
+                            },
+                            bgColor: themeState.bgSecondary,
+                            borderColor: themeState.borderPrimary,
+                            textColor: themeState.textTertiary,
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Token
+                          _FieldLabel(
+                            label: 'Access Token',
+                            textColor: themeState.textTertiary,
+                          ),
+                          const SizedBox(height: 6),
+                          _CopyableField(
+                            value: _inviteToken,
+                            placeholder: _isGenerating
+                                ? 'Generating...'
+                                : 'Click generate to create a token',
+                            copied: _copiedToken,
+                            onCopy: _inviteToken != null
+                                ? () {
+                                    _copyToClipboard(
+                                      _inviteToken!,
+                                      (v) => setState(() => _copiedToken = v),
+                                    );
+                                  }
+                                : null,
+                            bgColor: themeState.bgSecondary,
+                            borderColor: themeState.borderPrimary,
+                            textColor: themeState.textTertiary,
+                            placeholderColor: themeState.textQuaternary,
+                          ),
+
+                          if (_error != null) ...[
+                            const SizedBox(height: 8),
                             Text(
-                              'Generate a one-time access token',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: textTertiary,
+                              _error!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: CustomColors.error,
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: Icon(Icons.close, size: 18, color: textTertiary),
-                      ),
-                    ],
-                  ),
-                ),
-                Divider(height: 1, color: borderColor),
 
-                // Body
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Server URL
-                      _FieldLabel(label: 'Server URL', textColor: textTertiary),
-                      const SizedBox(height: 6),
-                      _CopyableField(
-                        value: server?.supabaseUrl ?? '',
-                        copied: _copiedUrl,
-                        onCopy: () {
-                          _copyToClipboard(
-                            server?.supabaseUrl ?? '',
-                            (v) => setState(() => _copiedUrl = v),
-                          );
-                        },
-                        bgColor: bgSecondary,
-                        borderColor: borderColor,
-                        textColor: textTertiary,
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Token
-                      _FieldLabel(
-                        label: 'Access Token',
-                        textColor: textTertiary,
-                      ),
-                      const SizedBox(height: 6),
-                      _CopyableField(
-                        value: _inviteToken,
-                        placeholder: _isGenerating
-                            ? 'Generating...'
-                            : 'Click generate to create a token',
-                        copied: _copiedToken,
-                        onCopy: _inviteToken != null
-                            ? () {
-                                _copyToClipboard(
-                                  _inviteToken!,
-                                  (v) => setState(() => _copiedToken = v),
-                                );
-                              }
-                            : null,
-                        bgColor: bgSecondary,
-                        borderColor: borderColor,
-                        textColor: textTertiary,
-                        placeholderColor: textQuaternary,
-                      ),
-
-                      if (_error != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          _error!,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: CustomColors.error,
+                          const SizedBox(height: 10),
+                          Text(
+                            'Share both the server URL and token with the person you want to invite.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: themeState.textQuaternary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
 
-                      const SizedBox(height: 10),
-                      Text(
-                        'Share both the server URL and token with the person you want to invite.',
-                        style: TextStyle(fontSize: 11, color: textQuaternary),
+                    // Footer
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: AppButton(
+                              label: 'Close',
+                              variant: AppButtonVariant.secondary,
+                              onPressed: () => Navigator.of(context).pop(),
+                              expanded: true,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: AppButton(
+                              label: _isGenerating
+                                  ? 'Generating...'
+                                  : _inviteToken != null
+                                  ? 'Regenerate'
+                                  : 'Generate',
+                              isLoading: _isGenerating,
+                              onPressed: _isGenerating ? null : _generate,
+                              icon: _isGenerating
+                                  ? null
+                                  : const Icon(
+                                      Icons.person_add_outlined,
+                                      size: 15,
+                                      color: Colors.white,
+                                    ),
+                              expanded: true,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-
-                // Footer
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: AppButton(
-                          label: 'Close',
-                          variant: AppButtonVariant.secondary,
-                          onPressed: () => Navigator.of(context).pop(),
-                          expanded: true,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: AppButton(
-                          label: _isGenerating
-                              ? 'Generating...'
-                              : _inviteToken != null
-                              ? 'Regenerate'
-                              : 'Generate',
-                          isLoading: _isGenerating,
-                          onPressed: _isGenerating ? null : _generate,
-                          icon: _isGenerating
-                              ? null
-                              : const Icon(
-                                  Icons.person_add_outlined,
-                                  size: 15,
-                                  color: Colors.white,
-                                ),
-                          expanded: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -293,56 +301,58 @@ class _CopyableField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hoverColor = context.read<ThemeCubit>().state.bgHover;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: value != null
-                ? Text(
-                    value!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontFamily: 'monospace',
-                      color: textColor,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  )
-                : Text(
-                    placeholder ?? '',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontStyle: FontStyle.italic,
-                      color: placeholderColor ?? textColor,
-                    ),
-                  ),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
           ),
-          if (onCopy != null)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(6),
-                hoverColor: hoverColor,
-                onTap: onCopy,
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    copied ? Icons.check : Icons.copy,
-                    size: 15,
-                    color: copied ? CustomColors.success : textColor,
+          child: Row(
+            children: [
+              Expanded(
+                child: value != null
+                    ? Text(
+                        value!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontFamily: 'monospace',
+                          color: textColor,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      )
+                    : Text(
+                        placeholder ?? '',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                          color: placeholderColor ?? textColor,
+                        ),
+                      ),
+              ),
+              if (onCopy != null)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    hoverColor: themeState.bgHover,
+                    onTap: onCopy,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        copied ? Icons.check : Icons.copy,
+                        size: 15,
+                        color: copied ? CustomColors.success : textColor,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

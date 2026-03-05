@@ -15,10 +15,7 @@ class UserProfile extends StatelessWidget {
       builder: (context, themeState) {
         final bgColor = themeState.bgTertiary;
         final borderColor = themeState.borderPrimary;
-        final textPrimary = themeState.textPrimary;
         final textTertiary = themeState.textTertiary;
-        final textQuaternary = themeState.textQuaternary;
-        final hoverColor = themeState.bgHover;
 
         return BlocBuilder<ServerCubit, ServerState>(
           builder: (context, serverState) {
@@ -41,7 +38,7 @@ class UserProfile extends StatelessWidget {
                       color: Colors.transparent,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(8),
-                        hoverColor: hoverColor,
+                        hoverColor: themeState.bgHover,
                         onTap: () {},
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
@@ -77,7 +74,7 @@ class UserProfile extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         color: user != null
                                             ? CustomColors.userStatusOnline
-                                            : textQuaternary,
+                                            : themeState.textQuaternary,
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                           color: bgColor,
@@ -100,7 +97,7 @@ class UserProfile extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
-                                        color: textPrimary,
+                                        color: themeState.textPrimary,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),

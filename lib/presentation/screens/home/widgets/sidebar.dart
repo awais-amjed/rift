@@ -266,10 +266,6 @@ class _ChannelListWrapper extends StatelessWidget {
 class _SidebarTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final bgColor = themeState.bgSecondary;
-    final iconColor = themeState.textSecondary;
-
     return Positioned(
       left: 0,
       top: 12,
@@ -277,26 +273,34 @@ class _SidebarTab extends StatelessWidget {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: () => context.read<AppCubit>().setIsPinned(true),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(8),
-                bottomRight: Radius.circular(8),
-              ),
-              border: Border.all(color: themeState.borderPrimary),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: themeState.isDarkTheme ? 0.3 : 0.1,
+          child: BlocBuilder<ThemeCubit, ThemeState>(
+            builder: (context, themeState) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                decoration: BoxDecoration(
+                  color: themeState.bgSecondary,
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(8),
+                    bottomRight: Radius.circular(8),
                   ),
-                  blurRadius: 8,
-                  offset: const Offset(2, 0),
+                  border: Border.all(color: themeState.borderPrimary),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: themeState.isDarkTheme ? 0.3 : 0.1,
+                      ),
+                      blurRadius: 8,
+                      offset: const Offset(2, 0),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Icon(Icons.chevron_right, size: 18, color: iconColor),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: themeState.textSecondary,
+                ),
+              );
+            },
           ),
         ),
       ),

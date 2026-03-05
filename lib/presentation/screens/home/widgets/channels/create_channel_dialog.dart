@@ -87,128 +87,126 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final bgColor = themeState.bgSecondary;
-    final borderColor = themeState.borderPrimary;
-    final textPrimary = themeState.textPrimary;
-    final textTertiary = themeState.textTertiary;
-
-    return Dialog(
-      backgroundColor: bgColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: borderColor),
-      ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 448),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Create Channel',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: textPrimary,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              if (_error != null) ...[
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: CustomColors.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: CustomColors.error.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: CustomColors.error,
-                    ),
-                  ),
-                ),
-              ],
-
-              AppTextField(
-                controller: _nameCtrl,
-                label: 'Channel Name',
-                hint: 'general',
-                enabled: !_isLoading,
-                autofocus: true,
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 16),
-
-              // Channel type
-              Text(
-                'CHANNEL TYPE',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                  color: textTertiary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _TypeButton(
-                    icon: Icons.tag,
-                    label: 'Text',
-                    selected: _type == ChannelType.text,
-                    onTap: _isLoading
-                        ? null
-                        : () => setState(() => _type = ChannelType.text),
-                  ),
-                  const SizedBox(width: 8),
-                  _TypeButton(
-                    icon: Icons.volume_up,
-                    label: 'Voice',
-                    selected: _type == ChannelType.voice,
-                    onTap: _isLoading
-                        ? null
-                        : () => setState(() => _type = ChannelType.voice),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      label: _isLoading ? 'Creating...' : 'Create Channel',
-                      isLoading: _isLoading,
-                      onPressed: _canSubmit && !_isLoading ? _submit : null,
-                      expanded: true,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  AppButton(
-                    label: 'Cancel',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: _isLoading
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ],
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Dialog(
+          backgroundColor: themeState.bgSecondary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: themeState.borderPrimary),
           ),
-        ),
-      ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 448),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Create Channel',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: themeState.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  if (_error != null) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CustomColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: CustomColors.error.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: CustomColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  AppTextField(
+                    controller: _nameCtrl,
+                    label: 'Channel Name',
+                    hint: 'general',
+                    enabled: !_isLoading,
+                    autofocus: true,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Channel type
+                  Text(
+                    'CHANNEL TYPE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: themeState.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _TypeButton(
+                        icon: Icons.tag,
+                        label: 'Text',
+                        selected: _type == ChannelType.text,
+                        onTap: _isLoading
+                            ? null
+                            : () => setState(() => _type = ChannelType.text),
+                      ),
+                      const SizedBox(width: 8),
+                      _TypeButton(
+                        icon: Icons.volume_up,
+                        label: 'Voice',
+                        selected: _type == ChannelType.voice,
+                        onTap: _isLoading
+                            ? null
+                            : () => setState(() => _type = ChannelType.voice),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppButton(
+                          label: _isLoading ? 'Creating...' : 'Create Channel',
+                          isLoading: _isLoading,
+                          onPressed: _canSubmit && !_isLoading ? _submit : null,
+                          expanded: true,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      AppButton(
+                        label: 'Cancel',
+                        variant: AppButtonVariant.secondary,
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -228,39 +226,41 @@ class _TypeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected ? CustomColors.primary : themeState.bgTertiary,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: selected ? Colors.white : themeState.textSecondary,
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Expanded(
+          child: GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: selected ? CustomColors.primary : themeState.bgTertiary,
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : themeState.textSecondary,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 16,
+                    color: selected ? Colors.white : themeState.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: selected ? Colors.white : themeState.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -93,142 +93,148 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
-    final bgColor = themeState.bgSecondary;
-    final borderColor = themeState.borderPrimary;
-    final textPrimary = themeState.textPrimary;
-    final textTertiary = themeState.textTertiary;
-    final textQuaternary = themeState.textQuaternary;
-
-    return Dialog(
-      backgroundColor: bgColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: borderColor),
-      ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 448),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Dialog(
+          backgroundColor: themeState.bgSecondary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: themeState.borderPrimary),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 448),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: CustomColors.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.person_outline,
-                      size: 20,
-                      color: CustomColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // Header
+                  Row(
                     children: [
-                      Text(
-                        'Create Your Account',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: textPrimary,
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: CustomColors.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.person_outline,
+                          size: 20,
+                          color: CustomColors.primary,
                         ),
                       ),
-                      Text(
-                        'Set up your profile for this server',
-                        style: TextStyle(fontSize: 11, color: textTertiary),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Create Your Account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: themeState.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Set up your profile for this server',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: themeState.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  if (_error != null) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CustomColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: CustomColors.error.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: CustomColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  AppTextField(
+                    controller: _usernameCtrl,
+                    label: 'Username',
+                    hint: 'myusername',
+                    enabled: !_isLoading,
+                    autofocus: true,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 12),
+                    child: Text(
+                      'Unique identifier for this server',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: themeState.textQuaternary,
+                      ),
+                    ),
+                  ),
+
+                  AppTextField(
+                    controller: _displayNameCtrl,
+                    label: 'Display Name',
+                    hint: 'My Display Name',
+                    enabled: !_isLoading,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 20),
+                    child: Text(
+                      'How others will see you',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: themeState.textQuaternary,
+                      ),
+                    ),
+                  ),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppButton(
+                          label: _isLoading ? 'Creating...' : 'Create Account',
+                          isLoading: _isLoading,
+                          onPressed: _canSubmit && !_isLoading ? _submit : null,
+                          expanded: true,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      AppButton(
+                        label: 'Later',
+                        variant: AppButtonVariant.secondary,
+                        onPressed: _isLoading ? null : _dismiss,
                       ),
                     ],
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-
-              if (_error != null) ...[
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: CustomColors.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: CustomColors.error.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: CustomColors.error,
-                    ),
-                  ),
-                ),
-              ],
-
-              AppTextField(
-                controller: _usernameCtrl,
-                label: 'Username',
-                hint: 'myusername',
-                enabled: !_isLoading,
-                autofocus: true,
-                onChanged: (_) => setState(() {}),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 12),
-                child: Text(
-                  'Unique identifier for this server',
-                  style: TextStyle(fontSize: 11, color: textQuaternary),
-                ),
-              ),
-
-              AppTextField(
-                controller: _displayNameCtrl,
-                label: 'Display Name',
-                hint: 'My Display Name',
-                enabled: !_isLoading,
-                onChanged: (_) => setState(() {}),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 20),
-                child: Text(
-                  'How others will see you',
-                  style: TextStyle(fontSize: 11, color: textQuaternary),
-                ),
-              ),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      label: _isLoading ? 'Creating...' : 'Create Account',
-                      isLoading: _isLoading,
-                      onPressed: _canSubmit && !_isLoading ? _submit : null,
-                      expanded: true,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  AppButton(
-                    label: 'Later',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: _isLoading ? null : _dismiss,
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
