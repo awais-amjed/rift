@@ -1,5 +1,3 @@
-import 'participant_setting.dart';
-
 class ScreenShareSettings {
   final int resolution; // height in px (720, 1080, 1440, 2160)
   final int fps;

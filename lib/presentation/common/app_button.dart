@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/custom_colors.dart';
 
 enum AppButtonVariant { primary, secondary, danger }
@@ -25,7 +27,7 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeState = context.read<ThemeCubit>().state;
 
     Color bgColor;
     Color fgColor;
@@ -36,12 +38,8 @@ class AppButton extends StatelessWidget {
         fgColor = Colors.white;
         break;
       case AppButtonVariant.secondary:
-        bgColor = isDark
-            ? CustomColors.bgTertiaryDark
-            : CustomColors.bgTertiaryLight;
-        fgColor = isDark
-            ? CustomColors.textSecondaryDark
-            : CustomColors.textSecondaryLight;
+        bgColor = themeState.bgTertiary;
+        fgColor = themeState.textSecondary;
         break;
       case AppButtonVariant.danger:
         bgColor = CustomColors.error;
@@ -75,7 +73,7 @@ class AppButton extends StatelessWidget {
       style: FilledButton.styleFrom(
         backgroundColor: bgColor,
         foregroundColor: fgColor,
-        disabledBackgroundColor: bgColor.withOpacity(0.5),
+        disabledBackgroundColor: bgColor.withValues(alpha: 0.5),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         elevation: 0,

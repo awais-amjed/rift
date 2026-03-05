@@ -5,6 +5,7 @@ import '../../../../data/classes/channel.dart';
 import '../../../../data/enums/channel_type.dart';
 import '../../../../data/repositories/server_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
@@ -86,22 +87,11 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark
-        ? CustomColors.bgSecondaryDark
-        : CustomColors.bgSecondaryLight;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
-    final textPrimary = isDark
-        ? CustomColors.textPrimaryDark
-        : CustomColors.textPrimaryLight;
-    final textSecondary = isDark
-        ? CustomColors.textSecondaryDark
-        : CustomColors.textSecondaryLight;
-    final textTertiary = isDark
-        ? CustomColors.textTertiaryDark
-        : CustomColors.textTertiaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final bgColor = themeState.bgSecondary;
+    final borderColor = themeState.borderPrimary;
+    final textPrimary = themeState.textPrimary;
+    final textTertiary = themeState.textTertiary;
 
     return Dialog(
       backgroundColor: bgColor,
@@ -238,7 +228,7 @@ class _TypeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeState = context.read<ThemeCubit>().state;
 
     return Expanded(
       child: GestureDetector(
@@ -247,11 +237,7 @@ class _TypeButton extends StatelessWidget {
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected
-                ? CustomColors.primary
-                : isDark
-                ? CustomColors.bgTertiaryDark
-                : CustomColors.bgTertiaryLight,
+            color: selected ? CustomColors.primary : themeState.bgTertiary,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -260,11 +246,7 @@ class _TypeButton extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: selected
-                    ? Colors.white
-                    : isDark
-                    ? CustomColors.textSecondaryDark
-                    : CustomColors.textSecondaryLight,
+                color: selected ? Colors.white : themeState.textSecondary,
               ),
               const SizedBox(width: 8),
               Text(
@@ -272,11 +254,7 @@ class _TypeButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: selected
-                      ? Colors.white
-                      : isDark
-                      ? CustomColors.textSecondaryDark
-                      : CustomColors.textSecondaryLight,
+                  color: selected ? Colors.white : themeState.textSecondary,
                 ),
               ),
             ],

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/classes/channel.dart';
 import '../../../../data/enums/channel_type.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import 'participant_list_item.dart';
 import 'participant_context_menu.dart';
@@ -70,7 +71,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textQuaternary = context.read<ThemeCubit>().state.textQuaternary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Text(
@@ -79,9 +80,7 @@ class _SectionHeader extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.8,
-          color: isDark
-              ? CustomColors.textQuaternaryDark
-              : CustomColors.textQuaternaryLight,
+          color: textQuaternary,
         ),
       ),
     );
@@ -95,16 +94,10 @@ class _TextChannelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textSecondary = isDark
-        ? CustomColors.textSecondaryDark
-        : CustomColors.textSecondaryLight;
-    final textQuaternary = isDark
-        ? CustomColors.textQuaternaryDark
-        : CustomColors.textQuaternaryLight;
-    final hoverColor = isDark
-        ? CustomColors.bgHoverDark
-        : CustomColors.bgHoverLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final textSecondary = themeState.textSecondary;
+    final textQuaternary = themeState.textQuaternary;
+    final hoverColor = themeState.bgHover;
 
     return Material(
       color: Colors.transparent,
@@ -149,7 +142,7 @@ class _VoiceChannelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeState = context.read<ThemeCubit>().state;
 
     Color bgColor;
     Color textColor;
@@ -157,32 +150,18 @@ class _VoiceChannelTile extends StatelessWidget {
     BorderSide? borderSide;
 
     if (isSelected) {
-      bgColor = isDark
-          ? CustomColors.channelActiveBgDark
-          : CustomColors.channelActiveBgLight;
-      textColor = isDark
-          ? CustomColors.channelActiveTextDark
-          : CustomColors.channelActiveTextLight;
+      bgColor = themeState.channelActiveBg;
+      textColor = themeState.channelActiveText;
       iconColor = CustomColors.primary;
-      borderSide = BorderSide(
-        color: isDark
-            ? CustomColors.channelActiveBorderDark
-            : CustomColors.channelActiveBorderLight,
-      );
+      borderSide = BorderSide(color: themeState.channelActiveBorder);
     } else {
       bgColor = Colors.transparent;
-      textColor = isDark
-          ? CustomColors.textSecondaryDark
-          : CustomColors.textSecondaryLight;
-      iconColor = isDark
-          ? CustomColors.textQuaternaryDark
-          : CustomColors.textQuaternaryLight;
+      textColor = themeState.textSecondary;
+      iconColor = themeState.textQuaternary;
       borderSide = null;
     }
 
-    final hoverColor = isDark
-        ? CustomColors.bgHoverDark
-        : CustomColors.bgHoverLight;
+    final hoverColor = themeState.bgHover;
 
     return BlocBuilder<AppCubit, AppState>(
       builder: (context, appState) {
@@ -267,9 +246,7 @@ class _VoiceChannelTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     border: Border(
                       left: BorderSide(
-                        color: isDark
-                            ? CustomColors.borderPrimaryDark
-                            : CustomColors.borderPrimaryLight,
+                        color: themeState.borderPrimary,
                         width: 1.5,
                       ),
                     ),

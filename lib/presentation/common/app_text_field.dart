@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/custom_colors.dart';
 
 /// Themed text field used throughout the app.
@@ -29,10 +31,8 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark
-        ? CustomColors.borderPrimaryDark
-        : CustomColors.borderPrimaryLight;
+    final themeState = context.read<ThemeCubit>().state;
+    final borderColor = themeState.borderPrimary;
     final focusColor = CustomColors.primary;
 
     return Column(
@@ -45,9 +45,7 @@ class AppTextField extends StatelessWidget {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
-              color: isDark
-                  ? CustomColors.textTertiaryDark
-                  : CustomColors.textTertiaryLight,
+              color: themeState.textTertiary,
             ),
           ),
           const SizedBox(height: 6),
@@ -60,24 +58,15 @@ class AppTextField extends StatelessWidget {
           onChanged: onChanged,
           onEditingComplete: onEditingComplete,
           autofocus: autofocus,
-          style: TextStyle(
-            fontSize: 14,
-            color: isDark
-                ? CustomColors.textPrimaryDark
-                : CustomColors.textPrimaryLight,
-          ),
+          style: TextStyle(fontSize: 14, color: themeState.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
               fontSize: 14,
-              color: isDark
-                  ? CustomColors.textQuaternaryDark
-                  : CustomColors.textQuaternaryLight,
+              color: themeState.textQuaternary,
             ),
             filled: true,
-            fillColor: isDark
-                ? CustomColors.bgTertiaryDark
-                : CustomColors.bgTertiaryLight,
+            fillColor: themeState.bgTertiary,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(color: borderColor),
@@ -92,7 +81,7 @@ class AppTextField extends StatelessWidget {
             ),
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: borderColor.withOpacity(0.5)),
+              borderSide: BorderSide(color: borderColor.withValues(alpha: 0.5)),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
