@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/participant_info.dart';
 import '../../../../data/classes/participant_setting.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 
 /// A single participant row inside an active voice channel.
@@ -19,97 +21,96 @@ class ParticipantListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isMuted = setting?.muted ?? false;
-    final isSpeaking = participant.isSpeaking && !isMuted;
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        final isMuted = setting?.muted ?? false;
+        final isSpeaking = participant.isSpeaking && !isMuted;
 
-    final textSecondary = isDark
-        ? CustomColors.textSecondaryDark
-        : CustomColors.textSecondaryLight;
-    final textQuaternary = isDark
-        ? CustomColors.textQuaternaryDark
-        : CustomColors.textQuaternaryLight;
-    final bgTertiary = isDark
-        ? CustomColors.bgTertiaryDark
-        : CustomColors.bgTertiaryLight;
-    final hoverColor = isDark
-        ? CustomColors.bgHoverDark
-        : CustomColors.bgHoverLight;
+        final textSecondary = themeState.textSecondary;
+        final textQuaternary = themeState.textQuaternary;
+        final bgTertiary = themeState.bgTertiary;
+        final hoverColor = themeState.bgHover;
 
-    return GestureDetector(
-      onLongPress: participant.isLocal ? null : onLongPress,
-      child: Material(
-        color: isSpeaking ? CustomColors.primary.withValues(alpha: 0.08) : null,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          hoverColor: hoverColor,
+        return GestureDetector(
           onLongPress: participant.isLocal ? null : onLongPress,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              children: [
-                // Avatar dot
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: isSpeaking ? CustomColors.primary : bgTertiary,
-                    shape: BoxShape.circle,
-                    boxShadow: isSpeaking
-                        ? [
-                            BoxShadow(
-                              color: CustomColors.primary.withValues(
-                                alpha: 0.3,
-                              ),
-                              blurRadius: 6,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    participant.name.isNotEmpty
-                        ? participant.name[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: isSpeaking ? Colors.white : textQuaternary,
+          child: Material(
+            color: isSpeaking
+                ? CustomColors.primary.withValues(alpha: 0.08)
+                : null,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              hoverColor: hoverColor,
+              onLongPress: participant.isLocal ? null : onLongPress,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: Row(
+                  children: [
+                    // Avatar dot
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: isSpeaking ? CustomColors.primary : bgTertiary,
+                        shape: BoxShape.circle,
+                        boxShadow: isSpeaking
+                            ? [
+                                BoxShadow(
+                                  color: CustomColors.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 6,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        participant.name.isNotEmpty
+                            ? participant.name[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: isSpeaking ? Colors.white : textQuaternary,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Name
-                Expanded(
-                  child: Text(
-                    participant.isLocal
-                        ? '${participant.name} (You)'
-                        : participant.name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isSpeaking
-                          ? CustomColors.primary
-                          : isMuted
-                          ? textQuaternary
-                          : textSecondary,
-                      decoration: isMuted ? TextDecoration.lineThrough : null,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 8),
+                    // Name
+                    Expanded(
+                      child: Text(
+                        participant.isLocal
+                            ? '${participant.name} (You)'
+                            : participant.name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isSpeaking
+                              ? CustomColors.primary
+                              : isMuted
+                              ? textQuaternary
+                              : textSecondary,
+                          decoration: isMuted
+                              ? TextDecoration.lineThrough
+                              : null,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
-                  ),
+                    // Mic icon
+                    _MicIcon(
+                      isMuted: isMuted,
+                      isMicEnabled: participant.isMicrophoneEnabled,
+                    ),
+                  ],
                 ),
-                // Mic icon
-                _MicIcon(
-                  isMuted: isMuted,
-                  isMicEnabled: participant.isMicrophoneEnabled,
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -122,10 +123,7 @@ class _MicIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textQuaternary = isDark
-        ? CustomColors.textQuaternaryDark
-        : CustomColors.textQuaternaryLight;
+    final textQuaternary = context.read<ThemeCubit>().state.textQuaternary;
 
     if (isMuted) {
       return Icon(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import 'participant_context_menu.dart';
 
@@ -76,7 +78,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = context.read<ThemeCubit>().state.isDarkTheme;
     final hasVideo = _videoPub != null;
     final isSpeaking = _isSpeaking && !widget.isMuted;
     final name = widget.participant.name;
