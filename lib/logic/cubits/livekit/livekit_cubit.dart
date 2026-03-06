@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../data/classes/participant_info.dart';
@@ -183,7 +184,24 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   }
 
   /// Set local volume for a remote participant's audio (for this user only).
-  void setParticipantVolume(String identity, double volume) {
+  Future<void> setParticipantVolume(String identity, double volume) async {
+    final room = state.room;
+    if (room == null) return;
+
+    final participant = room.remoteParticipants[identity];
+    if (participant != null) {
+      for (final pub in participant.audioTrackPublications) {
+        final track = pub.track;
+        if (track != null) {
+          try {
+            await rtc.Helper.setVolume(volume, track.mediaStreamTrack);
+          } catch (e) {
+            debugPrint('setParticipantVolume error: $e');
+          }
+        }
+      }
+    }
+
     _appCubit.setParticipantSetting(identity, volume: volume);
   }
 
@@ -287,7 +305,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _appCubit.setParticipants(infos);
   }
 
-  /// Re-applies persisted mute settings to all current remote participants.
+  /// Re-applies persisted mute/volume settings to all current remote participants.
   void _applyStoredSettings() {
     final room = state.room;
     if (room == null) return;
@@ -296,15 +314,21 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     for (final entry in settings.entries) {
       final identity = entry.key;
       final setting = entry.value;
-      if (!setting.muted) continue;
 
       final participant = room.remoteParticipants[identity];
       if (participant == null) continue;
 
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
-        if (track != null) {
+        if (track == null) continue;
+
+        if (setting.muted) {
           track.disable();
+        } else {
+          track.enable();
+          if (setting.volume != 1.0) {
+            rtc.Helper.setVolume(setting.volume, track.mediaStreamTrack);
+          }
         }
       }
     }
