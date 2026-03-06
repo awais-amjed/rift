@@ -60,7 +60,9 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
 
   void _updateVideoTrack() {
     _videoPub = widget.participant.videoTrackPublications
-        .where((t) => t.source == TrackSource.camera && t.track != null)
+        .where(
+          (t) => t.source == TrackSource.camera && t.track != null && !t.muted,
+        )
         .cast<TrackPublication?>()
         .firstOrNull;
     _isSpeaking = widget.participant.isSpeaking;
