@@ -141,13 +141,10 @@ class VoiceChannelTile extends StatelessWidget {
                                 participant: p,
                                 setting:
                                     appState.participantSettings[p.identity],
-                                onLongPress: () {
-                                  _showParticipantContextMenu(
-                                    context,
-                                    p.identity,
-                                    p.name,
-                                  );
-                                },
+                                contextMenu: ParticipantContextMenu(
+                                  identity: p.identity,
+                                  name: p.name,
+                                ),
                               ),
                             )
                             .toList(),
@@ -159,17 +156,6 @@ class VoiceChannelTile extends StatelessWidget {
           },
         );
       },
-    );
-  }
-
-  void _showParticipantContextMenu(
-    BuildContext context,
-    String identity,
-    String name,
-  ) {
-    showDialog(
-      context: context,
-      builder: (_) => ParticipantContextMenu(identity: identity, name: name),
     );
   }
 }
