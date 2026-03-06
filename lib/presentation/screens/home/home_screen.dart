@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../logic/cubits/app/app_cubit.dart';
+import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import 'widgets/servers/create_user_dialog.dart';
 import 'widgets/servers/server_selector/server_selector_dialog.dart';
@@ -55,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Listen for server state changes to auto-open dialogs
     return BlocListener<ServerCubit, ServerState>(
       listener: (context, state) {
         if (state.servers.isEmpty) {
@@ -70,13 +71,64 @@ class _HomeScreenState extends State<HomeScreen> {
           prev.selectedServer?.id != curr.selectedServer?.id ||
           prev.selectedServer?.user != curr.selectedServer?.user,
       child: Scaffold(
-        body: Row(
-          children: const [
-            Sidebar(),
-            Expanded(child: ParticipantsGrid()),
-          ],
+        body: BlocBuilder<AppCubit, AppState>(
+          buildWhen: (prev, curr) => prev.isPinned != curr.isPinned,
+          builder: (context, appState) {
+            return Stack(
+              children: [
+                // Base layout: sidebar (when pinned) + content in a Row
+                Row(
+                  children: [
+                    if (appState.isPinned) const Sidebar(),
+                    const Expanded(child: ParticipantsGrid()),
+                  ],
+                ),
+                // Floating hamburger button — shown when sidebar is unpinned
+                if (!appState.isPinned)
+                  Positioned(
+                    left: 12,
+                    top: 12,
+                    child: _HamburgerButton(
+                      onTap: () => context.read<AppCubit>().setIsPinned(true),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
+    );
+  }
+}
+
+class _HamburgerButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _HamburgerButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Material(
+          color: themeState.bgSecondary,
+          borderRadius: BorderRadius.circular(10),
+          elevation: 4,
+          shadowColor: Colors.black.withValues(alpha: 0.3),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Icon(
+                Icons.menu,
+                size: 20,
+                color: themeState.textSecondary,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
