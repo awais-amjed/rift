@@ -58,11 +58,11 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     }
 
     HelperMethods.showSuccess(message: 'Account created!');
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(true);
   }
 
   void _dismiss() {
-    if (!_isLoading) Navigator.of(context).pop();
+    if (!_isLoading) Navigator.of(context).pop(false);
   }
 
   @override

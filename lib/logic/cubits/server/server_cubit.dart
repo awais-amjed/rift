@@ -203,6 +203,44 @@ class ServerCubit extends HydratedCubit<ServerState> {
     }
   }
 
+  /// Validate token and join server. Returns server details and whether user exists.
+  Future<
+    ({
+      bool success,
+      String? error,
+      Map<String, dynamic>? serverDetails,
+      bool userExists,
+    })
+  >
+  validateAndJoinServer(String supabaseUrl, String token) async {
+    final response = await _repository.getServerDetails(supabaseUrl, token);
+
+    if (!response.success) {
+      return (
+        success: false,
+        error: response.error ?? 'Failed to connect to server',
+        serverDetails: null,
+        userExists: false,
+      );
+    }
+
+    final serverData = response.data as Map<String, dynamic>;
+    final user = serverData['user'];
+    final userExists = user != null;
+
+    if (userExists) {
+      // User already exists, add server directly
+      addServer(supabaseUrl, token, serverData);
+    }
+
+    return (
+      success: true,
+      error: null,
+      serverDetails: serverData,
+      userExists: userExists,
+    );
+  }
+
   /// Refresh the channel list and other details for the selected server.
   Future<({bool success, String? error})> refreshServerDetails() async {
     final server = state.selectedServer;

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/repositories/server_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../theme/custom_colors.dart';
+import 'create_user_dialog.dart';
 
 /// Form to join an existing server using a Supabase URL and access token.
 class JoinServerForm extends StatefulWidget {
@@ -24,28 +24,20 @@ class JoinServerForm extends StatefulWidget {
 }
 
 class _JoinServerFormState extends State<JoinServerForm> {
-  final _repository = ServerRepository();
-
   final _supabaseUrlCtrl = TextEditingController();
   final _tokenCtrl = TextEditingController();
-  final _usernameCtrl = TextEditingController();
-  final _displayNameCtrl = TextEditingController();
 
   bool _isLoading = false;
   String? _error;
 
   bool get _canSubmit =>
       _supabaseUrlCtrl.text.trim().isNotEmpty &&
-      _tokenCtrl.text.trim().isNotEmpty &&
-      _usernameCtrl.text.trim().isNotEmpty &&
-      _displayNameCtrl.text.trim().isNotEmpty;
+      _tokenCtrl.text.trim().isNotEmpty;
 
   @override
   void dispose() {
     _supabaseUrlCtrl.dispose();
     _tokenCtrl.dispose();
-    _usernameCtrl.dispose();
-    _displayNameCtrl.dispose();
     super.dispose();
   }
 
@@ -60,47 +52,45 @@ class _JoinServerFormState extends State<JoinServerForm> {
     final supabaseUrl = _supabaseUrlCtrl.text.trim();
     final token = _tokenCtrl.text.trim();
 
-    // Join server — links token to user
-    final joinResponse = await _repository.joinServer(
-      supabaseUrl,
-      token,
-      username: _usernameCtrl.text.trim(),
-      displayName: _displayNameCtrl.text.trim(),
-    );
-
-    if (!mounted) return;
-
-    if (!joinResponse.success) {
-      setState(() {
-        _error = joinResponse.error;
-        _isLoading = false;
-      });
-      return;
-    }
-
-    // Fetch full server details
-    final detailsResponse = await _repository.getServerDetails(
+    // Validate token and check if user exists
+    final result = await context.read<ServerCubit>().validateAndJoinServer(
       supabaseUrl,
       token,
     );
 
     if (!mounted) return;
 
-    if (!detailsResponse.success) {
-      setState(() {
-        _error = detailsResponse.error;
-        _isLoading = false;
-      });
+    setState(() => _isLoading = false);
+
+    if (!result.success) {
+      setState(() => _error = result.error);
       return;
     }
 
-    context.read<ServerCubit>().addServer(
-      supabaseUrl,
-      token,
-      detailsResponse.data,
-    );
-    HelperMethods.showSuccess(message: 'Joined server successfully!');
-    widget.onSuccess();
+    if (result.userExists) {
+      // User already exists, server was added by cubit
+      HelperMethods.showSuccess(message: 'Joined server successfully!');
+      widget.onSuccess();
+    } else {
+      // User doesn't exist, show create user dialog
+      _showCreateUserDialog();
+    }
+  }
+
+  void _showCreateUserDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => BlocProvider.value(
+        value: context.read<ServerCubit>(),
+        child: const CreateUserDialog(),
+      ),
+    ).then((created) {
+      if (created == true) {
+        HelperMethods.showSuccess(message: 'Joined server successfully!');
+        widget.onSuccess();
+      }
+    });
   }
 
   @override
@@ -114,6 +104,7 @@ class _JoinServerFormState extends State<JoinServerForm> {
           label: 'Supabase URL',
           hint: 'https://xxxxx.supabase.co',
           enabled: !_isLoading,
+          autofocus: true,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 14),
@@ -124,28 +115,12 @@ class _JoinServerFormState extends State<JoinServerForm> {
           enabled: !_isLoading,
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: 14),
-        AppTextField(
-          controller: _usernameCtrl,
-          label: 'Username',
-          hint: 'myusername',
-          enabled: !_isLoading,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 14),
-        AppTextField(
-          controller: _displayNameCtrl,
-          label: 'Display Name',
-          hint: 'My Display Name',
-          enabled: !_isLoading,
-          onChanged: (_) => setState(() {}),
-        ),
         const SizedBox(height: 20),
         Row(
           children: [
             Expanded(
               child: AppButton(
-                label: _isLoading ? 'Joining...' : 'Join Server',
+                label: _isLoading ? 'Connecting...' : 'Continue',
                 onPressed: _canSubmit && !_isLoading ? _submit : null,
                 isLoading: _isLoading,
                 expanded: true,
