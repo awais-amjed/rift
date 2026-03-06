@@ -93,6 +93,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
           room: room,
           isMicEnabled: useMicEnabled,
           isCameraEnabled: useCameraEnabled,
+          isDeafened: false,
         ),
       );
 
@@ -120,6 +121,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.disconnected,
+        isDeafened: false,
         clearChannelId: true,
         clearError: true,
         participants: [],
@@ -137,14 +139,15 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   // Media Controls
   // ──────────────────────────────────────────────────────────
 
-  /// Toggle microphone on/off. Also clears deafen if currently deafened.
+  /// Toggle microphone on/off. If deafened, just un-deafens (which restores mic).
   Future<void> toggleMicrophone() async {
     final room = state.room;
     if (room == null) return;
 
-    // Un-deafen first if deafened (re-subscribe all audio, then toggle mic)
     if (state.isDeafened) {
+      // Un-deafen restores mic to its last persisted state — don't toggle on top
       await _setDeafened(false);
+      return;
     }
 
     final next = !state.isMicEnabled;
@@ -346,12 +349,16 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       ...room.remoteParticipants.values,
     ];
 
-    // Update state with current participants
+    // Don't derive mic/camera/screen state from LiveKit when deafened —
+    // deafen forces mic off at the WebRTC level but the cubit state should
+    // reflect what the user had set before deafening.
     emit(
       state.copyWith(
         participants: allParticipants,
-        isMicEnabled:
-            room.localParticipant?.isMicrophoneEnabled() ?? state.isMicEnabled,
+        isMicEnabled: state.isDeafened
+            ? state.isMicEnabled
+            : (room.localParticipant?.isMicrophoneEnabled() ??
+                  state.isMicEnabled),
         isCameraEnabled:
             room.localParticipant?.isCameraEnabled() ?? state.isCameraEnabled,
         isScreenSharing:
