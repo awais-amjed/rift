@@ -10,14 +10,14 @@ import 'widgets/no_channel_view.dart';
 import 'widgets/room_view.dart';
 
 /// Main video/audio area. Connects to LiveKit and renders participant tiles.
-class VideoGrid extends StatefulWidget {
-  const VideoGrid({super.key});
+class ParticipantsGrid extends StatefulWidget {
+  const ParticipantsGrid({super.key});
 
   @override
-  State<VideoGrid> createState() => _VideoGridState();
+  State<ParticipantsGrid> createState() => _ParticipantsGridState();
 }
 
-class _VideoGridState extends State<VideoGrid> {
+class _ParticipantsGridState extends State<ParticipantsGrid> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<AppCubit, AppState>(

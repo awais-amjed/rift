@@ -5,7 +5,7 @@ import '../../../logic/cubits/server/server_cubit.dart';
 import 'widgets/servers/create_user_dialog.dart';
 import 'widgets/servers/server_selector/server_selector_dialog.dart';
 import 'widgets/sidebar/sidebar.dart';
-import 'widgets/video_grid/video_grid.dart';
+import 'widgets/participants_grid/participants_grid.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
         body: Row(
           children: const [
             Sidebar(),
-            Expanded(child: VideoGrid()),
+            Expanded(child: ParticipantsGrid()),
           ],
         ),
       ),
