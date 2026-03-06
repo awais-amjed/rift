@@ -71,26 +71,7 @@ class _JoinServerFormState extends State<JoinServerForm> {
       // User already exists, server was added by cubit
       HelperMethods.showSuccess(message: 'Joined server successfully!');
       widget.onSuccess();
-    } else {
-      // User doesn't exist, show create user dialog
-      _showCreateUserDialog();
     }
-  }
-
-  void _showCreateUserDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => BlocProvider.value(
-        value: context.read<ServerCubit>(),
-        child: const CreateUserDialog(),
-      ),
-    ).then((created) {
-      if (created == true) {
-        HelperMethods.showSuccess(message: 'Joined server successfully!');
-        widget.onSuccess();
-      }
-    });
   }
 
   @override
