@@ -73,7 +73,9 @@ class _JoinServerFormState extends State<JoinServerForm> {
       widget.onSuccess();
     }
 
-    Navigator.pop(context);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
   }
 
   @override
