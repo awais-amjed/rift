@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/context_menu_region.dart';
 import '../../../../theme/custom_colors.dart';
 import '../sidebar/widgets/participant_context_menu.dart';
 
@@ -65,20 +66,6 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     _isSpeaking = widget.participant.isSpeaking;
   }
 
-  void _showContextMenu(BuildContext context) {
-    if (widget.participant is LocalParticipant) return;
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: ParticipantContextMenu(
-          identity: widget.participant.sid,
-          name: widget.participant.name,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
@@ -87,62 +74,70 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         final isSpeaking = _isSpeaking && !widget.isMuted;
         final name = widget.participant.name;
 
-        return GestureDetector(
-          onSecondaryTap: () => _showContextMenu(context),
-          onLongPress: () => _showContextMenu(context),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              color: themeState.isDarkTheme
-                  ? CustomColors.bgSecondaryDark
-                  : CustomColors.bgTertiaryLight,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isSpeaking
-                    ? CustomColors.primary
-                    : themeState.borderPrimary,
-                width: isSpeaking ? 2 : 1,
-              ),
-              boxShadow: isSpeaking
-                  ? [
-                      BoxShadow(
-                        color: CustomColors.primary.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null,
+        final content = AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: themeState.isDarkTheme
+                ? CustomColors.bgSecondaryDark
+                : CustomColors.bgTertiaryLight,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSpeaking
+                  ? CustomColors.primary
+                  : themeState.borderPrimary,
+              width: isSpeaking ? 2 : 1,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(13),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Video or avatar
-                  if (hasVideo && _videoPub!.track is VideoTrack)
-                    VideoTrackRenderer(
-                      _videoPub!.track as VideoTrack,
-                      fit: VideoViewFit.contain,
-                    )
-                  else
-                    _AvatarPlaceholder(
-                      name: name,
-                      isDark: themeState.isDarkTheme,
+            boxShadow: isSpeaking
+                ? [
+                    BoxShadow(
+                      color: CustomColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      spreadRadius: 2,
                     ),
-                  // Name + mic badge
-                  Positioned(
-                    bottom: 12,
-                    left: 12,
-                    child: _NameBadge(
-                      name: name,
-                      isMicEnabled: widget.participant.isMicrophoneEnabled(),
-                      isMuted: widget.isMuted,
-                    ),
+                  ]
+                : null,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(13),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Video or avatar
+                if (hasVideo && _videoPub!.track is VideoTrack)
+                  VideoTrackRenderer(
+                    _videoPub!.track as VideoTrack,
+                    fit: VideoViewFit.contain,
+                  )
+                else
+                  _AvatarPlaceholder(
+                    name: name,
+                    isDark: themeState.isDarkTheme,
                   ),
-                ],
-              ),
+                // Name + mic badge
+                Positioned(
+                  bottom: 12,
+                  left: 12,
+                  child: _NameBadge(
+                    name: name,
+                    isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                    isMuted: widget.isMuted,
+                  ),
+                ),
+              ],
             ),
           ),
+        );
+
+        if (widget.participant is LocalParticipant) {
+          return content;
+        }
+
+        return ContextMenuRegion(
+          contextMenu: ParticipantContextMenu(
+            identity: widget.participant.sid,
+            name: name,
+          ),
+          child: content,
         );
       },
     );
