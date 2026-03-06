@@ -23,10 +23,12 @@ class ControlBar extends StatelessWidget {
               isMicEnabled: state.isMicEnabled,
               isCameraEnabled: state.isCameraEnabled,
               isScreenSharing: state.isScreenSharing,
+              isDeafened: state.isDeafened,
             ),
           ),
         );
       },
+      a,
     );
   }
 }
@@ -35,11 +37,13 @@ class _ControlBarContent extends StatelessWidget {
   final bool isMicEnabled;
   final bool isCameraEnabled;
   final bool isScreenSharing;
+  final bool isDeafened;
 
   const _ControlBarContent({
     required this.isMicEnabled,
     required this.isCameraEnabled,
     required this.isScreenSharing,
+    required this.isDeafened,
   });
 
   Future<void> _handleScreenShare(BuildContext context) async {
@@ -65,6 +69,10 @@ class _ControlBarContent extends StatelessWidget {
 
   Future<void> _toggleMic(BuildContext context) async {
     await context.read<LiveKitCubit>().toggleMicrophone();
+  }
+
+  Future<void> _toggleDeafen(BuildContext context) async {
+    await context.read<LiveKitCubit>().toggleDeafen();
   }
 
   Future<void> _toggleCamera(BuildContext context) async {
@@ -122,10 +130,18 @@ class _ControlBarContent extends StatelessWidget {
               const SizedBox(width: 4),
               // Mic
               _ControlButton(
-                icon: isMicEnabled ? Icons.mic : Icons.mic_off,
-                isError: !isMicEnabled,
-                tooltip: isMicEnabled ? 'Mute' : 'Unmute',
+                icon: isMicEnabled && !isDeafened ? Icons.mic : Icons.mic_off,
+                isError: !isMicEnabled || isDeafened,
+                tooltip: isMicEnabled && !isDeafened ? 'Mute' : 'Unmute',
                 onTap: () => _toggleMic(context),
+              ),
+              const SizedBox(width: 4),
+              // Deafen
+              _ControlButton(
+                icon: isDeafened ? Icons.headset_off : Icons.headset,
+                isError: isDeafened,
+                tooltip: isDeafened ? 'Undeafen' : 'Deafen',
+                onTap: () => _toggleDeafen(context),
               ),
               // Divider
               Container(

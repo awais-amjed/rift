@@ -137,15 +137,91 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   // Media Controls
   // ──────────────────────────────────────────────────────────
 
-  /// Toggle microphone on/off.
+  /// Toggle microphone on/off. Also clears deafen if currently deafened.
   Future<void> toggleMicrophone() async {
     final room = state.room;
     if (room == null) return;
+
+    // Un-deafen first if deafened (re-subscribe all audio, then toggle mic)
+    if (state.isDeafened) {
+      await _setDeafened(false);
+    }
 
     final next = !state.isMicEnabled;
     await room.localParticipant?.setMicrophoneEnabled(next);
     _appCubit.setAudioEnabled(next);
     emit(state.copyWith(isMicEnabled: next));
+    _syncParticipants();
+  }
+
+  /// Toggle deafen on/off (like Discord).
+  /// Deafening: mutes mic + disables all remote audio tracks locally.
+  /// Un-deafening: re-enables audio + restores mic to previous state.
+  Future<void> toggleDeafen() async {
+    await _setDeafened(!state.isDeafened);
+  }
+
+  Future<void> _setDeafened(bool deafened) async {
+    final room = state.room;
+    if (room == null) return;
+
+    if (deafened) {
+      // Mute mic
+      await room.localParticipant?.setMicrophoneEnabled(false);
+      _appCubit.setAudioEnabled(false);
+
+      // Unsubscribe from all remote audio tracks + silence any already-active ones
+      for (final participant in room.remoteParticipants.values) {
+        for (final pub in participant.audioTrackPublications) {
+          // Silence immediately via the WebRTC track if it's already subscribed
+          final track = pub.track;
+          if (track != null) {
+            track.mediaStreamTrack.enabled = false;
+          }
+          // Tell the server to stop sending audio data
+          await pub.unsubscribe();
+        }
+      }
+
+      emit(state.copyWith(isDeafened: true, isMicEnabled: false));
+    } else {
+      // Re-subscribe all remote audio tracks
+      for (final participant in room.remoteParticipants.values) {
+        final setting =
+            _appCubit.state.participantSettings[participant.identity];
+        final isMuted = setting?.muted ?? false;
+
+        for (final pub in participant.audioTrackPublications) {
+          // Re-subscribe to get audio flowing again
+          await pub.subscribe();
+
+          // After subscribe the track reference may update; apply mute/volume
+          final track = pub.track;
+          if (track == null) continue;
+
+          if (isMuted) {
+            track.mediaStreamTrack.enabled = false;
+          } else {
+            track.mediaStreamTrack.enabled = true;
+            final volume = setting?.volume ?? 1.0;
+            if (volume != 1.0) {
+              try {
+                await rtc.Helper.setVolume(volume, track.mediaStreamTrack);
+              } catch (e) {
+                debugPrint('setVolume error: $e');
+              }
+            }
+          }
+        }
+      }
+
+      // Restore mic to the persisted enabled state
+      final micEnabled = _appCubit.state.audioEnabled;
+      await room.localParticipant?.setMicrophoneEnabled(micEnabled);
+
+      emit(state.copyWith(isDeafened: false, isMicEnabled: micEnabled));
+    }
+
     _syncParticipants();
   }
 
@@ -171,11 +247,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
         if (track != null) {
-          if (muted) {
-            await track.disable();
-          } else {
-            await track.enable();
-          }
+          track.mediaStreamTrack.enabled = !muted;
         }
       }
     }
@@ -323,9 +395,9 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         if (track == null) continue;
 
         if (setting.muted) {
-          track.disable();
+          track.mediaStreamTrack.enabled = false;
         } else {
-          track.enable();
+          track.mediaStreamTrack.enabled = true;
           if (setting.volume != 1.0) {
             rtc.Helper.setVolume(setting.volume, track.mediaStreamTrack);
           }
