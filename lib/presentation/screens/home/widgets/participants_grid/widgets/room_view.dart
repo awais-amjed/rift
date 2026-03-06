@@ -9,10 +9,17 @@ import 'participant_grid.dart';
 import 'waiting_view.dart';
 
 /// Room is connected — shows participant tiles + control bar.
-class RoomView extends StatelessWidget {
+class RoomView extends StatefulWidget {
   final Room room;
 
   const RoomView({super.key, required this.room});
+
+  @override
+  State<RoomView> createState() => _RoomViewState();
+}
+
+class _RoomViewState extends State<RoomView> {
+  final _controlBarKey = GlobalKey<ControlBarState>();
 
   @override
   Widget build(BuildContext context) {
@@ -23,16 +30,21 @@ class RoomView extends StatelessWidget {
 
         return BlocBuilder<AppCubit, AppState>(
           builder: (context, appState) {
-            return Stack(
-              children: [
-                participants.isEmpty
-                    ? const WaitingView()
-                    : ParticipantGrid(
-                        participants: participants,
-                        participantSettings: appState.participantSettings,
-                      ),
-                const ControlBar(),
-              ],
+            return Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerHover: (_) => _controlBarKey.currentState?.onActivity(),
+              onPointerMove: (_) => _controlBarKey.currentState?.onActivity(),
+              child: Stack(
+                children: [
+                  participants.isEmpty
+                      ? const WaitingView()
+                      : ParticipantGrid(
+                          participants: participants,
+                          participantSettings: appState.participantSettings,
+                        ),
+                  ControlBar(key: _controlBarKey),
+                ],
+              ),
             );
           },
         );
