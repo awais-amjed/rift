@@ -264,9 +264,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         await room.disconnect();
       }
 
-      // Give a delay to ensure all streams are properly closed before disposing listeners
-      await Future.delayed(const Duration(milliseconds: 150));
-
       // Dispose listeners after disconnect to prevent stream cancellation errors
       for (final l in _listeners) {
         try {
@@ -277,9 +274,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         }
       }
       _listeners.clear();
-
-      // Small delay before final disposal
-      await Future.delayed(const Duration(milliseconds: 50));
 
       // Finally dispose the room
       await room.dispose();
