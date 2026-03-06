@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/classes/server_user.dart';
-import '../../../../../data/repositories/server_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -19,7 +17,6 @@ class CreateUserDialog extends StatefulWidget {
 }
 
 class _CreateUserDialogState extends State<CreateUserDialog> {
-  final _repository = ServerRepository();
   final _usernameCtrl = TextEditingController();
   final _displayNameCtrl = TextEditingController();
 
@@ -40,47 +37,24 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
   Future<void> _submit() async {
     if (!_canSubmit) return;
 
-    final server = context.read<ServerCubit>().state.selectedServer;
-    if (server == null) return;
-
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    final joinResponse = await _repository.joinServer(
-      server.supabaseUrl,
-      server.token,
+    final result = await context.read<ServerCubit>().createUserAccount(
       username: _usernameCtrl.text.trim(),
       displayName: _displayNameCtrl.text.trim(),
     );
 
     if (!mounted) return;
 
-    if (!joinResponse.success) {
+    if (!result.success) {
       setState(() {
-        _error = joinResponse.error;
+        _error = result.error;
         _isLoading = false;
       });
       return;
-    }
-
-    // Fetch refreshed server details
-    final detailsResponse = await _repository.getServerDetails(
-      server.supabaseUrl,
-      server.token,
-    );
-
-    if (!mounted) return;
-
-    if (detailsResponse.success) {
-      final rawUser = detailsResponse.data['user'];
-      if (rawUser != null) {
-        context.read<ServerCubit>().updateServer(
-          server.id,
-          user: ServerUser.fromJson(rawUser as Map<String, dynamic>),
-        );
-      }
     }
 
     HelperMethods.showSuccess(message: 'Account created!');

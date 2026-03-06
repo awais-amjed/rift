@@ -156,6 +156,53 @@ class ServerCubit extends HydratedCubit<ServerState> {
     }
   }
 
+  /// Create a user account for the selected server.
+  Future<({bool success, String? error})> createUserAccount({
+    required String username,
+    required String displayName,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, error: 'No server selected');
+    }
+
+    final joinResponse = await _repository.joinServer(
+      server.supabaseUrl,
+      server.token,
+      username: username,
+      displayName: displayName,
+    );
+
+    if (!joinResponse.success) {
+      return (
+        success: false,
+        error: joinResponse.error ?? 'Failed to create account',
+      );
+    }
+
+    // Fetch refreshed server details to get the user data
+    final detailsResponse = await _repository.getServerDetails(
+      server.supabaseUrl,
+      server.token,
+    );
+
+    if (detailsResponse.success) {
+      final rawUser = detailsResponse.data['user'];
+      if (rawUser != null) {
+        updateServer(
+          server.id,
+          user: ServerUser.fromJson(rawUser as Map<String, dynamic>),
+        );
+      }
+      return (success: true, error: null);
+    } else {
+      return (
+        success: false,
+        error: detailsResponse.error ?? 'Failed to fetch user details',
+      );
+    }
+  }
+
   /// Refresh the channel list and other details for the selected server.
   Future<({bool success, String? error})> refreshServerDetails() async {
     final server = state.selectedServer;
