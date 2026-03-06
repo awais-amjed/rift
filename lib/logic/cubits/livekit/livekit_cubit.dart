@@ -33,11 +33,18 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     bool? micEnabled,
     bool? cameraEnabled,
   }) async {
+    // If we're already connected or connecting, disconnect first
+    if (state.room != null ||
+        state.connectionState == LiveKitConnectionState.connecting) {
+      await _cleanupRoom();
+    }
+
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.connecting,
         currentChannelId: channelId,
         clearError: true,
+        clearRoom: true,
       ),
     );
 
@@ -95,25 +102,32 @@ class LiveKitCubit extends Cubit<LiveKitState> {
           error: 'Failed to connect: $e',
         ),
       );
-      room.dispose();
+      await room.disconnect();
+      await room.dispose();
     }
   }
 
   /// Disconnect from the current room.
   Future<void> disconnect() async {
-    await _cleanupRoom();
+    // Clear participants immediately
     _appCubit.setParticipants([]);
     _appCubit.setSelectedChannelId(null);
 
+    // Update state to disconnected before cleanup
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.disconnected,
-        clearRoom: true,
         clearChannelId: true,
         clearError: true,
         participants: [],
       ),
     );
+
+    // Clean up room asynchronously
+    await _cleanupRoom();
+
+    // Ensure room is cleared from state
+    emit(state.copyWith(clearRoom: true));
   }
 
   // ──────────────────────────────────────────────────────────
@@ -184,14 +198,16 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       ..on<TrackMutedEvent>((e) => _syncParticipants())
       ..on<TrackUnmutedEvent>((e) => _syncParticipants())
       ..on<RoomDisconnectedEvent>((e) {
-        if (state.connectionState != LiveKitConnectionState.disconnected) {
+        // Only handle unexpected disconnections
+        if (state.connectionState == LiveKitConnectionState.connected) {
+          _appCubit.setSelectedChannelId(null);
           emit(
             state.copyWith(
               connectionState: LiveKitConnectionState.disconnected,
               clearRoom: true,
+              participants: [],
             ),
           );
-          _appCubit.setSelectedChannelId(null);
         }
       });
   }
@@ -237,15 +253,30 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   }
 
   Future<void> _cleanupRoom() async {
-    for (final l in _listeners) {
-      l.dispose();
-    }
-    _listeners.clear();
-
     final room = state.room;
-    if (room != null) {
-      await room.disconnect();
-      room.dispose();
+    if (room == null) return;
+
+    try {
+      // Dispose listeners first to prevent events during cleanup
+      for (final l in _listeners) {
+        l.dispose();
+      }
+      _listeners.clear();
+
+      // Disconnect gracefully if still connected
+      if (room.connectionState == ConnectionState.connected ||
+          room.connectionState == ConnectionState.connecting) {
+        await room.disconnect();
+      }
+
+      // Give a small delay to ensure all streams are properly closed
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Finally dispose the room
+      await room.dispose();
+    } catch (e) {
+      // Ignore disposal errors as we're cleaning up anyway
+      print('Error during room cleanup: $e');
     }
   }
 
