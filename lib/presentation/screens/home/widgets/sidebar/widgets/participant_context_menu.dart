@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/custom_colors.dart';
 
@@ -35,6 +36,10 @@ class ParticipantContextMenu extends StatelessWidget {
           builder: (context, appState) {
             // For local participant, use the LiveKit mic state
             final liveKitState = context.watch<LiveKitCubit>().state;
+            final serverState = context.watch<ServerCubit>().state;
+            final permissions = serverState.selectedServer?.user?.permissions;
+            final isChannelManager = permissions?.isChannelManager ?? false;
+
             final bool isMuted;
             final double volume;
 
@@ -91,7 +96,7 @@ class ParticipantContextMenu extends StatelessWidget {
                       ),
                       Divider(height: 1, color: borderColor),
                       const SizedBox(height: 4),
-                      // Mute toggle
+                      // Mute toggle (local only)
                       _MenuItem(
                         icon: isMuted ? Icons.mic_off : Icons.mic,
                         label: isMuted ? 'Unmute' : 'Mute',
@@ -107,6 +112,28 @@ class ParticipantContextMenu extends StatelessWidget {
                           }
                         },
                       ),
+                      // Mute for everyone (channel managers only, remote participants only)
+                      if (!isLocal && isChannelManager)
+                        _MenuItem(
+                          icon: Icons.mic_off,
+                          label: 'Mute for everyone',
+                          isDangerous: true,
+                          onTap: () {
+                            final server = context
+                                .read<ServerCubit>()
+                                .state
+                                .selectedServer;
+                            if (server == null) return;
+                            context
+                                .read<LiveKitCubit>()
+                                .muteParticipantForEveryone(
+                                  supabaseUrl: server.supabaseUrl,
+                                  token: server.token,
+                                  participantIdentity: identity,
+                                  muted: true,
+                                );
+                          },
+                        ),
                       // Volume slider (only for remote participants)
                       if (!isLocal) ...[
                         Padding(

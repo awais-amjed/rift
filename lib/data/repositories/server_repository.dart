@@ -131,4 +131,20 @@ class ServerRepository {
       'channel_id': channelId,
     });
   }
+
+  /// Mute or unmute a participant for everyone in a channel (requires is_channel_manager).
+  Future<APIResponse> muteParticipant(
+    String supabaseUrl,
+    String token, {
+    required String channelId,
+    required String participantIdentity,
+    required bool muted,
+  }) {
+    return _post(supabaseUrl, 'mute_participant', {
+      'token': token,
+      'channel_id': channelId,
+      'participant_identity': participantIdentity,
+      'muted': muted,
+    });
+  }
 }

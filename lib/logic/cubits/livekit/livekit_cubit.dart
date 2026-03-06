@@ -240,6 +240,31 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _syncParticipants();
   }
 
+  /// Mute a participant for everyone in the room (requires is_channel_manager).
+  /// Calls the server-side edge function which uses the LiveKit Server API.
+  Future<bool> muteParticipantForEveryone({
+    required String supabaseUrl,
+    required String token,
+    required String participantIdentity,
+    required bool muted,
+  }) async {
+    final channelId = state.currentChannelId;
+    if (channelId == null) return false;
+
+    final response = await _repository.muteParticipant(
+      supabaseUrl,
+      token,
+      channelId: channelId,
+      participantIdentity: participantIdentity,
+      muted: muted,
+    );
+
+    if (!response.success) {
+      debugPrint('muteParticipantForEveryone error: ${response.error}');
+    }
+    return response.success;
+  }
+
   /// Locally mute/unmute a remote participant's audio (for this user only).
   Future<void> setParticipantMute(String identity, bool muted) async {
     final room = state.room;
