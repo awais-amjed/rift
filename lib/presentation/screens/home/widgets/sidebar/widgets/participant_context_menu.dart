@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/custom_colors.dart';
 
@@ -9,11 +10,13 @@ import '../../../../../theme/custom_colors.dart';
 class ParticipantContextMenu extends StatelessWidget {
   final String identity;
   final String name;
+  final bool isLocal;
 
   const ParticipantContextMenu({
     super.key,
     required this.identity,
     required this.name,
+    this.isLocal = false,
   });
 
   @override
@@ -29,10 +32,20 @@ class ParticipantContextMenu extends StatelessWidget {
         final textQuaternary = themeState.textQuaternary;
 
         return BlocBuilder<AppCubit, AppState>(
-          builder: (context, state) {
-            final setting = state.participantSettings[identity];
-            final isMuted = setting?.muted ?? false;
-            final volume = setting?.volume ?? 1.0;
+          builder: (context, appState) {
+            // For local participant, use the LiveKit mic state
+            final liveKitState = context.watch<LiveKitCubit>().state;
+            final bool isMuted;
+            final double volume;
+
+            if (isLocal) {
+              isMuted = !liveKitState.isMicEnabled;
+              volume = 1.0; // Volume slider not applicable for self
+            } else {
+              final setting = appState.participantSettings[identity];
+              isMuted = setting?.muted ?? false;
+              volume = setting?.volume ?? 1.0;
+            }
 
             return Container(
               decoration: BoxDecoration(
@@ -55,7 +68,7 @@ class ParticipantContextMenu extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'PARTICIPANT',
+                              isLocal ? 'YOU' : 'PARTICIPANT',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
@@ -80,76 +93,85 @@ class ParticipantContextMenu extends StatelessWidget {
                       const SizedBox(height: 4),
                       // Mute toggle
                       _MenuItem(
-                        icon: isMuted ? Icons.volume_off : Icons.volume_up,
-                        label: isMuted ? 'Unmute for me' : 'Mute for me',
+                        icon: isMuted ? Icons.mic_off : Icons.mic,
+                        label: isMuted ? 'Unmute' : 'Mute',
                         isDangerous: isMuted,
                         onTap: () {
-                          context.read<AppCubit>().setParticipantSetting(
-                            identity,
-                            muted: !isMuted,
-                          );
+                          if (isLocal) {
+                            context.read<LiveKitCubit>().toggleMicrophone();
+                          } else {
+                            context.read<LiveKitCubit>().setParticipantMute(
+                              identity,
+                              !isMuted,
+                            );
+                          }
                         },
                       ),
-                      // Volume slider
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'VOLUME',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.2,
-                                    color: textQuaternary,
+                      // Volume slider (only for remote participants)
+                      if (!isLocal) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'VOLUME',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                      color: textQuaternary,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  isMuted ? '—' : '${(volume * 100).round()}%',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: textSecondary,
+                                  Text(
+                                    isMuted
+                                        ? '—'
+                                        : '${(volume * 100).round()}%',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: textSecondary,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                trackHeight: 3,
-                                thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 6,
-                                ),
-                                overlayShape: const RoundSliderOverlayShape(
-                                  overlayRadius: 12,
-                                ),
-                                activeTrackColor: CustomColors.primary,
-                                inactiveTrackColor: themeState.bgActive,
-                                thumbColor: CustomColors.primary,
+                                ],
                               ),
-                              child: Slider(
-                                value: isMuted ? 0 : volume,
-                                min: 0,
-                                max: 1,
-                                onChanged: isMuted
-                                    ? null
-                                    : (v) {
-                                        context
-                                            .read<AppCubit>()
-                                            .setParticipantSetting(
-                                              identity,
-                                              volume: v,
-                                            );
-                                      },
+                              const SizedBox(height: 8),
+                              SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 3,
+                                  thumbShape: const RoundSliderThumbShape(
+                                    enabledThumbRadius: 6,
+                                  ),
+                                  overlayShape: const RoundSliderOverlayShape(
+                                    overlayRadius: 12,
+                                  ),
+                                  activeTrackColor: CustomColors.primary,
+                                  inactiveTrackColor: themeState.bgActive,
+                                  thumbColor: CustomColors.primary,
+                                ),
+                                child: Slider(
+                                  value: isMuted ? 0 : volume,
+                                  min: 0,
+                                  max: 1,
+                                  onChanged: isMuted
+                                      ? null
+                                      : (v) {
+                                          context
+                                              .read<LiveKitCubit>()
+                                              .setParticipantVolume(
+                                                identity,
+                                                v,
+                                              );
+                                        },
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: 2),
                     ],
                   ),

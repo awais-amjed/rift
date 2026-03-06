@@ -96,6 +96,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       );
 
       _syncParticipants();
+      _applyStoredSettings();
     } catch (e) {
       emit(
         state.copyWith(
@@ -159,6 +160,33 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _syncParticipants();
   }
 
+  /// Locally mute/unmute a remote participant's audio (for this user only).
+  Future<void> setParticipantMute(String identity, bool muted) async {
+    final room = state.room;
+    if (room == null) return;
+
+    final participant = room.remoteParticipants[identity];
+    if (participant != null) {
+      for (final pub in participant.audioTrackPublications) {
+        final track = pub.track;
+        if (track != null) {
+          if (muted) {
+            await track.disable();
+          } else {
+            await track.enable();
+          }
+        }
+      }
+    }
+
+    _appCubit.setParticipantSetting(identity, muted: muted);
+  }
+
+  /// Set local volume for a remote participant's audio (for this user only).
+  void setParticipantVolume(String identity, double volume) {
+    _appCubit.setParticipantSetting(identity, volume: volume);
+  }
+
   /// Toggle screen sharing on/off.
   Future<void> toggleScreenShare({
     ScreenShareCaptureOptions? captureOptions,
@@ -191,9 +219,15 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _listeners.add(listener);
 
     listener
-      ..on<ParticipantConnectedEvent>((e) => _syncParticipants())
+      ..on<ParticipantConnectedEvent>((e) {
+        _syncParticipants();
+        _applyStoredSettings();
+      })
       ..on<ParticipantDisconnectedEvent>((e) => _syncParticipants())
-      ..on<TrackPublishedEvent>((e) => _syncParticipants())
+      ..on<TrackPublishedEvent>((e) {
+        _syncParticipants();
+        _applyStoredSettings();
+      })
       ..on<TrackUnpublishedEvent>((e) => _syncParticipants())
       ..on<ActiveSpeakersChangedEvent>((e) => _syncParticipants())
       ..on<TrackMutedEvent>((e) => _syncParticipants())
@@ -240,7 +274,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     final infos = allParticipants
         .map(
           (p) => ParticipantInfo(
-            identity: p.sid,
+            identity: p.identity,
             name: p.name,
             isSpeaking: p.isSpeaking,
             isMicrophoneEnabled: p.isMicrophoneEnabled(),
@@ -251,6 +285,29 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         .toList();
 
     _appCubit.setParticipants(infos);
+  }
+
+  /// Re-applies persisted mute settings to all current remote participants.
+  void _applyStoredSettings() {
+    final room = state.room;
+    if (room == null) return;
+
+    final settings = _appCubit.state.participantSettings;
+    for (final entry in settings.entries) {
+      final identity = entry.key;
+      final setting = entry.value;
+      if (!setting.muted) continue;
+
+      final participant = room.remoteParticipants[identity];
+      if (participant == null) continue;
+
+      for (final pub in participant.audioTrackPublications) {
+        final track = pub.track;
+        if (track != null) {
+          track.disable();
+        }
+      }
+    }
   }
 
   Future<void> _cleanupRoom() async {

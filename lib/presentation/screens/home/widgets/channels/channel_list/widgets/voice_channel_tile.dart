@@ -144,6 +144,7 @@ class VoiceChannelTile extends StatelessWidget {
                                 contextMenu: ParticipantContextMenu(
                                   identity: p.identity,
                                   name: p.name,
+                                  isLocal: p.isLocal,
                                 ),
                               ),
                             )

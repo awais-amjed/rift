@@ -129,12 +129,19 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         );
 
         if (widget.participant is LocalParticipant) {
-          return content;
+          return ContextMenuRegion(
+            contextMenu: ParticipantContextMenu(
+              identity: widget.participant.identity,
+              name: name,
+              isLocal: true,
+            ),
+            child: content,
+          );
         }
 
         return ContextMenuRegion(
           contextMenu: ParticipantContextMenu(
-            identity: widget.participant.sid,
+            identity: widget.participant.identity,
             name: name,
           ),
           child: content,
