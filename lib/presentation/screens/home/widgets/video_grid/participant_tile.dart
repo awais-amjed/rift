@@ -4,7 +4,7 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
-import 'participant_context_menu.dart';
+import '../sidebar/widgets/participant_context_menu.dart';
 
 /// Displays a single participant's video or avatar fallback tile.
 class ParticipantTileWidget extends StatefulWidget {

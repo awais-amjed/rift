@@ -6,8 +6,8 @@ import '../../../../../data/enums/channel_type.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
-import '../participants/participant_list_item.dart';
-import '../participants/participant_context_menu.dart';
+import '../sidebar/widgets/participant_list_item.dart';
+import '../sidebar/widgets/participant_context_menu.dart';
 
 /// Lists all channels grouped by type. Voice channels show live participants.
 class ChannelList extends StatelessWidget {

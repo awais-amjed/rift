@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/custom_colors.dart';
+import '../../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../theme/custom_colors.dart';
 
 /// Dialog-based context menu for a participant — mute toggle + volume slider.
 class ParticipantContextMenu extends StatelessWidget {

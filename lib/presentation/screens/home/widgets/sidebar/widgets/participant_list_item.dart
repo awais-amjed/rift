@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/classes/participant_info.dart';
-import '../../../../../data/classes/participant_setting.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/custom_colors.dart';
+import '../../../../../../data/classes/participant_info.dart';
+import '../../../../../../data/classes/participant_setting.dart';
+import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../theme/custom_colors.dart';
 
 /// A single participant row inside an active voice channel.
 class ParticipantListItem extends StatelessWidget {
