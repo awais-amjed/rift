@@ -72,6 +72,8 @@ class _JoinServerFormState extends State<JoinServerForm> {
       HelperMethods.showSuccess(message: 'Joined server successfully!');
       widget.onSuccess();
     }
+
+    Navigator.pop(context);
   }
 
   @override
