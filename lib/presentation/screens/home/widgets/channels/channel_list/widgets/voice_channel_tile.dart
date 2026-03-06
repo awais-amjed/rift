@@ -1,142 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/classes/channel.dart';
-import '../../../../../data/enums/channel_type.dart';
-import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/custom_colors.dart';
-import '../sidebar/widgets/participant_list_item.dart';
-import '../sidebar/widgets/participant_context_menu.dart';
+import '../../../../../../../data/classes/channel.dart';
+import '../../../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../../theme/custom_colors.dart';
+import '../../../sidebar/widgets/participant_context_menu.dart';
+import '../../../sidebar/widgets/participant_list_item.dart';
 
-/// Lists all channels grouped by type. Voice channels show live participants.
-class ChannelList extends StatelessWidget {
-  final List<Channel> channels;
-  final String? selectedChannelId;
-  final ValueChanged<String?>? onChannelSelect;
-
-  const ChannelList({
-    super.key,
-    required this.channels,
-    this.selectedChannelId,
-    this.onChannelSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textChannels = channels
-        .where((c) => c.channelType == ChannelType.text)
-        .toList();
-    final voiceChannels = channels
-        .where((c) => c.channelType == ChannelType.voice)
-        .toList();
-
-    if (channels.isEmpty) {
-      return Expanded(child: _EmptyChannels());
-    }
-
-    return Expanded(
-      child: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          if (textChannels.isNotEmpty) ...[
-            _SectionHeader(label: 'Text'),
-            const SizedBox(height: 4),
-            ...textChannels.map((ch) => _TextChannelTile(channel: ch)),
-            const SizedBox(height: 16),
-          ],
-          if (voiceChannels.isNotEmpty) ...[
-            _SectionHeader(label: 'Voice'),
-            const SizedBox(height: 4),
-            ...voiceChannels.map(
-              (ch) => _VoiceChannelTile(
-                channel: ch,
-                isSelected: selectedChannelId == ch.id,
-                onTap: () => onChannelSelect?.call(
-                  selectedChannelId == ch.id ? null : ch.id,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String label;
-
-  const _SectionHeader({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: BlocBuilder<ThemeCubit, ThemeState>(
-        builder: (context, themeState) {
-          return Text(
-            label.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-              color: themeState.textQuaternary,
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _TextChannelTile extends StatelessWidget {
-  final Channel channel;
-
-  const _TextChannelTile({required this.channel});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: BlocBuilder<ThemeCubit, ThemeState>(
-        builder: (context, themeState) {
-          return InkWell(
-            borderRadius: BorderRadius.circular(10),
-            hoverColor: themeState.bgHover,
-            onTap: () {},
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Row(
-                children: [
-                  Icon(Icons.tag, size: 17, color: themeState.textQuaternary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      channel.name,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: themeState.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _VoiceChannelTile extends StatelessWidget {
+/// Tile for displaying a voice channel with participants.
+class VoiceChannelTile extends StatelessWidget {
   final Channel channel;
   final bool isSelected;
   final VoidCallback? onTap;
 
-  const _VoiceChannelTile({
+  const VoiceChannelTile({
+    super.key,
     required this.channel,
     required this.isSelected,
     this.onTap,
@@ -291,29 +170,6 @@ class _VoiceChannelTile extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => ParticipantContextMenu(identity: identity, name: name),
-    );
-  }
-}
-
-class _EmptyChannels extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.tag, size: 32, color: themeState.textQuaternary),
-              const SizedBox(height: 8),
-              Text(
-                'No channels yet',
-                style: TextStyle(fontSize: 13, color: themeState.textTertiary),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
