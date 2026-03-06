@@ -228,10 +228,9 @@ class ServerCubit extends HydratedCubit<ServerState> {
     final user = serverData['user'];
     final userExists = user != null;
 
-    if (userExists) {
-      // User already exists, add server directly
-      addServer(supabaseUrl, token, serverData);
-    }
+    // Always add the server so it becomes the selected server.
+    // If the user doesn't exist yet, createUserAccount can still find it.
+    addServer(supabaseUrl, token, serverData);
 
     return (
       success: true,
