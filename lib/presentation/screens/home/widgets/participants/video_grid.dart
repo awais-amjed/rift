@@ -104,56 +104,32 @@ class _VideoGridState extends State<VideoGrid> {
 }
 
 /// Room is connected — shows participant tiles + control bar.
-class _RoomView extends StatefulWidget {
+class _RoomView extends StatelessWidget {
   final Room room;
 
   const _RoomView({required this.room});
 
   @override
-  State<_RoomView> createState() => _RoomViewState();
-}
-
-class _RoomViewState extends State<_RoomView> {
-  late final EventsListener<RoomEvent> _listener;
-
-  @override
-  void initState() {
-    super.initState();
-    _listener = widget.room.createListener();
-    _listener.on<ParticipantConnectedEvent>((_) => setState(() {}));
-    _listener.on<ParticipantDisconnectedEvent>((_) => setState(() {}));
-    _listener.on<TrackPublishedEvent>((_) => setState(() {}));
-    _listener.on<TrackUnpublishedEvent>((_) => setState(() {}));
-    _listener.on<ActiveSpeakersChangedEvent>((_) => setState(() {}));
-    _listener.on<TrackMutedEvent>((_) => setState(() {}));
-    _listener.on<TrackUnmutedEvent>((_) => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _listener.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final participants = <Participant>[
-      if (widget.room.localParticipant != null) widget.room.localParticipant!,
-      ...widget.room.remoteParticipants.values,
-    ];
+    return BlocBuilder<LiveKitCubit, LiveKitState>(
+      builder: (context, livekitState) {
+        // Get participants directly from the cubit state
+        final participants = livekitState.participants;
 
-    return BlocBuilder<AppCubit, AppState>(
-      builder: (context, appState) {
-        return Stack(
-          children: [
-            participants.isEmpty
-                ? const _WaitingForParticipants()
-                : _ParticipantGrid(
-                    participants: participants,
-                    participantSettings: appState.participantSettings,
-                  ),
-            const ControlBar(),
-          ],
+        return BlocBuilder<AppCubit, AppState>(
+          builder: (context, appState) {
+            return Stack(
+              children: [
+                participants.isEmpty
+                    ? const _WaitingForParticipants()
+                    : _ParticipantGrid(
+                        participants: participants,
+                        participantSettings: appState.participantSettings,
+                      ),
+                const ControlBar(),
+              ],
+            );
+          },
         );
       },
     );
