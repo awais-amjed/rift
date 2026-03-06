@@ -28,7 +28,6 @@ class ControlBar extends StatelessWidget {
           ),
         );
       },
-      a,
     );
   }
 }
