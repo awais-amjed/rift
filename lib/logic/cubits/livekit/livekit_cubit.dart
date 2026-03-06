@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
@@ -257,26 +258,34 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     if (room == null) return;
 
     try {
-      // Dispose listeners first to prevent events during cleanup
-      for (final l in _listeners) {
-        l.dispose();
-      }
-      _listeners.clear();
-
       // Disconnect gracefully if still connected
       if (room.connectionState == ConnectionState.connected ||
           room.connectionState == ConnectionState.connecting) {
         await room.disconnect();
       }
 
-      // Give a small delay to ensure all streams are properly closed
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Give a delay to ensure all streams are properly closed before disposing listeners
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      // Dispose listeners after disconnect to prevent stream cancellation errors
+      for (final l in _listeners) {
+        try {
+          l.dispose();
+        } catch (e) {
+          // Ignore listener disposal errors
+          debugPrint('Error disposing listener: $e');
+        }
+      }
+      _listeners.clear();
+
+      // Small delay before final disposal
+      await Future.delayed(const Duration(milliseconds: 50));
 
       // Finally dispose the room
       await room.dispose();
     } catch (e) {
       // Ignore disposal errors as we're cleaning up anyway
-      print('Error during room cleanup: $e');
+      debugPrint('Error during room cleanup: $e');
     }
   }
 

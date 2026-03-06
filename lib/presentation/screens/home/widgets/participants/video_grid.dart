@@ -93,10 +93,7 @@ class _VideoGridState extends State<VideoGrid> {
                   if (livekitState.room == null) {
                     return const _ConnectingView();
                   }
-                  return _RoomView(
-                    room: livekitState.room!,
-                    onLeave: () => context.read<LiveKitCubit>().disconnect(),
-                  );
+                  return _RoomView(room: livekitState.room!);
               }
             },
           );
@@ -109,9 +106,8 @@ class _VideoGridState extends State<VideoGrid> {
 /// Room is connected — shows participant tiles + control bar.
 class _RoomView extends StatefulWidget {
   final Room room;
-  final VoidCallback onLeave;
 
-  const _RoomView({required this.room, required this.onLeave});
+  const _RoomView({required this.room});
 
   @override
   State<_RoomView> createState() => _RoomViewState();
@@ -156,7 +152,7 @@ class _RoomViewState extends State<_RoomView> {
                     participants: participants,
                     participantSettings: appState.participantSettings,
                   ),
-            ControlBar(onLeave: widget.onLeave),
+            const ControlBar(),
           ],
         );
       },

@@ -8,9 +8,7 @@ import '../screen_share_settings_dialog.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 class ControlBar extends StatelessWidget {
-  final VoidCallback onLeave;
-
-  const ControlBar({super.key, required this.onLeave});
+  const ControlBar({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +23,6 @@ class ControlBar extends StatelessWidget {
               isMicEnabled: state.isMicEnabled,
               isCameraEnabled: state.isCameraEnabled,
               isScreenSharing: state.isScreenSharing,
-              onLeave: onLeave,
             ),
           ),
         );
@@ -38,13 +35,11 @@ class _ControlBarContent extends StatelessWidget {
   final bool isMicEnabled;
   final bool isCameraEnabled;
   final bool isScreenSharing;
-  final VoidCallback onLeave;
 
   const _ControlBarContent({
     required this.isMicEnabled,
     required this.isCameraEnabled,
     required this.isScreenSharing,
-    required this.onLeave,
   });
 
   Future<void> _handleScreenShare(BuildContext context) async {
@@ -78,7 +73,6 @@ class _ControlBarContent extends StatelessWidget {
 
   Future<void> _leave(BuildContext context) async {
     await context.read<LiveKitCubit>().disconnect();
-    onLeave();
   }
 
   @override
