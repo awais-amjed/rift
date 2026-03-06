@@ -69,9 +69,12 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     if (widget.participant is LocalParticipant) return;
     showDialog(
       context: context,
-      builder: (_) => ParticipantContextMenu(
-        identity: widget.participant.sid,
-        name: widget.participant.name,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: ParticipantContextMenu(
+          identity: widget.participant.sid,
+          name: widget.participant.name,
+        ),
       ),
     );
   }

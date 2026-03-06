@@ -12,14 +12,21 @@ class ContextMenuRegion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onSecondaryTap: () => _showDialog(context),
-      onLongPress: () => _showDialog(context),
+    return MenuAnchor(
+      builder:
+          (BuildContext context, MenuController controller, Widget? child) {
+            return GestureDetector(
+              onSecondaryTapDown: (details) {
+                controller.open(position: details.localPosition);
+              },
+              onLongPress: () {
+                controller.open();
+              },
+              child: child,
+            );
+          },
+      menuChildren: [contextMenu],
       child: child,
     );
-  }
-
-  void _showDialog(BuildContext context) {
-    showDialog(context: context, builder: (context) => contextMenu);
   }
 }

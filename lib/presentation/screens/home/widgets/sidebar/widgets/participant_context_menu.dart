@@ -34,11 +34,11 @@ class ParticipantContextMenu extends StatelessWidget {
             final isMuted = setting?.muted ?? false;
             final volume = setting?.volume ?? 1.0;
 
-            return Dialog(
-              backgroundColor: bgColor,
-              shape: RoundedRectangleBorder(
+            return Container(
+              decoration: BoxDecoration(
+                color: bgColor,
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: borderColor),
+                border: Border.all(color: borderColor),
               ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 224),
