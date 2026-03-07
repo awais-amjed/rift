@@ -6,6 +6,9 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `publish_video_track`, `run_capture_loop`, `spawn_capture_thread`, `wait_for_resolution`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CaptureCommand`, `ScreenShareSession`
+
 /// Start screen sharing with the given configuration.
 /// Connects to LiveKit room with the provided token.
 Future<String> startScreenshare({required ScreenShareConfig config}) =>
@@ -25,6 +28,7 @@ class ScreenShareConfig {
   final int fps;
   final int bitrate;
   final bool shareAudio;
+  final bool captureFullScreen;
 
   const ScreenShareConfig({
     required this.livekitUrl,
@@ -36,6 +40,7 @@ class ScreenShareConfig {
     required this.fps,
     required this.bitrate,
     required this.shareAudio,
+    required this.captureFullScreen,
   });
 
   @override
@@ -48,7 +53,8 @@ class ScreenShareConfig {
       resolution.hashCode ^
       fps.hashCode ^
       bitrate.hashCode ^
-      shareAudio.hashCode;
+      shareAudio.hashCode ^
+      captureFullScreen.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -63,5 +69,6 @@ class ScreenShareConfig {
           resolution == other.resolution &&
           fps == other.fps &&
           bitrate == other.bitrate &&
-          shareAudio == other.shareAudio;
+          shareAudio == other.shareAudio &&
+          captureFullScreen == other.captureFullScreen;
 }

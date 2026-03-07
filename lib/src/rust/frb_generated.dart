@@ -238,8 +238,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScreenShareConfig dco_decode_screen_share_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ScreenShareConfig(
       livekitUrl: dco_decode_String(arr[0]),
       livekitToken: dco_decode_String(arr[1]),
@@ -250,6 +250,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       fps: dco_decode_i_32(arr[6]),
       bitrate: dco_decode_i_32(arr[7]),
       shareAudio: dco_decode_bool(arr[8]),
+      captureFullScreen: dco_decode_bool(arr[9]),
     );
   }
 
@@ -313,6 +314,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_fps = sse_decode_i_32(deserializer);
     var var_bitrate = sse_decode_i_32(deserializer);
     var var_shareAudio = sse_decode_bool(deserializer);
+    var var_captureFullScreen = sse_decode_bool(deserializer);
     return ScreenShareConfig(
       livekitUrl: var_livekitUrl,
       livekitToken: var_livekitToken,
@@ -323,6 +325,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       fps: var_fps,
       bitrate: var_bitrate,
       shareAudio: var_shareAudio,
+      captureFullScreen: var_captureFullScreen,
     );
   }
 
@@ -389,6 +392,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.fps, serializer);
     sse_encode_i_32(self.bitrate, serializer);
     sse_encode_bool(self.shareAudio, serializer);
+    sse_encode_bool(self.captureFullScreen, serializer);
   }
 
   @protected

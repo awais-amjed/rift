@@ -231,6 +231,7 @@ impl SseDecode for crate::api::screenshare::ScreenShareConfig {
         let mut var_fps = <i32>::sse_decode(deserializer);
         let mut var_bitrate = <i32>::sse_decode(deserializer);
         let mut var_shareAudio = <bool>::sse_decode(deserializer);
+        let mut var_captureFullScreen = <bool>::sse_decode(deserializer);
         return crate::api::screenshare::ScreenShareConfig {
             livekit_url: var_livekitUrl,
             livekit_token: var_livekitToken,
@@ -241,6 +242,7 @@ impl SseDecode for crate::api::screenshare::ScreenShareConfig {
             fps: var_fps,
             bitrate: var_bitrate,
             share_audio: var_shareAudio,
+            capture_full_screen: var_captureFullScreen,
         };
     }
 }
@@ -305,6 +307,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::ScreenShareConfi
             self.fps.into_into_dart().into_dart(),
             self.bitrate.into_into_dart().into_dart(),
             self.share_audio.into_into_dart().into_dart(),
+            self.capture_full_screen.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -364,6 +367,7 @@ impl SseEncode for crate::api::screenshare::ScreenShareConfig {
         <i32>::sse_encode(self.fps, serializer);
         <i32>::sse_encode(self.bitrate, serializer);
         <bool>::sse_encode(self.share_audio, serializer);
+        <bool>::sse_encode(self.capture_full_screen, serializer);
     }
 }
 

@@ -31,6 +31,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   late int _fps;
   late int _bitrate;
   late bool _shareAudio;
+  late bool _captureFullScreen;
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     _fps = settings.fps;
     _bitrate = settings.bitrate;
     _shareAudio = settings.shareAudio;
+    _captureFullScreen = settings.captureFullScreen;
   }
 
   void _confirm() {
@@ -48,6 +50,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       fps: _fps,
       bitrate: _bitrate,
       shareAudio: _shareAudio,
+      captureFullScreen: _captureFullScreen,
     );
     context.read<AppCubit>().setScreenShareSettings(settings);
     Navigator.of(context).pop(settings);
@@ -116,6 +119,34 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                     ],
                   ),
                   Divider(height: 24, color: themeState.borderPrimary),
+                  // Capture Type (Full Screen vs Window)
+                  _Section(
+                    label: 'Capture Type',
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _Chip(
+                              label: '🖥️ Full Screen',
+                              active: _captureFullScreen,
+                              onTap: () =>
+                                  setState(() => _captureFullScreen = true),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _Chip(
+                              label: '🪟 Window',
+                              active: !_captureFullScreen,
+                              onTap: () =>
+                                  setState(() => _captureFullScreen = false),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   // Resolution
                   _Section(
                     label: 'Resolution',
@@ -257,7 +288,15 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                             color: themeState.textSecondary,
                           ),
                           children: [
-                            const TextSpan(text: 'Up to '),
+                            TextSpan(
+                              text: _captureFullScreen
+                                  ? 'Full Screen'
+                                  : 'Window',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const TextSpan(text: ' · '),
                             TextSpan(
                               text: '${_resolutionLabels[_resolution]}',
                               style: const TextStyle(

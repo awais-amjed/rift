@@ -28,6 +28,7 @@ pub struct ScreenShareConfig {
     pub fps: i32,
     pub bitrate: i32,
     pub share_audio: bool,
+    pub capture_full_screen: bool,
 }
 
 enum CaptureCommand {
@@ -56,6 +57,7 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     println!("FPS: {}", config.fps);
     println!("Bitrate: {} Mbps", config.bitrate);
     println!("Share Audio: {}", config.share_audio);
+    println!("Capture Type: {}", if config.capture_full_screen { "Full Screen" } else { "Window" });
     println!("=========================================");
 
     // Check if already connected
@@ -86,11 +88,18 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
         Arc::new((Mutex::new(None), Condvar::new()));
     let video_source_slot: Arc<Mutex<Option<NativeVideoSource>>> = Arc::new(Mutex::new(None));
 
+    // Determine capture source type based on user selection
+    let source_type = if config.capture_full_screen {
+        DesktopCaptureSourceType::Screen
+    } else {
+        DesktopCaptureSourceType::Window
+    };
+
     // Spawn video capture thread
     println!("Starting video capture thread...");
     let (capture_tx, capture_handle) = spawn_capture_thread(
         true, // capture_cursor
-        DesktopCaptureSourceType::Screen,
+        source_type,
         resolution_signal.clone(),
         video_source_slot.clone(),
     );

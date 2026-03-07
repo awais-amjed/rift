@@ -3,12 +3,14 @@ class ScreenShareSettings {
   final int fps;
   final int bitrate; // in Mbps
   final bool shareAudio;
+  final bool captureFullScreen; // true = full screen, false = window
 
   const ScreenShareSettings({
     this.resolution = 1080,
     this.fps = 60,
     this.bitrate = 10,
     this.shareAudio = true,
+    this.captureFullScreen = true,
   });
 
   factory ScreenShareSettings.fromJson(Map<String, dynamic> json) {
@@ -17,6 +19,7 @@ class ScreenShareSettings {
       fps: json['fps'] as int? ?? 60,
       bitrate: json['bitrate'] as int? ?? 10,
       shareAudio: json['shareAudio'] as bool? ?? true,
+      captureFullScreen: json['captureFullScreen'] as bool? ?? true,
     );
   }
 
@@ -25,6 +28,7 @@ class ScreenShareSettings {
     'fps': fps,
     'bitrate': bitrate,
     'shareAudio': shareAudio,
+    'captureFullScreen': captureFullScreen,
   };
 
   ScreenShareSettings copyWith({
@@ -32,12 +36,14 @@ class ScreenShareSettings {
     int? fps,
     int? bitrate,
     bool? shareAudio,
+    bool? captureFullScreen,
   }) {
     return ScreenShareSettings(
       resolution: resolution ?? this.resolution,
       fps: fps ?? this.fps,
       bitrate: bitrate ?? this.bitrate,
       shareAudio: shareAudio ?? this.shareAudio,
+      captureFullScreen: captureFullScreen ?? this.captureFullScreen,
     );
   }
 }

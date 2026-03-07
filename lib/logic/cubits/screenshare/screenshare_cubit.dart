@@ -61,6 +61,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       debugPrint('FPS: ${settings.fps}');
       debugPrint('Bitrate: ${settings.bitrate} Mbps');
       debugPrint('Share Audio: ${settings.shareAudio}');
+      debugPrint(
+        'Capture Type: ${settings.captureFullScreen ? "Full Screen" : "Window"}',
+      );
       debugPrint('========================');
 
       // Call Rust function to start screen sharing
@@ -74,6 +77,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         fps: settings.fps,
         bitrate: settings.bitrate,
         shareAudio: settings.shareAudio,
+        captureFullScreen: settings.captureFullScreen,
       );
 
       final result = await startScreenshare(config: config);
