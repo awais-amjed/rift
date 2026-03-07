@@ -13,10 +13,26 @@ class AppTitleBar extends StatefulWidget {
   /// Optional title shown in the centre / left of the bar.
   final String? title;
 
-  /// Extra height for the draggable region. Defaults to 40.
+  /// Height of the bar. Defaults to 40.
   final double height;
 
-  const AppTitleBar({super.key, this.title, this.height = 40});
+  /// Whether the bar is permanently pinned (vs. shown as a hover overlay).
+  final bool pinned;
+
+  /// Called when the user clicks the chevron to hide / unpin the bar.
+  final VoidCallback? onHide;
+
+  /// Called when the user clicks the pin button while in overlay mode.
+  final VoidCallback? onShow;
+
+  const AppTitleBar({
+    super.key,
+    this.title,
+    this.height = 40,
+    this.pinned = true,
+    this.onHide,
+    this.onShow,
+  });
 
   @override
   State<AppTitleBar> createState() => _AppTitleBarState();
@@ -86,20 +102,34 @@ class _AppTitleBarState extends State<AppTitleBar>
                 child: DragToMoveArea(child: SizedBox.expand()),
               ),
 
-              // Title (left-aligned)
+              // Left button: hide when pinned, pin when in overlay mode
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: _WindowButton(
+                  icon: widget.pinned
+                      ? Icons.expand_less_rounded
+                      : Icons.push_pin_outlined,
+                  tooltip: widget.pinned ? 'Hide title bar' : 'Pin title bar',
+                  onTap: () => widget.pinned
+                      ? widget.onHide?.call()
+                      : widget.onShow?.call(),
+                  themeState: themeState,
+                ),
+              ),
+
+              // Title (centred)
               if (widget.title != null)
                 Positioned.fill(
                   child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 14),
-                      child: Text(
-                        widget.title!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: themeState.textTertiary,
-                        ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      widget.title!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: themeState.textTertiary,
                       ),
                     ),
                   ),

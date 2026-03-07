@@ -18,6 +18,24 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _titleBarVisible = true;
+
+  // When hidden, show it again as an overlay while cursor is in the top zone.
+  bool _titleBarOverlay = false;
+
+  static const double _titleBarHeight = 40;
+
+  // Invisible hot-zone height at the top of the screen that triggers the overlay.
+  static const double _hotZoneHeight = 40;
+
+  void _onMouseMove(PointerEvent event) {
+    if (_titleBarVisible) return;
+    final nearTop = event.localPosition.dy <= _hotZoneHeight;
+    if (nearTop != _titleBarOverlay) {
+      setState(() => _titleBarOverlay = nearTop);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -75,33 +93,65 @@ class _HomeScreenState extends State<HomeScreen> {
         body: BlocBuilder<AppCubit, AppState>(
           buildWhen: (prev, curr) => prev.isPinned != curr.isPinned,
           builder: (context, appState) {
-            return Column(
-              children: [
-                const AppTitleBar(),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      // Base layout: sidebar (when pinned) + content in a Row
-                      Row(
-                        children: [
-                          if (appState.isPinned) const Sidebar(),
-                          const Expanded(child: ParticipantsGrid()),
-                        ],
-                      ),
-                      // Floating hamburger button — shown when sidebar is unpinned
-                      if (!appState.isPinned)
-                        Positioned(
-                          left: 12,
-                          top: 12,
-                          child: _HamburgerButton(
-                            onTap: () =>
-                                context.read<AppCubit>().setIsPinned(true),
-                          ),
+            return MouseRegion(
+              onHover: _onMouseMove,
+              // When cursor leaves the window entirely, close the overlay.
+              onExit: (_) {
+                if (_titleBarOverlay) {
+                  setState(() => _titleBarOverlay = false);
+                }
+              },
+              child: Stack(
+                children: [
+                  // ── Main content ──────────────────────────────────────
+                  Positioned.fill(
+                    top: _titleBarVisible ? _titleBarHeight : 0,
+                    child: Stack(
+                      children: [
+                        Row(
+                          children: [
+                            if (appState.isPinned) const Sidebar(),
+                            const Expanded(child: ParticipantsGrid()),
+                          ],
                         ),
-                    ],
+                        if (!appState.isPinned)
+                          Positioned(
+                            left: 12,
+                            top: 12,
+                            child: _HamburgerButton(
+                              onTap: () =>
+                                  context.read<AppCubit>().setIsPinned(true),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+
+                  // ── Title bar (pinned or overlay) ─────────────────────
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    top: (_titleBarVisible || _titleBarOverlay)
+                        ? 0
+                        : -_titleBarHeight,
+                    left: 0,
+                    right: 0,
+                    height: _titleBarHeight,
+                    child: AppTitleBar(
+                      height: _titleBarHeight,
+                      pinned: _titleBarVisible,
+                      onHide: () => setState(() {
+                        _titleBarVisible = false;
+                        _titleBarOverlay = false;
+                      }),
+                      onShow: () => setState(() {
+                        _titleBarVisible = true;
+                        _titleBarOverlay = false;
+                      }),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),
