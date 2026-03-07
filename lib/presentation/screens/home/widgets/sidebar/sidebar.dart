@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import 'widgets/sidebar_content.dart';
 
@@ -17,7 +18,7 @@ class Sidebar extends StatelessWidget {
       builder: (context, appState) {
         if (!appState.isPinned) return const SizedBox.shrink();
         return SizedBox(
-          width: kSidebarWidth,
+          width: K.sidebarWidth,
           child: SidebarContent(isPinned: true, topPadding: topPadding),
         );
       },

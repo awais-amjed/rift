@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../common/app_title_bar.dart';
@@ -21,10 +22,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // When hidden, show it again as an overlay while cursor is in the top zone.
   bool _titleBarOverlay = false;
 
-  static const double _titleBarHeight = 40;
-
-  // Invisible hot-zone height at the top of the screen that triggers the overlay.
-  static const double _hotZoneHeight = 40;
+  static const double _titleBarHeight = K.titleBarHeight;
+  static const double _hotZoneHeight = K.titleBarHotZoneHeight;
 
   void _onMouseMove(PointerEvent event, bool titleBarVisible) {
     if (titleBarVisible) return;
@@ -111,12 +110,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         Row(
                           children: [
                             if (appState.isPinned)
-                              Sidebar(topPadding: titleBarVisible ? 0 : 20),
+                              Sidebar(
+                                topPadding: titleBarVisible
+                                    ? 0
+                                    : K.titleBarHiddenSidebarPadding,
+                              ),
                             const Expanded(child: ParticipantsGrid()),
                           ],
                         ),
                         if (!appState.isPinned)
-                          FloatingSidebar(topPadding: titleBarVisible ? 0 : 20),
+                          FloatingSidebar(
+                            topPadding: titleBarVisible
+                                ? 0
+                                : K.titleBarHiddenSidebarPadding,
+                          ),
                       ],
                     ),
                   ),

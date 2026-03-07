@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../profile/user_profile.dart';
 import 'sidebar_channel_list.dart';
 import 'sidebar_header.dart';
 import 'sidebar_actions.dart';
-
-const double kSidebarWidth = 280;
 
 /// The main content of the sidebar, used both in pinned and floating modes.
 class SidebarContent extends StatelessWidget {

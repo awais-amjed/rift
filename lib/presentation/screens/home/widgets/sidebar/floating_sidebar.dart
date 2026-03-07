@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/constants.dart';
 import 'widgets/sidebar_content.dart';
 
 /// Shown when the sidebar is unpinned. Renders an invisible hot-zone on the
@@ -29,10 +30,10 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
         AnimatedPositioned(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          left: _hovered ? 0 : -kSidebarWidth,
+          left: _hovered ? 0 : -K.sidebarWidth,
           top: 0,
           bottom: 0,
-          width: kSidebarWidth,
+          width: K.sidebarWidth,
           child: MouseRegion(
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),

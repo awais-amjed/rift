@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/custom_colors.dart';
 
@@ -28,7 +29,7 @@ class AppTitleBar extends StatefulWidget {
   const AppTitleBar({
     super.key,
     this.title,
-    this.height = 40,
+    this.height = K.titleBarHeight,
     this.pinned = true,
     this.onHide,
     this.onShow,
