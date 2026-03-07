@@ -9,7 +9,7 @@ import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
-import '../screen_share_settings_dialog.dart';
+import '../screenshare/screen_share_settings_dialog.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 /// Auto-hides after inactivity and reappears when the mouse moves.
