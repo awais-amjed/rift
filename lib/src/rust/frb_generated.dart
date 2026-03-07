@@ -82,11 +82,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSimpleInitApp();
 
-  Future<void> crateApiScreenshareStartScreenshare({
+  Future<String> crateApiScreenshareStartScreenshare({
     required ScreenShareConfig config,
   });
 
-  Future<void> crateApiScreenshareStopScreenshare();
+  Future<String> crateApiScreenshareStopScreenshare();
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -148,7 +148,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
-  Future<void> crateApiScreenshareStartScreenshare({
+  Future<String> crateApiScreenshareStartScreenshare({
     required ScreenShareConfig config,
   }) {
     return handler.executeNormal(
@@ -164,8 +164,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiScreenshareStartScreenshareConstMeta,
         argValues: [config],
@@ -178,7 +178,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "start_screenshare", argNames: ["config"]);
 
   @override
-  Future<void> crateApiScreenshareStopScreenshare() {
+  Future<String> crateApiScreenshareStopScreenshare() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -191,8 +191,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiScreenshareStopScreenshareConstMeta,
         argValues: [],

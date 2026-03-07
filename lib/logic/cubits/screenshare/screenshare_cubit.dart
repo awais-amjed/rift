@@ -76,7 +76,8 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         shareAudio: settings.shareAudio,
       );
 
-      await startScreenshare(config: config);
+      final result = await startScreenshare(config: config);
+      debugPrint('✓ Rust connection result: $result');
 
       emit(
         state.copyWith(
@@ -86,6 +87,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         ),
       );
     } catch (e) {
+      debugPrint('✗ Screen share error: $e');
       emit(
         state.copyWith(
           status: ScreenshareStatus.error,
@@ -104,7 +106,8 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     try {
       // Call Rust function to stop screen sharing
       debugPrint('=== STOPPING SCREENSHARE ===');
-      await stopScreenshare();
+      final result = await stopScreenshare();
+      debugPrint('✓ Rust disconnect result: $result');
 
       emit(
         state.copyWith(
@@ -115,6 +118,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         ),
       );
     } catch (e) {
+      debugPrint('✗ Stop screenshare error: $e');
       emit(
         state.copyWith(
           status: ScreenshareStatus.error,

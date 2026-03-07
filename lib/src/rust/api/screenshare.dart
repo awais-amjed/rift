@@ -7,18 +7,14 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Start screen sharing with the given configuration.
-/// For now, this just prints the received data to verify the bridge is working.
-Future<void> startScreenshare({required ScreenShareConfig config}) =>
+/// Connects to LiveKit room with the provided token.
+Future<String> startScreenshare({required ScreenShareConfig config}) =>
     RustLib.instance.api.crateApiScreenshareStartScreenshare(config: config);
 
-/// Stop screen sharing.
-Future<void> stopScreenshare() =>
+/// Stop screen sharing and disconnect from LiveKit.
+Future<String> stopScreenshare() =>
     RustLib.instance.api.crateApiScreenshareStopScreenshare();
 
-/// Screenshare API for LiveKit integration
-///
-/// This module handles screen sharing functionality by receiving
-/// configuration from Flutter and managing the LiveKit session.
 class ScreenShareConfig {
   final String livekitUrl;
   final String livekitToken;
