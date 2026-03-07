@@ -218,11 +218,11 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         }
       }
 
-      // Restore mic to the persisted enabled state
-      final micEnabled = _appCubit.state.audioEnabled;
-      await room.localParticipant?.setMicrophoneEnabled(micEnabled);
+      // Restore mic — always unmute when un-deafening
+      await room.localParticipant?.setMicrophoneEnabled(true);
+      _appCubit.setAudioEnabled(true);
 
-      emit(state.copyWith(isDeafened: false, isMicEnabled: micEnabled));
+      emit(state.copyWith(isDeafened: false, isMicEnabled: true));
     }
 
     _syncParticipants();
