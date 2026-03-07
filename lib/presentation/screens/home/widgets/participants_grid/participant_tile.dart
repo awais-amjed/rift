@@ -27,6 +27,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   TrackPublication? _videoPub;
   bool _isSpeaking = false;
   bool _isSubscribed = false;
+  bool _hasInitialized = false;
 
   bool get _isScreenshare =>
       widget.participant.identity.endsWith('_screenshare');
@@ -36,6 +37,17 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     super.initState();
     _updateVideoTrack();
     widget.participant.addListener(_onParticipantChanged);
+
+    // Unsubscribe from screenshare on first load
+    if (_isScreenshare) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_hasInitialized) {
+          _hasInitialized = true;
+          final livekitCubit = context.read<LiveKitCubit>();
+          livekitCubit.unsubscribeFromScreenshare(widget.participant.identity);
+        }
+      });
+    }
   }
 
   @override
@@ -72,6 +84,8 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           )
           .cast<TrackPublication?>()
           .firstOrNull;
+
+      // Check if subscribed
       _isSubscribed = _videoPub?.subscribed ?? false;
     } else {
       // For regular participants, look for camera video track
@@ -95,6 +109,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         final isSpeaking = _isSpeaking && !widget.isMuted;
         final name = widget.participant.name;
         final showWatchButton = _isScreenshare && !_isSubscribed;
+        final showStopButton = _isScreenshare && _isSubscribed && hasVideo;
 
         final content = AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -140,6 +155,15 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                   _WatchStreamButton(
                     onTap: () => _subscribeToScreenshare(context),
                   ),
+                // Stop Watching button for subscribed screenshare
+                if (showStopButton)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: _StopWatchingButton(
+                      onTap: () => _unsubscribeFromScreenshare(context),
+                    ),
+                  ),
                 // Name + mic badge (hide for screenshare with watch button)
                 if (!showWatchButton)
                   Positioned(
@@ -182,6 +206,21 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   Future<void> _subscribeToScreenshare(BuildContext context) async {
     final livekitCubit = context.read<LiveKitCubit>();
     await livekitCubit.subscribeToScreenshare(widget.participant.identity);
+    if (mounted) {
+      setState(() {
+        _isSubscribed = true;
+      });
+    }
+  }
+
+  Future<void> _unsubscribeFromScreenshare(BuildContext context) async {
+    final livekitCubit = context.read<LiveKitCubit>();
+    await livekitCubit.unsubscribeFromScreenshare(widget.participant.identity);
+    if (mounted) {
+      setState(() {
+        _isSubscribed = false;
+      });
+    }
   }
 }
 
@@ -323,6 +362,42 @@ class _WatchStreamButton extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _StopWatchingButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _StopWatchingButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.7),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.stop_circle, size: 18, color: Colors.white),
+              SizedBox(width: 6),
+              Text(
+                'Stop Watching',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
