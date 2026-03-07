@@ -79,14 +79,21 @@ class _MyAppState extends State<MyApp> {
             BlocProvider(create: (_) => ServerCubit()),
             BlocProvider(create: (_) => AppCubit()),
             BlocProvider(
-              create: (context) => LiveKitCubit(
-                repository: ServerRepository(),
-                appCubit: context.read<AppCubit>(),
-              ),
-            ),
-            BlocProvider(
               create: (context) =>
                   ScreenshareCubit(repository: ServerRepository()),
+            ),
+            BlocProvider(
+              create: (context) {
+                final livekitCubit = LiveKitCubit(
+                  repository: ServerRepository(),
+                  appCubit: context.read<AppCubit>(),
+                );
+                // Wire up screenshare cubit for automatic cleanup on disconnect
+                livekitCubit.setScreenshareCubit(
+                  context.read<ScreenshareCubit>(),
+                );
+                return livekitCubit;
+              },
             ),
           ],
           child: Sizer(

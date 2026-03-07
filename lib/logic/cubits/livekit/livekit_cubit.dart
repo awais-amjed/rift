@@ -6,6 +6,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../app/app_cubit.dart';
+import '../screenshare/screenshare_cubit.dart';
 
 part 'livekit_state.dart';
 
@@ -13,14 +14,22 @@ part 'livekit_state.dart';
 class LiveKitCubit extends Cubit<LiveKitState> {
   final ServerRepository _repository;
   final AppCubit _appCubit;
+  ScreenshareCubit? _screenshareCubit;
   final List<EventsListener<RoomEvent>> _listeners = [];
 
   LiveKitCubit({
     required ServerRepository repository,
     required AppCubit appCubit,
+    ScreenshareCubit? screenshareCubit,
   }) : _repository = repository,
        _appCubit = appCubit,
+       _screenshareCubit = screenshareCubit,
        super(const LiveKitState());
+
+  /// Set the screenshare cubit for automatic cleanup on disconnect
+  void setScreenshareCubit(ScreenshareCubit cubit) {
+    _screenshareCubit = cubit;
+  }
 
   // ──────────────────────────────────────────────────────────
   // Connection Management
@@ -115,6 +124,12 @@ class LiveKitCubit extends Cubit<LiveKitState> {
 
   /// Disconnect from the current room.
   Future<void> disconnect() async {
+    // Stop screenshare if active
+    if (_screenshareCubit?.state.isSharing == true) {
+      debugPrint('Stopping screenshare due to channel disconnect...');
+      await _screenshareCubit?.stopScreenShare();
+    }
+
     // Clear participants immediately
     _appCubit.setParticipants([]);
     _appCubit.setSelectedChannelId(null);
