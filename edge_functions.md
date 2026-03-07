@@ -1,15 +1,18 @@
 # Rift Edge Functions API Documentation
 
-This document provides comprehensive documentation for all Supabase Edge Functions in the Rift application.
+This document provides comprehensive documentation for all Supabase Edge Functions in the Rift
+application.
 
 ## Base URL
 
 All functions are deployed under the Supabase Functions endpoint:
+
 ```
 https://<project-ref>.supabase.co/functions/v1/
 ```
 
 For local development:
+
 ```
 http://127.0.0.1:54321/functions/v1/
 ```
@@ -19,14 +22,18 @@ http://127.0.0.1:54321/functions/v1/
 All functions return a consistent JSON response format:
 
 **Success Response:**
+
 ```json
 {
   "success": true,
-  "data": { ... }
+  "data": {
+    ...
+  }
 }
 ```
 
 **Error Response:**
+
 ```json
 {
   "success": false,
@@ -34,7 +41,8 @@ All functions return a consistent JSON response format:
 }
 ```
 
-All responses have HTTP status code 200. The `success` field indicates whether the operation was successful.
+All responses have HTTP status code 200. The `success` field indicates whether the operation was
+successful.
 
 ---
 
@@ -46,9 +54,12 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 
 **Method:** `POST`
 
-**Description:** Creates a new server with LiveKit configuration, generates a unique seeding secret for token generation, and automatically creates an admin token with full permissions (is_server_admin, is_channel_manager, can_create_tokens).
+**Description:** Creates a new server with LiveKit configuration, generates a unique seeding secret
+for token generation, and automatically creates an admin token with full permissions (
+is_server_admin, is_channel_manager, can_create_tokens).
 
 **Input Parameters:**
+
 ```json
 {
   "name": "string (required)",
@@ -60,6 +71,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -82,8 +94,11 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 **Permissions Required:** None (public endpoint for creating new servers)
 
 **Notes:**
-- The returned token has full admin permissions: `is_server_admin`, `is_channel_manager`, and `can_create_tokens` all set to `true`
-- This token can be used immediately to manage the server, create channels, and generate additional access tokens
+
+- The returned token has full admin permissions: `is_server_admin`, `is_channel_manager`, and
+  `can_create_tokens` all set to `true`
+- This token can be used immediately to manage the server, create channels, and generate additional
+  access tokens
 
 ---
 
@@ -93,9 +108,12 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 
 **Method:** `POST`
 
-**Description:** Generates a new access token for a server with specified permissions. The calling user must have `can_create_tokens` permission. Uses the server's seeding secret to generate a secure HMAC-SHA256 token.
+**Description:** Generates a new access token for a server with specified permissions. The calling
+user must have `can_create_tokens` permission. Uses the server's seeding secret to generate a secure
+HMAC-SHA256 token.
 
 **Input Parameters:**
+
 ```json
 {
   "token": "string (required) - Caller's access token",
@@ -106,6 +124,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -126,9 +145,11 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 
 **Method:** `POST`
 
-**Description:** Creates a new user account and links it to an existing token. The token must not already be linked to a user. The username must be unique across all users.
+**Description:** Creates a new user account and links it to an existing token. The token must not
+already be linked to a user. The username must be unique across all users.
 
 **Input Parameters:**
+
 ```json
 {
   "token": "string (required) - Access token to link",
@@ -138,10 +159,12 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
   "data": {
+    "server_id": "uuid",
     "user_id": "uuid",
     "username": "string",
     "display_name": "string"
@@ -152,6 +175,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 **Permissions Required:** Valid token that is not yet linked to a user
 
 **Validation:**
+
 - Token must exist and not be linked to a user
 - Username must be unique
 
@@ -166,6 +190,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 **Description:** Checks if a username is available for registration.
 
 **Input Parameters:**
+
 ```json
 {
   "username": "string (required)"
@@ -173,6 +198,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -193,9 +219,11 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 
 **Method:** `POST`
 
-**Description:** Retrieves server information, user details (if linked to the token) with their permissions, and a list of all channels in the server.
+**Description:** Retrieves server information, user details (if linked to the token) with their
+permissions, and a list of all channels in the server.
 
 **Input Parameters:**
+
 ```json
 {
   "token": "string (required)"
@@ -203,10 +231,12 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
   "data": {
+    "server_id": "uuid",
     "name": "string - Server name",
     "icon_url": "string | null - Server icon URL",
     "livekit_url": "string - LiveKit server URL",
@@ -219,7 +249,9 @@ All responses have HTTP status code 200. The `success` field indicates whether t
         "is_channel_manager": "boolean",
         "can_create_tokens": "boolean"
       }
-    } | null,
+    }
+    |
+    null,
     "channels": [
       {
         "id": "uuid",
@@ -234,6 +266,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 **Permissions Required:** Valid token
 
 **Notes:**
+
 - `user` field is `null` if the token is not linked to a user yet
 - `permissions` object shows the user's current permissions for this server
 
@@ -245,9 +278,11 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 
 **Method:** `POST`
 
-**Description:** Updates server details. At least one field must be provided for update. Only server admins can update server details.
+**Description:** Updates server details. At least one field must be provided for update. Only server
+admins can update server details.
 
 **Input Parameters:**
+
 ```json
 {
   "token": "string (required)",
@@ -259,6 +294,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -274,6 +310,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 **Permissions Required:** `is_server_admin`
 
 **Validation:**
+
 - At least one field to update must be provided
 
 ---
@@ -284,9 +321,11 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 
 **Method:** `POST`
 
-**Description:** Creates a new channel in the server. Channel names must be unique within a server. Only channel managers can create channels.
+**Description:** Creates a new channel in the server. Channel names must be unique within a server.
+Only channel managers can create channels.
 
 **Input Parameters:**
+
 ```json
 {
   "token": "string (required)",
@@ -296,6 +335,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -311,6 +351,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 **Permissions Required:** `is_channel_manager`
 
 **Validation:**
+
 - `channel_type` must be either "voice" or "text"
 - Channel name must be unique within the server
 
@@ -322,9 +363,11 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 
 **Method:** `POST`
 
-**Description:** Deletes a channel from the server. Only channel managers can delete channels, and the channel must belong to the same server as the token.
+**Description:** Deletes a channel from the server. Only channel managers can delete channels, and
+the channel must belong to the same server as the token.
 
 **Input Parameters:**
+
 ```json
 {
   "token": "string (required)",
@@ -333,6 +376,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -346,6 +390,7 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 **Permissions Required:** `is_channel_manager`
 
 **Validation:**
+
 - Channel must exist
 - Channel must belong to the same server as the token
 
@@ -357,17 +402,23 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 
 **Method:** `POST`
 
-**Description:** Generates a LiveKit JWT token for joining a specific voice/text channel. The token includes appropriate permissions based on the user's role. The user must be linked to the token (have a user account).
+**Description:** Generates a LiveKit JWT token for joining a specific voice/text channel. The token
+includes appropriate permissions based on the user's role. The user must be linked to the token (
+have a user account). If `screen_share` is true, the identity will have `_screenshare` appended to
+it for screen sharing sessions.
 
 **Input Parameters:**
+
 ```json
 {
   "token": "string (required) - Access token",
-  "channel_id": "uuid (required) - Channel to join"
+  "channel_id": "uuid (required) - Channel to join",
+  "screen_share": "boolean (optional, default: false) - Append _screenshare to identity for screen sharing"
 }
 ```
 
 **Output:**
+
 ```json
 {
   "success": true,
@@ -380,20 +431,72 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 **Permissions Required:** Valid token linked to a user
 
 **LiveKit Token Grants:**
+
 - `roomCreate`: true
 - `roomJoin`: true
 - `room`: channel_id (the channel ID is used as the room name)
 - `canPublish`: true
 - `canSubscribe`: true
 - `roomAdmin`: Based on `is_channel_manager` permission
-- `identity`: user_id
+- `identity`: user_id (or user_id_screenshare if `screen_share` is true)
 - `name`: display_name
 - `ttl`: 1 hour
 
 **Validation:**
+
 - Token must be linked to a user
 - Channel must exist
 - User information must be present in the database
+
+---
+
+### 10. Mute Participant
+
+**Endpoint:** `/mute_participant`
+
+**Method:** `POST`
+
+**Description:** Allows channel managers and server admins to mute or unmute a participant in a
+voice channel. Uses LiveKit's RoomService API to control participant audio publishing.
+
+**Input Parameters:**
+
+```json
+{
+  "token": "string (required) - Access token",
+  "channel_id": "uuid (required) - Channel ID (room)",
+  "participant_identity": "string (required) - User ID of participant to mute/unmute",
+  "muted": "boolean (required) - True to mute, false to unmute"
+}
+```
+
+**Output:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "server_id": "uuid",
+    "channel_id": "uuid",
+    "participant_identity": "string",
+    "muted": "boolean"
+  }
+}
+```
+
+**Permissions Required:** `is_channel_manager` OR `is_server_admin`
+
+**Validation:**
+
+- Token must have either channel manager or server admin permissions
+- Channel must exist
+- LiveKit credentials must be configured for the server
+
+**Notes:**
+
+- Uses LiveKit's `mutePublishedTrack` API
+- The mute action affects all audio tracks published by the participant
+- The participant will be notified of the mute state change via LiveKit
 
 ---
 
@@ -403,15 +506,16 @@ All responses have HTTP status code 200. The `success` field indicates whether t
 
 Each access token can have the following permissions:
 
-| Permission | Description |
-|------------|-------------|
-| `is_server_admin` | Can update server settings (name, icon, LiveKit credentials) |
-| `is_channel_manager` | Can create and delete channels, gets `roomAdmin` in LiveKit |
-| `can_create_tokens` | Can generate new access tokens with custom permissions |
+| Permission           | Description                                                                     |
+|----------------------|---------------------------------------------------------------------------------|
+| `is_server_admin`    | Can update server settings (name, icon, LiveKit credentials), mute participants |
+| `is_channel_manager` | Can create and delete channels, mute participants, gets `roomAdmin` in LiveKit  |
+| `can_create_tokens`  | Can generate new access tokens with custom permissions                          |
 
 ### Permission Hierarchy
 
-- **Server Admin**: Can modify server-level settings but doesn't automatically get channel or token creation permissions
+- **Server Admin**: Can modify server-level settings but doesn't automatically get channel or token
+  creation permissions
 - **Channel Manager**: Can manage channels and has elevated permissions in LiveKit rooms
 - **Token Creator**: Can generate new access tokens for inviting users with specific permissions
 
@@ -430,15 +534,15 @@ Each access token can have the following permissions:
 
 Common error responses:
 
-| Error | Description |
-|-------|-------------|
-| `Missing required field: <field>` | A required input parameter is missing |
-| `Invalid token provided` | The provided token doesn't exist in the database |
-| `Unauthorized: <reason>` | The user lacks required permissions |
-| `<Resource> not found` | The requested resource doesn't exist |
-| `Username already taken` | The username is not available |
-| `A channel with this name already exists` | Duplicate channel name in server |
-| `Token is already linked to a user` | Cannot join server with an already-linked token |
+| Error                                     | Description                                      |
+|-------------------------------------------|--------------------------------------------------|
+| `Missing required field: <field>`         | A required input parameter is missing            |
+| `Invalid token provided`                  | The provided token doesn't exist in the database |
+| `Unauthorized: <reason>`                  | The user lacks required permissions              |
+| `<Resource> not found`                    | The requested resource doesn't exist             |
+| `Username already taken`                  | The username is not available                    |
+| `A channel with this name already exists` | Duplicate channel name in server                 |
+| `Token is already linked to a user`       | Cannot join server with an already-linked token  |
 
 ---
 
@@ -447,11 +551,13 @@ Common error responses:
 ### Local Testing
 
 1. Start Supabase locally:
+
 ```bash
 supabase start
 ```
 
 2. Test function locally:
+
 ```bash
 curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/<function_name>' \
   --header 'Authorization: Bearer <anon_key>' \
@@ -462,11 +568,13 @@ curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/<function
 ### Deployment
 
 Deploy all functions:
+
 ```bash
 supabase functions deploy
 ```
 
 Deploy a specific function:
+
 ```bash
 supabase functions deploy <function_name>
 ```
