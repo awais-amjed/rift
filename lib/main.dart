@@ -7,6 +7,7 @@ import 'package:toastification/toastification.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sizer/sizer.dart';
 import 'package:keyboard_dismisser/keyboard_dismisser.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'data/repositories/server_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
@@ -25,6 +26,13 @@ void main() async {
         ? HydratedStorageDirectory.web
         : HydratedStorageDirectory((await getTemporaryDirectory()).path),
   );
+
+  if (!kIsWeb) {
+    await windowManager.ensureInitialized();
+    windowManager.waitUntilReadyToShow(
+      const WindowOptions(titleBarStyle: TitleBarStyle.hidden),
+    );
+  }
 
   runApp(const MyApp());
 }

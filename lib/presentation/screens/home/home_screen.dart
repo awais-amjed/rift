@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
+import '../../common/app_title_bar.dart';
 import 'widgets/servers/create_user_dialog.dart';
 import 'widgets/servers/server_selector/server_selector_dialog.dart';
 import 'widgets/sidebar/sidebar.dart';
@@ -74,24 +75,32 @@ class _HomeScreenState extends State<HomeScreen> {
         body: BlocBuilder<AppCubit, AppState>(
           buildWhen: (prev, curr) => prev.isPinned != curr.isPinned,
           builder: (context, appState) {
-            return Stack(
+            return Column(
               children: [
-                // Base layout: sidebar (when pinned) + content in a Row
-                Row(
-                  children: [
-                    if (appState.isPinned) const Sidebar(),
-                    const Expanded(child: ParticipantsGrid()),
-                  ],
-                ),
-                // Floating hamburger button — shown when sidebar is unpinned
-                if (!appState.isPinned)
-                  Positioned(
-                    left: 12,
-                    top: 12,
-                    child: _HamburgerButton(
-                      onTap: () => context.read<AppCubit>().setIsPinned(true),
-                    ),
+                const AppTitleBar(),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // Base layout: sidebar (when pinned) + content in a Row
+                      Row(
+                        children: [
+                          if (appState.isPinned) const Sidebar(),
+                          const Expanded(child: ParticipantsGrid()),
+                        ],
+                      ),
+                      // Floating hamburger button — shown when sidebar is unpinned
+                      if (!appState.isPinned)
+                        Positioned(
+                          left: 12,
+                          top: 12,
+                          child: _HamburgerButton(
+                            onTap: () =>
+                                context.read<AppCubit>().setIsPinned(true),
+                          ),
+                        ),
+                    ],
                   ),
+                ),
               ],
             );
           },
