@@ -77,12 +77,14 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     try {
       final useMicEnabled = micEnabled ?? state.isMicEnabled;
       final useCameraEnabled = cameraEnabled ?? state.isCameraEnabled;
+      // If the user was deafened before joining, join with mic off
+      final joinMicEnabled = state.isDeafened ? false : useMicEnabled;
 
       await room.connect(
         livekitUrl,
         livekitToken,
         fastConnectOptions: FastConnectOptions(
-          microphone: TrackOption(enabled: useMicEnabled),
+          microphone: TrackOption(enabled: joinMicEnabled),
           camera: TrackOption(enabled: useCameraEnabled),
         ),
       );
@@ -93,7 +95,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
           room: room,
           isMicEnabled: useMicEnabled,
           isCameraEnabled: useCameraEnabled,
-          isDeafened: false,
+          // preserve isDeafened — user set it before joining
         ),
       );
 
@@ -117,11 +119,10 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _appCubit.setParticipants([]);
     _appCubit.setSelectedChannelId(null);
 
-    // Update state to disconnected before cleanup
+    // Update state to disconnected before cleanup — preserve mic/deafen prefs
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.disconnected,
-        isDeafened: false,
         clearChannelId: true,
         clearError: true,
         participants: [],
@@ -139,93 +140,93 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   // Media Controls
   // ──────────────────────────────────────────────────────────
 
-  /// Toggle microphone on/off. If deafened, just un-deafens (which restores mic).
+  /// Toggle microphone on/off. Works even when not in a channel so the
+  /// preference is saved and applied on the next connect.
   Future<void> toggleMicrophone() async {
     final room = state.room;
-    if (room == null) return;
 
     if (state.isDeafened) {
-      // Un-deafen restores mic to its last persisted state — don't toggle on top
+      // Un-deafen restores mic — undeafening also unmutes
       await _setDeafened(false);
       return;
     }
 
     final next = !state.isMicEnabled;
-    await room.localParticipant?.setMicrophoneEnabled(next);
+    if (room != null) {
+      await room.localParticipant?.setMicrophoneEnabled(next);
+    }
     _appCubit.setAudioEnabled(next);
     emit(state.copyWith(isMicEnabled: next));
-    _syncParticipants();
+    if (room != null) _syncParticipants();
   }
 
   /// Toggle deafen on/off (like Discord).
   /// Deafening: mutes mic + disables all remote audio tracks locally.
-  /// Un-deafening: re-enables audio + restores mic to previous state.
+  /// Un-deafening: re-enables audio + restores mic.
+  /// Works even when not in a channel so the preference is saved.
   Future<void> toggleDeafen() async {
     await _setDeafened(!state.isDeafened);
   }
 
   Future<void> _setDeafened(bool deafened) async {
     final room = state.room;
-    if (room == null) return;
 
     if (deafened) {
-      // Mute mic
-      await room.localParticipant?.setMicrophoneEnabled(false);
-      _appCubit.setAudioEnabled(false);
+      if (room != null) {
+        // Mute mic
+        await room.localParticipant?.setMicrophoneEnabled(false);
 
-      // Unsubscribe from all remote audio tracks + silence any already-active ones
-      for (final participant in room.remoteParticipants.values) {
-        for (final pub in participant.audioTrackPublications) {
-          // Silence immediately via the WebRTC track if it's already subscribed
-          final track = pub.track;
-          if (track != null) {
-            track.mediaStreamTrack.enabled = false;
+        // Unsubscribe from all remote audio tracks + silence any already-active ones
+        for (final participant in room.remoteParticipants.values) {
+          for (final pub in participant.audioTrackPublications) {
+            final track = pub.track;
+            if (track != null) {
+              track.mediaStreamTrack.enabled = false;
+            }
+            await pub.unsubscribe();
           }
-          // Tell the server to stop sending audio data
-          await pub.unsubscribe();
         }
       }
-
+      _appCubit.setAudioEnabled(false);
       emit(state.copyWith(isDeafened: true, isMicEnabled: false));
     } else {
-      // Re-subscribe all remote audio tracks
-      for (final participant in room.remoteParticipants.values) {
-        final setting =
-            _appCubit.state.participantSettings[participant.identity];
-        final isMuted = setting?.muted ?? false;
+      if (room != null) {
+        // Re-subscribe all remote audio tracks
+        for (final participant in room.remoteParticipants.values) {
+          final setting =
+              _appCubit.state.participantSettings[participant.identity];
+          final isMuted = setting?.muted ?? false;
 
-        for (final pub in participant.audioTrackPublications) {
-          // Re-subscribe to get audio flowing again
-          await pub.subscribe();
+          for (final pub in participant.audioTrackPublications) {
+            await pub.subscribe();
 
-          // After subscribe the track reference may update; apply mute/volume
-          final track = pub.track;
-          if (track == null) continue;
+            final track = pub.track;
+            if (track == null) continue;
 
-          if (isMuted) {
-            track.mediaStreamTrack.enabled = false;
-          } else {
-            track.mediaStreamTrack.enabled = true;
-            final volume = setting?.volume ?? 1.0;
-            if (volume != 1.0) {
-              try {
-                await rtc.Helper.setVolume(volume, track.mediaStreamTrack);
-              } catch (e) {
-                debugPrint('setVolume error: $e');
+            if (isMuted) {
+              track.mediaStreamTrack.enabled = false;
+            } else {
+              track.mediaStreamTrack.enabled = true;
+              final volume = setting?.volume ?? 1.0;
+              if (volume != 1.0) {
+                try {
+                  await rtc.Helper.setVolume(volume, track.mediaStreamTrack);
+                } catch (e) {
+                  debugPrint('setVolume error: $e');
+                }
               }
             }
           }
         }
+
+        // Restore mic
+        await room.localParticipant?.setMicrophoneEnabled(true);
       }
-
-      // Restore mic — always unmute when un-deafening
-      await room.localParticipant?.setMicrophoneEnabled(true);
       _appCubit.setAudioEnabled(true);
-
       emit(state.copyWith(isDeafened: false, isMicEnabled: true));
     }
 
-    _syncParticipants();
+    if (room != null) _syncParticipants();
   }
 
   /// Toggle camera on/off.
@@ -359,6 +360,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
               connectionState: LiveKitConnectionState.disconnected,
               clearRoom: true,
               participants: [],
+              // preserve isMicEnabled and isDeafened
             ),
           );
         }
