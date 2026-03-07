@@ -6,7 +6,9 @@ import 'widgets/sidebar_content.dart';
 
 /// Sidebar widget. When pinned, renders the full panel. When unpinned, renders nothing.
 class Sidebar extends StatelessWidget {
-  const Sidebar({super.key});
+  final double topPadding;
+
+  const Sidebar({super.key, this.topPadding = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +18,7 @@ class Sidebar extends StatelessWidget {
         if (!appState.isPinned) return const SizedBox.shrink();
         return SizedBox(
           width: kSidebarWidth,
-          child: const SidebarContent(isPinned: true),
+          child: SidebarContent(isPinned: true, topPadding: topPadding),
         );
       },
     );

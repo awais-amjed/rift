@@ -110,11 +110,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           children: [
-                            if (appState.isPinned) const Sidebar(),
+                            if (appState.isPinned)
+                              Sidebar(topPadding: titleBarVisible ? 0 : 20),
                             const Expanded(child: ParticipantsGrid()),
                           ],
                         ),
-                        if (!appState.isPinned) const FloatingSidebar(),
+                        if (!appState.isPinned)
+                          FloatingSidebar(topPadding: titleBarVisible ? 0 : 20),
                       ],
                     ),
                   ),

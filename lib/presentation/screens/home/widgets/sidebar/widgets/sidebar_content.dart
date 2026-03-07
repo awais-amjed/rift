@@ -12,8 +12,13 @@ const double kSidebarWidth = 280;
 /// The main content of the sidebar, used both in pinned and floating modes.
 class SidebarContent extends StatelessWidget {
   final bool isPinned;
+  final double topPadding;
 
-  const SidebarContent({super.key, required this.isPinned});
+  const SidebarContent({
+    super.key,
+    required this.isPinned,
+    this.topPadding = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +42,7 @@ class SidebarContent extends StatelessWidget {
           ),
           child: Column(
             children: [
+              SizedBox(height: topPadding),
               SidebarHeader(),
               SidebarActions(),
               SidebarChannelList(),

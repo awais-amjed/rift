@@ -6,8 +6,12 @@ import 'widgets/sidebar_content.dart';
 /// left edge; hovering it slides the sidebar in as a shadow overlay.
 /// A chevron-right button inside pins the sidebar back permanently.
 class FloatingSidebar extends StatefulWidget {
-  const FloatingSidebar({super.key});
+  /// Extra top padding — pass the title bar height when the appbar is hidden.
+  final double topPadding;
 
+  const FloatingSidebar({super.key, this.topPadding = 0});
+
+  // ...existing code...
   @override
   State<FloatingSidebar> createState() => _FloatingSidebarState();
 }
@@ -32,7 +36,10 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
           child: MouseRegion(
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),
-            child: const SidebarContent(isPinned: false),
+            child: SidebarContent(
+              isPinned: false,
+              topPadding: widget.topPadding,
+            ),
           ),
         ),
 
