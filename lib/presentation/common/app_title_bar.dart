@@ -93,83 +93,99 @@ class _AppTitleBarState extends State<AppTitleBar>
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return SizedBox(
-          height: widget.height,
-          child: Stack(
-            children: [
-              // Draggable region covering the full bar
-              const Positioned.fill(
-                child: DragToMoveArea(child: SizedBox.expand()),
-              ),
-
-              // Left button: hide when pinned, pin when in overlay mode
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                child: _WindowButton(
-                  icon: widget.pinned
-                      ? Icons.expand_less_rounded
-                      : Icons.push_pin_outlined,
-                  tooltip: widget.pinned ? 'Hide title bar' : 'Pin title bar',
-                  onTap: () => widget.pinned
-                      ? widget.onHide?.call()
-                      : widget.onShow?.call(),
-                  themeState: themeState,
-                ),
-              ),
-
-              // Title (centred)
-              if (widget.title != null)
-                Positioned.fill(
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      widget.title!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: themeState.textTertiary,
-                      ),
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: widget.pinned
+                ? Colors.transparent
+                : themeState.bgSecondary.withValues(alpha: 0.72),
+            boxShadow: widget.pinned
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
+                  ],
+          ),
+          child: SizedBox(
+            height: widget.height,
+            child: Stack(
+              children: [
+                // Draggable region covering the full bar
+                const Positioned.fill(
+                  child: DragToMoveArea(child: SizedBox.expand()),
+                ),
+
+                // Left button: hide when pinned, pin when in overlay mode
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: _WindowButton(
+                    icon: widget.pinned
+                        ? Icons.expand_less_rounded
+                        : Icons.push_pin_outlined,
+                    tooltip: widget.pinned ? 'Hide title bar' : 'Pin title bar',
+                    onTap: () => widget.pinned
+                        ? widget.onHide?.call()
+                        : widget.onShow?.call(),
+                    themeState: themeState,
                   ),
                 ),
 
-              // Window control buttons (right side)
-              Positioned(
-                right: 0,
-                top: 0,
-                bottom: 0,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _WindowButton(
-                      icon: Icons.remove_rounded,
-                      tooltip: 'Minimize',
-                      onTap: () => windowManager.minimize(),
-                      themeState: themeState,
+                // Title (centred)
+                if (widget.title != null)
+                  Positioned.fill(
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: Text(
+                        widget.title!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: themeState.textTertiary,
+                        ),
+                      ),
                     ),
-                    _WindowButton(
-                      icon: _isMaximized
-                          ? Icons.filter_none_rounded
-                          : Icons.crop_square_rounded,
-                      tooltip: _isMaximized ? 'Restore' : 'Maximize',
-                      onTap: () => _isMaximized
-                          ? windowManager.unmaximize()
-                          : windowManager.maximize(),
-                      themeState: themeState,
-                    ),
-                    _WindowButton(
-                      icon: Icons.minimize_rounded,
-                      tooltip: 'Minimize to tray',
-                      onTap: () => windowManager.hide(),
-                      themeState: themeState,
-                      isClose: true,
-                    ),
-                  ],
+                  ),
+
+                // Window control buttons (right side)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _WindowButton(
+                        icon: Icons.remove_rounded,
+                        tooltip: 'Minimize',
+                        onTap: () => windowManager.minimize(),
+                        themeState: themeState,
+                      ),
+                      _WindowButton(
+                        icon: _isMaximized
+                            ? Icons.filter_none_rounded
+                            : Icons.crop_square_rounded,
+                        tooltip: _isMaximized ? 'Restore' : 'Maximize',
+                        onTap: () => _isMaximized
+                            ? windowManager.unmaximize()
+                            : windowManager.maximize(),
+                        themeState: themeState,
+                      ),
+                      _WindowButton(
+                        icon: Icons.minimize_rounded,
+                        tooltip: 'Minimize to tray',
+                        onTap: () => windowManager.hide(),
+                        themeState: themeState,
+                        isClose: true,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
