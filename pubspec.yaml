@@ -41,6 +41,10 @@ dependencies:
   http: ^1.6.0
   window_manager: ^0.5.1
   tray_manager: ^0.5.2
+  flutter_rust_bridge: 2.11.1
+
+  rust_lib_rift:
+    path: rust_builder
 
 dev_dependencies:
   flutter_test:
@@ -49,6 +53,9 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   json_serializable: ^6.13.0
   build_runner: ^2.12.2
+
+  integration_test:
+    sdk: flutter
 
 flutter:
 

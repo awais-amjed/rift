@@ -6,7 +6,6 @@ import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../theme/custom_colors.dart';
-import 'create_user_dialog.dart';
 
 /// Form to join an existing server using a Supabase URL and access token.
 class JoinServerForm extends StatefulWidget {
