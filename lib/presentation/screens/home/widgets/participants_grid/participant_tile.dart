@@ -7,6 +7,10 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../theme/custom_colors.dart';
 import '../sidebar/widgets/participant_context_menu.dart';
+import 'widgets/avatar_placeholder.dart';
+import 'widgets/participant_name_badge.dart';
+import 'widgets/stop_watching_button.dart';
+import 'widgets/watch_stream_button.dart';
 
 /// Displays a single participant's video or avatar fallback tile.
 class ParticipantTileWidget extends StatefulWidget {
@@ -146,13 +150,10 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                     fit: VideoViewFit.contain,
                   )
                 else
-                  _AvatarPlaceholder(
-                    name: name,
-                    isDark: themeState.isDarkTheme,
-                  ),
+                  AvatarPlaceholder(name: name, isDark: themeState.isDarkTheme),
                 // Watch Stream button for unsubscribed screenshare
                 if (showWatchButton)
-                  _WatchStreamButton(
+                  WatchStreamButton(
                     onTap: () => _subscribeToScreenshare(context),
                   ),
                 // Stop Watching button for subscribed screenshare
@@ -160,7 +161,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                   Positioned(
                     top: 12,
                     right: 12,
-                    child: _StopWatchingButton(
+                    child: StopWatchingButton(
                       onTap: () => _unsubscribeFromScreenshare(context),
                     ),
                   ),
@@ -169,7 +170,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                   Positioned(
                     bottom: 12,
                     left: 12,
-                    child: _NameBadge(
+                    child: ParticipantNameBadge(
                       name: name,
                       isMicEnabled: widget.participant.isMicrophoneEnabled(),
                       isMuted: widget.isMuted,
@@ -221,183 +222,5 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         _isSubscribed = false;
       });
     }
-  }
-}
-
-class _AvatarPlaceholder extends StatelessWidget {
-  final String name;
-  final bool isDark;
-
-  const _AvatarPlaceholder({required this.name, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Center(
-          child: Container(
-            width: 112,
-            height: 112,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? CustomColors.bgTertiaryDark
-                  : CustomColors.bgActiveLight,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: themeState.borderPrimary),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: TextStyle(
-                fontSize: 40,
-                fontWeight: FontWeight.w700,
-                color: themeState.textTertiary,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _NameBadge extends StatelessWidget {
-  final String name;
-  final bool isMicEnabled;
-  final bool isMuted;
-  final bool isScreenshare;
-
-  const _NameBadge({
-    required this.name,
-    required this.isMicEnabled,
-    required this.isMuted,
-    this.isScreenshare = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color:
-                (themeState.isDarkTheme
-                        ? CustomColors.bgTertiaryDark
-                        : CustomColors.bgSecondaryLight)
-                    .withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: themeState.borderPrimary),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isScreenshare) ...[
-                Icon(Icons.monitor, size: 13, color: CustomColors.primary),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                name,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: themeState.textPrimary,
-                ),
-              ),
-              if (!isScreenshare && (!isMicEnabled || isMuted)) ...[
-                const SizedBox(width: 6),
-                Icon(Icons.mic_off, size: 13, color: CustomColors.error),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _WatchStreamButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _WatchStreamButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Center(
-          child: Material(
-            color: CustomColors.primary.withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(12),
-            elevation: 4,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      Icons.play_circle_filled,
-                      size: 28,
-                      color: Colors.white,
-                    ),
-                    SizedBox(width: 12),
-                    Text(
-                      'Watch Stream',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _StopWatchingButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _StopWatchingButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.7),
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.stop_circle, size: 18, color: Colors.white),
-              SizedBox(width: 6),
-              Text(
-                'Stop Watching',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
