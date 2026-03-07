@@ -18,8 +18,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _titleBarVisible = true;
-
   // When hidden, show it again as an overlay while cursor is in the top zone.
   bool _titleBarOverlay = false;
 
@@ -28,8 +26,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // Invisible hot-zone height at the top of the screen that triggers the overlay.
   static const double _hotZoneHeight = 40;
 
-  void _onMouseMove(PointerEvent event) {
-    if (_titleBarVisible) return;
+  void _onMouseMove(PointerEvent event, bool titleBarVisible) {
+    if (titleBarVisible) return;
     final nearTop = event.localPosition.dy <= _hotZoneHeight;
     if (nearTop != _titleBarOverlay) {
       setState(() => _titleBarOverlay = nearTop);
@@ -91,11 +89,13 @@ class _HomeScreenState extends State<HomeScreen> {
           prev.selectedServer?.user != curr.selectedServer?.user,
       child: Scaffold(
         body: BlocBuilder<AppCubit, AppState>(
-          buildWhen: (prev, curr) => prev.isPinned != curr.isPinned,
+          buildWhen: (prev, curr) =>
+              prev.isPinned != curr.isPinned ||
+              prev.titleBarVisible != curr.titleBarVisible,
           builder: (context, appState) {
+            final titleBarVisible = appState.titleBarVisible;
             return MouseRegion(
-              onHover: _onMouseMove,
-              // When cursor leaves the window entirely, close the overlay.
+              onHover: (e) => _onMouseMove(e, titleBarVisible),
               onExit: (_) {
                 if (_titleBarOverlay) {
                   setState(() => _titleBarOverlay = false);
@@ -105,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   // ── Main content ──────────────────────────────────────
                   Positioned.fill(
-                    top: _titleBarVisible ? _titleBarHeight : 0,
+                    top: titleBarVisible ? _titleBarHeight : 0,
                     child: Stack(
                       children: [
                         Row(
@@ -131,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 180),
                     curve: Curves.easeOut,
-                    top: (_titleBarVisible || _titleBarOverlay)
+                    top: (titleBarVisible || _titleBarOverlay)
                         ? 0
                         : -_titleBarHeight,
                     left: 0,
@@ -139,15 +139,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: _titleBarHeight,
                     child: AppTitleBar(
                       height: _titleBarHeight,
-                      pinned: _titleBarVisible,
-                      onHide: () => setState(() {
-                        _titleBarVisible = false;
-                        _titleBarOverlay = false;
-                      }),
-                      onShow: () => setState(() {
-                        _titleBarVisible = true;
-                        _titleBarOverlay = false;
-                      }),
+                      pinned: titleBarVisible,
+                      onHide: () {
+                        context.read<AppCubit>().setTitleBarVisible(false);
+                        setState(() => _titleBarOverlay = false);
+                      },
+                      onShow: () {
+                        context.read<AppCubit>().setTitleBarVisible(true);
+                        setState(() => _titleBarOverlay = false);
+                      },
                     ),
                   ),
                 ],

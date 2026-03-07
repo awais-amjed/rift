@@ -21,6 +21,14 @@ class AppCubit extends HydratedCubit<AppState> {
   }
 
   // ──────────────────────────────────────────────────────────
+  // Persisted: title bar
+  // ──────────────────────────────────────────────────────────
+
+  void setTitleBarVisible(bool visible) {
+    emit(state.copyWith(titleBarVisible: visible));
+  }
+
+  // ──────────────────────────────────────────────────────────
   // Persisted: media
   // ──────────────────────────────────────────────────────────
 

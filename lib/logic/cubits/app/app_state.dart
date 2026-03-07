@@ -6,6 +6,7 @@ class AppState {
   final bool isPinned;
   final bool audioEnabled;
   final bool videoEnabled;
+  final bool titleBarVisible;
   final ScreenShareSettings screenShareSettings;
   final Map<String, ParticipantSetting> participantSettings;
 
@@ -21,6 +22,7 @@ class AppState {
     this.isPinned = true,
     this.audioEnabled = true,
     this.videoEnabled = false,
+    this.titleBarVisible = true,
     this.screenShareSettings = const ScreenShareSettings(),
     this.participantSettings = const {},
     this.isHovered = false,
@@ -32,6 +34,7 @@ class AppState {
     bool? isPinned,
     bool? audioEnabled,
     bool? videoEnabled,
+    bool? titleBarVisible,
     ScreenShareSettings? screenShareSettings,
     Map<String, ParticipantSetting>? participantSettings,
     bool? isHovered,
@@ -43,6 +46,7 @@ class AppState {
       isPinned: isPinned ?? this.isPinned,
       audioEnabled: audioEnabled ?? this.audioEnabled,
       videoEnabled: videoEnabled ?? this.videoEnabled,
+      titleBarVisible: titleBarVisible ?? this.titleBarVisible,
       screenShareSettings: screenShareSettings ?? this.screenShareSettings,
       participantSettings: participantSettings ?? this.participantSettings,
       isHovered: isHovered ?? this.isHovered,
