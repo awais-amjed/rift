@@ -77,14 +77,21 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
 pub async fn stop_screenshare() -> Result<String, String> {
     println!("=== STOPPING SCREENSHARE IN RUST ===");
 
+    // 1. Extract the room from the Mutex and release the lock immediately
     let room_option = {
         let mut room_lock = ROOM.lock().unwrap();
         room_lock.take()
     };
 
-    if let Some(_room) = room_option {
+    // 2. Explicitly close the room if it exists
+    if let Some(room) = room_option {
         println!("Disconnecting from LiveKit room...");
-        // Room will automatically disconnect when dropped
+
+        // Tell the LiveKit engine to gracefully shut down the connection
+        if let Err(e) = room.close().await {
+            println!("⚠ Warning during disconnect: {:?}", e);
+        }
+
         println!("✓ Successfully disconnected from LiveKit");
         Ok("Disconnected successfully".to_string())
     } else {
@@ -92,4 +99,3 @@ pub async fn stop_screenshare() -> Result<String, String> {
         Ok("No active connection".to_string())
     }
 }
-
