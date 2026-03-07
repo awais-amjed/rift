@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
@@ -21,19 +22,22 @@ class AppTitleBar extends StatefulWidget {
   State<AppTitleBar> createState() => _AppTitleBarState();
 }
 
-class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
+class _AppTitleBarState extends State<AppTitleBar>
+    with WindowListener, TrayListener {
   bool _isMaximized = false;
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
+    trayManager.addListener(this);
     _syncMaximized();
   }
 
   @override
   void dispose() {
     windowManager.removeListener(this);
+    trayManager.removeListener(this);
     super.dispose();
   }
 
@@ -47,6 +51,27 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
 
   @override
   void onWindowUnmaximize() => setState(() => _isMaximized = false);
+
+  // ── TrayListener ─────────────────────────────────────────
+
+  @override
+  void onTrayIconMouseDown() {
+    windowManager.show();
+    windowManager.focus();
+  }
+
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) {
+    switch (menuItem.key) {
+      case 'show':
+        windowManager.show();
+        windowManager.focus();
+        break;
+      case 'quit':
+        windowManager.destroy();
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +132,7 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
                     _WindowButton(
                       icon: Icons.close_rounded,
                       tooltip: 'Close',
-                      onTap: () => windowManager.close(),
+                      onTap: () => windowManager.hide(),
                       themeState: themeState,
                       isClose: true,
                     ),
