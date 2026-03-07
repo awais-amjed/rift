@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../theme/custom_colors.dart';
@@ -25,6 +26,10 @@ class ParticipantTileWidget extends StatefulWidget {
 class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   TrackPublication? _videoPub;
   bool _isSpeaking = false;
+  bool _isSubscribed = false;
+
+  bool get _isScreenshare =>
+      widget.participant.identity.endsWith('_screenshare');
 
   @override
   void initState() {
@@ -59,12 +64,26 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   }
 
   void _updateVideoTrack() {
-    _videoPub = widget.participant.videoTrackPublications
-        .where(
-          (t) => t.source == TrackSource.camera && t.track != null && !t.muted,
-        )
-        .cast<TrackPublication?>()
-        .firstOrNull;
+    if (_isScreenshare) {
+      // For screenshare participants, look for screen share video track
+      _videoPub = widget.participant.videoTrackPublications
+          .where(
+            (t) => t.source == TrackSource.screenShareVideo && t.track != null,
+          )
+          .cast<TrackPublication?>()
+          .firstOrNull;
+      _isSubscribed = _videoPub?.subscribed ?? false;
+    } else {
+      // For regular participants, look for camera video track
+      _videoPub = widget.participant.videoTrackPublications
+          .where(
+            (t) =>
+                t.source == TrackSource.camera && t.track != null && !t.muted,
+          )
+          .cast<TrackPublication?>()
+          .firstOrNull;
+      _isSubscribed = true; // Regular video is always auto-subscribed
+    }
     _isSpeaking = widget.participant.isSpeaking;
   }
 
@@ -72,9 +91,10 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final hasVideo = _videoPub != null;
+        final hasVideo = _videoPub != null && _isSubscribed;
         final isSpeaking = _isSpeaking && !widget.isMuted;
         final name = widget.participant.name;
+        final showWatchButton = _isScreenshare && !_isSubscribed;
 
         final content = AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -115,16 +135,23 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                     name: name,
                     isDark: themeState.isDarkTheme,
                   ),
-                // Name + mic badge
-                Positioned(
-                  bottom: 12,
-                  left: 12,
-                  child: _NameBadge(
-                    name: name,
-                    isMicEnabled: widget.participant.isMicrophoneEnabled(),
-                    isMuted: widget.isMuted,
+                // Watch Stream button for unsubscribed screenshare
+                if (showWatchButton)
+                  _WatchStreamButton(
+                    onTap: () => _subscribeToScreenshare(context),
                   ),
-                ),
+                // Name + mic badge (hide for screenshare with watch button)
+                if (!showWatchButton)
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    child: _NameBadge(
+                      name: name,
+                      isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                      isMuted: widget.isMuted,
+                      isScreenshare: _isScreenshare,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -150,6 +177,11 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         );
       },
     );
+  }
+
+  Future<void> _subscribeToScreenshare(BuildContext context) async {
+    final livekitCubit = context.read<LiveKitCubit>();
+    await livekitCubit.subscribeToScreenshare(widget.participant.identity);
   }
 }
 
@@ -194,11 +226,13 @@ class _NameBadge extends StatelessWidget {
   final String name;
   final bool isMicEnabled;
   final bool isMuted;
+  final bool isScreenshare;
 
   const _NameBadge({
     required this.name,
     required this.isMicEnabled,
     required this.isMuted,
+    this.isScreenshare = false,
   });
 
   @override
@@ -219,6 +253,10 @@ class _NameBadge extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (isScreenshare) ...[
+                Icon(Icons.monitor, size: 13, color: CustomColors.primary),
+                const SizedBox(width: 6),
+              ],
               Text(
                 name,
                 style: TextStyle(
@@ -227,11 +265,61 @@ class _NameBadge extends StatelessWidget {
                   color: themeState.textPrimary,
                 ),
               ),
-              if (!isMicEnabled || isMuted) ...[
+              if (!isScreenshare && (!isMicEnabled || isMuted)) ...[
                 const SizedBox(width: 6),
                 Icon(Icons.mic_off, size: 13, color: CustomColors.error),
               ],
             ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _WatchStreamButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _WatchStreamButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Center(
+          child: Material(
+            color: CustomColors.primary.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(12),
+            elevation: 4,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(
+                      Icons.play_circle_filled,
+                      size: 28,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Watch Stream',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         );
       },

@@ -5,6 +5,7 @@ class ParticipantInfo {
   final bool isMicrophoneEnabled;
   final bool isCameraEnabled;
   final bool isLocal;
+  final bool isScreenshare;
 
   const ParticipantInfo({
     required this.identity,
@@ -13,5 +14,6 @@ class ParticipantInfo {
     this.isMicrophoneEnabled = false,
     this.isCameraEnabled = false,
     this.isLocal = false,
+    this.isScreenshare = false,
   });
 }

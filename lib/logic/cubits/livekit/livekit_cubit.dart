@@ -321,6 +321,57 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _appCubit.setParticipantSetting(identity, volume: volume);
   }
 
+  /// Subscribe to a participant's screenshare video track.
+  Future<void> subscribeToScreenshare(String identity) async {
+    final room = state.room;
+    if (room == null) return;
+
+    final participant = room.remoteParticipants[identity];
+    if (participant == null) {
+      debugPrint('Participant $identity not found');
+      return;
+    }
+
+    // Find screenshare video track publication
+    for (final pub in participant.videoTrackPublications) {
+      if (pub.source == TrackSource.screenShareVideo) {
+        try {
+          await pub.subscribe();
+          debugPrint('✓ Subscribed to screenshare from $identity');
+          _syncParticipants();
+        } catch (e) {
+          debugPrint('✗ Failed to subscribe to screenshare: $e');
+        }
+        return;
+      }
+    }
+
+    debugPrint('No screenshare track found for $identity');
+  }
+
+  /// Unsubscribe from a participant's screenshare video track.
+  Future<void> unsubscribeFromScreenshare(String identity) async {
+    final room = state.room;
+    if (room == null) return;
+
+    final participant = room.remoteParticipants[identity];
+    if (participant == null) return;
+
+    // Find screenshare video track publication
+    for (final pub in participant.videoTrackPublications) {
+      if (pub.source == TrackSource.screenShareVideo) {
+        try {
+          await pub.unsubscribe();
+          debugPrint('✓ Unsubscribed from screenshare from $identity');
+          _syncParticipants();
+        } catch (e) {
+          debugPrint('✗ Failed to unsubscribe from screenshare: $e');
+        }
+        return;
+      }
+    }
+  }
+
   /// Toggle screen sharing on/off.
   Future<void> toggleScreenShare({
     ScreenShareCaptureOptions? captureOptions,
@@ -419,6 +470,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
             isMicrophoneEnabled: p.isMicrophoneEnabled(),
             isCameraEnabled: p.isCameraEnabled(),
             isLocal: p is LocalParticipant,
+            isScreenshare: p.identity.endsWith('_screenshare'),
           ),
         )
         .toList();

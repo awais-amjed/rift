@@ -136,6 +136,8 @@ class VoiceChannelTile extends StatelessWidget {
                       ),
                       child: Column(
                         children: participants
+                            // Filter out screenshare participants from sidebar
+                            .where((p) => !p.isScreenshare)
                             .map(
                               (p) => ParticipantListItem(
                                 participant: p,
