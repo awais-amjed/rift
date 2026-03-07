@@ -46,7 +46,7 @@ class SidebarHeader extends StatelessWidget {
                           icon: Icon(
                             appState.isPinned
                                 ? Icons.chevron_left
-                                : Icons.chevron_right,
+                                : Icons.push_pin_outlined,
                             size: 20,
                             color: themeState.textTertiary,
                           ),
