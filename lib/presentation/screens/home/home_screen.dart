@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/app/app_cubit.dart';
-import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../common/app_title_bar.dart';
 import 'widgets/servers/create_user_dialog.dart';
 import 'widgets/servers/server_selector/server_selector_dialog.dart';
+import 'widgets/sidebar/floating_sidebar.dart';
 import 'widgets/sidebar/sidebar.dart';
 import 'widgets/participants_grid/participants_grid.dart';
 
@@ -114,15 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             const Expanded(child: ParticipantsGrid()),
                           ],
                         ),
-                        if (!appState.isPinned)
-                          Positioned(
-                            left: 12,
-                            top: 12,
-                            child: _HamburgerButton(
-                              onTap: () =>
-                                  context.read<AppCubit>().setIsPinned(true),
-                            ),
-                          ),
+                        if (!appState.isPinned) const FloatingSidebar(),
                       ],
                     ),
                   ),
@@ -156,38 +148,6 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
       ),
-    );
-  }
-}
-
-class _HamburgerButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _HamburgerButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Material(
-          color: themeState.bgSecondary,
-          borderRadius: BorderRadius.circular(10),
-          elevation: 4,
-          shadowColor: Colors.black.withValues(alpha: 0.3),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Icon(
-                Icons.menu,
-                size: 20,
-                color: themeState.textSecondary,
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }
