@@ -130,8 +130,8 @@ class _AppTitleBarState extends State<AppTitleBar>
                       themeState: themeState,
                     ),
                     _WindowButton(
-                      icon: Icons.close_rounded,
-                      tooltip: 'Close',
+                      icon: Icons.minimize_rounded,
+                      tooltip: 'Minimize to tray',
                       onTap: () => windowManager.hide(),
                       themeState: themeState,
                       isClose: true,
