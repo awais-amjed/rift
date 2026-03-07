@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
@@ -119,25 +120,38 @@ class UserProfile extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Theme toggle
-                  BlocBuilder<ThemeCubit, ThemeState>(
-                    builder: (context, themeState) {
-                      return IconButton(
-                        onPressed: () =>
-                            context.read<ThemeCubit>().switchTheme(),
-                        icon: Icon(
-                          themeState.isDarkTheme
-                              ? Icons.wb_sunny_outlined
-                              : Icons.nightlight_round,
-                          size: 18,
-                          color: textTertiary,
-                        ),
-                        tooltip: 'Toggle theme',
-                        style: IconButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                  // Mic mute / deafen buttons
+                  BlocBuilder<LiveKitCubit, LiveKitState>(
+                    builder: (context, lkState) {
+                      final micOn = lkState.isMicEnabled && !lkState.isDeafened;
+                      final deafened = lkState.isDeafened;
+
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Mute toggle
+                          _ProfileIconButton(
+                            icon: micOn ? Icons.mic : Icons.mic_off,
+                            tooltip: micOn ? 'Mute' : 'Unmute',
+                            isError: !micOn,
+                            iconColor: micOn
+                                ? textTertiary
+                                : CustomColors.error,
+                            onTap: () =>
+                                context.read<LiveKitCubit>().toggleMicrophone(),
                           ),
-                        ),
+                          // Deafen toggle
+                          _ProfileIconButton(
+                            icon: deafened ? Icons.headset_off : Icons.headset,
+                            tooltip: deafened ? 'Undeafen' : 'Deafen',
+                            isError: deafened,
+                            iconColor: deafened
+                                ? CustomColors.error
+                                : textTertiary,
+                            onTap: () =>
+                                context.read<LiveKitCubit>().toggleDeafen(),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -160,6 +174,48 @@ class UserProfile extends StatelessWidget {
               ),
             );
           },
+        );
+      },
+    );
+  }
+}
+
+class _ProfileIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool isError;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _ProfileIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.iconColor,
+    required this.onTap,
+    this.isError = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Tooltip(
+          message: tooltip,
+          child: Material(
+            color: isError
+                ? CustomColors.error.withValues(alpha: 0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              hoverColor: themeState.bgHover,
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(icon, size: 18, color: iconColor),
+              ),
+            ),
+          ),
         );
       },
     );
