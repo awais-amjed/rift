@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import '../screen_share_settings_dialog.dart';
@@ -51,31 +54,35 @@ class ControlBarState extends State<ControlBar> {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
-      builder: (context, state) {
-        return Positioned(
-          bottom: 32,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: AnimatedOpacity(
-              opacity: _visible ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: AnimatedSlide(
-                offset: _visible ? Offset.zero : const Offset(0, 0.4),
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                child: IgnorePointer(
-                  ignoring: !_visible,
-                  child: _ControlBarContent(
-                    isMicEnabled: state.isMicEnabled,
-                    isCameraEnabled: state.isCameraEnabled,
-                    isScreenSharing: state.isScreenSharing,
-                    isDeafened: state.isDeafened,
+      builder: (context, livekitState) {
+        return BlocBuilder<ScreenshareCubit, ScreenshareState>(
+          builder: (context, screenshareState) {
+            return Positioned(
+              bottom: 32,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: _visible ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: AnimatedSlide(
+                    offset: _visible ? Offset.zero : const Offset(0, 0.4),
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    child: IgnorePointer(
+                      ignoring: !_visible,
+                      child: _ControlBarContent(
+                        isMicEnabled: livekitState.isMicEnabled,
+                        isCameraEnabled: livekitState.isCameraEnabled,
+                        isScreenSharing: screenshareState.isSharing,
+                        isDeafened: livekitState.isDeafened,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -96,21 +103,59 @@ class _ControlBarContent extends StatelessWidget {
   });
 
   Future<void> _handleScreenShare(BuildContext context) async {
+    final screenshareCubit = context.read<ScreenshareCubit>();
     final livekitCubit = context.read<LiveKitCubit>();
+    final serverCubit = context.read<ServerCubit>();
 
-    if (isScreenSharing) {
-      await livekitCubit.toggleScreenShare();
+    // Check if already sharing - if so, stop
+    if (screenshareCubit.state.isSharing) {
+      await screenshareCubit.stopScreenShare();
       return;
     }
 
-    final settings = await showDialog<dynamic>(
+    // Show settings dialog
+    final settings = await showDialog<ScreenShareSettings>(
       context: context,
       builder: (_) => const ScreenShareSettingsDialog(),
     );
     if (settings == null) return;
 
+    // Get current server and channel info
+    final selectedServer = serverCubit.state.selectedServer;
+    if (selectedServer == null) {
+      debugPrint('No server selected');
+      return;
+    }
+
+    final channelId = livekitCubit.state.currentChannelId;
+    if (channelId == null) {
+      debugPrint('No channel connected');
+      return;
+    }
+
+    final user = selectedServer.user;
+    if (user == null) {
+      debugPrint('No user info available');
+      return;
+    }
+
+    final livekitUrl = selectedServer.livekitUrl;
+    if (livekitUrl == null) {
+      debugPrint('No LiveKit URL configured');
+      return;
+    }
+
     try {
-      await livekitCubit.toggleScreenShare();
+      // Start screen sharing through the cubit
+      await screenshareCubit.startScreenShare(
+        supabaseUrl: selectedServer.supabaseUrl,
+        token: selectedServer.token,
+        channelId: channelId,
+        livekitUrl: livekitUrl,
+        userId: user.id,
+        displayName: user.displayName,
+        settings: settings,
+      );
     } catch (e) {
       debugPrint('Screen share failed: $e');
     }

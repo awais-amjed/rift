@@ -124,11 +124,13 @@ class ServerRepository {
   Future<APIResponse> getChannelToken(
     String supabaseUrl,
     String token,
-    String channelId,
-  ) {
+    String channelId, {
+    bool screenShare = false,
+  }) {
     return _post(supabaseUrl, 'get_channel_token', {
       'token': token,
       'channel_id': channelId,
+      'screen_share': screenShare,
     });
   }
 
