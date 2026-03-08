@@ -62,30 +62,53 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
           final values = stats.values;
           final timestamp = stats.timestamp;
 
+          // Extract current values
+          final bytesReceived = (values['bytesReceived'] as num?)?.toDouble();
+          final framesDecoded = (values['framesDecoded'] as num?)?.toDouble();
+
+          debugPrint(
+            '📊 Stats: timestamp=$timestamp, bytesReceived=$bytesReceived, framesDecoded=$framesDecoded',
+          );
+
           double? fps;
           double? bitrateKbps;
 
           // Calculate FPS and bitrate if we have previous stats
-          if (_prevStats != null) {
+          if (_prevStats != null &&
+              bytesReceived != null &&
+              framesDecoded != null) {
             final prevTimestamp = _prevStats!['timestamp'] as double?;
-            if (prevTimestamp != null) {
-              final dtMs = timestamp - prevTimestamp;
+            final prevBytesReceived = (_prevStats!['bytesReceived'] as num?)
+                ?.toDouble();
+            final prevFramesDecoded = (_prevStats!['framesDecoded'] as num?)
+                ?.toDouble();
+
+            if (prevTimestamp != null &&
+                prevBytesReceived != null &&
+                prevFramesDecoded != null) {
+              // Timestamps are in microseconds, convert to milliseconds
+              final dtMs = (timestamp - prevTimestamp) / 1000;
+
+              debugPrint(
+                '📊 Calculating: dtMs=$dtMs, bytesDiff=${bytesReceived - prevBytesReceived}, framesDiff=${framesDecoded - prevFramesDecoded}',
+              );
 
               if (dtMs > 0) {
                 // Calculate bitrate
-                final bytesReceived = values['bytesReceived'] as num?;
-                final prevBytesReceived = _prevStats!['bytesReceived'] as num?;
-                if (bytesReceived != null && prevBytesReceived != null) {
-                  final bitrateBps =
-                      ((bytesReceived - prevBytesReceived) * 8 * 1000) / dtMs;
+                final bytesDiff = bytesReceived - prevBytesReceived;
+                if (bytesDiff > 0) {
+                  final bitrateBps = (bytesDiff * 8 * 1000) / dtMs;
                   bitrateKbps = bitrateBps / 1000;
+                  debugPrint(
+                    '📊 Bitrate: ${bitrateKbps.toStringAsFixed(1)} Kbps',
+                  );
                 }
 
                 // Calculate FPS
-                final framesDecoded = values['framesDecoded'] as num?;
-                final prevFramesDecoded = _prevStats!['framesDecoded'] as num?;
-                if (framesDecoded != null && prevFramesDecoded != null) {
-                  fps = ((framesDecoded - prevFramesDecoded) * 1000) / dtMs;
+                final framesDiff = framesDecoded - prevFramesDecoded;
+                if (framesDiff > 0) {
+                  fps = (framesDiff * 1000) / dtMs;
+                  debugPrint('📊 FPS: ${fps.toStringAsFixed(1)}');
                 }
               }
             }
@@ -94,8 +117,8 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
           // Store current stats for next calculation
           _prevStats = {
             'timestamp': timestamp,
-            'bytesReceived': values['bytesReceived'],
-            'framesDecoded': values['framesDecoded'],
+            'bytesReceived': bytesReceived,
+            'framesDecoded': framesDecoded,
           };
 
           if (mounted) {
