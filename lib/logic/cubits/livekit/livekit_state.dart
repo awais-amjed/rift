@@ -12,6 +12,7 @@ class LiveKitState {
   final bool isCameraEnabled;
   final bool isScreenSharing;
   final bool isDeafened;
+  final Set<String> subscribedScreenshares;
 
   const LiveKitState({
     this.connectionState = LiveKitConnectionState.disconnected,
@@ -23,6 +24,7 @@ class LiveKitState {
     this.isCameraEnabled = false,
     this.isScreenSharing = false,
     this.isDeafened = false,
+    this.subscribedScreenshares = const {},
   });
 
   LiveKitState copyWith({
@@ -35,6 +37,7 @@ class LiveKitState {
     bool? isCameraEnabled,
     bool? isScreenSharing,
     bool? isDeafened,
+    Set<String>? subscribedScreenshares,
     bool clearRoom = false,
     bool clearChannelId = false,
     bool clearError = false,
@@ -51,6 +54,8 @@ class LiveKitState {
       isCameraEnabled: isCameraEnabled ?? this.isCameraEnabled,
       isScreenSharing: isScreenSharing ?? this.isScreenSharing,
       isDeafened: isDeafened ?? this.isDeafened,
+      subscribedScreenshares:
+          subscribedScreenshares ?? this.subscribedScreenshares,
     );
   }
 }

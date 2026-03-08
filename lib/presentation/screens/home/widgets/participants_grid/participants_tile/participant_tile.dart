@@ -34,8 +34,6 @@ class ParticipantTileWidget extends StatefulWidget {
 class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   TrackPublication? _videoPub;
   bool _isSpeaking = false;
-  bool _isSubscribed = false;
-  bool _hasInitialized = false;
 
   bool get _isScreenshare =>
       widget.participant.identity.endsWith('_screenshare');
@@ -49,10 +47,18 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     // Unsubscribe from screenshare on first load
     if (_isScreenshare) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_hasInitialized) {
-          _hasInitialized = true;
+        if (mounted) {
           final livekitCubit = context.read<LiveKitCubit>();
-          livekitCubit.unsubscribeFromScreenshare(widget.participant.identity);
+          final isSubscribed = livekitCubit.state.subscribedScreenshares
+              .contains(widget.participant.identity);
+          if (isSubscribed) {
+            // Already subscribed from previous state, keep it
+          } else {
+            // Not subscribed, make sure it stays unsubscribed
+            livekitCubit.unsubscribeFromScreenshare(
+              widget.participant.identity,
+            );
+          }
         }
       });
     }
@@ -92,9 +98,6 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           )
           .cast<TrackPublication?>()
           .firstOrNull;
-
-      // Check if subscribed
-      _isSubscribed = _videoPub?.subscribed ?? false;
     } else {
       // For regular participants, look for camera video track
       _videoPub = widget.participant.videoTrackPublications
@@ -104,95 +107,33 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           )
           .cast<TrackPublication?>()
           .firstOrNull;
-      _isSubscribed = true; // Regular video is always auto-subscribed
     }
     _isSpeaking = widget.participant.isSpeaking;
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final hasVideo = _videoPub != null && _isSubscribed;
-        final isSpeaking = _isSpeaking && !widget.isMuted;
-        final name = widget.participant.name;
-        final showWatchButton = _isScreenshare && !_isSubscribed;
-        final showStopButton = _isScreenshare && _isSubscribed && hasVideo;
+    return BlocBuilder<LiveKitCubit, LiveKitState>(
+      builder: (context, livekitState) {
+        // Check if this screenshare is subscribed from the persistent state
+        final isSubscribed = _isScreenshare
+            ? livekitState.subscribedScreenshares.contains(
+                widget.participant.identity,
+              )
+            : true; // Regular video is always auto-subscribed
 
-        final content = GestureDetector(
-          onTap: widget.onTap,
-          child: widget.isExpanded
-              ? Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Video or avatar
-                    if (hasVideo && _videoPub!.track is VideoTrack)
-                      VideoTrackRenderer(
-                        _videoPub!.track as VideoTrack,
-                        fit: VideoViewFit.contain,
-                      )
-                    else
-                      AvatarPlaceholder(
-                        name: name,
-                        isDark: themeState.isDarkTheme,
-                      ),
-                    // Watch Stream button for unsubscribed screenshare
-                    if (showWatchButton)
-                      WatchStreamButton(
-                        onTap: () => _subscribeToScreenshare(context),
-                      ),
-                    // Stop Watching button for subscribed screenshare
-                    if (showStopButton)
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: StopWatchingButton(
-                          onTap: () => _unsubscribeFromScreenshare(context),
-                        ),
-                      ),
-                    // Name + mic badge (hide for screenshare with watch button)
-                    if (!showWatchButton)
-                      Positioned(
-                        bottom: 12,
-                        left: 12,
-                        child: ParticipantNameBadge(
-                          name: name,
-                          isMicEnabled: widget.participant
-                              .isMicrophoneEnabled(),
-                          isMuted: widget.isMuted,
-                          isScreenshare: _isScreenshare,
-                        ),
-                      ),
-                  ],
-                )
-              : AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  decoration: BoxDecoration(
-                    color: themeState.isDarkTheme
-                        ? CustomColors.bgSecondaryDark
-                        : CustomColors.bgTertiaryLight,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSpeaking
-                          ? CustomColors.primary
-                          : themeState.borderPrimary,
-                      width: isSpeaking ? 2 : 1,
-                    ),
-                    boxShadow: isSpeaking
-                        ? [
-                            BoxShadow(
-                              color: CustomColors.primary.withValues(
-                                alpha: 0.3,
-                              ),
-                              blurRadius: 12,
-                              spreadRadius: 2,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: Stack(
+        return BlocBuilder<ThemeCubit, ThemeState>(
+          builder: (context, themeState) {
+            final hasVideo = _videoPub != null && isSubscribed;
+            final isSpeaking = _isSpeaking && !widget.isMuted;
+            final name = widget.participant.name;
+            final showWatchButton = _isScreenshare && !isSubscribed;
+            final showStopButton = _isScreenshare && isSubscribed && hasVideo;
+
+            final content = GestureDetector(
+              onTap: widget.onTap,
+              child: widget.isExpanded
+                  ? Stack(
                       fit: StackFit.expand,
                       children: [
                         // Video or avatar
@@ -234,28 +175,101 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                             ),
                           ),
                       ],
+                    )
+                  : AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      decoration: BoxDecoration(
+                        color: themeState.isDarkTheme
+                            ? CustomColors.bgSecondaryDark
+                            : CustomColors.bgTertiaryLight,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSpeaking
+                              ? CustomColors.primary
+                              : themeState.borderPrimary,
+                          width: isSpeaking ? 2 : 1,
+                        ),
+                        boxShadow: isSpeaking
+                            ? [
+                                BoxShadow(
+                                  color: CustomColors.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 12,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Video or avatar
+                            if (hasVideo && _videoPub!.track is VideoTrack)
+                              VideoTrackRenderer(
+                                _videoPub!.track as VideoTrack,
+                                fit: VideoViewFit.contain,
+                              )
+                            else
+                              AvatarPlaceholder(
+                                name: name,
+                                isDark: themeState.isDarkTheme,
+                              ),
+                            // Watch Stream button for unsubscribed screenshare
+                            if (showWatchButton)
+                              WatchStreamButton(
+                                onTap: () => _subscribeToScreenshare(context),
+                              ),
+                            // Stop Watching button for subscribed screenshare
+                            if (showStopButton)
+                              Positioned(
+                                top: 12,
+                                right: 12,
+                                child: StopWatchingButton(
+                                  onTap: () =>
+                                      _unsubscribeFromScreenshare(context),
+                                ),
+                              ),
+                            // Name + mic badge (hide for screenshare with watch button)
+                            if (!showWatchButton)
+                              Positioned(
+                                bottom: 12,
+                                left: 12,
+                                child: ParticipantNameBadge(
+                                  name: name,
+                                  isMicEnabled: widget.participant
+                                      .isMicrophoneEnabled(),
+                                  isMuted: widget.isMuted,
+                                  isScreenshare: _isScreenshare,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+            );
+
+            if (widget.participant is LocalParticipant) {
+              return ContextMenuRegion(
+                contextMenu: ParticipantContextMenu(
+                  identity: widget.participant.identity,
+                  name: name,
+                  isLocal: true,
                 ),
-        );
+                child: content,
+              );
+            }
 
-        if (widget.participant is LocalParticipant) {
-          return ContextMenuRegion(
-            contextMenu: ParticipantContextMenu(
-              identity: widget.participant.identity,
-              name: name,
-              isLocal: true,
-            ),
-            child: content,
-          );
-        }
-
-        return ContextMenuRegion(
-          contextMenu: ParticipantContextMenu(
-            identity: widget.participant.identity,
-            name: name,
-          ),
-          child: content,
+            return ContextMenuRegion(
+              contextMenu: ParticipantContextMenu(
+                identity: widget.participant.identity,
+                name: name,
+              ),
+              child: content,
+            );
+          },
         );
       },
     );
@@ -264,20 +278,10 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   Future<void> _subscribeToScreenshare(BuildContext context) async {
     final livekitCubit = context.read<LiveKitCubit>();
     await livekitCubit.subscribeToScreenshare(widget.participant.identity);
-    if (mounted) {
-      setState(() {
-        _isSubscribed = true;
-      });
-    }
   }
 
   Future<void> _unsubscribeFromScreenshare(BuildContext context) async {
     final livekitCubit = context.read<LiveKitCubit>();
     await livekitCubit.unsubscribeFromScreenshare(widget.participant.identity);
-    if (mounted) {
-      setState(() {
-        _isSubscribed = false;
-      });
-    }
   }
 }

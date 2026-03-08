@@ -338,6 +338,13 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         try {
           await pub.subscribe();
           debugPrint('✓ Subscribed to screenshare from $identity');
+
+          // Add to subscribed set
+          final updatedSubscriptions = Set<String>.from(
+            state.subscribedScreenshares,
+          )..add(identity);
+          emit(state.copyWith(subscribedScreenshares: updatedSubscriptions));
+
           _syncParticipants();
         } catch (e) {
           debugPrint('✗ Failed to subscribe to screenshare: $e');
@@ -363,6 +370,13 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         try {
           await pub.unsubscribe();
           debugPrint('✓ Unsubscribed from screenshare from $identity');
+
+          // Remove from subscribed set
+          final updatedSubscriptions = Set<String>.from(
+            state.subscribedScreenshares,
+          )..remove(identity);
+          emit(state.copyWith(subscribedScreenshares: updatedSubscriptions));
+
           _syncParticipants();
         } catch (e) {
           debugPrint('✗ Failed to unsubscribe from screenshare: $e');
@@ -528,6 +542,9 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         }
       }
       _listeners.clear();
+
+      // Clear subscribed screenshares
+      emit(state.copyWith(subscribedScreenshares: {}));
 
       // Finally dispose the room
       await room.dispose();
