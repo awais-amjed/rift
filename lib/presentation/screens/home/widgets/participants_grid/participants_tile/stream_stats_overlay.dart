@@ -24,6 +24,10 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
   int? _packetsLost;
   double? _jitterMs;
   String? _codec;
+  double? _rttMs;
+  int? _framesDropped;
+  int? _pliCount;
+  int? _nackCount;
 
   @override
   void initState() {
@@ -55,6 +59,19 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
       final rtcStats = await receiver.getStats();
 
       if (!mounted) return;
+
+      // Extract candidate-pair RTT
+      double? rttMs;
+      for (final stats in rtcStats) {
+        if (stats.type == 'candidate-pair' &&
+            stats.values['state'] == 'succeeded') {
+          final rtt = stats.values['currentRoundTripTime'] as num?;
+          if (rtt != null) {
+            rttMs = rtt * 1000;
+          }
+          break;
+        }
+      }
 
       // Look for inbound-rtp stats
       for (final stats in rtcStats) {
@@ -102,6 +119,9 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
             }
           }
 
+          // Fallback to the direct framesPerSecond value if calculation not ready
+          fps ??= (values['framesPerSecond'] as num?)?.toDouble();
+
           // Store current stats for next calculation
           _prevStats = {
             'timestamp': timestamp,
@@ -120,6 +140,10 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
               _jitterMs = jitter != null ? jitter * 1000 : null;
               final mimeType = values['mimeType'] as String?;
               _codec = mimeType?.replaceFirst('video/', '');
+              _rttMs = rttMs;
+              _framesDropped = (values['framesDropped'] as num?)?.toInt();
+              _pliCount = (values['pliCount'] as num?)?.toInt();
+              _nackCount = (values['nackCount'] as num?)?.toInt();
             });
           }
           break;
@@ -163,13 +187,37 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                       : '${_bitrateKbps!.toStringAsFixed(0)} Kbps',
                 ),
               ],
+              if (_rttMs != null) ...[
+                const SizedBox(height: 4),
+                _buildStatRow(
+                  'RTT',
+                  '${_rttMs!.toStringAsFixed(1)}ms',
+                  isWarning: _rttMs! > 150,
+                ),
+              ],
               if (_jitterMs != null) ...[
                 const SizedBox(height: 4),
-                _buildStatRow('Jitter', '${_jitterMs!.toStringAsFixed(0)}ms'),
+                _buildStatRow(
+                  'Jitter',
+                  '${_jitterMs!.toStringAsFixed(1)}ms',
+                  isWarning: _jitterMs! > 30,
+                ),
               ],
               if (_packetsLost != null && _packetsLost! > 0) ...[
                 const SizedBox(height: 4),
-                _buildStatRow('Loss', '$_packetsLost', isWarning: true),
+                _buildStatRow('Loss', '$_packetsLost pkts', isWarning: true),
+              ],
+              if (_framesDropped != null && _framesDropped! > 0) ...[
+                const SizedBox(height: 4),
+                _buildStatRow('Dropped', '$_framesDropped', isWarning: true),
+              ],
+              if (_pliCount != null && _pliCount! > 0) ...[
+                const SizedBox(height: 4),
+                _buildStatRow('PLI', '$_pliCount', isWarning: true),
+              ],
+              if (_nackCount != null && _nackCount! > 0) ...[
+                const SizedBox(height: 4),
+                _buildStatRow('NACK', '$_nackCount', isWarning: true),
               ],
               if (_codec != null) ...[
                 const SizedBox(height: 4),
