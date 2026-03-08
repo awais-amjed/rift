@@ -29,6 +29,9 @@ class ScreenShareConfig {
   /// Selected audio source sink index (Linux PulseAudio)
   final int? selectedAudioSourceSink;
 
+  /// Selected audio source process ID (Windows WASAPI)
+  final int? selectedAudioSourcePid;
+
   const ScreenShareConfig({
     required this.livekitUrl,
     required this.livekitToken,
@@ -43,6 +46,7 @@ class ScreenShareConfig {
     required this.codec,
     this.selectedAudioSourceIndex,
     this.selectedAudioSourceSink,
+    this.selectedAudioSourcePid,
   });
 
   @override
@@ -59,7 +63,8 @@ class ScreenShareConfig {
       captureFullScreen.hashCode ^
       codec.hashCode ^
       selectedAudioSourceIndex.hashCode ^
-      selectedAudioSourceSink.hashCode;
+      selectedAudioSourceSink.hashCode ^
+      selectedAudioSourcePid.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -78,5 +83,6 @@ class ScreenShareConfig {
           captureFullScreen == other.captureFullScreen &&
           codec == other.codec &&
           selectedAudioSourceIndex == other.selectedAudioSourceIndex &&
-          selectedAudioSourceSink == other.selectedAudioSourceSink;
+          selectedAudioSourceSink == other.selectedAudioSourceSink &&
+          selectedAudioSourcePid == other.selectedAudioSourcePid;
 }

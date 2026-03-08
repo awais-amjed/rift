@@ -22,6 +22,8 @@ pub struct ScreenShareConfig {
     pub selected_audio_source_index: Option<u32>,
     /// Selected audio source sink index (Linux PulseAudio)
     pub selected_audio_source_sink: Option<u32>,
+    /// Selected audio source process ID (Windows WASAPI)
+    pub selected_audio_source_pid: Option<u32>,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -37,7 +39,9 @@ pub struct ScreenShareSession {
     pub capture_handle: thread::JoinHandle<()>,
     #[cfg(target_os = "linux")]
     pub audio_handle: Option<super::audio_linux::AudioCaptureHandle>,
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "windows")]
+    pub audio_handle: Option<super::audio_windows::AudioCaptureHandle>,
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     pub audio_handle: Option<()>,
 }
 

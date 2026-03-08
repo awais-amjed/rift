@@ -45,3 +45,4 @@ app.*.map.json
 /android/app/release
 
 own_rust_code
+.firebase
