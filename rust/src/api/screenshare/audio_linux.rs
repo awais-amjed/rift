@@ -7,25 +7,42 @@ use libpulse_binding as pulse;
 
 #[cfg(target_os = "linux")]
 use pulse::context::Context;
+#[cfg(target_os = "linux")]
 use pulse::def::BufferAttr;
+#[cfg(target_os = "linux")]
 use pulse::mainloop::standard::Mainloop;
+#[cfg(target_os = "linux")]
 use pulse::sample::{Format, Spec};
+#[cfg(target_os = "linux")]
 use pulse::stream::{FlagSet as StreamFlagSet, PeekResult, Stream};
 
+#[cfg(target_os = "linux")]
 use livekit::options::TrackPublishOptions;
 use livekit::prelude::*;
+#[cfg(target_os = "linux")]
 use livekit::track::{LocalAudioTrack, LocalTrack, TrackSource};
+#[cfg(target_os = "linux")]
 use livekit::webrtc::audio_frame::AudioFrame;
+#[cfg(target_os = "linux")]
 use livekit::webrtc::audio_source::native::NativeAudioSource;
+#[cfg(target_os = "linux")]
 use livekit::webrtc::audio_source::{AudioSourceOptions, RtcAudioSource};
 
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::sync::mpsc::Sender;
+#[cfg(target_os = "linux")]
+use std::sync::mpsc::{self, Receiver};
+#[cfg(target_os = "linux")]
 use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use std::thread::JoinHandle;
+#[cfg(target_os = "linux")]
+use std::thread;
 use tokio::task::JoinHandle as TokioJoinHandle;
 
+#[allow(dead_code)]
 const SAMPLE_RATE: u32 = 48000;
+#[allow(dead_code)]
 const NUM_CHANNELS: u32 = 2;
+#[allow(dead_code)]
 const FRAME_SIZE_BYTES: usize = (SAMPLE_RATE as usize / 100) * NUM_CHANNELS as usize * 2;
 
 /// Represents an audio source that can be captured
