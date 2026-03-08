@@ -466,17 +466,74 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       ..on<TrackPublishedEvent>((e) {
         _syncParticipants();
         _applyStoredSettings();
-        // Apply high quality settings to screenshare tracks
-        _applyScreenshareQualitySettings(e.participant);
+
+        // Handle screenshare participants - prevent auto-subscription
+        if (e.participant.identity.endsWith('_screenshare')) {
+          // Check if this screenshare is in our subscribed list
+          if (!state.subscribedScreenshares.contains(e.participant.identity)) {
+            // Not subscribed, immediately unsubscribe if auto-subscribed
+            if (e.publication.subscribed) {
+              e.publication.unsubscribe();
+              debugPrint(
+                '✓ Prevented auto-subscription to screenshare track from ${e.participant.identity}',
+              );
+            }
+          } else {
+            // Is subscribed, apply high quality settings to screenshare video tracks
+            if (e.publication.source == TrackSource.screenShareVideo) {
+              _applyScreenshareQualitySettings(e.participant);
+            }
+          }
+        } else {
+          // Regular participant - apply high quality settings to screenshare tracks
+          _applyScreenshareQualitySettings(e.participant);
+        }
       })
       ..on<TrackSubscribedEvent>((e) {
         _syncParticipants();
-        // Apply high quality settings when screenshare is subscribed
-        if (e.publication.source == TrackSource.screenShareVideo) {
-          e.publication.setVideoQuality(VideoQuality.HIGH);
-          debugPrint(
-            '✓ Auto-applied HIGH quality to screenshare from ${e.participant.identity}',
-          );
+
+        // Handle screenshare tracks
+        if (e.participant.identity.endsWith('_screenshare')) {
+          // If it's a screenshare video track, apply high quality
+          if (e.publication.source == TrackSource.screenShareVideo) {
+            // Check if this screenshare is in our subscribed list
+            if (state.subscribedScreenshares.contains(e.participant.identity)) {
+              e.publication.setVideoQuality(VideoQuality.HIGH);
+              debugPrint(
+                '✓ Auto-applied HIGH quality to screenshare from ${e.participant.identity}',
+              );
+            } else {
+              // Not in subscribed list, unsubscribe from video
+              e.publication.unsubscribe();
+              debugPrint(
+                '✓ Auto-unsubscribed from screenshare video ${e.participant.identity}',
+              );
+            }
+          }
+          // If it's screenshare audio, only allow if in subscribed list
+          else if (e.publication.source == TrackSource.screenShareAudio) {
+            if (!state.subscribedScreenshares.contains(
+              e.participant.identity,
+            )) {
+              // Not subscribed, unsubscribe from audio immediately
+              e.publication.unsubscribe();
+              debugPrint(
+                '✓ Auto-unsubscribed from screenshare audio ${e.participant.identity}',
+              );
+            } else {
+              debugPrint(
+                '✓ Allowed screenshare audio from ${e.participant.identity}',
+              );
+            }
+          }
+        } else {
+          // Regular participant video - apply high quality if needed
+          if (e.publication.source == TrackSource.screenShareVideo) {
+            e.publication.setVideoQuality(VideoQuality.HIGH);
+            debugPrint(
+              '✓ Auto-applied HIGH quality to screenshare from ${e.participant.identity}',
+            );
+          }
         }
       })
       ..on<TrackUnpublishedEvent>((e) => _syncParticipants())
@@ -571,6 +628,9 @@ class LiveKitCubit extends Cubit<LiveKitState> {
 
       final participant = room.remoteParticipants[identity];
       if (participant == null) continue;
+
+      // Skip screenshare participants - they are managed separately
+      if (identity.endsWith('_screenshare')) continue;
 
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
