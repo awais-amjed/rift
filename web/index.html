@@ -18,16 +18,43 @@
 
     <title>Rift</title>
     <link rel="manifest" href="manifest.json">
+
+    <link rel="stylesheet" href="loading.css">
 </head>
 <body>
-<!--
-  You can customize the "flutter_bootstrap.js" script.
-  This is useful to provide a custom configuration to the Flutter loader
-  or to give the user feedback during the initialization process.
+<!-- Loading screen shown while Flutter initialises -->
+<div id="loading-screen">
+    <div class="logo-container">
+        <div class="logo-icon">
+            <!-- Simple signal / radio waves icon representing "Rift" communication -->
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5.636 5.636a9 9 0 1 0 12.728 0"/>
+                <path d="M9.172 9.172a4.5 4.5 0 1 0 5.656 0"/>
+                <circle cx="12" cy="12" r="1" fill="white" stroke="none"/>
+            </svg>
+        </div>
+        <div>
+            <div class="logo-text"><span>Rift</span></div>
+            <div class="logo-tagline">Connecting you in real time</div>
+        </div>
+    </div>
+    <div class="spinner-track"></div>
+    <div class="dots">
+        <span></span><span></span><span></span>
+    </div>
+</div>
 
-  For more details:
-  * https://docs.flutter.dev/platform-integration/web/initialization
--->
 <script src="flutter_bootstrap.js" async></script>
+
+<script>
+    // Remove the loading screen once Flutter signals it is ready
+    window.addEventListener('flutter-first-frame', function () {
+      var screen = document.getElementById('loading-screen');
+      if (screen) {
+        screen.classList.add('hidden');
+        setTimeout(function () { screen.remove(); }, 450);
+      }
+    });
+</script>
 </body>
 </html>
