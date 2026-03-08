@@ -25,8 +25,8 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
   double? _jitterMs;
   String? _codec;
   double? _rttMs;
-  int? _framesDropped;
-  int? _pliCount;
+  int? _framesDroppedPerSec;
+  int? _pliPerSec;
   int? _nackCount;
 
   @override
@@ -82,9 +82,13 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
           // Extract current values
           final bytesReceived = (values['bytesReceived'] as num?)?.toDouble();
           final framesDecoded = (values['framesDecoded'] as num?)?.toDouble();
+          final framesDropped = (values['framesDropped'] as num?)?.toInt();
+          final pliCount = (values['pliCount'] as num?)?.toInt();
 
           double? fps;
           double? bitrateKbps;
+          int? framesDroppedPerSec;
+          int? pliPerSec;
 
           // Calculate FPS and bitrate if we have previous stats
           if (_prevStats != null &&
@@ -95,6 +99,9 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                 ?.toDouble();
             final prevFramesDecoded = (_prevStats!['framesDecoded'] as num?)
                 ?.toDouble();
+            final prevFramesDropped = (_prevStats!['framesDropped'] as num?)
+                ?.toInt();
+            final prevPliCount = (_prevStats!['pliCount'] as num?)?.toInt();
 
             if (prevTimestamp != null &&
                 prevBytesReceived != null &&
@@ -115,6 +122,18 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                 if (framesDiff > 0) {
                   fps = (framesDiff * 1000) / dtMs;
                 }
+
+                // Calculate dropped frames per second
+                if (framesDropped != null && prevFramesDropped != null) {
+                  final diff = framesDropped - prevFramesDropped;
+                  framesDroppedPerSec = diff > 0 ? diff : 0;
+                }
+
+                // Calculate PLI per second
+                if (pliCount != null && prevPliCount != null) {
+                  final diff = pliCount - prevPliCount;
+                  pliPerSec = diff > 0 ? diff : 0;
+                }
               }
             }
           }
@@ -127,6 +146,8 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
             'timestamp': timestamp,
             'bytesReceived': bytesReceived,
             'framesDecoded': framesDecoded,
+            'framesDropped': framesDropped,
+            'pliCount': pliCount,
           };
 
           if (mounted) {
@@ -141,8 +162,8 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
               final mimeType = values['mimeType'] as String?;
               _codec = mimeType?.replaceFirst('video/', '');
               _rttMs = rttMs;
-              _framesDropped = (values['framesDropped'] as num?)?.toInt();
-              _pliCount = (values['pliCount'] as num?)?.toInt();
+              _framesDroppedPerSec = framesDroppedPerSec;
+              _pliPerSec = pliPerSec;
               _nackCount = (values['nackCount'] as num?)?.toInt();
             });
           }
@@ -207,13 +228,18 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                 const SizedBox(height: 4),
                 _buildStatRow('Loss', '$_packetsLost pkts', isWarning: true),
               ],
-              if (_framesDropped != null && _framesDropped! > 0) ...[
+              if (_framesDroppedPerSec != null &&
+                  _framesDroppedPerSec! > 0) ...[
                 const SizedBox(height: 4),
-                _buildStatRow('Dropped', '$_framesDropped', isWarning: true),
+                _buildStatRow(
+                  'Dropped',
+                  '$_framesDroppedPerSec/s',
+                  isWarning: true,
+                ),
               ],
-              if (_pliCount != null && _pliCount! > 0) ...[
+              if (_pliPerSec != null && _pliPerSec! > 0) ...[
                 const SizedBox(height: 4),
-                _buildStatRow('PLI', '$_pliCount', isWarning: true),
+                _buildStatRow('PLI', '$_pliPerSec/s', isWarning: true),
               ],
               if (_nackCount != null && _nackCount! > 0) ...[
                 const SizedBox(height: 4),
