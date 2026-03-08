@@ -73,6 +73,17 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
         }
       }
 
+      // Build a codec lookup map from codec stats (id -> mimeType)
+      final codecMap = <String, String>{};
+      for (final stats in rtcStats) {
+        if (stats.type == 'codec') {
+          final mimeType = stats.values['mimeType'] as String?;
+          if (mimeType != null) {
+            codecMap[stats.id] = mimeType;
+          }
+        }
+      }
+
       // Look for inbound-rtp stats
       for (final stats in rtcStats) {
         if (stats.type == 'inbound-rtp' && stats.values['kind'] == 'video') {
@@ -159,7 +170,8 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
               _packetsLost = values['packetsLost'] as int?;
               final jitter = values['jitter'] as num?;
               _jitterMs = jitter != null ? jitter * 1000 : null;
-              final mimeType = values['mimeType'] as String?;
+              final codecId = values['codecId'] as String?;
+              final mimeType = codecId != null ? codecMap[codecId] : null;
               _codec = mimeType?.replaceFirst('video/', '');
               _rttMs = rttMs;
               _framesDroppedPerSec = framesDroppedPerSec;
