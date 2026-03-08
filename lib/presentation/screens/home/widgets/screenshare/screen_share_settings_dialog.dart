@@ -1,7 +1,9 @@
 import 'dart:io' show Platform;
+import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sizer/sizer.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
@@ -123,7 +125,10 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
             side: BorderSide(color: themeState.borderPrimary),
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 720),
+            constraints: BoxConstraints(
+              maxWidth: max(480, 50.w),
+              maxHeight: max(720, 80.h),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
