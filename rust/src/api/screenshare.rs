@@ -101,6 +101,7 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
         true, // capture_cursor
         source_type,
         config.fps,
+        config.resolution,
         resolution_signal.clone(),
         video_source_slot.clone(),
     );
@@ -110,15 +111,28 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     let native_resolution = wait_for_resolution(&resolution_signal);
     println!("✓ Detected native resolution: {}x{}", native_resolution.width, native_resolution.height);
 
-    // Publish video track with exact downscaling
-    println!("Publishing video track...");
-    let buffer_source = publish_video_track(&room, native_resolution, &config).await
-        .map_err(|e| format!("Failed to publish video track: {:?}", e))?;
+    // Calculate target resolution preserving aspect ratio, capped at config.resolution height
+    let target_height = (config.resolution as u32).min(native_resolution.height);
+    let mut target_width = (target_height as f32 * native_resolution.width as f32 / native_resolution.height as f32).round() as u32;
+    // Encoders require even dimensions
+    if target_width % 2 != 0 { target_width += 1; }
+    let target_height = if target_height % 2 != 0 { target_height + 1 } else { target_height };
+    let target_resolution = VideoResolution { width: target_width, height: target_height };
+    println!("✓ Target resolution: {}x{}", target_resolution.width, target_resolution.height);
 
+    // Create the video source with the TARGET resolution and hand it to the slot
+    // BEFORE publishing so the capture thread can start sending frames immediately.
+    let buffer_source = NativeVideoSource::new(target_resolution.clone(), true);
     {
         let mut slot = video_source_slot.lock().unwrap();
-        *slot = Some(buffer_source);
+        *slot = Some(buffer_source.clone());
     }
+
+    // Publish video track
+    println!("Publishing video track...");
+    publish_video_track(&room, buffer_source, &config).await
+        .map_err(|e| format!("Failed to publish video track: {:?}", e))?;
+
 
     println!("✓ Screen sharing started successfully!");
 
@@ -148,34 +162,13 @@ fn wait_for_resolution(signal: &Arc<(Mutex<Option<VideoResolution>>, Condvar)>) 
 /// Publish a video track for screen sharing
 async fn publish_video_track(
     room: &Room,
-    native_resolution: VideoResolution,
+    buffer_source: NativeVideoSource,
     config: &ScreenShareConfig,
-) -> Result<NativeVideoSource, String> {
-
-    let native_width = native_resolution.width as f32;
-    let native_height = native_resolution.height as f32;
-
-    // Calculate target width preserving the exact native aspect ratio
-    let mut capture_height = std::cmp::min(config.resolution as u32, native_height as u32);
-    let mut capture_width = (capture_height as f32 * (native_width / native_height)).round() as u32;
-
-    // Video encoders heavily prefer (and often require) even dimensions
-    if capture_width % 2 != 0 { capture_width += 1; }
-    if capture_height % 2 != 0 { capture_height += 1; }
-
-    let target_resolution = VideoResolution {
-        width: capture_width,
-        height: capture_height,
-    };
-
-    println!("Target resolution applied: {}x{}", target_resolution.width, target_resolution.height);
-
-    // Create video source pointing to our newly calculated dynamic resolution
-    let buffer_source = NativeVideoSource::new(target_resolution, true);
+) -> Result<(), String> {
 
     let track = LocalVideoTrack::create_video_track(
         "screen_share",
-        RtcVideoSource::Native(buffer_source.clone()),
+        RtcVideoSource::Native(buffer_source),
     );
 
     // Convert bitrate from Mbps to bps (bits per second)
@@ -198,7 +191,7 @@ async fn publish_video_track(
         .await
         .map_err(|e| format!("Failed to publish track: {:?}", e))?;
 
-    Ok(buffer_source)
+    Ok(())
 }
 
 /// Spawn the video capture thread
@@ -206,6 +199,7 @@ fn spawn_capture_thread(
     capture_cursor: bool,
     source_type: DesktopCaptureSourceType,
     fps: i32,
+    resolution: i32,
     resolution_signal: Arc<(Mutex<Option<VideoResolution>>, Condvar)>,
     video_source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
 ) -> (Sender<CaptureCommand>, thread::JoinHandle<()>) {
@@ -215,6 +209,7 @@ fn spawn_capture_thread(
             capture_cursor,
             source_type,
             fps,
+            resolution,
             resolution_signal,
             video_source_slot,
             command_rx,
@@ -227,6 +222,7 @@ fn run_capture_loop(
     capture_cursor: bool,
     source_type: DesktopCaptureSourceType,
     fps: i32,
+    resolution: i32,
     resolution_signal: Arc<(Mutex<Option<VideoResolution>>, Condvar)>,
     video_source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
     command_rx: mpsc::Receiver<CaptureCommand>,
@@ -236,11 +232,15 @@ fn run_capture_loop(
     println!("Capture FPS: {}, Frame interval: {}ms", fps, frame_interval_ms);
 
     let callback = {
-        let mut frame_buffer = VideoFrame {
+        // Native-resolution I420 buffer (reused each frame)
+        let mut native_buffer = VideoFrame {
             rotation: VideoRotation::VideoRotation0,
             buffer: I420Buffer::new(1, 1),
             timestamp_us: 0,
         };
+        // Target dimensions computed once after first frame (stored as Option)
+        let mut target_dims: Option<(u32, u32)> = None;
+
         move |result: Result<DesktopFrame, CaptureError>| {
             let frame = match result {
                 Ok(frame) => frame,
@@ -252,7 +252,7 @@ fn run_capture_loop(
             let stride = frame.stride();
             let data = frame.data();
 
-            // Signal resolution on first frame
+            // Signal resolution on first frame and compute target dims
             {
                 let (lock, cvar) = &*resolution_signal;
                 let mut guard = lock.lock().unwrap();
@@ -262,28 +262,56 @@ fn run_capture_loop(
                         height: height as u32,
                     });
                     cvar.notify_all();
+
+                    // Compute target dimensions once
+                    let target_h = (resolution as u32).min(height as u32);
+                    let mut target_w = (target_h as f32 * width as f32 / height as f32).round() as u32;
+                    if target_w % 2 != 0 { target_w += 1; }
+                    let target_h = if target_h % 2 != 0 { target_h + 1 } else { target_h };
+                    target_dims = Some((target_w, target_h));
+                    println!("Capture thread: scaling {}x{} → {}x{}", width, height, target_w, target_h);
                 }
             }
 
-            // Resize buffer if needed
-            let buffer_width = frame_buffer.buffer.width() as i32;
-            let buffer_height = frame_buffer.buffer.height() as i32;
+            // Resize native buffer if needed
+            let buffer_width = native_buffer.buffer.width() as i32;
+            let buffer_height = native_buffer.buffer.height() as i32;
             if buffer_width != width || buffer_height != height {
-                frame_buffer.buffer = I420Buffer::new(width as u32, height as u32);
+                native_buffer.buffer = I420Buffer::new(width as u32, height as u32);
             }
 
-            // Convert ARGB to I420
-            let (stride_y, stride_u, stride_v) = frame_buffer.buffer.strides();
-            let (y_plane, u_plane, v_plane) = frame_buffer.buffer.data_mut();
+            // Convert ARGB → I420 at native resolution
+            let (stride_y, stride_u, stride_v) = native_buffer.buffer.strides();
+            let (y_plane, u_plane, v_plane) = native_buffer.buffer.data_mut();
             yuv_helper::argb_to_i420(
                 data, stride, y_plane, stride_y, u_plane, stride_u, v_plane, stride_v, width,
                 height,
             );
 
-            // Send frame to LiveKit
+            // Scale down to target resolution
+            let send_frame = if let Some((target_w, target_h)) = target_dims {
+                if target_w == width as u32 && target_h == height as u32 {
+                    // Already the right size, no scaling needed
+                    VideoFrame {
+                        rotation: VideoRotation::VideoRotation0,
+                        buffer: native_buffer.buffer.scale(target_w as i32, target_h as i32),
+                        timestamp_us: 0,
+                    }
+                } else {
+                    VideoFrame {
+                        rotation: VideoRotation::VideoRotation0,
+                        buffer: native_buffer.buffer.scale(target_w as i32, target_h as i32),
+                        timestamp_us: 0,
+                    }
+                }
+            } else {
+                return; // target dims not yet computed, skip frame
+            };
+
+            // Send scaled frame to LiveKit
             let slot = video_source_slot.lock().unwrap();
             if let Some(source) = slot.as_ref() {
-                source.capture_frame(&frame_buffer);
+                source.capture_frame(&send_frame);
             }
         }
     };
