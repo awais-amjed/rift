@@ -24,8 +24,8 @@ import 'src/rust/frb_generated.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Rust bridge
-  await RustLib.init();
+  // Initialize Rust bridge (not supported on web)
+  if (!kIsWeb) await RustLib.init();
 
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: kIsWeb
