@@ -11,6 +11,7 @@ class SettingsSummary extends StatelessWidget {
   final int fps;
   final int bitrate;
   final bool shareAudio;
+  final String codec;
 
   const SettingsSummary({
     super.key,
@@ -19,6 +20,7 @@ class SettingsSummary extends StatelessWidget {
     required this.fps,
     required this.bitrate,
     required this.shareAudio,
+    required this.codec,
   });
 
   @override
@@ -54,6 +56,11 @@ class SettingsSummary extends StatelessWidget {
                   const TextSpan(text: ' · '),
                   TextSpan(
                     text: '$bitrate Mbps',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const TextSpan(text: ' · '),
+                  TextSpan(
+                    text: codec,
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   const TextSpan(text: ' · '),

@@ -20,6 +20,9 @@ class ScreenShareConfig {
   final bool shareAudio;
   final bool captureFullScreen;
 
+  /// Video codec to use: "H264", "VP8", "VP9", or "AV1"
+  final String codec;
+
   const ScreenShareConfig({
     required this.livekitUrl,
     required this.livekitToken,
@@ -31,6 +34,7 @@ class ScreenShareConfig {
     required this.bitrate,
     required this.shareAudio,
     required this.captureFullScreen,
+    required this.codec,
   });
 
   @override
@@ -44,7 +48,8 @@ class ScreenShareConfig {
       fps.hashCode ^
       bitrate.hashCode ^
       shareAudio.hashCode ^
-      captureFullScreen.hashCode;
+      captureFullScreen.hashCode ^
+      codec.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -60,5 +65,6 @@ class ScreenShareConfig {
           fps == other.fps &&
           bitrate == other.bitrate &&
           shareAudio == other.shareAudio &&
-          captureFullScreen == other.captureFullScreen;
+          captureFullScreen == other.captureFullScreen &&
+          codec == other.codec;
 }

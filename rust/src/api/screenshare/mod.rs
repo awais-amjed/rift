@@ -36,6 +36,7 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
         "Capture Type: {}",
         if config.capture_full_screen { "Full Screen" } else { "Window" }
     );
+    println!("Codec: {}", config.codec);
     println!("=========================================");
 
     {

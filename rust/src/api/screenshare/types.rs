@@ -16,6 +16,8 @@ pub struct ScreenShareConfig {
     pub bitrate: i32,
     pub share_audio: bool,
     pub capture_full_screen: bool,
+    /// Video codec to use: "H264", "VP8", "VP9", or "AV1"
+    pub codec: String,
 }
 
 #[flutter_rust_bridge::frb(ignore)]

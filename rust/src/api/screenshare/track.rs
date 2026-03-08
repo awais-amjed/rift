@@ -21,9 +21,17 @@ pub async fn publish_video_track(
 
     // Convert bitrate from Mbps to bps
     let bitrate_bps = (config.bitrate * 1_000_000) as u64;
+
+    let video_codec = match config.codec.to_uppercase().as_str() {
+        "H264" => VideoCodec::H264,
+        "VP9" => VideoCodec::VP9,
+        "AV1" => VideoCodec::AV1,
+        _ => VideoCodec::VP8, // default to VP8
+    };
+
     println!(
-        "Publishing with bitrate: {} bps ({} Mbps), FPS: {}",
-        bitrate_bps, config.bitrate, config.fps
+        "Publishing with codec: {}, bitrate: {} bps ({} Mbps), FPS: {}",
+        config.codec, bitrate_bps, config.bitrate, config.fps
     );
 
     room.local_participant()
@@ -31,7 +39,7 @@ pub async fn publish_video_track(
             LocalTrack::Video(track),
             TrackPublishOptions {
                 source: TrackSource::Screenshare,
-                video_codec: VideoCodec::VP8, // Change this from H264
+                video_codec,
                 video_encoding: Some(livekit::options::VideoEncoding {
                     max_bitrate: bitrate_bps,
                     max_framerate: config.fps as f64,

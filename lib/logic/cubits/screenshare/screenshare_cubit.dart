@@ -65,6 +65,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       debugPrint(
         'Capture Type: ${settings.captureFullScreen ? "Full Screen" : "Window"}',
       );
+      debugPrint('Codec: ${settings.codec}');
       debugPrint('========================');
 
       // Call Rust function to start screen sharing
@@ -79,6 +80,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         bitrate: settings.bitrate,
         shareAudio: settings.shareAudio,
         captureFullScreen: settings.captureFullScreen,
+        codec: settings.codec,
       );
 
       final result = await startScreenshare(config: config);
