@@ -10,6 +10,7 @@ import '../../sidebar/widgets/participant_context_menu.dart';
 import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
+import 'stream_stats_overlay.dart';
 import 'watch_stream_button.dart';
 
 /// Displays a single participant's video or avatar fallback tile.
@@ -148,15 +149,20 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                             name: name,
                             isDark: themeState.isDarkTheme,
                           ),
+                        // Stream stats overlay at top right (for screenshare with video)
+                        if (showStopButton && _videoPub!.track is VideoTrack)
+                          StreamStatsOverlay(
+                            track: _videoPub!.track as VideoTrack,
+                          ),
                         // Watch Stream button for unsubscribed screenshare
                         if (showWatchButton)
                           WatchStreamButton(
                             onTap: () => _subscribeToScreenshare(context),
                           ),
-                        // Stop Watching button for subscribed screenshare
+                        // Stop Watching button at bottom right for subscribed screenshare
                         if (showStopButton)
                           Positioned(
-                            top: 12,
+                            bottom: 12,
                             right: 12,
                             child: StopWatchingButton(
                               onTap: () => _unsubscribeFromScreenshare(context),
@@ -218,15 +224,21 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                                 name: name,
                                 isDark: themeState.isDarkTheme,
                               ),
+                            // Stream stats overlay at top right (for screenshare with video)
+                            if (showStopButton &&
+                                _videoPub!.track is VideoTrack)
+                              StreamStatsOverlay(
+                                track: _videoPub!.track as VideoTrack,
+                              ),
                             // Watch Stream button for unsubscribed screenshare
                             if (showWatchButton)
                               WatchStreamButton(
                                 onTap: () => _subscribeToScreenshare(context),
                               ),
-                            // Stop Watching button for subscribed screenshare
+                            // Stop Watching button at bottom right for subscribed screenshare
                             if (showStopButton)
                               Positioned(
-                                top: 12,
+                                bottom: 12,
                                 right: 12,
                                 child: StopWatchingButton(
                                   onTap: () =>
