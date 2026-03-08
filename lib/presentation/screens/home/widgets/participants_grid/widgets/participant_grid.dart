@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-import '../participant_tile.dart';
+import '../participants_tile/participant_tile.dart';
 
 /// Grid view displaying all participants with adaptive column count.
 class ParticipantGrid extends StatelessWidget {

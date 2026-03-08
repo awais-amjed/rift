@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../common/context_menu_region.dart';
-import '../../../../theme/custom_colors.dart';
-import '../sidebar/widgets/participant_context_menu.dart';
-import 'widgets/avatar_placeholder.dart';
-import 'widgets/participant_name_badge.dart';
-import 'widgets/stop_watching_button.dart';
-import 'widgets/watch_stream_button.dart';
+import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../common/context_menu_region.dart';
+import '../../../../../theme/custom_colors.dart';
+import '../../sidebar/widgets/participant_context_menu.dart';
+import 'avatar_placeholder.dart';
+import 'participant_name_badge.dart';
+import 'stop_watching_button.dart';
+import 'watch_stream_button.dart';
 
 /// Displays a single participant's video or avatar fallback tile.
 class ParticipantTileWidget extends StatefulWidget {
