@@ -68,21 +68,6 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     try {
       final sources = await listAudioSources();
 
-      // Debug logging: Print all audio source details
-      debugPrint('=== AUDIO SOURCES DEBUG INFO ===');
-      debugPrint('Found ${sources.length} audio sources:');
-      for (int i = 0; i < sources.length; i++) {
-        final source = sources[i];
-        debugPrint('');
-        debugPrint('Audio Source #$i:');
-        debugPrint('  Index: ${source.index}');
-        debugPrint('  Sink: ${source.sink}');
-        debugPrint('  App Name: "${source.appName}"');
-        debugPrint('  Binary: "${source.binary}"');
-        debugPrint('  Media Name: "${source.mediaName}"');
-      }
-      debugPrint('================================');
-
       if (mounted) {
         setState(() {
           _audioSources = sources;
