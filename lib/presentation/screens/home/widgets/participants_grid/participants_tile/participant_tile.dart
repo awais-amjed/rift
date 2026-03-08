@@ -132,6 +132,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
 
             final content = GestureDetector(
               onTap: widget.onTap,
+              behavior: HitTestBehavior.opaque,
               child: widget.isExpanded
                   ? Stack(
                       fit: StackFit.expand,
