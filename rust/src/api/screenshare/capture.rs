@@ -13,7 +13,10 @@ use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+struct SendableFrame(DesktopFrame);
+unsafe impl Send for SendableFrame {}
 
 /// Spawn the video capture thread.
 /// Returns a command sender and the thread handle.
@@ -50,11 +53,18 @@ fn run_capture_loop(
     video_source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
     command_rx: mpsc::Receiver<CaptureCommand>,
 ) {
-    // Calculate frame interval from FPS (in milliseconds)
-    let frame_interval_ms = (1000.0 / fps as f64) as u64;
-    println!("Capture FPS: {}, Frame interval: {}ms", fps, frame_interval_ms);
+    // Calculate precise frame interval from FPS
+    let frame_interval = Duration::from_secs_f64(1.0 / fps as f64);
+    println!("Capture FPS: {}, Frame interval: {:?}", fps, frame_interval);
 
-    let callback = {
+    // Create a channel for offloading raw frames to a processing worker thread
+    let (frame_tx, frame_rx) = mpsc::sync_channel::<SendableFrame>(2);
+
+    let video_source_clone = Arc::clone(&video_source_slot);
+    let resolution_signal_clone = Arc::clone(&resolution_signal);
+
+    // Spawn the dedicated processing thread for color conversion and scaling
+    thread::spawn(move || {
         // Native-resolution I420 buffer (reused each frame)
         let mut native_buffer = VideoFrame {
             rotation: VideoRotation::VideoRotation0,
@@ -64,12 +74,7 @@ fn run_capture_loop(
         // Target dimensions computed once after first frame (stored as Option)
         let mut target_dims: Option<(u32, u32)> = None;
 
-        move |result: Result<DesktopFrame, CaptureError>| {
-            let frame = match result {
-                Ok(frame) => frame,
-                Err(CaptureError::Temporary) | Err(CaptureError::Permanent) => return,
-            };
-
+        while let Ok(SendableFrame(frame)) = frame_rx.recv() {
             let width = frame.width();
             let height = frame.height();
             let stride = frame.stride();
@@ -77,7 +82,7 @@ fn run_capture_loop(
 
             // Signal resolution on first frame and compute target dims
             {
-                let (lock, cvar) = &*resolution_signal;
+                let (lock, cvar) = &*resolution_signal_clone;
                 let mut guard = lock.lock().unwrap();
                 if guard.is_none() {
                     *guard = Some(VideoResolution {
@@ -92,7 +97,7 @@ fn run_capture_loop(
                     if target_w % 2 != 0 { target_w += 1; }
                     let target_h = if target_h % 2 != 0 { target_h + 1 } else { target_h };
                     target_dims = Some((target_w, target_h));
-                    println!("Capture thread: scaling {}x{} → {}x{}", width, height, target_w, target_h);
+                    println!("Processing thread: scaling {}x{} → {}x{}", width, height, target_w, target_h);
                 }
             }
 
@@ -112,23 +117,28 @@ fn run_capture_loop(
             );
 
             // Scale down to target resolution
-            let send_frame = if let Some((target_w, target_h)) = target_dims {
-                VideoFrame {
+            if let Some((target_w, target_h)) = target_dims {
+                let send_frame = VideoFrame {
                     rotation: VideoRotation::VideoRotation0,
                     buffer: native_buffer.buffer.scale(target_w as i32, target_h as i32),
                     timestamp_us: 0,
-                }
-            } else {
-                return; // target dims not yet computed, skip frame
-            };
+                };
 
-            // Send scaled frame to LiveKit
-            let slot = video_source_slot.lock().unwrap();
-            if let Some(source) = slot.as_ref() {
-                source.capture_frame(&send_frame);
+                // Send scaled frame to LiveKit
+                let slot = video_source_clone.lock().unwrap();
+                if let Some(source) = slot.as_ref() {
+                    source.capture_frame(&send_frame);
+                }
             }
         }
-    };
+    });
+
+    let callback = move |result: Result<DesktopFrame, CaptureError>| {
+            if let Ok(frame) = result {
+                // Wrap the frame to bypass the !Send restriction
+                let _ = frame_tx.try_send(SendableFrame(frame));
+            }
+        };
 
     let mut options = DesktopCapturerOptions::new(source_type);
     options.set_include_cursor(capture_cursor);
@@ -159,15 +169,29 @@ fn run_capture_loop(
 
     capturer.start_capture(selected_source, callback);
 
+    // Initialize the target time for the very first frame
+    let mut next_frame_time = Instant::now() + frame_interval;
+
     // Capture loop
     loop {
-        match command_rx.recv_timeout(Duration::from_millis(frame_interval_ms)) {
+        // Calculate exactly how much time is left until the next frame is due.
+        let timeout = next_frame_time.saturating_duration_since(Instant::now());
+
+        match command_rx.recv_timeout(timeout) {
             Ok(CaptureCommand::Terminate) => {
                 println!("Capture thread received terminate command");
                 break;
             }
             Err(RecvTimeoutError::Timeout) => {
                 capturer.capture_frame();
+
+                // Advance the deadline for the next frame
+                next_frame_time += frame_interval;
+
+                // If severely lagging, reset the timer to prevent a rapid burst of queued captures
+                if Instant::now() > next_frame_time {
+                    next_frame_time = Instant::now() + frame_interval;
+                }
             }
             Err(RecvTimeoutError::Disconnected) => break,
         }
@@ -175,4 +199,3 @@ fn run_capture_loop(
 
     println!("Capture loop exiting");
 }
-
