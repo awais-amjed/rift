@@ -126,99 +126,112 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
             constraints: const BoxConstraints(maxWidth: 480, maxHeight: 720),
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    SettingsDialogHeader(
-                      onClose: () => Navigator.of(context).pop(),
-                    ),
-                    Divider(height: 24, color: themeState.borderPrimary),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header (Always Visible)
+                  SettingsDialogHeader(
+                    onClose: () => Navigator.of(context).pop(),
+                  ),
+                  Divider(height: 24, color: themeState.borderPrimary),
 
-                    // Capture Type
-                    CaptureTypeSection(
-                      captureFullScreen: _captureFullScreen,
-                      onChanged: (value) =>
-                          setState(() => _captureFullScreen = value),
-                    ),
-                    const SizedBox(height: 16),
+                  // Scrollable Content
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Capture Type
+                          CaptureTypeSection(
+                            captureFullScreen: _captureFullScreen,
+                            onChanged: (value) =>
+                                setState(() => _captureFullScreen = value),
+                          ),
+                          const SizedBox(height: 16),
 
-                    // Resolution
-                    ResolutionSection(
-                      selectedResolution: _resolution,
-                      onChanged: (value) => setState(() => _resolution = value),
-                    ),
-                    const SizedBox(height: 16),
+                          // Resolution
+                          ResolutionSection(
+                            selectedResolution: _resolution,
+                            onChanged: (value) =>
+                                setState(() => _resolution = value),
+                          ),
+                          const SizedBox(height: 16),
 
-                    // FPS
-                    FrameRateSection(
-                      selectedFps: _fps,
-                      onChanged: (value) => setState(() => _fps = value),
-                    ),
-                    const SizedBox(height: 16),
+                          // FPS
+                          FrameRateSection(
+                            selectedFps: _fps,
+                            onChanged: (value) => setState(() => _fps = value),
+                          ),
+                          const SizedBox(height: 16),
 
-                    // Bitrate
-                    BitrateSection(
-                      selectedBitrate: _bitrate,
-                      onChanged: (value) => setState(() => _bitrate = value),
-                    ),
-                    const SizedBox(height: 16),
+                          // Bitrate
+                          BitrateSection(
+                            selectedBitrate: _bitrate,
+                            onChanged: (value) =>
+                                setState(() => _bitrate = value),
+                          ),
+                          const SizedBox(height: 16),
 
-                    // Codec
-                    CodecSection(
-                      selectedCodec: _codec,
-                      onChanged: (value) => setState(() => _codec = value),
-                    ),
-                    const SizedBox(height: 16),
+                          // Codec
+                          CodecSection(
+                            selectedCodec: _codec,
+                            onChanged: (value) =>
+                                setState(() => _codec = value),
+                          ),
+                          const SizedBox(height: 16),
 
-                    // Share audio toggle
-                    AudioToggle(
-                      shareAudio: _shareAudio,
-                      onToggle: _onAudioToggle,
-                    ),
+                          // Share audio toggle
+                          AudioToggle(
+                            shareAudio: _shareAudio,
+                            onToggle: _onAudioToggle,
+                          ),
 
-                    // Audio source selector (Linux only)
-                    if (Platform.isLinux && _shareAudio) ...[
-                      const SizedBox(height: 16),
-                      AudioSourceSection(
-                        audioSources: _audioSources,
-                        selectedAudioSource: _selectedAudioSource,
-                        isLoading: _loadingAudioSources,
-                        onChanged: (source) =>
-                            setState(() => _selectedAudioSource = source),
-                        onRefresh: _loadAudioSources,
+                          // Audio source selector (Linux only)
+                          if (Platform.isLinux && _shareAudio) ...[
+                            const SizedBox(height: 16),
+                            AudioSourceSection(
+                              audioSources: _audioSources,
+                              selectedAudioSource: _selectedAudioSource,
+                              isLoading: _loadingAudioSources,
+                              onChanged: (source) =>
+                                  setState(() => _selectedAudioSource = source),
+                              onRefresh: _loadAudioSources,
+                            ),
+                          ],
+
+                          const SizedBox(height: 16),
+                          // Summary
+                          SettingsSummary(
+                            captureFullScreen: _captureFullScreen,
+                            resolution: _getResolutionLabel(_resolution),
+                            fps: _fps,
+                            bitrate: _bitrate,
+                            shareAudio: _shareAudio,
+                            codec: _codec,
+                          ),
+                        ],
                       ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Footer Actions (Always Visible)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      AppButton(
+                        label: 'Cancel',
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: 10),
+                      AppButton(label: 'Start Sharing', onPressed: _confirm),
                     ],
-
-                    const SizedBox(height: 16),
-                    // Summary
-                    SettingsSummary(
-                      captureFullScreen: _captureFullScreen,
-                      resolution: _getResolutionLabel(_resolution),
-                      fps: _fps,
-                      bitrate: _bitrate,
-                      shareAudio: _shareAudio,
-                      codec: _codec,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Actions
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        AppButton(
-                          label: 'Cancel',
-                          variant: AppButtonVariant.secondary,
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        const SizedBox(width: 10),
-                        AppButton(label: 'Start Sharing', onPressed: _confirm),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

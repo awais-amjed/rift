@@ -23,6 +23,19 @@ class AudioSourceSection extends StatelessWidget {
     required this.onRefresh,
   });
 
+  String _buildLabel(AudioSource source) {
+    final mainLabel = source.mediaName.isNotEmpty
+        ? source.mediaName
+        : source.appName.isNotEmpty
+        ? source.appName
+        : 'Unknown';
+
+    if (source.binary.isNotEmpty) {
+      return '$mainLabel (${source.binary})';
+    }
+    return mainLabel;
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
@@ -69,94 +82,57 @@ class AudioSourceSection extends StatelessWidget {
                 ),
               )
             else
-              Column(
-                children: [
-                  for (final source in audioSources!)
-                    _AudioSourceItem(
-                      source: source,
-                      isSelected: selectedAudioSource == source,
-                      onTap: () => onChanged(source),
-                      themeState: themeState,
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: themeState.borderPrimary),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<AudioSource>(
+                    value: selectedAudioSource,
+                    isExpanded: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    icon: Icon(
+                      Icons.arrow_drop_down,
+                      color: themeState.textSecondary,
                     ),
-                ],
+                    dropdownColor: themeState.isDarkTheme
+                        ? const Color(0xFF2A2A2E)
+                        : CustomColors.bgSecondaryLight,
+                    borderRadius: BorderRadius.circular(8),
+                    hint: Text(
+                      'Select audio source',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: themeState.textTertiary,
+                      ),
+                    ),
+                    items: audioSources!.map((source) {
+                      return DropdownMenuItem<AudioSource>(
+                        value: source,
+                        child: Text(
+                          _buildLabel(source),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: themeState.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (source) {
+                      if (source != null) {
+                        onChanged(source);
+                      }
+                    },
+                  ),
+                ),
               ),
           ],
         );
       },
-    );
-  }
-}
-
-/// Individual audio source item
-class _AudioSourceItem extends StatelessWidget {
-  final AudioSource source;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final ThemeState themeState;
-
-  const _AudioSourceItem({
-    required this.source,
-    required this.isSelected,
-    required this.onTap,
-    required this.themeState,
-  });
-
-  String _buildLabel() {
-    final mainLabel = source.mediaName.isNotEmpty
-        ? source.mediaName
-        : source.appName.isNotEmpty
-        ? source.appName
-        : 'Unknown';
-
-    if (source.binary.isNotEmpty) {
-      return '$mainLabel (${source.binary})';
-    }
-    return mainLabel;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? CustomColors.primary.withValues(alpha: 0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? CustomColors.primary : themeState.borderPrimary,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              size: 18,
-              color: isSelected
-                  ? CustomColors.primary
-                  : themeState.textTertiary,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                _buildLabel(),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: themeState.textPrimary,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
