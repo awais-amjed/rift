@@ -321,7 +321,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _appCubit.setParticipantSetting(identity, volume: volume);
   }
 
-  /// Subscribe to a participant's screenshare video track.
+  /// Subscribe to a participant's screenshare tracks (video and audio).
   Future<void> subscribeToScreenshare(String identity) async {
     final room = state.room;
     if (room == null) return;
@@ -332,7 +332,9 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       return;
     }
 
-    // Find screenshare video track publication
+    var subscribedAny = false;
+
+    // Subscribe to screenshare video track
     for (final pub in participant.videoTrackPublications) {
       if (pub.source == TrackSource.screenShareVideo) {
         try {
@@ -342,27 +344,42 @@ class LiveKitCubit extends Cubit<LiveKitState> {
           pub.setVideoQuality(VideoQuality.HIGH);
 
           debugPrint(
-            '✓ Subscribed to screenshare from $identity (quality: HIGH)',
+            '✓ Subscribed to screenshare video from $identity (quality: HIGH)',
           );
-
-          // Add to subscribed set
-          final updatedSubscriptions = Set<String>.from(
-            state.subscribedScreenshares,
-          )..add(identity);
-          emit(state.copyWith(subscribedScreenshares: updatedSubscriptions));
-
-          _syncParticipants();
+          subscribedAny = true;
         } catch (e) {
-          debugPrint('✗ Failed to subscribe to screenshare: $e');
+          debugPrint('✗ Failed to subscribe to screenshare video: $e');
         }
-        return;
       }
     }
 
-    debugPrint('No screenshare track found for $identity');
+    // Subscribe to screenshare audio track (if any)
+    for (final pub in participant.audioTrackPublications) {
+      if (pub.source == TrackSource.screenShareAudio) {
+        try {
+          await pub.subscribe();
+          debugPrint('✓ Subscribed to screenshare audio from $identity');
+          subscribedAny = true;
+        } catch (e) {
+          debugPrint('✗ Failed to subscribe to screenshare audio: $e');
+        }
+      }
+    }
+
+    if (subscribedAny) {
+      // Add to subscribed set
+      final updatedSubscriptions = Set<String>.from(
+        state.subscribedScreenshares,
+      )..add(identity);
+      emit(state.copyWith(subscribedScreenshares: updatedSubscriptions));
+
+      _syncParticipants();
+    } else {
+      debugPrint('No screenshare tracks found for $identity');
+    }
   }
 
-  /// Unsubscribe from a participant's screenshare video track.
+  /// Unsubscribe from a participant's screenshare tracks (video and audio).
   Future<void> unsubscribeFromScreenshare(String identity) async {
     final room = state.room;
     if (room == null) return;
@@ -370,25 +387,42 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     final participant = room.remoteParticipants[identity];
     if (participant == null) return;
 
-    // Find screenshare video track publication
+    var unsubscribedAny = false;
+
+    // Unsubscribe from screenshare video track
     for (final pub in participant.videoTrackPublications) {
       if (pub.source == TrackSource.screenShareVideo) {
         try {
           await pub.unsubscribe();
-          debugPrint('✓ Unsubscribed from screenshare from $identity');
-
-          // Remove from subscribed set
-          final updatedSubscriptions = Set<String>.from(
-            state.subscribedScreenshares,
-          )..remove(identity);
-          emit(state.copyWith(subscribedScreenshares: updatedSubscriptions));
-
-          _syncParticipants();
+          debugPrint('✓ Unsubscribed from screenshare video from $identity');
+          unsubscribedAny = true;
         } catch (e) {
-          debugPrint('✗ Failed to unsubscribe from screenshare: $e');
+          debugPrint('✗ Failed to unsubscribe from screenshare video: $e');
         }
-        return;
       }
+    }
+
+    // Unsubscribe from screenshare audio track (if any)
+    for (final pub in participant.audioTrackPublications) {
+      if (pub.source == TrackSource.screenShareAudio) {
+        try {
+          await pub.unsubscribe();
+          debugPrint('✓ Unsubscribed from screenshare audio from $identity');
+          unsubscribedAny = true;
+        } catch (e) {
+          debugPrint('✗ Failed to unsubscribe from screenshare audio: $e');
+        }
+      }
+    }
+
+    if (unsubscribedAny) {
+      // Remove from subscribed set
+      final updatedSubscriptions = Set<String>.from(
+        state.subscribedScreenshares,
+      )..remove(identity);
+      emit(state.copyWith(subscribedScreenshares: updatedSubscriptions));
+
+      _syncParticipants();
     }
   }
 
