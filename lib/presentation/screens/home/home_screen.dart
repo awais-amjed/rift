@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -104,53 +105,58 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   // ── Main content ──────────────────────────────────────
                   Positioned.fill(
-                    top: titleBarVisible ? _titleBarHeight : 0,
+                    top: kIsWeb ? 0 : (titleBarVisible ? _titleBarHeight : 0),
                     child: Stack(
                       children: [
                         Row(
                           children: [
                             if (appState.isPinned)
                               Sidebar(
-                                topPadding: titleBarVisible
+                                topPadding: kIsWeb
                                     ? 0
-                                    : K.titleBarHiddenSidebarPadding,
+                                    : (titleBarVisible
+                                          ? 0
+                                          : K.titleBarHiddenSidebarPadding),
                               ),
                             const Expanded(child: ParticipantsGrid()),
                           ],
                         ),
                         if (!appState.isPinned)
                           FloatingSidebar(
-                            topPadding: titleBarVisible
+                            topPadding: kIsWeb
                                 ? 0
-                                : K.titleBarHiddenSidebarPadding,
+                                : (titleBarVisible
+                                      ? 0
+                                      : K.titleBarHiddenSidebarPadding),
                           ),
                       ],
                     ),
                   ),
 
                   // ── Title bar (pinned or overlay) ─────────────────────
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    top: (titleBarVisible || _titleBarOverlay)
-                        ? 0
-                        : -_titleBarHeight,
-                    left: 0,
-                    right: 0,
-                    height: _titleBarHeight,
-                    child: AppTitleBar(
+                  if (!kIsWeb)
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      top: (titleBarVisible || _titleBarOverlay)
+                          ? 0
+                          : -_titleBarHeight,
+                      left: 0,
+                      right: 0,
                       height: _titleBarHeight,
-                      pinned: titleBarVisible,
-                      onHide: () {
-                        context.read<AppCubit>().setTitleBarVisible(false);
-                        setState(() => _titleBarOverlay = false);
-                      },
-                      onShow: () {
-                        context.read<AppCubit>().setTitleBarVisible(true);
-                        setState(() => _titleBarOverlay = false);
-                      },
+                      child: AppTitleBar(
+                        height: _titleBarHeight,
+                        pinned: titleBarVisible,
+                        onHide: () {
+                          context.read<AppCubit>().setTitleBarVisible(false);
+                          setState(() => _titleBarOverlay = false);
+                        },
+                        onShow: () {
+                          context.read<AppCubit>().setTitleBarVisible(true);
+                          setState(() => _titleBarOverlay = false);
+                        },
+                      ),
                     ),
-                  ),
                 ],
               ),
             );
