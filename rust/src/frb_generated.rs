@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1120704769;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1386098720;
 
 // Section: executor
 
@@ -103,6 +103,40 @@ fn wire__crate__api__simple__init_app_impl(
                     let output_ok = Result::<_, ()>::Ok({
                         crate::api::simple::init_app();
                     })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__screenshare__audio_linux__list_audio_sources_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_audio_sources",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::screenshare::audio_linux::list_audio_sources(),
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -193,6 +227,24 @@ impl SseDecode for String {
     }
 }
 
+impl SseDecode for crate::api::screenshare::audio_linux::AudioSource {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_index = <u32>::sse_decode(deserializer);
+        let mut var_sink = <u32>::sse_decode(deserializer);
+        let mut var_appName = <String>::sse_decode(deserializer);
+        let mut var_binary = <String>::sse_decode(deserializer);
+        let mut var_mediaName = <String>::sse_decode(deserializer);
+        return crate::api::screenshare::audio_linux::AudioSource {
+            index: var_index,
+            sink: var_sink,
+            app_name: var_appName,
+            binary: var_binary,
+            media_name: var_mediaName,
+        };
+    }
+}
+
 impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -207,6 +259,20 @@ impl SseDecode for i32 {
     }
 }
 
+impl SseDecode for Vec<crate::api::screenshare::audio_linux::AudioSource> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::screenshare::audio_linux::AudioSource>::sse_decode(deserializer),
+            );
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -216,6 +282,17 @@ impl SseDecode for Vec<u8> {
             ans_.push(<u8>::sse_decode(deserializer));
         }
         return ans_;
+    }
+}
+
+impl SseDecode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u32>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
     }
 }
 
@@ -233,6 +310,8 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
         let mut var_shareAudio = <bool>::sse_decode(deserializer);
         let mut var_captureFullScreen = <bool>::sse_decode(deserializer);
         let mut var_codec = <String>::sse_decode(deserializer);
+        let mut var_selectedAudioSourceIndex = <Option<u32>>::sse_decode(deserializer);
+        let mut var_selectedAudioSourceSink = <Option<u32>>::sse_decode(deserializer);
         return crate::api::screenshare::types::ScreenShareConfig {
             livekit_url: var_livekitUrl,
             livekit_token: var_livekitToken,
@@ -245,7 +324,16 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
             share_audio: var_shareAudio,
             capture_full_screen: var_captureFullScreen,
             codec: var_codec,
+            selected_audio_source_index: var_selectedAudioSourceIndex,
+            selected_audio_source_sink: var_selectedAudioSourceSink,
         };
+    }
+}
+
+impl SseDecode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u32::<NativeEndian>().unwrap()
     }
 }
 
@@ -271,10 +359,16 @@ fn pde_ffi_dispatcher_primary_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         2 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
-        3 => {
+        3 => wire__crate__api__screenshare__audio_linux__list_audio_sources_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        4 => {
             wire__crate__api__screenshare__start_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
-        4 => {
+        5 => {
             wire__crate__api__screenshare__stop_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -297,6 +391,30 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::screenshare::audio_linux::AudioSource {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.index.into_into_dart().into_dart(),
+            self.sink.into_into_dart().into_dart(),
+            self.app_name.into_into_dart().into_dart(),
+            self.binary.into_into_dart().into_dart(),
+            self.media_name.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::screenshare::audio_linux::AudioSource
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::screenshare::audio_linux::AudioSource>
+    for crate::api::screenshare::audio_linux::AudioSource
+{
+    fn into_into_dart(self) -> crate::api::screenshare::audio_linux::AudioSource {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ScreenShareConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -311,6 +429,10 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ScreenSha
             self.share_audio.into_into_dart().into_dart(),
             self.capture_full_screen.into_into_dart().into_dart(),
             self.codec.into_into_dart().into_dart(),
+            self.selected_audio_source_index
+                .into_into_dart()
+                .into_dart(),
+            self.selected_audio_source_sink.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -334,6 +456,17 @@ impl SseEncode for String {
     }
 }
 
+impl SseEncode for crate::api::screenshare::audio_linux::AudioSource {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.index, serializer);
+        <u32>::sse_encode(self.sink, serializer);
+        <String>::sse_encode(self.app_name, serializer);
+        <String>::sse_encode(self.binary, serializer);
+        <String>::sse_encode(self.media_name, serializer);
+    }
+}
+
 impl SseEncode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -348,12 +481,32 @@ impl SseEncode for i32 {
     }
 }
 
+impl SseEncode for Vec<crate::api::screenshare::audio_linux::AudioSource> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::screenshare::audio_linux::AudioSource>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <u8>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u32>::sse_encode(value, serializer);
         }
     }
 }
@@ -372,6 +525,15 @@ impl SseEncode for crate::api::screenshare::types::ScreenShareConfig {
         <bool>::sse_encode(self.share_audio, serializer);
         <bool>::sse_encode(self.capture_full_screen, serializer);
         <String>::sse_encode(self.codec, serializer);
+        <Option<u32>>::sse_encode(self.selected_audio_source_index, serializer);
+        <Option<u32>>::sse_encode(self.selected_audio_source_sink, serializer);
+    }
+}
+
+impl SseEncode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u32::<NativeEndian>(self).unwrap();
     }
 }
 

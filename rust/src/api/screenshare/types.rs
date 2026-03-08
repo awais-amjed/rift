@@ -18,6 +18,10 @@ pub struct ScreenShareConfig {
     pub capture_full_screen: bool,
     /// Video codec to use: "H264", "VP8", "VP9", or "AV1"
     pub codec: String,
+    /// Selected audio source sink-input index (Linux PulseAudio)
+    pub selected_audio_source_index: Option<u32>,
+    /// Selected audio source sink index (Linux PulseAudio)
+    pub selected_audio_source_sink: Option<u32>,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -31,6 +35,10 @@ pub struct ScreenShareSession {
     pub room: Room,
     pub capture_tx: Sender<CaptureCommand>,
     pub capture_handle: thread::JoinHandle<()>,
+    #[cfg(target_os = "linux")]
+    pub audio_handle: Option<super::audio_linux::AudioCaptureHandle>,
+    #[cfg(not(target_os = "linux"))]
+    pub audio_handle: Option<()>,
 }
 
 #[flutter_rust_bridge::frb(ignore)]

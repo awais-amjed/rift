@@ -6,8 +6,10 @@
 pub mod capture;
 pub mod track;
 pub mod types;
+pub mod audio_linux;
 
 pub use types::ScreenShareConfig;
+pub use audio_linux::{AudioSource, list_audio_sources};
 
 use capture::spawn_capture_thread;
 use track::publish_video_track;
@@ -108,11 +110,45 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
         .await
         .map_err(|e| format!("Failed to publish video track: {:?}", e))?;
 
+    // Start audio capture if requested and audio source is selected
+    #[cfg(target_os = "linux")]
+    let audio_handle = if config.share_audio
+        && config.selected_audio_source_index.is_some()
+        && config.selected_audio_source_sink.is_some()
+    {
+        let sink_input_idx = config.selected_audio_source_index.unwrap();
+        let sink_idx = config.selected_audio_source_sink.unwrap();
+        println!("Starting audio capture for sink-input #{}, sink #{}...", sink_input_idx, sink_idx);
+        match audio_linux::start_audio_capture(&room, sink_input_idx, sink_idx).await {
+            Some(handle) => {
+                println!("✓ Audio capture started successfully");
+                Some(handle)
+            }
+            None => {
+                println!("⚠ Failed to start audio capture");
+                None
+            }
+        }
+    } else {
+        if config.share_audio {
+            println!("Audio sharing enabled but no audio source selected");
+        }
+        None
+    };
+
+    #[cfg(not(target_os = "linux"))]
+    let audio_handle = None;
+
     println!("✓ Screen sharing started successfully!");
 
     {
         let mut session_lock = SESSION.lock().unwrap();
-        *session_lock = Some(ScreenShareSession { room, capture_tx, capture_handle });
+        *session_lock = Some(ScreenShareSession {
+            room,
+            capture_tx,
+            capture_handle,
+            audio_handle,
+        });
     }
 
     Ok(format!("Connected to room: {} ({})", room_name, room_sid))
@@ -133,6 +169,13 @@ pub async fn stop_screenshare() -> Result<String, String> {
 
         if let Err(e) = session.capture_handle.join() {
             println!("⚠ Warning: Capture thread join error: {:?}", e);
+        }
+
+        // Stop audio capture if active
+        #[cfg(target_os = "linux")]
+        if let Some(audio_handle) = session.audio_handle {
+            println!("Stopping audio capture...");
+            audio_handle.terminate();
         }
 
         println!("Disconnecting from LiveKit room...");

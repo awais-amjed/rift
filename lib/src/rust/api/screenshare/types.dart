@@ -23,6 +23,12 @@ class ScreenShareConfig {
   /// Video codec to use: "H264", "VP8", "VP9", or "AV1"
   final String codec;
 
+  /// Selected audio source sink-input index (Linux PulseAudio)
+  final int? selectedAudioSourceIndex;
+
+  /// Selected audio source sink index (Linux PulseAudio)
+  final int? selectedAudioSourceSink;
+
   const ScreenShareConfig({
     required this.livekitUrl,
     required this.livekitToken,
@@ -35,6 +41,8 @@ class ScreenShareConfig {
     required this.shareAudio,
     required this.captureFullScreen,
     required this.codec,
+    this.selectedAudioSourceIndex,
+    this.selectedAudioSourceSink,
   });
 
   @override
@@ -49,7 +57,9 @@ class ScreenShareConfig {
       bitrate.hashCode ^
       shareAudio.hashCode ^
       captureFullScreen.hashCode ^
-      codec.hashCode;
+      codec.hashCode ^
+      selectedAudioSourceIndex.hashCode ^
+      selectedAudioSourceSink.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -66,5 +76,7 @@ class ScreenShareConfig {
           bitrate == other.bitrate &&
           shareAudio == other.shareAudio &&
           captureFullScreen == other.captureFullScreen &&
-          codec == other.codec;
+          codec == other.codec &&
+          selectedAudioSourceIndex == other.selectedAudioSourceIndex &&
+          selectedAudioSourceSink == other.selectedAudioSourceSink;
 }

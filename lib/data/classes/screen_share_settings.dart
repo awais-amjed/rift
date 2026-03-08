@@ -1,3 +1,5 @@
+import '../../src/rust/api/screenshare/audio_linux.dart';
+
 class ScreenShareSettings {
   final int resolution; // height in px (720, 1080, 1440, 2160)
   final int fps;
@@ -5,6 +7,7 @@ class ScreenShareSettings {
   final bool shareAudio;
   final bool captureFullScreen; // true = full screen, false = window
   final String codec; // "VP8", "H264", "VP9", "AV1"
+  final AudioSource? selectedAudioSource; // Linux PulseAudio source
 
   const ScreenShareSettings({
     this.resolution = 1080,
@@ -13,6 +16,7 @@ class ScreenShareSettings {
     this.shareAudio = true,
     this.captureFullScreen = true,
     this.codec = 'VP8',
+    this.selectedAudioSource,
   });
 
   factory ScreenShareSettings.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,7 @@ class ScreenShareSettings {
       shareAudio: json['shareAudio'] as bool? ?? true,
       captureFullScreen: json['captureFullScreen'] as bool? ?? true,
       codec: json['codec'] as String? ?? 'VP8',
+      // selectedAudioSource is not persisted in JSON (runtime only)
     );
   }
 
@@ -42,6 +47,7 @@ class ScreenShareSettings {
     bool? shareAudio,
     bool? captureFullScreen,
     String? codec,
+    AudioSource? selectedAudioSource,
   }) {
     return ScreenShareSettings(
       resolution: resolution ?? this.resolution,
@@ -50,6 +56,7 @@ class ScreenShareSettings {
       shareAudio: shareAudio ?? this.shareAudio,
       captureFullScreen: captureFullScreen ?? this.captureFullScreen,
       codec: codec ?? this.codec,
+      selectedAudioSource: selectedAudioSource ?? this.selectedAudioSource,
     );
   }
 }

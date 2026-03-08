@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:io' show Platform;
 
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../src/rust/api/screenshare/audio_linux.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../common/app_button.dart';
 import 'audio_toggle.dart';
@@ -39,6 +41,10 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   late bool _captureFullScreen;
   late String _codec;
 
+  List<AudioSource>? _audioSources;
+  AudioSource? _selectedAudioSource;
+  bool _loadingAudioSources = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +55,42 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     _shareAudio = settings.shareAudio;
     _captureFullScreen = settings.captureFullScreen;
     _codec = settings.codec;
+    _selectedAudioSource = settings.selectedAudioSource;
+
+    // Load audio sources on Linux if audio sharing is enabled
+    if (Platform.isLinux && _shareAudio) {
+      _loadAudioSources();
+    }
+  }
+
+  Future<void> _loadAudioSources() async {
+    setState(() => _loadingAudioSources = true);
+    try {
+      final sources = await listAudioSources();
+      if (mounted) {
+        setState(() {
+          _audioSources = sources;
+          _loadingAudioSources = false;
+          // Auto-select first source if none selected
+          if (_selectedAudioSource == null && sources.isNotEmpty) {
+            _selectedAudioSource = sources.first;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load audio sources: $e');
+      if (mounted) {
+        setState(() => _loadingAudioSources = false);
+      }
+    }
+  }
+
+  void _onAudioToggle() {
+    setState(() => _shareAudio = !_shareAudio);
+    // Load audio sources when audio is enabled on Linux
+    if (Platform.isLinux && _shareAudio && _audioSources == null) {
+      _loadAudioSources();
+    }
   }
 
   void _confirm() {
@@ -59,6 +101,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       shareAudio: _shareAudio,
       captureFullScreen: _captureFullScreen,
       codec: _codec,
+      selectedAudioSource: _selectedAudioSource,
     );
     context.read<AppCubit>().setScreenShareSettings(settings);
     Navigator.of(context).pop(settings);
@@ -237,8 +280,135 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                   // Share audio toggle
                   AudioToggle(
                     shareAudio: _shareAudio,
-                    onToggle: () => setState(() => _shareAudio = !_shareAudio),
+                    onToggle: _onAudioToggle,
                   ),
+                  // Audio source selector (Linux only)
+                  if (Platform.isLinux && _shareAudio) ...[
+                    const SizedBox(height: 16),
+                    SettingsSection(
+                      label: 'Audio Source',
+                      children: [
+                        if (_loadingAudioSources)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          )
+                        else if (_audioSources == null ||
+                            _audioSources!.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 16,
+                                  color: themeState.textTertiary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'No audio sources found. Make sure an application is playing audio.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: themeState.textTertiary,
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: _loadAudioSources,
+                                  child: const Text('Refresh'),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Column(
+                            children: [
+                              for (final source in _audioSources!)
+                                InkWell(
+                                  onTap: () => setState(
+                                    () => _selectedAudioSource = source,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _selectedAudioSource == source
+                                          ? CustomColors.primary.withValues(
+                                              alpha: 0.12,
+                                            )
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: _selectedAudioSource == source
+                                            ? CustomColors.primary
+                                            : themeState.borderPrimary,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          _selectedAudioSource == source
+                                              ? Icons.radio_button_checked
+                                              : Icons.radio_button_unchecked,
+                                          size: 18,
+                                          color: _selectedAudioSource == source
+                                              ? CustomColors.primary
+                                              : themeState.textTertiary,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                source.appName.isNotEmpty
+                                                    ? source.appName
+                                                    : source.binary.isNotEmpty
+                                                    ? source.binary
+                                                    : 'Unknown',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: themeState.textPrimary,
+                                                ),
+                                              ),
+                                              if (source.mediaName.isNotEmpty)
+                                                Text(
+                                                  source.mediaName,
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color:
+                                                        themeState.textTertiary,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   // Summary
                   SettingsSummary(
