@@ -53,13 +53,11 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       final setting = widget.participantSettings[expandedParticipant.identity];
       final isMuted = (setting as dynamic)?.muted ?? false;
 
-      return Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: ParticipantTileWidget(
-          participant: expandedParticipant,
-          isMuted: isMuted,
-          onTap: () => _onTileTapped(expandedParticipant.identity),
-        ),
+      return ParticipantTileWidget(
+        participant: expandedParticipant,
+        isMuted: isMuted,
+        onTap: () => _onTileTapped(expandedParticipant.identity),
+        isExpanded: true,
       );
     }
 
