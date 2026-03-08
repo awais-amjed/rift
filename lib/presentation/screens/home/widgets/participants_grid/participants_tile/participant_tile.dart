@@ -38,6 +38,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   TrackPublication? _videoPub;
   bool _isSpeaking = false;
   bool _showOverlays = true;
+  bool _statsPinned = false;
   Timer? _hideTimer;
 
   static const _hideDelay = Duration(seconds: 2);
@@ -138,6 +139,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
 
   void _scheduleHide() {
     _hideTimer?.cancel();
+    if (_statsPinned) return;
     _hideTimer = Timer(_hideDelay, () {
       if (mounted && widget.isExpanded) {
         setState(() => _showOverlays = false);
@@ -196,11 +198,31 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                               isDark: themeState.isDarkTheme,
                             ),
                           // Stream stats overlay at top right (for screenshare with video)
-                          if (showStopButton &&
-                              _videoPub!.track is VideoTrack &&
-                              _showOverlays)
-                            StreamStatsOverlay(
-                              track: _videoPub!.track as VideoTrack,
+                          if (showStopButton && _videoPub!.track is VideoTrack)
+                            Positioned(
+                              top: 12,
+                              right: 12,
+                              child: AnimatedOpacity(
+                                opacity: (_showOverlays || _statsPinned)
+                                    ? 1.0
+                                    : 0.0,
+                                duration: const Duration(milliseconds: 300),
+                                child: IgnorePointer(
+                                  ignoring: !_showOverlays && !_statsPinned,
+                                  child: StreamStatsOverlay(
+                                    track: _videoPub!.track as VideoTrack,
+                                    onPinnedChanged: (pinned) {
+                                      setState(() => _statsPinned = pinned);
+                                      if (pinned) {
+                                        _hideTimer?.cancel();
+                                        setState(() => _showOverlays = true);
+                                      } else {
+                                        _scheduleHide();
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
                             ),
                           // Watch Stream button for unsubscribed screenshare
                           if (showWatchButton)

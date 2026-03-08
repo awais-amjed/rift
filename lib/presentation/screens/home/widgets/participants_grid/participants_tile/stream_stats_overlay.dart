@@ -6,8 +6,13 @@ import 'package:livekit_client/livekit_client.dart';
 /// Displays stream statistics overlay for video tracks
 class StreamStatsOverlay extends StatefulWidget {
   final VideoTrack track;
+  final ValueChanged<bool>? onPinnedChanged;
 
-  const StreamStatsOverlay({super.key, required this.track});
+  const StreamStatsOverlay({
+    super.key,
+    required this.track,
+    this.onPinnedChanged,
+  });
 
   @override
   State<StreamStatsOverlay> createState() => _StreamStatsOverlayState();
@@ -16,6 +21,7 @@ class StreamStatsOverlay extends StatefulWidget {
 class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
   Timer? _statsTimer;
   Map<String, dynamic>? _prevStats;
+  bool _pinned = false;
 
   int? _width;
   int? _height;
@@ -194,75 +200,97 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
       return const SizedBox.shrink();
     }
 
-    return Positioned(
-      top: 12,
-      right: 12,
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildStatRow('Resolution', '${_width}x$_height'),
-              if (_fps != null) ...[
-                const SizedBox(height: 4),
-                _buildStatRow('FPS', _fps!.toStringAsFixed(0)),
-              ],
-              if (_bitrateKbps != null) ...[
-                const SizedBox(height: 4),
-                _buildStatRow(
-                  'Bitrate',
-                  _bitrateKbps! >= 1000
-                      ? '${(_bitrateKbps! / 1000).toStringAsFixed(1)} Mbps'
-                      : '${_bitrateKbps!.toStringAsFixed(0)} Kbps',
+    return Material(
+      color: Colors.black.withValues(alpha: 0.7),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Stats',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white54,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () {
+                    setState(() => _pinned = !_pinned);
+                    widget.onPinnedChanged?.call(_pinned);
+                  },
+                  child: Icon(
+                    _pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                    size: 12,
+                    color: _pinned ? Colors.white70 : Colors.white30,
+                  ),
                 ),
               ],
-              if (_rttMs != null) ...[
-                const SizedBox(height: 4),
-                _buildStatRow(
-                  'RTT',
-                  '${_rttMs!.toStringAsFixed(1)}ms',
-                  isWarning: _rttMs! > 150,
-                ),
-              ],
-              if (_jitterMs != null) ...[
-                const SizedBox(height: 4),
-                _buildStatRow(
-                  'Jitter',
-                  '${_jitterMs!.toStringAsFixed(1)}ms',
-                  isWarning: _jitterMs! > 30,
-                ),
-              ],
-              if (_packetsLost != null && _packetsLost! > 0) ...[
-                const SizedBox(height: 4),
-                _buildStatRow('Loss', '$_packetsLost pkts', isWarning: true),
-              ],
-              if (_framesDroppedPerSec != null &&
-                  _framesDroppedPerSec! > 0) ...[
-                const SizedBox(height: 4),
-                _buildStatRow(
-                  'Dropped',
-                  '$_framesDroppedPerSec/s',
-                  isWarning: true,
-                ),
-              ],
-              if (_pliPerSec != null && _pliPerSec! > 0) ...[
-                const SizedBox(height: 4),
-                _buildStatRow('PLI', '$_pliPerSec/s', isWarning: true),
-              ],
-              if (_nackCount != null && _nackCount! > 0) ...[
-                const SizedBox(height: 4),
-                _buildStatRow('NACK', '$_nackCount', isWarning: true),
-              ],
-              if (_codec != null) ...[
-                const SizedBox(height: 4),
-                _buildStatRow('Codec', _codec!.toUpperCase(), isMuted: true),
-              ],
+            ),
+            const SizedBox(height: 4),
+            _buildStatRow('Resolution', '${_width}x$_height'),
+            if (_fps != null) ...[
+              const SizedBox(height: 4),
+              _buildStatRow('FPS', _fps!.toStringAsFixed(0)),
             ],
-          ),
+            if (_bitrateKbps != null) ...[
+              const SizedBox(height: 4),
+              _buildStatRow(
+                'Bitrate',
+                _bitrateKbps! >= 1000
+                    ? '${(_bitrateKbps! / 1000).toStringAsFixed(1)} Mbps'
+                    : '${_bitrateKbps!.toStringAsFixed(0)} Kbps',
+              ),
+            ],
+            if (_rttMs != null) ...[
+              const SizedBox(height: 4),
+              _buildStatRow(
+                'RTT',
+                '${_rttMs!.toStringAsFixed(1)}ms',
+                isWarning: _rttMs! > 150,
+              ),
+            ],
+            if (_jitterMs != null) ...[
+              const SizedBox(height: 4),
+              _buildStatRow(
+                'Jitter',
+                '${_jitterMs!.toStringAsFixed(1)}ms',
+                isWarning: _jitterMs! > 30,
+              ),
+            ],
+            if (_packetsLost != null && _packetsLost! > 0) ...[
+              const SizedBox(height: 4),
+              _buildStatRow('Loss', '$_packetsLost pkts', isWarning: true),
+            ],
+            if (_framesDroppedPerSec != null && _framesDroppedPerSec! > 0) ...[
+              const SizedBox(height: 4),
+              _buildStatRow(
+                'Dropped',
+                '$_framesDroppedPerSec/s',
+                isWarning: true,
+              ),
+            ],
+            if (_pliPerSec != null && _pliPerSec! > 0) ...[
+              const SizedBox(height: 4),
+              _buildStatRow('PLI', '$_pliPerSec/s', isWarning: true),
+            ],
+            if (_nackCount != null && _nackCount! > 0) ...[
+              const SizedBox(height: 4),
+              _buildStatRow('NACK', '$_nackCount', isWarning: true),
+            ],
+            if (_codec != null) ...[
+              const SizedBox(height: 4),
+              _buildStatRow('Codec', _codec!.toUpperCase(), isMuted: true),
+            ],
+          ],
         ),
       ),
     );
