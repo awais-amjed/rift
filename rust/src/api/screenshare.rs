@@ -53,7 +53,7 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     println!("Channel ID: {}", config.channel_id);
     println!("Identity: {}", config.identity);
     println!("Display Name: {}", config.display_name);
-    println!("Resolution: {}p", config.resolution);
+    println!("Resolution Target: {}p", config.resolution);
     println!("FPS: {}", config.fps);
     println!("Bitrate: {} Mbps", config.bitrate);
     println!("Share Audio: {}", config.share_audio);
@@ -100,18 +100,19 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     let (capture_tx, capture_handle) = spawn_capture_thread(
         true, // capture_cursor
         source_type,
+        config.fps,
         resolution_signal.clone(),
         video_source_slot.clone(),
     );
 
-    // Wait for capture resolution
-    println!("Waiting for capture resolution...");
-    let resolution = wait_for_resolution(&resolution_signal);
-    println!("✓ Detected capture resolution: {}x{}", resolution.width, resolution.height);
+    // Wait for the first frame to determine the true native capture resolution
+    println!("Waiting for native capture resolution...");
+    let native_resolution = wait_for_resolution(&resolution_signal);
+    println!("✓ Detected native resolution: {}x{}", native_resolution.width, native_resolution.height);
 
-    // Publish video track
+    // Publish video track with exact downscaling
     println!("Publishing video track...");
-    let buffer_source = publish_video_track(&room, resolution).await
+    let buffer_source = publish_video_track(&room, native_resolution, &config).await
         .map_err(|e| format!("Failed to publish video track: {:?}", e))?;
 
     {
@@ -147,21 +148,50 @@ fn wait_for_resolution(signal: &Arc<(Mutex<Option<VideoResolution>>, Condvar)>) 
 /// Publish a video track for screen sharing
 async fn publish_video_track(
     room: &Room,
-    resolution: VideoResolution,
+    native_resolution: VideoResolution,
+    config: &ScreenShareConfig,
 ) -> Result<NativeVideoSource, String> {
-    let buffer_source = NativeVideoSource::new(resolution, true);
+
+    let native_width = native_resolution.width as f32;
+    let native_height = native_resolution.height as f32;
+
+    // Calculate target width preserving the exact native aspect ratio
+    let mut capture_height = std::cmp::min(config.resolution as u32, native_height as u32);
+    let mut capture_width = (capture_height as f32 * (native_width / native_height)).round() as u32;
+
+    // Video encoders heavily prefer (and often require) even dimensions
+    if capture_width % 2 != 0 { capture_width += 1; }
+    if capture_height % 2 != 0 { capture_height += 1; }
+
+    let target_resolution = VideoResolution {
+        width: capture_width,
+        height: capture_height,
+    };
+
+    println!("Target resolution applied: {}x{}", target_resolution.width, target_resolution.height);
+
+    // Create video source pointing to our newly calculated dynamic resolution
+    let buffer_source = NativeVideoSource::new(target_resolution, true);
 
     let track = LocalVideoTrack::create_video_track(
         "screen_share",
         RtcVideoSource::Native(buffer_source.clone()),
     );
 
+    // Convert bitrate from Mbps to bps (bits per second)
+    let bitrate_bps = (config.bitrate * 1_000_000) as u64;
+    println!("Publishing with bitrate: {} bps ({} Mbps), FPS: {}", bitrate_bps, config.bitrate, config.fps);
+
     room.local_participant()
         .publish_track(
             LocalTrack::Video(track),
             TrackPublishOptions {
                 source: TrackSource::Screenshare,
-                video_codec: VideoCodec::VP9,
+                video_codec: VideoCodec::VP9, // VP9 is excellent for screenshare content
+                video_encoding: Some(livekit::options::VideoEncoding {
+                    max_bitrate: bitrate_bps,
+                    max_framerate: config.fps as f64,
+                }),
                 ..Default::default()
             },
         )
@@ -175,6 +205,7 @@ async fn publish_video_track(
 fn spawn_capture_thread(
     capture_cursor: bool,
     source_type: DesktopCaptureSourceType,
+    fps: i32,
     resolution_signal: Arc<(Mutex<Option<VideoResolution>>, Condvar)>,
     video_source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
 ) -> (Sender<CaptureCommand>, thread::JoinHandle<()>) {
@@ -183,6 +214,7 @@ fn spawn_capture_thread(
         run_capture_loop(
             capture_cursor,
             source_type,
+            fps,
             resolution_signal,
             video_source_slot,
             command_rx,
@@ -194,10 +226,15 @@ fn spawn_capture_thread(
 fn run_capture_loop(
     capture_cursor: bool,
     source_type: DesktopCaptureSourceType,
+    fps: i32,
     resolution_signal: Arc<(Mutex<Option<VideoResolution>>, Condvar)>,
     video_source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
     command_rx: mpsc::Receiver<CaptureCommand>,
 ) {
+    // Calculate frame interval from FPS (in milliseconds)
+    let frame_interval_ms = (1000.0 / fps as f64) as u64;
+    println!("Capture FPS: {}, Frame interval: {}ms", fps, frame_interval_ms);
+
     let callback = {
         let mut frame_buffer = VideoFrame {
             rotation: VideoRotation::VideoRotation0,
@@ -207,8 +244,7 @@ fn run_capture_loop(
         move |result: Result<DesktopFrame, CaptureError>| {
             let frame = match result {
                 Ok(frame) => frame,
-                Err(CaptureError::Temporary) => return,
-                Err(CaptureError::Permanent) => return,
+                Err(CaptureError::Temporary) | Err(CaptureError::Permanent) => return,
             };
 
             let width = frame.width();
@@ -283,7 +319,7 @@ fn run_capture_loop(
 
     // Capture loop
     loop {
-        match command_rx.recv_timeout(Duration::from_millis(16)) {
+        match command_rx.recv_timeout(Duration::from_millis(frame_interval_ms)) {
             Ok(CaptureCommand::Terminate) => {
                 println!("Capture thread received terminate command");
                 break;
