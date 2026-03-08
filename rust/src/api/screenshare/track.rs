@@ -39,6 +39,10 @@ pub async fn publish_video_track(
             TrackPublishOptions {
                 source: TrackSource::Screenshare,
                 video_codec,
+                simulcast: false,
+                dtx: false,
+                red: false,
+                preconnect_buffer: true,
                 video_encoding: Some(livekit::options::VideoEncoding {
                     max_bitrate: bitrate_bps,
                     max_framerate: config.fps as f64,
