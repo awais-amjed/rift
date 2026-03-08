@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -113,12 +114,20 @@ class _ControlBarContent extends StatelessWidget {
       return;
     }
 
-    // Show settings dialog
-    final settings = await showDialog<ScreenShareSettings>(
-      context: context,
-      builder: (_) => const ScreenShareSettingsDialog(),
-    );
-    if (settings == null) return;
+    // On web, skip settings dialog and use default settings
+    // The browser will show its own screen selection dialog
+    final ScreenShareSettings settings;
+    if (kIsWeb) {
+      settings = const ScreenShareSettings();
+    } else {
+      // Show settings dialog on desktop
+      final dialogSettings = await showDialog<ScreenShareSettings>(
+        context: context,
+        builder: (_) => const ScreenShareSettingsDialog(),
+      );
+      if (dialogSettings == null) return;
+      settings = dialogSettings;
+    }
 
     // Get current server and channel info
     final selectedServer = serverCubit.state.selectedServer;

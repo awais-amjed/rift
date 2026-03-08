@@ -1,20 +1,26 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:livekit_client/livekit_client.dart';
 
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
+import '../livekit/livekit_cubit.dart';
 
 part 'screenshare_state.dart';
 
 /// Cubit for managing screen sharing via Rust LiveKit integration.
 class ScreenshareCubit extends Cubit<ScreenshareState> {
   final ServerRepository _repository;
+  final LiveKitCubit? _livekitCubit;
 
-  ScreenshareCubit({required ServerRepository repository})
-    : _repository = repository,
-      super(const ScreenshareState());
+  ScreenshareCubit({
+    required ServerRepository repository,
+    LiveKitCubit? livekitCubit,
+  }) : _repository = repository,
+       _livekitCubit = livekitCubit,
+       super(const ScreenshareState());
 
   /// Start screen sharing with the given settings.
   /// Generates a new token with screen_share flag, and passes data to Rust.
@@ -30,6 +36,33 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     emit(state.copyWith(status: ScreenshareStatus.connecting));
 
     try {
+      // On web, use LiveKit's native screen sharing
+      if (kIsWeb) {
+        if (_livekitCubit == null) {
+          emit(
+            state.copyWith(
+              status: ScreenshareStatus.error,
+              error: 'LiveKit cubit not available',
+            ),
+          );
+          return;
+        }
+
+        // Use LiveKit's native screen sharing
+        // Note: Web screen sharing options are limited compared to desktop
+        await _livekitCubit.toggleScreenShare();
+
+        emit(
+          state.copyWith(
+            status: ScreenshareStatus.sharing,
+            channelId: channelId,
+            settings: settings,
+          ),
+        );
+        return;
+      }
+
+      // On desktop platforms, use Rust implementation
       // Get a new LiveKit token with screen_share = true
       final response = await _repository.getChannelToken(
         supabaseUrl,
@@ -113,6 +146,24 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     emit(state.copyWith(status: ScreenshareStatus.stopping));
 
     try {
+      // On web, use LiveKit's native screen sharing
+      if (kIsWeb) {
+        if (_livekitCubit != null) {
+          await _livekitCubit.toggleScreenShare();
+        }
+
+        emit(
+          state.copyWith(
+            status: ScreenshareStatus.idle,
+            clearChannelId: true,
+            clearSettings: true,
+            clearError: true,
+          ),
+        );
+        return;
+      }
+
+      // On desktop platforms, use Rust implementation
       // Call Rust function to stop screen sharing
       debugPrint('=== STOPPING SCREENSHARE ===');
       final result = await stopScreenshare();

@@ -79,20 +79,27 @@ class _MyAppState extends State<MyApp> {
             BlocProvider(create: (_) => ServerCubit()),
             BlocProvider(create: (_) => AppCubit()),
             BlocProvider(
-              create: (context) =>
-                  ScreenshareCubit(repository: ServerRepository()),
+              create: (context) {
+                // Create both cubits together to handle cross-references
+                final appCubit = context.read<AppCubit>();
+                final livekitCubit = LiveKitCubit(
+                  repository: ServerRepository(),
+                  appCubit: appCubit,
+                );
+                return livekitCubit;
+              },
             ),
             BlocProvider(
               create: (context) {
-                final livekitCubit = LiveKitCubit(
+                final screenshareCubit = ScreenshareCubit(
                   repository: ServerRepository(),
-                  appCubit: context.read<AppCubit>(),
+                  livekitCubit: context.read<LiveKitCubit>(),
                 );
                 // Wire up screenshare cubit for automatic cleanup on disconnect
-                livekitCubit.setScreenshareCubit(
-                  context.read<ScreenshareCubit>(),
+                context.read<LiveKitCubit>().setScreenshareCubit(
+                  screenshareCubit,
                 );
-                return livekitCubit;
+                return screenshareCubit;
               },
             ),
           ],
