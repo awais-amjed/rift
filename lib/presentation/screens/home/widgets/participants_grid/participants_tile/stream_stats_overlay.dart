@@ -66,10 +66,6 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
           final bytesReceived = (values['bytesReceived'] as num?)?.toDouble();
           final framesDecoded = (values['framesDecoded'] as num?)?.toDouble();
 
-          debugPrint(
-            '📊 Stats: timestamp=$timestamp, bytesReceived=$bytesReceived, framesDecoded=$framesDecoded',
-          );
-
           double? fps;
           double? bitrateKbps;
 
@@ -89,26 +85,18 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
               // Timestamps are in microseconds, convert to milliseconds
               final dtMs = (timestamp - prevTimestamp) / 1000;
 
-              debugPrint(
-                '📊 Calculating: dtMs=$dtMs, bytesDiff=${bytesReceived - prevBytesReceived}, framesDiff=${framesDecoded - prevFramesDecoded}',
-              );
-
               if (dtMs > 0) {
                 // Calculate bitrate
                 final bytesDiff = bytesReceived - prevBytesReceived;
                 if (bytesDiff > 0) {
                   final bitrateBps = (bytesDiff * 8 * 1000) / dtMs;
                   bitrateKbps = bitrateBps / 1000;
-                  debugPrint(
-                    '📊 Bitrate: ${bitrateKbps.toStringAsFixed(1)} Kbps',
-                  );
                 }
 
                 // Calculate FPS
                 final framesDiff = framesDecoded - prevFramesDecoded;
                 if (framesDiff > 0) {
                   fps = (framesDiff * 1000) / dtMs;
-                  debugPrint('📊 FPS: ${fps.toStringAsFixed(1)}');
                 }
               }
             }
