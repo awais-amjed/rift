@@ -4,7 +4,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../participants_tile/participant_tile.dart';
 
 /// Grid view displaying all participants with adaptive column count.
-class ParticipantGridLayout extends StatelessWidget {
+class ParticipantGridLayout extends StatefulWidget {
   final List<Participant> participants;
   final Map<String, dynamic> participantSettings;
 
@@ -15,16 +15,63 @@ class ParticipantGridLayout extends StatelessWidget {
   });
 
   @override
+  State<ParticipantGridLayout> createState() => _ParticipantGridLayoutState();
+}
+
+class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
+  String? _expandedParticipantIdentity;
+
+  void _onTileTapped(String identity) {
+    setState(() {
+      if (_expandedParticipantIdentity == identity) {
+        // Collapse if already expanded
+        _expandedParticipantIdentity = null;
+      } else {
+        // Expand this tile
+        _expandedParticipantIdentity = identity;
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // If a tile is expanded, show only that tile in full view
+    if (_expandedParticipantIdentity != null) {
+      final expandedParticipant = widget.participants.firstWhere(
+        (p) => p.identity == _expandedParticipantIdentity,
+        orElse: () {
+          // If participant no longer exists, reset expanded state
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            setState(() {
+              _expandedParticipantIdentity = null;
+            });
+          });
+          return widget.participants.first;
+        },
+      );
+
+      final setting = widget.participantSettings[expandedParticipant.identity];
+      final isMuted = (setting as dynamic)?.muted ?? false;
+
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: ParticipantTileWidget(
+          participant: expandedParticipant,
+          isMuted: isMuted,
+          onTap: () => _onTileTapped(expandedParticipant.identity),
+        ),
+      );
+    }
+
     // Compute grid columns based on participant count
     int cols = 1;
-    if (participants.length >= 2) cols = 2;
-    if (participants.length >= 5) cols = 3;
+    if (widget.participants.length >= 2) cols = 2;
+    if (widget.participants.length >= 5) cols = 3;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         // Calculate max width regarding the aspect ratio to ensure the grid fits vertically
-        final int rows = (participants.length / cols).ceil();
+        final int rows = (widget.participants.length / cols).ceil();
         const double gridPadding = 12.0;
         const double gridSpacing = 8.0;
 
@@ -62,12 +109,16 @@ class ParticipantGridLayout extends StatelessWidget {
                 mainAxisSpacing: gridSpacing,
                 childAspectRatio: 16 / 9,
               ),
-              itemCount: participants.length,
+              itemCount: widget.participants.length,
               itemBuilder: (context, index) {
-                final p = participants[index];
-                final setting = participantSettings[p.identity];
+                final p = widget.participants[index];
+                final setting = widget.participantSettings[p.identity];
                 final isMuted = (setting as dynamic)?.muted ?? false;
-                return ParticipantTileWidget(participant: p, isMuted: isMuted);
+                return ParticipantTileWidget(
+                  participant: p,
+                  isMuted: isMuted,
+                  onTap: () => _onTileTapped(p.identity),
+                );
               },
             ),
           ),

@@ -16,11 +16,13 @@ import 'watch_stream_button.dart';
 class ParticipantTileWidget extends StatefulWidget {
   final Participant participant;
   final bool isMuted;
+  final VoidCallback? onTap;
 
   const ParticipantTileWidget({
     super.key,
     required this.participant,
     this.isMuted = false,
+    this.onTap,
   });
 
   @override
@@ -115,69 +117,75 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         final showWatchButton = _isScreenshare && !_isSubscribed;
         final showStopButton = _isScreenshare && _isSubscribed && hasVideo;
 
-        final content = AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            color: themeState.isDarkTheme
-                ? CustomColors.bgSecondaryDark
-                : CustomColors.bgTertiaryLight,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isSpeaking
-                  ? CustomColors.primary
-                  : themeState.borderPrimary,
-              width: isSpeaking ? 2 : 1,
+        final content = GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: themeState.isDarkTheme
+                  ? CustomColors.bgSecondaryDark
+                  : CustomColors.bgTertiaryLight,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSpeaking
+                    ? CustomColors.primary
+                    : themeState.borderPrimary,
+                width: isSpeaking ? 2 : 1,
+              ),
+              boxShadow: isSpeaking
+                  ? [
+                      BoxShadow(
+                        color: CustomColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
             ),
-            boxShadow: isSpeaking
-                ? [
-                    BoxShadow(
-                      color: CustomColors.primary.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : null,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(13),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Video or avatar
-                if (hasVideo && _videoPub!.track is VideoTrack)
-                  VideoTrackRenderer(
-                    _videoPub!.track as VideoTrack,
-                    fit: VideoViewFit.contain,
-                  )
-                else
-                  AvatarPlaceholder(name: name, isDark: themeState.isDarkTheme),
-                // Watch Stream button for unsubscribed screenshare
-                if (showWatchButton)
-                  WatchStreamButton(
-                    onTap: () => _subscribeToScreenshare(context),
-                  ),
-                // Stop Watching button for subscribed screenshare
-                if (showStopButton)
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: StopWatchingButton(
-                      onTap: () => _unsubscribeFromScreenshare(context),
-                    ),
-                  ),
-                // Name + mic badge (hide for screenshare with watch button)
-                if (!showWatchButton)
-                  Positioned(
-                    bottom: 12,
-                    left: 12,
-                    child: ParticipantNameBadge(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Video or avatar
+                  if (hasVideo && _videoPub!.track is VideoTrack)
+                    VideoTrackRenderer(
+                      _videoPub!.track as VideoTrack,
+                      fit: VideoViewFit.contain,
+                    )
+                  else
+                    AvatarPlaceholder(
                       name: name,
-                      isMicEnabled: widget.participant.isMicrophoneEnabled(),
-                      isMuted: widget.isMuted,
-                      isScreenshare: _isScreenshare,
+                      isDark: themeState.isDarkTheme,
                     ),
-                  ),
-              ],
+                  // Watch Stream button for unsubscribed screenshare
+                  if (showWatchButton)
+                    WatchStreamButton(
+                      onTap: () => _subscribeToScreenshare(context),
+                    ),
+                  // Stop Watching button for subscribed screenshare
+                  if (showStopButton)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: StopWatchingButton(
+                        onTap: () => _unsubscribeFromScreenshare(context),
+                      ),
+                    ),
+                  // Name + mic badge (hide for screenshare with watch button)
+                  if (!showWatchButton)
+                    Positioned(
+                      bottom: 12,
+                      left: 12,
+                      child: ParticipantNameBadge(
+                        name: name,
+                        isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                        isMuted: widget.isMuted,
+                        isScreenshare: _isScreenshare,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
