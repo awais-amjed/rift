@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
@@ -35,6 +37,10 @@ class ParticipantTileWidget extends StatefulWidget {
 class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   TrackPublication? _videoPub;
   bool _isSpeaking = false;
+  bool _showOverlays = true;
+  Timer? _hideTimer;
+
+  static const _hideDelay = Duration(seconds: 2);
 
   bool get _isScreenshare =>
       widget.participant.identity.endsWith('_screenshare');
@@ -44,6 +50,11 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     super.initState();
     _updateVideoTrack();
     widget.participant.addListener(_onParticipantChanged);
+
+    // Schedule auto-hide if expanded
+    if (widget.isExpanded) {
+      _scheduleHide();
+    }
 
     // Unsubscribe from screenshare on first load
     if (_isScreenshare) {
@@ -72,12 +83,25 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
       oldWidget.participant.removeListener(_onParticipantChanged);
       widget.participant.addListener(_onParticipantChanged);
     }
-    _updateVideoTrack();
+
+    // Handle expansion state changes
+    if (oldWidget.isExpanded != widget.isExpanded) {
+      if (widget.isExpanded) {
+        // Just expanded, show overlays and schedule hide
+        setState(() => _showOverlays = true);
+        _scheduleHide();
+      } else {
+        // Collapsed, cancel hide timer and show overlays
+        _hideTimer?.cancel();
+        setState(() => _showOverlays = true);
+      }
+    }
   }
 
   @override
   void dispose() {
     widget.participant.removeListener(_onParticipantChanged);
+    _hideTimer?.cancel();
     super.dispose();
   }
 
@@ -112,6 +136,24 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     _isSpeaking = widget.participant.isSpeaking;
   }
 
+  void _scheduleHide() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(_hideDelay, () {
+      if (mounted && widget.isExpanded) {
+        setState(() => _showOverlays = false);
+      }
+    });
+  }
+
+  void _onActivity() {
+    if (widget.isExpanded) {
+      if (!_showOverlays) {
+        setState(() => _showOverlays = true);
+      }
+      _scheduleHide();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
@@ -135,53 +177,72 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
               onTap: widget.onTap,
               behavior: HitTestBehavior.opaque,
               child: widget.isExpanded
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Video or avatar
-                        if (hasVideo && _videoPub!.track is VideoTrack)
-                          VideoTrackRenderer(
-                            _videoPub!.track as VideoTrack,
-                            fit: VideoViewFit.contain,
-                          )
-                        else
-                          AvatarPlaceholder(
-                            name: name,
-                            isDark: themeState.isDarkTheme,
-                          ),
-                        // Stream stats overlay at top right (for screenshare with video)
-                        if (showStopButton && _videoPub!.track is VideoTrack)
-                          StreamStatsOverlay(
-                            track: _videoPub!.track as VideoTrack,
-                          ),
-                        // Watch Stream button for unsubscribed screenshare
-                        if (showWatchButton)
-                          WatchStreamButton(
-                            onTap: () => _subscribeToScreenshare(context),
-                          ),
-                        // Stop Watching button at bottom right for subscribed screenshare
-                        if (showStopButton)
-                          Positioned(
-                            bottom: 12,
-                            right: 12,
-                            child: StopWatchingButton(
-                              onTap: () => _unsubscribeFromScreenshare(context),
-                            ),
-                          ),
-                        // Name + mic badge (hide for screenshare with watch button)
-                        if (!showWatchButton)
-                          Positioned(
-                            bottom: 12,
-                            left: 12,
-                            child: ParticipantNameBadge(
+                  ? Listener(
+                      behavior: HitTestBehavior.translucent,
+                      onPointerMove: (_) => _onActivity(),
+                      onPointerHover: (_) => _onActivity(),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // Video or avatar
+                          if (hasVideo && _videoPub!.track is VideoTrack)
+                            VideoTrackRenderer(
+                              _videoPub!.track as VideoTrack,
+                              fit: VideoViewFit.contain,
+                            )
+                          else
+                            AvatarPlaceholder(
                               name: name,
-                              isMicEnabled: widget.participant
-                                  .isMicrophoneEnabled(),
-                              isMuted: widget.isMuted,
-                              isScreenshare: _isScreenshare,
+                              isDark: themeState.isDarkTheme,
                             ),
-                          ),
-                      ],
+                          // Stream stats overlay at top right (for screenshare with video)
+                          if (showStopButton &&
+                              _videoPub!.track is VideoTrack &&
+                              _showOverlays)
+                            StreamStatsOverlay(
+                              track: _videoPub!.track as VideoTrack,
+                            ),
+                          // Watch Stream button for unsubscribed screenshare
+                          if (showWatchButton)
+                            WatchStreamButton(
+                              onTap: () => _subscribeToScreenshare(context),
+                            ),
+                          // Stop Watching button at bottom right for subscribed screenshare
+                          if (showStopButton)
+                            Positioned(
+                              bottom: 12,
+                              right: 12,
+                              child: AnimatedOpacity(
+                                opacity: _showOverlays ? 1.0 : 0.0,
+                                duration: const Duration(milliseconds: 300),
+                                child: IgnorePointer(
+                                  ignoring: !_showOverlays,
+                                  child: StopWatchingButton(
+                                    onTap: () =>
+                                        _unsubscribeFromScreenshare(context),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // Name + mic badge (hide for screenshare with watch button)
+                          if (!showWatchButton)
+                            Positioned(
+                              bottom: 12,
+                              left: 12,
+                              child: AnimatedOpacity(
+                                opacity: _showOverlays ? 1.0 : 0.0,
+                                duration: const Duration(milliseconds: 300),
+                                child: ParticipantNameBadge(
+                                  name: name,
+                                  isMicEnabled: widget.participant
+                                      .isMicrophoneEnabled(),
+                                  isMuted: widget.isMuted,
+                                  isScreenshare: _isScreenshare,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     )
                   : AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -223,12 +284,6 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                               AvatarPlaceholder(
                                 name: name,
                                 isDark: themeState.isDarkTheme,
-                              ),
-                            // Stream stats overlay at top right (for screenshare with video)
-                            if (showStopButton &&
-                                _videoPub!.track is VideoTrack)
-                              StreamStatsOverlay(
-                                track: _videoPub!.track as VideoTrack,
                               ),
                             // Watch Stream button for unsubscribed screenshare
                             if (showWatchButton)
