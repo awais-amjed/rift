@@ -184,13 +184,13 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          // Video or avatar
+                          // Video or avatar (but not for unsubscribed screenshare)
                           if (hasVideo && _videoPub!.track is VideoTrack)
                             VideoTrackRenderer(
                               _videoPub!.track as VideoTrack,
                               fit: VideoViewFit.contain,
                             )
-                          else
+                          else if (!showWatchButton)
                             AvatarPlaceholder(
                               name: name,
                               isDark: themeState.isDarkTheme,
@@ -224,23 +224,22 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                                 ),
                               ),
                             ),
-                          // Name + mic badge (hide for screenshare with watch button)
-                          if (!showWatchButton)
-                            Positioned(
-                              bottom: 12,
-                              left: 12,
-                              child: AnimatedOpacity(
-                                opacity: _showOverlays ? 1.0 : 0.0,
-                                duration: const Duration(milliseconds: 300),
-                                child: ParticipantNameBadge(
-                                  name: name,
-                                  isMicEnabled: widget.participant
-                                      .isMicrophoneEnabled(),
-                                  isMuted: widget.isMuted,
-                                  isScreenshare: _isScreenshare,
-                                ),
+                          // Name + mic badge - always show for expanded view
+                          Positioned(
+                            bottom: 12,
+                            left: 12,
+                            child: AnimatedOpacity(
+                              opacity: _showOverlays ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 300),
+                              child: ParticipantNameBadge(
+                                name: name,
+                                isMicEnabled: widget.participant
+                                    .isMicrophoneEnabled(),
+                                isMuted: widget.isMuted,
+                                isScreenshare: _isScreenshare,
                               ),
                             ),
+                          ),
                         ],
                       ),
                     )
@@ -274,13 +273,13 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            // Video or avatar
+                            // Video or avatar (but not for unsubscribed screenshare)
                             if (hasVideo && _videoPub!.track is VideoTrack)
                               VideoTrackRenderer(
                                 _videoPub!.track as VideoTrack,
                                 fit: VideoViewFit.contain,
                               )
-                            else
+                            else if (!showWatchButton)
                               AvatarPlaceholder(
                                 name: name,
                                 isDark: themeState.isDarkTheme,
@@ -300,19 +299,18 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                                       _unsubscribeFromScreenshare(context),
                                 ),
                               ),
-                            // Name + mic badge (hide for screenshare with watch button)
-                            if (!showWatchButton)
-                              Positioned(
-                                bottom: 12,
-                                left: 12,
-                                child: ParticipantNameBadge(
-                                  name: name,
-                                  isMicEnabled: widget.participant
-                                      .isMicrophoneEnabled(),
-                                  isMuted: widget.isMuted,
-                                  isScreenshare: _isScreenshare,
-                                ),
+                            // Name + mic badge - always show
+                            Positioned(
+                              bottom: 12,
+                              left: 12,
+                              child: ParticipantNameBadge(
+                                name: name,
+                                isMicEnabled: widget.participant
+                                    .isMicrophoneEnabled(),
+                                isMuted: widget.isMuted,
+                                isScreenshare: _isScreenshare,
                               ),
+                            ),
                           ],
                         ),
                       ),
