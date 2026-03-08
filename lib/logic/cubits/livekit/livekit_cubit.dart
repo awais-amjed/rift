@@ -337,7 +337,13 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       if (pub.source == TrackSource.screenShareVideo) {
         try {
           await pub.subscribe();
-          debugPrint('✓ Subscribed to screenshare from $identity');
+
+          // Request highest quality for screenshare
+          pub.setVideoQuality(VideoQuality.HIGH);
+
+          debugPrint(
+            '✓ Subscribed to screenshare from $identity (quality: HIGH)',
+          );
 
           // Add to subscribed set
           final updatedSubscriptions = Set<String>.from(
@@ -426,6 +432,18 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       ..on<TrackPublishedEvent>((e) {
         _syncParticipants();
         _applyStoredSettings();
+        // Apply high quality settings to screenshare tracks
+        _applyScreenshareQualitySettings(e.participant);
+      })
+      ..on<TrackSubscribedEvent>((e) {
+        _syncParticipants();
+        // Apply high quality settings when screenshare is subscribed
+        if (e.publication.source == TrackSource.screenShareVideo) {
+          e.publication.setVideoQuality(VideoQuality.HIGH);
+          debugPrint(
+            '✓ Auto-applied HIGH quality to screenshare from ${e.participant.identity}',
+          );
+        }
       })
       ..on<TrackUnpublishedEvent>((e) => _syncParticipants())
       ..on<ActiveSpeakersChangedEvent>((e) => _syncParticipants())
@@ -490,6 +508,21 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         .toList();
 
     _appCubit.setParticipants(infos);
+  }
+
+  /// Apply high quality settings to screenshare video tracks
+  void _applyScreenshareQualitySettings(Participant participant) {
+    // Only apply to remote participants
+    if (participant is! RemoteParticipant) return;
+
+    for (final pub in participant.videoTrackPublications) {
+      if (pub.source == TrackSource.screenShareVideo) {
+        pub.setVideoQuality(VideoQuality.HIGH);
+        debugPrint(
+          '✓ Applied HIGH quality to screenshare from ${participant.identity}',
+        );
+      }
+    }
   }
 
   /// Re-applies persisted mute/volume settings to all current remote participants.
