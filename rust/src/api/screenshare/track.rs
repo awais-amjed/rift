@@ -30,14 +30,14 @@ pub async fn publish_video_track(
         .publish_track(
             LocalTrack::Video(track),
             TrackPublishOptions {
-                                    source: TrackSource::Screenshare,
-                                    video_codec: VideoCodec::H264, // Change from VP9 to H264
-                                    video_encoding: Some(livekit::options::VideoEncoding {
-                                        max_bitrate: bitrate_bps,
-                                        max_framerate: config.fps as f64,
-                                    }),
-                                    ..Default::default()
-                                },
+                source: TrackSource::Screenshare,
+                video_codec: VideoCodec::VP8, // Change this from H264
+                video_encoding: Some(livekit::options::VideoEncoding {
+                    max_bitrate: bitrate_bps,
+                    max_framerate: config.fps as f64,
+                }),
+                ..Default::default()
+            },
         )
         .await
         .map_err(|e| format!("Failed to publish track: {:?}", e))?;
