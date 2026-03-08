@@ -105,18 +105,29 @@ pub fn list_audio_sources() -> Vec<AudioSource> {
     let introspect = context.introspect();
     let _op = introspect.get_sink_input_info_list(move |list_result| match list_result {
         pulse::callbacks::ListResult::Item(info) => {
+            let app_name = info.proplist.get_str("application.name").unwrap_or_default();
+            let binary = info.proplist.get_str("application.process.binary").unwrap_or_default();
+            let media_name = info.proplist.get_str("media.name").unwrap_or_default();
+
+            // Debug: Print ALL proplist properties
+            println!("\n=== PulseAudio Sink Input #{} ===", info.index);
+            println!("Sink: {}", info.sink);
+            println!("All properties:");
+            if let Some(proplist) = info.proplist.to_string() {
+                println!("{}", proplist);
+            }
+            println!("Extracted fields:");
+            println!("  application.name: '{}'", app_name);
+            println!("  application.process.binary: '{}'", binary);
+            println!("  media.name: '{}'", media_name);
+            println!("==============================\n");
+
             let entry = AudioSource {
                 index: info.index,
                 sink: info.sink,
-                app_name: info
-                    .proplist
-                    .get_str("application.name")
-                    .unwrap_or_default(),
-                binary: info
-                    .proplist
-                    .get_str("application.process.binary")
-                    .unwrap_or_default(),
-                media_name: info.proplist.get_str("media.name").unwrap_or_default(),
+                app_name,
+                binary,
+                media_name,
             };
             entries_clone.lock().unwrap().push(entry);
         }

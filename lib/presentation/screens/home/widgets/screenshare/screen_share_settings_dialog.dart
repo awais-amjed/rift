@@ -67,6 +67,22 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     setState(() => _loadingAudioSources = true);
     try {
       final sources = await listAudioSources();
+
+      // Debug logging: Print all audio source details
+      debugPrint('=== AUDIO SOURCES DEBUG INFO ===');
+      debugPrint('Found ${sources.length} audio sources:');
+      for (int i = 0; i < sources.length; i++) {
+        final source = sources[i];
+        debugPrint('');
+        debugPrint('Audio Source #$i:');
+        debugPrint('  Index: ${source.index}');
+        debugPrint('  Sink: ${source.sink}');
+        debugPrint('  App Name: "${source.appName}"');
+        debugPrint('  Binary: "${source.binary}"');
+        debugPrint('  Media Name: "${source.mediaName}"');
+      }
+      debugPrint('================================');
+
       if (mounted) {
         setState(() {
           _audioSources = sources;
@@ -374,29 +390,34 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                source.appName.isNotEmpty
-                                                    ? source.appName
-                                                    : source.binary.isNotEmpty
-                                                    ? source.binary
-                                                    : 'Unknown',
+                                                () {
+                                                  // Build label: media.name (binary)
+                                                  final mainLabel =
+                                                      source
+                                                          .mediaName
+                                                          .isNotEmpty
+                                                      ? source.mediaName
+                                                      : source
+                                                            .appName
+                                                            .isNotEmpty
+                                                      ? source.appName
+                                                      : 'Unknown';
+
+                                                  if (source
+                                                      .binary
+                                                      .isNotEmpty) {
+                                                    return '$mainLabel (${source.binary})';
+                                                  }
+                                                  return mainLabel;
+                                                }(),
                                                 style: TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w500,
                                                   color: themeState.textPrimary,
                                                 ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                              if (source.mediaName.isNotEmpty)
-                                                Text(
-                                                  source.mediaName,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color:
-                                                        themeState.textTertiary,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
                                             ],
                                           ),
                                         ),
