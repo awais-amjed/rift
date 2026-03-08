@@ -4,11 +4,11 @@ import 'package:livekit_client/livekit_client.dart';
 import '../participants_tile/participant_tile.dart';
 
 /// Grid view displaying all participants with adaptive column count.
-class ParticipantGrid extends StatelessWidget {
+class ParticipantGridLayout extends StatelessWidget {
   final List<Participant> participants;
   final Map<String, dynamic> participantSettings;
 
-  const ParticipantGrid({
+  const ParticipantGridLayout({
     super.key,
     required this.participants,
     required this.participantSettings,

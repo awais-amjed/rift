@@ -5,7 +5,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../controls/control_bar.dart';
-import 'participant_grid.dart';
+import 'participant_grid_layout.dart';
 import 'waiting_view.dart';
 
 /// Room is connected — shows participant tiles + control bar.
@@ -38,7 +38,7 @@ class _RoomViewState extends State<RoomView> {
                 children: [
                   participants.isEmpty
                       ? const WaitingView()
-                      : ParticipantGrid(
+                      : ParticipantGridLayout(
                           participants: participants,
                           participantSettings: appState.participantSettings,
                         ),
