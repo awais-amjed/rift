@@ -24,7 +24,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   static const _resolutions = [720, 1080, 1440, 2160];
   static const _fpsOptions = [30, 60];
   static const _bitrateOptions = [2, 4, 6, 8, 10, 12, 14, 15];
-  static const _codecOptions = ['VP8', 'H264', 'VP9', 'AV1'];
+  static const _codecOptions = ['VP8', 'H264', 'VP9'];
   static const _resolutionLabels = {
     720: '720p',
     1080: '1080p',

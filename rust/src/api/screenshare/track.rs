@@ -25,7 +25,6 @@ pub async fn publish_video_track(
     let video_codec = match config.codec.to_uppercase().as_str() {
         "H264" => VideoCodec::H264,
         "VP9" => VideoCodec::VP9,
-        "AV1" => VideoCodec::AV1,
         _ => VideoCodec::VP8, // default to VP8
     };
 
