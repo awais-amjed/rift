@@ -5,9 +5,9 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'screenshare/types.dart';
 
-// These functions are ignored because they are not marked as `pub`: `publish_video_track`, `run_capture_loop`, `spawn_capture_thread`, `wait_for_resolution`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CaptureCommand`, `ScreenShareSession`
+// These functions are ignored because they are not marked as `pub`: `wait_for_resolution`
 
 /// Start screen sharing with the given configuration.
 /// Connects to LiveKit room with the provided token.
@@ -17,58 +17,3 @@ Future<String> startScreenshare({required ScreenShareConfig config}) =>
 /// Stop screen sharing and disconnect from LiveKit.
 Future<String> stopScreenshare() =>
     RustLib.instance.api.crateApiScreenshareStopScreenshare();
-
-class ScreenShareConfig {
-  final String livekitUrl;
-  final String livekitToken;
-  final String channelId;
-  final String identity;
-  final String displayName;
-  final int resolution;
-  final int fps;
-  final int bitrate;
-  final bool shareAudio;
-  final bool captureFullScreen;
-
-  const ScreenShareConfig({
-    required this.livekitUrl,
-    required this.livekitToken,
-    required this.channelId,
-    required this.identity,
-    required this.displayName,
-    required this.resolution,
-    required this.fps,
-    required this.bitrate,
-    required this.shareAudio,
-    required this.captureFullScreen,
-  });
-
-  @override
-  int get hashCode =>
-      livekitUrl.hashCode ^
-      livekitToken.hashCode ^
-      channelId.hashCode ^
-      identity.hashCode ^
-      displayName.hashCode ^
-      resolution.hashCode ^
-      fps.hashCode ^
-      bitrate.hashCode ^
-      shareAudio.hashCode ^
-      captureFullScreen.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ScreenShareConfig &&
-          runtimeType == other.runtimeType &&
-          livekitUrl == other.livekitUrl &&
-          livekitToken == other.livekitToken &&
-          channelId == other.channelId &&
-          identity == other.identity &&
-          displayName == other.displayName &&
-          resolution == other.resolution &&
-          fps == other.fps &&
-          bitrate == other.bitrate &&
-          shareAudio == other.shareAudio &&
-          captureFullScreen == other.captureFullScreen;
-}

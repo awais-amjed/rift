@@ -132,7 +132,7 @@ fn wire__crate__api__screenshare__start_screenshare_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_config =
-                <crate::api::screenshare::ScreenShareConfig>::sse_decode(&mut deserializer);
+                <crate::api::screenshare::types::ScreenShareConfig>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
@@ -219,7 +219,7 @@ impl SseDecode for Vec<u8> {
     }
 }
 
-impl SseDecode for crate::api::screenshare::ScreenShareConfig {
+impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_livekitUrl = <String>::sse_decode(deserializer);
@@ -232,7 +232,7 @@ impl SseDecode for crate::api::screenshare::ScreenShareConfig {
         let mut var_bitrate = <i32>::sse_decode(deserializer);
         let mut var_shareAudio = <bool>::sse_decode(deserializer);
         let mut var_captureFullScreen = <bool>::sse_decode(deserializer);
-        return crate::api::screenshare::ScreenShareConfig {
+        return crate::api::screenshare::types::ScreenShareConfig {
             livekit_url: var_livekitUrl,
             livekit_token: var_livekitToken,
             channel_id: var_channelId,
@@ -295,7 +295,7 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::screenshare::ScreenShareConfig {
+impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ScreenShareConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.livekit_url.into_into_dart().into_dart(),
@@ -313,13 +313,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::ScreenShareConfi
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::screenshare::ScreenShareConfig
+    for crate::api::screenshare::types::ScreenShareConfig
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::screenshare::ScreenShareConfig>
-    for crate::api::screenshare::ScreenShareConfig
+impl flutter_rust_bridge::IntoIntoDart<crate::api::screenshare::types::ScreenShareConfig>
+    for crate::api::screenshare::types::ScreenShareConfig
 {
-    fn into_into_dart(self) -> crate::api::screenshare::ScreenShareConfig {
+    fn into_into_dart(self) -> crate::api::screenshare::types::ScreenShareConfig {
         self
     }
 }
@@ -355,7 +355,7 @@ impl SseEncode for Vec<u8> {
     }
 }
 
-impl SseEncode for crate::api::screenshare::ScreenShareConfig {
+impl SseEncode for crate::api::screenshare::types::ScreenShareConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.livekit_url, serializer);

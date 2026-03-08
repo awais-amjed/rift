@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../src/rust/api/screenshare.dart';
+import '../../../src/rust/api/screenshare/types.dart';
 
 part 'screenshare_state.dart';
 
