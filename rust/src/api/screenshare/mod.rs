@@ -7,9 +7,11 @@ pub mod capture;
 pub mod track;
 pub mod types;
 pub mod audio_linux;
+pub mod audio_windows;
 
 pub use types::ScreenShareConfig;
 pub use audio_linux::{AudioSource, list_audio_sources};
+pub use audio_windows::{AudioSourceWindows, list_audio_sources_windows};
 
 use capture::spawn_capture_thread;
 use track::publish_video_track;
@@ -136,7 +138,28 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
         None
     };
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "windows")]
+    let audio_handle = if config.share_audio && config.selected_audio_source_pid.is_some() {
+        let pid = config.selected_audio_source_pid.unwrap();
+        println!("Starting Windows audio capture for PID {}...", pid);
+        match audio_windows::start_audio_capture(&room, pid).await {
+            Some(handle) => {
+                println!("✓ Windows audio capture started successfully");
+                Some(handle)
+            }
+            None => {
+                println!("⚠ Failed to start Windows audio capture");
+                None
+            }
+        }
+    } else {
+        if config.share_audio {
+            println!("Audio sharing enabled but no Windows audio source selected");
+        }
+        None
+    };
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     let audio_handle = None;
 
     println!("✓ Screen sharing started successfully!");
@@ -175,6 +198,12 @@ pub async fn stop_screenshare() -> Result<String, String> {
         #[cfg(target_os = "linux")]
         if let Some(audio_handle) = session.audio_handle {
             println!("Stopping audio capture...");
+            audio_handle.terminate();
+        }
+
+        #[cfg(target_os = "windows")]
+        if let Some(audio_handle) = session.audio_handle {
+            println!("Stopping Windows audio capture...");
             audio_handle.terminate();
         }
 

@@ -117,10 +117,12 @@ extension on YamlMap {
 class PrecompiledBinaries {
   final String uriPrefix;
   final PublicKey publicKey;
+  final String? localCacheDir;
 
   PrecompiledBinaries({
     required this.uriPrefix,
     required this.publicKey,
+    this.localCacheDir,
   });
 
   static PublicKey _publicKeyFromHex(String key, SourceSpan? span) {
@@ -150,9 +152,16 @@ class PrecompiledBinaries {
           _ => throw SourceSpanException(
               'Invalid public key value.', publicKeyNode.span),
         };
+        final localCacheDir = switch (map['local_cache_dir']) {
+          YamlScalar(value: String dir) => dir,
+          null => null,
+          _ => throw SourceSpanException(
+              'Invalid local_cache_dir value.', map['local_cache_dir']!.span),
+        };
         return PrecompiledBinaries(
           uriPrefix: urlPrefix,
           publicKey: publicKey,
+          localCacheDir: localCacheDir,
         );
       }
     }

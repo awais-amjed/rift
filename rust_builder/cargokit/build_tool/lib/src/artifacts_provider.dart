@@ -119,7 +119,24 @@ class ArtifactProvider {
 
     final res = <Target, List<Artifact>>{};
 
-    for (final target in targets) {
+    // Check local cache first if configured
+    final localCacheDir =
+        environment.crateOptions.precompiledBinaries!.localCacheDir;
+    if (localCacheDir != null) {
+      _log.info(
+          'Checking local cache for precompiled binaries: $localCacheDir');
+      final localResults = await _checkLocalCache(
+          targets, localCacheDir, downloadedArtifactsDir);
+      res.addAll(localResults);
+    }
+
+    // Only try to download for targets not found locally
+    final remainingTargets = targets.where((t) => !res.containsKey(t)).toList();
+    if (remainingTargets.isEmpty) {
+      return res;
+    }
+
+    for (final target in remainingTargets) {
       final requiredArtifacts = getArtifactNames(
         target: target,
         libraryName: environment.crateInfo.packageName,
@@ -154,6 +171,71 @@ class ArtifactProvider {
       if (artifactsForTarget.length == requiredArtifacts.length) {
         _log.fine('Found precompiled artifacts for $target');
         res[target] = artifactsForTarget;
+      }
+    }
+
+    return res;
+  }
+
+  Future<Map<Target, List<Artifact>>> _checkLocalCache(List<Target> targets,
+      String localCacheDir, String downloadedArtifactsDir) async {
+    final res = <Target, List<Artifact>>{};
+    final manifestDir = environment.manifestDir;
+    final localCachePath =
+        path.normalize(path.join(manifestDir, localCacheDir));
+
+    _log.fine('Checking local cache at: $localCachePath');
+
+    if (!Directory(localCachePath).existsSync()) {
+      _log.info('Local cache directory does not exist: $localCachePath');
+      return res;
+    }
+
+    for (final target in targets) {
+      final requiredArtifacts = getArtifactNames(
+        target: target,
+        libraryName: environment.crateInfo.packageName,
+        remote: false, // Use local naming (includes .pdb)
+      );
+
+      // Look for artifacts in the target/release or target/{triple}/release directory
+      final possibleDirs = [
+        path.join(localCachePath, target.rust, 'release'),
+        path.join(localCachePath, 'release'),
+      ];
+
+      for (final dir in possibleDirs) {
+        if (!Directory(dir).existsSync()) {
+          continue;
+        }
+
+        final artifactsForTarget = <Artifact>[];
+        var allFound = true;
+
+        for (final artifact in requiredArtifacts) {
+          final artifactPath = path.join(dir, artifact);
+          if (File(artifactPath).existsSync()) {
+            // Copy to downloaded artifacts dir so it's cached for this build
+            final destPath = path.join(downloadedArtifactsDir, artifact);
+            _log.fine('Found local artifact: $artifactPath');
+            File(artifactPath).copySync(destPath);
+
+            artifactsForTarget.add(Artifact(
+              path: destPath,
+              finalFileName: artifact,
+            ));
+          } else {
+            allFound = false;
+            break;
+          }
+        }
+
+        if (allFound) {
+          _log.info(
+              'Found all precompiled artifacts for $target in local cache');
+          res[target] = artifactsForTarget;
+          break; // Found all artifacts for this target
+        }
       }
     }
 

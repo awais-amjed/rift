@@ -9,9 +9,11 @@ import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../src/rust/api/screenshare/audio_linux.dart';
+import '../../../../../src/rust/api/screenshare/audio_windows.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/custom_colors.dart';
 import 'audio_source_section.dart';
+import 'audio_source_windows_section.dart';
 import 'audio_toggle.dart';
 import 'bitrate_section.dart';
 import 'capture_type_section.dart';
@@ -42,6 +44,10 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   AudioSource? _selectedAudioSource;
   bool _loadingAudioSources = false;
 
+  List<AudioSourceWindows>? _audioSourcesWindows;
+  AudioSourceWindows? _selectedAudioSourceWindows;
+  bool _loadingAudioSourcesWindows = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,10 +59,15 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     _captureFullScreen = settings.captureFullScreen;
     _codec = settings.codec;
     _selectedAudioSource = settings.selectedAudioSource;
+    _selectedAudioSourceWindows = settings.selectedAudioSourceWindows;
 
     // Load audio sources on Linux if audio sharing is enabled
     if (Platform.isLinux && _shareAudio) {
       _loadAudioSources();
+    }
+    // Load audio sources on Windows if audio sharing is enabled
+    if (Platform.isWindows && _shareAudio) {
+      _loadAudioSourcesWindows();
     }
   }
 
@@ -83,11 +94,38 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     }
   }
 
+  Future<void> _loadAudioSourcesWindows() async {
+    setState(() => _loadingAudioSourcesWindows = true);
+    try {
+      final sources = await listAudioSourcesWindows();
+
+      if (mounted) {
+        setState(() {
+          _audioSourcesWindows = sources;
+          _loadingAudioSourcesWindows = false;
+          // Auto-select first source if none selected
+          if (_selectedAudioSourceWindows == null && sources.isNotEmpty) {
+            _selectedAudioSourceWindows = sources.first;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load Windows audio sources: $e');
+      if (mounted) {
+        setState(() => _loadingAudioSourcesWindows = false);
+      }
+    }
+  }
+
   void _onAudioToggle() {
     setState(() => _shareAudio = !_shareAudio);
     // Load audio sources when audio is enabled on Linux
     if (Platform.isLinux && _shareAudio && _audioSources == null) {
       _loadAudioSources();
+    }
+    // Load audio sources when audio is enabled on Windows
+    if (Platform.isWindows && _shareAudio && _audioSourcesWindows == null) {
+      _loadAudioSourcesWindows();
     }
   }
 
@@ -100,6 +138,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       captureFullScreen: _captureFullScreen,
       codec: _codec,
       selectedAudioSource: _selectedAudioSource,
+      selectedAudioSourceWindows: _selectedAudioSourceWindows,
     );
     context.read<AppCubit>().setScreenShareSettings(settings);
     Navigator.of(context).pop(settings);
@@ -203,6 +242,20 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                               onChanged: (source) =>
                                   setState(() => _selectedAudioSource = source),
                               onRefresh: _loadAudioSources,
+                            ),
+                          ],
+
+                          // Audio source selector (Windows only)
+                          if (Platform.isWindows && _shareAudio) ...[
+                            const SizedBox(height: 16),
+                            AudioSourceWindowsSection(
+                              audioSources: _audioSourcesWindows,
+                              selectedAudioSource: _selectedAudioSourceWindows,
+                              isLoading: _loadingAudioSourcesWindows,
+                              onChanged: (source) => setState(
+                                () => _selectedAudioSourceWindows = source,
+                              ),
+                              onRefresh: _loadAudioSourcesWindows,
                             ),
                           ],
 

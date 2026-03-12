@@ -116,6 +116,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         codec: settings.codec,
         selectedAudioSourceIndex: settings.selectedAudioSource?.index,
         selectedAudioSourceSink: settings.selectedAudioSource?.sink,
+        selectedAudioSourcePid: settings.selectedAudioSourceWindows?.pid,
       );
 
       final result = await startScreenshare(config: config);
