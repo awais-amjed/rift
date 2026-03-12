@@ -4,3 +4,7 @@ precompiled_binaries:
 
   # Public key for verifying downloaded precompiled binaries.
   public_key: 2fe37c8e80ccfd2f4ebfdd0379d07a8361ee7d3fdd9fb500e7bfc6178841febd
+
+  # Local directory to check for precompiled binaries before downloading
+  # This allows using locally built binaries without GitHub access
+  local_cache_dir: ../rust/target
