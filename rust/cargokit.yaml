@@ -7,4 +7,5 @@ precompiled_binaries:
 
   # Local directory to check for precompiled binaries before downloading
   # This allows using locally built binaries without GitHub access
-  local_cache_dir: ../rust/target
+  # Path is relative to the rust/ directory (where this file is located)
+  local_cache_dir: target
