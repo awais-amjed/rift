@@ -28,7 +28,7 @@ jobs:
       - name: Precompile (Windows)
         if: matrix.os == 'windows-latest'
         run: dart run build_tool precompile-binaries -v --manifest-dir=../../rust --repository=awais-amjed/rift
-        working-directory: rift/rust_builder/cargokit/build_tool
+        working-directory: rust_builder/cargokit/build_tool
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
           PRIVATE_KEY: ${{ secrets.RELEASE_PRIVATE_KEY }}
@@ -36,7 +36,7 @@ jobs:
       - name: Precompile (Linux/Android)
         if: matrix.os == 'ubuntu-latest'
         run: dart run build_tool precompile-binaries -v --manifest-dir=../../rust --repository=awais-amjed/rift
-        working-directory: rift/rust_builder/cargokit/build_tool
+        working-directory: rust_builder/cargokit/build_tool
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
           PRIVATE_KEY: ${{ secrets.RELEASE_PRIVATE_KEY }}
