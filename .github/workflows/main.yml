@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [ rust_precompiled ]
+    branches: [ dev ]
 
 name: Precompile Binaries
 
