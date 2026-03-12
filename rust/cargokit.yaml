@@ -1,0 +1,6 @@
+precompiled_binaries:
+  # Uri prefix used when downloading precompiled binaries.
+  url_prefix: https://github.com/awais-amjed/rift/releases/download/precompiled_
+
+  # Public key for verifying downloaded precompiled binaries.
+  public_key: 2fe37c8e80ccfd2f4ebfdd0379d07a8361ee7d3fdd9fb500e7bfc6178841febd
