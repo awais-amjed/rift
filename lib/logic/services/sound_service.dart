@@ -32,7 +32,7 @@ class SoundService {
     try {
       // A fresh player per sound so simultaneous calls don't interfere.
       final player = AudioPlayer();
-      await player.setVolume(0.5);
+      await player.setVolume(0.15);
       await player.play(AssetSource(asset));
       // Dispose once playback finishes (or after a generous timeout).
       player.onPlayerComplete.first.timeout(
