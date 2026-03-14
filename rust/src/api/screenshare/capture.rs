@@ -269,6 +269,88 @@ fn run_capture_loop(
     println!("Capture loop exiting");
 }
 
+/// Capture a JPEG thumbnail for a single capture source (Windows only).
+///
+/// Returns `None` if the source doesn't exist, the capture fails, or encoding
+/// fails.  The returned bytes are a JPEG image scaled to at most 320 px wide.
+#[cfg(target_os = "windows")]
+pub fn get_capture_source_thumbnail(
+    capture_full_screen: bool,
+    source_index: u32,
+) -> Option<Vec<u8>> {
+    let source_type = if capture_full_screen {
+        DesktopCaptureSourceType::Screen
+    } else {
+        DesktopCaptureSourceType::Window
+    };
+
+    let options = DesktopCapturerOptions::new(source_type);
+    let mut capturer = DesktopCapturer::new(options)?;
+
+    let sources = capturer.get_source_list();
+    let source = sources.get(source_index as usize)?.clone();
+
+    // Arc<Mutex> lets the 'static callback write the result back.
+    let result: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
+    let result_clone = Arc::clone(&result);
+
+    capturer.start_capture(Some(source), move |frame_result| {
+        if let Ok(frame) = frame_result {
+            *result_clone.lock().unwrap() = encode_thumbnail(&frame);
+        }
+    });
+
+    // On Windows the callback is dispatched synchronously inside capture_frame().
+    capturer.capture_frame();
+
+    let thumbnail = result.lock().unwrap().take();
+    thumbnail
+}
+
+/// Encode a raw desktop frame as a small JPEG thumbnail (Windows only).
+#[cfg(target_os = "windows")]
+fn encode_thumbnail(frame: &livekit::webrtc::desktop_capturer::DesktopFrame) -> Option<Vec<u8>> {
+    let w = frame.width() as u32;
+    let h = frame.height() as u32;
+    let stride = frame.stride() as u32;
+    if w == 0 || h == 0 {
+        return None;
+    }
+    let data = frame.data();
+
+    // Scale to at most 320 px wide, preserving aspect ratio.
+    let thumb_w = 320_u32.min(w);
+    let thumb_h = (thumb_w as f64 * h as f64 / w as f64).round() as u32;
+    let thumb_h = thumb_h.max(1);
+
+    // Build a packed RGBA buffer from the strided BGRA source.
+    let mut rgba = Vec::with_capacity((w * h * 4) as usize);
+    for y in 0..h {
+        let row = (y * stride) as usize;
+        for x in 0..w {
+            let p = row + x as usize * 4;
+            // WebRTC DesktopFrame on Windows is stored as BGRA.
+            rgba.push(data[p + 2]); // R
+            rgba.push(data[p + 1]); // G
+            rgba.push(data[p]);     // B
+            rgba.push(data[p + 3]); // A
+        }
+    }
+
+    let img = image::RgbaImage::from_raw(w, h, rgba)?;
+    let img = image::DynamicImage::ImageRgba8(img);
+    let thumb = img.resize(thumb_w, thumb_h, image::imageops::FilterType::Nearest);
+
+    let mut jpeg_bytes = Vec::new();
+    thumb
+        .write_to(
+            &mut std::io::Cursor::new(&mut jpeg_bytes),
+            image::ImageFormat::Jpeg,
+        )
+        .ok()?;
+    Some(jpeg_bytes)
+}
+
 /// List available capture sources for the requested source type.
 pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
     let source_type = if capture_full_screen {

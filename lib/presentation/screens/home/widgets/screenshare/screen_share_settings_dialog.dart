@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 import 'dart:math' show max;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,8 +9,8 @@ import 'package:sizer/sizer.dart';
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../src/rust/api/screenshare.dart';
 import '../../../../../src/rust/api/screenshare/audio_linux.dart';
+import '../../../../../src/rust/api/screenshare/capture.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/custom_colors.dart';
@@ -44,6 +45,8 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
 
   List<CaptureSource>? _captureSources;
   bool _loadingCaptureSources = false;
+  // source index → JPEG bytes; only populated on Windows
+  final Map<int, Uint8List> _thumbnails = {};
 
   List<AudioSource>? _audioSources;
   AudioSource? _selectedAudioSource;
@@ -109,10 +112,38 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
         _selectedVideoSourceIndex = selectedSource.index;
         _selectedVideoSourcePid = selectedSource.audioSourcePid;
       });
+
+      // Load per-source thumbnails on Windows after the source list is ready.
+      if (Platform.isWindows) {
+        _loadThumbnails(sources);
+      }
     } catch (e) {
       debugPrint('Failed to load capture sources: $e');
       if (mounted) {
         setState(() => _loadingCaptureSources = false);
+      }
+    }
+  }
+
+  /// Fetches JPEG thumbnails for each source sequentially (Windows only).
+  /// Updates state as each thumbnail arrives so the grid populates progressively.
+  Future<void> _loadThumbnails(List<CaptureSource> sources) async {
+    // Clear stale thumbnails from a previous source-type load.
+    if (mounted) setState(() => _thumbnails.clear());
+
+    for (final source in sources) {
+      if (!mounted) return;
+      try {
+        final bytes = await getCaptureSourceThumbnail(
+          captureFullScreen: _captureFullScreen,
+          sourceIndex: source.index,
+        );
+        if (!mounted) return;
+        if (bytes != null) {
+          setState(() => _thumbnails[source.index] = bytes);
+        }
+      } catch (e) {
+        debugPrint('Thumbnail load failed for source ${source.index}: $e');
       }
     }
   }
@@ -221,6 +252,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                                 _captureSources = null;
                                 _selectedVideoSourceIndex = null;
                                 _selectedVideoSourcePid = null;
+                                _thumbnails.clear();
                                 if (!_captureFullScreen) {
                                   _selectedAudioSource = null;
                                 }
@@ -241,6 +273,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                             isLoading: _loadingCaptureSources,
                             sources: _captureSources,
                             selectedIndex: _selectedVideoSourceIndex,
+                            thumbnails: _thumbnails,
                             onChanged: (source) {
                               setState(() {
                                 _selectedVideoSourceIndex = source.index;
@@ -353,6 +386,7 @@ class _CaptureSourceSection extends StatelessWidget {
   final bool isLoading;
   final List<CaptureSource>? sources;
   final int? selectedIndex;
+  final Map<int, Uint8List> thumbnails;
   final ValueChanged<CaptureSource> onChanged;
   final Future<void> Function() onRefresh;
 
@@ -361,6 +395,7 @@ class _CaptureSourceSection extends StatelessWidget {
     required this.isLoading,
     required this.sources,
     required this.selectedIndex,
+    required this.thumbnails,
     required this.onChanged,
     required this.onRefresh,
   });
@@ -368,15 +403,6 @@ class _CaptureSourceSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = captureFullScreen ? 'Screen' : 'Window';
-    CaptureSource? selectedSource;
-    if (sources != null && selectedIndex != null) {
-      for (final source in sources!) {
-        if (source.index == selectedIndex) {
-          selectedSource = source;
-          break;
-        }
-      }
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,9 +411,10 @@ class _CaptureSourceSection extends StatelessWidget {
           children: [
             Text(
               'Select $label',
-              style: Theme.of(
-                context,
-              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(context)
+                  .textTheme
+                  .labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const Spacer(),
             IconButton(
@@ -402,70 +429,224 @@ class _CaptureSourceSection extends StatelessWidget {
           const LinearProgressIndicator(minHeight: 2)
         else if (sources == null || sources!.isEmpty)
           Text('No $label sources found.')
+        else if (Platform.isWindows)
+          _SourceThumbnailGrid(
+            sources: sources!,
+            selectedIndex: selectedIndex,
+            thumbnails: thumbnails,
+            captureFullScreen: captureFullScreen,
+            onChanged: onChanged,
+          )
         else
-          DropdownButtonFormField<int>(
-            key: ValueKey(
-              '${captureFullScreen}_${selectedSource?.index}_${sources!.length}',
-            ),
-            initialValue: selectedSource?.index,
-            isExpanded: true,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-            ),
-            items: sources!
-                .map(
-                  (source) => DropdownMenuItem<int>(
-                    value: source.index,
-                    child: Text(
-                      _displayLabel(source, label),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                )
-                .toList(),
-            selectedItemBuilder: (context) => sources!
-                .map(
-                  (source) => Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      _displayLabel(source, label),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value == null || sources == null) return;
-              CaptureSource? source;
-              for (final entry in sources!) {
-                if (entry.index == value) {
-                  source = entry;
-                  break;
-                }
-              }
-              if (source != null) {
-                onChanged(source);
-              }
-            },
+          _SourceDropdown(
+            sources: sources!,
+            selectedIndex: selectedIndex,
+            captureFullScreen: captureFullScreen,
+            onChanged: onChanged,
           ),
       ],
+    );
+  }
+}
+
+// ── Dropdown fallback (Linux / non-Windows) ───────────────────────────────────
+
+class _SourceDropdown extends StatelessWidget {
+  final List<CaptureSource> sources;
+  final int? selectedIndex;
+  final bool captureFullScreen;
+  final ValueChanged<CaptureSource> onChanged;
+
+  const _SourceDropdown({
+    required this.sources,
+    required this.selectedIndex,
+    required this.captureFullScreen,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = captureFullScreen ? 'Screen' : 'Window';
+    final selectedSource =
+        sources.where((s) => s.index == selectedIndex).firstOrNull;
+
+    return DropdownButtonFormField<int>(
+      key: ValueKey(
+          '${captureFullScreen}_${selectedSource?.index}_${sources.length}'),
+      initialValue: selectedSource?.index,
+      isExpanded: true,
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+      items: sources
+          .map((s) => DropdownMenuItem<int>(
+                value: s.index,
+                child: Text(_displayLabel(s, label),
+                    overflow: TextOverflow.ellipsis),
+              ))
+          .toList(),
+      selectedItemBuilder: (context) => sources
+          .map((s) => Align(
+                alignment: Alignment.centerLeft,
+                child: Text(_displayLabel(s, label),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              ))
+          .toList(),
+      onChanged: (value) {
+        if (value == null) return;
+        final source = sources.where((s) => s.index == value).firstOrNull;
+        if (source != null) onChanged(source);
+      },
     );
   }
 
   String _displayLabel(CaptureSource source, String label) {
     final trimmed = source.title.trim();
-    if (trimmed.isNotEmpty) {
-      return trimmed;
-    }
+    if (trimmed.isNotEmpty) return trimmed;
+    return '$label #${source.index + 1} (index ${source.index})';
+  }
+}
 
-    final oneBasedIndex = source.index + 1;
-    return '$label #$oneBasedIndex (index ${source.index})';
+// ── Thumbnail grid (Windows only) ────────────────────────────────────────────
+
+class _SourceThumbnailGrid extends StatelessWidget {
+  final List<CaptureSource> sources;
+  final int? selectedIndex;
+  final Map<int, Uint8List> thumbnails;
+  final bool captureFullScreen;
+  final ValueChanged<CaptureSource> onChanged;
+
+  const _SourceThumbnailGrid({
+    required this.sources,
+    required this.selectedIndex,
+    required this.thumbnails,
+    required this.captureFullScreen,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Screens: 2 columns (there are usually just 1–3).
+    // Windows: 3 columns (can be many).
+    final crossAxisCount = captureFullScreen ? 2 : 3;
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        // 16:9 card with a label strip below
+        childAspectRatio: 16 / 11,
+      ),
+      itemCount: sources.length,
+      itemBuilder: (context, i) {
+        final source = sources[i];
+        final isSelected = source.index == selectedIndex;
+        final thumb = thumbnails[source.index];
+        final label = _displayLabel(source);
+
+        return _SourceCard(
+          source: source,
+          isSelected: isSelected,
+          thumbnail: thumb,
+          label: label,
+          onTap: () => onChanged(source),
+        );
+      },
+    );
+  }
+
+  String _displayLabel(CaptureSource source) {
+    final typeLabel = captureFullScreen ? 'Screen' : 'Window';
+    final trimmed = source.title.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+    return '$typeLabel #${source.index + 1}';
+  }
+}
+
+class _SourceCard extends StatelessWidget {
+  final CaptureSource source;
+  final bool isSelected;
+  final Uint8List? thumbnail;
+  final String label;
+  final VoidCallback onTap;
+
+  const _SourceCard({
+    required this.source,
+    required this.isSelected,
+    required this.thumbnail,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final borderColor =
+        isSelected ? colorScheme.primary : colorScheme.outlineVariant;
+    final borderWidth = isSelected ? 2.5 : 1.0;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor, width: borderWidth),
+          color: isSelected
+              ? colorScheme.primary.withValues(alpha: 0.08)
+              : colorScheme.surfaceContainerHighest,
+        ),
+        child: Column(
+          children: [
+            // Preview area (takes most of the card)
+            Expanded(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(7)),
+                child: thumbnail != null
+                    ? Image.memory(
+                        thumbnail!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        gaplessPlayback: true,
+                      )
+                    : Center(
+                        child: Icon(
+                          Icons.desktop_windows_outlined,
+                          size: 28,
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        ),
+                      ),
+              ),
+            ),
+            // Label strip
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight:
+                      isSelected ? FontWeight.w700 : FontWeight.normal,
+                  color: isSelected
+                      ? colorScheme.primary
+                      : colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
