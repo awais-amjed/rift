@@ -143,6 +143,8 @@ class LiveKitCubit extends Cubit<LiveKitState> {
 
       await _syncMicrophoneTransmission();
 
+      SoundService.instance.playJoin();
+
       _syncParticipants();
       _applyStoredSettings();
     } catch (e) {
@@ -164,6 +166,8 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       debugPrint('Stopping screenshare due to channel disconnect...');
       await _screenshareCubit?.stopScreenShare();
     }
+
+    SoundService.instance.playLeave();
 
     // Clear participants immediately
     _appCubit.setParticipants([]);
