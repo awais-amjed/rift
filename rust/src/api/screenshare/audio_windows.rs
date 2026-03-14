@@ -3,7 +3,7 @@
 //! This module provides WASAPI-based audio capture functionality via application loopback.
 
 #[cfg(target_os = "windows")]
-use wasapi::{AudioClient, Direction, SampleType, StreamMode, WaveFormat};
+use wasapi::{AudioClient, DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat};
 
 #[cfg(target_os = "windows")]
 use windows::core::BOOL;
@@ -132,15 +132,47 @@ fn spawn_audio_capture_thread(
             None,
         );
 
-        let target_pid = pid.unwrap_or(0);
-        let mut client = match AudioClient::new_application_loopback_client(target_pid, true) {
-            Ok(c) => c,
-            Err(e) => {
-                println!(
-                    "Failed to create WASAPI loopback client for PID {}: {:?}",
-                    target_pid, e
-                );
-                return;
+        let mut client = match pid {
+            Some(target_pid) => {
+                match AudioClient::new_application_loopback_client(target_pid, true) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        println!(
+                            "Failed to create WASAPI app-loopback client for PID {}: {:?}",
+                            target_pid, e
+                        );
+                        return;
+                    }
+                }
+            }
+            None => {
+                let device_enumerator = match DeviceEnumerator::new() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        println!("Failed to create WASAPI device enumerator: {:?}", e);
+                        return;
+                    }
+                };
+
+                let default_render_device =
+                    match device_enumerator.get_default_device(&Direction::Render) {
+                        Ok(value) => value,
+                        Err(e) => {
+                            println!("Failed to get default render device: {:?}", e);
+                            return;
+                        }
+                    };
+
+                match default_render_device.get_iaudioclient() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        println!(
+                            "Failed to create WASAPI system loopback client from default render device: {:?}",
+                            e
+                        );
+                        return;
+                    }
+                }
             }
         };
 

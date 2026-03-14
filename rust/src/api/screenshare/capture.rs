@@ -231,7 +231,7 @@ pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
     };
 
     let options = DesktopCapturerOptions::new(source_type);
-    let mut capturer = match DesktopCapturer::new(options) {
+    let capturer = match DesktopCapturer::new(options) {
         Some(c) => c,
         None => return Vec::new(),
     };
