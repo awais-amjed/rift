@@ -216,28 +216,39 @@ pub async fn stop_screenshare() -> Result<String, String> {
     };
 
     if let Some(session) = session_option {
-        println!("Stopping capture thread...");
         let _ = session.capture_tx.send(CaptureCommand::Terminate);
 
-        if let Err(e) = session.capture_handle.join() {
-            println!("⚠ Warning: Capture thread join error: {:?}", e);
-        }
+        let capture_handle = session.capture_handle;
+        let audio_handle = session.audio_handle;
 
-        // Stop audio capture if active
-        #[cfg(target_os = "linux")]
-        if let Some(audio_handle) = session.audio_handle {
-            println!("Stopping audio capture...");
-            audio_handle.terminate();
-        }
+        // Run LiveKit room teardown and all blocking thread joins concurrently.
+        // Previously these were sequential: join capture → join audio → close room.
+        // The DesktopCapturer drop (inside the capture thread join) releases the WGC
+        // capture session, which is what causes the shared window to appear frozen.
+        // By closing the room at the same time, viewers see the stream end immediately
+        // and the local window unblocks as soon as the WGC teardown finishes —
+        // without also waiting for the network disconnect first.
+        let (room_result, _) = tokio::join!(
+            session.room.close(),
+            tokio::task::spawn_blocking(move || {
+                println!("Stopping capture thread...");
+                let _ = capture_handle.join();
 
-        #[cfg(target_os = "windows")]
-        if let Some(audio_handle) = session.audio_handle {
-            println!("Stopping Windows audio capture...");
-            audio_handle.terminate();
-        }
+                #[cfg(target_os = "linux")]
+                if let Some(h) = audio_handle {
+                    println!("Stopping audio capture...");
+                    h.terminate();
+                }
 
-        println!("Disconnecting from LiveKit room...");
-        if let Err(e) = session.room.close().await {
+                #[cfg(target_os = "windows")]
+                if let Some(h) = audio_handle {
+                    println!("Stopping Windows audio capture...");
+                    h.terminate();
+                }
+            }),
+        );
+
+        if let Err(e) = room_result {
             println!("⚠ Warning during disconnect: {:?}", e);
         }
 
