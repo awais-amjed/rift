@@ -157,18 +157,31 @@ fn run_capture_loop(
                 height,
             );
 
-            // Scale down to target resolution
+            // Send frame to LiveKit, scaling down only when necessary.
+            //
+            // I420Buffer::scale() always allocates a new buffer (~3 MB at 1080p).
+            // libwebrtc-0.3.26 does not expose a scale_to(&mut dst) variant, so the
+            // allocation cannot be avoided when actual downscaling is needed.
+            // For the common case where the screen's native resolution already matches
+            // the target (e.g. 1080p screen → 1080p output) we skip scale() entirely
+            // and send native_buffer directly, eliminating the per-frame allocation.
             if let Some((target_w, target_h)) = target_dims {
-                let send_frame = VideoFrame {
-                    rotation: VideoRotation::VideoRotation0,
-                    buffer: native_buffer.buffer.scale(target_w as i32, target_h as i32),
-                    timestamp_us: 0,
-                };
+                let needs_scale = target_w != native_buffer.buffer.width()
+                    || target_h != native_buffer.buffer.height();
 
-                // Send scaled frame to LiveKit
                 let slot = video_source_clone.lock().unwrap();
                 if let Some(source) = slot.as_ref() {
-                    source.capture_frame(&send_frame);
+                    if needs_scale {
+                        let scaled = VideoFrame {
+                            rotation: VideoRotation::VideoRotation0,
+                            buffer: native_buffer.buffer.scale(target_w as i32, target_h as i32),
+                            timestamp_us: 0,
+                        };
+                        source.capture_frame(&scaled);
+                    } else {
+                        // Native resolution matches target — send directly, zero allocation.
+                        source.capture_frame(&native_buffer);
+                    }
                 }
             }
         }
