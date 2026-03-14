@@ -497,14 +497,20 @@ class LiveKitCubit extends Cubit<LiveKitState> {
 
     listener
       ..on<ParticipantConnectedEvent>((e) {
-        if (!e.participant.identity.endsWith('_screenshare')) {
+        final identity = e.participant.identity;
+        if (identity.endsWith('_screenshare')) {
+          SoundService.instance.playStreamStarted();
+        } else {
           SoundService.instance.playJoin();
         }
         _syncParticipants();
         _applyStoredSettings();
       })
       ..on<ParticipantDisconnectedEvent>((e) {
-        if (!e.participant.identity.endsWith('_screenshare')) {
+        final identity = e.participant.identity;
+        if (identity.endsWith('_screenshare')) {
+          SoundService.instance.playStreamEnded();
+        } else {
           SoundService.instance.playLeave();
         }
         _syncParticipants();

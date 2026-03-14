@@ -12,6 +12,8 @@ class SoundService {
 
   static const _joinAsset = 'audio/join.mp3';
   static const _leaveAsset = 'audio/leave.mp3';
+  static const _streamStartedAsset = 'audio/stream_started.mp3';
+  static const _streamEndedAsset = 'audio/stream_ended.mp3';
 
   // ──────────────────────────────────────────────────────────
   // Public API
@@ -19,6 +21,8 @@ class SoundService {
 
   Future<void> playJoin() => _play(_joinAsset);
   Future<void> playLeave() => _play(_leaveAsset);
+  Future<void> playStreamStarted() => _play(_streamStartedAsset);
+  Future<void> playStreamEnded() => _play(_streamEndedAsset);
 
   // ──────────────────────────────────────────────────────────
   // Private helpers
