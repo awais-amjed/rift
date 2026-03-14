@@ -1,0 +1,2 @@
+enum SettingsTab { appearance, voiceAndAudio }
+

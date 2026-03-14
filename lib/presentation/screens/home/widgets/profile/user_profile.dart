@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import 'settings_dialog.dart';
+import 'settings/settings_dialog.dart';
 import '../../../../theme/custom_colors.dart';
 
 /// Bottom area of the sidebar showing the current user info + theme toggle.
