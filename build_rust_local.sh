@@ -12,6 +12,12 @@ cd rust
 echo "Building for x86_64-unknown-linux-gnu (release mode)..."
 cargo build --release --target x86_64-unknown-linux-gnu
 
+cd ..
+
+echo ""
+echo "Generating Flutter Rust Bridge bindings..."
+flutter_rust_bridge_codegen generate
+
 echo ""
 echo "========================================"
 echo "Build completed successfully!"

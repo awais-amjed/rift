@@ -10,6 +10,22 @@ REM Build for the current platform (Windows x64)
 echo Building for x86_64-pc-windows-msvc (release mode)...
 cargo build --release --target x86_64-pc-windows-msvc
 
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ========================================
+    echo Cargo build FAILED!
+    echo ========================================
+    echo.
+    echo Please check the error messages above.
+    exit /b 1
+)
+
+cd ..
+
+echo.
+echo Generating Flutter Rust Bridge bindings...
+flutter_rust_bridge_codegen generate
+
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo ========================================
@@ -25,7 +41,7 @@ if %ERRORLEVEL% EQU 0 (
 ) else (
     echo.
     echo ========================================
-    echo Build FAILED!
+    echo flutter_rust_bridge_codegen FAILED!
     echo ========================================
     echo.
     echo Please check the error messages above.
