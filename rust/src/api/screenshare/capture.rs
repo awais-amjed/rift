@@ -20,6 +20,27 @@ use std::collections::HashMap;
 struct SendableFrame(DesktopFrame);
 unsafe impl Send for SendableFrame {}
 
+/// RAII guard that raises the Windows timer resolution to 1 ms on creation
+/// and restores it on drop. This prevents `recv_timeout` from sleeping in
+/// ~15.6 ms increments on machines without other timer-requesting apps.
+#[cfg(target_os = "windows")]
+struct WindowsTimerResolutionGuard;
+
+#[cfg(target_os = "windows")]
+impl WindowsTimerResolutionGuard {
+    fn new() -> Self {
+        unsafe { windows::Win32::Media::timeBeginPeriod(1) };
+        Self
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for WindowsTimerResolutionGuard {
+    fn drop(&mut self) {
+        unsafe { windows::Win32::Media::timeEndPeriod(1) };
+    }
+}
+
 /// Spawn the video capture thread.
 /// Returns a command sender and the thread handle.
 #[flutter_rust_bridge::frb(ignore)]
@@ -61,6 +82,11 @@ fn run_capture_loop(
     // Calculate precise frame interval from FPS
     let frame_interval = Duration::from_secs_f64(1.0 / fps as f64);
     println!("Capture FPS: {}, Frame interval: {:?}", fps, frame_interval);
+
+    // On Windows, raise the system timer resolution to 1 ms so recv_timeout
+    // wakes up on time at high frame rates instead of sleeping ~15.6 ms.
+    #[cfg(target_os = "windows")]
+    let _timer_guard = WindowsTimerResolutionGuard::new();
 
     // Create a channel for offloading raw frames to a processing worker thread
     let (frame_tx, frame_rx) = mpsc::sync_channel::<SendableFrame>(2);
