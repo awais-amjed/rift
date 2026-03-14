@@ -104,6 +104,11 @@ fn run_capture_loop(
         };
         // Target dimensions computed once after first frame (stored as Option)
         let mut target_dims: Option<(u32, u32)> = None;
+        // Cache the NativeVideoSource after it is first observed as Some.
+        // video_source_slot is set once at session start and never changed, so
+        // we only need to lock the mutex until we have a value — then we hold
+        // the clone directly and skip the lock on every subsequent frame.
+        let mut cached_source: Option<NativeVideoSource> = None;
 
         while let Ok(SendableFrame(frame)) = frame_rx.recv() {
             let width = frame.width();
@@ -157,6 +162,12 @@ fn run_capture_loop(
                 height,
             );
 
+            // Populate the source cache on the first frame (or if the slot was
+            // not yet set when the previous frame arrived).
+            if cached_source.is_none() {
+                cached_source = video_source_clone.lock().unwrap().clone();
+            }
+
             // Send frame to LiveKit, scaling down only when necessary.
             //
             // I420Buffer::scale() always allocates a new buffer (~3 MB at 1080p).
@@ -165,23 +176,20 @@ fn run_capture_loop(
             // For the common case where the screen's native resolution already matches
             // the target (e.g. 1080p screen → 1080p output) we skip scale() entirely
             // and send native_buffer directly, eliminating the per-frame allocation.
-            if let Some((target_w, target_h)) = target_dims {
+            if let (Some((target_w, target_h)), Some(source)) = (target_dims, &cached_source) {
                 let needs_scale = target_w != native_buffer.buffer.width()
                     || target_h != native_buffer.buffer.height();
 
-                let slot = video_source_clone.lock().unwrap();
-                if let Some(source) = slot.as_ref() {
-                    if needs_scale {
-                        let scaled = VideoFrame {
-                            rotation: VideoRotation::VideoRotation0,
-                            buffer: native_buffer.buffer.scale(target_w as i32, target_h as i32),
-                            timestamp_us: 0,
-                        };
-                        source.capture_frame(&scaled);
-                    } else {
-                        // Native resolution matches target — send directly, zero allocation.
-                        source.capture_frame(&native_buffer);
-                    }
+                if needs_scale {
+                    let scaled = VideoFrame {
+                        rotation: VideoRotation::VideoRotation0,
+                        buffer: native_buffer.buffer.scale(target_w as i32, target_h as i32),
+                        timestamp_us: 0,
+                    };
+                    source.capture_frame(&scaled);
+                } else {
+                    // Native resolution matches target — send directly, zero allocation.
+                    source.capture_frame(&native_buffer);
                 }
             }
         }
