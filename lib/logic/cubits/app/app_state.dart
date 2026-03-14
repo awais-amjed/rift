@@ -6,6 +6,9 @@ class AppState {
   final bool isPinned;
   final bool audioEnabled;
   final bool videoEnabled;
+  final bool pushToTalkEnabled;
+  final int? pushToTalkKeyId;
+  final String? pushToTalkKeyLabel;
   final bool titleBarVisible;
   final ScreenShareSettings screenShareSettings;
   final Map<String, ParticipantSetting> participantSettings;
@@ -22,6 +25,9 @@ class AppState {
     this.isPinned = true,
     this.audioEnabled = true,
     this.videoEnabled = false,
+    this.pushToTalkEnabled = false,
+    this.pushToTalkKeyId,
+    this.pushToTalkKeyLabel,
     this.titleBarVisible = true,
     this.screenShareSettings = const ScreenShareSettings(),
     this.participantSettings = const {},
@@ -34,6 +40,10 @@ class AppState {
     bool? isPinned,
     bool? audioEnabled,
     bool? videoEnabled,
+    bool? pushToTalkEnabled,
+    int? pushToTalkKeyId,
+    String? pushToTalkKeyLabel,
+    bool clearPushToTalkKeybind = false,
     bool? titleBarVisible,
     ScreenShareSettings? screenShareSettings,
     Map<String, ParticipantSetting>? participantSettings,
@@ -46,6 +56,13 @@ class AppState {
       isPinned: isPinned ?? this.isPinned,
       audioEnabled: audioEnabled ?? this.audioEnabled,
       videoEnabled: videoEnabled ?? this.videoEnabled,
+      pushToTalkEnabled: pushToTalkEnabled ?? this.pushToTalkEnabled,
+      pushToTalkKeyId: clearPushToTalkKeybind
+          ? null
+          : (pushToTalkKeyId ?? this.pushToTalkKeyId),
+      pushToTalkKeyLabel: clearPushToTalkKeybind
+          ? null
+          : (pushToTalkKeyLabel ?? this.pushToTalkKeyLabel),
       titleBarVisible: titleBarVisible ?? this.titleBarVisible,
       screenShareSettings: screenShareSettings ?? this.screenShareSettings,
       participantSettings: participantSettings ?? this.participantSettings,

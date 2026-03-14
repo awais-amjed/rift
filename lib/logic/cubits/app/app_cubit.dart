@@ -40,6 +40,18 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(videoEnabled: enabled));
   }
 
+  void setPushToTalkEnabled(bool enabled) {
+    emit(state.copyWith(pushToTalkEnabled: enabled));
+  }
+
+  void setPushToTalkKeybind({required int keyId, required String label}) {
+    emit(state.copyWith(pushToTalkKeyId: keyId, pushToTalkKeyLabel: label));
+  }
+
+  void clearPushToTalkKeybind() {
+    emit(state.copyWith(clearPushToTalkKeybind: true));
+  }
+
   void setScreenShareSettings(ScreenShareSettings settings) {
     emit(state.copyWith(screenShareSettings: settings));
   }

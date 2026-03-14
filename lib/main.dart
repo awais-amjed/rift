@@ -17,6 +17,7 @@ import 'logic/cubits/screenshare/screenshare_cubit.dart';
 import 'logic/cubits/server/server_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/helper_methods.dart';
+import 'logic/ptt/push_to_talk_listener.dart';
 import 'presentation/routing/app_routes.dart';
 import 'presentation/theme/app_theme.dart';
 import 'src/rust/frb_generated.dart';
@@ -107,12 +108,14 @@ class _MyAppState extends State<MyApp> {
             builder: (context, orientation, screenType) {
               return BlocBuilder<ThemeCubit, ThemeState>(
                 builder: (context, themeState) {
-                  return MaterialApp.router(
-                    routerConfig: AppRoutes.router,
-                    darkTheme: AppTheme.darkTheme,
-                    theme: AppTheme.lightTheme,
-                    themeMode: themeState.themeMode,
-                    builder: EasyLoading.init(),
+                  return PushToTalkListener(
+                    child: MaterialApp.router(
+                      routerConfig: AppRoutes.router,
+                      darkTheme: AppTheme.darkTheme,
+                      theme: AppTheme.lightTheme,
+                      themeMode: themeState.themeMode,
+                      builder: EasyLoading.init(),
+                    ),
                   );
                 },
               );

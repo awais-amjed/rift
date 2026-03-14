@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
@@ -16,6 +18,8 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   final AppCubit _appCubit;
   ScreenshareCubit? _screenshareCubit;
   final List<EventsListener<RoomEvent>> _listeners = [];
+  StreamSubscription<AppState>? _appSubscription;
+  AppState _lastAppState;
 
   LiveKitCubit({
     required ServerRepository repository,
@@ -24,7 +28,10 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   }) : _repository = repository,
        _appCubit = appCubit,
        _screenshareCubit = screenshareCubit,
-       super(const LiveKitState());
+       _lastAppState = appCubit.state,
+       super(const LiveKitState()) {
+    _appSubscription = _appCubit.stream.listen(_onAppStateChanged);
+  }
 
   /// Set the screenshare cubit for automatic cleanup on disconnect
   void setScreenshareCubit(ScreenshareCubit cubit) {
@@ -86,8 +93,10 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     try {
       final useMicEnabled = micEnabled ?? state.isMicEnabled;
       final useCameraEnabled = cameraEnabled ?? state.isCameraEnabled;
-      // If the user was deafened before joining, join with mic off
-      final joinMicEnabled = state.isDeafened ? false : useMicEnabled;
+      final joinMicEnabled = _shouldTransmitMic(
+        micEnabled: useMicEnabled,
+        deafened: state.isDeafened,
+      );
 
       await room.connect(
         livekitUrl,
@@ -107,6 +116,8 @@ class LiveKitCubit extends Cubit<LiveKitState> {
           // preserve isDeafened — user set it before joining
         ),
       );
+
+      await _syncMicrophoneTransmission();
 
       _syncParticipants();
       _applyStoredSettings();
@@ -158,8 +169,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   /// Toggle microphone on/off. Works even when not in a channel so the
   /// preference is saved and applied on the next connect.
   Future<void> toggleMicrophone() async {
-    final room = state.room;
-
     if (state.isDeafened) {
       // Un-deafen restores mic — undeafening also unmutes
       await _setDeafened(false);
@@ -167,12 +176,9 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     }
 
     final next = !state.isMicEnabled;
-    if (room != null) {
-      await room.localParticipant?.setMicrophoneEnabled(next);
-    }
     _appCubit.setAudioEnabled(next);
     emit(state.copyWith(isMicEnabled: next));
-    if (room != null) _syncParticipants();
+    await _syncMicrophoneTransmission(syncParticipants: true);
   }
 
   /// Toggle deafen on/off (like Discord).
@@ -239,9 +245,17 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       }
       _appCubit.setAudioEnabled(true);
       emit(state.copyWith(isDeafened: false, isMicEnabled: true));
+      await _syncMicrophoneTransmission();
     }
 
     if (room != null) _syncParticipants();
+  }
+
+  Future<void> setPushToTalkPressed(bool pressed) async {
+    if (state.isPushToTalkPressed == pressed) return;
+
+    emit(state.copyWith(isPushToTalkPressed: pressed));
+    await _syncMicrophoneTransmission(syncParticipants: true);
   }
 
   /// Toggle camera on/off.
@@ -571,10 +585,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     emit(
       state.copyWith(
         participants: allParticipants,
-        isMicEnabled: state.isDeafened
-            ? state.isMicEnabled
-            : (room.localParticipant?.isMicrophoneEnabled() ??
-                  state.isMicEnabled),
         isCameraEnabled:
             room.localParticipant?.isCameraEnabled() ?? state.isCameraEnabled,
         isScreenSharing:
@@ -599,6 +609,49 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         .toList();
 
     _appCubit.setParticipants(infos);
+  }
+
+  void _onAppStateChanged(AppState appState) {
+    final previous = _lastAppState;
+    _lastAppState = appState;
+    final pttChanged =
+        previous.pushToTalkEnabled != appState.pushToTalkEnabled ||
+        previous.pushToTalkKeyId != appState.pushToTalkKeyId;
+    if (!pttChanged) return;
+
+    final shouldResetPressed =
+        !appState.pushToTalkEnabled || appState.pushToTalkKeyId == null;
+    if (shouldResetPressed && state.isPushToTalkPressed) {
+      emit(state.copyWith(isPushToTalkPressed: false));
+    }
+
+    unawaited(_syncMicrophoneTransmission());
+  }
+
+  bool _shouldTransmitMic({required bool micEnabled, required bool deafened}) {
+    if (!micEnabled || deafened) return false;
+
+    final pttEnabled = _appCubit.state.pushToTalkEnabled;
+    final hasKeybind = _appCubit.state.pushToTalkKeyId != null;
+    if (!pttEnabled) return true;
+    if (!hasKeybind) return false;
+
+    return state.isPushToTalkPressed;
+  }
+
+  Future<void> _syncMicrophoneTransmission({bool syncParticipants = false}) async {
+    final room = state.room;
+    if (room == null) return;
+
+    final shouldTransmit = _shouldTransmitMic(
+      micEnabled: state.isMicEnabled,
+      deafened: state.isDeafened,
+    );
+    await room.localParticipant?.setMicrophoneEnabled(shouldTransmit);
+
+    if (syncParticipants) {
+      _syncParticipants();
+    }
   }
 
   /// Apply high quality settings to screenshare video tracks
@@ -682,8 +735,9 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   }
 
   @override
-  Future<void> close() {
-    _cleanupRoom();
+  Future<void> close() async {
+    await _appSubscription?.cancel();
+    await _cleanupRoom();
     return super.close();
   }
 }

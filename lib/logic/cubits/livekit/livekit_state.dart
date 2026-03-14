@@ -12,6 +12,7 @@ class LiveKitState {
   final bool isCameraEnabled;
   final bool isScreenSharing;
   final bool isDeafened;
+  final bool isPushToTalkPressed;
   final Set<String> subscribedScreenshares;
 
   const LiveKitState({
@@ -24,6 +25,7 @@ class LiveKitState {
     this.isCameraEnabled = false,
     this.isScreenSharing = false,
     this.isDeafened = false,
+    this.isPushToTalkPressed = false,
     this.subscribedScreenshares = const {},
   });
 
@@ -37,6 +39,7 @@ class LiveKitState {
     bool? isCameraEnabled,
     bool? isScreenSharing,
     bool? isDeafened,
+    bool? isPushToTalkPressed,
     Set<String>? subscribedScreenshares,
     bool clearRoom = false,
     bool clearChannelId = false,
@@ -54,6 +57,7 @@ class LiveKitState {
       isCameraEnabled: isCameraEnabled ?? this.isCameraEnabled,
       isScreenSharing: isScreenSharing ?? this.isScreenSharing,
       isDeafened: isDeafened ?? this.isDeafened,
+      isPushToTalkPressed: isPushToTalkPressed ?? this.isPushToTalkPressed,
       subscribedScreenshares:
           subscribedScreenshares ?? this.subscribedScreenshares,
     );
