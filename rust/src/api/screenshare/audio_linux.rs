@@ -36,6 +36,8 @@ use std::sync::{Arc, Mutex};
 #[cfg(target_os = "linux")]
 use std::thread;
 use std::thread::JoinHandle;
+#[cfg(target_os = "linux")]
+use tokio::sync::mpsc::Sender as TokioFrameSender;
 use tokio::task::JoinHandle as TokioJoinHandle;
 
 #[allow(dead_code)]
@@ -232,8 +234,8 @@ fn spawn_audio_capture_thread(
     sink_input_index: u32,
     monitor_source_name: &str,
     command_rx: Receiver<AudioCaptureCommand>,
-) -> (JoinHandle<()>, Receiver<Vec<i16>>) {
-    let (frame_tx, frame_rx) = mpsc::channel::<Vec<i16>>();
+    frame_tx: TokioFrameSender<Vec<i16>>,
+) -> JoinHandle<()> {
     let monitor_source = monitor_source_name.to_string();
 
     let handle = thread::spawn(move || {
@@ -337,7 +339,7 @@ fn spawn_audio_capture_thread(
                             .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
                             .collect();
 
-                        if frame_tx.send(samples).is_err() {
+                        if frame_tx.blocking_send(samples).is_err() {
                             println!("Audio frame receiver dropped, stopping capture");
                             return;
                         }
@@ -361,7 +363,7 @@ fn spawn_audio_capture_thread(
         println!("Audio capture thread exiting");
     });
 
-    (handle, frame_rx)
+    handle
 }
 
 /// Start audio capture for the given audio source
@@ -404,21 +406,9 @@ pub async fn start_audio_capture(
     println!("Audio track published to LiveKit");
 
     let (audio_cmd_tx, audio_cmd_rx) = mpsc::channel();
-    let (audio_thread_handle, frame_rx) =
-        spawn_audio_capture_thread(sink_input_idx, &monitor_source, audio_cmd_rx);
-
-    // Bridge from std::sync::mpsc to tokio::sync::mpsc
     let (async_tx, mut async_rx) = tokio::sync::mpsc::channel::<Vec<i16>>(100);
-    std::thread::spawn(move || loop {
-        match frame_rx.recv() {
-            Ok(samples) => {
-                if async_tx.blocking_send(samples).is_err() {
-                    break;
-                }
-            }
-            Err(_) => break,
-        }
-    });
+    let audio_thread_handle =
+        spawn_audio_capture_thread(sink_input_idx, &monitor_source, audio_cmd_rx, async_tx);
 
     // LiveKit sender task
     let audio_feed_task = tokio::spawn(async move {
