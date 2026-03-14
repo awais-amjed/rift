@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'settings_chip.dart';
 import 'settings_section.dart';
 
-/// Section for selecting capture type (Full Screen or Window)
+/// Section for selecting capture type (Screen or Window)
 class CaptureTypeSection extends StatelessWidget {
   final bool captureFullScreen;
   final ValueChanged<bool> onChanged;
@@ -23,7 +23,7 @@ class CaptureTypeSection extends StatelessWidget {
           children: [
             Expanded(
               child: SettingsChip(
-                label: '🖥️ Full Screen',
+                label: '🖥️ Screen',
                 active: captureFullScreen,
                 onTap: () => onChanged(true),
               ),

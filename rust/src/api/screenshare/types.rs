@@ -16,6 +16,8 @@ pub struct ScreenShareConfig {
     pub bitrate: i32,
     pub share_audio: bool,
     pub capture_full_screen: bool,
+    /// Selected desktop capture source index from `list_capture_sources`.
+    pub selected_video_source_index: Option<u32>,
     /// Video codec to use: "H264", "VP8", "VP9", or "AV1"
     pub codec: String,
     /// Selected audio source sink-input index (Linux PulseAudio)
@@ -24,6 +26,15 @@ pub struct ScreenShareConfig {
     pub selected_audio_source_sink: Option<u32>,
     /// Selected audio source process ID (Windows WASAPI)
     pub selected_audio_source_pid: Option<u32>,
+}
+
+/// Represents a desktop capture source (screen or window).
+#[derive(Clone, Debug)]
+pub struct CaptureSource {
+    pub index: u32,
+    pub title: String,
+    /// Windows-only PID used for automatic app-loopback audio capture.
+    pub audio_source_pid: Option<u32>,
 }
 
 #[flutter_rust_bridge::frb(ignore)]

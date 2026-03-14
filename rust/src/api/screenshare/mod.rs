@@ -10,10 +10,11 @@ pub mod audio_linux;
 pub mod audio_windows;
 
 pub use types::ScreenShareConfig;
+pub use types::CaptureSource;
 pub use audio_linux::{AudioSource, list_audio_sources};
 pub use audio_windows::{AudioSourceWindows, list_audio_sources_windows};
 
-use capture::spawn_capture_thread;
+use capture::{list_capture_sources as list_capture_sources_impl, spawn_capture_thread};
 use track::publish_video_track;
 use types::{CaptureCommand, ScreenShareSession, SESSION};
 
@@ -40,6 +41,7 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
         "Capture Type: {}",
         if config.capture_full_screen { "Full Screen" } else { "Window" }
     );
+    println!("Selected Source Index: {:?}", config.selected_video_source_index);
     println!("Codec: {}", config.codec);
     println!("=========================================");
 
@@ -79,6 +81,7 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     let (capture_tx, capture_handle) = spawn_capture_thread(
         true, // capture_cursor
         source_type,
+        config.selected_video_source_index,
         config.fps,
         config.resolution,
         resolution_signal.clone(),
@@ -139,9 +142,14 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     };
 
     #[cfg(target_os = "windows")]
-    let audio_handle = if config.share_audio && config.selected_audio_source_pid.is_some() {
-        let pid = config.selected_audio_source_pid.unwrap();
-        println!("Starting Windows audio capture for PID {}...", pid);
+    let audio_handle = if config.share_audio {
+        let pid = config.selected_audio_source_pid;
+        if let Some(pid_value) = pid {
+            println!("Starting Windows audio capture for PID {}...", pid_value);
+        } else {
+            println!("Starting Windows system audio capture...");
+        }
+
         match audio_windows::start_audio_capture(&room, pid).await {
             Some(handle) => {
                 println!("✓ Windows audio capture started successfully");
@@ -153,9 +161,6 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
             }
         }
     } else {
-        if config.share_audio {
-            println!("Audio sharing enabled but no Windows audio source selected");
-        }
         None
     };
 
@@ -228,6 +233,11 @@ fn wait_for_resolution(signal: &Arc<(Mutex<Option<VideoResolution>>, Condvar)>) 
         guard = cvar.wait(guard).unwrap();
     }
     guard.clone().unwrap()
+}
+
+/// List desktop capture sources for either full-screen or window sharing.
+pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
+    list_capture_sources_impl(capture_full_screen)
 }
 
 

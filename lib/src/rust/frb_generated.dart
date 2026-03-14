@@ -6,6 +6,7 @@
 import 'api/screenshare.dart';
 import 'api/screenshare/audio_linux.dart';
 import 'api/screenshare/audio_windows.dart';
+import 'api/screenshare/capture.dart';
 import 'api/screenshare/types.dart';
 import 'api/simple.dart';
 import 'dart:async';
@@ -70,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -51104320;
+  int get rustContentHash => 273826519;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -89,6 +90,14 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<AudioSourceWindows>>
   crateApiScreenshareAudioWindowsListAudioSourcesWindows();
+
+  Future<List<CaptureSource>> crateApiScreenshareListCaptureSources({
+    required bool captureFullScreen,
+  });
+
+  Future<List<CaptureSource>> crateApiScreenshareCaptureListCaptureSources({
+    required bool captureFullScreen,
+  });
 
   Future<String> crateApiScreenshareStartScreenshare({
     required ScreenShareConfig config,
@@ -216,6 +225,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<CaptureSource>> crateApiScreenshareListCaptureSources({
+    required bool captureFullScreen,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(captureFullScreen, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_capture_source,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiScreenshareListCaptureSourcesConstMeta,
+        argValues: [captureFullScreen],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScreenshareListCaptureSourcesConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_capture_sources",
+        argNames: ["captureFullScreen"],
+      );
+
+  @override
+  Future<List<CaptureSource>> crateApiScreenshareCaptureListCaptureSources({
+    required bool captureFullScreen,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(captureFullScreen, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_capture_source,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiScreenshareCaptureListCaptureSourcesConstMeta,
+        argValues: [captureFullScreen],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScreenshareCaptureListCaptureSourcesConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_capture_sources",
+        argNames: ["captureFullScreen"],
+      );
+
+  @override
   Future<String> crateApiScreenshareStartScreenshare({
     required ScreenShareConfig config,
   }) {
@@ -227,7 +302,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 7,
             port: port_,
           );
         },
@@ -254,7 +329,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 8,
             port: port_,
           );
         },
@@ -324,6 +399,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CaptureSource dco_decode_capture_source(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return CaptureSource(
+      index: dco_decode_u_32(arr[0]),
+      title: dco_decode_String(arr[1]),
+      audioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[2]),
+    );
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -342,6 +430,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<CaptureSource> dco_decode_list_capture_source(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_capture_source).toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
@@ -357,8 +451,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScreenShareConfig dco_decode_screen_share_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 14)
-      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    if (arr.length != 15)
+      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
     return ScreenShareConfig(
       livekitUrl: dco_decode_String(arr[0]),
       livekitToken: dco_decode_String(arr[1]),
@@ -370,10 +464,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       bitrate: dco_decode_i_32(arr[7]),
       shareAudio: dco_decode_bool(arr[8]),
       captureFullScreen: dco_decode_bool(arr[9]),
-      codec: dco_decode_String(arr[10]),
-      selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[11]),
-      selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[12]),
-      selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[13]),
+      selectedVideoSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[10]),
+      codec: dco_decode_String(arr[11]),
+      selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[12]),
+      selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[13]),
+      selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[14]),
     );
   }
 
@@ -450,6 +545,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CaptureSource sse_decode_capture_source(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_index = sse_decode_u_32(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_audioSourcePid = sse_decode_opt_box_autoadd_u_32(deserializer);
+    return CaptureSource(
+      index: var_index,
+      title: var_title,
+      audioSourcePid: var_audioSourcePid,
+    );
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -477,6 +585,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <AudioSourceWindows>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_audio_source_windows(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CaptureSource> sse_decode_list_capture_source(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CaptureSource>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_capture_source(deserializer));
     }
     return ans_;
   }
@@ -514,6 +636,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_bitrate = sse_decode_i_32(deserializer);
     var var_shareAudio = sse_decode_bool(deserializer);
     var var_captureFullScreen = sse_decode_bool(deserializer);
+    var var_selectedVideoSourceIndex = sse_decode_opt_box_autoadd_u_32(
+      deserializer,
+    );
     var var_codec = sse_decode_String(deserializer);
     var var_selectedAudioSourceIndex = sse_decode_opt_box_autoadd_u_32(
       deserializer,
@@ -535,6 +660,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       bitrate: var_bitrate,
       shareAudio: var_shareAudio,
       captureFullScreen: var_captureFullScreen,
+      selectedVideoSourceIndex: var_selectedVideoSourceIndex,
       codec: var_codec,
       selectedAudioSourceIndex: var_selectedAudioSourceIndex,
       selectedAudioSourceSink: var_selectedAudioSourceSink,
@@ -607,6 +733,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_capture_source(CaptureSource self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.index, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.audioSourcePid, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -633,6 +767,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_audio_source_windows(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_capture_source(
+    List<CaptureSource> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_capture_source(item, serializer);
     }
   }
 
@@ -672,6 +818,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.bitrate, serializer);
     sse_encode_bool(self.shareAudio, serializer);
     sse_encode_bool(self.captureFullScreen, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.selectedVideoSourceIndex, serializer);
     sse_encode_String(self.codec, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceIndex, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceSink, serializer);

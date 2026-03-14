@@ -9,6 +9,7 @@
 import 'api/screenshare.dart';
 import 'api/screenshare/audio_linux.dart';
 import 'api/screenshare/audio_windows.dart';
+import 'api/screenshare/capture.dart';
 import 'api/screenshare/types.dart';
 import 'api/simple.dart';
 import 'dart:async';
@@ -43,6 +44,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  CaptureSource dco_decode_capture_source(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -50,6 +54,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AudioSourceWindows> dco_decode_list_audio_source_windows(dynamic raw);
+
+  @protected
+  List<CaptureSource> dco_decode_list_capture_source(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -92,6 +99,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  CaptureSource sse_decode_capture_source(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -99,6 +109,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AudioSourceWindows> sse_decode_list_audio_source_windows(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CaptureSource> sse_decode_list_capture_source(
     SseDeserializer deserializer,
   );
 
@@ -147,6 +162,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_capture_source(CaptureSource self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -158,6 +176,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_audio_source_windows(
     List<AudioSourceWindows> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_capture_source(
+    List<CaptureSource> self,
     SseSerializer serializer,
   );
 

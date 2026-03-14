@@ -1,6 +1,7 @@
 /// Video capture thread management
 
 use super::types::CaptureCommand;
+use super::types::CaptureSource;
 use livekit::webrtc::desktop_capturer::{
     CaptureError, DesktopCaptureSourceType, DesktopCapturer, DesktopCapturerOptions,
     DesktopFrame,
@@ -15,6 +16,9 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[cfg(target_os = "windows")]
+use std::collections::HashMap;
+
 struct SendableFrame(DesktopFrame);
 unsafe impl Send for SendableFrame {}
 
@@ -24,6 +28,7 @@ unsafe impl Send for SendableFrame {}
 pub fn spawn_capture_thread(
     capture_cursor: bool,
     source_type: DesktopCaptureSourceType,
+    selected_source_index: Option<u32>,
     fps: i32,
     resolution: i32,
     resolution_signal: Arc<(Mutex<Option<VideoResolution>>, Condvar)>,
@@ -34,6 +39,7 @@ pub fn spawn_capture_thread(
         run_capture_loop(
             capture_cursor,
             source_type,
+            selected_source_index,
             fps,
             resolution,
             resolution_signal,
@@ -47,6 +53,7 @@ pub fn spawn_capture_thread(
 fn run_capture_loop(
     capture_cursor: bool,
     source_type: DesktopCaptureSourceType,
+    selected_source_index: Option<u32>,
     fps: i32,
     resolution: i32,
     resolution_signal: Arc<(Mutex<Option<VideoResolution>>, Condvar)>,
@@ -157,14 +164,21 @@ fn run_capture_loop(
         println!("  {}: {}", i, source.title());
     }
 
-    // Auto-select first screen (index 0)
-    let selected_source = sources.get(0).cloned();
+    let selected_idx = selected_source_index
+        .map(|value| value as usize)
+        .filter(|value| *value < sources.len())
+        .unwrap_or(0);
+    let selected_source = sources.get(selected_idx).cloned();
     if selected_source.is_none() {
         println!("✗ No capture sources available");
         return;
     }
 
-    println!("✓ Auto-selected: {}", selected_source.as_ref().unwrap().title());
+    println!(
+        "✓ Selected source [{}]: {}",
+        selected_idx,
+        selected_source.as_ref().unwrap().title()
+    );
     println!("==================================\n");
 
     capturer.start_capture(selected_source, callback);
@@ -198,4 +212,48 @@ fn run_capture_loop(
     }
 
     println!("Capture loop exiting");
+}
+
+/// List available capture sources for the requested source type.
+pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
+    let source_type = if capture_full_screen {
+        DesktopCaptureSourceType::Screen
+    } else {
+        DesktopCaptureSourceType::Window
+    };
+
+    let options = DesktopCapturerOptions::new(source_type);
+    let mut capturer = match DesktopCapturer::new(options) {
+        Some(c) => c,
+        None => return Vec::new(),
+    };
+
+    let sources = capturer.get_source_list();
+
+    #[cfg(target_os = "windows")]
+    let window_pid_map: HashMap<String, u32> = if capture_full_screen {
+        HashMap::new()
+    } else {
+        super::audio_windows::list_audio_sources_windows()
+            .into_iter()
+            .map(|source| (source.title, source.pid))
+            .collect()
+    };
+
+    sources
+        .iter()
+        .enumerate()
+        .map(|(index, source)| CaptureSource {
+            index: index as u32,
+            title: source.title(),
+            #[cfg(target_os = "windows")]
+            audio_source_pid: if capture_full_screen {
+                None
+            } else {
+                window_pid_map.get(&source.title()).copied()
+            },
+            #[cfg(not(target_os = "windows"))]
+            audio_source_pid: None,
+        })
+        .collect()
 }

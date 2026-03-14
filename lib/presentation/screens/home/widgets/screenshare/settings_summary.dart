@@ -40,7 +40,7 @@ class SettingsSummary extends StatelessWidget {
                 style: TextStyle(fontSize: 13, color: themeState.textSecondary),
                 children: [
                   TextSpan(
-                    text: captureFullScreen ? 'Full Screen' : 'Window',
+                    text: captureFullScreen ? 'Screen' : 'Window',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   const TextSpan(text: ' · '),

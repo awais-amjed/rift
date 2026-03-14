@@ -8,12 +8,12 @@ import 'package:sizer/sizer.dart';
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../src/rust/api/screenshare.dart';
 import '../../../../../src/rust/api/screenshare/audio_linux.dart';
-import '../../../../../src/rust/api/screenshare/audio_windows.dart';
+import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/custom_colors.dart';
 import 'audio_source_section.dart';
-import 'audio_source_windows_section.dart';
 import 'audio_toggle.dart';
 import 'bitrate_section.dart';
 import 'capture_type_section.dart';
@@ -38,15 +38,16 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   late int _bitrate;
   late bool _shareAudio;
   late bool _captureFullScreen;
+  int? _selectedVideoSourceIndex;
+  int? _selectedVideoSourcePid;
   late String _codec;
+
+  List<CaptureSource>? _captureSources;
+  bool _loadingCaptureSources = false;
 
   List<AudioSource>? _audioSources;
   AudioSource? _selectedAudioSource;
   bool _loadingAudioSources = false;
-
-  List<AudioSourceWindows>? _audioSourcesWindows;
-  AudioSourceWindows? _selectedAudioSourceWindows;
-  bool _loadingAudioSourcesWindows = false;
 
   @override
   void initState() {
@@ -57,17 +58,55 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     _bitrate = settings.bitrate;
     _shareAudio = settings.shareAudio;
     _captureFullScreen = settings.captureFullScreen;
+    _selectedVideoSourceIndex = settings.selectedVideoSourceIndex;
+    _selectedVideoSourcePid = settings.selectedVideoSourcePid;
     _codec = settings.codec;
     _selectedAudioSource = settings.selectedAudioSource;
-    _selectedAudioSourceWindows = settings.selectedAudioSourceWindows;
 
-    // Load audio sources on Linux if audio sharing is enabled
-    if (Platform.isLinux && _shareAudio) {
+    _loadCaptureSources();
+
+    // Linux uses explicit audio source selection only for full-screen capture.
+    if (Platform.isLinux && _shareAudio && _captureFullScreen) {
       _loadAudioSources();
     }
-    // Load audio sources on Windows if audio sharing is enabled
-    if (Platform.isWindows && _shareAudio) {
-      _loadAudioSourcesWindows();
+  }
+
+  Future<void> _loadCaptureSources() async {
+    setState(() => _loadingCaptureSources = true);
+    try {
+      final sources = await listCaptureSources(
+        captureFullScreen: _captureFullScreen,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _captureSources = sources;
+        _loadingCaptureSources = false;
+
+        if (sources.isEmpty) {
+          _selectedVideoSourceIndex = null;
+          _selectedVideoSourcePid = null;
+          return;
+        }
+
+        final hasPersistedSource = sources.any(
+          (source) => source.index == _selectedVideoSourceIndex,
+        );
+
+        final selectedSource = hasPersistedSource
+            ? sources.firstWhere(
+                (source) => source.index == _selectedVideoSourceIndex,
+              )
+            : sources.first;
+
+        _selectedVideoSourceIndex = selectedSource.index;
+        _selectedVideoSourcePid = selectedSource.audioSourcePid;
+      });
+    } catch (e) {
+      debugPrint('Failed to load capture sources: $e');
+      if (mounted) {
+        setState(() => _loadingCaptureSources = false);
+      }
     }
   }
 
@@ -94,38 +133,15 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     }
   }
 
-  Future<void> _loadAudioSourcesWindows() async {
-    setState(() => _loadingAudioSourcesWindows = true);
-    try {
-      final sources = await listAudioSourcesWindows();
-
-      if (mounted) {
-        setState(() {
-          _audioSourcesWindows = sources;
-          _loadingAudioSourcesWindows = false;
-          // Auto-select first source if none selected
-          if (_selectedAudioSourceWindows == null && sources.isNotEmpty) {
-            _selectedAudioSourceWindows = sources.first;
-          }
-        });
-      }
-    } catch (e) {
-      debugPrint('Failed to load Windows audio sources: $e');
-      if (mounted) {
-        setState(() => _loadingAudioSourcesWindows = false);
-      }
-    }
-  }
-
   void _onAudioToggle() {
     setState(() => _shareAudio = !_shareAudio);
-    // Load audio sources when audio is enabled on Linux
-    if (Platform.isLinux && _shareAudio && _audioSources == null) {
+
+    // Load Linux audio sources only for full-screen sharing.
+    if (Platform.isLinux &&
+        _shareAudio &&
+        _captureFullScreen &&
+        _audioSources == null) {
       _loadAudioSources();
-    }
-    // Load audio sources when audio is enabled on Windows
-    if (Platform.isWindows && _shareAudio && _audioSourcesWindows == null) {
-      _loadAudioSourcesWindows();
     }
   }
 
@@ -136,9 +152,10 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       bitrate: _bitrate,
       shareAudio: _shareAudio,
       captureFullScreen: _captureFullScreen,
+      selectedVideoSourceIndex: _selectedVideoSourceIndex,
+      selectedVideoSourcePid: _selectedVideoSourcePid,
       codec: _codec,
-      selectedAudioSource: _selectedAudioSource,
-      selectedAudioSourceWindows: _selectedAudioSourceWindows,
+      selectedAudioSource: _captureFullScreen ? _selectedAudioSource : null,
     );
     context.read<AppCubit>().setScreenShareSettings(settings);
     Navigator.of(context).pop(settings);
@@ -190,8 +207,40 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                           // Capture Type
                           CaptureTypeSection(
                             captureFullScreen: _captureFullScreen,
-                            onChanged: (value) =>
-                                setState(() => _captureFullScreen = value),
+                            onChanged: (value) {
+                              if (value == _captureFullScreen) return;
+                              setState(() {
+                                _captureFullScreen = value;
+                                _captureSources = null;
+                                _selectedVideoSourceIndex = null;
+                                _selectedVideoSourcePid = null;
+                                if (!_captureFullScreen) {
+                                  _selectedAudioSource = null;
+                                }
+                              });
+                              _loadCaptureSources();
+
+                              if (Platform.isLinux &&
+                                  _shareAudio &&
+                                  _captureFullScreen) {
+                                _loadAudioSources();
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          _CaptureSourceSection(
+                            captureFullScreen: _captureFullScreen,
+                            isLoading: _loadingCaptureSources,
+                            sources: _captureSources,
+                            selectedIndex: _selectedVideoSourceIndex,
+                            onChanged: (source) {
+                              setState(() {
+                                _selectedVideoSourceIndex = source.index;
+                                _selectedVideoSourcePid = source.audioSourcePid;
+                              });
+                            },
+                            onRefresh: _loadCaptureSources,
                           ),
                           const SizedBox(height: 16),
 
@@ -233,7 +282,9 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                           ),
 
                           // Audio source selector (Linux only)
-                          if (Platform.isLinux && _shareAudio) ...[
+                          if (Platform.isLinux &&
+                              _shareAudio &&
+                              _captureFullScreen) ...[
                             const SizedBox(height: 16),
                             AudioSourceSection(
                               audioSources: _audioSources,
@@ -242,20 +293,6 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                               onChanged: (source) =>
                                   setState(() => _selectedAudioSource = source),
                               onRefresh: _loadAudioSources,
-                            ),
-                          ],
-
-                          // Audio source selector (Windows only)
-                          if (Platform.isWindows && _shareAudio) ...[
-                            const SizedBox(height: 16),
-                            AudioSourceWindowsSection(
-                              audioSources: _audioSourcesWindows,
-                              selectedAudioSource: _selectedAudioSourceWindows,
-                              isLoading: _loadingAudioSourcesWindows,
-                              onChanged: (source) => setState(
-                                () => _selectedAudioSourceWindows = source,
-                              ),
-                              onRefresh: _loadAudioSourcesWindows,
                             ),
                           ],
 
@@ -286,7 +323,12 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                       const SizedBox(width: 10),
-                      AppButton(label: 'Start Sharing', onPressed: _confirm),
+                      AppButton(
+                        label: 'Start Sharing',
+                        onPressed: _selectedVideoSourceIndex == null
+                            ? null
+                            : _confirm,
+                      ),
                     ],
                   ),
                 ],
@@ -295,6 +337,102 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
           ),
         );
       },
+    );
+  }
+}
+
+class _CaptureSourceSection extends StatelessWidget {
+  final bool captureFullScreen;
+  final bool isLoading;
+  final List<CaptureSource>? sources;
+  final int? selectedIndex;
+  final ValueChanged<CaptureSource> onChanged;
+  final Future<void> Function() onRefresh;
+
+  const _CaptureSourceSection({
+    required this.captureFullScreen,
+    required this.isLoading,
+    required this.sources,
+    required this.selectedIndex,
+    required this.onChanged,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = captureFullScreen ? 'Screen' : 'Window';
+    CaptureSource? selectedSource;
+    if (sources != null && selectedIndex != null) {
+      for (final source in sources!) {
+        if (source.index == selectedIndex) {
+          selectedSource = source;
+          break;
+        }
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Select $label',
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const Spacer(),
+            IconButton(
+              tooltip: 'Refresh $label list',
+              onPressed: isLoading ? null : onRefresh,
+              icon: const Icon(Icons.refresh, size: 18),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (isLoading)
+          const LinearProgressIndicator(minHeight: 2)
+        else if (sources == null || sources!.isEmpty)
+          Text('No $label sources found.')
+        else
+          DropdownButtonFormField<int>(
+            key: ValueKey(
+              '${captureFullScreen}_${selectedSource?.index}_${sources!.length}',
+            ),
+            initialValue: selectedSource?.index,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+            ),
+            items: sources!
+                .map(
+                  (source) => DropdownMenuItem<int>(
+                    value: source.index,
+                    child: Text(source.title, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value == null || sources == null) return;
+              CaptureSource? source;
+              for (final entry in sources!) {
+                if (entry.index == value) {
+                  source = entry;
+                  break;
+                }
+              }
+              if (source != null) {
+                onChanged(source);
+              }
+            },
+          ),
+      ],
     );
   }
 }

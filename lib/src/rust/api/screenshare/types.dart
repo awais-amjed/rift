@@ -7,6 +7,34 @@ import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CaptureCommand`, `ScreenShareSession`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+
+/// Represents a desktop capture source (screen or window).
+class CaptureSource {
+  final int index;
+  final String title;
+
+  /// Windows-only PID used for automatic app-loopback audio capture.
+  final int? audioSourcePid;
+
+  const CaptureSource({
+    required this.index,
+    required this.title,
+    this.audioSourcePid,
+  });
+
+  @override
+  int get hashCode => index.hashCode ^ title.hashCode ^ audioSourcePid.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CaptureSource &&
+          runtimeType == other.runtimeType &&
+          index == other.index &&
+          title == other.title &&
+          audioSourcePid == other.audioSourcePid;
+}
 
 class ScreenShareConfig {
   final String livekitUrl;
@@ -19,6 +47,9 @@ class ScreenShareConfig {
   final int bitrate;
   final bool shareAudio;
   final bool captureFullScreen;
+
+  /// Selected desktop capture source index from `list_capture_sources`.
+  final int? selectedVideoSourceIndex;
 
   /// Video codec to use: "H264", "VP8", "VP9", or "AV1"
   final String codec;
@@ -43,6 +74,7 @@ class ScreenShareConfig {
     required this.bitrate,
     required this.shareAudio,
     required this.captureFullScreen,
+    this.selectedVideoSourceIndex,
     required this.codec,
     this.selectedAudioSourceIndex,
     this.selectedAudioSourceSink,
@@ -61,6 +93,7 @@ class ScreenShareConfig {
       bitrate.hashCode ^
       shareAudio.hashCode ^
       captureFullScreen.hashCode ^
+      selectedVideoSourceIndex.hashCode ^
       codec.hashCode ^
       selectedAudioSourceIndex.hashCode ^
       selectedAudioSourceSink.hashCode ^
@@ -81,6 +114,7 @@ class ScreenShareConfig {
           bitrate == other.bitrate &&
           shareAudio == other.shareAudio &&
           captureFullScreen == other.captureFullScreen &&
+          selectedVideoSourceIndex == other.selectedVideoSourceIndex &&
           codec == other.codec &&
           selectedAudioSourceIndex == other.selectedAudioSourceIndex &&
           selectedAudioSourceSink == other.selectedAudioSourceSink &&

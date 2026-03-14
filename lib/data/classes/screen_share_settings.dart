@@ -1,5 +1,4 @@
 import '../../src/rust/api/screenshare/audio_linux.dart';
-import '../../src/rust/api/screenshare/audio_windows.dart';
 
 class ScreenShareSettings {
   final int resolution; // height in px (720, 1080, 1440, 2160)
@@ -7,9 +6,10 @@ class ScreenShareSettings {
   final int bitrate; // in Mbps
   final bool shareAudio;
   final bool captureFullScreen; // true = full screen, false = window
+  final int? selectedVideoSourceIndex;
+  final int? selectedVideoSourcePid; // Windows-only PID for selected window
   final String codec; // "VP8", "H264", "VP9", "AV1"
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
-  final AudioSourceWindows? selectedAudioSourceWindows; // Windows WASAPI source
 
   const ScreenShareSettings({
     this.resolution = 1080,
@@ -17,9 +17,10 @@ class ScreenShareSettings {
     this.bitrate = 10,
     this.shareAudio = true,
     this.captureFullScreen = true,
+    this.selectedVideoSourceIndex,
+    this.selectedVideoSourcePid,
     this.codec = 'VP8',
     this.selectedAudioSource,
-    this.selectedAudioSourceWindows,
   });
 
   factory ScreenShareSettings.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,8 @@ class ScreenShareSettings {
       bitrate: json['bitrate'] as int? ?? 10,
       shareAudio: json['shareAudio'] as bool? ?? true,
       captureFullScreen: json['captureFullScreen'] as bool? ?? true,
+      selectedVideoSourceIndex: json['selectedVideoSourceIndex'] as int?,
+      selectedVideoSourcePid: json['selectedVideoSourcePid'] as int?,
       codec: json['codec'] as String? ?? 'VP8',
       // selectedAudioSource is not persisted in JSON (runtime only)
     );
@@ -40,6 +43,8 @@ class ScreenShareSettings {
     'bitrate': bitrate,
     'shareAudio': shareAudio,
     'captureFullScreen': captureFullScreen,
+    'selectedVideoSourceIndex': selectedVideoSourceIndex,
+    'selectedVideoSourcePid': selectedVideoSourcePid,
     'codec': codec,
   };
 
@@ -49,9 +54,10 @@ class ScreenShareSettings {
     int? bitrate,
     bool? shareAudio,
     bool? captureFullScreen,
+    int? selectedVideoSourceIndex,
+    int? selectedVideoSourcePid,
     String? codec,
     AudioSource? selectedAudioSource,
-    AudioSourceWindows? selectedAudioSourceWindows,
   }) {
     return ScreenShareSettings(
       resolution: resolution ?? this.resolution,
@@ -59,10 +65,12 @@ class ScreenShareSettings {
       bitrate: bitrate ?? this.bitrate,
       shareAudio: shareAudio ?? this.shareAudio,
       captureFullScreen: captureFullScreen ?? this.captureFullScreen,
+      selectedVideoSourceIndex:
+          selectedVideoSourceIndex ?? this.selectedVideoSourceIndex,
+      selectedVideoSourcePid:
+          selectedVideoSourcePid ?? this.selectedVideoSourcePid,
       codec: codec ?? this.codec,
       selectedAudioSource: selectedAudioSource ?? this.selectedAudioSource,
-      selectedAudioSourceWindows:
-          selectedAudioSourceWindows ?? this.selectedAudioSourceWindows,
     );
   }
 }

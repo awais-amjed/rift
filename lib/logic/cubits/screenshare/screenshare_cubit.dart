@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:livekit_client/livekit_client.dart';
 
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/repositories/server_repository.dart';
@@ -98,6 +97,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       debugPrint(
         'Capture Type: ${settings.captureFullScreen ? "Full Screen" : "Window"}',
       );
+      debugPrint('Selected Source Index: ${settings.selectedVideoSourceIndex}');
       debugPrint('Codec: ${settings.codec}');
       debugPrint('========================');
 
@@ -113,10 +113,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         bitrate: settings.bitrate,
         shareAudio: settings.shareAudio,
         captureFullScreen: settings.captureFullScreen,
+        selectedVideoSourceIndex: settings.selectedVideoSourceIndex,
         codec: settings.codec,
         selectedAudioSourceIndex: settings.selectedAudioSource?.index,
         selectedAudioSourceSink: settings.selectedAudioSource?.sink,
-        selectedAudioSourcePid: settings.selectedAudioSourceWindows?.pid,
+        selectedAudioSourcePid: settings.selectedVideoSourcePid,
       );
 
       final result = await startScreenshare(config: config);

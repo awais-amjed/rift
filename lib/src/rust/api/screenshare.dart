@@ -17,3 +17,10 @@ Future<String> startScreenshare({required ScreenShareConfig config}) =>
 /// Stop screen sharing and disconnect from LiveKit.
 Future<String> stopScreenshare() =>
     RustLib.instance.api.crateApiScreenshareStopScreenshare();
+
+/// List desktop capture sources for either full-screen or window sharing.
+Future<List<CaptureSource>> listCaptureSources({
+  required bool captureFullScreen,
+}) => RustLib.instance.api.crateApiScreenshareListCaptureSources(
+  captureFullScreen: captureFullScreen,
+);

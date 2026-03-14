@@ -112,7 +112,7 @@ pub fn list_audio_sources_windows() -> Vec<AudioSourceWindows> {
 /// Spawn the WASAPI loopback capture thread for a specific PID.
 #[cfg(target_os = "windows")]
 fn spawn_audio_capture_thread(
-    pid: u32,
+    pid: Option<u32>,
     command_rx: Receiver<AudioCaptureCommand>,
 ) -> (JoinHandle<()>, mpsc::Receiver<Vec<i16>>) {
     let (frame_tx, frame_rx) = mpsc::channel::<Vec<i16>>();
@@ -130,10 +130,14 @@ fn spawn_audio_capture_thread(
             None,
         );
 
-        let mut client = match AudioClient::new_application_loopback_client(pid, true) {
+        let target_pid = pid.unwrap_or(0);
+        let mut client = match AudioClient::new_application_loopback_client(target_pid, true) {
             Ok(c) => c,
             Err(e) => {
-                println!("Failed to create WASAPI loopback client for PID {}: {:?}", pid, e);
+                println!(
+                    "Failed to create WASAPI loopback client for PID {}: {:?}",
+                    target_pid, e
+                );
                 return;
             }
         };
@@ -161,7 +165,11 @@ fn spawn_audio_capture_thread(
             return;
         }
 
-        println!("✓ WASAPI loopback capture started for PID: {}", pid);
+        if let Some(value) = pid {
+            println!("✓ WASAPI loopback capture started for PID: {}", value);
+        } else {
+            println!("✓ WASAPI system loopback capture started");
+        }
 
         let mut audio_buffer = vec![0u8; 1024 * 16];
 
@@ -201,9 +209,9 @@ fn spawn_audio_capture_thread(
 #[cfg(target_os = "windows")]
 pub async fn start_audio_capture(
     room: &Room,
-    pid: u32,
+    pid: Option<u32>,
 ) -> Option<AudioCaptureHandle> {
-    println!("Starting Windows audio capture for PID: {}", pid);
+    println!("Starting Windows audio capture for PID: {:?}", pid);
 
     let audio_source = NativeAudioSource::new(
         AudioSourceOptions::default(),
@@ -273,7 +281,7 @@ pub async fn start_audio_capture(
 #[cfg(not(target_os = "windows"))]
 pub async fn start_audio_capture(
     _room: &Room,
-    _pid: u32,
+    _pid: Option<u32>,
 ) -> Option<AudioCaptureHandle> {
     None
 }
