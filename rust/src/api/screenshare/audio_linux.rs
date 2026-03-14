@@ -155,6 +155,15 @@ pub fn list_audio_sources() -> Vec<AudioSource> {
         if *done.lock().unwrap() {
             break;
         }
+        // Guard against PA crashing after the introspection request was dispatched
+        // but before the callback fires — without this the loop would spin forever.
+        match context.get_state() {
+            pulse::context::State::Failed | pulse::context::State::Terminated => {
+                println!("PulseAudio context failed while waiting for sink-input list");
+                break;
+            }
+            _ => {}
+        }
     }
 
     context.disconnect();
@@ -218,6 +227,15 @@ fn get_monitor_source_name(sink_index: u32) -> Option<String> {
         mainloop.iterate(true);
         if *done.lock().unwrap() {
             break;
+        }
+        // Guard against PA crashing after the introspection request was dispatched
+        // but before the callback fires — without this the loop would spin forever.
+        match context.get_state() {
+            pulse::context::State::Failed | pulse::context::State::Terminated => {
+                println!("PulseAudio context failed while waiting for sink info");
+                break;
+            }
+            _ => {}
         }
     }
 
