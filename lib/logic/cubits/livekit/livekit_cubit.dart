@@ -51,20 +51,29 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     bool? micEnabled,
     bool? cameraEnabled,
   }) async {
-    // If we're already connected or connecting, disconnect first
-    if (state.room != null ||
-        state.connectionState == LiveKitConnectionState.connecting) {
-      await _cleanupRoom();
-    }
+    final hadRoom = state.room != null;
+    final wasConnecting =
+        state.connectionState == LiveKitConnectionState.connecting;
 
+    // Emit connecting state BEFORE cleanup so that the RoomDisconnectedEvent
+    // fired during _cleanupRoom is not treated as an unexpected disconnect.
+    // The event handler only clears selectedChannelId when state is 'connected',
+    // so pre-emitting 'connecting' prevents it from resetting the new channel.
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.connecting,
         currentChannelId: channelId,
         clearError: true,
-        clearRoom: true,
       ),
     );
+
+    // If we're already connected or connecting, clean up the old room first
+    if (hadRoom || wasConnecting) {
+      await _cleanupRoom();
+    }
+
+    // Clear the room reference now that cleanup is complete
+    emit(state.copyWith(clearRoom: true));
 
     // Get LiveKit token from server
     final response = await _repository.getChannelToken(
