@@ -9,6 +9,7 @@ import '../../../data/classes/participant_info.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
+import '../token/token_cubit.dart';
 
 part 'livekit_state.dart';
 
@@ -16,6 +17,7 @@ part 'livekit_state.dart';
 class LiveKitCubit extends Cubit<LiveKitState> {
   final ServerRepository _repository;
   final AppCubit _appCubit;
+  final TokenCubit _tokenCubit;
   ScreenshareCubit? _screenshareCubit;
   final List<EventsListener<RoomEvent>> _listeners = [];
   StreamSubscription<AppState>? _appSubscription;
@@ -24,9 +26,11 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   LiveKitCubit({
     required ServerRepository repository,
     required AppCubit appCubit,
+    required TokenCubit tokenCubit,
     ScreenshareCubit? screenshareCubit,
   }) : _repository = repository,
        _appCubit = appCubit,
+       _tokenCubit = tokenCubit,
        _screenshareCubit = screenshareCubit,
        _lastAppState = appCubit.state,
        super(const LiveKitState()) {
@@ -75,24 +79,34 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     // Clear the room reference now that cleanup is complete
     emit(state.copyWith(clearRoom: true));
 
-    // Get LiveKit token from server
-    final response = await _repository.getChannelToken(
-      supabaseUrl,
-      token,
-      channelId,
-    );
-
-    if (!response.success) {
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          error: response.error ?? 'Failed to get channel token',
-        ),
+    // Check for a cached token that is still within its 55-minute validity
+    // window before making a network round-trip.
+    String livekitToken;
+    final cached = _tokenCubit.getValidToken(supabaseUrl, channelId);
+    if (cached != null) {
+      livekitToken = cached.token;
+    } else {
+      // Get LiveKit token from server
+      final response = await _repository.getChannelToken(
+        supabaseUrl,
+        token,
+        channelId,
       );
-      return;
+
+      if (!response.success) {
+        emit(
+          state.copyWith(
+            connectionState: LiveKitConnectionState.error,
+            error: response.error ?? 'Failed to get channel token',
+          ),
+        );
+        return;
+      }
+
+      livekitToken = response.data['token'] as String;
+      _tokenCubit.saveToken(supabaseUrl, channelId, livekitToken);
     }
 
-    final livekitToken = response.data['token'] as String;
     final room = Room(
       roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
     );

@@ -16,6 +16,7 @@ import 'logic/cubits/livekit/livekit_cubit.dart';
 import 'logic/cubits/screenshare/screenshare_cubit.dart';
 import 'logic/cubits/server/server_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
+import 'logic/cubits/token/token_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
 import 'presentation/routing/app_routes.dart';
@@ -79,6 +80,7 @@ class _MyAppState extends State<MyApp> {
             BlocProvider(create: (_) => ThemeCubit()),
             BlocProvider(create: (_) => ServerCubit()),
             BlocProvider(create: (_) => AppCubit()),
+            BlocProvider(create: (_) => TokenCubit()),
             BlocProvider(
               create: (context) {
                 // Create both cubits together to handle cross-references
@@ -86,6 +88,7 @@ class _MyAppState extends State<MyApp> {
                 final livekitCubit = LiveKitCubit(
                   repository: ServerRepository(),
                   appCubit: appCubit,
+                  tokenCubit: context.read<TokenCubit>(),
                 );
                 return livekitCubit;
               },
