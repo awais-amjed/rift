@@ -401,6 +401,7 @@ class _CaptureSourceSection extends StatelessWidget {
               '${captureFullScreen}_${selectedSource?.index}_${sources!.length}',
             ),
             initialValue: selectedSource?.index,
+            isExpanded: true,
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -415,6 +416,18 @@ class _CaptureSourceSection extends StatelessWidget {
                   (source) => DropdownMenuItem<int>(
                     value: source.index,
                     child: Text(source.title, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            selectedItemBuilder: (context) => sources!
+                .map(
+                  (source) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      source.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 )
                 .toList(),
