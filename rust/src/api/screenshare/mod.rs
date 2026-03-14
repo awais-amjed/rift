@@ -1,18 +1,17 @@
+pub mod audio_linux;
+pub mod audio_windows;
 /// Screenshare API for LiveKit integration
 ///
 /// This module handles screen sharing functionality by receiving
 /// configuration from Flutter and managing the LiveKit session.
-
 pub mod capture;
 pub mod track;
 pub mod types;
-pub mod audio_linux;
-pub mod audio_windows;
 
-pub use types::ScreenShareConfig;
+pub use audio_linux::{list_audio_sources, AudioSource};
+pub use audio_windows::{list_audio_sources_windows, AudioSourceWindows};
 pub use types::CaptureSource;
-pub use audio_linux::{AudioSource, list_audio_sources};
-pub use audio_windows::{AudioSourceWindows, list_audio_sources_windows};
+pub use types::ScreenShareConfig;
 
 use capture::{list_capture_sources as list_capture_sources_impl, spawn_capture_thread};
 use track::publish_video_track;
@@ -39,9 +38,16 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     println!("Share Audio: {}", config.share_audio);
     println!(
         "Capture Type: {}",
-        if config.capture_full_screen { "Full Screen" } else { "Window" }
+        if config.capture_full_screen {
+            "Full Screen"
+        } else {
+            "Window"
+        }
     );
-    println!("Selected Source Index: {:?}", config.selected_video_source_index);
+    println!(
+        "Selected Source Index: {:?}",
+        config.selected_video_source_index
+    );
     println!("Codec: {}", config.codec);
     println!("=========================================");
 
@@ -54,10 +60,13 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
 
     println!("Attempting to connect to LiveKit room...");
 
-    let (room, _rx) =
-        Room::connect(&config.livekit_url, &config.livekit_token, RoomOptions::default())
-            .await
-            .map_err(|e| format!("Failed to connect to LiveKit: {:?}", e))?;
+    let (room, _rx) = Room::connect(
+        &config.livekit_url,
+        &config.livekit_token,
+        RoomOptions::default(),
+    )
+    .await
+    .map_err(|e| format!("Failed to connect to LiveKit: {:?}", e))?;
 
     let room_name = room.name().to_string();
     let room_sid = room.sid().await.to_string();
@@ -99,10 +108,22 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     let mut target_width = (target_height as f32 * native_resolution.width as f32
         / native_resolution.height as f32)
         .round() as u32;
-    if target_width % 2 != 0 { target_width += 1; }
-    let target_height = if target_height % 2 != 0 { target_height + 1 } else { target_height };
-    let target_resolution = VideoResolution { width: target_width, height: target_height };
-    println!("✓ Target resolution: {}x{}", target_resolution.width, target_resolution.height);
+    if target_width % 2 != 0 {
+        target_width += 1;
+    }
+    let target_height = if target_height % 2 != 0 {
+        target_height + 1
+    } else {
+        target_height
+    };
+    let target_resolution = VideoResolution {
+        width: target_width,
+        height: target_height,
+    };
+    println!(
+        "✓ Target resolution: {}x{}",
+        target_resolution.width, target_resolution.height
+    );
 
     let buffer_source = NativeVideoSource::new(target_resolution.clone(), true);
     {
@@ -123,7 +144,10 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     {
         let sink_input_idx = config.selected_audio_source_index.unwrap();
         let sink_idx = config.selected_audio_source_sink.unwrap();
-        println!("Starting audio capture for sink-input #{}, sink #{}...", sink_input_idx, sink_idx);
+        println!(
+            "Starting audio capture for sink-input #{}, sink #{}...",
+            sink_input_idx, sink_idx
+        );
         match audio_linux::start_audio_capture(&room, sink_input_idx, sink_idx).await {
             Some(handle) => {
                 println!("✓ Audio capture started successfully");
@@ -239,5 +263,3 @@ fn wait_for_resolution(signal: &Arc<(Mutex<Option<VideoResolution>>, Condvar)>) 
 pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
     list_capture_sources_impl(capture_full_screen)
 }
-
-

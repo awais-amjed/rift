@@ -1,5 +1,4 @@
 /// Types shared across the screenshare module
-
 use livekit::prelude::*;
 use std::sync::mpsc::Sender;
 use std::sync::Mutex;
@@ -58,5 +57,3 @@ pub struct ScreenShareSession {
 
 #[flutter_rust_bridge::frb(ignore)]
 pub static SESSION: Mutex<Option<ScreenShareSession>> = Mutex::new(None);
-
-

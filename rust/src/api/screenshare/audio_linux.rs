@@ -33,9 +33,9 @@ use std::sync::mpsc::Sender;
 use std::sync::mpsc::{self, Receiver};
 #[cfg(target_os = "linux")]
 use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
 #[cfg(target_os = "linux")]
 use std::thread;
+use std::thread::JoinHandle;
 use tokio::task::JoinHandle as TokioJoinHandle;
 
 #[allow(dead_code)]
@@ -97,7 +97,10 @@ pub fn list_audio_sources() -> Vec<AudioSource> {
         }
     };
 
-    if context.connect(None, pulse::context::FlagSet::NOFLAGS, None).is_err() {
+    if context
+        .connect(None, pulse::context::FlagSet::NOFLAGS, None)
+        .is_err()
+    {
         println!("Failed to connect to PA");
         return Vec::new();
     }
@@ -125,8 +128,14 @@ pub fn list_audio_sources() -> Vec<AudioSource> {
             let entry = AudioSource {
                 index: info.index,
                 sink: info.sink,
-                app_name: info.proplist.get_str("application.name").unwrap_or_default(),
-                binary: info.proplist.get_str("application.process.binary").unwrap_or_default(),
+                app_name: info
+                    .proplist
+                    .get_str("application.name")
+                    .unwrap_or_default(),
+                binary: info
+                    .proplist
+                    .get_str("application.process.binary")
+                    .unwrap_or_default(),
                 media_name: info.proplist.get_str("media.name").unwrap_or_default(),
             };
             entries_clone.lock().unwrap().push(entry);
@@ -187,22 +196,21 @@ fn get_monitor_source_name(sink_index: u32) -> Option<String> {
     let done_clone = done.clone();
 
     let introspect = context.introspect();
-    let _op =
-        introspect.get_sink_info_by_index(sink_index, move |list_result| match list_result {
-            pulse::callbacks::ListResult::Item(info) => {
-                if let Some(monitor_source_name) = &info.monitor_source_name {
-                    let mut r = result_clone.lock().unwrap();
-                    *r = Some(monitor_source_name.to_string());
-                }
+    let _op = introspect.get_sink_info_by_index(sink_index, move |list_result| match list_result {
+        pulse::callbacks::ListResult::Item(info) => {
+            if let Some(monitor_source_name) = &info.monitor_source_name {
+                let mut r = result_clone.lock().unwrap();
+                *r = Some(monitor_source_name.to_string());
             }
-            pulse::callbacks::ListResult::End => {
-                *done_clone.lock().unwrap() = true;
-            }
-            pulse::callbacks::ListResult::Error => {
-                println!("Error getting sink info");
-                *done_clone.lock().unwrap() = true;
-            }
-        });
+        }
+        pulse::callbacks::ListResult::End => {
+            *done_clone.lock().unwrap() = true;
+        }
+        pulse::callbacks::ListResult::Error => {
+            println!("Error getting sink info");
+            *done_clone.lock().unwrap() = true;
+        }
+    });
 
     loop {
         mainloop.iterate(true);
@@ -323,8 +331,7 @@ fn spawn_audio_capture_thread(
                     stream.discard().ok();
 
                     while accumulator.len() >= FRAME_SIZE_BYTES {
-                        let frame_bytes: Vec<u8> =
-                            accumulator.drain(..FRAME_SIZE_BYTES).collect();
+                        let frame_bytes: Vec<u8> = accumulator.drain(..FRAME_SIZE_BYTES).collect();
                         let samples: Vec<i16> = frame_bytes
                             .chunks_exact(2)
                             .map(|chunk| i16::from_le_bytes([chunk[0], chunk[1]]))
@@ -445,7 +452,3 @@ pub async fn start_audio_capture(
 ) -> Option<AudioCaptureHandle> {
     None
 }
-
-
-
-

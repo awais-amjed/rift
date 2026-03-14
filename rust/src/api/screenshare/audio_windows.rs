@@ -6,13 +6,13 @@
 use wasapi::{AudioClient, Direction, SampleType, StreamMode, WaveFormat};
 
 #[cfg(target_os = "windows")]
+use windows::core::BOOL;
+#[cfg(target_os = "windows")]
 use windows::Win32::Foundation::{HWND, LPARAM};
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
 };
-#[cfg(target_os = "windows")]
-use windows::core::BOOL;
 
 #[cfg(target_os = "windows")]
 use livekit::options::TrackPublishOptions;
@@ -29,9 +29,9 @@ use livekit::webrtc::audio_source::{AudioSourceOptions, RtcAudioSource};
 use std::sync::mpsc::Sender;
 #[cfg(target_os = "windows")]
 use std::sync::mpsc::{self, Receiver};
-use std::thread::JoinHandle;
 #[cfg(target_os = "windows")]
 use std::thread;
+use std::thread::JoinHandle;
 use tokio::task::JoinHandle as TokioJoinHandle;
 
 #[cfg(target_os = "windows")]
@@ -118,7 +118,9 @@ fn spawn_audio_capture_thread(
     let (frame_tx, frame_rx) = mpsc::channel::<Vec<i16>>();
 
     let handle = thread::spawn(move || {
-        wasapi::initialize_mta().ok().expect("Failed to initialize COM");
+        wasapi::initialize_mta()
+            .ok()
+            .expect("Failed to initialize COM");
 
         // 48kHz, 16-bit Integer, Stereo - matches LiveKit's expected format
         let format = WaveFormat::new(
@@ -207,10 +209,7 @@ fn spawn_audio_capture_thread(
 /// Start audio capture for Windows (WASAPI application loopback).
 #[flutter_rust_bridge::frb(ignore)]
 #[cfg(target_os = "windows")]
-pub async fn start_audio_capture(
-    room: &Room,
-    pid: Option<u32>,
-) -> Option<AudioCaptureHandle> {
+pub async fn start_audio_capture(room: &Room, pid: Option<u32>) -> Option<AudioCaptureHandle> {
     println!("Starting Windows audio capture for PID: {:?}", pid);
 
     let audio_source = NativeAudioSource::new(
@@ -279,14 +278,6 @@ pub async fn start_audio_capture(
 
 #[flutter_rust_bridge::frb(ignore)]
 #[cfg(not(target_os = "windows"))]
-pub async fn start_audio_capture(
-    _room: &Room,
-    _pid: Option<u32>,
-) -> Option<AudioCaptureHandle> {
+pub async fn start_audio_capture(_room: &Room, _pid: Option<u32>) -> Option<AudioCaptureHandle> {
     None
 }
-
-
-
-
-

@@ -1,10 +1,8 @@
 /// Video capture thread management
-
 use super::types::CaptureCommand;
 use super::types::CaptureSource;
 use livekit::webrtc::desktop_capturer::{
-    CaptureError, DesktopCaptureSourceType, DesktopCapturer, DesktopCapturerOptions,
-    DesktopFrame,
+    CaptureError, DesktopCaptureSourceType, DesktopCapturer, DesktopCapturerOptions, DesktopFrame,
 };
 use livekit::webrtc::native::yuv_helper;
 use livekit::webrtc::prelude::{
@@ -100,11 +98,21 @@ fn run_capture_loop(
 
                     // Compute target dimensions once
                     let target_h = (resolution as u32).min(height as u32);
-                    let mut target_w = (target_h as f32 * width as f32 / height as f32).round() as u32;
-                    if target_w % 2 != 0 { target_w += 1; }
-                    let target_h = if target_h % 2 != 0 { target_h + 1 } else { target_h };
+                    let mut target_w =
+                        (target_h as f32 * width as f32 / height as f32).round() as u32;
+                    if target_w % 2 != 0 {
+                        target_w += 1;
+                    }
+                    let target_h = if target_h % 2 != 0 {
+                        target_h + 1
+                    } else {
+                        target_h
+                    };
                     target_dims = Some((target_w, target_h));
-                    println!("Processing thread: scaling {}x{} → {}x{}", width, height, target_w, target_h);
+                    println!(
+                        "Processing thread: scaling {}x{} → {}x{}",
+                        width, height, target_w, target_h
+                    );
                 }
             }
 
@@ -141,11 +149,11 @@ fn run_capture_loop(
     });
 
     let callback = move |result: Result<DesktopFrame, CaptureError>| {
-            if let Ok(frame) = result {
-                // Wrap the frame to bypass the !Send restriction
-                let _ = frame_tx.try_send(SendableFrame(frame));
-            }
-        };
+        if let Ok(frame) = result {
+            // Wrap the frame to bypass the !Send restriction
+            let _ = frame_tx.try_send(SendableFrame(frame));
+        }
+    };
 
     let mut options = DesktopCapturerOptions::new(source_type);
     options.set_include_cursor(capture_cursor);
@@ -229,6 +237,15 @@ pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
     };
 
     let sources = capturer.get_source_list();
+    println!(
+        "Enumerated {} {} capture sources",
+        sources.len(),
+        if capture_full_screen {
+            "screen"
+        } else {
+            "window"
+        }
+    );
 
     #[cfg(target_os = "windows")]
     let window_pid_map: HashMap<String, u32> = if capture_full_screen {
@@ -243,17 +260,29 @@ pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
     sources
         .iter()
         .enumerate()
-        .map(|(index, source)| CaptureSource {
-            index: index as u32,
-            title: source.title(),
+        .map(|(index, source)| {
+            let title = source.title();
+
             #[cfg(target_os = "windows")]
-            audio_source_pid: if capture_full_screen {
+            let audio_source_pid = if capture_full_screen {
                 None
             } else {
-                window_pid_map.get(&source.title()).copied()
-            },
+                window_pid_map.get(&title).copied()
+            };
+
             #[cfg(not(target_os = "windows"))]
-            audio_source_pid: None,
+            let audio_source_pid = None;
+
+            println!(
+                "  [{}] title=\"{}\" pid={:?}",
+                index, title, audio_source_pid
+            );
+
+            CaptureSource {
+                index: index as u32,
+                title,
+                audio_source_pid,
+            }
         })
         .collect()
 }

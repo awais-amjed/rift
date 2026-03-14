@@ -77,6 +77,13 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       final sources = await listCaptureSources(
         captureFullScreen: _captureFullScreen,
       );
+      final sourceTypeLabel = _captureFullScreen ? 'screen' : 'window';
+      for (final source in sources) {
+        debugPrint(
+          '[CaptureSource][$sourceTypeLabel] index=${source.index} '
+          'title="${source.title}" pid=${source.audioSourcePid}',
+        );
+      }
       if (!mounted) return;
 
       setState(() {
@@ -415,7 +422,10 @@ class _CaptureSourceSection extends StatelessWidget {
                 .map(
                   (source) => DropdownMenuItem<int>(
                     value: source.index,
-                    child: Text(source.title, overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      _displayLabel(source, label),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 )
                 .toList(),
@@ -424,7 +434,7 @@ class _CaptureSourceSection extends StatelessWidget {
                   (source) => Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      source.title,
+                      _displayLabel(source, label),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -447,5 +457,15 @@ class _CaptureSourceSection extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  String _displayLabel(CaptureSource source, String label) {
+    final trimmed = source.title.trim();
+    if (trimmed.isNotEmpty) {
+      return trimmed;
+    }
+
+    final oneBasedIndex = source.index + 1;
+    return '$label #$oneBasedIndex (index ${source.index})';
   }
 }

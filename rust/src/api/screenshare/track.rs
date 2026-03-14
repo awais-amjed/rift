@@ -1,5 +1,4 @@
 /// Video track publishing
-
 use super::types::ScreenShareConfig;
 use livekit::options::{TrackPublishOptions, VideoCodec};
 use livekit::prelude::*;
@@ -14,10 +13,8 @@ pub async fn publish_video_track(
     buffer_source: NativeVideoSource,
     config: &ScreenShareConfig,
 ) -> Result<(), String> {
-    let track = LocalVideoTrack::create_video_track(
-        "screen_share",
-        RtcVideoSource::Native(buffer_source),
-    );
+    let track =
+        LocalVideoTrack::create_video_track("screen_share", RtcVideoSource::Native(buffer_source));
 
     // Convert bitrate from Mbps to bps
     let bitrate_bps = (config.bitrate * 1_000_000) as u64;
@@ -55,5 +52,3 @@ pub async fn publish_video_track(
 
     Ok(())
 }
-
-
