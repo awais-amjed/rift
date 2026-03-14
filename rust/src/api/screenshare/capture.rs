@@ -273,6 +273,15 @@ fn run_capture_loop(
 ///
 /// Returns `None` if the source doesn't exist, the capture fails, or encoding
 /// fails.  The returned bytes are a JPEG image scaled to at most 320 px wide.
+/// On non-Windows platforms this always returns `None`.
+#[cfg(not(target_os = "windows"))]
+pub fn get_capture_source_thumbnail(
+    _capture_full_screen: bool,
+    _source_index: u32,
+) -> Option<Vec<u8>> {
+    None
+}
+
 #[cfg(target_os = "windows")]
 pub fn get_capture_source_thumbnail(
     capture_full_screen: bool,
