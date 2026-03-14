@@ -2,6 +2,9 @@
 #define RUNNER_FLUTTER_WINDOW_H_
 
 #include <flutter/dart_project.h>
+#include <flutter/encodable_value.h>
+#include <flutter/event_channel.h>
+#include <flutter/event_sink.h>
 #include <flutter/flutter_view_controller.h>
 
 #include <memory>
@@ -28,6 +31,13 @@ class FlutterWindow : public Win32Window {
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
+
+  // EventChannel that forwards Win32 global keyboard hook events to Dart.
+  std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> ptt_channel_;
+  std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> ptt_event_sink_;
+
+  // Configure |ptt_channel_| against the running Flutter engine.
+  void SetupPttChannel();
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

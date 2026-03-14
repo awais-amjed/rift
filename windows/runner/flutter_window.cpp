@@ -2,7 +2,12 @@
 
 #include <optional>
 
+#include <flutter/encodable_value.h>
+#include <flutter/event_stream_handler_functions.h>
+#include <flutter/standard_method_codec.h>
+
 #include "flutter/generated_plugin_registrant.h"
+#include "global_key_hook.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -27,6 +32,8 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
+  SetupPttChannel();
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -40,6 +47,9 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  GlobalKeyHook::Instance().Stop();
+  ptt_event_sink_ = nullptr;
+
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -65,7 +75,50 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
+
+    case kWmPttKeyEvent:
+      if (ptt_event_sink_) {
+        flutter::EncodableMap args{
+            {flutter::EncodableValue("vk_code"),
+             flutter::EncodableValue(static_cast<int>(wparam))},
+            {flutter::EncodableValue("is_down"),
+             flutter::EncodableValue(lparam != 0)},
+        };
+        ptt_event_sink_->Success(flutter::EncodableValue(args));
+      }
+      return 0;
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
 }
+
+void FlutterWindow::SetupPttChannel() {
+  ptt_channel_ =
+      std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "rift/ptt_keys",
+          &flutter::StandardMethodCodec::GetInstance());
+
+  auto handler = std::make_unique<
+      flutter::StreamHandlerFunctions<flutter::EncodableValue>>(
+      // onListen: Dart subscriber connected — install the global hook.
+      [this](const flutter::EncodableValue* /*arguments*/,
+             std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&&
+                 events)
+          -> std::unique_ptr<
+              flutter::StreamHandlerError<flutter::EncodableValue>> {
+        ptt_event_sink_ = std::move(events);
+        GlobalKeyHook::Instance().Start(GetHandle());
+        return nullptr;
+      },
+      // onCancel: Dart subscriber disconnected — remove the hook.
+      [this](const flutter::EncodableValue* /*arguments*/)
+          -> std::unique_ptr<
+              flutter::StreamHandlerError<flutter::EncodableValue>> {
+        GlobalKeyHook::Instance().Stop();
+        ptt_event_sink_ = nullptr;
+        return nullptr;
+      });
+
+  ptt_channel_->SetStreamHandler(std::move(handler));
+}
+
