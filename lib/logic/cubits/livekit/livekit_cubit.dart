@@ -10,6 +10,7 @@ import '../../../data/repositories/server_repository.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../token/token_cubit.dart';
+import '../../services/sound_service.dart';
 
 part 'livekit_state.dart';
 
@@ -496,10 +497,18 @@ class LiveKitCubit extends Cubit<LiveKitState> {
 
     listener
       ..on<ParticipantConnectedEvent>((e) {
+        if (!e.participant.identity.endsWith('_screenshare')) {
+          SoundService.instance.playJoin();
+        }
         _syncParticipants();
         _applyStoredSettings();
       })
-      ..on<ParticipantDisconnectedEvent>((e) => _syncParticipants())
+      ..on<ParticipantDisconnectedEvent>((e) {
+        if (!e.participant.identity.endsWith('_screenshare')) {
+          SoundService.instance.playLeave();
+        }
+        _syncParticipants();
+      })
       ..on<TrackPublishedEvent>((e) {
         _syncParticipants();
         _applyStoredSettings();
