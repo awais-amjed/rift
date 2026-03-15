@@ -69,8 +69,9 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
 
     _loadCaptureSources();
 
-    // Linux uses explicit audio source selection only for full-screen capture.
-    if (Platform.isLinux && _shareAudio && _captureFullScreen) {
+    // Linux uses explicit audio source selection only for window capture
+    // (full-screen uses loopback / system audio automatically).
+    if (Platform.isLinux && _shareAudio && !_captureFullScreen) {
       _loadAudioSources();
     }
   }
@@ -175,10 +176,10 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   void _onAudioToggle() {
     setState(() => _shareAudio = !_shareAudio);
 
-    // Load Linux audio sources only for full-screen sharing.
+    // Load Linux audio sources only for window sharing.
     if (Platform.isLinux &&
         _shareAudio &&
-        _captureFullScreen &&
+        !_captureFullScreen &&
         _audioSources == null) {
       _loadAudioSources();
     }
@@ -194,7 +195,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       selectedVideoSourceIndex: _selectedVideoSourceIndex,
       selectedVideoSourcePid: _selectedVideoSourcePid,
       codec: _codec,
-      selectedAudioSource: _captureFullScreen ? _selectedAudioSource : null,
+      selectedAudioSource: !_captureFullScreen ? _selectedAudioSource : null,
     );
     context.read<AppCubit>().setScreenShareSettings(settings);
     Navigator.of(context).pop(settings);
@@ -254,7 +255,9 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                                 _selectedVideoSourceIndex = null;
                                 _selectedVideoSourcePid = null;
                                 _thumbnails.clear();
-                                if (!_captureFullScreen) {
+                                // Clear audio source when switching to full screen
+                                // (full-screen uses loopback, no source selection).
+                                if (_captureFullScreen) {
                                   _selectedAudioSource = null;
                                 }
                               });
@@ -262,7 +265,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
 
                               if (Platform.isLinux &&
                                   _shareAudio &&
-                                  _captureFullScreen) {
+                                  !_captureFullScreen) {
                                 _loadAudioSources();
                               }
                             },
@@ -322,10 +325,10 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                             onToggle: _onAudioToggle,
                           ),
 
-                          // Audio source selector (Linux only)
+                          // Audio source selector (Linux, window capture only)
                           if (Platform.isLinux &&
                               _shareAudio &&
-                              _captureFullScreen) ...[
+                              !_captureFullScreen) ...[
                             const SizedBox(height: 16),
                             AudioSourceSection(
                               audioSources: _audioSources,
