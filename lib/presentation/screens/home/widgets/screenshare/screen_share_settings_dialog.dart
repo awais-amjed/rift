@@ -14,16 +14,16 @@ import '../../../../../src/rust/api/screenshare/capture.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/custom_colors.dart';
-import 'audio_source_section.dart';
-import 'audio_toggle.dart';
-import 'bitrate_section.dart';
-import 'capture_source_section.dart';
-import 'capture_type_section.dart';
-import 'codec_section.dart';
-import 'frame_rate_section.dart';
-import 'resolution_section.dart';
-import 'settings_dialog_header.dart';
-import 'settings_summary.dart';
+import 'sections/audio_source_section.dart';
+import 'widgets/audio_toggle.dart';
+import 'sections/bitrate_section.dart';
+import 'sections/capture_source_section.dart';
+import 'sections/capture_type_section.dart';
+import 'sections/codec_section.dart';
+import 'sections/frame_rate_section.dart';
+import 'sections/resolution_section.dart';
+import 'widgets/settings_dialog_header.dart';
+import 'widgets/settings_summary.dart';
 
 /// Dialog for configuring screen share settings (resolution, fps, bitrate, audio).
 class ScreenShareSettingsDialog extends StatefulWidget {

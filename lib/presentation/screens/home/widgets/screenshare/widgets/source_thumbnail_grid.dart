@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../../../../../src/rust/api/screenshare/types.dart';
+import '../../../../../../src/rust/api/screenshare/types.dart';
 
 /// Thumbnail grid for selecting a capture source (Windows only).
 class SourceThumbnailGrid extends StatelessWidget {

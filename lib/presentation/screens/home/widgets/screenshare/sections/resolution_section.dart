@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'settings_chip.dart';
-import 'settings_section.dart';
+import '../widgets/settings_chip.dart';
+import '../widgets/settings_section.dart';
 
 /// Section for selecting screen share resolution
 class ResolutionSection extends StatelessWidget {

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../src/rust/api/screenshare/audio_linux.dart';
-import '../../../../theme/custom_colors.dart';
-import 'settings_section.dart';
+import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../../src/rust/api/screenshare/audio_linux.dart';
+import '../../../../../theme/custom_colors.dart';
+import '../widgets/settings_section.dart';
 
 /// Section for selecting Linux audio source for screen sharing
 class AudioSourceSection extends StatelessWidget {
