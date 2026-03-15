@@ -208,15 +208,23 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: () {
+                IconButton(
+                  onPressed: () {
                     setState(() => _pinned = !_pinned);
                     widget.onPinnedChanged?.call(_pinned);
                   },
-                  child: Icon(
+                  icon: Icon(
                     _pinned ? Icons.push_pin : Icons.push_pin_outlined,
                     size: 12,
                     color: _pinned ? Colors.white70 : Colors.white30,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  style: const ButtonStyle(
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
               ],
