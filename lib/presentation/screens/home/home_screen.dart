@@ -36,6 +36,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _openServerSelector();
     } else if (state.selectedServer?.user == null) {
       _openCreateUser();
+    } else {
+      // Refresh server details on every startup so fields added after initial
+      // save (e.g. supabaseKey) are picked up from the edge function.
+      context.read<ServerCubit>().refreshServerDetails();
     }
   }
 

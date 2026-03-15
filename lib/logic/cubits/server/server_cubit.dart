@@ -73,6 +73,7 @@ class ServerCubit extends HydratedCubit<ServerState> {
     String serverId, {
     String? name,
     String? iconUrl,
+    String? supabaseKey,
     String? livekitUrl,
     ServerUser? user,
     List<Channel>? channels,
@@ -83,6 +84,7 @@ class ServerCubit extends HydratedCubit<ServerState> {
       return s.copyWith(
         name: name,
         iconUrl: iconUrl,
+        supabaseKey: supabaseKey,
         livekitUrl: livekitUrl,
         user: user,
         channels: channels,
@@ -253,14 +255,16 @@ class ServerCubit extends HydratedCubit<ServerState> {
     );
 
     if (response.success) {
-      final rawChannels = response.data['channels'] as List<dynamic>?;
+      final data = response.data as Map<String, dynamic>;
+      final rawChannels = data['channels'] as List<dynamic>?;
       final channels =
           rawChannels
               ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
               .toList() ??
           [];
+      final supabaseKey = data['supabase_key'] as String?;
 
-      updateServer(server.id, channels: channels);
+      updateServer(server.id, channels: channels, supabaseKey: supabaseKey);
       return (success: true, error: null);
     } else {
       return (
