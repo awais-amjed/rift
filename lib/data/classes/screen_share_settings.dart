@@ -19,7 +19,7 @@ class ScreenShareSettings {
     this.captureFullScreen = true,
     this.selectedVideoSourceIndex,
     this.selectedVideoSourcePid,
-    this.codec = 'VP8',
+    this.codec = 'VP9',
     this.selectedAudioSource,
   });
 
@@ -32,7 +32,7 @@ class ScreenShareSettings {
       captureFullScreen: json['captureFullScreen'] as bool? ?? true,
       selectedVideoSourceIndex: json['selectedVideoSourceIndex'] as int?,
       selectedVideoSourcePid: json['selectedVideoSourcePid'] as int?,
-      codec: json['codec'] as String? ?? 'VP8',
+      codec: json['codec'] as String? ?? 'VP9',
       // selectedAudioSource is not persisted in JSON (runtime only)
     );
   }
