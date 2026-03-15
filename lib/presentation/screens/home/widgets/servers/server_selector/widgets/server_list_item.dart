@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../data/classes/server.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../../common/app_modal.dart';
 import '../../../../../../theme/custom_colors.dart';
 import 'remove_server_dialog.dart';
 import 'server_avatar.dart';
@@ -23,7 +24,7 @@ class ServerListItem extends StatelessWidget {
   });
 
   Future<void> _confirmDelete(BuildContext context, ThemeState themeState) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showCustomDialog<bool>(
       context: context,
       builder: (ctx) => BlocProvider.value(
         value: context.read<ThemeCubit>(),

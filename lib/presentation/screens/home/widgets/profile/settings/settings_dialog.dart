@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
+import '../../../../../common/app_modal.dart';
 import 'appearance_content.dart';
 import 'settings_sidebar.dart';
 import 'settings_tab.dart';
@@ -14,7 +15,7 @@ export 'settings_tab.dart';
 export 'voice_audio_content.dart';
 
 Future<void> showSettingsDialog(BuildContext context) async {
-  await showDialog<void>(
+  await showCustomDialog<void>(
     context: context,
     builder: (_) => const SettingsDialog(),
   );

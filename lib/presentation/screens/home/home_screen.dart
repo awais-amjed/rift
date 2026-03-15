@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
+import '../../common/app_modal.dart';
 import 'widgets/servers/create_user_dialog.dart';
 import 'widgets/servers/server_selector/server_selector_dialog.dart';
 import 'widgets/sidebar/floating_sidebar.dart';
@@ -39,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openServerSelector() {
-    showDialog(
+    showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
         providers: [BlocProvider.value(value: context.read<ServerCubit>())],
@@ -49,9 +50,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openCreateUser() {
-    showDialog(
+    showCustomDialog(
       context: context,
-      barrierDismissible: false,
       builder: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
         child: const CreateUserDialog(),

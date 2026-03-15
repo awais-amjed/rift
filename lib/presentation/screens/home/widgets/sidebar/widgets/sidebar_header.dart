@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../common/app_modal.dart';
 import '../../servers/server_button/server_button.dart';
 import '../../servers/server_button/widgets/no_server_button.dart';
 import '../../servers/server_selector/server_selector_dialog.dart';
@@ -69,7 +70,7 @@ class SidebarHeader extends StatelessWidget {
   }
 
   void _openServerSelector(BuildContext context) {
-    showDialog(
+    showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
         providers: [

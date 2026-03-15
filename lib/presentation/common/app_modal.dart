@@ -1,7 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
+
+// ...existing code...
+
+/// Shows a dialog that:
+/// - Cannot be dismissed by tapping the barrier
+/// - CAN be dismissed by pressing Escape
+Future<T?> showCustomDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) {
+  return showDialog<T>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => CallbackShortcuts(
+      bindings: {
+        SingleActivator(LogicalKeyboardKey.escape): () =>
+            Navigator.of(ctx).pop(),
+      },
+      child: Focus(
+        autofocus: true,
+        child: builder(ctx),
+      ),
+    ),
+  );
+}
+
+/// Helper to show an AppModal as a dialog.
+Future<T?> showAppModal<T>({
+  required BuildContext context,
+  required Widget modal,
+}) {
+  return showCustomDialog<T>(
+    context: context,
+    builder: (_) => modal,
+  );
+}
 
 /// Base modal used for most dialogs in the app.
 class AppModal extends StatelessWidget {
@@ -122,10 +159,3 @@ class AppModal extends StatelessWidget {
   }
 }
 
-/// Helper to show an AppModal as a dialog.
-Future<T?> showAppModal<T>({
-  required BuildContext context,
-  required Widget modal,
-}) {
-  return showDialog<T>(context: context, builder: (_) => modal);
-}

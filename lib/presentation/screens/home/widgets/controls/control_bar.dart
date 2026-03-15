@@ -8,6 +8,7 @@ import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../common/app_modal.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import '../screenshare/screen_share_settings_dialog.dart';
@@ -121,7 +122,7 @@ class _ControlBarContent extends StatelessWidget {
       settings = const ScreenShareSettings();
     } else {
       // Show settings dialog on desktop
-      final dialogSettings = await showDialog<ScreenShareSettings>(
+      final dialogSettings = await showCustomDialog<ScreenShareSettings>(
         context: context,
         builder: (_) => const ScreenShareSettingsDialog(),
       );
