@@ -50,9 +50,11 @@ class ChannelList extends StatelessWidget {
               (ch) => VoiceChannelTile(
                 channel: ch,
                 isSelected: selectedChannelId == ch.id,
-                onTap: () => onChannelSelect?.call(
-                  selectedChannelId == ch.id ? null : ch.id,
-                ),
+                onTap: () {
+                  if (selectedChannelId != ch.id) {
+                    onChannelSelect?.call(ch.id);
+                  }
+                },
               ),
             ),
           ],
