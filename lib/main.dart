@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
@@ -43,7 +45,9 @@ void main() async {
       const WindowOptions(titleBarStyle: TitleBarStyle.hidden),
     );
 
-    await trayManager.setIcon('assets/images/tray_icon.png');
+    await trayManager.setIcon(
+      'assets/images/${Platform.isWindows ? 'tray_icon.ico' : 'tray_icon.png'}',
+    );
     await trayManager.setContextMenu(
       Menu(
         items: [
