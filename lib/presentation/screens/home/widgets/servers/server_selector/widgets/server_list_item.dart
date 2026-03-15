@@ -4,13 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../../data/classes/server.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../theme/custom_colors.dart';
+import 'remove_server_dialog.dart';
 import 'server_avatar.dart';
 
 /// A single server item in the server list.
 class ServerListItem extends StatelessWidget {
   final Server server;
   final bool isSelected;
-  final bool canDelete;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
@@ -18,10 +18,20 @@ class ServerListItem extends StatelessWidget {
     super.key,
     required this.server,
     required this.isSelected,
-    required this.canDelete,
     required this.onTap,
     required this.onDelete,
   });
+
+  Future<void> _confirmDelete(BuildContext context, ThemeState themeState) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => BlocProvider.value(
+        value: context.read<ThemeCubit>(),
+        child: RemoveServerDialog(serverName: server.name),
+      ),
+    );
+    if (confirmed == true) onDelete();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,20 +92,19 @@ class ServerListItem extends StatelessWidget {
                     ),
                   ],
                   // Delete
-                  if (canDelete)
-                    IconButton(
-                      onPressed: onDelete,
-                      icon: Icon(
-                        Icons.close,
-                        size: 15,
-                        color: themeState.textTertiary,
-                      ),
-                      style: IconButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+                  IconButton(
+                    onPressed: () => _confirmDelete(context, themeState),
+                    icon: Icon(
+                      Icons.logout_rounded,
+                      size: 15,
+                      color: themeState.textTertiary,
+                    ),
+                    style: IconButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -105,3 +114,4 @@ class ServerListItem extends StatelessWidget {
     );
   }
 }
+

@@ -31,7 +31,6 @@ class ServerListView extends StatelessWidget {
               (server) => ServerListItem(
                 server: server,
                 isSelected: server.id == state.selectedServer?.id,
-                canDelete: state.servers.length > 1,
                 onTap: () {
                   context.read<ServerCubit>().setSelectedServer(server);
                   onClose();
