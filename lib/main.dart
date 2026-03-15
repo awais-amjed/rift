@@ -23,7 +23,7 @@ import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/token/token_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
-import 'logic/services/windows_audio_ducking.dart';
+import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'presentation/common/title_bar_overlay.dart';
 import 'presentation/routing/app_routes.dart';
 import 'presentation/theme/app_theme.dart';
@@ -180,9 +180,8 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
               },
             ),
             BlocProvider(
-              create: (context) => VoiceStatsCubit(
-                livekitCubit: context.read<LiveKitCubit>(),
-              ),
+              create: (context) =>
+                  VoiceStatsCubit(livekitCubit: context.read<LiveKitCubit>()),
             ),
             BlocProvider(
               create: (context) => ChannelPresenceCubit(

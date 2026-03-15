@@ -5,7 +5,7 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
-import '../../services/windows_audio_ducking.dart';
+import '../../services/windows_audio_ducking/windows_audio_ducking.dart';
 
 part 'app_cubit.g.dart';
 
