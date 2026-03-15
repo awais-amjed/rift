@@ -4,17 +4,16 @@
 
 ### servers
 
-| Column             | Type        | Constraints                 | Description                                                                    |
-|--------------------|-------------|-----------------------------|--------------------------------------------------------------------------------|
-| id                 | uuid        | Primary Key, Auto-generated | Unique server identifier                                                       |
-| created_at         | timestamptz | Auto-created                | Timestamp of server creation                                                   |
-| name               | text        | Required                    | Server name                                                                    |
-| icon_url           | text        | Optional                    | URL to server icon                                                             |
-| livekit_url        | text        | Required                    | LiveKit server URL                                                             |
-| livekit_api_key    | text        | Required                    | LiveKit API key                                                                |
-| livekit_secret_key | text        | Required                    | LiveKit secret key                                                             |
-| supabase_key       | text        | Required                    | Supabase publishable key — used by clients for Realtime Presence subscriptions |
-| seeding_secret     | text        | Required                    | Secret used for generating access tokens                                       |
+| Column             | Type        | Constraints                 | Description                              |
+|--------------------|-------------|-----------------------------|------------------------------------------|
+| id                 | uuid        | Primary Key, Auto-generated | Unique server identifier                 |
+| created_at         | timestamptz | Auto-created                | Timestamp of server creation             |
+| name               | text        | Required                    | Server name                              |
+| icon_url           | text        | Optional                    | URL to server icon                       |
+| livekit_url        | text        | Required                    | LiveKit server URL                       |
+| livekit_api_key    | text        | Required                    | LiveKit API key                          |
+| livekit_secret_key | text        | Required                    | LiveKit secret key                       |
+| seeding_secret     | text        | Required                    | Secret used for generating access tokens |
 
 ### users
 
