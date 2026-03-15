@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
-import '../../common/app_title_bar.dart';
 import 'widgets/servers/create_user_dialog.dart';
 import 'widgets/servers/server_selector/server_selector_dialog.dart';
 import 'widgets/sidebar/floating_sidebar.dart';
@@ -20,19 +19,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // When hidden, show it again as an overlay while cursor is in the top zone.
-  bool _titleBarOverlay = false;
-
   static const double _titleBarHeight = K.titleBarHeight;
-  static const double _hotZoneHeight = K.titleBarHotZoneHeight;
-
-  void _onMouseMove(PointerEvent event, bool titleBarVisible) {
-    if (titleBarVisible) return;
-    final nearTop = event.localPosition.dy <= _hotZoneHeight;
-    if (nearTop != _titleBarOverlay) {
-      setState(() => _titleBarOverlay = nearTop);
-    }
-  }
 
   @override
   void initState() {
@@ -94,71 +81,37 @@ class _HomeScreenState extends State<HomeScreen> {
               prev.titleBarVisible != curr.titleBarVisible,
           builder: (context, appState) {
             final titleBarVisible = appState.titleBarVisible;
-            return MouseRegion(
-              onHover: (e) => _onMouseMove(e, titleBarVisible),
-              onExit: (_) {
-                if (_titleBarOverlay) {
-                  setState(() => _titleBarOverlay = false);
-                }
-              },
-              child: Stack(
-                children: [
-                  // ── Main content ──────────────────────────────────────
-                  Positioned.fill(
-                    top: kIsWeb ? 0 : (titleBarVisible ? _titleBarHeight : 0),
-                    child: Stack(
-                      children: [
-                        Row(
-                          children: [
-                            if (appState.isPinned)
-                              Sidebar(
-                                topPadding: kIsWeb
-                                    ? 0
-                                    : (titleBarVisible
-                                          ? 0
-                                          : K.titleBarHiddenSidebarPadding),
-                              ),
-                            const Expanded(child: ParticipantsGrid()),
-                          ],
-                        ),
-                        if (!appState.isPinned)
-                          FloatingSidebar(
-                            topPadding: kIsWeb
-                                ? 0
-                                : (titleBarVisible
-                                      ? 0
-                                      : K.titleBarHiddenSidebarPadding),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  // ── Title bar (pinned or overlay) ─────────────────────
-                  if (!kIsWeb)
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 180),
-                      curve: Curves.easeOut,
-                      top: (titleBarVisible || _titleBarOverlay)
-                          ? 0
-                          : -_titleBarHeight,
-                      left: 0,
-                      right: 0,
-                      height: _titleBarHeight,
-                      child: AppTitleBar(
-                        height: _titleBarHeight,
-                        pinned: titleBarVisible,
-                        onHide: () {
-                          context.read<AppCubit>().setTitleBarVisible(false);
-                          setState(() => _titleBarOverlay = false);
-                        },
-                        onShow: () {
-                          context.read<AppCubit>().setTitleBarVisible(true);
-                          setState(() => _titleBarOverlay = false);
-                        },
+            return Stack(
+              children: [
+                Positioned.fill(
+                  top: kIsWeb ? 0 : (titleBarVisible ? _titleBarHeight : 0),
+                  child: Stack(
+                    children: [
+                      Row(
+                        children: [
+                          if (appState.isPinned)
+                            Sidebar(
+                              topPadding: kIsWeb
+                                  ? 0
+                                  : (titleBarVisible
+                                        ? 0
+                                        : K.titleBarHiddenSidebarPadding),
+                            ),
+                          const Expanded(child: ParticipantsGrid()),
+                        ],
                       ),
-                    ),
-                ],
-              ),
+                      if (!appState.isPinned)
+                        FloatingSidebar(
+                          topPadding: kIsWeb
+                              ? 0
+                              : (titleBarVisible
+                                    ? 0
+                                    : K.titleBarHiddenSidebarPadding),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             );
           },
         ),
