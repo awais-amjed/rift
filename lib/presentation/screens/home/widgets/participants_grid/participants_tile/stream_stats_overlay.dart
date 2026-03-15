@@ -252,7 +252,7 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
             if (_rttMs != null) ...[
               const SizedBox(height: 4),
               _buildStatRow(
-                'RTT',
+                'Ping',
                 '${_rttMs!.toStringAsFixed(1)}ms',
                 isWarning: _rttMs! > 150,
               ),
