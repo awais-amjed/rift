@@ -120,7 +120,7 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
       await windowManager.show();
       await windowManager.focus();
     } else if (menuItem.key == 'quit') {
-      await windowManager.destroy();
+      await windowManager.close();
     }
   }
 
