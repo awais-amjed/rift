@@ -42,8 +42,17 @@ void main() async {
 
   if (!kIsWeb) {
     await windowManager.ensureInitialized();
+
+    final savedSizeData = HydratedBloc.storage.read('window_size');
+    final windowSize = savedSizeData != null
+        ? Size(
+            (savedSizeData['width'] as num).toDouble(),
+            (savedSizeData['height'] as num).toDouble(),
+          )
+        : const Size(1280, 720);
+
     windowManager.waitUntilReadyToShow(
-      const WindowOptions(titleBarStyle: TitleBarStyle.hidden),
+      WindowOptions(titleBarStyle: TitleBarStyle.hidden, size: windowSize),
     );
 
     await trayManager.setIcon(
@@ -70,12 +79,27 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WindowListener {
   @override
   void initState() {
     super.initState();
-
+    if (!kIsWeb) windowManager.addListener(this);
     HelperMethods.initEasyLoading();
+  }
+
+  @override
+  void dispose() {
+    if (!kIsWeb) windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowResize() async {
+    final size = await windowManager.getSize();
+    await HydratedBloc.storage.write('window_size', {
+      'width': size.width,
+      'height': size.height,
+    });
   }
 
   @override
