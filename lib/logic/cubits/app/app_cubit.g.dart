@@ -31,6 +31,7 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   windowY: (json['windowY'] as num?)?.toDouble(),
   disableAudioDucking: json['disableAudioDucking'] as bool? ?? false,
   statsOverlayPinned: json['statsOverlayPinned'] as bool? ?? false,
+  outputDeviceId: json['outputDeviceId'] as String?,
 );
 
 Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
@@ -51,4 +52,5 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'windowY': instance.windowY,
   'disableAudioDucking': instance.disableAudioDucking,
   'statsOverlayPinned': instance.statsOverlayPinned,
+  'outputDeviceId': instance.outputDeviceId,
 };

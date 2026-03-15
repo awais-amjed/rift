@@ -67,6 +67,13 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(statsOverlayPinned: pinned));
   }
 
+  void setOutputDeviceId(String? deviceId) {
+    emit(state.copyWith(
+      outputDeviceId: deviceId,
+      clearOutputDeviceId: deviceId == null,
+    ));
+  }
+
   // ──────────────────────────────────────────────────────────
   // Persisted: participant volume / mute
   // ──────────────────────────────────────────────────────────
