@@ -8,6 +8,8 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/custom_colors.dart';
 import 'widgets/copyable_field.dart';
+import 'widgets/field_label.dart';
+import 'widgets/permission_toggle.dart';
 
 /// Modal to generate and copy an invite token for a server.
 class InviteModal extends StatefulWidget {
@@ -29,13 +31,10 @@ class _InviteModalState extends State<InviteModal> {
   bool _grantChannelManager = false;
   bool _grantCanCreateTokens = false;
 
-  void _onPermissionChanged() {
-    // Reset the generated token when permissions change so user must regenerate
-    setState(() {
-      _inviteToken = null;
-      _copiedToken = false;
-      _error = null;
-    });
+  void _resetToken() {
+    _inviteToken = null;
+    _copiedToken = false;
+    _error = null;
   }
 
   Future<void> _generate() async {
@@ -159,7 +158,7 @@ class _InviteModalState extends State<InviteModal> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Server URL
-                          _FieldLabel(
+                          FieldLabel(
                             label: 'Server URL',
                             textColor: themeState.textTertiary,
                           ),
@@ -180,7 +179,7 @@ class _InviteModalState extends State<InviteModal> {
                           const SizedBox(height: 14),
 
                           // Token
-                          _FieldLabel(
+                          FieldLabel(
                             label: 'Access Token',
                             textColor: themeState.textTertiary,
                           ),
@@ -219,7 +218,7 @@ class _InviteModalState extends State<InviteModal> {
                           // Permissions section
                           if (hasAnyGrantable) ...[
                             const SizedBox(height: 16),
-                            _FieldLabel(
+                            FieldLabel(
                               label: 'Grant Permissions',
                               textColor: themeState.textTertiary,
                             ),
@@ -235,55 +234,58 @@ class _InviteModalState extends State<InviteModal> {
                               child: Column(
                                 children: [
                                   if (userPerms.isServerAdmin)
-                                    _PermissionToggle(
+                                    PermissionToggle(
                                       icon: Icons.shield_outlined,
                                       label: 'Server Admin',
                                       description:
                                           'Full server management access',
                                       value: _grantServerAdmin,
-                                      onChanged: (v) {
-                                        setState(() => _grantServerAdmin = v);
-                                        _onPermissionChanged();
-                                      },
+                                      onChanged: (v) => setState(() {
+                                        _grantServerAdmin = v;
+                                        // Admin implies all other permissions
+                                        if (v) {
+                                          _grantChannelManager = true;
+                                          _grantCanCreateTokens = true;
+                                        }
+                                        _resetToken();
+                                      }),
                                       themeState: themeState,
                                       isFirst: true,
-                                      isLast: !userPerms.isChannelManager &&
-                                          !userPerms.canCreateTokens,
                                     ),
                                   if (userPerms.isChannelManager)
-                                    _PermissionToggle(
+                                    PermissionToggle(
                                       icon: Icons.tune_outlined,
                                       label: 'Channel Manager',
                                       description:
                                           'Create channels and moderate members',
                                       value: _grantChannelManager,
-                                      onChanged: (v) {
-                                        setState(
-                                          () => _grantChannelManager = v,
-                                        );
-                                        _onPermissionChanged();
-                                      },
+                                      // Locked when admin is selected
+                                      onChanged: _grantServerAdmin
+                                          ? null
+                                          : (v) => setState(() {
+                                                _grantChannelManager = v;
+                                                _resetToken();
+                                              }),
                                       themeState: themeState,
                                       isFirst: !userPerms.isServerAdmin,
-                                      isLast: !userPerms.canCreateTokens,
                                     ),
                                   if (userPerms.canCreateTokens)
-                                    _PermissionToggle(
+                                    PermissionToggle(
                                       icon: Icons.link_outlined,
                                       label: 'Can Invite',
                                       description:
                                           'Allowed to generate invite tokens',
                                       value: _grantCanCreateTokens,
-                                      onChanged: (v) {
-                                        setState(
-                                          () => _grantCanCreateTokens = v,
-                                        );
-                                        _onPermissionChanged();
-                                      },
+                                      // Locked when admin is selected
+                                      onChanged: _grantServerAdmin
+                                          ? null
+                                          : (v) => setState(() {
+                                                _grantCanCreateTokens = v;
+                                                _resetToken();
+                                              }),
                                       themeState: themeState,
                                       isFirst: !userPerms.isServerAdmin &&
                                           !userPerms.isChannelManager,
-                                      isLast: true,
                                     ),
                                 ],
                               ),
@@ -345,113 +347,6 @@ class _InviteModalState extends State<InviteModal> {
           },
         );
       },
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  final Color textColor;
-
-  const _FieldLabel({required this.label, required this.textColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label.toUpperCase(),
-      style: TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.8,
-        color: textColor,
-      ),
-    );
-  }
-}
-
-class _PermissionToggle extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String description;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final ThemeState themeState;
-  final bool isFirst;
-  final bool isLast;
-
-  const _PermissionToggle({
-    required this.icon,
-    required this.label,
-    required this.description,
-    required this.value,
-    required this.onChanged,
-    required this.themeState,
-    required this.isFirst,
-    required this.isLast,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (!isFirst)
-          Divider(height: 1, color: themeState.borderPrimary),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: value
-                      ? CustomColors.primary.withValues(alpha: 0.12)
-                      : themeState.bgTertiary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  size: 15,
-                  color: value
-                      ? CustomColors.primary
-                      : themeState.textTertiary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: themeState.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: themeState.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: value,
-                onChanged: onChanged,
-                activeThumbColor: CustomColors.primary,
-                activeTrackColor: CustomColors.primary.withValues(alpha: 0.4),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
