@@ -8,7 +8,6 @@ import 'api/screenshare/audio_linux.dart';
 import 'api/screenshare/audio_windows.dart';
 import 'api/screenshare/capture.dart';
 import 'api/screenshare/types.dart';
-import 'api/simple.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
