@@ -45,6 +45,7 @@ class ServerRepository {
     String supabaseUrl, {
     required String name,
     String? iconUrl,
+    required String supabaseKey,
     required String livekitUrl,
     required String livekitApiKey,
     required String livekitSecretKey,
@@ -52,6 +53,7 @@ class ServerRepository {
     return _post(supabaseUrl, 'create_server', {
       'name': name,
       'icon_url': iconUrl,
+      'supabase_key': supabaseKey,
       'livekit_url': livekitUrl,
       'livekit_api_key': livekitApiKey,
       'livekit_secret_key': livekitSecretKey,

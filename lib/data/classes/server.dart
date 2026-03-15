@@ -6,6 +6,7 @@ class Server {
   final String name;
   final String? iconUrl;
   final String supabaseUrl;
+  final String? supabaseKey;
   final String? livekitUrl;
   final String token;
   final ServerUser? user;
@@ -16,6 +17,7 @@ class Server {
     required this.name,
     this.iconUrl,
     required this.supabaseUrl,
+    this.supabaseKey,
     this.livekitUrl,
     required this.token,
     this.user,
@@ -33,6 +35,7 @@ class Server {
       name: serverDetails['name'] as String? ?? 'Server',
       iconUrl: serverDetails['icon_url'] as String?,
       supabaseUrl: supabaseUrl,
+      supabaseKey: serverDetails['supabase_key'] as String?,
       livekitUrl: serverDetails['livekit_url'] as String?,
       token: token,
       user: serverDetails['user'] != null
@@ -57,6 +60,7 @@ class Server {
       name: serverData['name'] as String,
       iconUrl: serverData['icon_url'] as String?,
       supabaseUrl: supabaseUrl,
+      supabaseKey: serverData['supabase_key'] as String?,
       livekitUrl: serverData['livekit_url'] as String?,
       token: token,
       user: serverData['user'] != null
@@ -76,6 +80,7 @@ class Server {
       name: json['name'] as String,
       iconUrl: json['iconUrl'] as String?,
       supabaseUrl: json['supabaseUrl'] as String,
+      supabaseKey: json['supabaseKey'] as String?,
       livekitUrl: json['livekitUrl'] as String?,
       token: json['token'] as String,
       user: json['user'] != null
@@ -94,6 +99,7 @@ class Server {
     'name': name,
     'iconUrl': iconUrl,
     'supabaseUrl': supabaseUrl,
+    'supabaseKey': supabaseKey,
     'livekitUrl': livekitUrl,
     'token': token,
     'user': user?.toJson(),
@@ -105,6 +111,7 @@ class Server {
     String? name,
     String? iconUrl,
     String? supabaseUrl,
+    String? supabaseKey,
     String? livekitUrl,
     String? token,
     ServerUser? user,
@@ -116,6 +123,7 @@ class Server {
       name: name ?? this.name,
       iconUrl: iconUrl ?? this.iconUrl,
       supabaseUrl: supabaseUrl ?? this.supabaseUrl,
+      supabaseKey: supabaseKey ?? this.supabaseKey,
       livekitUrl: livekitUrl ?? this.livekitUrl,
       token: token ?? this.token,
       user: clearUser ? null : (user ?? this.user),

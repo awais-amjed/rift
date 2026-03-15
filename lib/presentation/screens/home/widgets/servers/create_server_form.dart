@@ -29,6 +29,7 @@ class _CreateServerFormState extends State<CreateServerForm> {
 
   final _nameCtrl = TextEditingController();
   final _supabaseUrlCtrl = TextEditingController();
+  final _supabaseKeyCtrl = TextEditingController();
   final _livekitUrlCtrl = TextEditingController();
   final _apiKeyCtrl = TextEditingController();
   final _secretKeyCtrl = TextEditingController();
@@ -39,6 +40,7 @@ class _CreateServerFormState extends State<CreateServerForm> {
   bool get _canSubmit =>
       _nameCtrl.text.trim().isNotEmpty &&
       _supabaseUrlCtrl.text.trim().isNotEmpty &&
+      _supabaseKeyCtrl.text.trim().isNotEmpty &&
       _livekitUrlCtrl.text.trim().isNotEmpty &&
       _apiKeyCtrl.text.trim().isNotEmpty &&
       _secretKeyCtrl.text.trim().isNotEmpty;
@@ -47,6 +49,7 @@ class _CreateServerFormState extends State<CreateServerForm> {
   void dispose() {
     _nameCtrl.dispose();
     _supabaseUrlCtrl.dispose();
+    _supabaseKeyCtrl.dispose();
     _livekitUrlCtrl.dispose();
     _apiKeyCtrl.dispose();
     _secretKeyCtrl.dispose();
@@ -66,6 +69,7 @@ class _CreateServerFormState extends State<CreateServerForm> {
     final response = await _repository.createServer(
       supabaseUrl,
       name: _nameCtrl.text.trim(),
+      supabaseKey: _supabaseKeyCtrl.text.trim(),
       livekitUrl: _livekitUrlCtrl.text.trim(),
       livekitApiKey: _apiKeyCtrl.text.trim(),
       livekitSecretKey: _secretKeyCtrl.text.trim(),
@@ -123,6 +127,15 @@ class _CreateServerFormState extends State<CreateServerForm> {
               controller: _supabaseUrlCtrl,
               label: 'Supabase URL',
               hint: 'https://xxxxx.supabase.co',
+              enabled: !_isLoading,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            AppTextField(
+              controller: _supabaseKeyCtrl,
+              label: 'Supabase Key',
+              hint: 'sb_publishable_A1E2C3...',
+              obscureText: true,
               enabled: !_isLoading,
               onChanged: (_) => setState(() {}),
             ),
