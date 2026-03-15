@@ -1,0 +1,7 @@
+dart run build_runner build
+
+Windows build:
+dart run inno_bundle:build --release
+
+Linux build:
+flutter build linux --release

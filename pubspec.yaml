@@ -1,5 +1,5 @@
 name: rift
-description: "A new Flutter project"
+description: "A lightweight voice and video communication app powered by LiveKit."
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
@@ -54,6 +54,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   json_serializable: ^6.13.0
   build_runner: ^2.12.2
+  inno_bundle: ^0.11.2
 
   integration_test:
     sdk: flutter
@@ -66,3 +67,9 @@ flutter:
     - assets/images/
     - assets/audio/
 
+inno_bundle:
+  id: 919df387-f79b-5d74-bee3-b08f176b2a14
+  publisher: Coding Fries
+  name: Rift
+  description: A lightweight voice and video communication app powered by LiveKit.
+  installer_icon: assets/images/tray_icon.ico
