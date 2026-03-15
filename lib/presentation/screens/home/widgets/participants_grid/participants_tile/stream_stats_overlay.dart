@@ -32,8 +32,6 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
   String? _codec;
   double? _rttMs;
   int? _framesDroppedPerSec;
-  int? _pliPerSec;
-  int? _nackCount;
 
   @override
   void initState() {
@@ -100,12 +98,10 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
           final bytesReceived = (values['bytesReceived'] as num?)?.toDouble();
           final framesDecoded = (values['framesDecoded'] as num?)?.toDouble();
           final framesDropped = (values['framesDropped'] as num?)?.toInt();
-          final pliCount = (values['pliCount'] as num?)?.toInt();
 
           double? fps;
           double? bitrateKbps;
           int? framesDroppedPerSec;
-          int? pliPerSec;
 
           // Calculate FPS and bitrate if we have previous stats
           if (_prevStats != null &&
@@ -118,7 +114,6 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                 ?.toDouble();
             final prevFramesDropped = (_prevStats!['framesDropped'] as num?)
                 ?.toInt();
-            final prevPliCount = (_prevStats!['pliCount'] as num?)?.toInt();
 
             if (prevTimestamp != null &&
                 prevBytesReceived != null &&
@@ -145,12 +140,6 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                   final diff = framesDropped - prevFramesDropped;
                   framesDroppedPerSec = diff > 0 ? diff : 0;
                 }
-
-                // Calculate PLI per second
-                if (pliCount != null && prevPliCount != null) {
-                  final diff = pliCount - prevPliCount;
-                  pliPerSec = diff > 0 ? diff : 0;
-                }
               }
             }
           }
@@ -164,7 +153,6 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
             'bytesReceived': bytesReceived,
             'framesDecoded': framesDecoded,
             'framesDropped': framesDropped,
-            'pliCount': pliCount,
           };
 
           if (mounted) {
@@ -181,8 +169,6 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
               _codec = mimeType?.replaceFirst('video/', '');
               _rttMs = rttMs;
               _framesDroppedPerSec = framesDroppedPerSec;
-              _pliPerSec = pliPerSec;
-              _nackCount = (values['nackCount'] as num?)?.toInt();
             });
           }
           break;
@@ -277,14 +263,6 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                 '$_framesDroppedPerSec/s',
                 isWarning: true,
               ),
-            ],
-            if (_pliPerSec != null && _pliPerSec! > 0) ...[
-              const SizedBox(height: 4),
-              _buildStatRow('PLI', '$_pliPerSec/s', isWarning: true),
-            ],
-            if (_nackCount != null && _nackCount! > 0) ...[
-              const SizedBox(height: 4),
-              _buildStatRow('NACK', '$_nackCount', isWarning: true),
             ],
             if (_codec != null) ...[
               const SizedBox(height: 4),
