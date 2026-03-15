@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../livekit/livekit_cubit.dart';
@@ -63,8 +64,8 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
   Room? _room;
 
   VoiceStatsCubit({required LiveKitCubit livekitCubit})
-      : _livekitCubit = livekitCubit,
-        super(const VoiceStatsState()) {
+    : _livekitCubit = livekitCubit,
+      super(const VoiceStatsState()) {
     _lkSub = livekitCubit.stream.listen(_onLiveKitStateChanged);
     _onLiveKitStateChanged(livekitCubit.state);
   }
@@ -99,20 +100,61 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
     if (room == null) return;
 
     try {
-      final audioTrackPub =
-          room.localParticipant?.audioTrackPublications.firstOrNull;
-      final sender = audioTrackPub?.track?.sender;
-      if (sender == null) return;
+      // Gather sender stats — audio first, then video as fallback.
+      // When the mic is muted/disabled the audio sender may be null.
+      List<StatsReport> senderStats = [];
+      bool senderIsAudio = false;
 
-      final stats = await sender.getStats();
+      final local = room.localParticipant;
+      if (local != null) {
+        for (final pub in local.audioTrackPublications) {
+          final s = pub.track?.sender;
+          if (s != null) {
+            senderStats = await s.getStats();
+            senderIsAudio = true;
+            break;
+          }
+        }
+        if (senderStats.isEmpty) {
+          for (final pub in local.videoTrackPublications) {
+            final s = pub.track?.sender;
+            if (s != null) {
+              senderStats = await s.getStats();
+              break;
+            }
+          }
+        }
+      }
+
+      // Fall back to a remote participant's receiver for the candidate-pair RTT.
+      List<StatsReport> receiverStats = [];
+      if (senderStats.isEmpty) {
+        outer:
+        for (final remote in room.remoteParticipants.values) {
+          for (final pub in [
+            ...remote.audioTrackPublications,
+            ...remote.videoTrackPublications,
+          ]) {
+            final receiver = pub.track?.receiver;
+            if (receiver != null) {
+              receiverStats = await receiver.getStats();
+              if (receiverStats.isNotEmpty) break outer;
+            }
+          }
+        }
+      }
+
       if (isClosed) return;
+
+      final allStats = [...senderStats, ...receiverStats];
+      if (allStats.isEmpty) return;
 
       double? rttMs;
       double? jitterMs;
       double? packetLossPercent;
 
-      // RTT from STUN candidate-pair
-      for (final s in stats) {
+      // RTT from STUN candidate-pair (connection-level, available regardless of mute)
+      for (final s in allStats) {
         if (s.type == 'candidate-pair' && s.values['state'] == 'succeeded') {
           final rtt = s.values['currentRoundTripTime'] as num?;
           if (rtt != null) rttMs = rtt * 1000;
@@ -120,29 +162,29 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
         }
       }
 
-      // Jitter and packet loss from remote-inbound-rtp
-      for (final s in stats) {
-        if (s.type == 'remote-inbound-rtp' && s.values['kind'] == 'audio') {
-          final jitter = s.values['jitter'] as num?;
-          if (jitter != null) jitterMs = jitter * 1000;
+      // Jitter and packet loss — only meaningful from audio sender stats
+      if (senderIsAudio) {
+        for (final s in senderStats) {
+          if (s.type == 'remote-inbound-rtp' && s.values['kind'] == 'audio') {
+            final jitter = s.values['jitter'] as num?;
+            if (jitter != null) jitterMs = jitter * 1000;
 
-          final fractionLost = s.values['fractionLost'] as num?;
-          if (fractionLost != null) {
-            packetLossPercent = (fractionLost * 100).clamp(0, 100).toDouble();
-          }
+            final fractionLost = s.values['fractionLost'] as num?;
+            if (fractionLost != null) {
+              packetLossPercent = (fractionLost * 100).clamp(0, 100).toDouble();
+            }
 
-          // Fallback RTT from this report if not found via candidate-pair
-          if (rttMs == null) {
-            final rtt = s.values['roundTripTime'] as num?;
-            if (rtt != null) rttMs = rtt * 1000;
+            if (rttMs == null) {
+              final rtt = s.values['roundTripTime'] as num?;
+              if (rtt != null) rttMs = rtt * 1000;
+            }
+            break;
           }
-          break;
         }
       }
 
       final quality = _calcQuality(rttMs, jitterMs, packetLossPercent);
 
-      // Trim history to last 5 minutes and append new sample
       final now = DateTime.now();
       final cutoff = now.subtract(const Duration(minutes: 5));
       final samples = List<PingSample>.from(state.pingSamples)
@@ -151,16 +193,18 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
         samples.add(PingSample(time: now, rttMs: rttMs));
       }
 
-      emit(VoiceStatsState(
-        rttMs: rttMs,
-        jitterMs: jitterMs,
-        packetLossPercent: packetLossPercent,
-        quality: quality,
-        pingSamples: samples,
-        isConnected: true,
-      ));
+      emit(
+        VoiceStatsState(
+          rttMs: rttMs,
+          jitterMs: jitterMs,
+          packetLossPercent: packetLossPercent,
+          quality: quality,
+          pingSamples: samples,
+          isConnected: true,
+        ),
+      );
     } catch (_) {
-      // Stats may be unavailable if track is not yet active; ignore.
+      // Stats may be unavailable if tracks are not yet active; ignore.
     }
   }
 
