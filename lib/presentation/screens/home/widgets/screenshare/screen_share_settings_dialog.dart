@@ -67,7 +67,10 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     _codec = settings.codec;
     _selectedAudioSource = settings.selectedAudioSource;
 
-    _loadCaptureSources();
+    // On Linux the system portal picker handles source selection at capture time.
+    if (!Platform.isLinux) {
+      _loadCaptureSources();
+    }
 
     // Linux uses explicit audio source selection only for window capture
     // (full-screen uses loopback / system audio automatically).
@@ -261,7 +264,9 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                                   _selectedAudioSource = null;
                                 }
                               });
-                              _loadCaptureSources();
+                              if (!Platform.isLinux) {
+                                _loadCaptureSources();
+                              }
 
                               if (Platform.isLinux &&
                                   _shareAudio &&
@@ -272,21 +277,24 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                           ),
                           const SizedBox(height: 16),
 
-                          CaptureSourceSection(
-                            captureFullScreen: _captureFullScreen,
-                            isLoading: _loadingCaptureSources,
-                            sources: _captureSources,
-                            selectedIndex: _selectedVideoSourceIndex,
-                            thumbnails: _thumbnails,
-                            onChanged: (source) {
-                              setState(() {
-                                _selectedVideoSourceIndex = source.index;
-                                _selectedVideoSourcePid = source.audioSourcePid;
-                              });
-                            },
-                            onRefresh: _loadCaptureSources,
-                          ),
-                          const SizedBox(height: 16),
+                          // Source selector — hidden on Linux (system portal picker handles it)
+                          if (!Platform.isLinux) ...[
+                            CaptureSourceSection(
+                              captureFullScreen: _captureFullScreen,
+                              isLoading: _loadingCaptureSources,
+                              sources: _captureSources,
+                              selectedIndex: _selectedVideoSourceIndex,
+                              thumbnails: _thumbnails,
+                              onChanged: (source) {
+                                setState(() {
+                                  _selectedVideoSourceIndex = source.index;
+                                  _selectedVideoSourcePid = source.audioSourcePid;
+                                });
+                              },
+                              onRefresh: _loadCaptureSources,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
 
                           // Resolution
                           ResolutionSection(
@@ -369,7 +377,8 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                       const SizedBox(width: 10),
                       AppButton(
                         label: 'Start Sharing',
-                        onPressed: _selectedVideoSourceIndex == null
+                        onPressed: (!Platform.isLinux &&
+                                _selectedVideoSourceIndex == null)
                             ? null
                             : _confirm,
                       ),
