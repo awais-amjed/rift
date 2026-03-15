@@ -26,9 +26,7 @@ All functions return a consistent JSON response format:
 ```json
 {
   "success": true,
-  "data": {
-    ...
-  }
+  "data": { ... }
 }
 ```
 
@@ -112,6 +110,13 @@ is_server_admin, is_channel_manager, can_create_tokens).
 user must have `can_create_tokens` permission. Uses the server's seeding secret to generate a secure
 HMAC-SHA256 token.
 
+**Permission Restrictions:**
+
+- Only users with a specific permission can grant that permission to new tokens
+- Only admins (`is_server_admin`) can create admin tokens
+- Only channel managers (`is_channel_manager`) can create channel manager tokens
+- Only users with `can_create_tokens` can grant the invite permission to new tokens
+
 **Input Parameters:**
 
 ```json
@@ -135,7 +140,23 @@ HMAC-SHA256 token.
 }
 ```
 
-**Permissions Required:** `can_create_tokens` (checked from the caller's token)
+**Permissions Required:**
+
+- `can_create_tokens` (base requirement to create any token)
+- `is_server_admin` (required if setting `is_server_admin: true` on new token)
+- `is_channel_manager` (required if setting `is_channel_manager: true` on new token)
+- `can_create_tokens` (required if setting `can_create_tokens: true` on new token)
+
+**Error Messages:**
+
+- `"Permission denied: user cannot create tokens"` - Caller lacks `can_create_tokens`
+- `"Permission denied: Only admins can create admins"` - Caller is not an admin but tried to create
+  an admin token
+- `"Permission denied: Only channel managers can create channel managers"` - Caller is not a channel
+  manager but tried to create a channel manager token
+-
+`"Permission denied: Only people with invite permission can grant invite permission to new tokens"` -
+Caller lacks `can_create_tokens` but tried to grant it
 
 ---
 
@@ -249,9 +270,7 @@ permissions, and a list of all channels in the server.
         "is_channel_manager": "boolean",
         "can_create_tokens": "boolean"
       }
-    }
-    |
-    null,
+    } | null,
     "channels": [
       {
         "id": "uuid",
@@ -518,6 +537,17 @@ Each access token can have the following permissions:
   creation permissions
 - **Channel Manager**: Can manage channels and has elevated permissions in LiveKit rooms
 - **Token Creator**: Can generate new access tokens for inviting users with specific permissions
+
+### Permission Delegation Rules
+
+When creating new access tokens, users can only grant permissions they themselves possess:
+
+- To create a token with `is_server_admin: true`, the caller must have `is_server_admin`
+- To create a token with `is_channel_manager: true`, the caller must have `is_channel_manager`
+- To create a token with `can_create_tokens: true`, the caller must have `can_create_tokens`
+
+This ensures a hierarchical permission model where permissions cannot be escalated beyond what the
+caller has.
 
 ---
 
