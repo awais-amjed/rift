@@ -125,7 +125,7 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
         target_resolution.width, target_resolution.height
     );
 
-    let buffer_source = NativeVideoSource::new(target_resolution.clone(), true);
+    let buffer_source = NativeVideoSource::new(target_resolution.clone(), false);
     {
         let mut slot = video_source_slot.lock().unwrap();
         *slot = Some(buffer_source.clone());
