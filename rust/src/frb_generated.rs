@@ -67,15 +67,15 @@ fn wire__crate__api__screenshare__capture__get_capture_source_thumbnail_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api__capture_full_screen = <bool>::sse_decode(&mut deserializer);
-            let api__source_index = <u32>::sse_decode(&mut deserializer);
+            let api_capture_full_screen = <bool>::sse_decode(&mut deserializer);
+            let api_source_index = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok(
                         crate::api::screenshare::capture::get_capture_source_thumbnail(
-                            api__capture_full_screen,
-                            api__source_index,
+                            api_capture_full_screen,
+                            api_source_index,
                         ),
                     )?;
                     Ok(output_ok)

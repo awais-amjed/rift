@@ -63,6 +63,7 @@ void main() async {
     await trayManager.setIcon(
       'assets/images/${Platform.isWindows ? 'tray_icon.ico' : 'tray_icon.png'}',
     );
+    await trayManager.setToolTip('Rift');
     await trayManager.setContextMenu(
       Menu(
         items: [
@@ -88,18 +89,39 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with WindowListener {
+class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb) windowManager.addListener(this);
+    if (!kIsWeb) {
+      windowManager.addListener(this);
+      trayManager.addListener(this);
+    }
     HelperMethods.initEasyLoading();
   }
 
   @override
   void dispose() {
-    if (!kIsWeb) windowManager.removeListener(this);
+    if (!kIsWeb) {
+      windowManager.removeListener(this);
+      trayManager.removeListener(this);
+    }
     super.dispose();
+  }
+
+  @override
+  void onTrayIconRightMouseDown() {
+    trayManager.popUpContextMenu();
+  }
+
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) async {
+    if (menuItem.key == 'show') {
+      await windowManager.show();
+      await windowManager.focus();
+    } else if (menuItem.key == 'quit') {
+      await windowManager.destroy();
+    }
   }
 
   @override

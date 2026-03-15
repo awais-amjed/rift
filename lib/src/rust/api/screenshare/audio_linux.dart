@@ -6,13 +6,11 @@
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `get_monitor_source_name`, `spawn_audio_capture_thread`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AudioCaptureCommand`, `AudioCaptureHandle`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `start_audio_capture`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `terminate`
 
-/// List all active PulseAudio sink-inputs (audio sources).
 Future<List<AudioSource>> listAudioSources() =>
     RustLib.instance.api.crateApiScreenshareAudioLinuxListAudioSources();
 
