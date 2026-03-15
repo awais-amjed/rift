@@ -1,0 +1,104 @@
+import 'package:flutter/material.dart';
+
+import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
+
+/// A small line graph that renders [PingSample] history.
+/// X-axis = last 5 minutes, Y-axis = ping in ms.
+class PingGraph extends StatelessWidget {
+  final List<PingSample> samples;
+  final double height;
+
+  const PingGraph({super.key, required this.samples, this.height = 64});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: CustomPaint(painter: _PingGraphPainter(samples: samples)),
+    );
+  }
+}
+
+class _PingGraphPainter extends CustomPainter {
+  final List<PingSample> samples;
+
+  const _PingGraphPainter({required this.samples});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (samples.length < 2) return;
+
+    final now = DateTime.now();
+    const windowMs = 5 * 60 * 1000.0; // 5 minutes in ms
+
+    final maxRtt = samples.fold<double>(
+      200.0,
+      (prev, s) => s.rttMs > prev ? s.rttMs : prev,
+    );
+
+    // Horizontal guide lines
+    final gridPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.06)
+      ..strokeWidth = 1;
+
+    for (final lineMs in [50.0, 100.0, 150.0, 200.0]) {
+      if (lineMs > maxRtt * 1.05) break;
+      final y = size.height - (lineMs / maxRtt) * size.height;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    // Build paths
+    final fillPath = Path();
+    final linePath = Path();
+    bool first = true;
+
+    for (final sample in samples) {
+      final ageMs = now.difference(sample.time).inMilliseconds.toDouble();
+      final x = size.width - (ageMs / windowMs) * size.width;
+      final y = size.height - (sample.rttMs / maxRtt) * size.height;
+
+      if (first) {
+        fillPath.moveTo(x, size.height);
+        fillPath.lineTo(x, y);
+        linePath.moveTo(x, y);
+        first = false;
+      } else {
+        fillPath.lineTo(x, y);
+        linePath.lineTo(x, y);
+      }
+    }
+
+    // Close fill to baseline
+    final last = samples.last;
+    final lastAge = now.difference(last.time).inMilliseconds.toDouble();
+    final lastX = size.width - (lastAge / windowMs) * size.width;
+    fillPath.lineTo(lastX, size.height);
+    fillPath.close();
+
+    // Gradient fill
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          const Color(0xFF6366F1).withValues(alpha: 0.35),
+          const Color(0xFF6366F1).withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawPath(fillPath, fillPaint);
+
+    // Line
+    final linePaint = Paint()
+      ..color = const Color(0xFF6366F1)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(linePath, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(_PingGraphPainter old) => old.samples != samples;
+}
+

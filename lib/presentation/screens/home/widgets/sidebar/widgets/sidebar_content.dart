@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../profile/connection_quality/connection_quality_indicator.dart';
 import '../../profile/user_profile.dart';
 import 'sidebar_channel_list.dart';
 import 'sidebar_header.dart';
@@ -44,6 +45,7 @@ class SidebarContent extends StatelessWidget {
               SidebarHeader(),
               SidebarActions(),
               SidebarChannelList(),
+              ConnectionQualityIndicator(),
               UserProfile(),
             ],
           ),
