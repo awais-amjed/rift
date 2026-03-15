@@ -13,6 +13,7 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'data/repositories/server_repository.dart';
+import 'logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'logic/cubits/voice_stats/voice_stats_cubit.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/cubits/livekit/livekit_cubit.dart';
@@ -180,6 +181,12 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
             ),
             BlocProvider(
               create: (context) => VoiceStatsCubit(
+                livekitCubit: context.read<LiveKitCubit>(),
+              ),
+            ),
+            BlocProvider(
+              create: (context) => ChannelPresenceCubit(
+                serverCubit: context.read<ServerCubit>(),
                 livekitCubit: context.read<LiveKitCubit>(),
               ),
             ),
