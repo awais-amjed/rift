@@ -63,6 +63,10 @@ class AppCubit extends HydratedCubit<AppState> {
     WindowsAudioDucking.apply(disable: value);
   }
 
+  void setStatsOverlayPinned(bool pinned) {
+    emit(state.copyWith(statsOverlayPinned: pinned));
+  }
+
   // ──────────────────────────────────────────────────────────
   // Persisted: participant volume / mute
   // ──────────────────────────────────────────────────────────

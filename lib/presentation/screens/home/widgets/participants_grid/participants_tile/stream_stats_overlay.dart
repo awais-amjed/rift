@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
+
+import '../../../../../../logic/cubits/app/app_cubit.dart';
 
 /// Displays stream statistics overlay for video tracks
 class StreamStatsOverlay extends StatefulWidget {
@@ -36,6 +39,7 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
   @override
   void initState() {
     super.initState();
+    _pinned = context.read<AppCubit>().state.statsOverlayPinned;
     _startStatsPolling();
   }
 
@@ -211,6 +215,7 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                 IconButton(
                   onPressed: () {
                     setState(() => _pinned = !_pinned);
+                    context.read<AppCubit>().setStatsOverlayPinned(_pinned);
                     widget.onPinnedChanged?.call(_pinned);
                   },
                   icon: Icon(

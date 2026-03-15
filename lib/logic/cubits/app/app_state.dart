@@ -17,6 +17,7 @@ class AppState {
   final double? windowX;
   final double? windowY;
   final bool disableAudioDucking;
+  final bool statsOverlayPinned;
 
   // ── Transient (not stored in JSON) ─────────────────────────
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -41,6 +42,7 @@ class AppState {
     this.windowX,
     this.windowY,
     this.disableAudioDucking = false,
+    this.statsOverlayPinned = false,
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
@@ -62,6 +64,7 @@ class AppState {
     double? windowX,
     double? windowY,
     bool? disableAudioDucking,
+    bool? statsOverlayPinned,
     bool? isHovered,
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
@@ -86,6 +89,7 @@ class AppState {
       windowX: windowX ?? this.windowX,
       windowY: windowY ?? this.windowY,
       disableAudioDucking: disableAudioDucking ?? this.disableAudioDucking,
+      statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId
           ? null
