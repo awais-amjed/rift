@@ -58,6 +58,54 @@ class _VoiceAudioContentState extends State<VoiceAudioContent> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ── Audio Ducking (Windows only) ─────────────────
+            if (!kIsWeb && Platform.isWindows) ...[
+              Text(
+                'Audio Ducking',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: themeState.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Disable automatic volume lowering',
+                          style: TextStyle(
+                            color: themeState.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Windows lowers other apps\' volume when a call is active. '
+                          'Enable this to prevent that.',
+                          style: TextStyle(
+                            color: themeState.textTertiary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: appState.disableAudioDucking,
+                    onChanged: (value) =>
+                        context.read<AppCubit>().setDisableAudioDucking(value),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Divider(color: themeState.borderPrimary),
+              const SizedBox(height: 16),
+            ],
+            // ── Push-to-Talk ─────────────────────────────────
             Text(
               'Push-to-Talk',
               style: TextStyle(

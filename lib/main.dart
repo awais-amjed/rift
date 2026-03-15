@@ -21,6 +21,7 @@ import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/token/token_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
+import 'logic/services/windows_audio_ducking.dart';
 import 'presentation/common/title_bar_overlay.dart';
 import 'presentation/routing/app_routes.dart';
 import 'presentation/theme/app_theme.dart';
@@ -50,6 +51,9 @@ void main() async {
     final savedPosition = appCubit.state.windowX != null
         ? Offset(appCubit.state.windowX!, appCubit.state.windowY!)
         : null;
+
+    // Apply saved audio ducking preference on startup
+    WindowsAudioDucking.apply(disable: appCubit.state.disableAudioDucking);
 
     windowManager.waitUntilReadyToShow(
       WindowOptions(titleBarStyle: TitleBarStyle.hidden, size: windowSize),
