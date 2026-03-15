@@ -46,9 +46,13 @@ class ConnectionQualityPopup extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          _qualityIcon(stats.quality),
+                          stats.isAlone
+                              ? Icons.person_outline
+                              : _qualityIcon(stats.quality),
                           size: 13,
-                          color: _qualityColor(stats.quality),
+                          color: stats.isAlone
+                              ? themeState.textQuaternary
+                              : _qualityColor(stats.quality),
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -64,11 +68,15 @@ class ConnectionQualityPopup extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _qualityLabel(stats.quality),
+                      stats.isAlone
+                          ? 'Waiting for others'
+                          : _qualityLabel(stats.quality),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: _qualityColor(stats.quality),
+                        color: stats.isAlone
+                            ? themeState.textTertiary
+                            : _qualityColor(stats.quality),
                       ),
                     ),
 

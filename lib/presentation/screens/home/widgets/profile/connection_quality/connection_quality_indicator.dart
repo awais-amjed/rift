@@ -106,6 +106,11 @@ class _ConnectionQualityIndicatorState
           builder: (context, themeState) {
             return BlocBuilder<VoiceStatsCubit, VoiceStatsState>(
               builder: (context, stats) {
+                if (stats.isAlone) {
+                  _dismiss();
+                  return const SizedBox.shrink();
+                }
+
                 final color = _qualityColor(stats.quality);
 
                 return Container(
@@ -132,14 +137,20 @@ class _ConnectionQualityIndicatorState
                         child: Row(
                           children: [
                             Icon(
-                              _qualityIcon(stats.quality),
+                              stats.isAlone
+                                  ? Icons.person_outline
+                                  : _qualityIcon(stats.quality),
                               size: 14,
-                              color: color,
+                              color: stats.isAlone
+                                  ? themeState.textQuaternary
+                                  : color,
                             ),
                             const SizedBox(width: 7),
                             Expanded(
                               child: Text(
-                                stats.rttMs != null
+                                stats.isAlone
+                                    ? 'Waiting for others…'
+                                    : stats.rttMs != null
                                     ? '${stats.rttMs!.toStringAsFixed(0)} ms  ·  ${_qualityLabel(stats.quality)}'
                                     : 'Voice · Connecting…',
                                 style: TextStyle(

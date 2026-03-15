@@ -24,6 +24,7 @@ class VoiceStatsState {
   final VoiceQuality quality;
   final List<PingSample> pingSamples;
   final bool isConnected;
+  final bool isAlone;
 
   const VoiceStatsState({
     this.rttMs,
@@ -32,6 +33,7 @@ class VoiceStatsState {
     this.quality = VoiceQuality.unknown,
     this.pingSamples = const [],
     this.isConnected = false,
+    this.isAlone = false,
   });
 
   VoiceStatsState copyWith({
@@ -41,6 +43,7 @@ class VoiceStatsState {
     VoiceQuality? quality,
     List<PingSample>? pingSamples,
     bool? isConnected,
+    bool? isAlone,
   }) {
     return VoiceStatsState(
       rttMs: rttMs ?? this.rttMs,
@@ -49,6 +52,7 @@ class VoiceStatsState {
       quality: quality ?? this.quality,
       pingSamples: pingSamples ?? this.pingSamples,
       isConnected: isConnected ?? this.isConnected,
+      isAlone: isAlone ?? this.isAlone,
     );
   }
 }
@@ -58,14 +62,12 @@ class VoiceStatsState {
 /// Polls the local participant's audio sender stats every second and tracks
 /// ping history for the last 5 minutes.
 class VoiceStatsCubit extends Cubit<VoiceStatsState> {
-  final LiveKitCubit _livekitCubit;
   StreamSubscription<LiveKitState>? _lkSub;
   Timer? _timer;
   Room? _room;
 
   VoiceStatsCubit({required LiveKitCubit livekitCubit})
-    : _livekitCubit = livekitCubit,
-      super(const VoiceStatsState()) {
+    : super(const VoiceStatsState()) {
     _lkSub = livekitCubit.stream.listen(_onLiveKitStateChanged);
     _onLiveKitStateChanged(livekitCubit.state);
   }
@@ -147,7 +149,11 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
       if (isClosed) return;
 
       final allStats = [...senderStats, ...receiverStats];
-      if (allStats.isEmpty) return;
+      if (allStats.isEmpty) {
+        // No senders or receivers available — user is likely alone in the channel.
+        emit(const VoiceStatsState(isConnected: true, isAlone: true));
+        return;
+      }
 
       double? rttMs;
       double? jitterMs;
@@ -201,6 +207,7 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
           quality: quality,
           pingSamples: samples,
           isConnected: true,
+          isAlone: false,
         ),
       );
     } catch (_) {
