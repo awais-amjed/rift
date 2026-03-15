@@ -63,7 +63,9 @@ void main() async {
     await trayManager.setIcon(
       'assets/images/${Platform.isWindows ? 'tray_icon.ico' : 'tray_icon.png'}',
     );
-    await trayManager.setToolTip('Rift');
+    if (Platform.isWindows) {
+      await trayManager.setToolTip('Rift');
+    }
     await trayManager.setContextMenu(
       Menu(
         items: [
@@ -176,18 +178,18 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
             builder: (context, orientation, screenType) {
               return BlocBuilder<ThemeCubit, ThemeState>(
                 builder: (context, themeState) {
-                    return PushToTalkListener(
-                        child: MaterialApp.router(
-                          routerConfig: AppRoutes.router,
-                          darkTheme: AppTheme.darkTheme,
-                          theme: AppTheme.lightTheme,
-                          themeMode: themeState.themeMode,
-                          builder: EasyLoading.init(
-                            builder: (context, child) =>
-                                TitleBarOverlay(child: child!),
-                          ),
-                        ),
-                      );
+                  return PushToTalkListener(
+                    child: MaterialApp.router(
+                      routerConfig: AppRoutes.router,
+                      darkTheme: AppTheme.darkTheme,
+                      theme: AppTheme.lightTheme,
+                      themeMode: themeState.themeMode,
+                      builder: EasyLoading.init(
+                        builder: (context, child) =>
+                            TitleBarOverlay(child: child!),
+                      ),
+                    ),
+                  );
                 },
               );
             },
