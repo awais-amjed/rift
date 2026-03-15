@@ -19,6 +19,7 @@ class AppState {
   final bool disableAudioDucking;
   final bool statsOverlayPinned;
   final String? outputDeviceId;
+  final String? inputDeviceId;
 
   // ── Transient (not stored in JSON) ─────────────────────────
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -45,6 +46,7 @@ class AppState {
     this.disableAudioDucking = false,
     this.statsOverlayPinned = false,
     this.outputDeviceId,
+    this.inputDeviceId,
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
@@ -69,6 +71,8 @@ class AppState {
     bool? statsOverlayPinned,
     String? outputDeviceId,
     bool clearOutputDeviceId = false,
+    String? inputDeviceId,
+    bool clearInputDeviceId = false,
     bool? isHovered,
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
@@ -95,6 +99,7 @@ class AppState {
       disableAudioDucking: disableAudioDucking ?? this.disableAudioDucking,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
       outputDeviceId: clearOutputDeviceId ? null : (outputDeviceId ?? this.outputDeviceId),
+      inputDeviceId: clearInputDeviceId ? null : (inputDeviceId ?? this.inputDeviceId),
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId
           ? null
