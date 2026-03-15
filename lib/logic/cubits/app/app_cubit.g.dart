@@ -25,6 +25,10 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
             MapEntry(k, ParticipantSetting.fromJson(e as Map<String, dynamic>)),
       ) ??
       const {},
+  windowWidth: (json['windowWidth'] as num?)?.toDouble(),
+  windowHeight: (json['windowHeight'] as num?)?.toDouble(),
+  windowX: (json['windowX'] as num?)?.toDouble(),
+  windowY: (json['windowY'] as num?)?.toDouble(),
 );
 
 Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
@@ -39,4 +43,8 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'participantSettings': instance.participantSettings.map(
     (k, e) => MapEntry(k, e.toJson()),
   ),
+  'windowWidth': instance.windowWidth,
+  'windowHeight': instance.windowHeight,
+  'windowX': instance.windowX,
+  'windowY': instance.windowY,
 };

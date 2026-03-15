@@ -12,6 +12,10 @@ class AppState {
   final bool titleBarVisible;
   final ScreenShareSettings screenShareSettings;
   final Map<String, ParticipantSetting> participantSettings;
+  final double? windowWidth;
+  final double? windowHeight;
+  final double? windowX;
+  final double? windowY;
 
   // ── Transient (not stored in JSON) ─────────────────────────
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -31,6 +35,10 @@ class AppState {
     this.titleBarVisible = true,
     this.screenShareSettings = const ScreenShareSettings(),
     this.participantSettings = const {},
+    this.windowWidth,
+    this.windowHeight,
+    this.windowX,
+    this.windowY,
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
@@ -47,6 +55,10 @@ class AppState {
     bool? titleBarVisible,
     ScreenShareSettings? screenShareSettings,
     Map<String, ParticipantSetting>? participantSettings,
+    double? windowWidth,
+    double? windowHeight,
+    double? windowX,
+    double? windowY,
     bool? isHovered,
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
@@ -66,6 +78,10 @@ class AppState {
       titleBarVisible: titleBarVisible ?? this.titleBarVisible,
       screenShareSettings: screenShareSettings ?? this.screenShareSettings,
       participantSettings: participantSettings ?? this.participantSettings,
+      windowWidth: windowWidth ?? this.windowWidth,
+      windowHeight: windowHeight ?? this.windowHeight,
+      windowX: windowX ?? this.windowX,
+      windowY: windowY ?? this.windowY,
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId
           ? null

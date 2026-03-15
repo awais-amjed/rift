@@ -43,20 +43,12 @@ void main() async {
   if (!kIsWeb) {
     await windowManager.ensureInitialized();
 
-    final savedSizeData = HydratedBloc.storage.read('window_size');
-    final windowSize = savedSizeData != null
-        ? Size(
-            (savedSizeData['width'] as num).toDouble(),
-            (savedSizeData['height'] as num).toDouble(),
-          )
+    final appCubit = AppCubit();
+    final windowSize = appCubit.state.windowWidth != null
+        ? Size(appCubit.state.windowWidth!, appCubit.state.windowHeight!)
         : const Size(1280, 720);
-
-    final savedPositionData = HydratedBloc.storage.read('window_position');
-    final savedPosition = savedPositionData != null
-        ? Offset(
-            (savedPositionData['x'] as num).toDouble(),
-            (savedPositionData['y'] as num).toDouble(),
-          )
+    final savedPosition = appCubit.state.windowX != null
+        ? Offset(appCubit.state.windowX!, appCubit.state.windowY!)
         : null;
 
     windowManager.waitUntilReadyToShow(
@@ -80,13 +72,17 @@ void main() async {
         ],
       ),
     );
-  }
 
-  runApp(const MyApp());
+    runApp(MyApp(appCubit: appCubit));
+  } else {
+    runApp(MyApp(appCubit: AppCubit()));
+  }
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final AppCubit appCubit;
+
+  const MyApp({super.key, required this.appCubit});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -109,19 +105,13 @@ class _MyAppState extends State<MyApp> with WindowListener {
   @override
   void onWindowResize() async {
     final size = await windowManager.getSize();
-    await HydratedBloc.storage.write('window_size', {
-      'width': size.width,
-      'height': size.height,
-    });
+    widget.appCubit.saveWindowSize(size);
   }
 
   @override
   void onWindowMove() async {
     final position = await windowManager.getPosition();
-    await HydratedBloc.storage.write('window_position', {
-      'x': position.dx,
-      'y': position.dy,
-    });
+    widget.appCubit.saveWindowPosition(position);
   }
 
   @override
@@ -132,7 +122,7 @@ class _MyAppState extends State<MyApp> with WindowListener {
           providers: [
             BlocProvider(create: (_) => ThemeCubit()),
             BlocProvider(create: (_) => ServerCubit()),
-            BlocProvider(create: (_) => AppCubit()),
+            BlocProvider.value(value: widget.appCubit),
             BlocProvider(create: (_) => TokenCubit()),
             BlocProvider(
               create: (context) {

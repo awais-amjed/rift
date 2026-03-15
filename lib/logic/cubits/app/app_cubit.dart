@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -97,6 +98,18 @@ class AppCubit extends HydratedCubit<AppState> {
 
   void setParticipants(List<ParticipantInfo> participants) {
     emit(state.copyWith(participants: participants));
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Persisted: window bounds
+  // ──────────────────────────────────────────────────────────
+
+  void saveWindowSize(Size size) {
+    emit(state.copyWith(windowWidth: size.width, windowHeight: size.height));
+  }
+
+  void saveWindowPosition(Offset position) {
+    emit(state.copyWith(windowX: position.dx, windowY: position.dy));
   }
 
   // ──────────────────────────────────────────────────────────
