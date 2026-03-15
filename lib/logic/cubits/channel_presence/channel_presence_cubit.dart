@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
@@ -61,10 +60,10 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
 
   // ── Server changes ───────────────────────────────────────────────────────
 
-  void _onServerChanged(ServerState serverState) {
+  Future<void> _onServerChanged(ServerState serverState) async {
     final server = serverState.selectedServer;
     if (server?.id == _currentServerId) return;
-    _disconnectPresence();
+    await _disconnectPresence();
     if (server != null && server.supabaseKey != null) {
       _connectPresence(server);
     }
@@ -80,36 +79,35 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
         .onPresenceJoin((_) => _syncPresence())
         .onPresenceLeave((_) => _syncPresence())
         .subscribe((status, [err]) async {
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        // If already in a channel when (re)connecting, track immediately.
-        final lkState = _livekitCubit.state;
-        if (lkState.connectionState == LiveKitConnectionState.connected &&
-            lkState.currentChannelId != null) {
-          final user = _serverCubit.state.selectedServer?.user;
-          if (user != null) {
-            await _track(
-              channelId: lkState.currentChannelId!,
-              userId: user.id,
-              displayName: user.displayName,
-            );
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            final lkState = _livekitCubit.state;
+            if (lkState.connectionState == LiveKitConnectionState.connected &&
+                lkState.currentChannelId != null) {
+              final user = _serverCubit.state.selectedServer?.user;
+              if (user != null) {
+                await _track(
+                  channelId: lkState.currentChannelId!,
+                  userId: user.id,
+                  displayName: user.displayName,
+                );
+              }
+            }
           }
-        }
-      } else if (err != null) {
-        debugPrint('[ChannelPresence] Realtime error: $err');
-      }
-    });
+        });
   }
 
   Future<void> _disconnectPresence() async {
-    try {
-      await _channel?.untrack();
-      await _channel?.unsubscribe();
-      _client?.removeAllChannels();
-      await _client?.dispose();
-    } catch (_) {}
+    final channel = _channel;
+    final client = _client;
     _channel = null;
     _client = null;
     _currentServerId = null;
+    try {
+      await channel?.untrack();
+      await channel?.unsubscribe();
+      client?.removeAllChannels();
+      await client?.dispose();
+    } catch (_) {}
     if (!isClosed) emit(const ChannelPresenceState());
   }
 
@@ -119,9 +117,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     final prev = _lastLkConnectionState;
     _lastLkConnectionState = lkState.connectionState;
 
-    final justConnected = lkState.connectionState ==
-            LiveKitConnectionState.connected &&
-        prev != LiveKitConnectionState.connected;
+    final justConnected =
+        lkState.connectionState == LiveKitConnectionState.connected &&
+            prev != LiveKitConnectionState.connected;
 
     final justDisconnected =
         lkState.connectionState == LiveKitConnectionState.disconnected &&
@@ -141,8 +139,6 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     }
   }
 
-  // ── Presence helpers ─────────────────────────────────────────────────────
-
   Future<void> _track({
     required String channelId,
     required String userId,
@@ -154,17 +150,13 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
         'userId': userId,
         'displayName': displayName,
       });
-    } catch (e) {
-      debugPrint('[ChannelPresence] track error: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> _untrack() async {
     try {
       await _channel?.untrack();
-    } catch (e) {
-      debugPrint('[ChannelPresence] untrack error: $e');
-    }
+    } catch (_) {}
   }
 
   void _syncPresence() {
@@ -200,5 +192,4 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     return super.close();
   }
 }
-
 
