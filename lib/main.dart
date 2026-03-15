@@ -51,8 +51,21 @@ void main() async {
           )
         : const Size(1280, 720);
 
+    final savedPositionData = HydratedBloc.storage.read('window_position');
+    final savedPosition = savedPositionData != null
+        ? Offset(
+            (savedPositionData['x'] as num).toDouble(),
+            (savedPositionData['y'] as num).toDouble(),
+          )
+        : null;
+
     windowManager.waitUntilReadyToShow(
       WindowOptions(titleBarStyle: TitleBarStyle.hidden, size: windowSize),
+      () async {
+        if (savedPosition != null) {
+          await windowManager.setPosition(savedPosition);
+        }
+      },
     );
 
     await trayManager.setIcon(
@@ -99,6 +112,15 @@ class _MyAppState extends State<MyApp> with WindowListener {
     await HydratedBloc.storage.write('window_size', {
       'width': size.width,
       'height': size.height,
+    });
+  }
+
+  @override
+  void onWindowMove() async {
+    final position = await windowManager.getPosition();
+    await HydratedBloc.storage.write('window_position', {
+      'x': position.dx,
+      'y': position.dy,
     });
   }
 
