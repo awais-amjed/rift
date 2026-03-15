@@ -6,6 +6,10 @@ set -e
 echo "Building Rust library for Linux..."
 echo ""
 
+echo "Generating Flutter Rust Bridge bindings..."
+flutter_rust_bridge_codegen generate
+
+echo ""
 cd rust
 
 # Build for the current platform (Linux x64)
@@ -14,9 +18,6 @@ cargo build --release --target x86_64-unknown-linux-gnu
 
 cd ..
 
-echo ""
-echo "Generating Flutter Rust Bridge bindings..."
-flutter_rust_bridge_codegen generate
 
 echo ""
 echo "========================================"
