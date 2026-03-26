@@ -263,8 +263,18 @@ class ServerCubit extends HydratedCubit<ServerState> {
               .toList() ??
           [];
       final supabaseKey = data['supabase_key'] as String?;
+      final rawUser = data['user'];
+      final user =
+          rawUser != null
+              ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
+              : null;
 
-      updateServer(server.id, channels: channels, supabaseKey: supabaseKey);
+      updateServer(
+        server.id,
+        channels: channels,
+        supabaseKey: supabaseKey,
+        user: user,
+      );
       return (success: true, error: null);
     } else {
       return (
