@@ -115,6 +115,20 @@ class ServerRepository {
     });
   }
 
+  /// Rotate Ed25519 key: proves ownership with old key, replaces with new key.
+  Future<APIResponse> rotateKey(
+    String supabaseUrl, {
+    required String oldPublicKey,
+    required String newPublicKey,
+    required String signature,
+  }) {
+    return _post(supabaseUrl, 'rotate_key', {
+      'old_public_key': oldPublicKey,
+      'new_public_key': newPublicKey,
+      'signature': signature,
+    });
+  }
+
   /// Join a server — creates a user account with cryptographic identity
   /// and links it to the token.
   Future<APIResponse> joinServer(

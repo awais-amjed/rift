@@ -81,6 +81,21 @@ class SecureStorageRepository {
         .toList();
   }
 
+  /// Update the key derivation version for a server (after key rotation).
+  Future<void> updateServerVersion(String host, String newVersion) async {
+    final servers = await getJoinedServers();
+    final updated = servers.map((s) {
+      if (s.url == host) return (url: s.url, version: newVersion);
+      return s;
+    }).toList();
+    await _storage.write(
+      key: _keyJoinedServers,
+      value: jsonEncode(
+        updated.map((s) => {'url': s.url, 'version': s.version}).toList(),
+      ),
+    );
+  }
+
   // ── Wipe ─────────────────────────────────────────────────
 
   /// Delete all stored secrets (for testing / account reset).

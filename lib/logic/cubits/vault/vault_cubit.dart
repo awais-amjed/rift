@@ -15,6 +15,7 @@ import 'vault_state.dart';
 /// - Create a new vault (Phase 1).
 /// - Derive server identities and handle registration (Phase 2).
 /// - Perform challenge-response login (Phase 3).
+/// - Rotate Ed25519 keys for a server (Phase 4).
 class VaultCubit extends Cubit<VaultState> {
   final CryptoRepository _crypto;
   final SecureStorageRepository _storage;
@@ -223,6 +224,76 @@ class VaultCubit extends Cubit<VaultState> {
     } catch (e) {
       return (success: false, error: e.toString(), data: null);
     }
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Phase 4: Key rotation
+  // ──────────────────────────────────────────────────────────
+
+  /// Rotate the Ed25519 keypair for a server.
+  ///
+  /// 1. Derive OLD identity (current version).
+  /// 2. Derive NEW identity (bumped version).
+  /// 3. Sign the new public key with the old private key.
+  /// 4. Send to /rotate_key edge function.
+  /// 5. Update stored version on success.
+  /// Returns the new version string on success.
+  Future<({bool success, String? error, String? newVersion})> rotateKey({
+    required String supabaseUrl,
+  }) async {
+    try {
+      final host = Uri.parse(supabaseUrl).host;
+
+      // Look up current version from secure storage
+      final joinedServers = await _storage.getJoinedServers();
+      final serverEntry = joinedServers.cast<({String url, String version})?>().firstWhere(
+        (s) => s?.url == host,
+        orElse: () => null,
+      );
+      final currentVersion = serverEntry?.version ?? 'v1';
+      final newVersion = _bumpVersion(currentVersion);
+
+      // Derive old and new identities
+      final oldIdentity = await getIdentityForHost(host, version: currentVersion);
+      final newIdentity = await getIdentityForHost(host, version: newVersion);
+
+      // Sign the rotation payload with the old key
+      final signature = await _crypto.signRotation(
+        oldKeyPair: oldIdentity.keyPair,
+        newPublicKeyBytes: newIdentity.publicKeyBytes,
+        host: host,
+      );
+
+      // Call the edge function
+      final response = await _serverRepo.rotateKey(
+        supabaseUrl,
+        oldPublicKey: oldIdentity.publicKeyBase64,
+        newPublicKey: newIdentity.publicKeyBase64,
+        signature: CryptoRepository.toBase64(signature),
+      );
+
+      if (!response.success) {
+        return (success: false, error: response.error, newVersion: null);
+      }
+
+      // Update the stored version
+      await _storage.updateServerVersion(host, newVersion);
+
+      // Invalidate the old identity cache entry
+      _identityCache.remove('$host:$currentVersion');
+
+      return (success: true, error: null, newVersion: newVersion);
+    } catch (e) {
+      return (success: false, error: e.toString(), newVersion: null);
+    }
+  }
+
+  /// Increment a version string: 'v1' → 'v2', 'v2' → 'v3', etc.
+  static String _bumpVersion(String version) {
+    final match = RegExp(r'v(\d+)').firstMatch(version);
+    if (match == null) return 'v2';
+    final num = int.parse(match.group(1)!);
+    return 'v${num + 1}';
   }
 
   // ──────────────────────────────────────────────────────────
