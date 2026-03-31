@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:toastification/toastification.dart';
@@ -14,6 +15,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'data/repositories/server_repository.dart';
 import 'logic/cubits/channel_presence/channel_presence_cubit.dart';
+import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/cubits/voice_stats/voice_stats_cubit.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/cubits/livekit/livekit_cubit.dart';
@@ -82,22 +84,25 @@ void main() async {
       ),
     );
 
-    runApp(MyApp(appCubit: appCubit));
+    runApp(MyApp(appCubit: appCubit, vaultCubit: VaultCubit()));
   } else {
-    runApp(MyApp(appCubit: AppCubit()));
+    runApp(MyApp(appCubit: AppCubit(), vaultCubit: VaultCubit()));
   }
 }
 
 class MyApp extends StatefulWidget {
   final AppCubit appCubit;
+  final VaultCubit vaultCubit;
 
-  const MyApp({super.key, required this.appCubit});
+  const MyApp({super.key, required this.appCubit, required this.vaultCubit});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
+  late final GoRouter _router = AppRoutes.router(widget.vaultCubit);
+
   @override
   void initState() {
     super.initState();
@@ -106,6 +111,7 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
       trayManager.addListener(this);
     }
     HelperMethods.initEasyLoading();
+    widget.vaultCubit.checkVaultStatus();
   }
 
   @override
@@ -153,6 +159,7 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
             BlocProvider(create: (_) => ThemeCubit()),
             BlocProvider(create: (_) => ServerCubit()),
             BlocProvider.value(value: widget.appCubit),
+            BlocProvider.value(value: widget.vaultCubit),
             BlocProvider(create: (_) => TokenCubit()),
             BlocProvider(
               create: (context) {
@@ -196,7 +203,7 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
                 builder: (context, themeState) {
                   return PushToTalkListener(
                     child: MaterialApp.router(
-                      routerConfig: AppRoutes.router,
+                      routerConfig: _router,
                       darkTheme: AppTheme.darkTheme,
                       theme: AppTheme.lightTheme,
                       themeMode: themeState.themeMode,
