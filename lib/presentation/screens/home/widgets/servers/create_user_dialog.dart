@@ -9,9 +9,16 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../theme/custom_colors.dart';
 
-/// Dialog shown when user is in a server but has no profile yet.
+/// Dialog shown when user joins a server and needs to create a profile.
 class CreateUserDialog extends StatefulWidget {
-  const CreateUserDialog({super.key});
+  final String supabaseUrl;
+  final String inviteCode;
+
+  const CreateUserDialog({
+    super.key,
+    required this.supabaseUrl,
+    required this.inviteCode,
+  });
 
   @override
   State<CreateUserDialog> createState() => _CreateUserDialogState();
@@ -45,20 +52,13 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
 
     try {
       // Derive crypto identity for this server's host
-      final server = context.read<ServerCubit>().state.selectedServer;
-      if (server == null) {
-        setState(() {
-          _error = 'No server selected';
-          _isLoading = false;
-        });
-        return;
-      }
-
+      final host = Uri.parse(widget.supabaseUrl).host;
       final vaultCubit = context.read<VaultCubit>();
-      final host = Uri.parse(server.supabaseUrl).host;
       final identity = await vaultCubit.getIdentityForHost(host);
 
       final result = await context.read<ServerCubit>().createUserAccount(
+        supabaseUrl: widget.supabaseUrl,
+        inviteCode: widget.inviteCode,
         username: _usernameCtrl.text.trim(),
         displayName: _displayNameCtrl.text.trim(),
         publicKey: identity.publicKeyBase64,

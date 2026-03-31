@@ -40,7 +40,8 @@ class ServerRepository {
   // Server
   // ──────────────────────────────────────────────────────────
 
-  /// Create a new server.
+  /// Create a new server. Returns server_id, name, supabase_url,
+  /// supabase_key, and invite_code for the admin to register with.
   Future<APIResponse> createServer(
     String supabaseUrl, {
     required String serviceKey,
@@ -65,11 +66,31 @@ class ServerRepository {
     return _post(supabaseUrl, 'get_server_details', {'token': token});
   }
 
+  /// Update server details (admin only).
+  Future<APIResponse> updateServer(
+    String supabaseUrl,
+    String token, {
+    String? name,
+    String? iconUrl,
+    String? livekitApiKey,
+    String? livekitSecretKey,
+  }) {
+    return _post(supabaseUrl, 'update_server', {
+      'token': token,
+      if (name != null) 'name': name,
+      if (iconUrl != null) 'icon_url': iconUrl,
+      if (livekitApiKey != null) 'livekit_api_key': livekitApiKey,
+      if (livekitSecretKey != null) 'livekit_secret_key': livekitSecretKey,
+    });
+  }
+
   // ──────────────────────────────────────────────────────────
-  // Users & Tokens
+  // Registration & Auth
   // ──────────────────────────────────────────────────────────
 
-  /// Register on a server using cryptographic identity + invite code.
+  /// Register on a server using an invite code + cryptographic identity.
+  /// Used for both initial server setup (admin) and joining via invite.
+  /// Returns full server context including a new auth token.
   Future<APIResponse> register(
     String supabaseUrl, {
     required String inviteCode,
@@ -87,10 +108,6 @@ class ServerRepository {
     });
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Challenge-response auth
-  // ──────────────────────────────────────────────────────────
-
   /// Request a challenge nonce for Ed25519 authentication.
   Future<APIResponse> getChallenge(
     String supabaseUrl, {
@@ -101,7 +118,7 @@ class ServerRepository {
     });
   }
 
-  /// Verify a signed challenge to authenticate and obtain a session token.
+  /// Verify a signed challenge to authenticate and get full server context.
   Future<APIResponse> verifyChallenge(
     String supabaseUrl, {
     required String publicKey,
@@ -129,43 +146,27 @@ class ServerRepository {
     });
   }
 
-  /// Join a server — creates a user account with cryptographic identity
-  /// and links it to the token.
-  Future<APIResponse> joinServer(
-    String supabaseUrl,
-    String token, {
-    required String publicKey,
-    required String stableId,
-    required String username,
-    required String displayName,
-  }) {
-    return _post(supabaseUrl, 'join_server', {
-      'token': token,
-      'public_key': publicKey,
-      'stable_id': stableId,
-      'username': username,
-      'display_name': displayName,
-    });
-  }
-
   /// Check whether a username is available on the given server.
   Future<APIResponse> isUsernameAvailable(String supabaseUrl, String username) {
     return _post(supabaseUrl, 'is_username_available', {'username': username});
   }
 
-  /// Create an access/invite token with optional permissions.
-  Future<APIResponse> createAccessToken(
+  /// Create an invite code with optional permissions.
+  /// [maxUses] null = unlimited, 1 = single-use.
+  Future<APIResponse> createInvite(
     String supabaseUrl,
     String callerToken, {
     bool isServerAdmin = false,
     bool isChannelManager = false,
     bool canCreateTokens = false,
+    int? maxUses = 1,
   }) {
-    return _post(supabaseUrl, 'create_access_token', {
+    return _post(supabaseUrl, 'create_invite', {
       'token': callerToken,
       'is_server_admin': isServerAdmin,
       'is_channel_manager': isChannelManager,
       'can_create_tokens': canCreateTokens,
+      'max_uses': maxUses,
     });
   }
 
@@ -201,7 +202,19 @@ class ServerRepository {
     });
   }
 
-  /// Mute or unmute a participant for everyone in a channel (requires is_channel_manager).
+  /// Delete a channel (requires channel manager).
+  Future<APIResponse> deleteChannel(
+    String supabaseUrl,
+    String token,
+    String channelId,
+  ) {
+    return _post(supabaseUrl, 'delete_channel', {
+      'token': token,
+      'channel_id': channelId,
+    });
+  }
+
+  /// Mute or unmute a participant (requires channel manager).
   Future<APIResponse> muteParticipant(
     String supabaseUrl,
     String token, {

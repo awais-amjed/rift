@@ -44,7 +44,7 @@ class _InviteModalState extends State<InviteModal> {
       _inviteToken = null;
     });
 
-    final result = await context.read<ServerCubit>().createAccessToken(
+    final result = await context.read<ServerCubit>().createInvite(
       isServerAdmin: _grantServerAdmin,
       isChannelManager: _grantChannelManager,
       canCreateTokens: _grantCanCreateTokens,
@@ -55,7 +55,7 @@ class _InviteModalState extends State<InviteModal> {
     setState(() {
       _isGenerating = false;
       if (result.success) {
-        _inviteToken = result.token;
+        _inviteToken = result.inviteCode;
       } else {
         _error = result.error;
       }

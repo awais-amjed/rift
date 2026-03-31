@@ -102,150 +102,93 @@ class ServerCubit extends HydratedCubit<ServerState> {
   // API Operations
   // ──────────────────────────────────────────────────────────
 
-  /// Create an access/invite token for the selected server.
-  Future<({bool success, String? token, String? error})> createAccessToken({
+  /// Create an invite code for the selected server.
+  Future<({bool success, String? inviteCode, String? error})> createInvite({
     bool isServerAdmin = false,
     bool isChannelManager = false,
     bool canCreateTokens = false,
+    int? maxUses = 1,
   }) async {
     final server = state.selectedServer;
     if (server == null) {
-      return (success: false, token: null, error: 'No server selected');
+      return (success: false, inviteCode: null, error: 'No server selected');
     }
 
-    final response = await _repository.createAccessToken(
+    final response = await _repository.createInvite(
       server.supabaseUrl,
       server.token,
       isServerAdmin: isServerAdmin,
       isChannelManager: isChannelManager,
       canCreateTokens: canCreateTokens,
+      maxUses: maxUses,
     );
 
     if (response.success) {
-      final token = response.data['token'] as String;
-      return (success: true, token: token, error: null);
+      final inviteCode = response.data['invite_code'] as String;
+      return (success: true, inviteCode: inviteCode, error: null);
     } else {
       return (
         success: false,
-        token: null,
-        error: response.error ?? 'Failed to generate invite token',
+        inviteCode: null,
+        error: response.error ?? 'Failed to generate invite',
       );
     }
   }
 
-  /// Create a new channel in the selected server.
-  Future<({bool success, String? error})> createChannel({
-    required String name,
-    required String channelType,
-  }) async {
-    final server = state.selectedServer;
-    if (server == null) {
-      return (success: false, error: 'No server selected');
-    }
-
-    final response = await _repository.createChannel(
-      server.supabaseUrl,
-      server.token,
-      name: name,
-      channelType: channelType,
-    );
-
-    if (response.success) {
-      // Refresh server details to get updated channel list
-      await refreshServerDetails();
-      return (success: true, error: null);
-    } else {
-      return (
-        success: false,
-        error: response.error ?? 'Failed to create channel',
-      );
-    }
-  }
-
-  /// Create a user account for the selected server using cryptographic identity.
+  /// Register on a server using an invite code + cryptographic identity.
+  /// Used for both initial server setup (admin) and joining via invite.
   Future<({bool success, String? error})> createUserAccount({
+    required String supabaseUrl,
+    required String inviteCode,
     required String username,
     required String displayName,
     required String publicKey,
     required String stableId,
   }) async {
-    final server = state.selectedServer;
-    if (server == null) {
-      return (success: false, error: 'No server selected');
-    }
-
-    final joinResponse = await _repository.joinServer(
-      server.supabaseUrl,
-      server.token,
+    final response = await _repository.register(
+      supabaseUrl,
+      inviteCode: inviteCode,
       publicKey: publicKey,
       stableId: stableId,
       username: username,
       displayName: displayName,
     );
 
-    if (!joinResponse.success) {
+    if (!response.success) {
       return (
         success: false,
-        error: joinResponse.error ?? 'Failed to create account',
+        error: response.error ?? 'Failed to register',
       );
     }
 
-    // join_server now returns full server context — use it directly
-    final data = joinResponse.data as Map<String, dynamic>;
-    final rawUser = data['user'];
-    final rawChannels = data['channels'] as List<dynamic>?;
-    final channels =
-        rawChannels
-            ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
-            .toList() ??
-        [];
+    // register returns full server context with a new auth token
+    final data = response.data as Map<String, dynamic>;
+    final token = data['token'] as String;
 
-    updateServer(
-      server.id,
-      user: rawUser != null
-          ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
-          : null,
-      channels: channels,
-      supabaseKey: data['supabase_key'] as String?,
-    );
+    addServer(supabaseUrl, token, data);
 
     return (success: true, error: null);
   }
 
-  /// Validate token and join server. Returns server details and whether user exists.
+  /// Validate an invite code — looks up the invite on the server,
+  /// does NOT create a user yet.
   Future<
     ({
       bool success,
       String? error,
-      Map<String, dynamic>? serverDetails,
-      bool userExists,
+      String? serverId,
+      String? serverName,
     })
   >
-  validateAndJoinServer(String supabaseUrl, String token) async {
-    final response = await _repository.getServerDetails(supabaseUrl, token);
-
-    if (!response.success) {
-      return (
-        success: false,
-        error: response.error ?? 'Failed to connect to server',
-        serverDetails: null,
-        userExists: false,
-      );
-    }
-
-    final serverData = response.data as Map<String, dynamic>;
-    final user = serverData['user'];
-    final userExists = user != null;
-
-    // Always add the server so it becomes the selected server.
-    // If the user doesn't exist yet, createUserAccount can still find it.
-    addServer(supabaseUrl, token, serverData);
-
+  validateInvite(String supabaseUrl, String inviteCode) async {
+    // For now, we can't validate without registering.
+    // The client will call register directly with the invite code.
+    // This is a placeholder for future invite preview functionality.
     return (
       success: true,
       error: null,
-      serverDetails: serverData,
-      userExists: userExists,
+      serverId: null,
+      serverName: null,
     );
   }
 
