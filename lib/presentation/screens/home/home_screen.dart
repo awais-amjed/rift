@@ -5,8 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
+import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../common/app_modal.dart';
-import 'widgets/servers/create_user_dialog.dart';
 import 'widgets/servers/server_selector/server_selector_dialog.dart';
 import 'widgets/sidebar/floating_sidebar.dart';
 import 'widgets/sidebar/sidebar.dart';
@@ -25,21 +25,48 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkServerState());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onStartup());
   }
 
-  void _checkServerState() {
+  Future<void> _onStartup() async {
     if (!mounted) return;
-    final state = context.read<ServerCubit>().state;
+    final serverState = context.read<ServerCubit>().state;
 
-    if (state.servers.isEmpty) {
+    if (serverState.servers.isEmpty) {
       _openServerSelector();
-    } else if (state.selectedServer?.user == null) {
-      _openCreateUser();
     } else {
-      // Refresh server details on every startup so fields added after initial
-      // save (e.g. supabaseKey) are picked up from the edge function.
-      context.read<ServerCubit>().refreshServerDetails();
+      // Re-authenticate to each server via challenge-response to get fresh tokens
+      await _loginToServers();
+    }
+  }
+
+  /// Perform challenge-response login for all saved servers.
+  Future<void> _loginToServers() async {
+    final serverCubit = context.read<ServerCubit>();
+    final vaultCubit = context.read<VaultCubit>();
+
+    for (final server in serverCubit.state.servers) {
+      final result = await vaultCubit.loginToServer(
+        supabaseUrl: server.supabaseUrl,
+      );
+
+      if (!mounted) return;
+
+      if (result.success && result.data != null) {
+        final data = result.data!;
+        final token = data['token'] as String;
+
+        // Update the server with fresh token and details
+        serverCubit.updateServer(
+          server.id,
+          token: token,
+        );
+
+        // Refresh full server details with the fresh token
+        if (server.id == serverCubit.state.selectedServer?.id) {
+          serverCubit.refreshServerDetails();
+        }
+      }
     }
   }
 
@@ -47,18 +74,11 @@ class _HomeScreenState extends State<HomeScreen> {
     showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
-        providers: [BlocProvider.value(value: context.read<ServerCubit>())],
+        providers: [
+          BlocProvider.value(value: context.read<ServerCubit>()),
+          BlocProvider.value(value: context.read<VaultCubit>()),
+        ],
         child: const ServerSelectorDialog(),
-      ),
-    );
-  }
-
-  void _openCreateUser() {
-    showCustomDialog(
-      context: context,
-      builder: (_) => BlocProvider.value(
-        value: context.read<ServerCubit>(),
-        child: const CreateUserDialog(),
       ),
     );
   }
@@ -69,15 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
       listener: (context, state) {
         if (state.servers.isEmpty) {
           _openServerSelector();
-        } else if (state.selectedServer != null &&
-            state.selectedServer!.user == null) {
-          _openCreateUser();
         }
       },
       listenWhen: (prev, curr) =>
-          prev.servers.length != curr.servers.length ||
-          prev.selectedServer?.id != curr.selectedServer?.id ||
-          prev.selectedServer?.user != curr.selectedServer?.user,
+          prev.servers.length != curr.servers.length,
       child: Scaffold(
         body: BlocBuilder<AppCubit, AppState>(
           buildWhen: (prev, curr) =>

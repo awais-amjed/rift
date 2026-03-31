@@ -69,6 +69,52 @@ class ServerRepository {
   // Users & Tokens
   // ──────────────────────────────────────────────────────────
 
+  /// Register on a server using cryptographic identity + invite code.
+  Future<APIResponse> register(
+    String supabaseUrl, {
+    required String inviteCode,
+    required String publicKey,
+    required String stableId,
+    required String username,
+    required String displayName,
+  }) {
+    return _post(supabaseUrl, 'register', {
+      'invite_code': inviteCode,
+      'public_key': publicKey,
+      'stable_id': stableId,
+      'username': username,
+      'display_name': displayName,
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Challenge-response auth
+  // ──────────────────────────────────────────────────────────
+
+  /// Request a challenge nonce for Ed25519 authentication.
+  Future<APIResponse> getChallenge(
+    String supabaseUrl, {
+    required String publicKey,
+  }) {
+    return _post(supabaseUrl, 'get_challenge', {
+      'public_key': publicKey,
+    });
+  }
+
+  /// Verify a signed challenge to authenticate and obtain a session token.
+  Future<APIResponse> verifyChallenge(
+    String supabaseUrl, {
+    required String publicKey,
+    required String nonce,
+    required String signature,
+  }) {
+    return _post(supabaseUrl, 'verify_challenge', {
+      'public_key': publicKey,
+      'nonce': nonce,
+      'signature': signature,
+    });
+  }
+
   /// Join a server — creates a user account and links it to the token.
   Future<APIResponse> joinServer(
     String supabaseUrl,

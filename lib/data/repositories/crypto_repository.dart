@@ -7,16 +7,19 @@ import 'package:cryptography/cryptography.dart';
 
 /// Repository wrapping all cryptographic operations.
 ///
-/// Uses the `cryptography` package for Argon2id, AES-GCM, and secure random
-/// generation. Heavy KDF work runs inside an [Isolate] to keep the UI smooth.
+/// Uses the `cryptography` package for Argon2id, AES-GCM, HMAC-SHA256,
+/// Ed25519, and secure random generation.
 class CryptoRepository {
+  // ──────────────────────────────────────────────────────────
+  // Random generation
+  // ──────────────────────────────────────────────────────────
+
   /// Generate a cryptographically secure 256-bit (32 byte) master seed.
   Uint8List generateMasterSeed() => _secureRandomBytes(32);
 
   /// Generate a cryptographically secure 256-bit (32 byte) salt.
   Uint8List generateSalt() => _secureRandomBytes(32);
 
-  /// Fill [length] bytes with cryptographically secure random data.
   static Uint8List _secureRandomBytes(int length) {
     final rng = Random.secure();
     return Uint8List.fromList(
@@ -24,10 +27,13 @@ class CryptoRepository {
     );
   }
 
+  // ──────────────────────────────────────────────────────────
+  // Argon2id — Vault key derivation
+  // ──────────────────────────────────────────────────────────
+
   /// Derive a 256-bit Vault Key from [password] + [salt] using Argon2id.
   ///
   /// Runs in a background isolate to avoid blocking the UI.
-  /// Params from auth.md: 64 MiB memory, 2 iterations, 1 parallelism.
   Future<Uint8List> deriveVaultKey({
     required String password,
     required Uint8List salt,
@@ -53,10 +59,11 @@ class CryptoRepository {
     });
   }
 
+  // ──────────────────────────────────────────────────────────
+  // AES-GCM — Vault encryption
+  // ──────────────────────────────────────────────────────────
+
   /// Encrypt [plaintext] with AES-256-GCM using [key].
-  ///
-  /// Returns a record of (ciphertext, iv) — both as raw bytes.
-  /// A fresh random 12-byte IV is generated for every call.
   Future<({Uint8List ciphertext, Uint8List iv})> encrypt({
     required String plaintext,
     required Uint8List key,
@@ -75,8 +82,6 @@ class CryptoRepository {
   }
 
   /// Decrypt [ciphertext] with AES-256-GCM using [key] and [iv].
-  ///
-  /// Returns the plaintext string.
   Future<String> decrypt({
     required Uint8List ciphertext,
     required Uint8List key,
@@ -84,8 +89,6 @@ class CryptoRepository {
   }) async {
     final algorithm = AesGcm.with256bits();
 
-    // AES-GCM concatenation (without nonce) = ciphertext + mac (16 bytes)
-    // Split the last 16 bytes as the MAC tag
     final macLength = algorithm.macAlgorithm.macLength;
     final encryptedBytes = ciphertext.sublist(0, ciphertext.length - macLength);
     final macBytes = ciphertext.sublist(ciphertext.length - macLength);
@@ -96,20 +99,107 @@ class CryptoRepository {
       mac: Mac(macBytes),
     );
 
-    final plaintext = await algorithm.decryptString(
+    return algorithm.decryptString(
       secretBox,
       secretKey: SecretKey(key),
     );
-
-    return plaintext;
   }
 
-  /// Helper: encode bytes to base64.
+  // ──────────────────────────────────────────────────────────
+  // HMAC-SHA256 — Identity derivation
+  // ──────────────────────────────────────────────────────────
+
+  /// Compute HMAC-SHA256(key, message) and return raw bytes.
+  Future<Uint8List> hmacSha256({
+    required Uint8List key,
+    required String message,
+  }) async {
+    final algorithm = Hmac.sha256();
+    final mac = await algorithm.calculateMac(
+      utf8.encode(message),
+      secretKey: SecretKey(key),
+    );
+    return Uint8List.fromList(mac.bytes);
+  }
+
+  /// Derive the full server identity from the master seed and host.
+  ///
+  /// Returns the Ed25519 keypair (for auth) and the stable ID (for bans).
+  /// - childSeed = HMAC-SHA256(masterSeed, "host:version")
+  /// - stableId  = HMAC-SHA256(masterSeed, "host:identity")
+  Future<ServerIdentity> deriveServerIdentity({
+    required Uint8List masterSeed,
+    required String host,
+    String version = 'v1',
+  }) async {
+    // Derive child seed → Ed25519 keypair
+    final childSeed = await hmacSha256(
+      key: masterSeed,
+      message: '$host:$version',
+    );
+
+    final ed = Ed25519();
+    final keyPair = await ed.newKeyPairFromSeed(childSeed);
+    final publicKey = await keyPair.extractPublicKey();
+
+    // Derive stable ID
+    final stableIdBytes = await hmacSha256(
+      key: masterSeed,
+      message: '$host:identity',
+    );
+
+    return ServerIdentity(
+      keyPair: keyPair,
+      publicKeyBytes: Uint8List.fromList(publicKey.bytes),
+      stableId: toBase64(stableIdBytes),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Ed25519 — Challenge-response signing
+  // ──────────────────────────────────────────────────────────
+
+  /// Sign a challenge message with an Ed25519 keypair.
+  ///
+  /// The message format is "nonce@host" as specified in auth.md.
+  Future<Uint8List> signChallenge({
+    required SimpleKeyPair keyPair,
+    required String nonce,
+    required String host,
+  }) async {
+    final message = '$nonce@$host';
+    final ed = Ed25519();
+    final signature = await ed.sign(
+      utf8.encode(message),
+      keyPair: keyPair,
+    );
+    return Uint8List.fromList(signature.bytes);
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Helpers
+  // ──────────────────────────────────────────────────────────
+
   static String toBase64(Uint8List bytes) => base64Encode(bytes);
 
-  /// Helper: decode base64 to bytes.
   static Uint8List fromBase64(String b64) =>
       Uint8List.fromList(base64Decode(b64));
+}
+
+/// Result of deriving a server-specific cryptographic identity.
+class ServerIdentity {
+  final SimpleKeyPair keyPair;
+  final Uint8List publicKeyBytes;
+  final String stableId; // base64-encoded
+
+  const ServerIdentity({
+    required this.keyPair,
+    required this.publicKeyBytes,
+    required this.stableId,
+  });
+
+  /// The public key as a base64 string (sent to the server).
+  String get publicKeyBase64 => CryptoRepository.toBase64(publicKeyBytes);
 }
 
 
