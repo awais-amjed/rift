@@ -79,25 +79,16 @@ class _JoinServerFormState extends State<JoinServerForm> {
       return;
     }
 
-    // Add the server to ServerCubit using the returned data
+    // register now returns full server context — add directly
     final data = result.data!;
     final token = data['token'] as String;
-
-    // Fetch full server details with the token we got back
     final serverCubit = context.read<ServerCubit>();
-    final detailsResult = await serverCubit.validateAndJoinServer(
-      supabaseUrl,
-      token,
-    );
+    serverCubit.addServer(supabaseUrl, token, data);
 
     if (!mounted) return;
 
     setState(() => _isLoading = false);
 
-    if (!detailsResult.success) {
-      setState(() => _error = detailsResult.error);
-      return;
-    }
 
     HelperMethods.showSuccess(message: 'Joined server successfully!');
     widget.onSuccess();

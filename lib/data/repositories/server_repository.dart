@@ -115,15 +115,20 @@ class ServerRepository {
     });
   }
 
-  /// Join a server — creates a user account and links it to the token.
+  /// Join a server — creates a user account with cryptographic identity
+  /// and links it to the token.
   Future<APIResponse> joinServer(
     String supabaseUrl,
     String token, {
+    required String publicKey,
+    required String stableId,
     required String username,
     required String displayName,
   }) {
     return _post(supabaseUrl, 'join_server', {
       'token': token,
+      'public_key': publicKey,
+      'stable_id': stableId,
       'username': username,
       'display_name': displayName,
     });

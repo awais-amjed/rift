@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/classes/channel.dart';
+import '../../../data/classes/server_user.dart';
 import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
@@ -55,17 +57,23 @@ class _HomeScreenState extends State<HomeScreen> {
       if (result.success && result.data != null) {
         final data = result.data!;
         final token = data['token'] as String;
+        final rawUser = data['user'];
+        final rawChannels = data['channels'] as List<dynamic>?;
+        final channels = rawChannels
+            ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
+            .toList();
+        final user = rawUser != null
+            ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
+            : null;
 
-        // Update the server with fresh token and details
+        // Update the server with fresh token and full context
         serverCubit.updateServer(
           server.id,
           token: token,
+          user: user,
+          channels: channels,
+          supabaseKey: data['supabase_key'] as String?,
         );
-
-        // Refresh full server details with the fresh token
-        if (server.id == serverCubit.state.selectedServer?.id) {
-          serverCubit.refreshServerDetails();
-        }
       }
     }
   }
@@ -91,8 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _openServerSelector();
         }
       },
-      listenWhen: (prev, curr) =>
-          prev.servers.length != curr.servers.length,
+      listenWhen: (prev, curr) => prev.servers.length != curr.servers.length,
       child: Scaffold(
         body: BlocBuilder<AppCubit, AppState>(
           buildWhen: (prev, curr) =>

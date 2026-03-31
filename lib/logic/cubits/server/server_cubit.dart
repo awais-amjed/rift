@@ -160,10 +160,12 @@ class ServerCubit extends HydratedCubit<ServerState> {
     }
   }
 
-  /// Create a user account for the selected server.
+  /// Create a user account for the selected server using cryptographic identity.
   Future<({bool success, String? error})> createUserAccount({
     required String username,
     required String displayName,
+    required String publicKey,
+    required String stableId,
   }) async {
     final server = state.selectedServer;
     if (server == null) {
@@ -173,6 +175,8 @@ class ServerCubit extends HydratedCubit<ServerState> {
     final joinResponse = await _repository.joinServer(
       server.supabaseUrl,
       server.token,
+      publicKey: publicKey,
+      stableId: stableId,
       username: username,
       displayName: displayName,
     );
@@ -184,27 +188,26 @@ class ServerCubit extends HydratedCubit<ServerState> {
       );
     }
 
-    // Fetch refreshed server details to get the user data
-    final detailsResponse = await _repository.getServerDetails(
-      server.supabaseUrl,
-      server.token,
+    // join_server now returns full server context — use it directly
+    final data = joinResponse.data as Map<String, dynamic>;
+    final rawUser = data['user'];
+    final rawChannels = data['channels'] as List<dynamic>?;
+    final channels =
+        rawChannels
+            ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
+            .toList() ??
+        [];
+
+    updateServer(
+      server.id,
+      user: rawUser != null
+          ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
+          : null,
+      channels: channels,
+      supabaseKey: data['supabase_key'] as String?,
     );
 
-    if (detailsResponse.success) {
-      final rawUser = detailsResponse.data['user'];
-      if (rawUser != null) {
-        updateServer(
-          server.id,
-          user: ServerUser.fromJson(rawUser as Map<String, dynamic>),
-        );
-      }
-      return (success: true, error: null);
-    } else {
-      return (
-        success: false,
-        error: detailsResponse.error ?? 'Failed to fetch user details',
-      );
-    }
+    return (success: true, error: null);
   }
 
   /// Validate token and join server. Returns server details and whether user exists.

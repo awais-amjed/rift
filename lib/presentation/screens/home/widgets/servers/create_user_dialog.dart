@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
@@ -42,23 +43,47 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       _error = null;
     });
 
-    final result = await context.read<ServerCubit>().createUserAccount(
-      username: _usernameCtrl.text.trim(),
-      displayName: _displayNameCtrl.text.trim(),
-    );
+    try {
+      // Derive crypto identity for this server's host
+      final server = context.read<ServerCubit>().state.selectedServer;
+      if (server == null) {
+        setState(() {
+          _error = 'No server selected';
+          _isLoading = false;
+        });
+        return;
+      }
 
-    if (!mounted) return;
+      final vaultCubit = context.read<VaultCubit>();
+      final host = Uri.parse(server.supabaseUrl).host;
+      final identity = await vaultCubit.getIdentityForHost(host);
 
-    if (!result.success) {
+      final result = await context.read<ServerCubit>().createUserAccount(
+        username: _usernameCtrl.text.trim(),
+        displayName: _displayNameCtrl.text.trim(),
+        publicKey: identity.publicKeyBase64,
+        stableId: identity.stableId,
+      );
+
+      if (!mounted) return;
+
+      if (!result.success) {
+        setState(() {
+          _error = result.error;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      HelperMethods.showSuccess(message: 'Account created!');
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _error = result.error;
+        _error = 'Failed to derive identity: $e';
         _isLoading = false;
       });
-      return;
     }
-
-    HelperMethods.showSuccess(message: 'Account created!');
-    Navigator.of(context).pop(true);
   }
 
   void _dismiss() {
