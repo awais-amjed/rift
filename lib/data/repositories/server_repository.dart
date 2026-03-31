@@ -43,6 +43,7 @@ class ServerRepository {
   /// Create a new server.
   Future<APIResponse> createServer(
     String supabaseUrl, {
+    required String serviceKey,
     required String name,
     String? iconUrl,
     required String livekitUrl,
@@ -50,6 +51,7 @@ class ServerRepository {
     required String livekitSecretKey,
   }) {
     return _post(supabaseUrl, 'create_server', {
+      'service_key': serviceKey,
       'name': name,
       'icon_url': iconUrl,
       'livekit_url': livekitUrl,
