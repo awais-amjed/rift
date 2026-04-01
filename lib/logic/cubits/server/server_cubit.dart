@@ -192,6 +192,32 @@ class ServerCubit extends HydratedCubit<ServerState> {
     );
   }
 
+  /// Create a new channel in the selected server.
+  Future<({bool success, String? error})> createChannel({
+    required String name,
+    required String channelType,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, error: 'No server selected');
+    }
+
+    final response = await _repository.createChannel(
+      server.supabaseUrl,
+      server.token,
+      name: name,
+      channelType: channelType,
+    );
+
+    if (!response.success) {
+      return (success: false, error: response.error ?? 'Failed to create channel');
+    }
+
+    // Refresh channels to pick up the newly created one.
+    await refreshServerDetails();
+    return (success: true, error: null);
+  }
+
   /// Refresh the channel list and other details for the selected server.
   Future<({bool success, String? error})> refreshServerDetails() async {
     final server = state.selectedServer;
