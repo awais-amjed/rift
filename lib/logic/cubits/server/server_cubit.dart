@@ -5,6 +5,7 @@ import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/repositories/server_repository.dart';
+import '../vault/vault_cubit.dart';
 
 part 'server_cubit.g.dart';
 
@@ -220,6 +221,32 @@ class ServerCubit extends HydratedCubit<ServerState> {
       serverId: null,
       serverName: null,
     );
+  }
+
+  /// Rotate the Ed25519 keypair for the currently selected server and
+  /// persist the new key version in both SecureStorage and HydratedBloc state.
+  ///
+  /// Delegates all cryptographic work to [vaultCubit], then writes the bumped
+  /// version back so the next cold-start login derives the correct keypair.
+  Future<({bool success, String? error})> rotateServerKey(
+    VaultCubit vaultCubit,
+  ) async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, error: 'No server selected');
+    }
+
+    final result = await vaultCubit.rotateKey(supabaseUrl: server.supabaseUrl);
+
+    if (!result.success) {
+      return (success: false, error: result.error ?? 'Key rotation failed');
+    }
+
+    // Write the new version back into persisted state so the next login
+    // derives the correct (rotated) keypair.
+    updateServer(server.id, keyVersion: result.newVersion);
+
+    return (success: true, error: null);
   }
 
   /// Create a new channel in the selected server.
