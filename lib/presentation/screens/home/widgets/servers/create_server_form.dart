@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/repositories/server_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../theme/custom_colors.dart';
+import 'create_user_dialog.dart';
 
 /// Form to create a brand new server with Supabase + LiveKit credentials.
 class CreateServerForm extends StatefulWidget {
@@ -25,7 +25,6 @@ class CreateServerForm extends StatefulWidget {
 }
 
 class _CreateServerFormState extends State<CreateServerForm> {
-  final _repository = ServerRepository();
 
   final _nameCtrl = TextEditingController();
   final _supabaseUrlCtrl = TextEditingController();
@@ -66,8 +65,8 @@ class _CreateServerFormState extends State<CreateServerForm> {
 
     final supabaseUrl = _supabaseUrlCtrl.text.trim();
 
-    final response = await _repository.createServer(
-      supabaseUrl,
+    final response = await context.read<ServerCubit>().createServer(
+      supabaseUrl: supabaseUrl,
       serviceKey: _setupSecretCtrl.text.trim(),
       name: _nameCtrl.text.trim(),
       livekitUrl: _livekitUrlCtrl.text.trim(),
@@ -85,17 +84,28 @@ class _CreateServerFormState extends State<CreateServerForm> {
       return;
     }
 
-    final serverData = response.data['server'] as Map<String, dynamic>;
-    final adminToken = response.data['token'] as String;
+    final inviteCode = response.inviteCode!;
 
-    context.read<ServerCubit>().addCreatedServer(supabaseUrl, {
-      ...serverData,
-      'user': null,
-      'channels': <dynamic>[],
-    }, adminToken);
+    setState(() => _isLoading = false);
 
-    HelperMethods.showSuccess(message: 'Server created successfully!');
-    widget.onSuccess();
+    if (!mounted) return;
+
+    // Register as admin using the single-use invite code generated for us.
+    final registered = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => CreateUserDialog(
+        supabaseUrl: supabaseUrl,
+        inviteCode: inviteCode,
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (registered == true) {
+      HelperMethods.showSuccess(message: 'Server created successfully!');
+      widget.onSuccess();
+    }
   }
 
   @override

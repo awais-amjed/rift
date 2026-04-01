@@ -102,6 +102,36 @@ class ServerCubit extends HydratedCubit<ServerState> {
   // API Operations
   // ──────────────────────────────────────────────────────────
 
+  /// Create a new server. On success returns the single-use admin invite code
+  /// that the caller should use to register the first (admin) user account.
+  Future<({bool success, String? inviteCode, String? error})> createServer({
+    required String supabaseUrl,
+    required String serviceKey,
+    required String name,
+    String? iconUrl,
+    required String livekitUrl,
+    required String livekitApiKey,
+    required String livekitSecretKey,
+  }) async {
+    final response = await _repository.createServer(
+      supabaseUrl,
+      serviceKey: serviceKey,
+      name: name,
+      iconUrl: iconUrl,
+      livekitUrl: livekitUrl,
+      livekitApiKey: livekitApiKey,
+      livekitSecretKey: livekitSecretKey,
+    );
+
+    if (!response.success) {
+      return (success: false, inviteCode: null, error: response.error);
+    }
+
+    final data = response.data as Map<String, dynamic>;
+    final inviteCode = data['invite_code'] as String;
+    return (success: true, inviteCode: inviteCode, error: null);
+  }
+
   /// Create an invite code for the selected server.
   Future<({bool success, String? inviteCode, String? error})> createInvite({
     bool isServerAdmin = false,
