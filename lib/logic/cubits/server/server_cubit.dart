@@ -166,40 +166,6 @@ class ServerCubit extends HydratedCubit<ServerState> {
     }
   }
 
-  /// Register on a server using an invite code + cryptographic identity.
-  /// Used for both initial server setup (admin) and joining via invite.
-  Future<({bool success, String? error})> createUserAccount({
-    required String supabaseUrl,
-    required String inviteCode,
-    required String username,
-    required String displayName,
-    required String publicKey,
-    required String stableId,
-  }) async {
-    final response = await _repository.register(
-      supabaseUrl,
-      inviteCode: inviteCode,
-      publicKey: publicKey,
-      stableId: stableId,
-      username: username,
-      displayName: displayName,
-    );
-
-    if (!response.success) {
-      return (
-        success: false,
-        error: response.error ?? 'Failed to register',
-      );
-    }
-
-    // register returns full server context with a new auth token
-    final data = response.data as Map<String, dynamic>;
-    final token = data['token'] as String;
-
-    addServer(supabaseUrl, token, data);
-
-    return (success: true, error: null);
-  }
 
   /// Validate an invite code — looks up the invite on the server,
   /// does NOT create a user yet.

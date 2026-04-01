@@ -50,40 +50,31 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       _error = null;
     });
 
-    try {
-      // Derive crypto identity for this server's host
-      final host = Uri.parse(widget.supabaseUrl).host;
-      final vaultCubit = context.read<VaultCubit>();
-      final identity = await vaultCubit.getIdentityForHost(host);
+    // Step 1: Derive Ed25519 identity + call /register + update SecureStorage vault.
+    final result = await context.read<VaultCubit>().registerOnServer(
+      supabaseUrl: widget.supabaseUrl,
+      inviteCode: widget.inviteCode,
+      username: _usernameCtrl.text.trim(),
+      displayName: _displayNameCtrl.text.trim(),
+    );
 
-      final result = await context.read<ServerCubit>().createUserAccount(
-        supabaseUrl: widget.supabaseUrl,
-        inviteCode: widget.inviteCode,
-        username: _usernameCtrl.text.trim(),
-        displayName: _displayNameCtrl.text.trim(),
-        publicKey: identity.publicKeyBase64,
-        stableId: identity.stableId,
-      );
+    if (!mounted) return;
 
-      if (!mounted) return;
-
-      if (!result.success) {
-        setState(() {
-          _error = result.error;
-          _isLoading = false;
-        });
-        return;
-      }
-
-      HelperMethods.showSuccess(message: 'Account created!');
-      Navigator.of(context).pop(true);
-    } catch (e) {
-      if (!mounted) return;
+    if (!result.success) {
       setState(() {
-        _error = 'Failed to derive identity: $e';
+        _error = result.error;
         _isLoading = false;
       });
+      return;
     }
+
+    // Step 2: Persist the new server (token + full context) into HydratedBloc.
+    final data = result.data!;
+    final token = data['token'] as String;
+    context.read<ServerCubit>().addServer(widget.supabaseUrl, token, data);
+
+    HelperMethods.showSuccess(message: 'Account created!');
+    Navigator.of(context).pop(true);
   }
 
   void _dismiss() {
