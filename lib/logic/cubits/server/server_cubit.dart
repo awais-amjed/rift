@@ -42,7 +42,6 @@ class ServerCubit extends HydratedCubit<ServerState> {
 
     final result = await _vaultCubit!.loginToServer(
       supabaseUrl: server.supabaseUrl,
-      version: server.keyVersion,
     );
 
     if (!result.success || result.data == null) return null;

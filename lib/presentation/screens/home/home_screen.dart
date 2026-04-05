@@ -50,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
     for (final server in serverCubit.state.servers) {
       final result = await vaultCubit.loginToServer(
         supabaseUrl: server.supabaseUrl,
-        version: server.keyVersion,
       );
 
       if (!mounted) return;
