@@ -122,6 +122,15 @@ class CryptoRepository {
     return Uint8List.fromList(mac.bytes);
   }
 
+  /// Derive the local vault encryption key from the master seed.
+  ///
+  /// key = HMAC-SHA256(masterSeed, "vault:v1")
+  ///
+  /// Always derivable from the locally-stored master seed — no password needed.
+  /// Domain-separated with "vault:v1" to prevent key reuse across contexts.
+  Future<Uint8List> deriveLocalVaultKey(Uint8List masterSeed) =>
+      hmacSha256(key: masterSeed, message: 'vault:v1');
+
   /// Derive the full server identity from the master seed and host.
   ///
   /// Returns the Ed25519 keypair (for auth) and the stable ID (for bans).

@@ -1,27 +1,22 @@
-/// Represents the encrypted vault blob, ready for local storage or cloud sync.
+/// Encrypted vault blob containing the joined-servers list.
 ///
-/// All byte fields are stored as base64-encoded strings for easy serialization.
+/// Encrypted with AES-256-GCM using a key derived from the master seed:
+///   key = HMAC-SHA256(masterSeed, "vault:v1")
+///
+/// Because the key is always derivable from the locally-stored master seed,
+/// this blob can be silently re-encrypted on every state change — no password
+/// needed. The password layer lives in [EncryptedSeed] instead.
 class EncryptedVault {
   final String ciphertext; // base64-encoded AES-GCM ciphertext
-  final String iv; // base64-encoded 12-byte IV
-  final String globalSalt; // base64-encoded 32-byte salt (unencrypted)
+  final String iv;         // base64-encoded 12-byte nonce
 
-  const EncryptedVault({
-    required this.ciphertext,
-    required this.iv,
-    required this.globalSalt,
-  });
+  const EncryptedVault({required this.ciphertext, required this.iv});
 
-  Map<String, dynamic> toJson() => {
-        'ciphertext': ciphertext,
-        'iv': iv,
-        'global_salt': globalSalt,
-      };
+  Map<String, dynamic> toJson() => {'ciphertext': ciphertext, 'iv': iv};
 
   factory EncryptedVault.fromJson(Map<String, dynamic> json) => EncryptedVault(
         ciphertext: json['ciphertext'] as String,
         iv: json['iv'] as String,
-        globalSalt: json['global_salt'] as String,
       );
 }
 
