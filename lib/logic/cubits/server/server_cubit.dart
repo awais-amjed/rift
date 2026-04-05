@@ -1,6 +1,7 @@
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_user.dart';
@@ -14,7 +15,67 @@ part 'server_state.dart';
 class ServerCubit extends HydratedCubit<ServerState> {
   final ServerRepository _repository = ServerRepository();
 
+  /// Injected by [injectVaultCubit] after construction.
+  VaultCubit? _vaultCubit;
+
   ServerCubit() : super(const ServerState());
+
+  /// Wire up the VaultCubit so this cubit can re-authenticate on token expiry.
+  void injectVaultCubit(VaultCubit vaultCubit) {
+    _vaultCubit = vaultCubit;
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Token auto-refresh helpers
+  // ──────────────────────────────────────────────────────────
+
+  static bool _isTokenExpired(String? error) =>
+      error != null && error.contains('expired');
+
+  /// Re-run the Ed25519 challenge-response for the selected server.
+  ///
+  /// On success, writes the fresh token into persisted state and returns it.
+  /// Returns null if re-auth fails or VaultCubit is not available.
+  Future<String?> reAuthenticate() async {
+    final server = state.selectedServer;
+    if (server == null || _vaultCubit == null) return null;
+
+    final result = await _vaultCubit!.loginToServer(
+      supabaseUrl: server.supabaseUrl,
+      version: server.keyVersion,
+    );
+
+    if (!result.success || result.data == null) return null;
+
+    final newToken = result.data!['token'] as String?;
+    if (newToken == null) return null;
+
+    updateServer(server.id, token: newToken);
+    return newToken;
+  }
+
+  /// Run [call] with the current token.
+  /// If the server returns a token-expired error and [_vaultCubit] is
+  /// available, re-authenticates once and retries automatically.
+  Future<APIResponse> _callWithAutoRefresh(
+    Future<APIResponse> Function(String token) call,
+  ) async {
+    final server = state.selectedServer;
+    if (server == null) return APIResponse.error('No server selected');
+
+    var response = await call(server.token);
+
+    if (!response.success &&
+        _isTokenExpired(response.error) &&
+        _vaultCubit != null) {
+      final newToken = await reAuthenticate();
+      if (newToken != null) {
+        response = await call(newToken);
+      }
+    }
+
+    return response;
+  }
 
   // ──────────────────────────────────────────────────────────
   // Server selection
@@ -145,13 +206,15 @@ class ServerCubit extends HydratedCubit<ServerState> {
       return (success: false, inviteCode: null, error: 'No server selected');
     }
 
-    final response = await _repository.createInvite(
-      server.supabaseUrl,
-      server.token,
-      isServerAdmin: isServerAdmin,
-      isChannelManager: isChannelManager,
-      canCreateTokens: canCreateTokens,
-      maxUses: maxUses,
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.createInvite(
+        server.supabaseUrl,
+        token,
+        isServerAdmin: isServerAdmin,
+        isChannelManager: isChannelManager,
+        canCreateTokens: canCreateTokens,
+        maxUses: maxUses,
+      ),
     );
 
     if (response.success) {
@@ -225,11 +288,13 @@ class ServerCubit extends HydratedCubit<ServerState> {
       return (success: false, error: 'No server selected');
     }
 
-    final response = await _repository.createChannel(
-      server.supabaseUrl,
-      server.token,
-      name: name,
-      channelType: channelType,
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.createChannel(
+        server.supabaseUrl,
+        token,
+        name: name,
+        channelType: channelType,
+      ),
     );
 
     if (!response.success) {
@@ -248,9 +313,8 @@ class ServerCubit extends HydratedCubit<ServerState> {
       return (success: false, error: 'No server selected');
     }
 
-    final response = await _repository.getServerDetails(
-      server.supabaseUrl,
-      server.token,
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.getServerDetails(server.supabaseUrl, token),
     );
 
     if (response.success) {

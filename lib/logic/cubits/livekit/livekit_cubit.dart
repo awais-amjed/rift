@@ -9,6 +9,7 @@ import '../../../data/classes/participant_info.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
+import '../server/server_cubit.dart';
 import '../token/token_cubit.dart';
 import '../../services/sound_service.dart';
 
@@ -19,6 +20,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   final ServerRepository _repository;
   final AppCubit _appCubit;
   final TokenCubit _tokenCubit;
+  final ServerCubit? _serverCubit;
   ScreenshareCubit? _screenshareCubit;
   final List<EventsListener<RoomEvent>> _listeners = [];
   StreamSubscription<AppState>? _appSubscription;
@@ -28,10 +30,12 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     required ServerRepository repository,
     required AppCubit appCubit,
     required TokenCubit tokenCubit,
+    ServerCubit? serverCubit,
     ScreenshareCubit? screenshareCubit,
   }) : _repository = repository,
        _appCubit = appCubit,
        _tokenCubit = tokenCubit,
+       _serverCubit = serverCubit,
        _screenshareCubit = screenshareCubit,
        _lastAppState = appCubit.state,
        super(const LiveKitState()) {
@@ -88,11 +92,27 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       livekitToken = cached.token;
     } else {
       // Get LiveKit token from server
-      final response = await _repository.getChannelToken(
+      var response = await _repository.getChannelToken(
         supabaseUrl,
         token,
         channelId,
       );
+
+      // On token expiry, re-authenticate once and retry
+      final serverCubit = _serverCubit;
+      if (!response.success &&
+          response.error != null &&
+          response.error!.contains('expired') &&
+          serverCubit != null) {
+        final newToken = await serverCubit.reAuthenticate();
+        if (newToken != null) {
+          response = await _repository.getChannelToken(
+            supabaseUrl,
+            newToken,
+            channelId,
+          );
+        }
+      }
 
       if (!response.success) {
         emit(

@@ -157,7 +157,15 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
         child: MultiBlocProvider(
           providers: [
             BlocProvider(create: (_) => ThemeCubit()),
-            BlocProvider(create: (_) => ServerCubit()),
+            BlocProvider(
+              create: (_) {
+                final serverCubit = ServerCubit();
+                // Inject VaultCubit so ServerCubit can re-authenticate on
+                // token expiry without requiring any UI interaction.
+                serverCubit.injectVaultCubit(widget.vaultCubit);
+                return serverCubit;
+              },
+            ),
             BlocProvider.value(value: widget.appCubit),
             BlocProvider.value(value: widget.vaultCubit),
             BlocProvider(create: (_) => TokenCubit()),
@@ -169,6 +177,9 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
                   repository: ServerRepository(),
                   appCubit: appCubit,
                   tokenCubit: context.read<TokenCubit>(),
+                  // Inject ServerCubit so LiveKit can re-authenticate when
+                  // the channel-token call fails due to token expiry.
+                  serverCubit: context.read<ServerCubit>(),
                 );
                 return livekitCubit;
               },
