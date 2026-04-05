@@ -171,7 +171,7 @@ class VaultCubit extends Cubit<VaultState> {
 
   /// Perform a challenge-response handshake to get a session token.
   ///
-  /// 1. Derive keypair for this host.
+  /// 1. Derive keypair for this host (auto-resolves current version).
   /// 2. Request a nonce from /get_challenge.
   /// 3. Sign "nonce@host" with the private key.
   /// 4. Send signature to /verify_challenge.
@@ -179,10 +179,17 @@ class VaultCubit extends Cubit<VaultState> {
   Future<({bool success, String? error, Map<String, dynamic>? data})>
       loginToServer({
     required String supabaseUrl,
-    String version = 'v1',
   }) async {
     try {
       final host = Uri.parse(supabaseUrl).host;
+
+      // Auto-resolve the current key version so logins work after key rotation.
+      final joinedServers = await _storage.getJoinedServers();
+      final serverEntry = joinedServers
+          .cast<({String url, String version})?>()
+          .firstWhere((s) => s?.url == host, orElse: () => null);
+      final version = serverEntry?.version ?? 'v1';
+
       final identity = await getIdentityForHost(host, version: version);
 
       // Step 1: Get challenge
