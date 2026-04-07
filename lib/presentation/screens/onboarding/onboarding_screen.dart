@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../logic/cubits/vault/vault_cubit.dart';
-import '../../../logic/cubits/vault/vault_state.dart';
 import 'widgets/password_step.dart';
 import 'widgets/welcome_step.dart';
 
@@ -48,25 +46,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final theme = context.read<ThemeCubit>().state;
 
-    return BlocListener<VaultCubit, VaultState>(
-      listenWhen: (prev, curr) => prev.status != curr.status,
-      listener: (context, state) {
-        // Navigation is handled by the router redirect — nothing to do here.
-      },
-      child: Scaffold(
-        backgroundColor: theme.bgPrimary,
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  WelcomeStep(onContinue: _goToPassword),
-                  PasswordStep(onBack: _goToWelcome),
-                ],
-              ),
+    return Scaffold(
+      backgroundColor: theme.bgPrimary,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                WelcomeStep(onContinue: _goToPassword),
+                PasswordStep(onBack: _goToWelcome),
+              ],
             ),
           ),
         ),
@@ -74,5 +66,3 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 }
-
-
