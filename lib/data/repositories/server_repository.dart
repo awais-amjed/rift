@@ -123,30 +123,41 @@ class ServerRepository {
   }
 
   /// Verify a signed challenge to authenticate and get full server context.
+  ///
+  /// [host] is the hostname the client used to derive its Ed25519 identity
+  /// (i.e. `Uri.parse(supabaseUrl).host`). Sending it explicitly lets the
+  /// server reconstruct the signed message without relying on the Host header
+  /// (which reverse proxies may rewrite).
   Future<APIResponse> verifyChallenge(
     String supabaseUrl, {
     required String publicKey,
     required String nonce,
     required String signature,
+    required String host,
   }) {
     return _post(supabaseUrl, 'verify_challenge', {
       'public_key': publicKey,
       'nonce': nonce,
       'signature': signature,
+      'host': host,
     });
   }
 
   /// Rotate Ed25519 key: proves ownership with old key, replaces with new key.
+  ///
+  /// [host] is the hostname used for key derivation — same note as [verifyChallenge].
   Future<APIResponse> rotateKey(
     String supabaseUrl, {
     required String oldPublicKey,
     required String newPublicKey,
     required String signature,
+    required String host,
   }) {
     return _post(supabaseUrl, 'rotate_key', {
       'old_public_key': oldPublicKey,
       'new_public_key': newPublicKey,
       'signature': signature,
+      'host': host,
     });
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -52,17 +53,34 @@ class ServerCubit extends HydratedCubit<ServerState> {
   /// Returns null if re-auth fails or VaultCubit is not available.
   Future<String?> reAuthenticate() async {
     final server = state.selectedServer;
-    if (server == null || _vaultCubit == null) return null;
+    if (server == null) {
+      debugPrint('[ServerCubit] reAuthenticate: no selected server');
+      return null;
+    }
+    if (_vaultCubit == null) {
+      debugPrint('[ServerCubit] reAuthenticate: VaultCubit not injected');
+      return null;
+    }
 
+    debugPrint('[ServerCubit] reAuthenticate: calling loginToServer for ${server.supabaseUrl}');
     final result = await _vaultCubit!.loginToServer(
       supabaseUrl: server.supabaseUrl,
     );
 
-    if (!result.success || result.data == null) return null;
+    debugPrint('[ServerCubit] reAuthenticate: loginToServer => success=${result.success}, error="${result.error}"');
+
+    if (!result.success || result.data == null) {
+      debugPrint('[ServerCubit] reAuthenticate: FAILED — ${result.error}');
+      return null;
+    }
 
     final newToken = result.data!['token'] as String?;
-    if (newToken == null) return null;
+    if (newToken == null) {
+      debugPrint('[ServerCubit] reAuthenticate: FAILED — response had no "token" field. Keys: ${result.data!.keys.toList()}');
+      return null;
+    }
 
+    debugPrint('[ServerCubit] reAuthenticate: SUCCESS — new token obtained, updating server state');
     updateServer(server.id, token: newToken);
     return newToken;
   }

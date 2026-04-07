@@ -90,8 +90,10 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     String livekitToken;
     final cached = _tokenCubit.getValidToken(supabaseUrl, channelId);
     if (cached != null) {
+      debugPrint('[LiveKit] Using cached LiveKit token for channel $channelId');
       livekitToken = cached.token;
     } else {
+      debugPrint('[LiveKit] No cached token — calling getChannelToken...');
       // Get LiveKit token from server
       var response = await _repository.getChannelToken(
         supabaseUrl,
@@ -99,29 +101,42 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         channelId,
       );
 
+      debugPrint('[LiveKit] getChannelToken response: success=${response.success}, '
+          'error="${response.error}", errorCode="${response.errorCode}"');
+
       // On session invalidation (token expired, deleted, or unlinked),
       // re-authenticate once and retry.
       final serverCubit = _serverCubit;
+      final sessionInvalidByCode = ErrorCode.isSessionInvalid(response.errorCode);
+      final sessionInvalidByLegacy = response.error != null &&
+          (response.error!.contains('expired') ||
+              response.error!.contains('Invalid token') ||
+              response.error!.contains('No token found') ||
+              response.error!.contains('Token is not linked'));
+
+      debugPrint('[LiveKit] Session-invalid check: byCode=$sessionInvalidByCode, '
+          'byLegacy=$sessionInvalidByLegacy, serverCubit=${serverCubit != null}');
+
       if (!response.success &&
-          (ErrorCode.isSessionInvalid(response.errorCode) ||
-              // Legacy fallback for server deployments without code field.
-              (response.error != null &&
-                  (response.error!.contains('expired') ||
-                      response.error!.contains('Invalid token') ||
-                      response.error!.contains('No token found') ||
-                      response.error!.contains('Token is not linked')))) &&
+          (sessionInvalidByCode || sessionInvalidByLegacy) &&
           serverCubit != null) {
+        debugPrint('[LiveKit] Session invalid — attempting reAuthenticate...');
         final newToken = await serverCubit.reAuthenticate();
+        debugPrint('[LiveKit] reAuthenticate returned: ${newToken != null ? "a new token" : "null (FAILED)"}');
         if (newToken != null) {
+          debugPrint('[LiveKit] Retrying getChannelToken with new token...');
           response = await _repository.getChannelToken(
             supabaseUrl,
             newToken,
             channelId,
           );
+          debugPrint('[LiveKit] Retry response: success=${response.success}, '
+              'error="${response.error}", errorCode="${response.errorCode}"');
         }
       }
 
       if (!response.success) {
+        debugPrint('[LiveKit] Final failure — emitting error: "${response.error}"');
         emit(
           state.copyWith(
             connectionState: LiveKitConnectionState.error,
@@ -175,6 +190,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       _syncParticipants();
       _applyStoredSettings();
     } catch (e) {
+      debugPrint('[LiveKit] room.connect() threw: $e');
       emit(
         state.copyWith(
           connectionState: LiveKitConnectionState.error,

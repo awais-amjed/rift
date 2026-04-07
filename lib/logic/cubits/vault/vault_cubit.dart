@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/backup_file.dart';
@@ -191,6 +192,7 @@ class VaultCubit extends Cubit<VaultState> {
   }) async {
     try {
       final host = Uri.parse(supabaseUrl).host;
+      debugPrint('[VaultCubit] loginToServer: host="$host"');
 
       // Auto-resolve the current key version so logins work after key rotation.
       final joinedServers = await _storage.getJoinedServers();
@@ -198,32 +200,42 @@ class VaultCubit extends Cubit<VaultState> {
           .cast<({String url, String version})?>()
           .firstWhere((s) => s?.url == host, orElse: () => null);
       final version = serverEntry?.version ?? 'v1';
+      debugPrint('[VaultCubit] loginToServer: version="$version", '
+          'joinedServers=${joinedServers.map((s) => s.url).toList()}');
 
       final identity = await getIdentityForHost(host, version: version);
+      debugPrint('[VaultCubit] loginToServer: publicKey="${identity.publicKeyBase64.substring(0, 8)}..."');
 
       final challengeResponse = await _serverRepo.getChallenge(
         supabaseUrl,
         publicKey: identity.publicKeyBase64,
       );
+      debugPrint('[VaultCubit] loginToServer: getChallenge => success=${challengeResponse.success}, '
+          'error="${challengeResponse.error}", errorCode="${challengeResponse.errorCode}"');
 
       if (!challengeResponse.success) {
         return (success: false, error: challengeResponse.error, data: null);
       }
 
       final nonce = challengeResponse.data['nonce'] as String;
+      debugPrint('[VaultCubit] loginToServer: got nonce="${nonce.substring(0, 8)}..."');
 
       final signature = await _crypto.signChallenge(
         keyPair: identity.keyPair,
         nonce: nonce,
         host: host,
       );
+      debugPrint('[VaultCubit] loginToServer: signed challenge, calling verifyChallenge...');
 
       final verifyResponse = await _serverRepo.verifyChallenge(
         supabaseUrl,
         publicKey: identity.publicKeyBase64,
         nonce: nonce,
         signature: CryptoRepository.toBase64(signature),
+        host: host,
       );
+      debugPrint('[VaultCubit] loginToServer: verifyChallenge => success=${verifyResponse.success}, '
+          'error="${verifyResponse.error}", errorCode="${verifyResponse.errorCode}"');
 
       if (!verifyResponse.success) {
         return (success: false, error: verifyResponse.error, data: null);
@@ -235,6 +247,7 @@ class VaultCubit extends Cubit<VaultState> {
         data: verifyResponse.data as Map<String, dynamic>,
       );
     } catch (e) {
+      debugPrint('[VaultCubit] loginToServer: EXCEPTION — $e');
       return (success: false, error: e.toString(), data: null);
     }
   }
@@ -271,6 +284,7 @@ class VaultCubit extends Cubit<VaultState> {
         oldPublicKey: oldIdentity.publicKeyBase64,
         newPublicKey: newIdentity.publicKeyBase64,
         signature: CryptoRepository.toBase64(signature),
+        host: host,
       );
 
       if (!response.success) {
