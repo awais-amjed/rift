@@ -32,7 +32,7 @@ class ServerListView extends StatelessWidget {
                 server: server,
                 isSelected: server.id == state.selectedServer?.id,
                 onTap: () {
-                  context.read<ServerCubit>().setSelectedServer(server);
+                  context.read<ServerCubit>().selectServer(server);
                   onClose();
                 },
                 onDelete: () {

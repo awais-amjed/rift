@@ -132,6 +132,56 @@ class ServerCubit extends HydratedCubit<ServerState> {
     );
   }
 
+  /// Perform a full challenge-response login for the currently selected server
+  /// and update its token, user, and channel list from the response.
+  ///
+  /// Returns true on success. Safe to call concurrently — no-ops if no server
+  /// is selected or VaultCubit has not been injected yet.
+  Future<bool> loginSelectedServer() async {
+    final server = state.selectedServer;
+    if (server == null || _vaultCubit == null) return false;
+
+    final result = await _vaultCubit!.loginToServer(
+      supabaseUrl: server.supabaseUrl,
+    );
+
+    if (!result.success || result.data == null) return false;
+
+    final data = result.data!;
+    final token = data['token'] as String?;
+    if (token == null) return false;
+
+    final rawChannels = data['channels'] as List<dynamic>?;
+    final channels = rawChannels
+        ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
+        .toList();
+    final rawUser = data['user'];
+    final user = rawUser != null
+        ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
+        : null;
+
+    updateServer(
+      server.id,
+      token: token,
+      user: user,
+      channels: channels,
+      supabaseKey: data['supabase_key'] as String?,
+    );
+
+    return true;
+  }
+
+  /// Switch the active server. If the server's token is stale, performs a
+  /// full challenge-response login in the background so the UI is never blocked.
+  void selectServer(Server server) {
+    setSelectedServer(server);
+    // Token is stale on cold start (tokenIssuedAt defaults to epoch) or after
+    // the 50-minute near-expiry window — re-auth silently in the background.
+    if (server.isTokenNearExpiry && _vaultCubit != null) {
+      loginSelectedServer(); // fire-and-forget — state updates when done
+    }
+  }
+
   // ──────────────────────────────────────────────────────────
   // CRUD
   // ──────────────────────────────────────────────────────────

@@ -2,8 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../data/classes/channel.dart';
-import '../../../data/classes/server_user.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/auth_status.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
@@ -54,44 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (serverState.servers.isEmpty) {
       _openServerSelector();
     } else {
-      // Re-authenticate to each server via challenge-response to get fresh tokens
-      await _loginToServers();
-    }
-  }
-
-  /// Perform challenge-response login for all saved servers.
-  Future<void> _loginToServers() async {
-    final serverCubit = context.read<ServerCubit>();
-    final vaultCubit = context.read<VaultCubit>();
-
-    for (final server in serverCubit.state.servers) {
-      final result = await vaultCubit.loginToServer(
-        supabaseUrl: server.supabaseUrl,
-      );
-
-      if (!mounted) return;
-
-      if (result.success && result.data != null) {
-        final data = result.data!;
-        final token = data['token'] as String;
-        final rawUser = data['user'];
-        final rawChannels = data['channels'] as List<dynamic>?;
-        final channels = rawChannels
-            ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
-            .toList();
-        final user = rawUser != null
-            ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
-            : null;
-
-        // Update the server with fresh token and full context
-        serverCubit.updateServer(
-          server.id,
-          token: token,
-          user: user,
-          channels: channels,
-          supabaseKey: data['supabase_key'] as String?,
-        );
-      }
+      // Only re-authenticate the last active server on startup.
+      // Other servers are authenticated lazily when the user switches to them.
+      await context.read<ServerCubit>().loginSelectedServer();
     }
   }
 
