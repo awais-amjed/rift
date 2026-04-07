@@ -62,6 +62,9 @@ class ErrorCode {
   /// public_key field is not valid base64 or not exactly 32 bytes.
   static const String invalidPublicKey = 'invalid_public_key';
 
+  /// stable_id field is not valid base64 or not exactly 32 bytes.
+  static const String invalidStableId = 'invalid_stable_id';
+
   // ── Permissions ───────────────────────────────────────────────────────────────
   static const String permissionDenied = 'permission_denied';
 
