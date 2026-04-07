@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/constants.dart';
+import '../../../data/enums/auth_status.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
@@ -32,6 +33,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _onStartup() async {
     if (!mounted) return;
+
+    final vaultCubit = context.read<VaultCubit>();
+
+    // checkVaultStatus() is async; wait for it to complete before we try to
+    // use state.masterSeed, otherwise loginToServer() silently fails with a
+    // null-check error and the stale registration token is used forever.
+    if (vaultCubit.state.status == AuthStatus.unknown) {
+      await vaultCubit.stream
+          .firstWhere((s) => s.status != AuthStatus.unknown)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => vaultCubit.state,
+          );
+      if (!mounted) return;
+    }
+
     final serverState = context.read<ServerCubit>().state;
 
     if (serverState.servers.isEmpty) {

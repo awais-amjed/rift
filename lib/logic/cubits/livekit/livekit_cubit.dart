@@ -98,11 +98,14 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         channelId,
       );
 
-      // On token expiry, re-authenticate once and retry
+      // On token expiry or deletion, re-authenticate once and retry
       final serverCubit = _serverCubit;
       if (!response.success &&
           response.error != null &&
-          response.error!.contains('expired') &&
+          (response.error!.contains('expired') ||
+              response.error!.contains('Invalid token') ||
+              response.error!.contains('No token found') ||
+              response.error!.contains('Token is not linked')) &&
           serverCubit != null) {
         final newToken = await serverCubit.reAuthenticate();
         if (newToken != null) {

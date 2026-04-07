@@ -29,8 +29,16 @@ class ServerCubit extends HydratedCubit<ServerState> {
   // Token auto-refresh helpers
   // ──────────────────────────────────────────────────────────
 
+  /// Returns true for any error that indicates the session token is no longer
+  /// valid — covers both expiry ("Token has expired") and the case where the
+  /// token row was deleted from the DB ("Invalid token provided",
+  /// "No token found for user").
   static bool _isTokenExpired(String? error) =>
-      error != null && error.contains('expired');
+      error != null &&
+      (error.contains('expired') ||
+          error.contains('Invalid token') ||
+          error.contains('No token found') ||
+          error.contains('Token is not linked'));
 
   /// Re-run the Ed25519 challenge-response for the selected server.
   ///
