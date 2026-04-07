@@ -59,6 +59,9 @@ class ErrorCode {
   static const String identityTaken   = 'identity_taken';
   static const String usernameTaken   = 'username_taken';
 
+  /// public_key field is not valid base64 or not exactly 32 bytes.
+  static const String invalidPublicKey = 'invalid_public_key';
+
   // ── Permissions ───────────────────────────────────────────────────────────────
   static const String permissionDenied = 'permission_denied';
 
