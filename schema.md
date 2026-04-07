@@ -43,15 +43,16 @@
 
 ### tokens
 
-Pure auth credentials — always linked to a user.
+Short-lived auth credentials (1 hour TTL), always linked to a user.
 
-| Column    | Type        | Constraints                        | Description                    |
-|-----------|-------------|------------------------------------|--------------------------------|
-| id        | uuid        | Primary Key, Auto-generated        | Unique token identifier        |
-| created_at| timestamptz | Auto-created                       | Timestamp of token creation    |
-| server_id | uuid        | Required, Foreign Key → servers.id | Reference to associated server |
-| token     | text        | Required, Unique                   | Auth token value               |
-| user_id   | uuid        | Foreign Key → users.id             | Reference to associated user   |
+| Column     | Type        | Constraints                        | Description                         |
+|------------|-------------|------------------------------------|------------------------------------|
+| id         | uuid        | Primary Key, Auto-generated        | Unique token identifier             |
+| created_at | timestamptz | Auto-created                       | Timestamp of token creation         |
+| server_id  | uuid        | Required, Foreign Key → servers.id | Reference to associated server      |
+| token      | text        | Required, Unique                   | Auth token value                    |
+| user_id    | uuid        | Foreign Key → users.id             | Reference to associated user        |
+| expires_at | timestamptz | Required, Default: now()           | Token expiry — refreshed on login   |
 
 ### invites
 
@@ -71,12 +72,11 @@ Permission grants with reuse support — used to register new users.
 
 ### auth_challenges
 
-| Column     | Type          | Constraints | Description                                |
-|------------|---------------|-------------|--------------------------------------------|
-| nonce      | text          | Primary Key | Random challenge string                    |
-| expires_at | timestamptz   | Not Null    | Set to NOW() + INTERVAL '60 seconds'       |
-
-*Note: Create a Postgres CRON job or trigger to sweep expired nonces every few minutes.*
+| Column     | Type          | Constraints          | Description                                        |
+|------------|---------------|----------------------|----------------------------------------------------|
+| nonce      | text          | Primary Key          | Random challenge string                            |
+| expires_at | timestamptz   | Not Null             | Set to NOW() + INTERVAL '60 seconds'               |
+| public_key | text          | Not Null, Unique     | One active challenge per key — upsert replaces old |
 
 ## Enums
 
