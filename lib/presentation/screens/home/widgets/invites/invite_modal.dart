@@ -7,8 +7,10 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/custom_colors.dart';
+import 'widgets/chip_selector.dart';
 import 'widgets/copyable_field.dart';
 import 'widgets/field_label.dart';
+import 'widgets/invite_options.dart';
 import 'widgets/permission_toggle.dart';
 
 /// Modal to generate and copy an invite token for a server.
@@ -24,30 +26,38 @@ class _InviteModalState extends State<InviteModal> {
   String? _inviteToken;
   String? _error;
   bool _copiedToken = false;
-  bool _copiedUrl = false;
+  bool _copiedUrl   = false;
 
-  // Permission toggles for the new token
-  bool _grantServerAdmin = false;
-  bool _grantChannelManager = false;
+  // Expiry — default: 7 days (index 2)
+  int _expiryIndex = 2;
+
+  // Max uses — default: 1 (index 0)
+  int _usesIndex = 0;
+
+  // Permission toggles
+  bool _grantServerAdmin     = false;
+  bool _grantChannelManager  = false;
   bool _grantCanCreateTokens = false;
 
   void _resetToken() {
     _inviteToken = null;
     _copiedToken = false;
-    _error = null;
+    _error       = null;
   }
 
   Future<void> _generate() async {
     setState(() {
       _isGenerating = true;
-      _error = null;
-      _inviteToken = null;
+      _error        = null;
+      _inviteToken  = null;
     });
 
     final result = await context.read<ServerCubit>().createInvite(
-      isServerAdmin: _grantServerAdmin,
+      isServerAdmin:    _grantServerAdmin,
       isChannelManager: _grantChannelManager,
-      canCreateTokens: _grantCanCreateTokens,
+      canCreateTokens:  _grantCanCreateTokens,
+      maxUses:          inviteUsesOptions[_usesIndex].value,
+      expiresInSeconds: inviteExpiryOptions[_expiryIndex].seconds,
     );
 
     if (!mounted) return;
@@ -69,15 +79,26 @@ class _InviteModalState extends State<InviteModal> {
     if (mounted) setCopied(false);
   }
 
+  String _buildSummary() {
+    final expiry = inviteExpiryOptions[_expiryIndex];
+    final uses   = inviteUsesOptions[_usesIndex];
+    final expiryText = expiry.seconds == null
+        ? 'Never expires'
+        : 'Expires in ${expiry.label}';
+    final usesText = uses.value == null
+        ? 'Unlimited uses'
+        : '${uses.label} use${uses.value == 1 ? '' : 's'}';
+    return '$expiryText · $usesText';
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return BlocBuilder<ServerCubit, ServerState>(
           builder: (context, serverState) {
-            final server = serverState.selectedServer;
-            final userPerms =
-                server?.user?.permissions ?? const UserPermissions();
+            final server    = serverState.selectedServer;
+            final userPerms = server?.user?.permissions ?? const UserPermissions();
 
             final hasAnyGrantable =
                 userPerms.isServerAdmin ||
@@ -95,7 +116,7 @@ class _InviteModalState extends State<InviteModal> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Header
+                    // ── Header ──────────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 18, 14, 16),
                       child: Row(
@@ -104,9 +125,7 @@ class _InviteModalState extends State<InviteModal> {
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: CustomColors.primary.withValues(
-                                alpha: 0.1,
-                              ),
+                              color: CustomColors.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(
@@ -129,7 +148,7 @@ class _InviteModalState extends State<InviteModal> {
                                   ),
                                 ),
                                 Text(
-                                  'Generate a one-time access token',
+                                  _buildSummary(),
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: themeState.textTertiary,
@@ -151,7 +170,7 @@ class _InviteModalState extends State<InviteModal> {
                     ),
                     Divider(height: 1, color: themeState.borderPrimary),
 
-                    // Body
+                    // ── Body ────────────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -166,19 +185,108 @@ class _InviteModalState extends State<InviteModal> {
                           CopyableField(
                             value: server?.supabaseUrl ?? '',
                             copied: _copiedUrl,
-                            onCopy: () {
-                              _copyToClipboard(
-                                server?.supabaseUrl ?? '',
-                                (v) => setState(() => _copiedUrl = v),
-                              );
-                            },
+                            onCopy: () => _copyToClipboard(
+                              server?.supabaseUrl ?? '',
+                              (v) => setState(() => _copiedUrl = v),
+                            ),
                             bgColor: themeState.bgSecondary,
                             borderColor: themeState.borderPrimary,
                             textColor: themeState.textTertiary,
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
 
-                          // Token
+                          // Expiry picker
+                          FieldLabel(
+                            label: 'Expires In',
+                            textColor: themeState.textTertiary,
+                          ),
+                          const SizedBox(height: 8),
+                          ChipSelector(
+                            options: inviteExpiryOptions.map((e) => e.label).toList(),
+                            selectedIndex: _expiryIndex,
+                            onSelected: (i) => setState(() { _expiryIndex = i; _resetToken(); }),
+                            themeState: themeState,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Max uses picker
+                          FieldLabel(
+                            label: 'Max Uses',
+                            textColor: themeState.textTertiary,
+                          ),
+                          const SizedBox(height: 8),
+                          ChipSelector(
+                            options: inviteUsesOptions.map((e) => e.label).toList(),
+                            selectedIndex: _usesIndex,
+                            onSelected: (i) => setState(() { _usesIndex = i; _resetToken(); }),
+                            themeState: themeState,
+                          ),
+
+                          // Permissions section
+                          if (hasAnyGrantable) ...[
+                            const SizedBox(height: 16),
+                            FieldLabel(
+                              label: 'Grant Permissions',
+                              textColor: themeState.textTertiary,
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: themeState.bgSecondary,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: themeState.borderPrimary),
+                              ),
+                              child: Column(
+                                children: [
+                                  if (userPerms.isServerAdmin)
+                                    PermissionToggle(
+                                      icon: Icons.shield_outlined,
+                                      label: 'Server Admin',
+                                      description: 'Full server management access',
+                                      value: _grantServerAdmin,
+                                      onChanged: (v) => setState(() {
+                                        _grantServerAdmin = v;
+                                        if (v) {
+                                          _grantChannelManager  = true;
+                                          _grantCanCreateTokens = true;
+                                        }
+                                        _resetToken();
+                                      }),
+                                      themeState: themeState,
+                                      isFirst: true,
+                                    ),
+                                  if (userPerms.isChannelManager)
+                                    PermissionToggle(
+                                      icon: Icons.tune_outlined,
+                                      label: 'Channel Manager',
+                                      description: 'Create channels and moderate members',
+                                      value: _grantChannelManager,
+                                      onChanged: _grantServerAdmin
+                                          ? null
+                                          : (v) => setState(() { _grantChannelManager = v; _resetToken(); }),
+                                      themeState: themeState,
+                                      isFirst: !userPerms.isServerAdmin,
+                                    ),
+                                  if (userPerms.canCreateTokens)
+                                    PermissionToggle(
+                                      icon: Icons.link_outlined,
+                                      label: 'Can Invite',
+                                      description: 'Allowed to generate invite tokens',
+                                      value: _grantCanCreateTokens,
+                                      onChanged: _grantServerAdmin
+                                          ? null
+                                          : (v) => setState(() { _grantCanCreateTokens = v; _resetToken(); }),
+                                      themeState: themeState,
+                                      isFirst: !userPerms.isServerAdmin && !userPerms.isChannelManager,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 16),
+
+                          // Token output
                           FieldLabel(
                             label: 'Access Token',
                             textColor: themeState.textTertiary,
@@ -191,12 +299,10 @@ class _InviteModalState extends State<InviteModal> {
                                 : 'Click generate to create a token',
                             copied: _copiedToken,
                             onCopy: _inviteToken != null
-                                ? () {
-                                    _copyToClipboard(
+                                ? () => _copyToClipboard(
                                       _inviteToken!,
                                       (v) => setState(() => _copiedToken = v),
-                                    );
-                                  }
+                                    )
                                 : null,
                             bgColor: themeState.bgSecondary,
                             borderColor: themeState.borderPrimary,
@@ -215,83 +321,6 @@ class _InviteModalState extends State<InviteModal> {
                             ),
                           ],
 
-                          // Permissions section
-                          if (hasAnyGrantable) ...[
-                            const SizedBox(height: 16),
-                            FieldLabel(
-                              label: 'Grant Permissions',
-                              textColor: themeState.textTertiary,
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: themeState.bgSecondary,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: themeState.borderPrimary,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  if (userPerms.isServerAdmin)
-                                    PermissionToggle(
-                                      icon: Icons.shield_outlined,
-                                      label: 'Server Admin',
-                                      description:
-                                          'Full server management access',
-                                      value: _grantServerAdmin,
-                                      onChanged: (v) => setState(() {
-                                        _grantServerAdmin = v;
-                                        // Admin implies all other permissions
-                                        if (v) {
-                                          _grantChannelManager = true;
-                                          _grantCanCreateTokens = true;
-                                        }
-                                        _resetToken();
-                                      }),
-                                      themeState: themeState,
-                                      isFirst: true,
-                                    ),
-                                  if (userPerms.isChannelManager)
-                                    PermissionToggle(
-                                      icon: Icons.tune_outlined,
-                                      label: 'Channel Manager',
-                                      description:
-                                          'Create channels and moderate members',
-                                      value: _grantChannelManager,
-                                      // Locked when admin is selected
-                                      onChanged: _grantServerAdmin
-                                          ? null
-                                          : (v) => setState(() {
-                                                _grantChannelManager = v;
-                                                _resetToken();
-                                              }),
-                                      themeState: themeState,
-                                      isFirst: !userPerms.isServerAdmin,
-                                    ),
-                                  if (userPerms.canCreateTokens)
-                                    PermissionToggle(
-                                      icon: Icons.link_outlined,
-                                      label: 'Can Invite',
-                                      description:
-                                          'Allowed to generate invite tokens',
-                                      value: _grantCanCreateTokens,
-                                      // Locked when admin is selected
-                                      onChanged: _grantServerAdmin
-                                          ? null
-                                          : (v) => setState(() {
-                                                _grantCanCreateTokens = v;
-                                                _resetToken();
-                                              }),
-                                      themeState: themeState,
-                                      isFirst: !userPerms.isServerAdmin &&
-                                          !userPerms.isChannelManager,
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-
                           const SizedBox(height: 10),
                           Text(
                             'Share both the server URL and token with the person you want to invite.',
@@ -304,7 +333,7 @@ class _InviteModalState extends State<InviteModal> {
                       ),
                     ),
 
-                    // Footer
+                    // ── Footer ───────────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       child: Row(
@@ -323,8 +352,8 @@ class _InviteModalState extends State<InviteModal> {
                               label: _isGenerating
                                   ? 'Generating...'
                                   : _inviteToken != null
-                                  ? 'Regenerate'
-                                  : 'Generate',
+                                      ? 'Regenerate'
+                                      : 'Generate',
                               isLoading: _isGenerating,
                               onPressed: _isGenerating ? null : _generate,
                               icon: _isGenerating

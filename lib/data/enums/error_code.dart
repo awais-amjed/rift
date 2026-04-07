@@ -55,6 +55,7 @@ class ErrorCode {
   // ── Registration ─────────────────────────────────────────────────────────────
   static const String inviteInvalid   = 'invite_invalid';
   static const String inviteExhausted = 'invite_exhausted';
+  static const String inviteExpired   = 'invite_expired';
   static const String identityTaken   = 'identity_taken';
   static const String usernameTaken   = 'username_taken';
 

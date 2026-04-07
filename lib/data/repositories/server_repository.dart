@@ -166,8 +166,9 @@ class ServerRepository {
     return _post(supabaseUrl, 'is_username_available', {'username': username});
   }
 
-  /// Create an invite code with optional permissions.
-  /// [maxUses] null = unlimited, 1 = single-use.
+  /// Create an invite code with optional permissions and constraints.
+  /// [maxUses] null = unlimited, 1 = single-use (default).
+  /// [expiresInSeconds] null = never expires.
   Future<APIResponse> createInvite(
     String supabaseUrl,
     String callerToken, {
@@ -175,6 +176,7 @@ class ServerRepository {
     bool isChannelManager = false,
     bool canCreateTokens = false,
     int? maxUses = 1,
+    int? expiresInSeconds,
   }) {
     return _post(supabaseUrl, 'create_invite', {
       'token': callerToken,
@@ -182,6 +184,7 @@ class ServerRepository {
       'is_channel_manager': isChannelManager,
       'can_create_tokens': canCreateTokens,
       'max_uses': maxUses,
+      if (expiresInSeconds != null) 'expires_in_seconds': expiresInSeconds,
     });
   }
 

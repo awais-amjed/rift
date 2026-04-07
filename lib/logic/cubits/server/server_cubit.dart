@@ -229,6 +229,7 @@ class ServerCubit extends HydratedCubit<ServerState> {
     bool isChannelManager = false,
     bool canCreateTokens = false,
     int? maxUses = 1,
+    int? expiresInSeconds,
   }) async {
     final server = state.selectedServer;
     if (server == null) {
@@ -243,6 +244,7 @@ class ServerCubit extends HydratedCubit<ServerState> {
         isChannelManager: isChannelManager,
         canCreateTokens: canCreateTokens,
         maxUses: maxUses,
+        expiresInSeconds: expiresInSeconds,
       ),
     );
 
