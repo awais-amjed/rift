@@ -273,9 +273,21 @@ class VaultCubit extends Cubit<VaultState> {
       final oldIdentity = await getIdentityForHost(host, version: currentVersion);
       final newIdentity = await getIdentityForHost(host, version: newVersion);
 
+      // Step 1: Obtain a server-issued rotation challenge (prevents replay attacks).
+      final challengeResponse = await _serverRepo.getChallenge(
+        supabaseUrl,
+        publicKey: oldIdentity.publicKeyBase64,
+      );
+      if (!challengeResponse.success) {
+        return (success: false, error: challengeResponse.error, newVersion: null);
+      }
+      final nonce = challengeResponse.data['nonce'] as String;
+
+      // Step 2: Sign rotate:<newPubKey>@<nonce>@<host> with the old private key.
       final signature = await _crypto.signRotation(
         oldKeyPair: oldIdentity.keyPair,
         newPublicKeyBytes: newIdentity.publicKeyBytes,
+        nonce: nonce,
         host: host,
       );
 
@@ -283,6 +295,7 @@ class VaultCubit extends Cubit<VaultState> {
         supabaseUrl,
         oldPublicKey: oldIdentity.publicKeyBase64,
         newPublicKey: newIdentity.publicKeyBase64,
+        nonce: nonce,
         signature: CryptoRepository.toBase64(signature),
         host: host,
       );

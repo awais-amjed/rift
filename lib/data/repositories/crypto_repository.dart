@@ -191,16 +191,18 @@ class CryptoRepository {
 
   /// Sign a key rotation payload with the OLD keypair.
   ///
-  /// Message format: "rotate:<newPublicKeyBase64>@<host>"
+  /// Message format: "rotate:<newPublicKeyBase64>@<nonce>@<host>"
+  /// The nonce is a server-issued challenge that prevents replay attacks.
   /// The server verifies this using the old public key, then replaces it
   /// with the new one.
   Future<Uint8List> signRotation({
     required SimpleKeyPair oldKeyPair,
     required Uint8List newPublicKeyBytes,
+    required String nonce,
     required String host,
   }) async {
     final newPubB64 = toBase64(newPublicKeyBytes);
-    final message = 'rotate:$newPubB64@$host';
+    final message = 'rotate:$newPubB64@$nonce@$host';
     final ed = Ed25519();
     final signature = await ed.sign(
       utf8.encode(message),

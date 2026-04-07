@@ -145,17 +145,20 @@ class ServerRepository {
 
   /// Rotate Ed25519 key: proves ownership with old key, replaces with new key.
   ///
+  /// [nonce] is a server-issued rotation challenge obtained via [getChallenge].
   /// [host] is the hostname used for key derivation — same note as [verifyChallenge].
   Future<APIResponse> rotateKey(
     String supabaseUrl, {
     required String oldPublicKey,
     required String newPublicKey,
+    required String nonce,
     required String signature,
     required String host,
   }) {
     return _post(supabaseUrl, 'rotate_key', {
       'old_public_key': oldPublicKey,
       'new_public_key': newPublicKey,
+      'nonce': nonce,
       'signature': signature,
       'host': host,
     });
