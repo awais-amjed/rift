@@ -480,7 +480,16 @@ class VaultCubit extends Cubit<VaultState> {
   /// Wipe all secure storage and reset to [AuthStatus.fresh].
   ///
   /// Only intended for use during development / testing.
+  /// Calling this in production destroys the user's identity permanently.
   Future<void> resetVault() async {
+    assert(
+      () {
+        // ignore: avoid_print
+        print('[VaultCubit] resetVault() called — dev/test only');
+        return true;
+      }(),
+      'resetVault() must not be called in production builds.',
+    );
     await _storage.deleteAll();
     _identityCache.clear();
     emit(const VaultState(status: AuthStatus.fresh));
