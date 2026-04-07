@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_modal.dart';
 import 'appearance_content.dart';
@@ -129,10 +132,53 @@ class _SettingsDialogState extends State<SettingsDialog> {
                       Divider(height: 1, color: themeState.borderPrimary),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                        child: AppButton(
-                          label: 'Done',
-                          onPressed: () => Navigator.of(context).pop(),
-                          variant: AppButtonVariant.primary,
+                        child: Row(
+                          children: [
+                            if (kDebugMode)
+                              TextButton.icon(
+                                onPressed: () async {
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Reset Vault?'),
+                                      content: const Text(
+                                        'This will wipe all keys and saved servers from secure storage. '
+                                        'You will be sent back to onboarding.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(ctx).pop(false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.of(ctx).pop(true),
+                                          child: const Text(
+                                            'Reset',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed == true && context.mounted) {
+                                    Navigator.of(context).pop();
+                                    await context.read<ServerCubit>().reset();
+                                    context.read<VaultCubit>().resetVault();
+                                  }
+                                },
+                                icon: const Icon(Icons.delete_forever, size: 16, color: Colors.red),
+                                label: const Text(
+                                  'Reset Vault',
+                                  style: TextStyle(color: Colors.red, fontSize: 12),
+                                ),
+                              ),
+                            const Spacer(),
+                            AppButton(
+                              label: 'Done',
+                              onPressed: () => Navigator.of(context).pop(),
+                              variant: AppButtonVariant.primary,
+                            ),
+                          ],
                         ),
                       ),
                     ],

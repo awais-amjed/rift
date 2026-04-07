@@ -356,4 +356,16 @@ class ServerCubit extends HydratedCubit<ServerState> {
 
   @override
   Map<String, dynamic>? toJson(ServerState state) => state.toJson();
+
+  // ──────────────────────────────────────────────────────────
+  // Dev helpers
+  // ──────────────────────────────────────────────────────────
+
+  /// Wipe all persisted server state and reset to empty.
+  ///
+  /// Only intended for use during development / testing.
+  Future<void> reset() async {
+    await clear(); // removes HydratedBloc storage for this cubit
+    emit(const ServerState());
+  }
 }

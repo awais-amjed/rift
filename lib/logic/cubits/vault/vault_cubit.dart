@@ -426,4 +426,17 @@ class VaultCubit extends Cubit<VaultState> {
   /// Get the list of joined server hosts from secure storage.
   Future<List<({String url, String version})>> getJoinedServers() =>
       _storage.getJoinedServers();
+
+  // ──────────────────────────────────────────────────────────
+  // Dev helpers
+  // ──────────────────────────────────────────────────────────
+
+  /// Wipe all secure storage and reset to [AuthStatus.fresh].
+  ///
+  /// Only intended for use during development / testing.
+  Future<void> resetVault() async {
+    await _storage.deleteAll();
+    _identityCache.clear();
+    emit(const VaultState(status: AuthStatus.fresh));
+  }
 }
