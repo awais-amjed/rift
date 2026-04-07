@@ -163,6 +163,12 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
                 // Inject VaultCubit so ServerCubit can re-authenticate on
                 // token expiry without requiring any UI interaction.
                 serverCubit.injectVaultCubit(widget.vaultCubit);
+                // Inject ServerCubit callback into VaultCubit so that a
+                // runtime backup import immediately reconciles the server list
+                // without needing a restart.
+                widget.vaultCubit.setOnServersImported(
+                  serverCubit.syncWithImportedVault,
+                );
                 return serverCubit;
               },
             ),

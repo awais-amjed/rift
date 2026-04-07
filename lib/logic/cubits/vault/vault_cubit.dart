@@ -30,6 +30,19 @@ class VaultCubit extends Cubit<VaultState> {
   /// on every API call within the same session.
   final Map<String, ServerIdentity> _identityCache = {};
 
+  /// Called after a successful [importBackup] with the list of servers
+  /// restored from the backup. Injected externally to avoid a circular
+  /// dependency between VaultCubit and ServerCubit.
+  void Function(List<({String url, String version})>)? _onServersImported;
+
+  /// Register a callback to be called after a successful [importBackup].
+  /// The callback receives the list of `{url, version}` entries from the vault.
+  void setOnServersImported(
+    void Function(List<({String url, String version})>) callback,
+  ) {
+    _onServersImported = callback;
+  }
+
   VaultCubit({
     CryptoRepository? crypto,
     SecureStorageRepository? storage,
@@ -404,6 +417,12 @@ class VaultCubit extends Cubit<VaultState> {
       _identityCache.clear();
 
       emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
+
+      // Notify ServerCubit so it can reconcile its server list with the
+      // restored vault — without this, the in-memory server list stays stale
+      // until the next cold start.
+      _onServersImported?.call(servers);
+
       return (success: true, error: null);
     } on Exception catch (e) {
       // A decryption failure (wrong password) surfaces as a generic exception.

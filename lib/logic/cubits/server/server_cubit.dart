@@ -171,8 +171,54 @@ class ServerCubit extends HydratedCubit<ServerState> {
     return true;
   }
 
-  /// Switch the active server. If the server's token is stale, performs a
-  /// full challenge-response login in the background so the UI is never blocked.
+  /// Reconcile the in-memory server list after a vault backup import.
+  ///
+  /// - Servers present in **both** [importedServers] and the current list have
+  ///   their key version updated and token marked stale so the next
+  ///   [selectServer] / [loginSelectedServer] re-authenticates with the
+  ///   restored identity.
+  /// - Servers in the current list that are **not** in [importedServers] are
+  ///   removed — they do not belong to this identity.
+  /// - Servers in [importedServers] that are **not** in the current list cannot
+  ///   be recovered automatically (the backup only stores the host URL and key
+  ///   version, not the full connection details). The user must re-join them.
+  void syncWithImportedVault(
+    List<({String url, String version})> importedServers,
+  ) {
+    final importedByHost = {
+      for (final s in importedServers) s.url: s.version,
+    };
+
+    final updated = <Server>[];
+    for (final server in state.servers) {
+      final host = Uri.parse(server.supabaseUrl).host;
+      final importedVersion = importedByHost[host];
+      if (importedVersion != null) {
+        // Retain the server but stamp token as stale (epoch) so the next
+        // selectServer call triggers a fresh challenge-response login.
+        updated.add(server.copyWith(
+          keyVersion: importedVersion,
+          tokenIssuedAt: DateTime.fromMillisecondsSinceEpoch(0),
+        ));
+      }
+      // Drop servers not in the backup — they belong to a different identity.
+    }
+
+    final newSelectedId = updated.any((s) => s.id == state.selectedServerId)
+        ? state.selectedServerId
+        : updated.isNotEmpty
+        ? updated.first.id
+        : null;
+
+    emit(state.copyWith(
+      servers: updated,
+      selectedServerId: newSelectedId,
+      clearSelectedServerId: newSelectedId == null,
+    ));
+
+    // Re-authenticate the selected server immediately with the new identity.
+    if (updated.isNotEmpty) loginSelectedServer();
+  }
   void selectServer(Server server) {
     setSelectedServer(server);
     // Token is stale on cold start (tokenIssuedAt defaults to epoch) or after
