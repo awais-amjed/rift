@@ -6,6 +6,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../data/classes/participant_info.dart';
+import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
@@ -98,14 +99,17 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         channelId,
       );
 
-      // On token expiry or deletion, re-authenticate once and retry
+      // On session invalidation (token expired, deleted, or unlinked),
+      // re-authenticate once and retry.
       final serverCubit = _serverCubit;
       if (!response.success &&
-          response.error != null &&
-          (response.error!.contains('expired') ||
-              response.error!.contains('Invalid token') ||
-              response.error!.contains('No token found') ||
-              response.error!.contains('Token is not linked')) &&
+          (ErrorCode.isSessionInvalid(response.errorCode) ||
+              // Legacy fallback for server deployments without code field.
+              (response.error != null &&
+                  (response.error!.contains('expired') ||
+                      response.error!.contains('Invalid token') ||
+                      response.error!.contains('No token found') ||
+                      response.error!.contains('Token is not linked')))) &&
           serverCubit != null) {
         final newToken = await serverCubit.reAuthenticate();
         if (newToken != null) {

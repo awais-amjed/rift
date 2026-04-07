@@ -5,6 +5,7 @@ import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_user.dart';
+import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../vault/vault_cubit.dart';
 
@@ -29,16 +30,21 @@ class ServerCubit extends HydratedCubit<ServerState> {
   // Token auto-refresh helpers
   // ──────────────────────────────────────────────────────────
 
-  /// Returns true for any error that indicates the session token is no longer
-  /// valid — covers both expiry ("Token has expired") and the case where the
-  /// token row was deleted from the DB ("Invalid token provided",
-  /// "No token found for user").
-  static bool _isTokenExpired(String? error) =>
-      error != null &&
-      (error.contains('expired') ||
-          error.contains('Invalid token') ||
-          error.contains('No token found') ||
-          error.contains('Token is not linked'));
+  /// Returns true when an API response indicates the session token is no
+  /// longer valid and the client should attempt re-authentication.
+  ///
+  /// Checks the structured [errorCode] first; falls back to the human-readable
+  /// [error] string for responses from older server deployments that don't yet
+  /// include the `code` field.
+  static bool _isSessionInvalid(APIResponse response) =>
+      !response.success &&
+      (ErrorCode.isSessionInvalid(response.errorCode) ||
+          // Legacy fallback — remove once all deployments send codes.
+          (response.error != null &&
+              (response.error!.contains('expired') ||
+                  response.error!.contains('Invalid token') ||
+                  response.error!.contains('No token found') ||
+                  response.error!.contains('Token is not linked'))));
 
   /// Re-run the Ed25519 challenge-response for the selected server.
   ///
@@ -72,9 +78,7 @@ class ServerCubit extends HydratedCubit<ServerState> {
 
     var response = await call(server.token);
 
-    if (!response.success &&
-        _isTokenExpired(response.error) &&
-        _vaultCubit != null) {
+    if (_isSessionInvalid(response) && _vaultCubit != null) {
       final newToken = await reAuthenticate();
       if (newToken != null) {
         response = await call(newToken);

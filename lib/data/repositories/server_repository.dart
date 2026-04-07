@@ -33,7 +33,11 @@ class ServerRepository {
     if (data['success'] == true) {
       return APIResponse.success(data['data']);
     }
-    return APIResponse.error(data['error'] ?? 'Unknown error');
+    return APIResponse(
+      success: false,
+      error: data['error'] as String? ?? 'Unknown error',
+      errorCode: data['code'] as String?,
+    );
   }
 
   // ──────────────────────────────────────────────────────────

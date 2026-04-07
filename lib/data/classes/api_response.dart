@@ -3,11 +3,16 @@ import '../../logic/helper_methods.dart';
 class APIResponse {
   final bool success;
 
+  /// Human-readable error message (for display / logging).
   final String? error;
+
+  /// Machine-readable error code from [ErrorCode] (for client logic).
+  /// Always present on error responses from the server.
+  final String? errorCode;
 
   final dynamic data;
 
-  APIResponse({required this.success, this.data, this.error});
+  APIResponse({required this.success, this.data, this.error, this.errorCode});
 
   factory APIResponse.success(dynamic data) {
     return APIResponse(success: true, data: data);
