@@ -20,6 +20,9 @@ class ServerCubit extends HydratedCubit<ServerState> {
   /// Injected by [injectVaultCubit] after construction.
   VaultCubit? _vaultCubit;
 
+  /// Guards against concurrent background token refreshes.
+  bool _isRefreshingToken = false;
+
   ServerCubit() : super(const ServerState());
 
   /// Wire up the VaultCubit so this cubit can re-authenticate on token expiry.
@@ -94,8 +97,18 @@ class ServerCubit extends HydratedCubit<ServerState> {
     final server = state.selectedServer;
     if (server == null) return APIResponse.error('No server selected');
 
+    // Proactive background refresh: if the token has < 10 minutes left, kick
+    // off a silent re-auth concurrently. The current call proceeds with the
+    // still-valid existing token; all subsequent calls will use the new one.
+    if (server.isTokenNearExpiry && !_isRefreshingToken && _vaultCubit != null) {
+      _isRefreshingToken = true;
+      reAuthenticate().then((_) => _isRefreshingToken = false);
+    }
+
     var response = await call(server.token);
 
+    // Reactive fallback: token expired before the background refresh completed
+    // (e.g. app resumed after a long pause). Re-auth and retry once.
     if (_isSessionInvalid(response) && _vaultCubit != null) {
       final newToken = await reAuthenticate();
       if (newToken != null) {

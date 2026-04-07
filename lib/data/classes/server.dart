@@ -16,7 +16,17 @@ class Server {
   /// Incremented on key rotation.
   final String keyVersion;
 
-  const Server({
+  /// When the current [token] was last obtained from the server.
+  /// Used to trigger a proactive background re-auth before the token expires.
+  final DateTime tokenIssuedAt;
+
+  /// True when more than 50 minutes have passed since [tokenIssuedAt].
+  /// With a 1-hour server TTL this leaves a 10-minute window for a silent
+  /// background re-auth before the token actually expires.
+  bool get isTokenNearExpiry =>
+      DateTime.now().difference(tokenIssuedAt) > const Duration(minutes: 50);
+
+  Server({
     required this.id,
     required this.name,
     this.iconUrl,
@@ -27,7 +37,8 @@ class Server {
     this.user,
     this.channels = const [],
     this.keyVersion = 'v1',
-  });
+    DateTime? tokenIssuedAt,
+  }) : tokenIssuedAt = tokenIssuedAt ?? DateTime.now();
 
   /// Create a server from joining an existing one with a token
   factory Server.fromJoin(
@@ -45,6 +56,7 @@ class Server {
       livekitUrl: serverDetails['livekit_url'] as String?,
       token: token,
       keyVersion: keyVersion,
+      tokenIssuedAt: DateTime.now(),
       user: serverDetails['user'] != null
           ? ServerUser.fromJson(serverDetails['user'] as Map<String, dynamic>)
           : null,
@@ -71,6 +83,7 @@ class Server {
       livekitUrl: serverData['livekit_url'] as String?,
       token: token,
       keyVersion: 'v1',
+      tokenIssuedAt: DateTime.now(),
       user: serverData['user'] != null
           ? ServerUser.fromJson(serverData['user'] as Map<String, dynamic>)
           : null,
@@ -92,6 +105,11 @@ class Server {
       livekitUrl: json['livekitUrl'] as String?,
       token: json['token'] as String,
       keyVersion: json['keyVersion'] as String? ?? 'v1',
+      // Default to epoch so persisted servers without this field are treated
+      // as having a stale token — the reactive fallback handles first expiry.
+      tokenIssuedAt: json['tokenIssuedAt'] != null
+          ? DateTime.parse(json['tokenIssuedAt'] as String)
+          : DateTime.fromMillisecondsSinceEpoch(0),
       user: json['user'] != null
           ? ServerUser.fromJson(json['user'] as Map<String, dynamic>)
           : null,
@@ -112,6 +130,7 @@ class Server {
     'livekitUrl': livekitUrl,
     'token': token,
     'keyVersion': keyVersion,
+    'tokenIssuedAt': tokenIssuedAt.toIso8601String(),
     'user': user?.toJson(),
     'channels': channels.map((c) => c.toJson()).toList(),
   };
@@ -125,6 +144,7 @@ class Server {
     String? livekitUrl,
     String? token,
     String? keyVersion,
+    DateTime? tokenIssuedAt,
     ServerUser? user,
     List<Channel>? channels,
     bool clearUser = false,
@@ -138,6 +158,10 @@ class Server {
       livekitUrl: livekitUrl ?? this.livekitUrl,
       token: token ?? this.token,
       keyVersion: keyVersion ?? this.keyVersion,
+      // If the token changed, stamp a fresh issue time; otherwise keep existing.
+      tokenIssuedAt: token != null
+          ? DateTime.now()
+          : (tokenIssuedAt ?? this.tokenIssuedAt),
       user: clearUser ? null : (user ?? this.user),
       channels: channels ?? this.channels,
     );
