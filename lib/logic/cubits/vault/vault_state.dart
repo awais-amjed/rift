@@ -1,4 +1,4 @@
-import '../../../data/enums/auth_status.dart';
+part of 'vault_cubit.dart';
 
 /// Immutable state for [VaultCubit].
 class VaultState {
@@ -49,5 +49,3 @@ class VaultState {
   String toString() =>
       'VaultState(status: $status, isProcessing: $isProcessing, error: $error)';
 }
-
-
