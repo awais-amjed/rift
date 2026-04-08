@@ -45,12 +45,9 @@ class _ParticipantsGridState extends State<ParticipantsGrid> {
           return;
         }
 
-        // Connect to the selected channel
+        // Connect to the selected channel — server context resolved internally.
         livekitCubit.connectToChannel(
           channelId: appState.selectedChannelId!,
-          supabaseUrl: server.supabaseUrl,
-          token: server.token,
-          livekitUrl: server.livekitUrl!,
           micEnabled: appState.audioEnabled,
           cameraEnabled: appState.videoEnabled,
         );

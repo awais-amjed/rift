@@ -13,13 +13,17 @@ class ServerRepository {
   Future<APIResponse> _post(
     String supabaseUrl,
     String functionName,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    String? bearerToken,
+  }) async {
     try {
       final uri = Uri.parse('$supabaseUrl/functions/v1/$functionName');
       final response = await http.post(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
+        },
         body: jsonEncode(body),
       );
       final result = jsonDecode(response.body) as Map<String, dynamic>;
@@ -66,26 +70,33 @@ class ServerRepository {
   }
 
   /// Get full server details (name, icon, channels, current user).
-  Future<APIResponse> getServerDetails(String supabaseUrl, String token) {
-    return _post(supabaseUrl, 'get_server_details', {'token': token});
+  Future<APIResponse> getServerDetails(
+    String supabaseUrl, {
+    String? bearerToken,
+  }) {
+    return _post(supabaseUrl, 'get_server_details', {}, bearerToken: bearerToken);
   }
 
   /// Update server details (admin only).
   Future<APIResponse> updateServer(
-    String supabaseUrl,
-    String token, {
+    String supabaseUrl, {
+    String? bearerToken,
     String? name,
     String? iconUrl,
     String? livekitApiKey,
     String? livekitSecretKey,
   }) {
-    return _post(supabaseUrl, 'update_server', {
-      'token': token,
-      if (name != null) 'name': name,
-      if (iconUrl != null) 'icon_url': iconUrl,
-      if (livekitApiKey != null) 'livekit_api_key': livekitApiKey,
-      if (livekitSecretKey != null) 'livekit_secret_key': livekitSecretKey,
-    });
+    return _post(
+      supabaseUrl,
+      'update_server',
+      {
+        if (name != null) 'name': name,
+        if (iconUrl != null) 'icon_url': iconUrl,
+        if (livekitApiKey != null) 'livekit_api_key': livekitApiKey,
+        if (livekitSecretKey != null) 'livekit_secret_key': livekitSecretKey,
+      },
+      bearerToken: bearerToken,
+    );
   }
 
   // ──────────────────────────────────────────────────────────
@@ -173,22 +184,26 @@ class ServerRepository {
   /// [maxUses] null = unlimited, 1 = single-use (default).
   /// [expiresInSeconds] null = never expires.
   Future<APIResponse> createInvite(
-    String supabaseUrl,
-    String callerToken, {
+    String supabaseUrl, {
+    String? bearerToken,
     bool isServerAdmin = false,
     bool isChannelManager = false,
     bool canCreateTokens = false,
     int? maxUses = 1,
     int? expiresInSeconds,
   }) {
-    return _post(supabaseUrl, 'create_invite', {
-      'token': callerToken,
-      'is_server_admin': isServerAdmin,
-      'is_channel_manager': isChannelManager,
-      'can_create_tokens': canCreateTokens,
-      'max_uses': maxUses,
-      if (expiresInSeconds != null) 'expires_in_seconds': expiresInSeconds,
-    });
+    return _post(
+      supabaseUrl,
+      'create_invite',
+      {
+        'is_server_admin': isServerAdmin,
+        'is_channel_manager': isChannelManager,
+        'can_create_tokens': canCreateTokens,
+        'max_uses': maxUses,
+        if (expiresInSeconds != null) 'expires_in_seconds': expiresInSeconds,
+      },
+      bearerToken: bearerToken,
+    );
   }
 
   // ──────────────────────────────────────────────────────────
@@ -197,57 +212,65 @@ class ServerRepository {
 
   /// Create a new channel.
   Future<APIResponse> createChannel(
-    String supabaseUrl,
-    String token, {
+    String supabaseUrl, {
+    String? bearerToken,
     required String name,
     required String channelType,
   }) {
-    return _post(supabaseUrl, 'create_channel', {
-      'token': token,
-      'name': name,
-      'channel_type': channelType,
-    });
+    return _post(
+      supabaseUrl,
+      'create_channel',
+      {'name': name, 'channel_type': channelType},
+      bearerToken: bearerToken,
+    );
   }
 
   /// Get a LiveKit JWT for joining a channel.
   Future<APIResponse> getChannelToken(
     String supabaseUrl,
-    String token,
     String channelId, {
     bool screenShare = false,
+    String? bearerToken,
   }) {
-    return _post(supabaseUrl, 'get_channel_token', {
-      'token': token,
-      'channel_id': channelId,
-      'screen_share': screenShare,
-    });
+    return _post(
+      supabaseUrl,
+      'get_channel_token',
+      {'channel_id': channelId, 'screen_share': screenShare},
+      bearerToken: bearerToken,
+    );
   }
 
   /// Delete a channel (requires channel manager).
   Future<APIResponse> deleteChannel(
     String supabaseUrl,
-    String token,
-    String channelId,
-  ) {
-    return _post(supabaseUrl, 'delete_channel', {
-      'token': token,
-      'channel_id': channelId,
-    });
+    String channelId, {
+    String? bearerToken,
+  }) {
+    return _post(
+      supabaseUrl,
+      'delete_channel',
+      {'channel_id': channelId},
+      bearerToken: bearerToken,
+    );
   }
 
   /// Mute or unmute a participant (requires channel manager).
   Future<APIResponse> muteParticipant(
-    String supabaseUrl,
-    String token, {
+    String supabaseUrl, {
+    String? bearerToken,
     required String channelId,
     required String participantIdentity,
     required bool muted,
   }) {
-    return _post(supabaseUrl, 'mute_participant', {
-      'token': token,
-      'channel_id': channelId,
-      'participant_identity': participantIdentity,
-      'muted': muted,
-    });
+    return _post(
+      supabaseUrl,
+      'mute_participant',
+      {
+        'channel_id': channelId,
+        'participant_identity': participantIdentity,
+        'muted': muted,
+      },
+      bearerToken: bearerToken,
+    );
   }
 }

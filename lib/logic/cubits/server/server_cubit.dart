@@ -302,6 +302,41 @@ class ServerCubit extends HydratedCubit<ServerState> {
   // API Operations
   // ──────────────────────────────────────────────────────────
 
+  /// Get a LiveKit JWT for [channelId]. Token refresh is handled automatically.
+  ///
+  /// Used by [LiveKitCubit] and [ScreenshareCubit] so they don't need to
+  /// manage server context or token state themselves.
+  Future<APIResponse> getChannelToken(
+    String channelId, {
+    bool screenShare = false,
+  }) =>
+      _callWithAutoRefresh(
+        (token) => _repository.getChannelToken(
+          state.selectedServer!.supabaseUrl,
+          channelId,
+          screenShare: screenShare,
+          bearerToken: token,
+        ),
+      );
+
+  /// Mute or unmute a participant server-wide. Token refresh is handled automatically.
+  ///
+  /// Used by [LiveKitCubit] so it doesn't need to manage server context.
+  Future<APIResponse> muteParticipant({
+    required String channelId,
+    required String participantIdentity,
+    required bool muted,
+  }) =>
+      _callWithAutoRefresh(
+        (token) => _repository.muteParticipant(
+          state.selectedServer!.supabaseUrl,
+          bearerToken: token,
+          channelId: channelId,
+          participantIdentity: participantIdentity,
+          muted: muted,
+        ),
+      );
+
   /// Create a new server. On success returns the single-use admin invite code
   /// that the caller should use to register the first (admin) user account.
   Future<({bool success, String? inviteCode, String? error})> createServer({
@@ -348,7 +383,7 @@ class ServerCubit extends HydratedCubit<ServerState> {
     final response = await _callWithAutoRefresh(
       (token) => _repository.createInvite(
         server.supabaseUrl,
-        token,
+        bearerToken: token,
         isServerAdmin: isServerAdmin,
         isChannelManager: isChannelManager,
         canCreateTokens: canCreateTokens,
@@ -431,7 +466,7 @@ class ServerCubit extends HydratedCubit<ServerState> {
     final response = await _callWithAutoRefresh(
       (token) => _repository.createChannel(
         server.supabaseUrl,
-        token,
+        bearerToken: token,
         name: name,
         channelType: channelType,
       ),
@@ -454,7 +489,7 @@ class ServerCubit extends HydratedCubit<ServerState> {
     }
 
     final response = await _callWithAutoRefresh(
-      (token) => _repository.getServerDetails(server.supabaseUrl, token),
+      (token) => _repository.getServerDetails(server.supabaseUrl, bearerToken: token),
     );
 
     if (response.success) {

@@ -6,8 +6,6 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../data/classes/participant_info.dart';
-import '../../../data/enums/error_code.dart';
-import '../../../data/repositories/server_repository.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
@@ -18,7 +16,6 @@ part 'livekit_state.dart';
 
 /// Cubit managing LiveKit room connections, participants, and media controls.
 class LiveKitCubit extends Cubit<LiveKitState> {
-  final ServerRepository _repository;
   final AppCubit _appCubit;
   final TokenCubit _tokenCubit;
   final ServerCubit? _serverCubit;
@@ -28,13 +25,11 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   AppState _lastAppState;
 
   LiveKitCubit({
-    required ServerRepository repository,
     required AppCubit appCubit,
     required TokenCubit tokenCubit,
     ServerCubit? serverCubit,
     ScreenshareCubit? screenshareCubit,
-  }) : _repository = repository,
-       _appCubit = appCubit,
+  }) : _appCubit = appCubit,
        _tokenCubit = tokenCubit,
        _serverCubit = serverCubit,
        _screenshareCubit = screenshareCubit,
@@ -53,11 +48,12 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   // ──────────────────────────────────────────────────────────
 
   /// Connect to a LiveKit channel.
+  ///
+  /// Server context (supabase URL, auth token, LiveKit URL) is resolved
+  /// internally via [_serverCubit] so callers only need to supply the channel
+  /// and media preferences.
   Future<void> connectToChannel({
     required String channelId,
-    required String supabaseUrl,
-    required String token,
-    required String livekitUrl,
     bool? micEnabled,
     bool? cameraEnabled,
   }) async {
@@ -85,55 +81,43 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     // Clear the room reference now that cleanup is complete
     emit(state.copyWith(clearRoom: true));
 
+    // Resolve server context from ServerCubit
+    final server = _serverCubit?.state.selectedServer;
+    if (server == null) {
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: 'No server selected',
+        ),
+      );
+      return;
+    }
+    final livekitUrl = server.livekitUrl;
+    if (livekitUrl == null) {
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: 'No LiveKit URL configured for this server',
+        ),
+      );
+      return;
+    }
+
     // Check for a cached token that is still within its 55-minute validity
     // window before making a network round-trip.
     String livekitToken;
-    final cached = _tokenCubit.getValidToken(supabaseUrl, channelId);
+    final cached = _tokenCubit.getValidToken(server.supabaseUrl, channelId);
     if (cached != null) {
       debugPrint('[LiveKit] Using cached LiveKit token for channel $channelId');
       livekitToken = cached.token;
     } else {
-      debugPrint('[LiveKit] No cached token — calling getChannelToken...');
-      // Get LiveKit token from server
-      var response = await _repository.getChannelToken(
-        supabaseUrl,
-        token,
-        channelId,
-      );
+      debugPrint('[LiveKit] No cached token — calling getChannelToken via ServerCubit...');
+
+      // Delegate to ServerCubit which handles Bearer auth and auto-refresh.
+      final response = await _serverCubit!.getChannelToken(channelId);
 
       debugPrint('[LiveKit] getChannelToken response: success=${response.success}, '
           'error="${response.error}", errorCode="${response.errorCode}"');
-
-      // On session invalidation (token expired, deleted, or unlinked),
-      // re-authenticate once and retry.
-      final serverCubit = _serverCubit;
-      final sessionInvalidByCode = ErrorCode.isSessionInvalid(response.errorCode);
-      final sessionInvalidByLegacy = response.error != null &&
-          (response.error!.contains('expired') ||
-              response.error!.contains('Invalid token') ||
-              response.error!.contains('No token found') ||
-              response.error!.contains('Token is not linked'));
-
-      debugPrint('[LiveKit] Session-invalid check: byCode=$sessionInvalidByCode, '
-          'byLegacy=$sessionInvalidByLegacy, serverCubit=${serverCubit != null}');
-
-      if (!response.success &&
-          (sessionInvalidByCode || sessionInvalidByLegacy) &&
-          serverCubit != null) {
-        debugPrint('[LiveKit] Session invalid — attempting reAuthenticate...');
-        final newToken = await serverCubit.reAuthenticate();
-        debugPrint('[LiveKit] reAuthenticate returned: ${newToken != null ? "a new token" : "null (FAILED)"}');
-        if (newToken != null) {
-          debugPrint('[LiveKit] Retrying getChannelToken with new token...');
-          response = await _repository.getChannelToken(
-            supabaseUrl,
-            newToken,
-            channelId,
-          );
-          debugPrint('[LiveKit] Retry response: success=${response.success}, '
-              'error="${response.error}", errorCode="${response.errorCode}"');
-        }
-      }
 
       if (!response.success) {
         debugPrint('[LiveKit] Final failure — emitting error: "${response.error}"');
@@ -147,7 +131,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       }
 
       livekitToken = response.data['token'] as String;
-      _tokenCubit.saveToken(supabaseUrl, channelId, livekitToken);
+      _tokenCubit.saveToken(server.supabaseUrl, channelId, livekitToken);
     }
 
     final room = Room(
@@ -342,19 +326,18 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   }
 
   /// Mute a participant for everyone in the room (requires is_channel_manager).
-  /// Calls the server-side edge function which uses the LiveKit Server API.
+  /// Delegates to [ServerCubit] which handles Bearer auth and token refresh.
   Future<bool> muteParticipantForEveryone({
-    required String supabaseUrl,
-    required String token,
     required String participantIdentity,
     required bool muted,
   }) async {
     final channelId = state.currentChannelId;
     if (channelId == null) return false;
 
-    final response = await _repository.muteParticipant(
-      supabaseUrl,
-      token,
+    final serverCubit = _serverCubit;
+    if (serverCubit == null) return false;
+
+    final response = await serverCubit.muteParticipant(
       channelId: channelId,
       participantIdentity: participantIdentity,
       muted: muted,

@@ -2,34 +2,30 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/screen_share_settings.dart';
-import '../../../data/repositories/server_repository.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../livekit/livekit_cubit.dart';
+import '../server/server_cubit.dart';
 
 part 'screenshare_state.dart';
 
 /// Cubit for managing screen sharing via Rust LiveKit integration.
 class ScreenshareCubit extends Cubit<ScreenshareState> {
-  final ServerRepository _repository;
+  final ServerCubit _serverCubit;
   final LiveKitCubit? _livekitCubit;
 
   ScreenshareCubit({
-    required ServerRepository repository,
+    required ServerCubit serverCubit,
     LiveKitCubit? livekitCubit,
-  }) : _repository = repository,
+  }) : _serverCubit = serverCubit,
        _livekitCubit = livekitCubit,
        super(const ScreenshareState());
 
   /// Start screen sharing with the given settings.
-  /// Generates a new token with screen_share flag, and passes data to Rust.
+  ///
+  /// Server context (auth token, LiveKit URL, user identity) is resolved
+  /// internally via [_serverCubit] and [_livekitCubit].
   Future<void> startScreenShare({
-    required String supabaseUrl,
-    required String token,
-    required String channelId,
-    required String livekitUrl,
-    required String userId,
-    required String displayName,
     required ScreenShareSettings settings,
   }) async {
     emit(state.copyWith(status: ScreenshareStatus.connecting));
@@ -47,8 +43,12 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
           return;
         }
 
-        // Use LiveKit's native screen sharing
-        // Note: Web screen sharing options are limited compared to desktop
+        final channelId = _livekitCubit.state.currentChannelId;
+        if (channelId == null) {
+          emit(state.copyWith(status: ScreenshareStatus.error, error: 'Not connected to a channel'));
+          return;
+        }
+
         await _livekitCubit.toggleScreenShare();
 
         emit(
@@ -61,14 +61,34 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         return;
       }
 
-      // On desktop platforms, use Rust implementation
-      // Get a new LiveKit token with screen_share = true
-      final response = await _repository.getChannelToken(
-        supabaseUrl,
-        token,
-        channelId,
-        screenShare: true,
-      );
+      // Resolve server context
+      final server = _serverCubit.state.selectedServer;
+      if (server == null) {
+        emit(state.copyWith(status: ScreenshareStatus.error, error: 'No server selected'));
+        return;
+      }
+
+      final livekitUrl = server.livekitUrl;
+      if (livekitUrl == null) {
+        emit(state.copyWith(status: ScreenshareStatus.error, error: 'No LiveKit URL configured'));
+        return;
+      }
+
+      final user = server.user;
+      if (user == null) {
+        emit(state.copyWith(status: ScreenshareStatus.error, error: 'No user info available'));
+        return;
+      }
+
+      final channelId = _livekitCubit?.state.currentChannelId;
+      if (channelId == null) {
+        emit(state.copyWith(status: ScreenshareStatus.error, error: 'Not connected to a channel'));
+        return;
+      }
+
+      // On desktop platforms, use Rust implementation.
+      // Get a screenshare-specific LiveKit token via ServerCubit (handles Bearer auth + refresh).
+      final response = await _serverCubit.getChannelToken(channelId, screenShare: true);
 
       if (!response.success) {
         emit(
@@ -81,15 +101,14 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       }
 
       final livekitToken = response.data['token'] as String;
-      final identityWithScreenshare = '${userId}_screenshare';
+      final identityWithScreenshare = '${user.id}_screenshare';
 
-      // Print data to debug output
       debugPrint('=== SCREENSHARE DATA ===');
       debugPrint('LiveKit URL: $livekitUrl');
       debugPrint('LiveKit Token: $livekitToken');
       debugPrint('Channel ID: $channelId');
       debugPrint('Identity: $identityWithScreenshare');
-      debugPrint('Display Name: $displayName');
+      debugPrint('Display Name: ${user.displayName}');
       debugPrint('Resolution: ${settings.resolution}p');
       debugPrint('FPS: ${settings.fps}');
       debugPrint('Bitrate: ${settings.bitrate} Mbps');
@@ -101,13 +120,12 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       debugPrint('Codec: ${settings.codec}');
       debugPrint('========================');
 
-      // Call Rust function to start screen sharing
       final config = ScreenShareConfig(
         livekitUrl: livekitUrl,
         livekitToken: livekitToken,
         channelId: channelId,
         identity: identityWithScreenshare,
-        displayName: displayName,
+        displayName: user.displayName,
         resolution: settings.resolution,
         fps: settings.fps,
         bitrate: settings.bitrate,

@@ -13,7 +13,6 @@ import 'package:keyboard_dismisser/keyboard_dismisser.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
-import 'data/repositories/server_repository.dart';
 import 'logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/cubits/voice_stats/voice_stats_cubit.dart';
@@ -180,7 +179,6 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
                 // Create both cubits together to handle cross-references
                 final appCubit = context.read<AppCubit>();
                 final livekitCubit = LiveKitCubit(
-                  repository: ServerRepository(),
                   appCubit: appCubit,
                   tokenCubit: context.read<TokenCubit>(),
                   // Inject ServerCubit so LiveKit can re-authenticate when
@@ -193,7 +191,7 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
             BlocProvider(
               create: (context) {
                 final screenshareCubit = ScreenshareCubit(
-                  repository: ServerRepository(),
+                  serverCubit: context.read<ServerCubit>(),
                   livekitCubit: context.read<LiveKitCubit>(),
                 );
                 // Wire up screenshare cubit for automatic cleanup on disconnect

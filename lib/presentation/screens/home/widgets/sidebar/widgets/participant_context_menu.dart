@@ -113,27 +113,20 @@ class ParticipantContextMenu extends StatelessWidget {
                         },
                       ),
                       // Mute for everyone (channel managers only, remote participants only)
-                      if (!isLocal && isChannelManager)
-                        _MenuItem(
-                          icon: Icons.mic_off,
-                          label: 'Mute for everyone',
-                          isDangerous: true,
-                          onTap: () {
-                            final server = context
-                                .read<ServerCubit>()
-                                .state
-                                .selectedServer;
-                            if (server == null) return;
-                            context
-                                .read<LiveKitCubit>()
-                                .muteParticipantForEveryone(
-                                  supabaseUrl: server.supabaseUrl,
-                                  token: server.token,
-                                  participantIdentity: identity,
-                                  muted: true,
-                                );
-                          },
-                        ),
+                       if (!isLocal && isChannelManager)
+                         _MenuItem(
+                           icon: Icons.mic_off,
+                           label: 'Mute for everyone',
+                           isDangerous: true,
+                           onTap: () {
+                             context
+                                 .read<LiveKitCubit>()
+                                 .muteParticipantForEveryone(
+                                   participantIdentity: identity,
+                                   muted: true,
+                                 );
+                           },
+                         ),
                       // Volume slider (only for remote participants)
                       if (!isLocal) ...[
                         Padding(

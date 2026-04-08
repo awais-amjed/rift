@@ -7,7 +7,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
@@ -107,7 +106,6 @@ class _ControlBarContent extends StatelessWidget {
   Future<void> _handleScreenShare(BuildContext context) async {
     final screenshareCubit = context.read<ScreenshareCubit>();
     final livekitCubit = context.read<LiveKitCubit>();
-    final serverCubit = context.read<ServerCubit>();
 
     // Check if already sharing - if so, stop
     if (screenshareCubit.state.isSharing) {
@@ -130,42 +128,15 @@ class _ControlBarContent extends StatelessWidget {
       settings = dialogSettings;
     }
 
-    // Get current server and channel info
-    final selectedServer = serverCubit.state.selectedServer;
-    if (selectedServer == null) {
-      debugPrint('No server selected');
-      return;
-    }
-
-    final channelId = livekitCubit.state.currentChannelId;
-    if (channelId == null) {
+    // Guard: must be connected to a channel
+    if (livekitCubit.state.currentChannelId == null) {
       debugPrint('No channel connected');
       return;
     }
 
-    final user = selectedServer.user;
-    if (user == null) {
-      debugPrint('No user info available');
-      return;
-    }
-
-    final livekitUrl = selectedServer.livekitUrl;
-    if (livekitUrl == null) {
-      debugPrint('No LiveKit URL configured');
-      return;
-    }
-
     try {
-      // Start screen sharing through the cubit
-      await screenshareCubit.startScreenShare(
-        supabaseUrl: selectedServer.supabaseUrl,
-        token: selectedServer.token,
-        channelId: channelId,
-        livekitUrl: livekitUrl,
-        userId: user.id,
-        displayName: user.displayName,
-        settings: settings,
-      );
+      // Server context (URL, token, user info) is resolved by the cubit.
+      await screenshareCubit.startScreenShare(settings: settings);
     } catch (e) {
       debugPrint('Screen share failed: $e');
     }
