@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../data/classes/ping_sample.dart';
+import '../../../data/enums/voice_quality.dart';
 import '../livekit/livekit_cubit.dart';
 
 part 'voice_stats_state.dart';

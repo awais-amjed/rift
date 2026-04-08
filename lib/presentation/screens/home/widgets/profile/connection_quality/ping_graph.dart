@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
+import '../../../../../../data/classes/ping_sample.dart';
 
 /// A small line graph that renders [PingSample] history.
 /// X-axis = last 5 minutes, Y-axis = ping in ms.
@@ -101,4 +101,3 @@ class _PingGraphPainter extends CustomPainter {
   @override
   bool shouldRepaint(_PingGraphPainter old) => old.samples != samples;
 }
-

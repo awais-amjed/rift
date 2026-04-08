@@ -2,15 +2,6 @@ part of 'voice_stats_cubit.dart';
 
 // ── State types ──────────────────────────────────────────────────────────────
 
-enum VoiceQuality { unknown, good, fair, poor }
-
-class PingSample {
-  final DateTime time;
-  final double rttMs;
-
-  const PingSample({required this.time, required this.rttMs});
-}
-
 class VoiceStatsState {
   final double? rttMs;
   final double? jitterMs;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/enums/voice_quality.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
@@ -45,8 +46,7 @@ class _ConnectionQualityIndicatorState
         : offset.dx;
 
     // Anchor the popup bottom just above the indicator bar
-    final bottomOffset =
-        MediaQuery.of(context).size.height - offset.dy + 4;
+    final bottomOffset = MediaQuery.of(context).size.height - offset.dy + 4;
 
     // Capture blocs from current context before entering overlay
     final voiceStatsCubit = context.read<VoiceStatsCubit>();
@@ -95,8 +95,7 @@ class _ConnectionQualityIndicatorState
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
-      buildWhen: (prev, curr) =>
-          prev.connectionState != curr.connectionState,
+      buildWhen: (prev, curr) => prev.connectionState != curr.connectionState,
       builder: (context, lkState) {
         if (lkState.connectionState != LiveKitConnectionState.connected) {
           return const SizedBox.shrink();
@@ -201,6 +200,3 @@ class _ConnectionQualityIndicatorState
     VoiceQuality.unknown => 'No data',
   };
 }
-
-
-
