@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/cubits/vault/vault_cubit.dart';
-import '../../../../logic/cubits/vault/vault_state.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
 import '../../../theme/custom_colors.dart';
@@ -36,7 +35,9 @@ class _PasswordStepState extends State<PasswordStep> {
     final confirm = _confirmController.text;
 
     if (password.length < 8) {
-      setState(() => _validationError = 'Password must be at least 8 characters');
+      setState(
+        () => _validationError = 'Password must be at least 8 characters',
+      );
       return;
     }
     if (password != confirm) {
@@ -54,8 +55,7 @@ class _PasswordStepState extends State<PasswordStep> {
 
     return BlocBuilder<VaultCubit, VaultState>(
       buildWhen: (prev, curr) =>
-          prev.isProcessing != curr.isProcessing ||
-          prev.error != curr.error,
+          prev.isProcessing != curr.isProcessing || prev.error != curr.error,
       builder: (context, vaultState) {
         final isProcessing = vaultState.isProcessing;
 
@@ -149,7 +149,8 @@ class _PasswordStepState extends State<PasswordStep> {
                     ),
 
                     // Validation / API error
-                    if (_validationError != null || vaultState.error != null) ...[
+                    if (_validationError != null ||
+                        vaultState.error != null) ...[
                       const SizedBox(height: 12),
                       Text(
                         _validationError ?? vaultState.error!,
@@ -239,4 +240,3 @@ class _PasswordStepState extends State<PasswordStep> {
     );
   }
 }
-
