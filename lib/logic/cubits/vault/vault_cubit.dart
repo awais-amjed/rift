@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -424,11 +425,14 @@ class VaultCubit extends Cubit<VaultState> {
       _onServersImported?.call(servers);
 
       return (success: true, error: null);
+    } on SecretBoxAuthenticationError {
+      // AES-GCM MAC check failed — the password is wrong or the backup is corrupted.
+      // Catching the specific type avoids the fragile .toString().contains('mac') check.
+      const msg = 'Wrong password or corrupted backup';
+      emit(state.copyWith(isProcessing: false, error: msg));
+      return (success: false, error: msg);
     } on Exception catch (e) {
-      // A decryption failure (wrong password) surfaces as a generic exception.
-      final msg = e.toString().contains('mac')
-          ? 'Wrong password or corrupted backup'
-          : 'Failed to import backup: $e';
+      final msg = 'Failed to import backup: $e';
       emit(state.copyWith(isProcessing: false, error: msg));
       return (success: false, error: msg);
     }
