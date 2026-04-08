@@ -16,14 +16,12 @@ class HelperMethods {
   }
 
   static void initEasyLoading() {
-    // Initialize EasyLoading with custom settings.
     EasyLoading.instance
       ..loadingStyle = EasyLoadingStyle.light
       ..maskType = EasyLoadingMaskType.black
       ..backgroundColor = Colors.white
       ..animationStyle = EasyLoadingAnimationStyle.scale
-      ..userInteractions =
-          false // Prevents user interaction while loading
+      ..userInteractions = false
       ..indicatorWidget = LoadingAnimationWidget.discreteCircle(
         color: Colors.deepPurple,
         size: 24,

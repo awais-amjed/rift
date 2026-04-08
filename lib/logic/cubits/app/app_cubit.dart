@@ -14,25 +14,19 @@ part 'app_state.dart';
 class AppCubit extends HydratedCubit<AppState> {
   AppCubit() : super(const AppState());
 
-  // ──────────────────────────────────────────────────────────
-  // Persisted: sidebar
-  // ──────────────────────────────────────────────────────────
+  // ── Persisted: sidebar ───────────────────────────────────
 
   void setIsPinned(bool isPinned) {
     emit(state.copyWith(isPinned: isPinned));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Persisted: title bar
-  // ──────────────────────────────────────────────────────────
+  // ── Persisted: title bar ─────────────────────────────────
 
   void setTitleBarVisible(bool visible) {
     emit(state.copyWith(titleBarVisible: visible));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Persisted: media
-  // ──────────────────────────────────────────────────────────
+  // ── Persisted: media ─────────────────────────────────────
 
   void setAudioEnabled(bool enabled) {
     emit(state.copyWith(audioEnabled: enabled));
@@ -81,9 +75,7 @@ class AppCubit extends HydratedCubit<AppState> {
     ));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Persisted: participant volume / mute
-  // ──────────────────────────────────────────────────────────
+  // ── Persisted: per-participant volume/mute ───────────────
 
   void setParticipantSetting(String identity, {bool? muted, double? volume}) {
     final existing =
@@ -94,17 +86,13 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(participantSettings: updated));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Transient: sidebar hover
-  // ──────────────────────────────────────────────────────────
+  // ── Transient: sidebar hover ─────────────────────────────
 
   void setIsHovered(bool isHovered) {
     emit(state.copyWith(isHovered: isHovered));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Transient: channel selection
-  // ──────────────────────────────────────────────────────────
+  // ── Transient: channel selection ─────────────────────────
 
   void setSelectedChannelId(String? channelId) {
     emit(
@@ -116,17 +104,13 @@ class AppCubit extends HydratedCubit<AppState> {
     );
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Transient: live participants
-  // ──────────────────────────────────────────────────────────
+  // ── Transient: live participants ─────────────────────────
 
   void setParticipants(List<ParticipantInfo> participants) {
     emit(state.copyWith(participants: participants));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Persisted: window bounds
-  // ──────────────────────────────────────────────────────────
+  // ── Persisted: window bounds ─────────────────────────────
 
   void saveWindowSize(Size size) {
     emit(state.copyWith(windowWidth: size.width, windowHeight: size.height));
@@ -136,9 +120,7 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(windowX: position.dx, windowY: position.dy));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Hydration
-  // ──────────────────────────────────────────────────────────
+  // ── Hydration ────────────────────────────────────────────
 
   @override
   AppState? fromJson(Map<String, dynamic> json) => AppState.fromJson(json);

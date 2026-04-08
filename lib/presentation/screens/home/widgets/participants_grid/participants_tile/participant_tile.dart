@@ -52,26 +52,14 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     _updateVideoTrack();
     widget.participant.addListener(_onParticipantChanged);
 
-    // Schedule auto-hide if expanded
-    if (widget.isExpanded) {
-      _scheduleHide();
-    }
+    if (widget.isExpanded) _scheduleHide();
 
-    // Unsubscribe from screenshare on first load
     if (_isScreenshare) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          final livekitCubit = context.read<LiveKitCubit>();
-          final isSubscribed = livekitCubit.state.subscribedScreenshares
-              .contains(widget.participant.identity);
-          if (isSubscribed) {
-            // Already subscribed from previous state, keep it
-          } else {
-            // Not subscribed, make sure it stays unsubscribed
-            livekitCubit.unsubscribeFromScreenshare(
-              widget.participant.identity,
-            );
-          }
+        if (!mounted) return;
+        final livekitCubit = context.read<LiveKitCubit>();
+        if (!livekitCubit.state.subscribedScreenshares.contains(widget.participant.identity)) {
+          livekitCubit.unsubscribeFromScreenshare(widget.participant.identity);
         }
       });
     }
@@ -85,14 +73,11 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
       widget.participant.addListener(_onParticipantChanged);
     }
 
-    // Handle expansion state changes
     if (oldWidget.isExpanded != widget.isExpanded) {
       if (widget.isExpanded) {
-        // Just expanded, show overlays and schedule hide
         setState(() => _showOverlays = true);
         _scheduleHide();
       } else {
-        // Collapsed, cancel hide timer and show overlays
         _hideTimer?.cancel();
         setState(() => _showOverlays = true);
       }
@@ -117,20 +102,13 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
 
   void _updateVideoTrack() {
     if (_isScreenshare) {
-      // For screenshare participants, look for screen share video track
       _videoPub = widget.participant.videoTrackPublications
-          .where(
-            (t) => t.source == TrackSource.screenShareVideo && t.track != null,
-          )
+          .where((t) => t.source == TrackSource.screenShareVideo && t.track != null)
           .cast<TrackPublication?>()
           .firstOrNull;
     } else {
-      // For regular participants, look for camera video track
       _videoPub = widget.participant.videoTrackPublications
-          .where(
-            (t) =>
-                t.source == TrackSource.camera && t.track != null && !t.muted,
-          )
+          .where((t) => t.source == TrackSource.camera && t.track != null && !t.muted)
           .cast<TrackPublication?>()
           .firstOrNull;
     }
@@ -160,12 +138,9 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
       builder: (context, livekitState) {
-        // Check if this screenshare is subscribed from the persistent state
         final isSubscribed = _isScreenshare
-            ? livekitState.subscribedScreenshares.contains(
-                widget.participant.identity,
-              )
-            : true; // Regular video is always auto-subscribed
+            ? livekitState.subscribedScreenshares.contains(widget.participant.identity)
+            : true;
 
         return BlocBuilder<ThemeCubit, ThemeState>(
           builder: (context, themeState) {
@@ -179,163 +154,22 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
               onTap: widget.onTap,
               behavior: HitTestBehavior.opaque,
               child: widget.isExpanded
-                  ? Listener(
-                      behavior: HitTestBehavior.translucent,
-                      onPointerMove: (_) => _onActivity(),
-                      onPointerHover: (_) => _onActivity(),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          // Video or avatar (but not for unsubscribed screenshare)
-                          if (hasVideo && _videoPub!.track is VideoTrack)
-                            VideoTrackRenderer(
-                              _videoPub!.track as VideoTrack,
-                              fit: VideoViewFit.contain,
-                            )
-                          else if (!showWatchButton)
-                            AvatarPlaceholder(
-                              name: name,
-                              isDark: themeState.isDarkTheme,
-                            ),
-                          // Stream stats overlay at top right (for screenshare with video)
-                          if (showStopButton && _videoPub!.track is VideoTrack)
-                            Positioned(
-                              top: 12,
-                              right: 12,
-                              child: AnimatedOpacity(
-                                opacity: (_showOverlays || _statsPinned)
-                                    ? 1.0
-                                    : 0.0,
-                                duration: const Duration(milliseconds: 300),
-                                child: IgnorePointer(
-                                  ignoring: !_showOverlays && !_statsPinned,
-                                  child: StreamStatsOverlay(
-                                    track: _videoPub!.track as VideoTrack,
-                                    onPinnedChanged: (pinned) {
-                                      setState(() => _statsPinned = pinned);
-                                      if (pinned) {
-                                        _hideTimer?.cancel();
-                                        setState(() => _showOverlays = true);
-                                      } else {
-                                        _scheduleHide();
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                          // Watch Stream button for unsubscribed screenshare
-                          if (showWatchButton)
-                            WatchStreamButton(
-                              onTap: () => _subscribeToScreenshare(context),
-                            ),
-                          // Stop Watching button at bottom right for subscribed screenshare
-                          if (showStopButton)
-                            Positioned(
-                              bottom: 12,
-                              right: 12,
-                              child: AnimatedOpacity(
-                                opacity: _showOverlays ? 1.0 : 0.0,
-                                duration: const Duration(milliseconds: 300),
-                                child: IgnorePointer(
-                                  ignoring: !_showOverlays,
-                                  child: StopWatchingButton(
-                                    onTap: () =>
-                                        _unsubscribeFromScreenshare(context),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          // Name + mic badge - always show for expanded view
-                          Positioned(
-                            bottom: 12,
-                            left: 12,
-                            child: AnimatedOpacity(
-                              opacity: _showOverlays ? 1.0 : 0.0,
-                              duration: const Duration(milliseconds: 300),
-                              child: ParticipantNameBadge(
-                                name: name,
-                                isMicEnabled: widget.participant
-                                    .isMicrophoneEnabled(),
-                                isMuted: widget.isMuted,
-                                isScreenshare: _isScreenshare,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                  ? _buildExpandedContent(
+                      context: context,
+                      themeState: themeState,
+                      hasVideo: hasVideo,
+                      name: name,
+                      showWatchButton: showWatchButton,
+                      showStopButton: showStopButton,
                     )
-                  : AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      decoration: BoxDecoration(
-                        color: themeState.isDarkTheme
-                            ? CustomColors.bgSecondaryDark
-                            : CustomColors.bgTertiaryLight,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isSpeaking
-                              ? CustomColors.primary
-                              : themeState.borderPrimary,
-                          width: isSpeaking ? 2 : 1,
-                        ),
-                        boxShadow: isSpeaking
-                            ? [
-                                BoxShadow(
-                                  color: CustomColors.primary.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  blurRadius: 12,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(13),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            // Video or avatar (but not for unsubscribed screenshare)
-                            if (hasVideo && _videoPub!.track is VideoTrack)
-                              VideoTrackRenderer(
-                                _videoPub!.track as VideoTrack,
-                                fit: VideoViewFit.contain,
-                              )
-                            else if (!showWatchButton)
-                              AvatarPlaceholder(
-                                name: name,
-                                isDark: themeState.isDarkTheme,
-                              ),
-                            // Watch Stream button for unsubscribed screenshare
-                            if (showWatchButton)
-                              WatchStreamButton(
-                                onTap: () => _subscribeToScreenshare(context),
-                              ),
-                            // Stop Watching button at bottom right for subscribed screenshare
-                            if (showStopButton)
-                              Positioned(
-                                bottom: 12,
-                                right: 12,
-                                child: StopWatchingButton(
-                                  onTap: () =>
-                                      _unsubscribeFromScreenshare(context),
-                                ),
-                              ),
-                            // Name + mic badge - always show
-                            Positioned(
-                              bottom: 12,
-                              left: 12,
-                              child: ParticipantNameBadge(
-                                name: name,
-                                isMicEnabled: widget.participant
-                                    .isMicrophoneEnabled(),
-                                isMuted: widget.isMuted,
-                                isScreenshare: _isScreenshare,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  : _buildCollapsedContent(
+                      context: context,
+                      themeState: themeState,
+                      hasVideo: hasVideo,
+                      isSpeaking: isSpeaking,
+                      name: name,
+                      showWatchButton: showWatchButton,
+                      showStopButton: showStopButton,
                     ),
             );
 
@@ -360,6 +194,150 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildExpandedContent({
+    required BuildContext context,
+    required ThemeState themeState,
+    required bool hasVideo,
+    required String name,
+    required bool showWatchButton,
+    required bool showStopButton,
+  }) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerMove: (_) => _onActivity(),
+      onPointerHover: (_) => _onActivity(),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (hasVideo && _videoPub!.track is VideoTrack)
+            VideoTrackRenderer(_videoPub!.track as VideoTrack, fit: VideoViewFit.contain)
+          else if (!showWatchButton)
+            AvatarPlaceholder(name: name, isDark: themeState.isDarkTheme),
+          if (showStopButton && _videoPub!.track is VideoTrack)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: AnimatedOpacity(
+                opacity: (_showOverlays || _statsPinned) ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: IgnorePointer(
+                  ignoring: !_showOverlays && !_statsPinned,
+                  child: StreamStatsOverlay(
+                    track: _videoPub!.track as VideoTrack,
+                    onPinnedChanged: (pinned) {
+                      setState(() => _statsPinned = pinned);
+                      if (pinned) {
+                        _hideTimer?.cancel();
+                        setState(() => _showOverlays = true);
+                      } else {
+                        _scheduleHide();
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ),
+          if (showWatchButton)
+            WatchStreamButton(onTap: () => _subscribeToScreenshare(context)),
+          if (showStopButton)
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: AnimatedOpacity(
+                opacity: _showOverlays ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: IgnorePointer(
+                  ignoring: !_showOverlays,
+                  child: StopWatchingButton(
+                    onTap: () => _unsubscribeFromScreenshare(context),
+                  ),
+                ),
+              ),
+            ),
+          Positioned(
+            bottom: 12,
+            left: 12,
+            child: AnimatedOpacity(
+              opacity: _showOverlays ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 300),
+              child: ParticipantNameBadge(
+                name: name,
+                isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                isMuted: widget.isMuted,
+                isScreenshare: _isScreenshare,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCollapsedContent({
+    required BuildContext context,
+    required ThemeState themeState,
+    required bool hasVideo,
+    required bool isSpeaking,
+    required String name,
+    required bool showWatchButton,
+    required bool showStopButton,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: themeState.isDarkTheme
+            ? CustomColors.bgSecondaryDark
+            : CustomColors.bgTertiaryLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isSpeaking ? CustomColors.primary : themeState.borderPrimary,
+          width: isSpeaking ? 2 : 1,
+        ),
+        boxShadow: isSpeaking
+            ? [
+                BoxShadow(
+                  color: CustomColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ]
+            : null,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (hasVideo && _videoPub!.track is VideoTrack)
+              VideoTrackRenderer(_videoPub!.track as VideoTrack, fit: VideoViewFit.contain)
+            else if (!showWatchButton)
+              AvatarPlaceholder(name: name, isDark: themeState.isDarkTheme),
+            if (showWatchButton)
+              WatchStreamButton(onTap: () => _subscribeToScreenshare(context)),
+            if (showStopButton)
+              Positioned(
+                bottom: 12,
+                right: 12,
+                child: StopWatchingButton(
+                  onTap: () => _unsubscribeFromScreenshare(context),
+                ),
+              ),
+            Positioned(
+              bottom: 12,
+              left: 12,
+              child: ParticipantNameBadge(
+                name: name,
+                isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                isMuted: widget.isMuted,
+                isScreenshare: _isScreenshare,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

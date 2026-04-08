@@ -13,31 +13,19 @@ import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_repository.dart';
 import 'vault_state.dart';
 
-/// Manages the user's encrypted vault lifecycle.
-///
-/// Responsibilities:
-/// - Check whether a vault already exists on startup.
-/// - Create a new vault (Phase 1).
-/// - Derive server identities and handle registration (Phase 2).
-/// - Perform challenge-response login (Phase 3).
-/// - Rotate Ed25519 keys for a server (Phase 4).
-/// - Export / import a portable backup file (Phase 5).
+/// Manages the user's encrypted vault: creation, server identity derivation,
+/// challenge-response login, key rotation, and backup export/import.
 class VaultCubit extends Cubit<VaultState> {
   final CryptoRepository _crypto;
   final SecureStorageRepository _storage;
   final ServerRepository _serverRepo;
 
-  /// In-memory cache of derived keypairs per host, so we don't re-derive
-  /// on every API call within the same session.
+  /// In-memory cache of derived keypairs per host to avoid redundant derivation.
   final Map<String, ServerIdentity> _identityCache = {};
 
-  /// Called after a successful [importBackup] with the list of servers
-  /// restored from the backup. Injected externally to avoid a circular
-  /// dependency between VaultCubit and ServerCubit.
+  /// Called after a successful [importBackup] to reconcile the server list.
   void Function(List<({String url, String version})>)? _onServersImported;
 
-  /// Register a callback to be called after a successful [importBackup].
-  /// The callback receives the list of `{url, version}` entries from the vault.
   void setOnServersImported(
     void Function(List<({String url, String version})>) callback,
   ) {
@@ -57,7 +45,7 @@ class VaultCubit extends Cubit<VaultState> {
   // Startup check
   // ──────────────────────────────────────────────────────────
 
-  /// Call once at app startup to determine auth status.
+  /// Checks for an existing vault in secure storage and sets initial auth status.
   Future<void> checkVaultStatus() async {
     try {
       final masterSeed = await _storage.getMasterSeed();
@@ -75,45 +63,34 @@ class VaultCubit extends Cubit<VaultState> {
   // Phase 1: Account creation
   // ──────────────────────────────────────────────────────────
 
-  /// Create a brand-new vault from a password.
-  ///
-  /// Two blobs are produced and stored locally:
-  ///   • EncryptedSeed  — Argon2id(password, salt) protects the master seed.
-  ///                      Argon2id runs exactly once here; subsequent exports
-  ///                      just read this pre-computed blob.
-  ///   • EncryptedVault — HMAC(masterSeed, "vault:v1") protects joined_servers.
-  ///                      Re-encrypted silently on every state change.
+  /// Creates a new vault from a password.
+  /// Stores an [EncryptedSeed] (Argon2id-protected master seed) and an
+  /// [EncryptedVault] (HMAC-protected server list) in secure storage.
   Future<void> createVault(String password) async {
     emit(state.copyWith(isProcessing: true, clearError: true));
 
     try {
-      // 1. Generate master seed and Argon2id salt
       final masterSeed = _crypto.generateMasterSeed();
       final masterSeedB64 = CryptoRepository.toBase64(masterSeed);
       final salt = _crypto.generateSalt();
 
-      // 2. Derive seed encryption key (slow — runs in Isolate inside deriveVaultKey)
       final seedKey = await _crypto.deriveVaultKey(
         password: password,
         salt: salt,
       );
 
-      // 3. Encrypt the master seed → EncryptedSeed
       final encSeed = await _crypto.encrypt(
         plaintext: masterSeedB64,
         key: seedKey,
       );
 
-      // 4. Derive local vault key (fast — HMAC, no Isolate needed)
       final vaultKey = await _crypto.deriveLocalVaultKey(masterSeed);
 
-      // 5. Encrypt empty joined_servers → EncryptedVault
       final encVault = await _crypto.encrypt(
         plaintext: jsonEncode({'joined_servers': []}),
         key: vaultKey,
       );
 
-      // 6. Persist everything
       await _storage.saveMasterSeed(masterSeedB64);
       await _storage.saveEncryptedSeed(EncryptedSeed(
         ciphertext: CryptoRepository.toBase64(encSeed.ciphertext),
@@ -199,47 +176,39 @@ class VaultCubit extends Cubit<VaultState> {
   // Phase 3: Challenge-response login
   // ──────────────────────────────────────────────────────────
 
-  /// Perform a challenge-response handshake to get a session token.
+  /// Performs a challenge-response handshake and returns a session token.
   Future<({bool success, String? error, Map<String, dynamic>? data})>
       loginToServer({
     required String supabaseUrl,
   }) async {
     try {
       final host = Uri.parse(supabaseUrl).host;
-      debugPrint('[VaultCubit] loginToServer: host="$host"');
 
-      // Auto-resolve the current key version so logins work after key rotation.
+      // Resolve the current key version so logins work after key rotation.
       final joinedServers = await _storage.getJoinedServers();
       final serverEntry = joinedServers
           .cast<({String url, String version})?>()
           .firstWhere((s) => s?.url == host, orElse: () => null);
       final version = serverEntry?.version ?? 'v1';
-      debugPrint('[VaultCubit] loginToServer: version="$version", '
-          'joinedServers=${joinedServers.map((s) => s.url).toList()}');
 
       final identity = await getIdentityForHost(host, version: version);
-      debugPrint('[VaultCubit] loginToServer: publicKey="${identity.publicKeyBase64.substring(0, 8)}..."');
 
       final challengeResponse = await _serverRepo.getChallenge(
         supabaseUrl,
         publicKey: identity.publicKeyBase64,
       );
-      debugPrint('[VaultCubit] loginToServer: getChallenge => success=${challengeResponse.success}, '
-          'error="${challengeResponse.error}", errorCode="${challengeResponse.errorCode}"');
 
       if (!challengeResponse.success) {
         return (success: false, error: challengeResponse.error, data: null);
       }
 
       final nonce = challengeResponse.data['nonce'] as String;
-      debugPrint('[VaultCubit] loginToServer: got nonce="${nonce.substring(0, 8)}..."');
 
       final signature = await _crypto.signChallenge(
         keyPair: identity.keyPair,
         nonce: nonce,
         host: host,
       );
-      debugPrint('[VaultCubit] loginToServer: signed challenge, calling verifyChallenge...');
 
       final verifyResponse = await _serverRepo.verifyChallenge(
         supabaseUrl,
@@ -248,8 +217,6 @@ class VaultCubit extends Cubit<VaultState> {
         signature: CryptoRepository.toBase64(signature),
         host: host,
       );
-      debugPrint('[VaultCubit] loginToServer: verifyChallenge => success=${verifyResponse.success}, '
-          'error="${verifyResponse.error}", errorCode="${verifyResponse.errorCode}"');
 
       if (!verifyResponse.success) {
         return (success: false, error: verifyResponse.error, data: null);
@@ -261,7 +228,7 @@ class VaultCubit extends Cubit<VaultState> {
         data: verifyResponse.data as Map<String, dynamic>,
       );
     } catch (e) {
-      debugPrint('[VaultCubit] loginToServer: EXCEPTION — $e');
+      debugPrint('[VaultCubit] loginToServer error: $e');
       return (success: false, error: e.toString(), data: null);
     }
   }
@@ -287,7 +254,7 @@ class VaultCubit extends Cubit<VaultState> {
       final oldIdentity = await getIdentityForHost(host, version: currentVersion);
       final newIdentity = await getIdentityForHost(host, version: newVersion);
 
-      // Step 1: Obtain a server-issued rotation challenge (prevents replay attacks).
+      // Obtain a server-issued challenge to prevent replay attacks.
       final challengeResponse = await _serverRepo.getChallenge(
         supabaseUrl,
         publicKey: oldIdentity.publicKeyBase64,
@@ -297,7 +264,7 @@ class VaultCubit extends Cubit<VaultState> {
       }
       final nonce = challengeResponse.data['nonce'] as String;
 
-      // Step 2: Sign rotate:<newPubKey>@<nonce>@<host> with the old private key.
+      // Sign rotate:<newPubKey>@<nonce>@<host> with the old private key.
       final signature = await _crypto.signRotation(
         oldKeyPair: oldIdentity.keyPair,
         newPublicKeyBytes: newIdentity.publicKeyBytes,
@@ -321,7 +288,7 @@ class VaultCubit extends Cubit<VaultState> {
       await _storage.updateServerVersion(host, newVersion);
       _identityCache.remove('$host:$currentVersion');
 
-      // Keep the vault blob in sync so the next export is up to date.
+      // Keep the vault blob in sync so the next export reflects the rotation.
       await _syncVaultBlob();
 
       return (success: true, error: null, newVersion: newVersion);
@@ -341,10 +308,8 @@ class VaultCubit extends Cubit<VaultState> {
   // Phase 5: Backup export / import
   // ──────────────────────────────────────────────────────────
 
-  /// Build a [BackupFile] JSON string ready to be written to disk.
-  ///
-  /// No cryptography runs here — both blobs are already stored locally and
-  /// just get combined. Fast and password-free.
+  /// Builds a [BackupFile] JSON string from the locally stored blobs.
+  /// No cryptography runs here — both blobs are already encrypted.
   Future<({bool success, String? content, String? error})>
       exportBackup() async {
     try {
@@ -367,10 +332,8 @@ class VaultCubit extends Cubit<VaultState> {
     }
   }
 
-  /// Restore a vault from a [BackupFile] JSON string and password.
-  ///
-  /// On success, emits [AuthStatus.unlocked] and the local secure storage is
-  /// fully populated — identical to a fresh vault creation.
+  /// Restores a vault from a [BackupFile] JSON string and password.
+  /// On success emits [AuthStatus.unlocked] and fully populates secure storage.
   Future<({bool success, String? error})> importBackup({
     required String jsonContent,
     required String password,
@@ -380,7 +343,6 @@ class VaultCubit extends Cubit<VaultState> {
     try {
       final backup = BackupFile.fromJsonString(jsonContent);
 
-      // 1. Decrypt the master seed using Argon2id(password, salt)
       final salt = CryptoRepository.fromBase64(backup.seed.salt);
       final seedKey = await _crypto.deriveVaultKey(
         password: password,
@@ -392,7 +354,6 @@ class VaultCubit extends Cubit<VaultState> {
         iv: CryptoRepository.fromBase64(backup.seed.iv),
       );
 
-      // 2. Decrypt the joined_servers using HMAC(masterSeed, "vault:v1")
       final masterSeedBytes = CryptoRepository.fromBase64(masterSeedB64);
       final vaultKey = await _crypto.deriveLocalVaultKey(masterSeedBytes);
       final vaultJson = await _crypto.decrypt(
@@ -401,7 +362,6 @@ class VaultCubit extends Cubit<VaultState> {
         iv: CryptoRepository.fromBase64(backup.vault.iv),
       );
 
-      // 3. Parse joined_servers
       final vaultData = jsonDecode(vaultJson) as Map<String, dynamic>;
       final rawServers = vaultData['joined_servers'] as List<dynamic>;
       final servers = rawServers.map((e) {
@@ -409,7 +369,6 @@ class VaultCubit extends Cubit<VaultState> {
         return (url: m['url'] as String, version: m['version'] as String);
       }).toList();
 
-      // 4. Persist everything
       await _storage.saveMasterSeed(masterSeedB64);
       await _storage.setJoinedServers(servers);
       await _storage.saveEncryptedSeed(backup.seed);
@@ -419,15 +378,12 @@ class VaultCubit extends Cubit<VaultState> {
 
       emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
 
-      // Notify ServerCubit so it can reconcile its server list with the
-      // restored vault — without this, the in-memory server list stays stale
-      // until the next cold start.
+      // Notify ServerCubit to reconcile its server list with the restored vault.
       _onServersImported?.call(servers);
 
       return (success: true, error: null);
     } on SecretBoxAuthenticationError {
-      // AES-GCM MAC check failed — the password is wrong or the backup is corrupted.
-      // Catching the specific type avoids the fragile .toString().contains('mac') check.
+      // AES-GCM MAC check failed — wrong password or corrupted backup.
       const msg = 'Wrong password or corrupted backup';
       emit(state.copyWith(isProcessing: false, error: msg));
       return (success: false, error: msg);
@@ -442,17 +398,14 @@ class VaultCubit extends Cubit<VaultState> {
   // Vault persistence helpers
   // ──────────────────────────────────────────────────────────
 
-  /// Track a newly joined server and silently re-encrypt the vault blob.
+  /// Adds a joined server entry and re-encrypts the vault blob.
   Future<void> _addServerToVault(String host, {String version = 'v1'}) async {
     await _storage.addJoinedServer(host, version);
     await _syncVaultBlob();
   }
 
-  /// Re-encrypt the vault blob from the current joined_servers list.
-  ///
+  /// Re-encrypts the vault blob from the current joined_servers list.
   /// Uses HMAC(masterSeed, "vault:v1") — always available without a password.
-  /// Called after every state change (server join, key rotation) so the local
-  /// blob is always ready for export.
   Future<void> _syncVaultBlob() async {
     if (state.masterSeed == null) return;
 
@@ -473,7 +426,6 @@ class VaultCubit extends Cubit<VaultState> {
     ));
   }
 
-  /// Get the list of joined server hosts from secure storage.
   Future<List<({String url, String version})>> getJoinedServers() =>
       _storage.getJoinedServers();
 
@@ -481,9 +433,7 @@ class VaultCubit extends Cubit<VaultState> {
   // Dev helpers
   // ──────────────────────────────────────────────────────────
 
-  /// Wipe all secure storage and reset to [AuthStatus.fresh].
-  ///
-  /// Only intended for use during development / testing.
+  /// Wipes all secure storage and resets to [AuthStatus.fresh]. Dev/test only.
   /// Calling this in production destroys the user's identity permanently.
   Future<void> resetVault() async {
     assert(

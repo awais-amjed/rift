@@ -38,7 +38,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _appSubscription = _appCubit.stream.listen(_onAppStateChanged);
   }
 
-  /// Set the screenshare cubit for automatic cleanup on disconnect
   void setScreenshareCubit(ScreenshareCubit cubit) {
     _screenshareCubit = cubit;
   }
@@ -47,11 +46,8 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   // Connection Management
   // ──────────────────────────────────────────────────────────
 
-  /// Connect to a LiveKit channel.
-  ///
-  /// Server context (supabase URL, auth token, LiveKit URL) is resolved
-  /// internally via [_serverCubit] so callers only need to supply the channel
-  /// and media preferences.
+  /// Connects to a LiveKit channel. Server context is resolved internally via
+  /// [_serverCubit]; callers only supply the channel and media preferences.
   Future<void> connectToChannel({
     required String channelId,
     bool? micEnabled,
@@ -61,10 +57,9 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     final wasConnecting =
         state.connectionState == LiveKitConnectionState.connecting;
 
-    // Emit connecting state BEFORE cleanup so that the RoomDisconnectedEvent
-    // fired during _cleanupRoom is not treated as an unexpected disconnect.
-    // The event handler only clears selectedChannelId when state is 'connected',
-    // so pre-emitting 'connecting' prevents it from resetting the new channel.
+    // Emit 'connecting' before cleanup so the RoomDisconnectedEvent fired during
+    // _cleanupRoom is not misread as an unexpected disconnect and doesn't clear
+    // the new channel ID.
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.connecting,
@@ -73,15 +68,13 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       ),
     );
 
-    // If we're already connected or connecting, clean up the old room first
+    // If already connected or connecting, clean up the old room first.
     if (hadRoom || wasConnecting) {
       await _cleanupRoom();
     }
 
-    // Clear the room reference now that cleanup is complete
     emit(state.copyWith(clearRoom: true));
 
-    // Resolve server context from ServerCubit
     final server = _serverCubit?.state.selectedServer;
     if (server == null) {
       emit(
@@ -103,24 +96,16 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       return;
     }
 
-    // Check for a cached token that is still within its 55-minute validity
-    // window before making a network round-trip.
     String livekitToken;
     final cached = _tokenCubit.getValidToken(server.supabaseUrl, channelId);
     if (cached != null) {
-      debugPrint('[LiveKit] Using cached LiveKit token for channel $channelId');
       livekitToken = cached.token;
     } else {
-      debugPrint('[LiveKit] No cached token — calling getChannelToken via ServerCubit...');
-
-      // Delegate to ServerCubit which handles Bearer auth and auto-refresh.
       final response = await _serverCubit!.getChannelToken(channelId);
 
-      debugPrint('[LiveKit] getChannelToken response: success=${response.success}, '
-          'error="${response.error}", errorCode="${response.errorCode}"');
 
       if (!response.success) {
-        debugPrint('[LiveKit] Final failure — emitting error: "${response.error}"');
+        debugPrint('[LiveKit] Failed to get channel token: ${response.error}');
         emit(
           state.copyWith(
             connectionState: LiveKitConnectionState.error,
@@ -186,21 +171,17 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     }
   }
 
-  /// Disconnect from the current room.
+  /// Disconnects from the current room.
   Future<void> disconnect() async {
-    // Stop screenshare if active
     if (_screenshareCubit?.state.isSharing == true) {
-      debugPrint('Stopping screenshare due to channel disconnect...');
       await _screenshareCubit?.stopScreenShare();
     }
 
     SoundService.instance.playLeave();
 
-    // Clear participants immediately
     _appCubit.setParticipants([]);
     _appCubit.setSelectedChannelId(null);
 
-    // Update state to disconnected before cleanup — preserve mic/deafen prefs
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.disconnected,
@@ -210,10 +191,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       ),
     );
 
-    // Clean up room asynchronously
     await _cleanupRoom();
-
-    // Ensure room is cleared from state
     emit(state.copyWith(clearRoom: true));
   }
 
@@ -221,11 +199,9 @@ class LiveKitCubit extends Cubit<LiveKitState> {
   // Media Controls
   // ──────────────────────────────────────────────────────────
 
-  /// Toggle microphone on/off. Works even when not in a channel so the
-  /// preference is saved and applied on the next connect.
+  /// Toggles microphone. If deafened, un-deafens instead (restoring mic).
   Future<void> toggleMicrophone() async {
     if (state.isDeafened) {
-      // Un-deafen restores mic — undeafening also unmutes
       await _setDeafened(false);
       return;
     }
@@ -236,10 +212,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     await _syncMicrophoneTransmission(syncParticipants: true);
   }
 
-  /// Toggle deafen on/off (like Discord).
-  /// Deafening: mutes mic + disables all remote audio tracks locally.
-  /// Un-deafening: re-enables audio + restores mic.
-  /// Works even when not in a channel so the preference is saved.
+  /// Toggles deafen: mutes mic and silences all remote audio, or reverses that.
   Future<void> toggleDeafen() async {
     await _setDeafened(!state.isDeafened);
   }
@@ -249,10 +222,9 @@ class LiveKitCubit extends Cubit<LiveKitState> {
 
     if (deafened) {
       if (room != null) {
-        // Mute mic
         await room.localParticipant?.setMicrophoneEnabled(false);
 
-        // Unsubscribe from all remote audio tracks + silence any already-active ones
+        // Unsubscribe and silence all remote audio tracks.
         for (final participant in room.remoteParticipants.values) {
           for (final pub in participant.audioTrackPublications) {
             final track = pub.track;
@@ -267,7 +239,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       emit(state.copyWith(isDeafened: true, isMicEnabled: false));
     } else {
       if (room != null) {
-        // Re-subscribe all remote audio tracks
+        // Re-subscribe all remote audio tracks, restoring per-participant settings.
         for (final participant in room.remoteParticipants.values) {
           final setting =
               _appCubit.state.participantSettings[participant.identity];
@@ -325,8 +297,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _syncParticipants();
   }
 
-  /// Mute a participant for everyone in the room (requires is_channel_manager).
-  /// Delegates to [ServerCubit] which handles Bearer auth and token refresh.
+  /// Mutes/unmutes a participant for everyone in the room (requires is_channel_manager).
   Future<bool> muteParticipantForEveryone({
     required String participantIdentity,
     required bool muted,
@@ -349,7 +320,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     return response.success;
   }
 
-  /// Locally mute/unmute a remote participant's audio (for this user only).
+  /// Locally mutes/unmutes a remote participant's audio (this user only).
   Future<void> setParticipantMute(String identity, bool muted) async {
     final room = state.room;
     if (room == null) return;
@@ -367,7 +338,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _appCubit.setParticipantSetting(identity, muted: muted);
   }
 
-  /// Set local volume for a remote participant's audio (for this user only).
+  /// Sets the local volume for a remote participant's audio (this user only).
   Future<void> setParticipantVolume(String identity, double volume) async {
     final room = state.room;
     if (room == null) return;
@@ -389,7 +360,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     _appCubit.setParticipantSetting(identity, volume: volume);
   }
 
-  /// Subscribe to a participant's screenshare tracks (video and audio).
+  /// Subscribes to a participant's screenshare tracks.
   Future<void> subscribeToScreenshare(String identity) async {
     final room = state.room;
     if (room == null) return;
@@ -402,18 +373,12 @@ class LiveKitCubit extends Cubit<LiveKitState> {
 
     var subscribedAny = false;
 
-    // Subscribe to screenshare video track
     for (final pub in participant.videoTrackPublications) {
       if (pub.source == TrackSource.screenShareVideo) {
         try {
           await pub.subscribe();
-
-          // Request highest quality for screenshare
           pub.setVideoQuality(VideoQuality.HIGH);
-
-          debugPrint(
-            '✓ Subscribed to screenshare video from $identity (quality: HIGH)',
-          );
+          debugPrint('✓ Subscribed to screenshare video from $identity');
           subscribedAny = true;
         } catch (e) {
           debugPrint('✗ Failed to subscribe to screenshare video: $e');
@@ -421,7 +386,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       }
     }
 
-    // Subscribe to screenshare audio track (if any)
     for (final pub in participant.audioTrackPublications) {
       if (pub.source == TrackSource.screenShareAudio) {
         try {
@@ -435,7 +399,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     }
 
     if (subscribedAny) {
-      // Add to subscribed set
       final updatedSubscriptions = Set<String>.from(
         state.subscribedScreenshares,
       )..add(identity);
@@ -447,7 +410,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     }
   }
 
-  /// Unsubscribe from a participant's screenshare tracks (video and audio).
+  /// Unsubscribes from a participant's screenshare tracks.
   Future<void> unsubscribeFromScreenshare(String identity) async {
     final room = state.room;
     if (room == null) return;
@@ -457,7 +420,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
 
     var unsubscribedAny = false;
 
-    // Unsubscribe from screenshare video track
     for (final pub in participant.videoTrackPublications) {
       if (pub.source == TrackSource.screenShareVideo) {
         try {
@@ -470,7 +432,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       }
     }
 
-    // Unsubscribe from screenshare audio track (if any)
     for (final pub in participant.audioTrackPublications) {
       if (pub.source == TrackSource.screenShareAudio) {
         try {
@@ -484,7 +445,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     }
 
     if (unsubscribedAny) {
-      // Remove from subscribed set
       final updatedSubscriptions = Set<String>.from(
         state.subscribedScreenshares,
       )..remove(identity);
@@ -549,72 +509,39 @@ class LiveKitCubit extends Cubit<LiveKitState> {
         _syncParticipants();
         _applyStoredSettings();
 
-        // Handle screenshare participants - prevent auto-subscription
         if (e.participant.identity.endsWith('_screenshare')) {
-          // Check if this screenshare is in our subscribed list
           if (!state.subscribedScreenshares.contains(e.participant.identity)) {
-            // Not subscribed, immediately unsubscribe if auto-subscribed
+            // Prevent auto-subscription to unsubscribed screenshares.
             if (e.publication.subscribed) {
               e.publication.unsubscribe();
-              debugPrint(
-                '✓ Prevented auto-subscription to screenshare track from ${e.participant.identity}',
-              );
             }
           } else {
-            // Is subscribed, apply high quality settings to screenshare video tracks
             if (e.publication.source == TrackSource.screenShareVideo) {
               _applyScreenshareQualitySettings(e.participant);
             }
           }
         } else {
-          // Regular participant - apply high quality settings to screenshare tracks
           _applyScreenshareQualitySettings(e.participant);
         }
       })
       ..on<TrackSubscribedEvent>((e) {
         _syncParticipants();
 
-        // Handle screenshare tracks
         if (e.participant.identity.endsWith('_screenshare')) {
-          // If it's a screenshare video track, apply high quality
           if (e.publication.source == TrackSource.screenShareVideo) {
-            // Check if this screenshare is in our subscribed list
             if (state.subscribedScreenshares.contains(e.participant.identity)) {
               e.publication.setVideoQuality(VideoQuality.HIGH);
-              debugPrint(
-                '✓ Auto-applied HIGH quality to screenshare from ${e.participant.identity}',
-              );
             } else {
-              // Not in subscribed list, unsubscribe from video
               e.publication.unsubscribe();
-              debugPrint(
-                '✓ Auto-unsubscribed from screenshare video ${e.participant.identity}',
-              );
             }
-          }
-          // If it's screenshare audio, only allow if in subscribed list
-          else if (e.publication.source == TrackSource.screenShareAudio) {
-            if (!state.subscribedScreenshares.contains(
-              e.participant.identity,
-            )) {
-              // Not subscribed, unsubscribe from audio immediately
+          } else if (e.publication.source == TrackSource.screenShareAudio) {
+            if (!state.subscribedScreenshares.contains(e.participant.identity)) {
               e.publication.unsubscribe();
-              debugPrint(
-                '✓ Auto-unsubscribed from screenshare audio ${e.participant.identity}',
-              );
-            } else {
-              debugPrint(
-                '✓ Allowed screenshare audio from ${e.participant.identity}',
-              );
             }
           }
         } else {
-          // Regular participant video - apply high quality if needed
           if (e.publication.source == TrackSource.screenShareVideo) {
             e.publication.setVideoQuality(VideoQuality.HIGH);
-            debugPrint(
-              '✓ Auto-applied HIGH quality to screenshare from ${e.participant.identity}',
-            );
           }
         }
       })
@@ -623,7 +550,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       ..on<TrackMutedEvent>((e) => _syncParticipants())
       ..on<TrackUnmutedEvent>((e) => _syncParticipants())
       ..on<RoomDisconnectedEvent>((e) {
-        // Only handle unexpected disconnections
+        // Only handle unexpected disconnects; intentional disconnects set state beforehand.
         if (state.connectionState == LiveKitConnectionState.connected) {
           _appCubit.setSelectedChannelId(null);
           emit(
@@ -631,7 +558,6 @@ class LiveKitCubit extends Cubit<LiveKitState> {
               connectionState: LiveKitConnectionState.disconnected,
               clearRoom: true,
               participants: [],
-              // preserve isMicEnabled and isDeafened
             ),
           );
         }
@@ -647,9 +573,8 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       ...room.remoteParticipants.values,
     ];
 
-    // Don't derive mic/camera/screen state from LiveKit when deafened —
-    // deafen forces mic off at the WebRTC level but the cubit state should
-    // reflect what the user had set before deafening.
+    // Don't derive mic state from LiveKit when deafened — deafen forces the
+    // WebRTC track off but the cubit state should reflect the pre-deafen value.
     emit(
       state.copyWith(
         participants: allParticipants,
@@ -661,7 +586,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       ),
     );
 
-    // Sync to AppCubit for UI display
+    // Sync participant info to AppCubit for the UI.
     final infos = allParticipants
         .map(
           (p) => ParticipantInfo(
@@ -722,9 +647,8 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     }
   }
 
-  /// Apply high quality settings to screenshare video tracks
+  /// Applies HIGH video quality to screenshare tracks from remote participants.
   void _applyScreenshareQualitySettings(Participant participant) {
-    // Only apply to remote participants
     if (participant is! RemoteParticipant) return;
 
     for (final pub in participant.videoTrackPublications) {
@@ -737,7 +661,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     }
   }
 
-  /// Re-applies persisted mute/volume settings to all current remote participants.
+  /// Re-applies persisted mute/volume settings to current remote participants.
   void _applyStoredSettings() {
     final room = state.room;
     if (room == null) return;
@@ -750,7 +674,7 @@ class LiveKitCubit extends Cubit<LiveKitState> {
       final participant = room.remoteParticipants[identity];
       if (participant == null) continue;
 
-      // Skip screenshare participants - they are managed separately
+      // Screenshare participants have their audio managed separately.
       if (identity.endsWith('_screenshare')) continue;
 
       for (final pub in participant.audioTrackPublications) {
@@ -774,30 +698,24 @@ class LiveKitCubit extends Cubit<LiveKitState> {
     if (room == null) return;
 
     try {
-      // Disconnect gracefully if still connected
       if (room.connectionState == ConnectionState.connected ||
           room.connectionState == ConnectionState.connecting) {
         await room.disconnect();
       }
 
-      // Dispose listeners after disconnect to prevent stream cancellation errors
       for (final l in _listeners) {
         try {
           l.dispose();
         } catch (e) {
-          // Ignore listener disposal errors
           debugPrint('Error disposing listener: $e');
         }
       }
       _listeners.clear();
 
-      // Clear subscribed screenshares
       emit(state.copyWith(subscribedScreenshares: {}));
 
-      // Finally dispose the room
       await room.dispose();
     } catch (e) {
-      // Ignore disposal errors as we're cleaning up anyway
       debugPrint('Error during room cleanup: $e');
     }
   }

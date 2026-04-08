@@ -9,7 +9,7 @@ import '../server/server_cubit.dart';
 
 part 'screenshare_state.dart';
 
-/// Cubit for managing screen sharing via Rust LiveKit integration.
+/// Cubit managing screen sharing via the Rust LiveKit integration.
 class ScreenshareCubit extends Cubit<ScreenshareState> {
   final ServerCubit _serverCubit;
   final LiveKitCubit? _livekitCubit;
@@ -21,10 +21,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
        _livekitCubit = livekitCubit,
        super(const ScreenshareState());
 
-  /// Start screen sharing with the given settings.
-  ///
-  /// Server context (auth token, LiveKit URL, user identity) is resolved
-  /// internally via [_serverCubit] and [_livekitCubit].
+  /// Starts screen sharing with the given settings.
   Future<void> startScreenShare({
     required ScreenShareSettings settings,
   }) async {
@@ -86,8 +83,8 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         return;
       }
 
-      // On desktop platforms, use Rust implementation.
-      // Get a screenshare-specific LiveKit token via ServerCubit (handles Bearer auth + refresh).
+      // On desktop, delegate to the Rust LiveKit implementation.
+      // Get a screenshare-specific token via ServerCubit.
       final response = await _serverCubit.getChannelToken(channelId, screenShare: true);
 
       if (!response.success) {
@@ -102,23 +99,6 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
 
       final livekitToken = response.data['token'] as String;
       final identityWithScreenshare = '${user.id}_screenshare';
-
-      debugPrint('=== SCREENSHARE DATA ===');
-      debugPrint('LiveKit URL: $livekitUrl');
-      debugPrint('LiveKit Token: $livekitToken');
-      debugPrint('Channel ID: $channelId');
-      debugPrint('Identity: $identityWithScreenshare');
-      debugPrint('Display Name: ${user.displayName}');
-      debugPrint('Resolution: ${settings.resolution}p');
-      debugPrint('FPS: ${settings.fps}');
-      debugPrint('Bitrate: ${settings.bitrate} Mbps');
-      debugPrint('Share Audio: ${settings.shareAudio}');
-      debugPrint(
-        'Capture Type: ${settings.captureFullScreen ? "Full Screen" : "Window"}',
-      );
-      debugPrint('Selected Source Index: ${settings.selectedVideoSourceIndex}');
-      debugPrint('Codec: ${settings.codec}');
-      debugPrint('========================');
 
       final config = ScreenShareConfig(
         livekitUrl: livekitUrl,
@@ -159,7 +139,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     }
   }
 
-  /// Stop screen sharing.
+  /// Stops screen sharing.
   Future<void> stopScreenShare() async {
     if (state.status != ScreenshareStatus.sharing) return;
 
@@ -183,9 +163,8 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         return;
       }
 
-      // On desktop platforms, use Rust implementation
-      // Call Rust function to stop screen sharing
-      debugPrint('=== STOPPING SCREENSHARE ===');
+      // On desktop, use the Rust implementation.
+      debugPrint('Stopping screenshare...');
       final result = await stopScreenshare();
       debugPrint('✓ Rust disconnect result: $result');
 
@@ -208,7 +187,6 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     }
   }
 
-  /// Clear any error state.
   void clearError() {
     emit(state.copyWith(clearError: true));
   }

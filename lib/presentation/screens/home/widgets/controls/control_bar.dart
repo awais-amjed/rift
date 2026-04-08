@@ -107,19 +107,16 @@ class _ControlBarContent extends StatelessWidget {
     final screenshareCubit = context.read<ScreenshareCubit>();
     final livekitCubit = context.read<LiveKitCubit>();
 
-    // Check if already sharing - if so, stop
     if (screenshareCubit.state.isSharing) {
       await screenshareCubit.stopScreenShare();
       return;
     }
 
-    // On web, skip settings dialog and use default settings
-    // The browser will show its own screen selection dialog
+    // On web the browser handles source selection; skip the settings dialog.
     final ScreenShareSettings settings;
     if (kIsWeb) {
       settings = const ScreenShareSettings();
     } else {
-      // Show settings dialog on desktop
       final dialogSettings = await showCustomDialog<ScreenShareSettings>(
         context: context,
         builder: (_) => const ScreenShareSettingsDialog(),
@@ -128,14 +125,9 @@ class _ControlBarContent extends StatelessWidget {
       settings = dialogSettings;
     }
 
-    // Guard: must be connected to a channel
-    if (livekitCubit.state.currentChannelId == null) {
-      debugPrint('No channel connected');
-      return;
-    }
+    if (livekitCubit.state.currentChannelId == null) return;
 
     try {
-      // Server context (URL, token, user info) is resolved by the cubit.
       await screenshareCubit.startScreenShare(settings: settings);
     } catch (e) {
       debugPrint('Screen share failed: $e');

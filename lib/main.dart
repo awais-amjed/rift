@@ -159,12 +159,9 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
             BlocProvider(
               create: (_) {
                 final serverCubit = ServerCubit();
-                // Inject VaultCubit so ServerCubit can re-authenticate on
-                // token expiry without requiring any UI interaction.
+                // Wire up VaultCubit so ServerCubit can re-authenticate on token expiry.
                 serverCubit.injectVaultCubit(widget.vaultCubit);
-                // Inject ServerCubit callback into VaultCubit so that a
-                // runtime backup import immediately reconciles the server list
-                // without needing a restart.
+                // Wire up a callback so a backup import immediately reconciles the server list.
                 widget.vaultCubit.setOnServersImported(
                   serverCubit.syncWithImportedVault,
                 );
@@ -176,13 +173,10 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
             BlocProvider(create: (_) => TokenCubit()),
             BlocProvider(
               create: (context) {
-                // Create both cubits together to handle cross-references
-                final appCubit = context.read<AppCubit>();
                 final livekitCubit = LiveKitCubit(
-                  appCubit: appCubit,
+                  appCubit: context.read<AppCubit>(),
                   tokenCubit: context.read<TokenCubit>(),
-                  // Inject ServerCubit so LiveKit can re-authenticate when
-                  // the channel-token call fails due to token expiry.
+                  // Wire up ServerCubit so LiveKit can re-authenticate on token expiry.
                   serverCubit: context.read<ServerCubit>(),
                 );
                 return livekitCubit;

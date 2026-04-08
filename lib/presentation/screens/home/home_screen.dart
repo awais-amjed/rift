@@ -34,9 +34,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final vaultCubit = context.read<VaultCubit>();
 
-    // checkVaultStatus() is async; wait for it to complete before we try to
-    // use state.masterSeed, otherwise loginToServer() silently fails with a
-    // null-check error and the stale registration token is used forever.
+    // Wait for checkVaultStatus() to settle before using state.masterSeed —
+    // if we proceed while status is still unknown, loginToServer() silently
+    // fails and the stale token is used until the next cold start.
     if (vaultCubit.state.status == AuthStatus.unknown) {
       await vaultCubit.stream
           .firstWhere((s) => s.status != AuthStatus.unknown)
@@ -52,8 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (serverState.servers.isEmpty) {
       _openServerSelector();
     } else {
-      // Only re-authenticate the last active server on startup.
-      // Other servers are authenticated lazily when the user switches to them.
+      // Re-authenticate the active server; other servers authenticate lazily.
       await context.read<ServerCubit>().loginSelectedServer();
     }
   }

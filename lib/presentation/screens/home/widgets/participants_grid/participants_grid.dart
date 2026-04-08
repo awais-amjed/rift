@@ -34,18 +34,9 @@ class _ParticipantsGridState extends State<ParticipantsGrid> {
         }
 
         if (server == null) return;
+        if (server.user == null) return;
+        if (server.livekitUrl == null) return;
 
-        if (server.user == null) {
-          // Will be handled by error view
-          return;
-        }
-
-        if (server.livekitUrl == null) {
-          // Will be handled by error view
-          return;
-        }
-
-        // Connect to the selected channel — server context resolved internally.
         livekitCubit.connectToChannel(
           channelId: appState.selectedChannelId!,
           micEnabled: appState.audioEnabled,
@@ -62,7 +53,6 @@ class _ParticipantsGridState extends State<ParticipantsGrid> {
             builder: (context, livekitState) {
               final server = context.read<ServerCubit>().state.selectedServer;
 
-              // Check for user/server requirements
               if (server?.user == null) {
                 return const ErrorView(
                   error: 'Please create a user account to join voice channels',
@@ -75,7 +65,6 @@ class _ParticipantsGridState extends State<ParticipantsGrid> {
                 );
               }
 
-              // Show connection states
               switch (livekitState.connectionState) {
                 case LiveKitConnectionState.disconnected:
                   return const NoChannelView();
