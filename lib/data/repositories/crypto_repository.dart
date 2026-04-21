@@ -5,6 +5,10 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
+import '../classes/server_identity.dart';
+
+export '../classes/server_identity.dart';
+
 /// Repository wrapping all cryptographic operations.
 ///
 /// Uses the `cryptography` package for Argon2id, AES-GCM, HMAC-SHA256,
@@ -221,20 +225,5 @@ class CryptoRepository {
       Uint8List.fromList(base64Decode(b64));
 }
 
-/// Result of deriving a server-specific cryptographic identity.
-class ServerIdentity {
-  final SimpleKeyPair keyPair;
-  final Uint8List publicKeyBytes;
-  final String stableId; // base64-encoded
-
-  const ServerIdentity({
-    required this.keyPair,
-    required this.publicKeyBytes,
-    required this.stableId,
-  });
-
-  /// The public key as a base64 string (sent to the server).
-  String get publicKeyBase64 => CryptoRepository.toBase64(publicKeyBytes);
-}
 
 
