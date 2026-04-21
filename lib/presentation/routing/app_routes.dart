@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/enums/auth_status.dart';
 import '../../logic/cubits/vault/vault_cubit.dart';
 import '../screens/home/home_screen.dart';
-import '../screens/home/supabase_backup_screen.dart';
+import '../screens/home/backups/supabase/supabase_backup_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 
 class AppRoutes {
