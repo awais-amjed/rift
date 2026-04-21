@@ -8,10 +8,10 @@ import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../common/app_modal.dart';
-import 'widgets/servers/server_selector/server_selector_dialog.dart';
-import 'widgets/sidebar/floating_sidebar.dart';
-import 'widgets/sidebar/sidebar.dart';
-import 'widgets/participants_grid/participants_grid.dart';
+import 'participants_grid/participants_grid.dart';
+import 'servers/server_selector/server_selector_dialog.dart';
+import 'sidebar/floating_sidebar.dart';
+import 'sidebar/sidebar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
