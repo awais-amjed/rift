@@ -98,6 +98,21 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     } catch (_) {}
   }
 
+  /// Returns the device ID to show in the dropdown when none is saved.
+  /// Prefers the first device whose label contains "default" (case-insensitive),
+  /// falling back to the first device in the list.
+  String? _resolveDisplayId(List<MediaDevice> devices, String? savedId) {
+    if (savedId != null) return savedId;
+    if (devices.isEmpty) return null;
+    return devices
+        .cast<MediaDevice?>()
+        .firstWhere(
+          (d) => d!.label.toLowerCase().contains('default'),
+          orElse: () => null,
+        )
+        ?.deviceId ?? devices.first.deviceId;
+  }
+
   Widget _buildDeviceDropdown({
     required String label,
     required List<MediaDevice> devices,
@@ -105,6 +120,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     required ValueChanged<String?> onChanged,
   }) {
     final themeState = widget.themeState;
+    final effectiveId = _resolveDisplayId(devices, selectedDeviceId);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,18 +137,12 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
         if (_devicesLoading)
           Text(
             'Loading devices...',
-            style: TextStyle(
-              color: themeState.textTertiary,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: themeState.textTertiary, fontSize: 12),
           )
         else if (devices.isEmpty)
           Text(
             'No devices found',
-            style: TextStyle(
-              color: themeState.textTertiary,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: themeState.textTertiary, fontSize: 12),
           )
         else
           Container(
@@ -143,7 +153,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
               border: Border.all(color: themeState.borderPrimary),
             ),
             child: DropdownButton<String>(
-              value: selectedDeviceId,
+              value: effectiveId,
               isExpanded: true,
               underline: const SizedBox.shrink(),
               dropdownColor: themeState.bgSecondary,
@@ -160,7 +170,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
                         ),
                       ))
                   .toList(),
-              onChanged: onChanged,
+              onChanged: (id) => onChanged(id),
             ),
           ),
       ],
