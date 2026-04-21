@@ -10,6 +10,7 @@ import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
 import '../token/token_cubit.dart';
+import '../../helper_methods.dart';
 import '../../services/sound_service.dart';
 
 part 'livekit_state.dart';
@@ -148,7 +149,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
       _syncParticipants();
       _applyStoredSettings();
     } catch (e) {
-      debugPrint('[LiveKit] room.connect() threw: $e');
+      HelperMethods.printDebug('[LiveKit] room.connect() threw: $e');
       emit(state.copyWith(
         connectionState: LiveKitConnectionState.error,
         error: 'Failed to connect: $e',
@@ -312,14 +313,14 @@ class LiveKitCubit extends Cubit<LiveKitState>
         try {
           l.dispose();
         } catch (e) {
-          debugPrint('Error disposing listener: $e');
+          HelperMethods.printDebug('Error disposing listener: $e');
         }
       }
       _listeners.clear();
       emit(state.copyWith(subscribedScreenshares: {}));
       await room.dispose();
     } catch (e) {
-      debugPrint('Error during room cleanup: $e');
+      HelperMethods.printDebug('Error during room cleanup: $e');
     }
   }
 

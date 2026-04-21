@@ -127,11 +127,7 @@ class _ControlBarContent extends StatelessWidget {
 
     if (livekitCubit.state.currentChannelId == null) return;
 
-    try {
-      await screenshareCubit.startScreenShare(settings: settings);
-    } catch (e) {
-      debugPrint('Screen share failed: $e');
-    }
+    await screenshareCubit.startScreenShare(settings: settings);
   }
 
   Future<void> _toggleMic(BuildContext context) async {

@@ -9,6 +9,7 @@ import 'package:sizer/sizer.dart';
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
 import '../../../../../src/rust/api/screenshare/audio_linux.dart';
 import '../../../../../src/rust/api/screenshare/capture.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
@@ -88,7 +89,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       );
       final sourceTypeLabel = _captureFullScreen ? 'screen' : 'window';
       for (final source in sources) {
-        debugPrint(
+        HelperMethods.printDebug(
           '[CaptureSource][$sourceTypeLabel] index=${source.index} '
           'title="${source.title}" pid=${source.audioSourcePid}',
         );
@@ -124,7 +125,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
         _loadThumbnails(sources);
       }
     } catch (e) {
-      debugPrint('Failed to load capture sources: $e');
+      HelperMethods.printDebug('Failed to load capture sources: $e');
       if (mounted) {
         setState(() => _loadingCaptureSources = false);
       }
@@ -149,7 +150,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
           setState(() => _thumbnails[source.index] = bytes);
         }
       } catch (e) {
-        debugPrint('Thumbnail load failed for source ${source.index}: $e');
+        HelperMethods.printDebug('Thumbnail load failed for source ${source.index}: $e');
       }
     }
   }
@@ -170,7 +171,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
         });
       }
     } catch (e) {
-      debugPrint('Failed to load audio sources: $e');
+      HelperMethods.printDebug('Failed to load audio sources: $e');
       if (mounted) {
         setState(() => _loadingAudioSources = false);
       }

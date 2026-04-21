@@ -59,7 +59,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
                 try {
                   await rtc.Helper.setVolume(volume, track.mediaStreamTrack);
                 } catch (e) {
-                  debugPrint('setVolume error: $e');
+                  HelperMethods.printDebug('setVolume error: $e');
                 }
               }
             }

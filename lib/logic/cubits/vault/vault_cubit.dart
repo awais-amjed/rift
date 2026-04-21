@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/backup_file.dart';
@@ -105,8 +104,7 @@ class VaultCubit extends Cubit<VaultState>
   Future<void> resetVault() async {
     assert(
       () {
-        // ignore: avoid_print
-        print('[VaultCubit] resetVault() called — dev/test only');
+        HelperMethods.printDebug('[VaultCubit] resetVault() called — dev/test only');
         return true;
       }(),
       'resetVault() must not be called in production builds.',
