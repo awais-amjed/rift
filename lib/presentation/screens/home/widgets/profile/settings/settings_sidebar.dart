@@ -58,6 +58,13 @@ class SettingsSidebar extends StatelessWidget {
             themeState: themeState,
             onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
           ),
+          SidebarItem(
+            icon: Icons.cloud_outlined,
+            label: 'Cloud Backup',
+            isActive: activeTab == SettingsTab.backup,
+            themeState: themeState,
+            onTap: () => onTabSelected(SettingsTab.backup),
+          ),
         ],
       ),
     );

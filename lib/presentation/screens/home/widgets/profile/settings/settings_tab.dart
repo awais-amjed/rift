@@ -1,2 +1,2 @@
-enum SettingsTab { appearance, voiceAndAudio }
+enum SettingsTab { appearance, voiceAndAudio, backup }
 

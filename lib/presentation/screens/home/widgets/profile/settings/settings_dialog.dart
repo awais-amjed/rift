@@ -8,11 +8,13 @@ import '../../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_modal.dart';
 import 'appearance_content.dart';
+import 'backup_content.dart';
 import 'settings_sidebar.dart';
 import 'settings_tab.dart';
 import 'voice_audio_content.dart';
 
 export 'appearance_content.dart';
+export 'backup_content.dart';
 export 'settings_sidebar.dart';
 export 'settings_tab.dart';
 export 'voice_audio_content.dart';
@@ -67,10 +69,12 @@ class _SettingsDialogState extends State<SettingsDialog> {
                         padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
                         child: Row(
                           children: [
-                            Icon(
+                              Icon(
                               _activeTab == SettingsTab.appearance
                                   ? Icons.palette_outlined
-                                  : Icons.headset_outlined,
+                                  : _activeTab == SettingsTab.voiceAndAudio
+                                      ? Icons.headset_outlined
+                                      : Icons.cloud_outlined,
                               size: 20,
                               color: themeState.textPrimary,
                             ),
@@ -82,7 +86,9 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                   Text(
                                     _activeTab == SettingsTab.appearance
                                         ? 'Appearance'
-                                        : 'Voice & Audio',
+                                        : _activeTab == SettingsTab.voiceAndAudio
+                                            ? 'Voice & Audio'
+                                            : 'Cloud Backup',
                                     style: TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w700,
@@ -93,7 +99,9 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                   Text(
                                     _activeTab == SettingsTab.appearance
                                         ? 'Customize the look of the app.'
-                                        : 'Configure voice input behavior.',
+                                        : _activeTab == SettingsTab.voiceAndAudio
+                                            ? 'Configure voice input behavior.'
+                                            : 'Save or restore your vault backup.',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: themeState.textTertiary,
@@ -121,12 +129,17 @@ class _SettingsDialogState extends State<SettingsDialog> {
                       Divider(height: 1, color: themeState.borderPrimary),
                       // Content
                       Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
-                          child: _activeTab == SettingsTab.appearance
-                              ? AppearanceContent(themeState: themeState)
-                              : VoiceAudioContent(themeState: themeState),
-                        ),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(20),
+                            child: switch (_activeTab) {
+                              SettingsTab.appearance =>
+                                AppearanceContent(themeState: themeState),
+                              SettingsTab.voiceAndAudio =>
+                                VoiceAudioContent(themeState: themeState),
+                              SettingsTab.backup =>
+                                BackupContent(themeState: themeState),
+                            },
+                          ),
                       ),
                       // Footer
                       Divider(height: 1, color: themeState.borderPrimary),
