@@ -20,9 +20,9 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
   SupabaseBackupCubit({
     required VaultCubit vaultCubit,
     SupabaseBackupRepository? repo,
-  })  : _repo = repo ?? SupabaseBackupRepository(),
-        _vaultCubit = vaultCubit,
-        super(const SupabaseBackupState()) {
+  }) : _repo = repo ?? SupabaseBackupRepository(),
+       _vaultCubit = vaultCubit,
+       super(const SupabaseBackupState()) {
     // Reflect any persisted session restored by supabase_flutter on startup.
     final user = _repo.currentUser;
     if (user != null) {
@@ -46,19 +46,23 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
     final data = response.data as Map<String, dynamic>;
     final needsConfirmation = data['needsConfirmation'] as bool;
     if (needsConfirmation) {
-      emit(state.copyWith(
-        isProcessing: false,
-        needsEmailConfirmation: true,
-        email: email,
-      ));
+      emit(
+        state.copyWith(
+          isProcessing: false,
+          needsEmailConfirmation: true,
+          email: email,
+        ),
+      );
     } else {
       final user = data['user'] as User;
-      emit(state.copyWith(
-        isProcessing: false,
-        isSignedIn: true,
-        email: user.email,
-        successMessage: 'Account created! You are now signed in.',
-      ));
+      emit(
+        state.copyWith(
+          isProcessing: false,
+          isSignedIn: true,
+          email: user.email,
+          successMessage: 'Account created! You are now signed in.',
+        ),
+      );
     }
   }
 
@@ -67,18 +71,22 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
     final response = await _repo.signIn(email: email, password: password);
     if (!response.success) {
-      HelperMethods.printDebug('[SupabaseBackup] signIn failed: ${response.error}');
+      HelperMethods.printDebug(
+        '[SupabaseBackup] signIn failed: ${response.error}',
+      );
       emit(state.copyWith(isProcessing: false, error: response.error));
       return;
     }
     final user = response.data as User;
-    emit(state.copyWith(
-      isProcessing: false,
-      isSignedIn: true,
-      needsEmailConfirmation: false,
-      email: user.email,
-      successMessage: 'Signed in successfully.',
-    ));
+    emit(
+      state.copyWith(
+        isProcessing: false,
+        isSignedIn: true,
+        needsEmailConfirmation: false,
+        email: user.email,
+        successMessage: 'Signed in successfully.',
+      ),
+    );
   }
 
   /// Signs out of the central server.
@@ -86,7 +94,9 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
     final response = await _repo.signOut();
     if (!response.success) {
-      HelperMethods.printDebug('[SupabaseBackup] signOut failed: ${response.error}');
+      HelperMethods.printDebug(
+        '[SupabaseBackup] signOut failed: ${response.error}',
+      );
       emit(state.copyWith(isProcessing: false, error: response.error));
       return;
     }
@@ -101,23 +111,29 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
 
     final export = await _vaultCubit.exportBackup();
     if (!export.success || export.content == null) {
-      emit(state.copyWith(
-        isProcessing: false,
-        error: export.error ?? 'Failed to export backup',
-      ));
+      emit(
+        state.copyWith(
+          isProcessing: false,
+          error: export.error ?? 'Failed to export backup',
+        ),
+      );
       return;
     }
 
     final response = await _repo.uploadBackup(export.content!);
     if (!response.success) {
-      HelperMethods.printDebug('[SupabaseBackup] uploadBackup failed: ${response.error}');
+      HelperMethods.printDebug(
+        '[SupabaseBackup] uploadBackup failed: ${response.error}',
+      );
       emit(state.copyWith(isProcessing: false, error: response.error));
       return;
     }
-    emit(state.copyWith(
-      isProcessing: false,
-      successMessage: 'Backup saved to cloud successfully.',
-    ));
+    emit(
+      state.copyWith(
+        isProcessing: false,
+        successMessage: 'Backup saved to cloud successfully.',
+      ),
+    );
   }
 
   /// Downloads the cloud backup and imports it into the vault.
@@ -126,14 +142,21 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
 
     final downloadResponse = await _repo.downloadBackup();
     if (!downloadResponse.success) {
-      HelperMethods.printDebug('[SupabaseBackup] downloadBackup failed: ${downloadResponse.error}');
+      HelperMethods.printDebug(
+        '[SupabaseBackup] downloadBackup failed: ${downloadResponse.error}',
+      );
       emit(state.copyWith(isProcessing: false, error: downloadResponse.error));
       return;
     }
 
     final backupJson = downloadResponse.data as String?;
     if (backupJson == null) {
-      emit(state.copyWith(isProcessing: false, error: 'No backup found on server.'));
+      emit(
+        state.copyWith(
+          isProcessing: false,
+          error: 'No backup found on server.',
+        ),
+      );
       return;
     }
 
@@ -142,11 +165,22 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
       password: vaultPassword,
     );
     if (result.success) {
-      emit(state.copyWith(isProcessing: false, successMessage: 'Backup imported successfully.'));
+      emit(
+        state.copyWith(
+          isProcessing: false,
+          successMessage: 'Backup imported successfully.',
+        ),
+      );
     } else {
-      emit(state.copyWith(isProcessing: false, error: result.error ?? 'Failed to import backup.'));
+      emit(
+        state.copyWith(
+          isProcessing: false,
+          error: result.error ?? 'Failed to import backup.',
+        ),
+      );
     }
   }
 
-  void clearMessage() => emit(state.copyWith(clearMessage: true));
+  void clearMessage() =>
+      emit(state.copyWith(clearMessage: true, needsEmailConfirmation: false));
 }
