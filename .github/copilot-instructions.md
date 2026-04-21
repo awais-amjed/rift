@@ -63,7 +63,6 @@ Future<String> fetchSomething() async {
 - On success: read `response.data`, cast it, and emit the success state.
 - Use `HelperMethods.printDebug('[CubitName] context: $detail')` to log unexpected failures at the
   cubit level (e.g. a failed sign-out that shouldn't normally fail).
-- No `on SomeException catch` in cubits — exception handling belongs in the repository.
 - If a cubit's logic becomes too complex (many events, complex transitions), switch to a full `Bloc`
   with explicit `Event` classes instead.
 
