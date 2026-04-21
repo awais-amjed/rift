@@ -8,6 +8,7 @@ import '../../../data/classes/backup_file.dart';
 import '../../../data/classes/encrypted_seed.dart';
 import '../../../data/classes/encrypted_vault.dart';
 import '../../../data/enums/auth_status.dart';
+import '../../../logic/helper_methods.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_repository.dart';

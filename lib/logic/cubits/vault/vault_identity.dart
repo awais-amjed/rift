@@ -63,6 +63,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
         data: response.data as Map<String, dynamic>,
       );
     } catch (e) {
+      HelperMethods.printDebug('[Vault] registerOnServer error: $e');
       return (success: false, error: e.toString(), data: null);
     }
   }

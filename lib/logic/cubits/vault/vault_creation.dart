@@ -49,6 +49,7 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
 
       emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
     } catch (e) {
+      HelperMethods.printDebug('[Vault] createVault error: $e');
       emit(state.copyWith(
         isProcessing: false,
         error: 'Failed to create vault: $e',

@@ -20,6 +20,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
         emit(const VaultState(status: AuthStatus.fresh));
       }
     } catch (e) {
+      HelperMethods.printDebug('[Vault] checkVaultStatus error: $e');
       emit(VaultState(status: AuthStatus.fresh, error: e.toString()));
     }
   }
@@ -80,7 +81,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
         data: verifyResponse.data as Map<String, dynamic>,
       );
     } catch (e) {
-      debugPrint('[VaultCubit] loginToServer error: $e');
+      HelperMethods.printDebug('[Vault] loginToServer error: $e');
       return (success: false, error: e.toString(), data: null);
     }
   }

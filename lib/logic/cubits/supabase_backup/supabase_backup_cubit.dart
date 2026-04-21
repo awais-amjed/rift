@@ -1,7 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show User;
 
 import '../../../data/repositories/supabase_backup_repository.dart';
+import '../../../logic/helper_methods.dart';
 import '../vault/vault_cubit.dart';
 
 part 'supabase_backup_state.dart';
@@ -34,68 +35,62 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
   /// Creates a new account on the central server.
   ///
   /// If the server requires email confirmation the state transitions to
-  /// [needsEmailConfirmation] instead of [isSignedIn], so the UI can
-  /// show a "check your inbox" message rather than the backup panel.
-  Future<void> signUp({
-    required String email,
-    required String password,
-  }) async {
+  /// [needsEmailConfirmation] so the UI shows a "check your inbox" message.
+  Future<void> signUp({required String email, required String password}) async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
-    try {
-      final result = await _repo.signUp(email: email, password: password);
-
-      if (result.needsConfirmation) {
-        emit(state.copyWith(
-          isProcessing: false,
-          needsEmailConfirmation: true,
-          email: email,
-        ));
-      } else {
-        emit(state.copyWith(
-          isProcessing: false,
-          isSignedIn: true,
-          email: result.user!.email,
-          successMessage: 'Account created! You are now signed in.',
-        ));
-      }
-    } on AuthException catch (e) {
-      emit(state.copyWith(isProcessing: false, error: e.message));
-    } catch (e) {
-      emit(state.copyWith(isProcessing: false, error: e.toString()));
+    final response = await _repo.signUp(email: email, password: password);
+    if (!response.success) {
+      emit(state.copyWith(isProcessing: false, error: response.error));
+      return;
+    }
+    final data = response.data as Map<String, dynamic>;
+    final needsConfirmation = data['needsConfirmation'] as bool;
+    if (needsConfirmation) {
+      emit(state.copyWith(
+        isProcessing: false,
+        needsEmailConfirmation: true,
+        email: email,
+      ));
+    } else {
+      final user = data['user'] as User;
+      emit(state.copyWith(
+        isProcessing: false,
+        isSignedIn: true,
+        email: user.email,
+        successMessage: 'Account created! You are now signed in.',
+      ));
     }
   }
 
   /// Signs in to the central server.
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
-    try {
-      final user = await _repo.signIn(email: email, password: password);
-      emit(state.copyWith(
-        isProcessing: false,
-        isSignedIn: true,
-        needsEmailConfirmation: false,
-        email: user.email,
-        successMessage: 'Signed in successfully.',
-      ));
-    } on AuthException catch (e) {
-      emit(state.copyWith(isProcessing: false, error: e.message));
-    } catch (e) {
-      emit(state.copyWith(isProcessing: false, error: e.toString()));
+    final response = await _repo.signIn(email: email, password: password);
+    if (!response.success) {
+      HelperMethods.printDebug('[SupabaseBackup] signIn failed: ${response.error}');
+      emit(state.copyWith(isProcessing: false, error: response.error));
+      return;
     }
+    final user = response.data as User;
+    emit(state.copyWith(
+      isProcessing: false,
+      isSignedIn: true,
+      needsEmailConfirmation: false,
+      email: user.email,
+      successMessage: 'Signed in successfully.',
+    ));
   }
 
   /// Signs out of the central server.
   Future<void> signOut() async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
-    try {
-      await _repo.signOut();
-      emit(const SupabaseBackupState());
-    } catch (e) {
-      emit(state.copyWith(isProcessing: false, error: e.toString()));
+    final response = await _repo.signOut();
+    if (!response.success) {
+      HelperMethods.printDebug('[SupabaseBackup] signOut failed: ${response.error}');
+      emit(state.copyWith(isProcessing: false, error: response.error));
+      return;
     }
+    emit(const SupabaseBackupState());
   }
 
   // ── Backup ────────────────────────────────────────────────
@@ -103,64 +98,55 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
   /// Exports the local encrypted backup and uploads it to Supabase.
   Future<void> saveBackupToCloud() async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
-    try {
-      final export = await _vaultCubit.exportBackup();
-      if (!export.success || export.content == null) {
-        emit(state.copyWith(
-          isProcessing: false,
-          error: export.error ?? 'Failed to export backup',
-        ));
-        return;
-      }
 
-      await _repo.uploadBackup(export.content!);
+    final export = await _vaultCubit.exportBackup();
+    if (!export.success || export.content == null) {
       emit(state.copyWith(
         isProcessing: false,
-        successMessage: 'Backup saved to cloud successfully.',
+        error: export.error ?? 'Failed to export backup',
       ));
-    } on AuthException catch (e) {
-      emit(state.copyWith(isProcessing: false, error: e.message));
-    } catch (e) {
-      emit(state.copyWith(isProcessing: false, error: e.toString()));
+      return;
     }
+
+    final response = await _repo.uploadBackup(export.content!);
+    if (!response.success) {
+      HelperMethods.printDebug('[SupabaseBackup] uploadBackup failed: ${response.error}');
+      emit(state.copyWith(isProcessing: false, error: response.error));
+      return;
+    }
+    emit(state.copyWith(
+      isProcessing: false,
+      successMessage: 'Backup saved to cloud successfully.',
+    ));
   }
 
   /// Downloads the cloud backup and imports it into the vault.
   Future<void> importBackupFromCloud({required String vaultPassword}) async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
-    try {
-      final backupJson = await _repo.downloadBackup();
-      if (backupJson == null) {
-        emit(state.copyWith(
-          isProcessing: false,
-          error: 'No backup found on server.',
-        ));
-        return;
-      }
 
-      final result = await _vaultCubit.importBackup(
-        jsonContent: backupJson,
-        password: vaultPassword,
-      );
+    final downloadResponse = await _repo.downloadBackup();
+    if (!downloadResponse.success) {
+      HelperMethods.printDebug('[SupabaseBackup] downloadBackup failed: ${downloadResponse.error}');
+      emit(state.copyWith(isProcessing: false, error: downloadResponse.error));
+      return;
+    }
 
-      if (result.success) {
-        emit(state.copyWith(
-          isProcessing: false,
-          successMessage: 'Backup imported successfully.',
-        ));
-      } else {
-        emit(state.copyWith(
-          isProcessing: false,
-          error: result.error ?? 'Failed to import backup.',
-        ));
-      }
-    } on AuthException catch (e) {
-      emit(state.copyWith(isProcessing: false, error: e.message));
-    } catch (e) {
-      emit(state.copyWith(isProcessing: false, error: e.toString()));
+    final backupJson = downloadResponse.data as String?;
+    if (backupJson == null) {
+      emit(state.copyWith(isProcessing: false, error: 'No backup found on server.'));
+      return;
+    }
+
+    final result = await _vaultCubit.importBackup(
+      jsonContent: backupJson,
+      password: vaultPassword,
+    );
+    if (result.success) {
+      emit(state.copyWith(isProcessing: false, successMessage: 'Backup imported successfully.'));
+    } else {
+      emit(state.copyWith(isProcessing: false, error: result.error ?? 'Failed to import backup.'));
     }
   }
 
   void clearMessage() => emit(state.copyWith(clearMessage: true));
 }
-

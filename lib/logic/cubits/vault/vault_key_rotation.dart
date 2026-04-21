@@ -68,6 +68,7 @@ mixin _VaultKeyRotationMixin on Cubit<VaultState> {
 
       return (success: true, error: null, newVersion: newVersion);
     } catch (e) {
+      HelperMethods.printDebug('[Vault] rotateKey error: $e');
       return (success: false, error: e.toString(), newVersion: null);
     }
   }

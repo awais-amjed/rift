@@ -1,9 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../supabase_config.dart' show SupabaseConfig; // kept for doc reference
+import '../classes/api_response.dart';
 
 /// Repository that manages all interactions with the central Supabase server
 /// used for cloud backup.
+///
+/// Every public method returns [APIResponse] — errors are logged automatically
+/// via [APIResponse.error] and the cubit only needs to check [APIResponse.success].
 ///
 /// Uses [supabase_flutter] so the auth session is automatically persisted
 /// across app restarts via platform-native secure storage.
@@ -16,8 +19,6 @@ import '../../supabase_config.dart' show SupabaseConfig; // kept for doc referen
 ///   backup_json text not null,
 ///   updated_at  timestamptz default now()
 /// );
-///
-/// -- Row-level security: users can only access their own row.
 /// alter table backups enable row level security;
 /// create policy "own backup" on backups
 ///   using (auth.uid() = user_id)
@@ -35,80 +36,109 @@ class SupabaseBackupRepository {
 
   /// Signs up a new user on the central server.
   ///
-  /// Returns `null` when the server requires email confirmation
-  /// (session is not yet active). Returns the [User] when sign-up
-  /// immediately creates a session (e.g. email confirmation is disabled).
-  /// Throws [AuthException] on failure.
-  Future<({User? user, bool needsConfirmation})> signUp({
+  /// On success [APIResponse.data] is a map:
+  ///   `{ 'user': User?, 'needsConfirmation': bool }`
+  Future<APIResponse> signUp({
     required String email,
     required String password,
   }) async {
-    final response = await _client.auth.signUp(
-      email: email,
-      password: password,
-    );
+    try {
+      final response = await _client.auth.signUp(
+        email: email,
+        password: password,
+      );
 
-    // Session is null → email confirmation required.
-    if (response.session == null) {
-      return (user: null, needsConfirmation: true);
-    }
+      // Session is null → email confirmation required.
+      if (response.session == null) {
+        return APIResponse.success({
+          'user': null,
+          'needsConfirmation': true,
+        });
+      }
 
-    final user = response.user;
-    if (user == null) {
-      throw const AuthException('Sign-up succeeded but no user was returned.');
+      final user = response.user;
+      if (user == null) {
+        return APIResponse.error('Sign-up succeeded but no user was returned.');
+      }
+      return APIResponse.success({
+        'user': user,
+        'needsConfirmation': false,
+      });
+    } catch (e) {
+      return APIResponse.error(e);
     }
-    return (user: user, needsConfirmation: false);
   }
 
   /// Signs in an existing user.
-  /// Returns the [User] on success, throws [AuthException] on failure.
-  Future<User> signIn({
+  ///
+  /// On success [APIResponse.data] is the [User].
+  Future<APIResponse> signIn({
     required String email,
     required String password,
   }) async {
-    final response = await _client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
-    final user = response.user;
-    if (user == null) {
-      throw const AuthException('Sign-in succeeded but no user was returned.');
+    try {
+      final response = await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      final user = response.user;
+      if (user == null) {
+        return APIResponse.error('Sign-in succeeded but no user was returned.');
+      }
+      return APIResponse.success(user);
+    } catch (e) {
+      return APIResponse.error(e);
     }
-    return user;
   }
 
   /// Signs out the current user.
-  Future<void> signOut() => _client.auth.signOut();
+  Future<APIResponse> signOut() async {
+    try {
+      await _client.auth.signOut();
+      return APIResponse.success(null);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
 
   // ── Backup ────────────────────────────────────────────────
 
   /// Uploads (upserts) the encrypted backup JSON for the current user.
-  Future<void> uploadBackup(String backupJson) async {
-    final uid = _requireUid();
-    await _client.from('backups').upsert({
-      'user_id': uid,
-      'backup_json': backupJson,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }, onConflict: 'user_id');
+  Future<APIResponse> uploadBackup(String backupJson) async {
+    try {
+      final uid = _requireUid();
+      if (uid == null) return APIResponse.error('Not signed in.');
+      await _client.from('backups').upsert({
+        'user_id': uid,
+        'backup_json': backupJson,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'user_id');
+      return APIResponse.success(null);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
   }
 
   /// Downloads the encrypted backup JSON for the current user.
-  /// Returns `null` if no backup has been uploaded yet.
-  Future<String?> downloadBackup() async {
-    final uid = _requireUid();
-    final data = await _client
-        .from('backups')
-        .select('backup_json')
-        .eq('user_id', uid)
-        .maybeSingle();
-    return data?['backup_json'] as String?;
+  ///
+  /// On success [APIResponse.data] is the backup JSON string, or `null`
+  /// if no backup has been uploaded yet.
+  Future<APIResponse> downloadBackup() async {
+    try {
+      final uid = _requireUid();
+      if (uid == null) return APIResponse.error('Not signed in.');
+      final data = await _client
+          .from('backups')
+          .select('backup_json')
+          .eq('user_id', uid)
+          .maybeSingle();
+      return APIResponse.success(data?['backup_json'] as String?);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────
 
-  String _requireUid() {
-    final uid = currentUser?.id;
-    if (uid == null) throw const AuthException('Not signed in.');
-    return uid;
-  }
+  String? _requireUid() => currentUser?.id;
 }

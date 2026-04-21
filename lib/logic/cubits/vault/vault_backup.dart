@@ -30,6 +30,7 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
 
       return (success: true, content: backup.toJsonString(), error: null);
     } catch (e) {
+      HelperMethods.printDebug('[Vault] exportBackup error: $e');
       return (success: false, content: null, error: e.toString());
     }
   }
@@ -87,10 +88,12 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
     } on SecretBoxAuthenticationError {
       // AES-GCM MAC check failed — wrong password or corrupted backup.
       const msg = 'Wrong password or corrupted backup';
+      HelperMethods.printDebug('[Vault] importBackup: $msg');
       emit(state.copyWith(isProcessing: false, error: msg));
       return (success: false, error: msg);
     } on Exception catch (e) {
       final msg = 'Failed to import backup: $e';
+      HelperMethods.printDebug('[Vault] importBackup error: $e');
       emit(state.copyWith(isProcessing: false, error: msg));
       return (success: false, error: msg);
     }
