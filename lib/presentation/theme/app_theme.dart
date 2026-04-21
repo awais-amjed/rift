@@ -16,7 +16,7 @@ class AppTheme {
       surfaceContainerHighest: CustomColors.bgTertiaryDark,
       error: CustomColors.error,
     ),
-    scaffoldBackgroundColor: CustomColors.bgPrimaryDark,
+    scaffoldBackgroundColor: CustomColors.bgSecondaryDark,
     cardColor: CustomColors.bgSecondaryDark,
     dividerColor: CustomColors.borderPrimaryDark,
     inputDecorationTheme: InputDecorationTheme(
