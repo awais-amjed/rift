@@ -111,7 +111,8 @@ class _VoiceAudioContentState extends State<VoiceAudioContent> {
               Divider(color: themeState.borderPrimary),
               const SizedBox(height: 16),
             ],
-            // ── Push-to-Talk ─────────────────────────────────
+            // ── Push-to-Talk (Windows only) ──────────────────
+            if (!kIsWeb && Platform.isWindows) ...[
             Text(
               'Push-to-Talk',
               style: TextStyle(
@@ -224,6 +225,7 @@ class _VoiceAudioContentState extends State<VoiceAudioContent> {
                 style: TextStyle(color: themeState.textTertiary, fontSize: 12),
               ),
             ],
+            ], // end Windows-only PTT block
           ],
         );
       },

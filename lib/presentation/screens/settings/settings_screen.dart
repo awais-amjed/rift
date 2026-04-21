@@ -53,7 +53,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return Scaffold(
-          backgroundColor: themeState.bgPrimary,
+          backgroundColor: themeState.bgSecondary,
           body: BlocBuilder<AppCubit, AppState>(
             buildWhen: (prev, curr) =>
                 prev.titleBarVisible != curr.titleBarVisible,
