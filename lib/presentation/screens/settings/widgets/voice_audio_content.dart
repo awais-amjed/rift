@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../common/app_button.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/app_button.dart';
 import 'audio_device_section.dart';
 
 class VoiceAudioContent extends StatefulWidget {

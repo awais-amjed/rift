@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import 'settings/settings_dialog.dart';
+import '../../../routing/app_routes.dart';
 import '../../../theme/custom_colors.dart';
 
 /// Bottom area of the sidebar showing the current user info + theme toggle.
@@ -158,7 +159,7 @@ class UserProfile extends StatelessWidget {
                   ),
                   // Settings (placeholder)
                   IconButton(
-                    onPressed: () => showSettingsDialog(context),
+                    onPressed: () => context.push(AppRoutes.settings),
                     icon: Icon(
                       Icons.settings_outlined,
                       size: 18,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'settings_tab.dart';
 
 class SettingsSidebar extends StatelessWidget {

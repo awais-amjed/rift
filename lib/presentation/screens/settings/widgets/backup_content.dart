@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../../logic/cubits/vault/vault_cubit.dart';
-import '../../../../common/app_button.dart';
-import '../../../../common/app_text_field.dart';
-import '../../../../common/message_banner.dart';
-import '../../../../theme/custom_colors.dart';
+import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/cubits/vault/vault_cubit.dart';
+import '../../../common/app_button.dart';
+import '../../../common/app_text_field.dart';
+import '../../../common/message_banner.dart';
+import '../../../theme/custom_colors.dart';
 
 /// Backup tab content rendered inside the settings dialog.
 ///

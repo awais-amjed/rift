@@ -6,6 +6,7 @@ import '../../logic/cubits/vault/vault_cubit.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/home/backups/supabase/supabase_backup_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
+import '../screens/settings/settings_screen.dart';
 
 class AppRoutes {
   static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -15,6 +16,7 @@ class AppRoutes {
   static const String home = '/';
   static const String onboarding = '/onboarding';
   static const String supabaseBackup = '/backup/cloud';
+  static const String settings = '/settings';
 
   static GoRouter router(VaultCubit vaultCubit) => GoRouter(
         initialLocation: home,
@@ -51,6 +53,10 @@ class AppRoutes {
           GoRoute(
             path: supabaseBackup,
             builder: (context, state) => const SupabaseBackupScreen(),
+          ),
+          GoRoute(
+            path: settings,
+            builder: (context, state) => const SettingsScreen(),
           ),
         ],
       );
