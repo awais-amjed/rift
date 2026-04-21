@@ -39,9 +39,13 @@ class _BackupBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<SupabaseBackupCubit, SupabaseBackupState>(
       builder: (context, state) {
-        return state.isSignedIn
-            ? _SignedInPanel(themeState: themeState, state: state)
-            : _AuthPanel(themeState: themeState, state: state);
+        if (state.isSignedIn) {
+          return _SignedInPanel(themeState: themeState, state: state);
+        }
+        if (state.needsEmailConfirmation) {
+          return _ConfirmEmailPanel(themeState: themeState, email: state.email);
+        }
+        return _AuthPanel(themeState: themeState, state: state);
       },
     );
   }
@@ -329,6 +333,43 @@ class _SignedInPanelState extends State<_SignedInPanel> {
           const SizedBox(height: 14),
           MessageBanner(message: widget.state.successMessage!, isError: false),
         ],
+      ],
+    );
+  }
+}
+
+// ── Email confirmation panel ──────────────────────────────────────────────────
+
+class _ConfirmEmailPanel extends StatelessWidget {
+  final ThemeState themeState;
+  final String? email;
+
+  const _ConfirmEmailPanel({required this.themeState, this.email});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<SupabaseBackupCubit>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(label: 'Check Your Email', themeState: themeState),
+        const SizedBox(height: 4),
+        Text(
+          email != null
+              ? 'A confirmation link was sent to $email. Click the link, then sign in.'
+              : 'A confirmation link was sent to your email. Click the link, then sign in.',
+          style: TextStyle(
+            fontSize: 12,
+            color: themeState.textTertiary,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 16),
+        AppButton(
+          label: 'Sign In After Confirming',
+          onPressed: cubit.clearMessage,
+        ),
       ],
     );
   }

@@ -4,6 +4,7 @@ part of 'supabase_backup_cubit.dart';
 class SupabaseBackupState {
   final bool isProcessing;
   final bool isSignedIn;
+  final bool needsEmailConfirmation;
   final String? email;
   final String? error;
   final String? successMessage;
@@ -11,6 +12,7 @@ class SupabaseBackupState {
   const SupabaseBackupState({
     this.isProcessing = false,
     this.isSignedIn = false,
+    this.needsEmailConfirmation = false,
     this.email,
     this.error,
     this.successMessage,
@@ -19,6 +21,7 @@ class SupabaseBackupState {
   SupabaseBackupState copyWith({
     bool? isProcessing,
     bool? isSignedIn,
+    bool? needsEmailConfirmation,
     String? email,
     String? error,
     String? successMessage,
@@ -27,6 +30,8 @@ class SupabaseBackupState {
     return SupabaseBackupState(
       isProcessing: isProcessing ?? this.isProcessing,
       isSignedIn: isSignedIn ?? this.isSignedIn,
+      needsEmailConfirmation:
+          needsEmailConfirmation ?? this.needsEmailConfirmation,
       email: email ?? this.email,
       error: clearMessage ? null : (error ?? this.error),
       successMessage:
@@ -41,12 +46,18 @@ class SupabaseBackupState {
           runtimeType == other.runtimeType &&
           isProcessing == other.isProcessing &&
           isSignedIn == other.isSignedIn &&
+          needsEmailConfirmation == other.needsEmailConfirmation &&
           email == other.email &&
           error == other.error &&
           successMessage == other.successMessage;
 
   @override
-  int get hashCode =>
-      Object.hash(isProcessing, isSignedIn, email, error, successMessage);
+  int get hashCode => Object.hash(
+        isProcessing,
+        isSignedIn,
+        needsEmailConfirmation,
+        email,
+        error,
+        successMessage,
+      );
 }
-

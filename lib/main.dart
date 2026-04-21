@@ -13,6 +13,8 @@ import 'package:keyboard_dismisser/keyboard_dismisser.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/cubits/voice_stats/voice_stats_cubit.dart';
@@ -29,12 +31,19 @@ import 'presentation/common/title_bar_overlay.dart';
 import 'presentation/routing/app_routes.dart';
 import 'presentation/theme/app_theme.dart';
 import 'src/rust/frb_generated.dart';
+import 'supabase_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Rust bridge (not supported on web)
   if (!kIsWeb) await RustLib.init();
+
+  // Initialize Supabase for cloud backup session persistence.
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseKey,
+  );
 
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: kIsWeb

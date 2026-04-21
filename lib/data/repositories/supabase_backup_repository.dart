@@ -1,12 +1,12 @@
-import 'package:supabase/supabase.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../supabase_config.dart';
+import '../../supabase_config.dart' show SupabaseConfig; // kept for doc reference
 
 /// Repository that manages all interactions with the central Supabase server
 /// used for cloud backup.
 ///
-/// Handles authentication (sign up / sign in / sign out) and CRUD operations
-/// on the `backups` table.
+/// Uses [supabase_flutter] so the auth session is automatically persisted
+/// across app restarts via platform-native secure storage.
 ///
 /// Table schema expected on the central server:
 /// ```sql
@@ -24,17 +24,8 @@ import '../../supabase_config.dart';
 ///   with check (auth.uid() = user_id);
 /// ```
 class SupabaseBackupRepository {
-  late final SupabaseClient _client;
-
-  SupabaseBackupRepository() {
-    _client = SupabaseClient(
-      SupabaseConfig.supabaseUrl,
-      SupabaseConfig.supabaseKey,
-      authOptions: const AuthClientOptions(
-        authFlowType: AuthFlowType.implicit,
-      ),
-    );
-  }
+  /// The shared Supabase client initialised in main() via Supabase.initialize().
+  SupabaseClient get _client => Supabase.instance.client;
 
   // ── Auth ──────────────────────────────────────────────────
 
@@ -43,8 +34,12 @@ class SupabaseBackupRepository {
   bool get isSignedIn => currentUser != null;
 
   /// Signs up a new user on the central server.
-  /// Returns the [User] on success, throws [AuthException] on failure.
-  Future<User> signUp({
+  ///
+  /// Returns `null` when the server requires email confirmation
+  /// (session is not yet active). Returns the [User] when sign-up
+  /// immediately creates a session (e.g. email confirmation is disabled).
+  /// Throws [AuthException] on failure.
+  Future<({User? user, bool needsConfirmation})> signUp({
     required String email,
     required String password,
   }) async {
@@ -52,11 +47,17 @@ class SupabaseBackupRepository {
       email: email,
       password: password,
     );
+
+    // Session is null → email confirmation required.
+    if (response.session == null) {
+      return (user: null, needsConfirmation: true);
+    }
+
     final user = response.user;
     if (user == null) {
       throw const AuthException('Sign-up succeeded but no user was returned.');
     }
-    return user;
+    return (user: user, needsConfirmation: false);
   }
 
   /// Signs in an existing user.
@@ -111,4 +112,3 @@ class SupabaseBackupRepository {
     return uid;
   }
 }
-

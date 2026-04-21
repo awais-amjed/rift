@@ -5,10 +5,14 @@ import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dar
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_text_field.dart';
+import '../../../../../common/message_banner.dart';
 import '../../../../../theme/custom_colors.dart';
-import 'message_banner.dart';
 
 /// Sign-up / sign-in form shown when the user is not yet authenticated.
+///
+/// Handles three sub-states:
+///   1. Normal auth form (sign-in or sign-up)
+///   2. Email confirmation pending — show "check your inbox" notice
 class AuthView extends StatefulWidget {
   final SupabaseBackupState state;
 
@@ -43,6 +47,11 @@ class _AuthViewState extends State<AuthView> {
 
   @override
   Widget build(BuildContext context) {
+    // Show confirmation-pending screen when server requires email verification.
+    if (widget.state.needsEmailConfirmation) {
+      return _EmailConfirmationView(email: widget.state.email);
+    }
+
     final theme = context.read<ThemeCubit>().state;
     final isProcessing = widget.state.isProcessing;
 
@@ -138,3 +147,66 @@ class _AuthViewState extends State<AuthView> {
   }
 }
 
+// ── Email confirmation pending ────────────────────────────────────────────────
+
+class _EmailConfirmationView extends StatelessWidget {
+  final String? email;
+
+  const _EmailConfirmationView({this.email});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.read<ThemeCubit>().state;
+    final cubit = context.read<SupabaseBackupCubit>();
+
+    return Column(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: CustomColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Icon(
+            Icons.mark_email_unread_rounded,
+            size: 32,
+            color: CustomColors.primary,
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        Text(
+          'Check Your Email',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: theme.textPrimary,
+            letterSpacing: -0.3,
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Text(
+          email != null
+              ? 'A confirmation link was sent to $email.\n'
+                  'Click the link then sign in below.'
+              : 'A confirmation link was sent to your email.\n'
+                  'Click the link then sign in below.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13, height: 1.5, color: theme.textTertiary),
+        ),
+
+        const SizedBox(height: 32),
+
+        AppButton(
+          label: 'Sign In After Confirming',
+          expanded: true,
+          onPressed: () => cubit.clearMessage(),
+        ),
+      ],
+    );
+  }
+}

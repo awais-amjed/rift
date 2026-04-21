@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase/supabase.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/repositories/supabase_backup_repository.dart';
 import '../vault/vault_cubit.dart';
@@ -22,7 +22,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
   })  : _repo = repo ?? SupabaseBackupRepository(),
         _vaultCubit = vaultCubit,
         super(const SupabaseBackupState()) {
-    // Reflect any persisted Supabase session (e.g. after app restart).
+    // Reflect any persisted session restored by supabase_flutter on startup.
     final user = _repo.currentUser;
     if (user != null) {
       emit(SupabaseBackupState(isSignedIn: true, email: user.email));
@@ -31,20 +31,33 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
 
   // ── Auth ──────────────────────────────────────────────────
 
-  /// Creates a new account on the central server and immediately signs in.
+  /// Creates a new account on the central server.
+  ///
+  /// If the server requires email confirmation the state transitions to
+  /// [needsEmailConfirmation] instead of [isSignedIn], so the UI can
+  /// show a "check your inbox" message rather than the backup panel.
   Future<void> signUp({
     required String email,
     required String password,
   }) async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
     try {
-      final user = await _repo.signUp(email: email, password: password);
-      emit(state.copyWith(
-        isProcessing: false,
-        isSignedIn: true,
-        email: user.email,
-        successMessage: 'Account created! You are now signed in.',
-      ));
+      final result = await _repo.signUp(email: email, password: password);
+
+      if (result.needsConfirmation) {
+        emit(state.copyWith(
+          isProcessing: false,
+          needsEmailConfirmation: true,
+          email: email,
+        ));
+      } else {
+        emit(state.copyWith(
+          isProcessing: false,
+          isSignedIn: true,
+          email: result.user!.email,
+          successMessage: 'Account created! You are now signed in.',
+        ));
+      }
     } on AuthException catch (e) {
       emit(state.copyWith(isProcessing: false, error: e.message));
     } catch (e) {
@@ -63,6 +76,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
       emit(state.copyWith(
         isProcessing: false,
         isSignedIn: true,
+        needsEmailConfirmation: false,
         email: user.email,
         successMessage: 'Signed in successfully.',
       ));
@@ -78,7 +92,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
     try {
       await _repo.signOut();
-      emit(SupabaseBackupState(isSignedIn: false));
+      emit(const SupabaseBackupState());
     } catch (e) {
       emit(state.copyWith(isProcessing: false, error: e.toString()));
     }
@@ -112,8 +126,6 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
   }
 
   /// Downloads the cloud backup and imports it into the vault.
-  ///
-  /// [vaultPassword] is the master password used to decrypt the backup.
   Future<void> importBackupFromCloud({required String vaultPassword}) async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
     try {
@@ -151,5 +163,4 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
 
   void clearMessage() => emit(state.copyWith(clearMessage: true));
 }
-
 
