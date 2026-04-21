@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../data/constants.dart';
+import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
@@ -52,150 +54,168 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context, themeState) {
         return Scaffold(
           backgroundColor: themeState.bgPrimary,
-          body: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── Left sidebar ───────────────────────────────────
-              SettingsSidebar(
-                activeTab: _activeTab,
-                onTabSelected: (tab) => setState(() => _activeTab = tab),
-                themeState: themeState,
-              ),
-              VerticalDivider(width: 1, color: themeState.borderPrimary),
-              // ── Right content area ─────────────────────────────
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          body: BlocBuilder<AppCubit, AppState>(
+            buildWhen: (prev, curr) =>
+                prev.titleBarVisible != curr.titleBarVisible,
+            builder: (context, appState) {
+              final topOffset = kIsWeb
+                  ? 0.0
+                  : (appState.titleBarVisible ? K.titleBarHeight : 0.0);
+              return Padding(
+                padding: EdgeInsets.only(top: topOffset),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
-                      child: Row(
+                    // ── Left sidebar ─────────────────────────────
+                    SettingsSidebar(
+                      activeTab: _activeTab,
+                      onTabSelected: (tab) =>
+                          setState(() => _activeTab = tab),
+                      themeState: themeState,
+                      onBack: () => context.pop(),
+                    ),
+                    VerticalDivider(
+                        width: 1, color: themeState.borderPrimary),
+                    // ── Right content area ───────────────────────
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            _tabIcon,
-                            size: 20,
-                            color: themeState.textPrimary,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          // Header
+                          Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(24, 20, 16, 16),
+                            child: Row(
                               children: [
-                                Text(
-                                  _tabTitle,
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: themeState.textPrimary,
-                                  ),
+                                Icon(
+                                  _tabIcon,
+                                  size: 20,
+                                  color: themeState.textPrimary,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _tabSubtitle,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: themeState.textTertiary,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _tabTitle,
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700,
+                                          color: themeState.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _tabSubtitle,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: themeState.textTertiary,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          IconButton(
-                            onPressed: () => context.pop(),
-                            icon: Icon(
-                              Icons.close,
-                              color: themeState.textTertiary,
-                              size: 20,
+                          Divider(
+                              height: 1, color: themeState.borderPrimary),
+                          // Content
+                          Expanded(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(24),
+                              child: switch (_activeTab) {
+                                SettingsTab.appearance => AppearanceContent(
+                                    themeState: themeState,
+                                  ),
+                                SettingsTab.voiceAndAudio =>
+                                  VoiceAudioContent(
+                                    themeState: themeState,
+                                  ),
+                                SettingsTab.backup => BackupContent(
+                                    themeState: themeState,
+                                  ),
+                              },
                             ),
-                            tooltip: 'Close',
-                            style: IconButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                          ),
+                          // Footer
+                          Divider(
+                              height: 1, color: themeState.borderPrimary),
+                          Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                            child: Row(
+                              children: [
+                                if (kDebugMode)
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      final confirmed =
+                                          await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title:
+                                              const Text('Reset Vault?'),
+                                          content: const Text(
+                                            'This will wipe all keys and saved servers from secure storage. '
+                                            'You will be sent back to onboarding.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(ctx)
+                                                      .pop(false),
+                                              child:
+                                                  const Text('Cancel'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(ctx)
+                                                      .pop(true),
+                                              child: const Text(
+                                                'Reset',
+                                                style: TextStyle(
+                                                    color: Colors.red),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirmed == true &&
+                                          context.mounted) {
+                                        await context
+                                            .read<ServerCubit>()
+                                            .reset();
+                                        context
+                                            .read<VaultCubit>()
+                                            .resetVault();
+                                      }
+                                    },
+                                    icon: const Icon(
+                                      Icons.delete_forever,
+                                      size: 16,
+                                      color: Colors.red,
+                                    ),
+                                    label: const Text(
+                                      'Reset Vault',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                const Spacer(),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Divider(height: 1, color: themeState.borderPrimary),
-                    // Content
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: switch (_activeTab) {
-                          SettingsTab.appearance => AppearanceContent(
-                              themeState: themeState,
-                            ),
-                          SettingsTab.voiceAndAudio => VoiceAudioContent(
-                              themeState: themeState,
-                            ),
-                          SettingsTab.backup => BackupContent(
-                              themeState: themeState,
-                            ),
-                        },
-                      ),
-                    ),
-                    // Footer
-                    Divider(height: 1, color: themeState.borderPrimary),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                      child: Row(
-                        children: [
-                          if (kDebugMode)
-                            TextButton.icon(
-                              onPressed: () async {
-                                final confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Reset Vault?'),
-                                    content: const Text(
-                                      'This will wipe all keys and saved servers from secure storage. '
-                                      'You will be sent back to onboarding.',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(true),
-                                        child: const Text(
-                                          'Reset',
-                                          style: TextStyle(color: Colors.red),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirmed == true && context.mounted) {
-                                  await context.read<ServerCubit>().reset();
-                                  context.read<VaultCubit>().resetVault();
-                                }
-                              },
-                              icon: const Icon(
-                                Icons.delete_forever,
-                                size: 16,
-                                color: Colors.red,
-                              ),
-                              label: const Text(
-                                'Reset Vault',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          const Spacer(),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
-              ),
-            ],
+              );
+            },
           ),
         );
       },

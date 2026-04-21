@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'settings_tab.dart';
 
@@ -7,43 +8,63 @@ class SettingsSidebar extends StatelessWidget {
   final SettingsTab activeTab;
   final ValueChanged<SettingsTab> onTabSelected;
   final ThemeState themeState;
+  final VoidCallback onBack;
 
   const SettingsSidebar({
     super.key,
     required this.activeTab,
     required this.onTabSelected,
     required this.themeState,
+    required this.onBack,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 180,
+      width: K.sidebarWidth,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.settings_outlined,
-                  size: 18,
-                  color: themeState.textTertiary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Settings',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: themeState.textTertiary,
-                    letterSpacing: 0.5,
+          // ── Back button + Settings heading ────────────────
+          InkWell(
+            onTap: onBack,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.arrow_back,
+                    size: 20,
+                    color: themeState.textPrimary,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Settings',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: themeState.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Back to home',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: themeState.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
+          Divider(height: 1, color: themeState.borderPrimary),
+          const SizedBox(height: 8),
           SidebarItem(
             icon: Icons.palette_outlined,
             label: 'Appearance',
