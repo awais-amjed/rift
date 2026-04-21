@@ -142,6 +142,22 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   Map<String, dynamic>? toJson(ServerState state) => state.toJson();
 
+  /// Returns a serializable snapshot of the current server list for backup.
+  /// Intentionally excludes [Server.token] and [Server.tokenIssuedAt].
+  List<Map<String, dynamic>> getServersForExport() {
+    return state.servers
+        .map((s) => {
+              'id': s.id,
+              'name': s.name,
+              'iconUrl': s.iconUrl,
+              'supabaseUrl': s.supabaseUrl,
+              'supabaseKey': s.supabaseKey,
+              'livekitUrl': s.livekitUrl,
+              'keyVersion': s.keyVersion,
+            })
+        .toList();
+  }
+
   // ──────────────────────────────────────────────────────────
   // Dev helpers
   // ──────────────────────────────────────────────────────────

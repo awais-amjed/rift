@@ -66,43 +66,66 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   }
 
   /// Reconciles the in-memory server list after a vault backup import.
-  /// Servers present in [importedServers] have their key version updated and
-  /// token marked stale; servers not in the backup are removed.
-  void syncWithImportedVault(
-    List<({String url, String version})> importedServers,
-  ) {
-    final importedByHost = {
-      for (final s in importedServers) s.url: s.version,
+  ///
+  /// [importedServers] contains full server metadata maps captured at export
+  /// time. For each entry:
+  ///   - If a matching server (by supabaseUrl) already exists in state, its
+  ///     keyVersion is updated and token is stamped stale for re-auth.
+  ///   - If no match exists (e.g. fresh device), a new [Server] is added with
+  ///     a stale token so the next selection triggers a fresh login.
+  /// Servers not present in the backup are removed.
+  void syncWithImportedVault(List<Map<String, dynamic>> importedServers) {
+    final staleTime = DateTime.fromMillisecondsSinceEpoch(0);
+    final existingByUrl = {
+      for (final s in state.servers) s.supabaseUrl: s,
     };
 
-    final updated = <Server>[];
-    for (final server in state.servers) {
-      final host = Uri.parse(server.supabaseUrl).host;
-      final importedVersion = importedByHost[host];
-      if (importedVersion != null) {
-        // Stamp token as stale (epoch) so the next selectServer triggers a fresh login.
-        updated.add(server.copyWith(
-          keyVersion: importedVersion,
-          tokenIssuedAt: DateTime.fromMillisecondsSinceEpoch(0),
+    final restored = <Server>[];
+    for (final meta in importedServers) {
+      final url = (meta['supabaseUrl'] as String?) ?? '';
+      final keyVersion = (meta['keyVersion'] as String?) ?? 'v1';
+
+      if (url.isEmpty) continue;
+
+      final existing = existingByUrl[url];
+      if (existing != null) {
+        // Existing server — update key version and mark token stale.
+        restored.add(existing.copyWith(
+          keyVersion: keyVersion,
+          tokenIssuedAt: staleTime,
+        ));
+      } else {
+        // Fresh device — reconstruct a minimal Server from backup metadata.
+        final id = meta['id'] as String?;
+        if (id == null) continue;
+        restored.add(Server(
+          id: id,
+          name: (meta['name'] as String?) ?? 'Server',
+          iconUrl: meta['iconUrl'] as String?,
+          supabaseUrl: url,
+          supabaseKey: meta['supabaseKey'] as String?,
+          livekitUrl: meta['livekitUrl'] as String?,
+          token: '', // stale — login will replace it
+          keyVersion: keyVersion,
+          tokenIssuedAt: staleTime,
         ));
       }
-      // Drop servers not in the backup.
     }
 
-    final newSelectedId = updated.any((s) => s.id == state.selectedServerId)
+    final newSelectedId = restored.any((s) => s.id == state.selectedServerId)
         ? state.selectedServerId
-        : updated.isNotEmpty
-        ? updated.first.id
-        : null;
+        : restored.isNotEmpty
+            ? restored.first.id
+            : null;
 
     emit(state.copyWith(
-      servers: updated,
+      servers: restored,
       selectedServerId: newSelectedId,
       clearSelectedServerId: newSelectedId == null,
     ));
 
     // Re-authenticate the selected server with the restored identity.
-    if (updated.isNotEmpty) loginSelectedServer();
+    if (restored.isNotEmpty) loginSelectedServer();
   }
 
   void selectServer(Server server) {

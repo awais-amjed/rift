@@ -4,7 +4,8 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
   CryptoRepository get _crypto;
   SecureStorageRepository get _storage;
   Map<String, ServerIdentity> get _identityCache;
-  void Function(List<({String url, String version})>)? get _onServersImported;
+  void Function(List<Map<String, dynamic>>)? get _onServersImported;
+  List<Map<String, dynamic>> Function()? get _getServersForExport;
 
   // ──────────────────────────────────────────────────────────
   // Phase 5: Backup export / import
@@ -12,6 +13,8 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
 
   /// Builds a [BackupFile] JSON string from the locally stored blobs.
   /// No cryptography runs here — both blobs are already encrypted.
+  /// Full server metadata is captured via [_getServersForExport] so the
+  /// server list can be restored on a fresh device.
   Future<({bool success, String? content, String? error})>
       exportBackup() async {
     try {
@@ -22,10 +25,13 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
         return (success: false, content: null, error: 'Vault not initialised');
       }
 
+      final servers = _getServersForExport?.call() ?? [];
+
       final backup = BackupFile(
         version: BackupFile.currentVersion,
         seed: encryptedSeed,
         vault: encryptedVault,
+        servers: servers,
       );
 
       return (success: true, content: backup.toJsonString(), error: null);
@@ -67,13 +73,13 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
 
       final vaultData = jsonDecode(vaultJson) as Map<String, dynamic>;
       final rawServers = vaultData['joined_servers'] as List<dynamic>;
-      final servers = rawServers.map((e) {
+      final joinedServers = rawServers.map((e) {
         final m = e as Map<String, dynamic>;
         return (url: m['url'] as String, version: m['version'] as String);
       }).toList();
 
       await _storage.saveMasterSeed(masterSeedB64);
-      await _storage.setJoinedServers(servers);
+      await _storage.setJoinedServers(joinedServers);
       await _storage.saveEncryptedSeed(backup.seed);
       await _storage.saveEncryptedVault(backup.vault);
 
@@ -81,8 +87,15 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
 
       emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
 
-      // Notify ServerCubit to reconcile its server list with the restored vault.
-      _onServersImported?.call(servers);
+      // Pass full server metadata so ServerCubit can reconstruct the list.
+      // Fall back to url/version-only maps for backups made before this change.
+      final serverMaps = backup.servers.isNotEmpty
+          ? backup.servers
+          : joinedServers
+              .map((s) => <String, dynamic>{'supabaseUrl': s.url, 'keyVersion': s.version})
+              .toList();
+
+      _onServersImported?.call(serverMaps);
 
       return (success: true, error: null);
     } on SecretBoxAuthenticationError {
@@ -99,6 +112,4 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
     }
   }
 }
-
-
 

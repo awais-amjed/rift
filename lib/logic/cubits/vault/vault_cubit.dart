@@ -40,13 +40,21 @@ class VaultCubit extends Cubit<VaultState>
   final Map<String, ServerIdentity> _identityCache = {};
 
   /// Called after a successful [importBackup] to reconcile the server list.
+  /// Receives the full server metadata maps from the backup.
   @override
-  void Function(List<({String url, String version})>)? _onServersImported;
+  void Function(List<Map<String, dynamic>>)? _onServersImported;
 
   void setOnServersImported(
-    void Function(List<({String url, String version})>) callback,
+    void Function(List<Map<String, dynamic>>) callback,
   ) {
     _onServersImported = callback;
+  }
+
+  /// Called during [exportBackup] to capture the current server list.
+  List<Map<String, dynamic>> Function()? _getServersForExport;
+
+  void setGetServersForExport(List<Map<String, dynamic>> Function() callback) {
+    _getServersForExport = callback;
   }
 
   VaultCubit({

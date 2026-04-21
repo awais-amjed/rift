@@ -174,6 +174,10 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
                 widget.vaultCubit.setOnServersImported(
                   serverCubit.syncWithImportedVault,
                 );
+                // Wire up a callback so export captures the full server list.
+                widget.vaultCubit.setGetServersForExport(
+                  serverCubit.getServersForExport,
+                );
                 return serverCubit;
               },
             ),
