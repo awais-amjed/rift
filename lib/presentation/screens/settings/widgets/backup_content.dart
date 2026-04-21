@@ -14,7 +14,6 @@ import '../../../theme/custom_colors.dart';
 /// Provides:
 /// - Sign up / sign in to the central Supabase server
 /// - Save current encrypted backup to the cloud
-/// - Import/restore backup from the cloud
 class BackupContent extends StatelessWidget {
   final ThemeState themeState;
 
@@ -162,31 +161,17 @@ class _AuthPanelState extends State<_AuthPanel> {
 
 // ── Signed-in panel ───────────────────────────────────────────────────────────
 
-class _SignedInPanel extends StatefulWidget {
+class _SignedInPanel extends StatelessWidget {
   final ThemeState themeState;
   final SupabaseBackupState state;
 
   const _SignedInPanel({required this.themeState, required this.state});
 
   @override
-  State<_SignedInPanel> createState() => _SignedInPanelState();
-}
-
-class _SignedInPanelState extends State<_SignedInPanel> {
-  final _importPasswordController = TextEditingController();
-  bool _showImportForm = false;
-
-  @override
-  void dispose() {
-    _importPasswordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final cubit = context.read<SupabaseBackupCubit>();
-    final isProcessing = widget.state.isProcessing;
-    final theme = widget.themeState;
+    final isProcessing = state.isProcessing;
+    final theme = themeState;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,7 +196,7 @@ class _SignedInPanelState extends State<_SignedInPanel> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Signed in as ${widget.state.email ?? 'unknown'}',
+                  'Signed in as ${state.email ?? 'unknown'}',
                   style: TextStyle(fontSize: 12, color: theme.textSecondary),
                 ),
               ),
@@ -257,81 +242,15 @@ class _SignedInPanelState extends State<_SignedInPanel> {
           onPressed: isProcessing ? null : cubit.saveBackupToCloud,
         ),
 
-        const SizedBox(height: 24),
-        Divider(color: theme.borderPrimary),
-        const SizedBox(height: 24),
-
-        // ── Import backup ──────────────────────────────────────
-        _SectionTitle(label: 'Import Backup', themeState: theme),
-        const SizedBox(height: 4),
-        Text(
-          'Download and restore your vault from the cloud backup. '
-          'Enter your master password to decrypt it.',
-          style: TextStyle(
-            fontSize: 12,
-            color: theme.textTertiary,
-            height: 1.5,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        if (!_showImportForm)
-          AppButton(
-            label: 'Import from Cloud',
-            variant: AppButtonVariant.secondary,
-            icon: Icon(
-              Icons.cloud_download_rounded,
-              size: 15,
-              color: theme.textSecondary,
-            ),
-            onPressed: isProcessing
-                ? null
-                : () => setState(() => _showImportForm = true),
-          )
-        else ...[
-          AppTextField(
-            controller: _importPasswordController,
-            label: 'Master Password',
-            hint: 'Enter your vault password to decrypt',
-            obscureText: true,
-            enabled: !isProcessing,
-            autofocus: true,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              AppButton(
-                label: 'Import',
-                isLoading: isProcessing,
-                onPressed: isProcessing
-                    ? null
-                    : () => cubit.importBackupFromCloud(
-                        vaultPassword: _importPasswordController.text,
-                      ),
-              ),
-              const SizedBox(width: 10),
-              AppButton(
-                label: 'Cancel',
-                variant: AppButtonVariant.secondary,
-                onPressed: isProcessing
-                    ? null
-                    : () => setState(() {
-                        _showImportForm = false;
-                        _importPasswordController.clear();
-                      }),
-              ),
-            ],
-          ),
-        ],
 
         // Messages
-        if (widget.state.error != null) ...[
+        if (state.error != null) ...[
           const SizedBox(height: 14),
-          MessageBanner(message: widget.state.error!, isError: true),
+          MessageBanner(message: state.error!, isError: true),
         ],
-        if (widget.state.successMessage != null) ...[
+        if (state.successMessage != null) ...[
           const SizedBox(height: 14),
-          MessageBanner(message: widget.state.successMessage!, isError: false),
+          MessageBanner(message: state.successMessage!, isError: false),
         ],
       ],
     );

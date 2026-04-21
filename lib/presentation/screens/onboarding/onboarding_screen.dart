@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/theme/theme_cubit.dart';
+import 'widgets/import_backup_step.dart';
 import 'widgets/password_step.dart';
 import 'widgets/welcome_step.dart';
 
 /// Full-screen onboarding flow for first-time users.
 ///
-/// Contains a [PageView] with two steps:
+/// Contains a [PageView] with three steps:
 /// 1. Welcome — explains the system and invites the user to continue.
 /// 2. Password — collects a master password and creates the vault.
+/// 3. Import Backup — sign in to cloud backup and restore a vault.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -42,6 +44,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  void _goToImportBackup() {
+    _pageController.animateToPage(
+      2,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.read<ThemeCubit>().state;
@@ -56,8 +66,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                WelcomeStep(onContinue: _goToPassword),
+                WelcomeStep(onContinue: _goToPassword, onRestore: _goToImportBackup),
                 PasswordStep(onBack: _goToWelcome),
+                ImportBackupStep(onBack: _goToWelcome),
               ],
             ),
           ),

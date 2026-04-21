@@ -8,8 +8,9 @@ import '../../../theme/custom_colors.dart';
 /// First step of onboarding — welcome & app overview.
 class WelcomeStep extends StatelessWidget {
   final VoidCallback onContinue;
+  final VoidCallback onRestore;
 
-  const WelcomeStep({super.key, required this.onContinue});
+  const WelcomeStep({super.key, required this.onContinue, required this.onRestore});
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +92,19 @@ class WelcomeStep extends StatelessWidget {
             label: 'Get Started',
             onPressed: onContinue,
             icon: const Icon(Icons.arrow_forward, size: 18, color: Colors.white),
+          ),
+
+          const SizedBox(height: 12),
+
+          AppButton(
+            label: 'Restore from Backup',
+            variant: AppButtonVariant.secondary,
+            onPressed: onRestore,
+            icon: Icon(
+              Icons.cloud_download_rounded,
+              size: 18,
+              color: theme.textSecondary,
+            ),
           ),
         ],
       ),
