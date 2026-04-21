@@ -30,6 +30,9 @@ class SupabaseBackupRepository {
     _client = SupabaseClient(
       SupabaseConfig.supabaseUrl,
       SupabaseConfig.supabaseKey,
+      authOptions: const AuthClientOptions(
+        authFlowType: AuthFlowType.implicit,
+      ),
     );
   }
 
