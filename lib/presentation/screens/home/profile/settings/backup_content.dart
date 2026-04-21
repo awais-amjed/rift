@@ -6,6 +6,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/message_banner.dart';
 import '../../../../theme/custom_colors.dart';
 
 /// Backup tab content rendered inside the settings dialog.
@@ -125,7 +126,7 @@ class _AuthPanelState extends State<_AuthPanel> {
         ),
         if (widget.state.error != null) ...[
           const SizedBox(height: 10),
-          _Banner(message: widget.state.error!, isError: true),
+          MessageBanner(message: widget.state.error!, isError: true),
         ],
         const SizedBox(height: 16),
         Row(
@@ -322,11 +323,11 @@ class _SignedInPanelState extends State<_SignedInPanel> {
         // Messages
         if (widget.state.error != null) ...[
           const SizedBox(height: 14),
-          _Banner(message: widget.state.error!, isError: true),
+          MessageBanner(message: widget.state.error!, isError: true),
         ],
         if (widget.state.successMessage != null) ...[
           const SizedBox(height: 14),
-          _Banner(message: widget.state.successMessage!, isError: false),
+          MessageBanner(message: widget.state.successMessage!, isError: false),
         ],
       ],
     );
@@ -354,35 +355,3 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _Banner extends StatelessWidget {
-  final String message;
-  final bool isError;
-
-  const _Banner({required this.message, required this.isError});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isError ? CustomColors.error : CustomColors.success;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isError ? Icons.error_outline_rounded : Icons.check_circle_outline,
-            size: 14,
-            color: color,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(message, style: TextStyle(fontSize: 12, color: color)),
-          ),
-        ],
-      ),
-    );
-  }
-}
