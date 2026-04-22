@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../classes/api_response.dart';
@@ -11,20 +13,15 @@ import '../classes/api_response.dart';
 /// Uses [supabase_flutter] so the auth session is automatically persisted
 /// across app restarts via platform-native secure storage.
 ///
-/// Table schema expected on the central server:
-/// ```sql
-/// create table backups (
-///   id          uuid primary key default gen_random_uuid(),
-///   user_id     uuid references auth.users not null unique,
-///   backup_json text not null,
-///   updated_at  timestamptz default now()
-/// );
-/// alter table backups enable row level security;
-/// create policy "own backup" on backups
-///   using (auth.uid() = user_id)
-///   with check (auth.uid() = user_id);
-/// ```
+/// Backup storage:
+///   Bucket : `backups`  (private, RLS-enforced)
+///   Object : `{uid}/vault.json`
+///
+/// Each authenticated user can only read/write their own object via storage
+/// policies bound to `auth.uid()`.
 class SupabaseBackupRepository {
+  static const _bucket = 'backups';
+
   /// The shared Supabase client initialised in main() via Supabase.initialize().
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -103,23 +100,31 @@ class SupabaseBackupRepository {
 
   // ── Backup ────────────────────────────────────────────────
 
-  /// Uploads (upserts) the encrypted backup JSON for the current user.
+  /// Uploads (upserts) the encrypted backup for the current user.
+  ///
+  /// Stored as `{uid}/vault.json` in the `backups` bucket.
   Future<APIResponse> uploadBackup(String backupJson) async {
     try {
       final uid = _requireUid();
       if (uid == null) return APIResponse.error('Not signed in.');
-      await _client.from('backups').upsert({
-        'user_id': uid,
-        'backup_json': backupJson,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }, onConflict: 'user_id');
+
+      final bytes = utf8.encode(backupJson);
+      await _client.storage.from(_bucket).uploadBinary(
+            '$uid/vault.json',
+            bytes,
+            fileOptions: const FileOptions(
+              contentType: 'application/json',
+              upsert: true,
+            ),
+          );
+
       return APIResponse.success(null);
     } catch (e) {
       return APIResponse.error(e);
     }
   }
 
-  /// Downloads the encrypted backup JSON for the current user.
+  /// Downloads the encrypted backup for the current user.
   ///
   /// On success [APIResponse.data] is the backup JSON string, or `null`
   /// if no backup has been uploaded yet.
@@ -127,12 +132,18 @@ class SupabaseBackupRepository {
     try {
       final uid = _requireUid();
       if (uid == null) return APIResponse.error('Not signed in.');
-      final data = await _client
-          .from('backups')
-          .select('backup_json')
-          .eq('user_id', uid)
-          .maybeSingle();
-      return APIResponse.success(data?['backup_json'] as String?);
+
+      final bytes = await _client.storage
+          .from(_bucket)
+          .download('$uid/vault.json');
+
+      return APIResponse.success(utf8.decode(bytes));
+    } on StorageException catch (e) {
+      // Object not found — no backup uploaded yet.
+      if (e.statusCode == '404' || (e.message.contains('not found'))) {
+        return APIResponse.success(null);
+      }
+      return APIResponse.error(e);
     } catch (e) {
       return APIResponse.error(e);
     }
