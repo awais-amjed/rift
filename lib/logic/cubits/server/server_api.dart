@@ -148,7 +148,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
       return (success: false, error: 'No server selected');
     }
 
-    final result = await vaultCubit.rotateKey(supabaseUrl: server.supabaseUrl);
+    final result = await vaultCubit.rotateKey(supabaseUrl: server.supabaseUrl, serverId: server.id);
 
     if (!result.success) {
       return (success: false, error: result.error ?? 'Key rotation failed');

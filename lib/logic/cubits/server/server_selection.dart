@@ -37,6 +37,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
 
     final result = await _vaultCubit!.loginToServer(
       supabaseUrl: server.supabaseUrl,
+      serverId: server.id,
     );
 
     if (!result.success || result.data == null) return false;

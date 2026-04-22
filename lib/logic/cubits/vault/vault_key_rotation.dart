@@ -15,6 +15,7 @@ mixin _VaultKeyRotationMixin on Cubit<VaultState> {
   /// Rotate the Ed25519 keypair for a server.
   Future<({bool success, String? error, String? newVersion})> rotateKey({
     required String supabaseUrl,
+    required String serverId,
   }) async {
     try {
       final host = Uri.parse(supabaseUrl).host;
@@ -33,6 +34,7 @@ mixin _VaultKeyRotationMixin on Cubit<VaultState> {
       final challengeResponse = await _serverRepo.getChallenge(
         supabaseUrl,
         publicKey: oldIdentity.publicKeyBase64,
+        serverId: serverId,
       );
       if (!challengeResponse.success) {
         return (success: false, error: challengeResponse.error, newVersion: null);
@@ -54,6 +56,7 @@ mixin _VaultKeyRotationMixin on Cubit<VaultState> {
         nonce: nonce,
         signature: CryptoRepository.toBase64(signature),
         host: host,
+        serverId: serverId,
       );
 
       if (!response.success) {

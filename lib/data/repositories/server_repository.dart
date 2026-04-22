@@ -127,9 +127,11 @@ class ServerRepository {
   Future<APIResponse> getChallenge(
     String supabaseUrl, {
     required String publicKey,
+    required String serverId,
   }) {
     return _post(supabaseUrl, 'get_challenge', {
       'public_key': publicKey,
+      'server_id': serverId,
     });
   }
 
@@ -145,12 +147,14 @@ class ServerRepository {
     required String nonce,
     required String signature,
     required String host,
+    required String serverId,
   }) {
     return _post(supabaseUrl, 'verify_challenge', {
       'public_key': publicKey,
       'nonce': nonce,
       'signature': signature,
       'host': host,
+      'server_id': serverId,
     });
   }
 
@@ -165,6 +169,7 @@ class ServerRepository {
     required String nonce,
     required String signature,
     required String host,
+    required String serverId,
   }) {
     return _post(supabaseUrl, 'rotate_key', {
       'old_public_key': oldPublicKey,
@@ -172,6 +177,7 @@ class ServerRepository {
       'nonce': nonce,
       'signature': signature,
       'host': host,
+      'server_id': serverId,
     });
   }
 

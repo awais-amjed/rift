@@ -33,6 +33,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
   Future<({bool success, String? error, Map<String, dynamic>? data})>
       loginToServer({
     required String supabaseUrl,
+    required String serverId,
   }) async {
     try {
       final host = Uri.parse(supabaseUrl).host;
@@ -49,6 +50,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
       final challengeResponse = await _serverRepo.getChallenge(
         supabaseUrl,
         publicKey: identity.publicKeyBase64,
+        serverId: serverId,
       );
 
       if (!challengeResponse.success) {
@@ -69,6 +71,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
         nonce: nonce,
         signature: CryptoRepository.toBase64(signature),
         host: host,
+        serverId: serverId,
       );
 
       if (!verifyResponse.success) {

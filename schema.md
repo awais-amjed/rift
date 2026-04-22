@@ -24,8 +24,8 @@
 | server_id          | uuid        | Required, Foreign Key → servers.id | The server this user is registered on            |
 | username           | text        | Required, Unique                   | Unique username                                  |
 | display_name       | text        | Required                           | User's display name                              |
-| public_key         | text        | Unique, Not Null                   | Ed25519 public key (base64). Updates on rotation |
-| stable_id          | text        | Unique, Not Null                   | Permanent HMAC identity hash. Never changes      |
+| public_key         | text        | Not Null, Unique per server        | Ed25519 public key (base64). Updates on rotation |
+| stable_id          | text        | Not Null, Unique per server        | Permanent HMAC identity hash. Never changes      |
 | is_banned          | boolean     | Default: false                     | If true, all logins/rotations are rejected       |
 | is_server_admin    | boolean     | Default: false                     | Whether user has server admin privileges         |
 | is_channel_manager | boolean     | Default: false                     | Whether user can manage channels                 |
