@@ -12,9 +12,8 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
   // ──────────────────────────────────────────────────────────
 
   /// Builds a [BackupFile] JSON string from the locally stored blobs.
-  /// No cryptography runs here — both blobs are already encrypted.
-  /// Full server metadata is captured via [_getServersForExport] so the
-  /// server list can be restored on a fresh device.
+  /// The servers list is encrypted with the vault key so the backup is fully
+  /// opaque — no plaintext metadata is exposed to the storage provider.
   Future<({bool success, String? content, String? error})>
       exportBackup() async {
     try {
@@ -25,13 +24,31 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
         return (success: false, content: null, error: 'Vault not initialised');
       }
 
+      final masterSeedB64 = state.masterSeed;
+      if (masterSeedB64 == null) {
+        return (success: false, content: null, error: 'Vault is locked');
+      }
+
       final servers = _getServersForExport?.call() ?? [];
+      final serversJson = jsonEncode(servers);
+
+      // Encrypt the servers list with the same vault key (HMAC(masterSeed,
+      // "vault:v1")) but a fresh IV so the ciphertext is independent.
+      final masterSeedBytes = CryptoRepository.fromBase64(masterSeedB64);
+      final vaultKey = await _crypto.deriveLocalVaultKey(masterSeedBytes);
+      final encryptedServers = await _crypto.encrypt(
+        plaintext: serversJson,
+        key: vaultKey,
+      );
 
       final backup = BackupFile(
         version: BackupFile.currentVersion,
         seed: encryptedSeed,
         vault: encryptedVault,
-        servers: servers,
+        encryptedServers: EncryptedVault(
+          ciphertext: CryptoRepository.toBase64(encryptedServers.ciphertext),
+          iv: CryptoRepository.toBase64(encryptedServers.iv),
+        ),
       );
 
       return (success: true, content: backup.toJsonString(), error: null);
@@ -87,13 +104,25 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
 
       emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
 
-      // Pass full server metadata so ServerCubit can reconstruct the list.
-      // Fall back to url/version-only maps for backups made before this change.
-      final serverMaps = backup.servers.isNotEmpty
-          ? backup.servers
-          : joinedServers
-              .map((s) => <String, dynamic>{'supabaseUrl': s.url, 'keyVersion': s.version})
-              .toList();
+      // Decrypt the servers list and pass full metadata to ServerCubit.
+      List<Map<String, dynamic>> serverMaps = [];
+      if (backup.encryptedServers != null) {
+        final serversJson = await _crypto.decrypt(
+          ciphertext:
+              CryptoRepository.fromBase64(backup.encryptedServers!.ciphertext),
+          key: vaultKey,
+          iv: CryptoRepository.fromBase64(backup.encryptedServers!.iv),
+        );
+        serverMaps = (jsonDecode(serversJson) as List<dynamic>)
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
+      } else {
+        // Legacy v1 backup — fall back to url/version stubs from vault blob.
+        serverMaps = joinedServers
+            .map((s) =>
+                <String, dynamic>{'supabaseUrl': s.url, 'keyVersion': s.version})
+            .toList();
+      }
 
       _onServersImported?.call(serverMaps);
 
