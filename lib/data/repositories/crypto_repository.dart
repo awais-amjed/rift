@@ -64,6 +64,64 @@ class CryptoRepository {
   }
 
   // ──────────────────────────────────────────────────────────
+  // Split-key account derivation (Option B — see ARCHITECTURE.md §3)
+  // ──────────────────────────────────────────────────────────
+
+  /// Derives two independent keys from one account password so the real
+  /// password never leaves the device:
+  ///
+  /// ```
+  /// stretched     = Argon2id(password, salt: SHA-256(normalized email))
+  /// authPassword  = base64( HMAC-SHA256(stretched, "account:auth:v1") )
+  /// vaultPassword = base64( HMAC-SHA256(stretched, "account:vault:v1") )
+  /// ```
+  ///
+  /// [authPassword] is sent to the central Supabase as the login password
+  /// (GoTrue bcrypts it again server-side). [vaultPassword] feeds the existing
+  /// Argon2id seed encryption via [deriveVaultKey] and must never be persisted
+  /// or transmitted.
+  ///
+  /// The email is the KDF salt (lowercased + trimmed) so the derivation is
+  /// reproducible on a fresh device before anything has been downloaded.
+  /// Runs in a background isolate.
+  Future<({String authPassword, String vaultPassword})> deriveAccountKeys({
+    required String email,
+    required String password,
+  }) async {
+    return Isolate.run(() async {
+      final normalizedEmail = email.trim().toLowerCase();
+      final emailHash = await Sha256().hash(utf8.encode(normalizedEmail));
+
+      final algorithm = Argon2id(
+        memory: 65536,
+        iterations: 2,
+        parallelism: 1,
+        hashLength: 32,
+      );
+      final stretched = await algorithm.deriveKey(
+        secretKey: SecretKey(utf8.encode(password)),
+        nonce: emailHash.bytes,
+      );
+      final stretchedKey = SecretKey(await stretched.extractBytes());
+
+      final hmac = Hmac.sha256();
+      final auth = await hmac.calculateMac(
+        utf8.encode('account:auth:v1'),
+        secretKey: stretchedKey,
+      );
+      final vault = await hmac.calculateMac(
+        utf8.encode('account:vault:v1'),
+        secretKey: stretchedKey,
+      );
+
+      return (
+        authPassword: base64Encode(auth.bytes),
+        vaultPassword: base64Encode(vault.bytes),
+      );
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────
   // AES-GCM — Vault encryption
   // ──────────────────────────────────────────────────────────
 
