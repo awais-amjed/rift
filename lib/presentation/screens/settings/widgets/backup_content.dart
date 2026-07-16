@@ -1,11 +1,19 @@
+import 'dart:convert';
+
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/cubits/vault/vault_cubit.dart';
+import '../../../../logic/helper_methods.dart';
 import '../../../common/app_button.dart';
+import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/message_banner.dart';
+import '../../../common/restore_file_dialog.dart';
 import '../../../theme/custom_colors.dart';
 
 /// Backup tab content rendered inside the settings dialog.
@@ -34,13 +42,28 @@ class _BackupBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<SupabaseBackupCubit, SupabaseBackupState>(
       builder: (context, state) {
-        if (state.isSignedIn) {
-          return _SignedInPanel(themeState: themeState, state: state);
+        final Widget cloudPanel;
+        if (state.cloudBackupConflict) {
+          cloudPanel = _ConflictPanel(themeState: themeState, state: state);
+        } else if (state.needsVaultPassword) {
+          cloudPanel = _VaultPasswordPanel(themeState: themeState, state: state);
+        } else if (state.isSignedIn) {
+          cloudPanel = _SignedInPanel(themeState: themeState, state: state);
+        } else if (state.needsEmailConfirmation) {
+          cloudPanel =
+              _ConfirmEmailPanel(themeState: themeState, email: state.email);
+        } else {
+          cloudPanel = _AuthPanel(themeState: themeState, state: state);
         }
-        if (state.needsEmailConfirmation) {
-          return _ConfirmEmailPanel(themeState: themeState, email: state.email);
-        }
-        return _AuthPanel(themeState: themeState, state: state);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            cloudPanel,
+            const SizedBox(height: 28),
+            _FileBackupPanel(themeState: themeState),
+          ],
+        );
       },
     );
   }
@@ -227,15 +250,26 @@ class _SignedInPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        AppButton(
-          label: 'Save to Cloud',
-          isLoading: isProcessing,
-          icon: const Icon(
-            Icons.cloud_upload_rounded,
-            size: 15,
-            color: Colors.white,
-          ),
-          onPressed: isProcessing ? null : cubit.saveBackupToCloud,
+        Row(
+          children: [
+            AppButton(
+              label: 'Save to Cloud',
+              isLoading: isProcessing,
+              icon: const Icon(
+                Icons.cloud_upload_rounded,
+                size: 15,
+                color: Colors.white,
+              ),
+              onPressed: isProcessing ? null : cubit.saveBackupToCloud,
+            ),
+            const SizedBox(width: 12),
+            AppButton(
+              label: 'Restore from Cloud',
+              variant: AppButtonVariant.secondary,
+              onPressed:
+                  isProcessing ? null : () => cubit.importBackupFromCloud(),
+            ),
+          ],
         ),
 
 
@@ -248,6 +282,246 @@ class _SignedInPanel extends StatelessWidget {
           const SizedBox(height: 14),
           MessageBanner(message: state.successMessage!, isError: false),
         ],
+      ],
+    );
+  }
+}
+
+// ── Conflict panel ────────────────────────────────────────────────────────────
+
+/// Shown when sign-in found a cloud backup while a local vault already exists.
+class _ConflictPanel extends StatelessWidget {
+  final ThemeState themeState;
+  final SupabaseBackupState state;
+
+  const _ConflictPanel({required this.themeState, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<SupabaseBackupCubit>();
+    final isProcessing = state.isProcessing;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(label: 'Backup Conflict', themeState: themeState),
+        const SizedBox(height: 4),
+        Text(
+          'Your account already has a cloud backup, but this device has its '
+          'own vault. Choose which identity to keep — the other one is '
+          'overwritten.',
+          style: TextStyle(
+            fontSize: 12,
+            color: themeState.textTertiary,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            AppButton(
+              label: 'Keep This Device',
+              isLoading: isProcessing,
+              onPressed: isProcessing ? null : cubit.keepLocalVault,
+            ),
+            const SizedBox(width: 12),
+            AppButton(
+              label: 'Restore Cloud Backup',
+              variant: AppButtonVariant.secondary,
+              onPressed: isProcessing ? null : cubit.restoreCloudBackup,
+            ),
+          ],
+        ),
+        if (state.error != null) ...[
+          const SizedBox(height: 14),
+          MessageBanner(message: state.error!, isError: true),
+        ],
+      ],
+    );
+  }
+}
+
+// ── Vault password panel ──────────────────────────────────────────────────────
+
+/// Shown when the cloud backup needs a manually chosen vault password.
+class _VaultPasswordPanel extends StatefulWidget {
+  final ThemeState themeState;
+  final SupabaseBackupState state;
+
+  const _VaultPasswordPanel({required this.themeState, required this.state});
+
+  @override
+  State<_VaultPasswordPanel> createState() => _VaultPasswordPanelState();
+}
+
+class _VaultPasswordPanelState extends State<_VaultPasswordPanel> {
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<SupabaseBackupCubit>();
+    final isProcessing = widget.state.isProcessing;
+    final theme = widget.themeState;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(label: 'Unlock Cloud Backup', themeState: theme),
+        const SizedBox(height: 4),
+        Text(
+          'This backup is protected by a separately chosen vault password '
+          '(privacy mode). Enter it once — it will be re-encrypted under '
+          'your account password afterwards.',
+          style: TextStyle(
+            fontSize: 12,
+            color: theme.textTertiary,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 16),
+        AppTextField(
+          controller: _passwordController,
+          label: 'Vault Password',
+          hint: 'Enter your vault password',
+          obscureText: true,
+          enabled: !isProcessing,
+          onEditingComplete: isProcessing
+              ? null
+              : () => cubit.submitVaultPassword(_passwordController.text),
+        ),
+        if (widget.state.error != null) ...[
+          const SizedBox(height: 12),
+          MessageBanner(message: widget.state.error!, isError: true),
+        ],
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            AppButton(
+              label: 'Unlock',
+              isLoading: isProcessing,
+              onPressed: isProcessing
+                  ? null
+                  : () => cubit.submitVaultPassword(_passwordController.text),
+            ),
+            const SizedBox(width: 12),
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: isProcessing ? null : cubit.dismissPending,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── Local file backup panel ───────────────────────────────────────────────────
+
+/// Export/restore the encrypted backup as a local file — works without an
+/// account (the privacy-mode recovery path).
+class _FileBackupPanel extends StatefulWidget {
+  final ThemeState themeState;
+
+  const _FileBackupPanel({required this.themeState});
+
+  @override
+  State<_FileBackupPanel> createState() => _FileBackupPanelState();
+}
+
+class _FileBackupPanelState extends State<_FileBackupPanel> {
+  bool _isExporting = false;
+
+  Future<void> _exportToFile() async {
+    setState(() => _isExporting = true);
+    try {
+      final vaultCubit = context.read<VaultCubit>();
+      final export = await vaultCubit.exportBackup();
+      if (!export.success || export.content == null) {
+        HelperMethods.showError(
+          error: export.error ?? 'Failed to export backup',
+        );
+        return;
+      }
+
+      final location = await getSaveLocation(
+        suggestedName: 'rift-backup.json',
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'Rift backup', extensions: ['json']),
+        ],
+      );
+      if (location == null) return; // user cancelled
+
+      final file = XFile.fromData(
+        Uint8List.fromList(utf8.encode(export.content!)),
+        mimeType: 'application/json',
+      );
+      await file.saveTo(location.path);
+
+      HelperMethods.showToast(
+        title: 'Backup exported',
+        description: 'Encrypted backup saved to ${location.path}',
+      );
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  void _restoreFromFile() {
+    showCustomDialog(
+      context: context,
+      builder: (_) => BlocProvider.value(
+        value: context.read<VaultCubit>(),
+        child: const RestoreFileDialog(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.themeState;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(label: 'Backup File', themeState: theme),
+        const SizedBox(height: 4),
+        Text(
+          'Export your encrypted backup as a file, or restore from one. '
+          'Works entirely offline — no account needed.',
+          style: TextStyle(
+            fontSize: 12,
+            color: theme.textTertiary,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            AppButton(
+              label: 'Export to File',
+              isLoading: _isExporting,
+              icon: const Icon(
+                Icons.save_alt_rounded,
+                size: 15,
+                color: Colors.white,
+              ),
+              onPressed: _isExporting ? null : _exportToFile,
+            ),
+            const SizedBox(width: 12),
+            AppButton(
+              label: 'Restore from File',
+              variant: AppButtonVariant.secondary,
+              onPressed: _isExporting ? null : _restoreFromFile,
+            ),
+          ],
+        ),
       ],
     );
   }

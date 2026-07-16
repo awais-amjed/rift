@@ -7,10 +7,14 @@ import '../../../theme/custom_colors.dart';
 
 /// First step of onboarding — welcome & app overview.
 class WelcomeStep extends StatelessWidget {
-  final VoidCallback onContinue;
-  final VoidCallback onRestore;
+  final VoidCallback onContinueWithAccount;
+  final VoidCallback onContinuePrivately;
 
-  const WelcomeStep({super.key, required this.onContinue, required this.onRestore});
+  const WelcomeStep({
+    super.key,
+    required this.onContinueWithAccount,
+    required this.onContinuePrivately,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -69,8 +73,9 @@ class WelcomeStep extends StatelessWidget {
             child: Text(
               'Rift lets you voice chat, share screens, and hang out '
               'in communities — all self-hosted and on your terms.\n\n'
-              'To get started, we\'ll set up your account with a password. '
-              'No email or phone number needed.',
+              'Sign in with an account to keep your identity backed up and '
+              'synced across devices — or skip the account entirely and keep '
+              'everything on this device.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -89,22 +94,31 @@ class WelcomeStep extends StatelessWidget {
 
           // CTA
           AppButton(
-            label: 'Get Started',
-            onPressed: onContinue,
+            label: 'Continue with an Account',
+            onPressed: onContinueWithAccount,
             icon: const Icon(Icons.arrow_forward, size: 18, color: Colors.white),
           ),
 
           const SizedBox(height: 12),
 
           AppButton(
-            label: 'Restore from Backup',
+            label: 'Use Privacy Mode',
             variant: AppButtonVariant.secondary,
-            onPressed: onRestore,
+            onPressed: onContinuePrivately,
             icon: Icon(
-              Icons.cloud_download_rounded,
+              Icons.shield_outlined,
               size: 18,
               color: theme.textSecondary,
             ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            'Privacy mode: no email, no central server — your identity '
+            'never leaves this device.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: theme.textQuaternary),
           ),
         ],
       ),

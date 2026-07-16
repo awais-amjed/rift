@@ -4,11 +4,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../common/app_button.dart';
+import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../theme/custom_colors.dart';
 import 'password_strength_indicator.dart';
+import '../../../common/restore_file_dialog.dart';
 
-/// Second step of onboarding — create an account password.
+/// Privacy-mode onboarding step — create a local-only vault.
+///
+/// No central-server contact: the identity lives (and stays) on this device.
+/// A backup file exported later is the only recovery path.
 class PasswordStep extends StatefulWidget {
   final VoidCallback onBack;
 
@@ -82,7 +87,7 @@ class _PasswordStepState extends State<PasswordStep> {
               const SizedBox(height: 24),
 
               Text(
-                'Create Your Account',
+                'Create a Local Vault',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
@@ -96,8 +101,8 @@ class _PasswordStepState extends State<PasswordStep> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 380),
                 child: Text(
-                  'Choose a password for your Rift account. '
-                  'You\'ll use this to sign in on other devices.',
+                  'Choose a password to encrypt your identity. Everything '
+                  'stays on this device — no email, no central server.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
@@ -222,13 +227,34 @@ class _PasswordStepState extends State<PasswordStep> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: AppButton(
-                            label: 'Create Account',
+                            label: 'Create Vault',
                             expanded: true,
                             isLoading: isProcessing,
                             onPressed: isProcessing ? null : _submit,
                           ),
                         ),
                       ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    TextButton(
+                      onPressed: isProcessing
+                          ? null
+                          : () => showCustomDialog(
+                                context: context,
+                                builder: (_) => BlocProvider.value(
+                                  value: context.read<VaultCubit>(),
+                                  child: const RestoreFileDialog(),
+                                ),
+                              ),
+                      child: const Text(
+                        'Have a backup file? Restore it instead',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: CustomColors.primary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
