@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/message_banner.dart';
@@ -22,10 +21,8 @@ class ImportBackupStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => SupabaseBackupCubit(vaultCubit: context.read<VaultCubit>()),
-      child: _ImportBackupBody(onBack: onBack),
-    );
+    // Uses the app-global SupabaseBackupCubit provided in main.dart.
+    return _ImportBackupBody(onBack: onBack);
   }
 }
 

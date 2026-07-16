@@ -25,6 +25,14 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   VaultCubit? _vaultCubit;
 
+  /// Called after the server list changes — wired to cloud auto-backup.
+  @override
+  void Function()? _onServersChanged;
+
+  void setOnServersChanged(void Function() callback) {
+    _onServersChanged = callback;
+  }
+
   /// Guards against concurrent background token refreshes.
   bool _isRefreshingToken = false;
 

@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/message_banner.dart';
@@ -21,11 +20,8 @@ class BackupContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) =>
-          SupabaseBackupCubit(vaultCubit: context.read<VaultCubit>()),
-      child: _BackupBody(themeState: themeState),
-    );
+    // Uses the app-global SupabaseBackupCubit provided in main.dart.
+    return _BackupBody(themeState: themeState);
   }
 }
 

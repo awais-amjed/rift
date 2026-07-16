@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import 'widgets/auth_view.dart';
 import 'widgets/signed_in_view.dart';
 
@@ -17,12 +16,8 @@ class SupabaseBackupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => SupabaseBackupCubit(
-        vaultCubit: context.read<VaultCubit>(),
-      ),
-      child: const _SupabaseBackupView(),
-    );
+    // Uses the app-global SupabaseBackupCubit provided in main.dart.
+    return const _SupabaseBackupView();
   }
 }
 

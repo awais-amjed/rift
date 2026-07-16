@@ -56,5 +56,55 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
       ));
     }
   }
+
+  /// Re-encrypts the master seed under a new password.
+  ///
+  /// The master seed (and therefore every derived identity) is unchanged —
+  /// only the [EncryptedSeed] blob is rewritten with a fresh salt. Fails
+  /// without side effects if [oldPassword] doesn't decrypt the current blob.
+  Future<({bool success, String? error})> changeVaultPassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final currentSeed = await _storage.getEncryptedSeed();
+      if (currentSeed == null) {
+        return (success: false, error: 'Vault not initialised');
+      }
+
+      final oldKey = await _crypto.deriveVaultKey(
+        password: oldPassword,
+        salt: CryptoRepository.fromBase64(currentSeed.salt),
+      );
+      final masterSeedB64 = await _crypto.decrypt(
+        ciphertext: CryptoRepository.fromBase64(currentSeed.ciphertext),
+        key: oldKey,
+        iv: CryptoRepository.fromBase64(currentSeed.iv),
+      );
+
+      final newSalt = _crypto.generateSalt();
+      final newKey = await _crypto.deriveVaultKey(
+        password: newPassword,
+        salt: newSalt,
+      );
+      final encSeed = await _crypto.encrypt(
+        plaintext: masterSeedB64,
+        key: newKey,
+      );
+
+      await _storage.saveEncryptedSeed(EncryptedSeed(
+        ciphertext: CryptoRepository.toBase64(encSeed.ciphertext),
+        iv: CryptoRepository.toBase64(encSeed.iv),
+        salt: CryptoRepository.toBase64(newSalt),
+      ));
+
+      return (success: true, error: null);
+    } on SecretBoxAuthenticationError {
+      return (success: false, error: 'Wrong password');
+    } catch (e) {
+      HelperMethods.printDebug('[Vault] changeVaultPassword error: $e');
+      return (success: false, error: e.toString());
+    }
+  }
 }
 

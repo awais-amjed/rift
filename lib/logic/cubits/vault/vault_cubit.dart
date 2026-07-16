@@ -57,6 +57,14 @@ class VaultCubit extends Cubit<VaultState>
     _getServersForExport = callback;
   }
 
+  /// Called after the vault blob is re-encrypted (server joined, key rotated).
+  /// Wired to the cloud auto-backup in main.dart.
+  void Function()? _onVaultChanged;
+
+  void setOnVaultChanged(void Function() callback) {
+    _onVaultChanged = callback;
+  }
+
   VaultCubit({
     CryptoRepository? crypto,
     SecureStorageRepository? storage,
@@ -98,6 +106,8 @@ class VaultCubit extends Cubit<VaultState>
       ciphertext: CryptoRepository.toBase64(encrypted.ciphertext),
       iv: CryptoRepository.toBase64(encrypted.iv),
     ));
+
+    _onVaultChanged?.call();
   }
 
   Future<List<({String url, String version})>> getJoinedServers() =>

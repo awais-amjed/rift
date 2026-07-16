@@ -22,6 +22,7 @@ import 'logic/cubits/app/app_cubit.dart';
 import 'logic/cubits/livekit/livekit_cubit.dart';
 import 'logic/cubits/screenshare/screenshare_cubit.dart';
 import 'logic/cubits/server/server_cubit.dart';
+import 'logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/token/token_cubit.dart';
 import 'logic/helper_methods.dart';
@@ -217,6 +218,21 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
                 serverCubit: context.read<ServerCubit>(),
                 livekitCubit: context.read<LiveKitCubit>(),
               ),
+            ),
+            BlocProvider(
+              // Not lazy: must exist at startup to receive vault/server change
+              // callbacks for cloud auto-backup.
+              lazy: false,
+              create: (context) {
+                final backupCubit = SupabaseBackupCubit(
+                  vaultCubit: widget.vaultCubit,
+                );
+                widget.vaultCubit.setOnVaultChanged(backupCubit.autoBackup);
+                context.read<ServerCubit>().setOnServersChanged(
+                  backupCubit.autoBackup,
+                );
+                return backupCubit;
+              },
             ),
           ],
           child: Sizer(

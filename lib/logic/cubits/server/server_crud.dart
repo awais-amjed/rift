@@ -1,6 +1,8 @@
 part of 'server_cubit.dart';
 
 mixin _ServerCrudMixin on Cubit<ServerState> {
+  void Function()? get _onServersChanged;
+
   // ──────────────────────────────────────────────────────────
   // CRUD
   // ──────────────────────────────────────────────────────────
@@ -13,6 +15,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     final newServer = Server.fromJoin(supabaseUrl, token, serverDetails);
     final updated = [...state.servers, newServer];
     emit(state.copyWith(servers: updated, selectedServerId: newServer.id));
+    _onServersChanged?.call();
     return newServer;
   }
 
@@ -24,6 +27,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     final newServer = Server.fromCreate(supabaseUrl, serverData, token);
     final updated = [...state.servers, newServer];
     emit(state.copyWith(servers: updated, selectedServerId: newServer.id));
+    _onServersChanged?.call();
     return newServer;
   }
 
@@ -40,6 +44,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
         clearSelectedServerId: newSelectedId == null,
       ),
     );
+    _onServersChanged?.call();
   }
 }
 
