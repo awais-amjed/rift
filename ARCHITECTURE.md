@@ -85,16 +85,15 @@ Fix: drop the constraint so each device holds its own token row. LiveKit identit
 
 ## 3. Central account & cloud backup
 
-### Current — [Implemented]
-Optional email+password Supabase account. The backup blob is uploaded to a private storage bucket
-(`backups/{user_id}/vault.json`, RLS-guarded). Upload/import are manual actions in settings; import
-prompts for the vault password.
+### Option B split-key, one password — [Implemented]
+Optional email+password Supabase account; the backup blob lives in a private storage bucket
+(`backups/{user_id}/vault.json`, RLS-guarded). Default onboarding is the central-account flow;
+the local-only flow remains as the **privacy option** (no central-server contact at all, manual
+vault password, offline backup-file export/restore in settings).
 
-### Target — [Planned: Option B split-key, one password]
-Default onboarding becomes the central-account flow; the local-only flow remains as the
-**privacy option** (no central-server contact at all).
-
-One password typed by the user; two independent keys derived client-side:
+One password typed by the user; two independent keys derived client-side
+(`CryptoRepository.deriveAccountKeys` — Argon2id stretched with SHA-256(email) as salt, then
+HMAC-split into `account:auth:v1` / `account:vault:v1` contexts):
 
 ```
 password ──KDF(context: "auth")──►  auth verifier  → sent to Supabase as the login password
