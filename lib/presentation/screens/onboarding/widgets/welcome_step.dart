@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
-import '../../../theme/custom_colors.dart';
 
 /// First step of onboarding — welcome & app overview.
 class WelcomeStep extends StatelessWidget {
@@ -30,13 +29,13 @@ class WelcomeStep extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: CustomColors.primary.withValues(alpha: 0.1),
+              color: theme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(24),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.headset_mic_rounded,
               size: 40,
-              color: CustomColors.primary,
+              color: theme.primary,
             ),
           ),
 
@@ -61,7 +60,7 @@ class WelcomeStep extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: CustomColors.primary,
+              color: theme.primary,
             ),
           ),
 
@@ -157,7 +156,7 @@ class _FeaturePillRow extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: CustomColors.primary),
+          Icon(icon, size: 14, color: theme.primary),
           const SizedBox(width: 6),
           Text(
             label,

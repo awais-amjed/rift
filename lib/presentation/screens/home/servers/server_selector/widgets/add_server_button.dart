@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../theme/custom_colors.dart';
 
 /// Button to add a new server.
 class AddServerButton extends StatelessWidget {
@@ -29,14 +28,14 @@ class AddServerButton extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.add, size: 18, color: CustomColors.primary),
+                  Icon(Icons.add, size: 18, color: themeState.primary),
                   const SizedBox(width: 8),
                   Text(
                     'Add Server',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: CustomColors.primary,
+                      color: themeState.primary,
                     ),
                   ),
                 ],

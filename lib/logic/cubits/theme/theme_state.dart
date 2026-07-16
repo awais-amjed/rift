@@ -4,73 +4,71 @@ part of 'theme_cubit.dart';
 class ThemeState {
   final ThemeMode themeMode;
 
-  ThemeState({this.themeMode = ThemeMode.dark});
+  /// Id of the active [AppPalette]. Unknown ids fall back to indigo.
+  @JsonKey(defaultValue: 'indigo')
+  final String paletteId;
 
-  ThemeState copyWith({ThemeMode? themeMode}) {
-    return ThemeState(themeMode: themeMode ?? this.themeMode);
+  ThemeState({this.themeMode = ThemeMode.dark, this.paletteId = 'indigo'});
+
+  ThemeState copyWith({ThemeMode? themeMode, String? paletteId}) {
+    return ThemeState(
+      themeMode: themeMode ?? this.themeMode,
+      paletteId: paletteId ?? this.paletteId,
+    );
   }
 
   bool get isLightTheme => themeMode == ThemeMode.light;
 
   bool get isDarkTheme => themeMode == ThemeMode.dark;
 
-  // ── Commonly used colors ──────────────────────────────────────
+  AppPalette get palette => AppPalette.byId(paletteId);
+
+  /// The active palette's colors for the current brightness.
+  PaletteColors get colors => isDarkTheme ? palette.dark : palette.light;
+
+  // ── Semantic color getters — the only color source for widgets ───
+
+  // Accent
+  Color get primary => colors.primary;
+
+  Color get onPrimary => colors.onPrimary;
+
+  Color get gradientPartner => colors.gradientPartner;
 
   // Backgrounds
-  Color get bgPrimary =>
-      isDarkTheme ? CustomColors.bgPrimaryDark : CustomColors.bgPrimaryLight;
+  Color get bgPrimary => colors.bgPrimary;
 
-  Color get bgSecondary => isDarkTheme
-      ? CustomColors.bgSecondaryDark
-      : CustomColors.bgSecondaryLight;
+  Color get bgSecondary => colors.bgSecondary;
 
-  Color get bgTertiary =>
-      isDarkTheme ? CustomColors.bgTertiaryDark : CustomColors.bgTertiaryLight;
+  Color get bgTertiary => colors.bgTertiary;
 
-  Color get bgHover =>
-      isDarkTheme ? CustomColors.bgHoverDark : CustomColors.bgHoverLight;
+  Color get bgHover => colors.bgHover;
 
-  Color get bgActive =>
-      isDarkTheme ? CustomColors.bgActiveDark : CustomColors.bgActiveLight;
+  Color get bgActive => colors.bgActive;
+
+  Color get bgElevated => colors.bgElevated;
 
   // Text colors
-  Color get textPrimary => isDarkTheme
-      ? CustomColors.textPrimaryDark
-      : CustomColors.textPrimaryLight;
+  Color get textPrimary => colors.textPrimary;
 
-  Color get textSecondary => isDarkTheme
-      ? CustomColors.textSecondaryDark
-      : CustomColors.textSecondaryLight;
+  Color get textSecondary => colors.textSecondary;
 
-  Color get textTertiary => isDarkTheme
-      ? CustomColors.textTertiaryDark
-      : CustomColors.textTertiaryLight;
+  Color get textTertiary => colors.textTertiary;
 
-  Color get textQuaternary => isDarkTheme
-      ? CustomColors.textQuaternaryDark
-      : CustomColors.textQuaternaryLight;
+  Color get textQuaternary => colors.textQuaternary;
 
   // Borders
-  Color get borderPrimary => isDarkTheme
-      ? CustomColors.borderPrimaryDark
-      : CustomColors.borderPrimaryLight;
+  Color get borderPrimary => colors.border;
 
   // Channel active colors
-  Color get channelActiveBg => isDarkTheme
-      ? CustomColors.channelActiveBgDark
-      : CustomColors.channelActiveBgLight;
+  Color get channelActiveBg => colors.channelActiveBg;
 
-  Color get channelActiveText => isDarkTheme
-      ? CustomColors.channelActiveTextDark
-      : CustomColors.channelActiveTextLight;
+  Color get channelActiveText => colors.channelActiveText;
 
-  Color get channelActiveBorder => isDarkTheme
-      ? CustomColors.channelActiveBorderDark
-      : CustomColors.channelActiveBorderLight;
+  Color get channelActiveBorder => colors.channelActiveBorder;
 
   // Sidebar
-  Color get sidebarBg =>
-      isDarkTheme ? CustomColors.sidebarBgDark : CustomColors.sidebarBgLight;
+  Color get sidebarBg => colors.sidebarBg;
 
   factory ThemeState.fromJson(Map<String, dynamic> json) =>
       _$ThemeStateFromJson(json);

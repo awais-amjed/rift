@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../theme/custom_colors.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 
 class PermissionToggle extends StatelessWidget {
@@ -46,7 +45,7 @@ class PermissionToggle extends StatelessWidget {
                   height: 30,
                   decoration: BoxDecoration(
                     color: value
-                        ? CustomColors.primary.withValues(alpha: 0.12)
+                        ? themeState.primary.withValues(alpha: 0.12)
                         : themeState.bgTertiary,
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -54,7 +53,7 @@ class PermissionToggle extends StatelessWidget {
                     icon,
                     size: 15,
                     color: value
-                        ? CustomColors.primary
+                        ? themeState.primary
                         : themeState.textTertiary,
                   ),
                 ),
@@ -84,8 +83,8 @@ class PermissionToggle extends StatelessWidget {
                 Switch(
                   value: value,
                   onChanged: onChanged,
-                  activeThumbColor: CustomColors.primary,
-                  activeTrackColor: CustomColors.primary.withValues(alpha: 0.4),
+                  activeThumbColor: themeState.primary,
+                  activeTrackColor: themeState.primary.withValues(alpha: 0.4),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ],

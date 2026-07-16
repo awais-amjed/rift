@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/custom_colors.dart';
 import 'toggle_pill.dart';
 
 /// Audio sharing toggle widget
@@ -27,12 +26,12 @@ class AudioToggle extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: shareAudio
-                  ? CustomColors.primary.withValues(alpha: 0.08)
+                  ? themeState.primary.withValues(alpha: 0.08)
                   : themeState.bgTertiary,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: shareAudio
-                    ? CustomColors.primary.withValues(alpha: 0.35)
+                    ? themeState.primary.withValues(alpha: 0.35)
                     : themeState.borderPrimary,
               ),
             ),
@@ -42,7 +41,7 @@ class AudioToggle extends StatelessWidget {
                   shareAudio ? Icons.volume_up : Icons.volume_off,
                   size: 17,
                   color: shareAudio
-                      ? CustomColors.primary
+                      ? themeState.primary
                       : themeState.textQuaternary,
                 ),
                 const SizedBox(width: 12),

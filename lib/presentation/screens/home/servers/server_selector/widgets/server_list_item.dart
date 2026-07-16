@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../../data/classes/server.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_modal.dart';
-import '../../../../../theme/custom_colors.dart';
 import 'remove_server_dialog.dart';
 import 'server_avatar.dart';
 
@@ -82,17 +81,17 @@ class ServerListItem extends StatelessWidget {
                   if (isSelected) ...[
                     Text(
                       'Active',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: CustomColors.primary,
+                        color: themeState.primary,
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(
+                    Icon(
                       Icons.check,
                       size: 16,
-                      color: CustomColors.primary,
+                      color: themeState.primary,
                     ),
                   ],
                   // Delete

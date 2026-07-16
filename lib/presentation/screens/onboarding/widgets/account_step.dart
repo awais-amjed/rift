@@ -108,7 +108,7 @@ class _AuthViewState extends State<_AuthView> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: CustomColors.primary.withValues(alpha: 0.1),
+                color: theme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -116,7 +116,7 @@ class _AuthViewState extends State<_AuthView> {
                     ? Icons.person_add_rounded
                     : Icons.cloud_sync_rounded,
                 size: 32,
-                color: CustomColors.primary,
+                color: theme.primary,
               ),
             ),
 
@@ -282,9 +282,9 @@ class _AuthViewState extends State<_AuthView> {
                       _isSignUp
                           ? 'Already have an account? Sign in'
                           : 'New here? Create an account',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: CustomColors.primary,
+                        color: theme.primary,
                       ),
                     ),
                   ),
@@ -320,13 +320,13 @@ class _EmailConfirmationView extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: CustomColors.primary.withValues(alpha: 0.1),
+              color: theme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.mark_email_unread_rounded,
               size: 32,
-              color: CustomColors.primary,
+              color: theme.primary,
             ),
           ),
           const SizedBox(height: 24),
@@ -415,13 +415,13 @@ class _VaultPasswordViewState extends State<_VaultPasswordView> {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: CustomColors.primary.withValues(alpha: 0.1),
+              color: theme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.lock_open_rounded,
               size: 32,
-              color: CustomColors.primary,
+              color: theme.primary,
             ),
           ),
           const SizedBox(height: 24),

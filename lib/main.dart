@@ -242,8 +242,8 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
                   return PushToTalkListener(
                     child: MaterialApp.router(
                       routerConfig: _router,
-                      darkTheme: AppTheme.darkTheme,
-                      theme: AppTheme.lightTheme,
+                      darkTheme: AppTheme.dark(themeState.palette),
+                      theme: AppTheme.light(themeState.palette),
                       themeMode: themeState.themeMode,
                       builder: EasyLoading.init(
                         builder: (context, child) =>

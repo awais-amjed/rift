@@ -74,13 +74,13 @@ class _PasswordStepState extends State<PasswordStep> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: CustomColors.primary.withValues(alpha: 0.1),
+                  color: theme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.person_add_rounded,
                   size: 32,
-                  color: CustomColors.primary,
+                  color: theme.primary,
                 ),
               ),
 
@@ -248,11 +248,11 @@ class _PasswordStepState extends State<PasswordStep> {
                                   child: const RestoreFileDialog(),
                                 ),
                               ),
-                      child: const Text(
+                      child: Text(
                         'Have a backup file? Restore it instead',
                         style: TextStyle(
                           fontSize: 12,
-                          color: CustomColors.primary,
+                          color: theme.primary,
                         ),
                       ),
                     ),

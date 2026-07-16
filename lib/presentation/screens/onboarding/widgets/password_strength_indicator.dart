@@ -95,7 +95,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
     return switch (level) {
       1 => _PasswordStrength(1, 'Weak', CustomColors.error),
       2 => _PasswordStrength(2, 'Fair', CustomColors.warning),
-      3 => _PasswordStrength(3, 'Strong', CustomColors.primary),
+      3 => _PasswordStrength(3, 'Strong', const Color(0xFF4ADE80)),
       _ => _PasswordStrength(4, 'Very strong', CustomColors.success),
     };
   }

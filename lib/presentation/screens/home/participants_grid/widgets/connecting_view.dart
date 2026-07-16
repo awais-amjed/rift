@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/custom_colors.dart';
 
 /// Connecting view shown while establishing LiveKit connection.
 class ConnectingView extends StatelessWidget {
@@ -18,12 +17,12 @@ class ConnectingView extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 64,
                   height: 64,
                   child: CircularProgressIndicator(
                     strokeWidth: 4,
-                    color: CustomColors.primary,
+                    color: themeState.primary,
                   ),
                 ),
                 const SizedBox(height: 24),

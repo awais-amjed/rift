@@ -16,9 +16,7 @@ class ConnectionQualityPopup extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final bgColor = themeState.isDarkTheme
-            ? const Color(0xFF1E1E21)
-            : CustomColors.bgSecondaryLight;
+        final bgColor = themeState.bgElevated;
         final borderColor = themeState.borderPrimary;
 
         return BlocBuilder<VoiceStatsCubit, VoiceStatsState>(

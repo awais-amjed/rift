@@ -34,7 +34,7 @@ class ParticipantListItem extends StatelessWidget {
 
         Widget content = Material(
           color: isSpeaking
-              ? CustomColors.primary.withValues(alpha: 0.08)
+              ? themeState.primary.withValues(alpha: 0.08)
               : null,
           borderRadius: BorderRadius.circular(8),
           child: InkWell(
@@ -49,12 +49,12 @@ class ParticipantListItem extends StatelessWidget {
                     width: 20,
                     height: 20,
                     decoration: BoxDecoration(
-                      color: isSpeaking ? CustomColors.primary : bgTertiary,
+                      color: isSpeaking ? themeState.primary : bgTertiary,
                       shape: BoxShape.circle,
                       boxShadow: isSpeaking
                           ? [
                               BoxShadow(
-                                color: CustomColors.primary.withValues(
+                                color: themeState.primary.withValues(
                                   alpha: 0.3,
                                 ),
                                 blurRadius: 6,
@@ -86,7 +86,7 @@ class ParticipantListItem extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: isSpeaking
-                            ? CustomColors.primary
+                            ? themeState.primary
                             : isMuted
                             ? textQuaternary
                             : textSecondary,

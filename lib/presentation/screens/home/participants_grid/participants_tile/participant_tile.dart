@@ -7,7 +7,6 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
-import '../../../../theme/custom_colors.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
@@ -300,18 +299,16 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: themeState.isDarkTheme
-            ? CustomColors.bgSecondaryDark
-            : CustomColors.bgTertiaryLight,
+        color: themeState.isDarkTheme ? themeState.bgSecondary : themeState.bgTertiary,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isSpeaking ? CustomColors.primary : themeState.borderPrimary,
+          color: isSpeaking ? themeState.primary : themeState.borderPrimary,
           width: isSpeaking ? 2 : 1,
         ),
         boxShadow: isSpeaking
             ? [
                 BoxShadow(
-                  color: CustomColors.primary.withValues(alpha: 0.3),
+                  color: themeState.primary.withValues(alpha: 0.3),
                   blurRadius: 12,
                   spreadRadius: 2,
                 ),

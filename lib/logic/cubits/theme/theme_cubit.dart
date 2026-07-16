@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
-import '../../../presentation/theme/custom_colors.dart';
+import '../../../presentation/theme/app_palette.dart';
 
 part 'theme_cubit.g.dart';
 
@@ -13,6 +13,10 @@ class ThemeCubit extends HydratedCubit<ThemeState> {
 
   void setTheme(ThemeMode themeMode) {
     emit(state.copyWith(themeMode: themeMode));
+  }
+
+  void setPalette(String paletteId) {
+    emit(state.copyWith(paletteId: paletteId));
   }
 
   void switchTheme() {

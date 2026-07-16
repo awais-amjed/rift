@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../theme/custom_colors.dart';
 
 /// Widget for choosing between joining or creating a server.
 class ServerModePicker extends StatelessWidget {
@@ -80,7 +79,7 @@ class _ModeCard extends StatelessWidget {
                       color: themeState.bgSecondary,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(icon, size: 22, color: CustomColors.primary),
+                    child: Icon(icon, size: 22, color: themeState.primary),
                   ),
                   const SizedBox(width: 16),
                   Expanded(

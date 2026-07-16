@@ -27,9 +27,7 @@ class ParticipantNameBadge extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color:
-                (themeState.isDarkTheme
-                        ? CustomColors.bgTertiaryDark
-                        : CustomColors.bgSecondaryLight)
+                (themeState.isDarkTheme ? themeState.bgTertiary : themeState.bgSecondary)
                     .withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: themeState.borderPrimary),
@@ -38,7 +36,7 @@ class ParticipantNameBadge extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isScreenshare) ...[
-                Icon(Icons.monitor, size: 13, color: CustomColors.primary),
+                Icon(Icons.monitor, size: 13, color: themeState.primary),
                 const SizedBox(width: 6),
               ],
               Text(

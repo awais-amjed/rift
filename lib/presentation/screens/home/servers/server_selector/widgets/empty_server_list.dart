@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../theme/custom_colors.dart';
 
 /// Empty state widget shown when no servers exist.
 class EmptyServerList extends StatelessWidget {
@@ -51,7 +50,7 @@ class EmptyServerList extends StatelessWidget {
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add Your First Server'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: CustomColors.primary,
+                backgroundColor: themeState.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,

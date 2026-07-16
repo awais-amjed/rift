@@ -165,9 +165,9 @@ class _AuthPanelState extends State<_AuthPanel> {
                   : () => setState(() => _isSignUp = !_isSignUp),
               child: Text(
                 _isSignUp ? 'Already have an account?' : 'Create an account',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: CustomColors.primary,
+                  color: theme.primary,
                 ),
               ),
             ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
-import '../theme/custom_colors.dart';
 
 /// Themed text field used throughout the app.
 class AppTextField extends StatelessWidget {
@@ -33,7 +32,7 @@ class AppTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.read<ThemeCubit>().state;
     final borderColor = themeState.borderPrimary;
-    final focusColor = CustomColors.primary;
+    final focusColor = themeState.primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

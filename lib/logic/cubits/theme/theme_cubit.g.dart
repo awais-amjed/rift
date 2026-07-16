@@ -10,10 +10,14 @@ ThemeState _$ThemeStateFromJson(Map<String, dynamic> json) => ThemeState(
   themeMode:
       $enumDecodeNullable(_$ThemeModeEnumMap, json['themeMode']) ??
       ThemeMode.dark,
+  paletteId: json['paletteId'] as String? ?? 'indigo',
 );
 
 Map<String, dynamic> _$ThemeStateToJson(ThemeState instance) =>
-    <String, dynamic>{'themeMode': _$ThemeModeEnumMap[instance.themeMode]!};
+    <String, dynamic>{
+      'themeMode': _$ThemeModeEnumMap[instance.themeMode]!,
+      'paletteId': instance.paletteId,
+    };
 
 const _$ThemeModeEnumMap = {
   ThemeMode.system: 'system',

@@ -106,13 +106,13 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: CustomColors.primary.withValues(alpha: 0.1),
+                          color: themeState.primary.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.person_outline,
                           size: 20,
-                          color: CustomColors.primary,
+                          color: themeState.primary,
                         ),
                       ),
                       const SizedBox(width: 12),

@@ -24,9 +24,7 @@ class ParticipantContextMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final bgColor = themeState.isDarkTheme
-            ? const Color(0xFF1E1E21)
-            : CustomColors.bgSecondaryLight;
+        final bgColor = themeState.bgElevated;
         final borderColor = themeState.borderPrimary;
         final textPrimary = themeState.textPrimary;
         final textSecondary = themeState.textSecondary;
@@ -168,9 +166,9 @@ class ParticipantContextMenu extends StatelessWidget {
                                   overlayShape: const RoundSliderOverlayShape(
                                     overlayRadius: 12,
                                   ),
-                                  activeTrackColor: CustomColors.primary,
+                                  activeTrackColor: themeState.primary,
                                   inactiveTrackColor: themeState.bgActive,
-                                  thumbColor: CustomColors.primary,
+                                  thumbColor: themeState.primary,
                                 ),
                                 child: Slider(
                                   value: isMuted ? 0 : volume,

@@ -6,7 +6,6 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_text_field.dart';
 import '../../../../../common/message_banner.dart';
-import '../../../../../theme/custom_colors.dart';
 
 /// Sign-up / sign-in form shown when the user is not yet authenticated.
 ///
@@ -61,13 +60,13 @@ class _AuthViewState extends State<AuthView> {
           width: 64,
           height: 64,
           decoration: BoxDecoration(
-            color: CustomColors.primary.withValues(alpha: 0.1),
+            color: theme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.cloud_upload_rounded,
             size: 32,
-            color: CustomColors.primary,
+            color: theme.primary,
           ),
         ),
 
@@ -139,7 +138,7 @@ class _AuthViewState extends State<AuthView> {
             _isSignUp
                 ? 'Already have an account? Sign in'
                 : "Don't have an account? Sign up",
-            style: const TextStyle(fontSize: 13, color: CustomColors.primary),
+            style: TextStyle(fontSize: 13, color: theme.primary),
           ),
         ),
       ],
@@ -165,13 +164,13 @@ class _EmailConfirmationView extends StatelessWidget {
           width: 64,
           height: 64,
           decoration: BoxDecoration(
-            color: CustomColors.primary.withValues(alpha: 0.1),
+            color: theme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.mark_email_unread_rounded,
             size: 32,
-            color: CustomColors.primary,
+            color: theme.primary,
           ),
         ),
 

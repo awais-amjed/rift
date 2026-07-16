@@ -5,7 +5,6 @@ import '../../../../../../../data/classes/channel.dart';
 import '../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../theme/custom_colors.dart';
 import '../../../sidebar/widgets/participant_context_menu.dart';
 import '../../../sidebar/widgets/participant_list_item.dart';
 
@@ -34,7 +33,7 @@ class VoiceChannelTile extends StatelessWidget {
         if (isSelected) {
           bgColor = themeState.channelActiveBg;
           textColor = themeState.channelActiveText;
-          iconColor = CustomColors.primary;
+          iconColor = themeState.primary;
           borderSide = BorderSide(color: themeState.channelActiveBorder);
         } else {
           bgColor = Colors.transparent;
@@ -103,17 +102,17 @@ class VoiceChannelTile extends StatelessWidget {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: CustomColors.primary.withValues(
+                                    color: themeState.primary.withValues(
                                       alpha: 0.15,
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     '$count',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: CustomColors.primary,
+                                      color: themeState.primary,
                                     ),
                                   ),
                                 ),
@@ -121,8 +120,8 @@ class VoiceChannelTile extends StatelessWidget {
                                 Container(
                                   width: 8,
                                   height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: CustomColors.primary,
+                                  decoration: BoxDecoration(
+                                    color: themeState.primary,
                                     shape: BoxShape.circle,
                                   ),
                                 ),

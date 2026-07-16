@@ -150,9 +150,7 @@ class _ControlBarContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final bgColor = themeState.isDarkTheme
-            ? const Color(0xFF1E1E21)
-            : CustomColors.bgSecondaryLight;
+        final bgColor = themeState.bgElevated;
 
         return Container(
           padding: const EdgeInsets.all(10),
@@ -275,8 +273,8 @@ class _ControlButton extends StatelessWidget {
         Color iconColor;
 
         if (isActive) {
-          bgColor = CustomColors.primary.withValues(alpha: 0.15);
-          iconColor = CustomColors.primary;
+          bgColor = themeState.primary.withValues(alpha: 0.15);
+          iconColor = themeState.primary;
         } else if (isError) {
           bgColor = CustomColors.error.withValues(alpha: 0.1);
           iconColor = CustomColors.error;

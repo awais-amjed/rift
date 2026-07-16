@@ -14,7 +14,6 @@ import '../../../../../src/rust/api/screenshare/audio_linux.dart';
 import '../../../../../src/rust/api/screenshare/capture.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../common/app_button.dart';
-import '../../../theme/custom_colors.dart';
 import 'sections/audio_source_section.dart';
 import 'widgets/audio_toggle.dart';
 import 'sections/bitrate_section.dart';
@@ -215,9 +214,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final bgColor = themeState.isDarkTheme
-            ? const Color(0xFF1E1E21)
-            : CustomColors.bgSecondaryLight;
+        final bgColor = themeState.bgElevated;
 
         return Dialog(
           backgroundColor: bgColor,

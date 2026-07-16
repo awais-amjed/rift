@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/custom_colors.dart';
 
 /// Header section for the screen share settings dialog
 class SettingsDialogHeader extends StatelessWidget {
@@ -19,13 +18,13 @@ class SettingsDialogHeader extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: CustomColors.primary.withValues(alpha: 0.12),
+                color: themeState.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.monitor,
                 size: 18,
-                color: CustomColors.primary,
+                color: themeState.primary,
               ),
             ),
             const SizedBox(width: 10),

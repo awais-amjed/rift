@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/custom_colors.dart';
 
 /// Avatar placeholder shown when participant has no video
 class AvatarPlaceholder extends StatelessWidget {
@@ -24,9 +23,7 @@ class AvatarPlaceholder extends StatelessWidget {
             width: 112,
             height: 112,
             decoration: BoxDecoration(
-              color: isDark
-                  ? CustomColors.bgTertiaryDark
-                  : CustomColors.bgActiveLight,
+              color: isDark ? themeState.bgTertiary : themeState.bgActive,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: themeState.borderPrimary),
             ),

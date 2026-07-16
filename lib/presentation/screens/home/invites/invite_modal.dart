@@ -126,15 +126,15 @@ class _InviteModalState extends State<InviteModal> {
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: CustomColors.primary.withValues(
+                              color: themeState.primary.withValues(
                                 alpha: 0.1,
                               ),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.person_add_outlined,
                               size: 18,
-                              color: CustomColors.primary,
+                              color: themeState.primary,
                             ),
                           ),
                           const SizedBox(width: 12),

@@ -209,7 +209,7 @@ class _TypeButton extends StatelessWidget {
               duration: const Duration(milliseconds: 120),
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: selected ? CustomColors.primary : themeState.bgTertiary,
+                color: selected ? themeState.primary : themeState.bgTertiary,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(

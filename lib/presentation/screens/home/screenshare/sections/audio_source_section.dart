@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../src/rust/api/screenshare/audio_linux.dart';
-import '../../../../theme/custom_colors.dart';
 import '../widgets/settings_section.dart';
 
 /// Section for selecting Linux audio source for screen sharing
@@ -96,9 +95,7 @@ class AudioSourceSection extends StatelessWidget {
                       Icons.arrow_drop_down,
                       color: themeState.textSecondary,
                     ),
-                    dropdownColor: themeState.isDarkTheme
-                        ? const Color(0xFF2A2A2E)
-                        : CustomColors.bgSecondaryLight,
+                    dropdownColor: themeState.bgElevated,
                     borderRadius: BorderRadius.circular(8),
                     hint: Text(
                       'Select audio source',

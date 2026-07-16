@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/custom_colors.dart';
 
 /// A toggle pill widget for on/off settings
 class TogglePill extends StatelessWidget {
@@ -19,7 +18,7 @@ class TogglePill extends StatelessWidget {
           width: 40,
           height: 22,
           decoration: BoxDecoration(
-            color: active ? CustomColors.primary : themeState.bgActive,
+            color: active ? themeState.primary : themeState.bgActive,
             borderRadius: BorderRadius.circular(11),
           ),
           child: AnimatedAlign(

@@ -1,100 +1,68 @@
 import 'package:flutter/material.dart';
 
+import 'app_palette.dart';
 import 'custom_colors.dart';
 
 class AppTheme {
-  static final ThemeData darkTheme = ThemeData(
-    brightness: Brightness.dark,
-    useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: CustomColors.primary,
-      brightness: Brightness.dark,
-      primary: CustomColors.primary,
-      onPrimary: Colors.white,
-      surface: CustomColors.bgSecondaryDark,
-      onSurface: CustomColors.textPrimaryDark,
-      surfaceContainerHighest: CustomColors.bgTertiaryDark,
-      error: CustomColors.error,
-    ),
-    scaffoldBackgroundColor: CustomColors.bgSecondaryDark,
-    cardColor: CustomColors.bgSecondaryDark,
-    dividerColor: CustomColors.borderPrimaryDark,
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: CustomColors.bgTertiaryDark,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: CustomColors.borderPrimaryDark),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: CustomColors.borderPrimaryDark),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: CustomColors.primary, width: 1.5),
-      ),
-      labelStyle: TextStyle(color: CustomColors.textTertiaryDark, fontSize: 12),
-      hintStyle: TextStyle(color: CustomColors.textQuaternaryDark),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    ),
-    textTheme: const TextTheme(
-      bodyMedium: TextStyle(color: CustomColors.textSecondaryDark),
-      bodySmall: TextStyle(color: CustomColors.textTertiaryDark),
-      titleMedium: TextStyle(
-        color: CustomColors.textPrimaryDark,
-        fontWeight: FontWeight.w600,
-      ),
-      labelSmall: TextStyle(color: CustomColors.textQuaternaryDark),
-    ),
-  );
+  /// Builds the Material [ThemeData] for one brightness of a palette.
+  /// Widgets read colors from `ThemeState` getters; this only feeds the
+  /// framework-level defaults (inputs, scaffold, dividers, text).
+  static ThemeData fromPalette(AppPalette palette, Brightness brightness) {
+    final colors =
+        brightness == Brightness.dark ? palette.dark : palette.light;
 
-  static final ThemeData lightTheme = ThemeData(
-    brightness: Brightness.light,
-    useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: CustomColors.primary,
-      brightness: Brightness.light,
-      primary: CustomColors.primary,
-      onPrimary: Colors.white,
-      surface: CustomColors.bgSecondaryLight,
-      onSurface: CustomColors.textPrimaryLight,
-      surfaceContainerHighest: CustomColors.bgTertiaryLight,
-      error: CustomColors.error,
-    ),
-    scaffoldBackgroundColor: CustomColors.bgPrimaryLight,
-    cardColor: CustomColors.bgSecondaryLight,
-    dividerColor: CustomColors.borderPrimaryLight,
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: CustomColors.bgTertiaryLight,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: CustomColors.borderPrimaryLight),
+    return ThemeData(
+      brightness: brightness,
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: colors.primary,
+        brightness: brightness,
+        primary: colors.primary,
+        onPrimary: colors.onPrimary,
+        surface: colors.bgSecondary,
+        onSurface: colors.textPrimary,
+        surfaceContainerHighest: colors.bgTertiary,
+        error: CustomColors.error,
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: CustomColors.borderPrimaryLight),
+      scaffoldBackgroundColor:
+          brightness == Brightness.dark ? colors.bgSecondary : colors.bgPrimary,
+      cardColor: colors.bgSecondary,
+      dividerColor: colors.border,
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: colors.bgTertiary,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: colors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: colors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: colors.primary, width: 1.5),
+        ),
+        labelStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
+        hintStyle: TextStyle(color: colors.textQuaternary),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: CustomColors.primary, width: 1.5),
+      textTheme: TextTheme(
+        bodyMedium: TextStyle(color: colors.textSecondary),
+        bodySmall: TextStyle(color: colors.textTertiary),
+        titleMedium: TextStyle(
+          color: colors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+        labelSmall: TextStyle(color: colors.textQuaternary),
       ),
-      labelStyle: TextStyle(
-        color: CustomColors.textTertiaryLight,
-        fontSize: 12,
-      ),
-      hintStyle: TextStyle(color: CustomColors.textQuaternaryLight),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    ),
-    textTheme: const TextTheme(
-      bodyMedium: TextStyle(color: CustomColors.textSecondaryLight),
-      bodySmall: TextStyle(color: CustomColors.textTertiaryLight),
-      titleMedium: TextStyle(
-        color: CustomColors.textPrimaryLight,
-        fontWeight: FontWeight.w600,
-      ),
-      labelSmall: TextStyle(color: CustomColors.textQuaternaryLight),
-    ),
-  );
+    );
+  }
+
+  static ThemeData dark(AppPalette palette) =>
+      fromPalette(palette, Brightness.dark);
+
+  static ThemeData light(AppPalette palette) =>
+      fromPalette(palette, Brightness.light);
 }
