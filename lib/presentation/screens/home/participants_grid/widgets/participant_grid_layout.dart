@@ -21,6 +21,16 @@ class ParticipantGridLayout extends StatefulWidget {
 class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   String? _expandedParticipantIdentity;
 
+  Widget _buildTile(Participant p) {
+    final setting = widget.participantSettings[p.identity];
+    final isMuted = (setting as dynamic)?.muted ?? false;
+    return ParticipantTileWidget(
+      participant: p,
+      isMuted: isMuted,
+      onTap: () => _onTileTapped(p.identity),
+    );
+  }
+
   void _onTileTapped(String identity) {
     setState(() {
       if (_expandedParticipantIdentity == identity) {
@@ -58,6 +68,48 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
         isMuted: isMuted,
         onTap: () => _onTileTapped(expandedParticipant.identity),
         isExpanded: true,
+      );
+    }
+
+    // Screenshares get a hero layout: the share fills most of the width and
+    // camera tiles collapse into a scrollable rail on the right.
+    final shares = widget.participants
+        .where((p) => p.identity.endsWith('_screenshare'))
+        .toList();
+    if (shares.isNotEmpty && widget.participants.length > shares.length) {
+      final cameras = widget.participants
+          .where((p) => !p.identity.endsWith('_screenshare'))
+          .toList();
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 4,
+              child: Column(
+                children: [
+                  for (var i = 0; i < shares.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 8),
+                    Expanded(child: _buildTile(shares[i])),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 1,
+              child: ListView.separated(
+                itemCount: cameras.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) => AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _buildTile(cameras[index]),
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
 

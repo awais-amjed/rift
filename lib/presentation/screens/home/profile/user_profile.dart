@@ -7,6 +7,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../routing/app_routes.dart';
 import '../../../theme/custom_colors.dart';
+import 'connection_quality/connection_quality_indicator.dart';
 
 /// Bottom area of the sidebar showing the current user info + theme toggle.
 class UserProfile extends StatelessWidget {
@@ -89,31 +90,46 @@ class UserProfile extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(width: 10),
-                              // Name
+                              // Name + subtitle (username, or live
+                              // connection quality while in voice)
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      displayName,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: themeState.textPrimary,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    if (username != null)
-                                      Text(
-                                        '@$username',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: textTertiary,
-                                          overflow: TextOverflow.ellipsis,
+                                child: BlocBuilder<LiveKitCubit, LiveKitState>(
+                                  buildWhen: (prev, curr) =>
+                                      prev.connectionState !=
+                                      curr.connectionState,
+                                  builder: (context, lkState) {
+                                    final inVoice =
+                                        lkState.connectionState ==
+                                        LiveKitConnectionState.connected;
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          displayName,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: themeState.textPrimary,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
-                                      ),
-                                  ],
+                                        if (inVoice)
+                                          const ConnectionQualityIndicator()
+                                        else if (username != null)
+                                          Text(
+                                            '@$username',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: textTertiary,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  },
                                 ),
                               ),
                             ],

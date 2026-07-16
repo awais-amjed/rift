@@ -95,7 +95,12 @@ class VoiceChannelTile extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              if (count > 0)
+                              if (!isSelected && presenceUsers.isNotEmpty)
+                                _PresenceAvatarStack(
+                                  users: presenceUsers,
+                                  themeState: themeState,
+                                )
+                              else if (count > 0)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 5,
@@ -163,32 +168,6 @@ class VoiceChannelTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                    // Presence users (when not in the channel, others are visible)
-                    if (!isSelected && presenceUsers.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16),
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 2, bottom: 4),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              left: BorderSide(
-                                color: themeState.borderPrimary,
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                          child: Column(
-                            children: presenceUsers
-                                .map(
-                                  (u) => _PresenceUserRow(
-                                    user: u,
-                                    themeState: themeState,
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                      ),
                   ],
                 );
               },
@@ -200,50 +179,73 @@ class VoiceChannelTile extends StatelessWidget {
   }
 }
 
-/// Compact row for a presence user (not yet in the channel via LiveKit).
-class _PresenceUserRow extends StatelessWidget {
-  final PresenceUser user;
+/// Overlapping mini-avatar stack showing who's in a channel you haven't
+/// joined — presence at a glance without spending a row per user.
+class _PresenceAvatarStack extends StatelessWidget {
+  static const _maxAvatars = 3;
+
+  final List<PresenceUser> users;
   final ThemeState themeState;
 
-  const _PresenceUserRow({required this.user, required this.themeState});
+  const _PresenceAvatarStack({required this.users, required this.themeState});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+    final visible = users.take(_maxAvatars).toList();
+    final overflow = users.length - visible.length;
+
+    return Tooltip(
+      message: users.map((u) => u.displayName).join(', '),
+      waitDuration: const Duration(milliseconds: 400),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 20,
+          SizedBox(
+            width: 20.0 + (visible.length - 1) * 13.0,
             height: 20,
-            decoration: BoxDecoration(
-              color: themeState.bgActive,
-              shape: BoxShape.circle,
+            child: Stack(
+              children: [
+                for (var i = 0; i < visible.length; i++)
+                  Positioned(
+                    left: i * 13.0,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: themeState.bgActive,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: themeState.bgSecondary,
+                          width: 1.5,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        visible[i].displayName.isNotEmpty
+                            ? visible[i].displayName[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          color: themeState.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            alignment: Alignment.center,
-            child: Text(
-              user.displayName.isNotEmpty
-                  ? user.displayName[0].toUpperCase()
-                  : '?',
+          ),
+          if (overflow > 0) ...[
+            const SizedBox(width: 4),
+            Text(
+              '+$overflow',
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color: themeState.textQuaternary,
+                color: themeState.textTertiary,
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              user.displayName,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: themeState.textSecondary,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
+          ],
         ],
       ),
     );

@@ -8,8 +8,9 @@ import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import 'connection_quality_popup.dart';
 
-/// Signal-strength indicator shown above the user profile when in a voice
-/// channel. Tapping it opens a popup with detailed voice connection stats.
+/// Compact signal-strength line rendered inside the user dock (under the
+/// display name) while in a voice channel. Tapping it opens a popup with
+/// detailed voice connection stats.
 class ConnectionQualityIndicator extends StatefulWidget {
   const ConnectionQualityIndicator({super.key});
 
@@ -105,69 +106,48 @@ class _ConnectionQualityIndicatorState
           builder: (context, themeState) {
             return BlocBuilder<VoiceStatsCubit, VoiceStatsState>(
               builder: (context, stats) {
-                if (stats.isAlone) {
-                  _dismiss();
-                  return const SizedBox.shrink();
-                }
+                if (stats.isAlone) _dismiss();
 
                 final color = _qualityColor(stats.quality);
+                final label = stats.isAlone
+                    ? 'Waiting for others…'
+                    : stats.rttMs != null
+                    ? '${stats.rttMs!.toStringAsFixed(0)} ms · ${_qualityLabel(stats.quality)}'
+                    : 'Connecting…';
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: themeState.bgTertiary,
-                    border: Border(
-                      top: BorderSide(color: themeState.borderPrimary),
-                    ),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-                  child: Material(
-                    key: _buttonKey,
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      hoverColor: themeState.bgHover,
-                      onTap: _toggle,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 5,
+                return Material(
+                  key: _buttonKey,
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    hoverColor: themeState.bgHover,
+                    onTap: stats.isAlone ? null : _toggle,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          stats.isAlone
+                              ? Icons.person_outline
+                              : _qualityIcon(stats.quality),
+                          size: 11,
+                          color: stats.isAlone
+                              ? themeState.textQuaternary
+                              : color,
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              stats.isAlone
-                                  ? Icons.person_outline
-                                  : _qualityIcon(stats.quality),
-                              size: 14,
-                              color: stats.isAlone
-                                  ? themeState.textQuaternary
-                                  : color,
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: themeState.textTertiary,
+                              fontWeight: FontWeight.w500,
                             ),
-                            const SizedBox(width: 7),
-                            Expanded(
-                              child: Text(
-                                stats.isAlone
-                                    ? 'Waiting for others…'
-                                    : stats.rttMs != null
-                                    ? '${stats.rttMs!.toStringAsFixed(0)} ms  ·  ${_qualityLabel(stats.quality)}'
-                                    : 'Voice · Connecting…',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: themeState.textTertiary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Icon(
-                              Icons.chevron_right,
-                              size: 13,
-                              color: themeState.textQuaternary,
-                            ),
-                          ],
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 );

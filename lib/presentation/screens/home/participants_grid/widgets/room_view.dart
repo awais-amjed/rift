@@ -4,6 +4,7 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../controls/context_strip.dart';
 import '../../controls/control_bar.dart';
 import 'participant_grid_layout.dart';
 import 'waiting_view.dart';
@@ -36,12 +37,20 @@ class _RoomViewState extends State<RoomView> {
               onPointerMove: (_) => _controlBarKey.currentState?.onActivity(),
               child: Stack(
                 children: [
-                  participants.isEmpty
-                      ? const WaitingView()
-                      : ParticipantGridLayout(
-                          participants: participants,
-                          participantSettings: appState.participantSettings,
-                        ),
+                  Column(
+                    children: [
+                      const ContextStrip(),
+                      Expanded(
+                        child: participants.isEmpty
+                            ? const WaitingView()
+                            : ParticipantGridLayout(
+                                participants: participants,
+                                participantSettings:
+                                    appState.participantSettings,
+                              ),
+                      ),
+                    ],
+                  ),
                   ControlBar(key: _controlBarKey),
                 ],
               ),
