@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../logic/cubits/theme/theme_cubit.dart';
 
 class PermissionToggle extends StatelessWidget {
   final IconData icon;

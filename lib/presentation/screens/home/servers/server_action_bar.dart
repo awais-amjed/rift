@@ -9,12 +9,14 @@ class ServerActionBar extends StatelessWidget {
   final UserPermissions permissions;
   final VoidCallback? onInvite;
   final VoidCallback? onCreateChannel;
+  final VoidCallback? onMembers;
 
   const ServerActionBar({
     super.key,
     required this.permissions,
     this.onInvite,
     this.onCreateChannel,
+    this.onMembers,
   });
 
   @override
@@ -27,8 +29,6 @@ class ServerActionBar extends StatelessWidget {
 
         final showInvite = permissions.canCreateTokens;
         final showCreateChannel = permissions.isChannelManager;
-
-        if (!showInvite && !showCreateChannel) return const SizedBox.shrink();
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -47,8 +47,19 @@ class ServerActionBar extends StatelessWidget {
                     onTap: onInvite,
                   ),
                 ),
-              if (showInvite && showCreateChannel) const SizedBox(width: 4),
-              if (showCreateChannel)
+              if (showInvite) const SizedBox(width: 4),
+              // Members list is visible to everyone, like Discord's sidebar.
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.group_outlined,
+                  label: 'Members',
+                  color: textTertiary,
+                  hoverColor: hoverColor,
+                  onTap: onMembers,
+                ),
+              ),
+              if (showCreateChannel) ...[
+                const SizedBox(width: 4),
                 Expanded(
                   child: _ActionButton(
                     icon: Icons.create_new_folder_outlined,
@@ -58,6 +69,7 @@ class ServerActionBar extends StatelessWidget {
                     onTap: onCreateChannel,
                   ),
                 ),
+              ],
             ],
           ),
         );

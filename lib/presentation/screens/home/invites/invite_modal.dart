@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/classes/user_permissions.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
@@ -11,7 +10,6 @@ import 'widgets/chip_selector.dart';
 import 'widgets/copyable_field.dart';
 import 'widgets/field_label.dart';
 import 'widgets/invite_options.dart';
-import 'widgets/permission_toggle.dart';
 
 /// Modal to generate and copy an invite token for a server.
 class InviteModal extends StatefulWidget {
@@ -34,11 +32,6 @@ class _InviteModalState extends State<InviteModal> {
   // Max uses — default: 1 (index 0)
   int _usesIndex = 0;
 
-  // Permission toggles
-  bool _grantServerAdmin = false;
-  bool _grantChannelManager = false;
-  bool _grantCanCreateTokens = false;
-
   void _resetToken() {
     _inviteToken = null;
     _copiedToken = false;
@@ -53,9 +46,6 @@ class _InviteModalState extends State<InviteModal> {
     });
 
     final result = await context.read<ServerCubit>().createInvite(
-      isServerAdmin: _grantServerAdmin,
-      isChannelManager: _grantChannelManager,
-      canCreateTokens: _grantCanCreateTokens,
       maxUses: inviteUsesOptions[_usesIndex].value,
       expiresInSeconds: inviteExpiryOptions[_expiryIndex].seconds,
     );
@@ -98,13 +88,6 @@ class _InviteModalState extends State<InviteModal> {
         return BlocBuilder<ServerCubit, ServerState>(
           builder: (context, serverState) {
             final server = serverState.selectedServer;
-            final userPerms =
-                server?.user?.permissions ?? const UserPermissions();
-
-            final hasAnyGrantable =
-                userPerms.isServerAdmin ||
-                userPerms.isChannelManager ||
-                userPerms.canCreateTokens;
 
             return Dialog(
               backgroundColor: themeState.bgPrimary,
@@ -235,86 +218,13 @@ class _InviteModalState extends State<InviteModal> {
                             themeState: themeState,
                           ),
 
-                          // Permissions section
-                          if (hasAnyGrantable) ...[
-                            const SizedBox(height: 16),
-                            FieldLabel(
-                              label: 'Grant Permissions',
-                              textColor: themeState.textTertiary,
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: themeState.bgSecondary,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: themeState.borderPrimary,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  if (userPerms.isServerAdmin)
-                                    PermissionToggle(
-                                      icon: Icons.shield_outlined,
-                                      label: 'Server Admin',
-                                      description:
-                                          'Full server management access',
-                                      value: _grantServerAdmin,
-                                      onChanged: (v) => setState(() {
-                                        _grantServerAdmin = v;
-                                        if (v) {
-                                          _grantChannelManager = true;
-                                          _grantCanCreateTokens = true;
-                                        }
-                                        _resetToken();
-                                      }),
-                                      themeState: themeState,
-                                      isFirst: true,
-                                    ),
-                                  if (userPerms.isChannelManager)
-                                    PermissionToggle(
-                                      icon: Icons.tune_outlined,
-                                      label: 'Channel Manager',
-                                      description:
-                                          'Create channels and moderate members',
-                                      value: _grantChannelManager,
-                                      onChanged: _grantServerAdmin
-                                          ? null
-                                          : (v) => setState(() {
-                                              _grantChannelManager = v;
-                                              _resetToken();
-                                            }),
-                                      themeState: themeState,
-                                      isFirst: !userPerms.isServerAdmin,
-                                    ),
-                                  if (userPerms.canCreateTokens)
-                                    PermissionToggle(
-                                      icon: Icons.link_outlined,
-                                      label: 'Can Invite',
-                                      description:
-                                          'Allowed to generate invite tokens',
-                                      value: _grantCanCreateTokens,
-                                      onChanged: _grantServerAdmin
-                                          ? null
-                                          : (v) => setState(() {
-                                              _grantCanCreateTokens = v;
-                                              _resetToken();
-                                            }),
-                                      themeState: themeState,
-                                      isFirst:
-                                          !userPerms.isServerAdmin &&
-                                          !userPerms.isChannelManager,
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-
                           const SizedBox(height: 16),
 
-                          // Token output
+                          // Invite code output. Invites are plain — members
+                          // join with baseline permissions and admins promote
+                          // them later from the Members dialog.
                           FieldLabel(
-                            label: 'Access Token',
+                            label: 'Invite Code',
                             textColor: themeState.textTertiary,
                           ),
                           const SizedBox(height: 6),

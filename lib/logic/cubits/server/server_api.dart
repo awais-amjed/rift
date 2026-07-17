@@ -38,6 +38,51 @@ mixin _ServerApiMixin on Cubit<ServerState> {
         ),
       );
 
+  /// Fetch the full member list for the selected server.
+  Future<({bool success, List<ServerMember>? members, String? error})>
+      listMembers() async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, members: null, error: 'No server selected');
+    }
+
+    final response = await _callWithAutoRefresh(
+      (token) =>
+          _repository.listUsers(server.supabaseUrl, bearerToken: token),
+    );
+
+    if (!response.success) {
+      return (
+        success: false,
+        members: null,
+        error: response.error ?? 'Failed to load members',
+      );
+    }
+
+    final members = ((response.data['users'] as List<dynamic>?) ?? [])
+        .map((u) => ServerMember.fromJson(u as Map<String, dynamic>))
+        .toList();
+    return (success: true, members: members, error: null);
+  }
+
+  /// Set a member's permission flags (server admin only).
+  Future<APIResponse> setUserPermissions({
+    required String userId,
+    bool? isServerAdmin,
+    bool? isChannelManager,
+    bool? canCreateTokens,
+  }) =>
+      _callWithAutoRefresh(
+        (token) => _repository.setUserPermissions(
+          state.selectedServer!.supabaseUrl,
+          bearerToken: token,
+          userId: userId,
+          isServerAdmin: isServerAdmin,
+          isChannelManager: isChannelManager,
+          canCreateTokens: canCreateTokens,
+        ),
+      );
+
   /// Persistently mutes/deafens a user server-wide (requires channel
   /// manager or server admin).
   Future<APIResponse> moderateUser({
@@ -84,11 +129,8 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     return (success: true, inviteCode: inviteCode, error: null);
   }
 
-  /// Create an invite code for the selected server.
+  /// Create a plain invite code for the selected server.
   Future<({bool success, String? inviteCode, String? error})> createInvite({
-    bool isServerAdmin = false,
-    bool isChannelManager = false,
-    bool canCreateTokens = false,
     int? maxUses = 1,
     int? expiresInSeconds,
   }) async {
@@ -101,9 +143,6 @@ mixin _ServerApiMixin on Cubit<ServerState> {
       (token) => _repository.createInvite(
         server.supabaseUrl,
         bearerToken: token,
-        isServerAdmin: isServerAdmin,
-        isChannelManager: isChannelManager,
-        canCreateTokens: canCreateTokens,
         maxUses: maxUses,
         expiresInSeconds: expiresInSeconds,
       ),

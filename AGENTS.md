@@ -84,8 +84,12 @@ edge_functions.md   # Edge Function API doc — update when functions change
 
 ## Presentation
 
-- One public widget per file; small private helpers as `_Foo` classes in the same file.
-  Screens get their own folder with a `widgets/` subfolder for pieces.
+- **Keep widget files small — one widget per file wherever possible.** A component gets its own
+  folder containing its main file plus one file per helper widget (e.g.
+  `invite_modal/invite_modal.dart` + `invite_modal/permission_row.dart`). Helper widgets that are
+  genuinely a few lines may stay private (`_Foo`) in the same file, but a file approaching a few
+  hundred lines with multiple widget classes must be split into a folder. Refactor files toward
+  this shape whenever you touch them.
 - **Colors:** never hard-code a `Color` in a widget. Every value lives in `CustomColors`
   (paired `...Dark` / `...Light` constants), surfaced through a semantic getter on `ThemeState`
   (`bgSecondary`, `textTertiary`, `channelActiveBg`, ...). Widgets read them via

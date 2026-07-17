@@ -186,15 +186,14 @@ class ServerRepository {
     return _post(supabaseUrl, 'is_username_available', {'username': username});
   }
 
-  /// Create an invite code with optional permissions and constraints.
+  /// Create a plain invite code. Invites carry no permissions — members
+  /// join with baseline access and admins promote them afterwards via
+  /// [setUserPermissions].
   /// [maxUses] null = unlimited, 1 = single-use (default).
   /// [expiresInSeconds] null = never expires.
   Future<APIResponse> createInvite(
     String supabaseUrl, {
     String? bearerToken,
-    bool isServerAdmin = false,
-    bool isChannelManager = false,
-    bool canCreateTokens = false,
     int? maxUses = 1,
     int? expiresInSeconds,
   }) {
@@ -202,11 +201,35 @@ class ServerRepository {
       supabaseUrl,
       'create_invite',
       {
-        'is_server_admin': isServerAdmin,
-        'is_channel_manager': isChannelManager,
-        'can_create_tokens': canCreateTokens,
         'max_uses': maxUses,
         if (expiresInSeconds != null) 'expires_in_seconds': expiresInSeconds,
+      },
+      bearerToken: bearerToken,
+    );
+  }
+
+  /// List all members of the server with permissions and moderation state.
+  Future<APIResponse> listUsers(String supabaseUrl, {String? bearerToken}) {
+    return _post(supabaseUrl, 'list_users', {}, bearerToken: bearerToken);
+  }
+
+  /// Set a user's permission flags (server admin only; not your own).
+  Future<APIResponse> setUserPermissions(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String userId,
+    bool? isServerAdmin,
+    bool? isChannelManager,
+    bool? canCreateTokens,
+  }) {
+    return _post(
+      supabaseUrl,
+      'set_user_permissions',
+      {
+        'user_id': userId,
+        if (isServerAdmin != null) 'is_server_admin': isServerAdmin,
+        if (isChannelManager != null) 'is_channel_manager': isChannelManager,
+        if (canCreateTokens != null) 'can_create_tokens': canCreateTokens,
       },
       bearerToken: bearerToken,
     );

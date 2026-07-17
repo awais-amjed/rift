@@ -22,4 +22,16 @@ class UserPermissions {
     'is_channel_manager': isChannelManager,
     'can_create_tokens': canCreateTokens,
   };
+
+  UserPermissions copyWith({
+    bool? isServerAdmin,
+    bool? isChannelManager,
+    bool? canCreateTokens,
+  }) {
+    return UserPermissions(
+      isServerAdmin: isServerAdmin ?? this.isServerAdmin,
+      isChannelManager: isChannelManager ?? this.isChannelManager,
+      canCreateTokens: canCreateTokens ?? this.canCreateTokens,
+    );
+  }
 }

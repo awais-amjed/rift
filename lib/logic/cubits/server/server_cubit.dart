@@ -4,6 +4,7 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/server_repository.dart';
