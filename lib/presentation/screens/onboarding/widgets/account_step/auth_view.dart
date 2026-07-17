@@ -1,81 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../common/app_button.dart';
-import '../../../common/app_text_field.dart';
-import '../../../common/message_banner.dart';
-import '../../../theme/custom_colors.dart';
-import 'onboarding_page.dart';
-import 'password_strength_indicator.dart';
+import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/app_button.dart';
+import '../../../../common/app_text_field.dart';
+import '../../../../common/message_banner.dart';
+import '../../../../theme/custom_colors.dart';
+import '../onboarding_page.dart';
+import '../password_strength_indicator.dart';
 
-/// Default onboarding step — sign in to or create a Rift account.
-///
-/// The vault is handled automatically after auth (see
-/// [SupabaseBackupCubit]): an existing cloud backup is restored, or a fresh
-/// vault is created and uploaded. The router leaves onboarding as soon as
-/// the vault unlocks. Only a privacy-mode backup (manually chosen vault
-/// password) requires the extra unlock prompt rendered here.
-class AccountStep extends StatefulWidget {
-  final VoidCallback onBack;
-
-  const AccountStep({super.key, required this.onBack});
-
-  @override
-  State<AccountStep> createState() => _AccountStepState();
-}
-
-class _AccountStepState extends State<AccountStep> {
-  /// Set when the user returns from the email-confirmation view — the auth
-  /// form should then open in sign-in mode (they already have an account).
-  bool _preferSignIn = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<SupabaseBackupCubit, SupabaseBackupState>(
-      builder: (context, state) {
-        if (state.needsVaultPassword) {
-          return _VaultPasswordView(state: state, onBack: widget.onBack);
-        }
-        if (state.needsEmailConfirmation) {
-          return _EmailConfirmationView(
-            state: state,
-            onBack: widget.onBack,
-            onSignIn: () {
-              setState(() => _preferSignIn = true);
-              context.read<SupabaseBackupCubit>().clearMessage();
-            },
-          );
-        }
-        return _AuthView(
-          state: state,
-          onBack: widget.onBack,
-          initialSignUp: !_preferSignIn,
-        );
-      },
-    );
-  }
-}
-
-// ── Sign in / sign up ───────────────────────────────────────────────────────
-
-class _AuthView extends StatefulWidget {
+class AuthView extends StatefulWidget {
   final SupabaseBackupState state;
   final VoidCallback onBack;
   final bool initialSignUp;
 
-  const _AuthView({
+  const AuthView({
     required this.state,
     required this.onBack,
     this.initialSignUp = true,
   });
 
   @override
-  State<_AuthView> createState() => _AuthViewState();
+  State<AuthView> createState() => AuthViewState();
 }
 
-class _AuthViewState extends State<_AuthView> {
+class AuthViewState extends State<AuthView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -327,209 +277,3 @@ class _AuthViewState extends State<_AuthView> {
   }
 }
 
-// ── Email confirmation ──────────────────────────────────────────────────────
-
-class _EmailConfirmationView extends StatelessWidget {
-  final SupabaseBackupState state;
-  final VoidCallback onBack;
-  final VoidCallback onSignIn;
-
-  const _EmailConfirmationView({
-    required this.state,
-    required this.onBack,
-    required this.onSignIn,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.read<ThemeCubit>().state;
-
-    return OnboardingPage(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: theme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              Icons.mark_email_unread_rounded,
-              size: 32,
-              color: theme.primary,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Check Your Inbox',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: theme.textPrimary,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: Text(
-              'We sent a confirmation link to ${state.email ?? 'your email'}. '
-              'Confirm it, then sign in to continue.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: theme.textTertiary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          AppButton(
-            label: 'I\'ve confirmed — sign in',
-            onPressed: onSignIn,
-          ),
-          const SizedBox(height: 12),
-          AppButton(
-            label: 'Back',
-            variant: AppButtonVariant.secondary,
-            onPressed: () {
-              context.read<SupabaseBackupCubit>().clearMessage();
-              onBack();
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Privacy-mode backup unlock ──────────────────────────────────────────────
-
-class _VaultPasswordView extends StatefulWidget {
-  final SupabaseBackupState state;
-  final VoidCallback onBack;
-
-  const _VaultPasswordView({required this.state, required this.onBack});
-
-  @override
-  State<_VaultPasswordView> createState() => _VaultPasswordViewState();
-}
-
-class _VaultPasswordViewState extends State<_VaultPasswordView> {
-  final _vaultPasswordController = TextEditingController();
-
-  @override
-  void dispose() {
-    _vaultPasswordController.dispose();
-    super.dispose();
-  }
-
-  void _unlock() {
-    context
-        .read<SupabaseBackupCubit>()
-        .submitVaultPassword(_vaultPasswordController.text);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.read<ThemeCubit>().state;
-    final isProcessing = widget.state.isProcessing;
-
-    return OnboardingPage(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: theme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              Icons.lock_open_rounded,
-              size: 32,
-              color: theme.primary,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Unlock Your Backup',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: theme.textPrimary,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: Text(
-              'We found your backup, but it\'s protected by a separately '
-              'chosen vault password (privacy mode). Enter it once — '
-              'future restores will be automatic.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: theme.textTertiary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppTextField(
-                  controller: _vaultPasswordController,
-                  label: 'Vault Password',
-                  hint: 'Enter your vault password',
-                  obscureText: true,
-                  enabled: !isProcessing,
-                  autofocus: true,
-                  onEditingComplete: isProcessing ? null : _unlock,
-                ),
-                if (widget.state.error != null) ...[
-                  const SizedBox(height: 12),
-                  MessageBanner(message: widget.state.error!, isError: true),
-                ],
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    AppButton(
-                      label: 'Back',
-                      variant: AppButtonVariant.secondary,
-                      onPressed: isProcessing
-                          ? null
-                          : () {
-                              final cubit =
-                                  context.read<SupabaseBackupCubit>();
-                              cubit.dismissPending();
-                              cubit.signOut();
-                              widget.onBack();
-                            },
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppButton(
-                        label: 'Unlock',
-                        expanded: true,
-                        isLoading: isProcessing,
-                        onPressed: isProcessing ? null : _unlock,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

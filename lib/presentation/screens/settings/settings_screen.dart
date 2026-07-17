@@ -9,13 +9,13 @@ import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import 'widgets/appearance_content.dart';
-import 'widgets/backup_content.dart';
+import 'widgets/backup_content/backup_content.dart';
 import 'widgets/settings_sidebar.dart';
 import 'widgets/settings_tab.dart';
 import 'widgets/voice_audio_content.dart';
 
 export 'widgets/appearance_content.dart';
-export 'widgets/backup_content.dart';
+export 'widgets/backup_content/backup_content.dart';
 export 'widgets/settings_sidebar.dart';
 export 'widgets/settings_tab.dart';
 export 'widgets/voice_audio_content.dart';
