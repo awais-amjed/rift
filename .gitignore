@@ -51,3 +51,6 @@ supabase/.temp/
 
 # Machine-specific local dev notes (contains LAN IPs / secret locations)
 LOCAL_DEV.md
+
+# Local working notes
+TODO.md
