@@ -95,31 +95,24 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        hoverColor: hoverColor,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: color,
-                ),
-              ),
-            ],
+    // Icon-only with a tooltip — three labeled buttons don't fit the
+    // sidebar width, and labels ellipsize badly.
+    return Tooltip(
+      message: label,
+      waitDuration: const Duration(milliseconds: 400),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: hoverColor,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Center(child: Icon(icon, size: 15, color: color)),
           ),
         ),
       ),
     );
   }
 }
+
