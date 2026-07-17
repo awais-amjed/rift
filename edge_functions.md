@@ -74,7 +74,7 @@ Every function returns HTTP 200 with a JSON envelope:
 | 4 | `verify_challenge` | signature | `public_key`, `nonce`, `signature` (b64 over `"<nonce>@<host>"`), `host`, `server_id` | server context + fresh `token` (1 h). Nonce is burned before verification |
 | 5 | `rotate_key` | signature by **old** key | `old_public_key`, `new_public_key`, `nonce`, `signature` (b64 over `"rotate:<newPubKeyB64>@<nonce>@<host>"`), `host`, `server_id` | success only. Replaces the user's key, deletes **all** their session tokens (old key may be compromised) |
 | 6 | `is_username_available` | none | `username` | `username`, `available` |
-| 7 | `create_invite` | Bearer + `can_create_tokens` | `max_uses?` (null = unlimited, default 1), `expires_in_seconds?` (null = never) | `invite_code`. Plain invite — carries no permissions |
+| 7 | `create_invite` | Bearer + `can_create_tokens` | `max_uses?` (null = unlimited, default 1), `expires_in_seconds?` (null = never) | `invite_code` (short base58, ~10 chars, retried on the `code` UNIQUE constraint). Plain invite — carries no permissions. The client shares it as a combined link `<server-url>#<invite_code>` |
 | 8 | `get_server_details` | Bearer | — | server context (no `token` refresh) |
 | 9 | `update_server` | Bearer + `is_server_admin` | any of `name`, `icon_url`, `livekit_api_key`, `livekit_secret_key` | updated fields |
 | 10 | `create_channel` | Bearer + `is_channel_manager` | `name` (unique per server), `channel_type` (`voice` \| `text`) | channel row |
