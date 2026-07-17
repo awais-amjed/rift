@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
+import 'onboarding_page.dart';
 
 /// First step of onboarding — welcome & app overview.
 class WelcomeStep extends StatelessWidget {
@@ -19,10 +20,9 @@ class WelcomeStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.read<ThemeCubit>().state;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
+    return OnboardingPage(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Icon
           Container(

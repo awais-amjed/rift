@@ -7,6 +7,7 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../theme/custom_colors.dart';
+import 'onboarding_page.dart';
 import 'password_strength_indicator.dart';
 import '../../../common/restore_file_dialog.dart';
 
@@ -64,10 +65,9 @@ class _PasswordStepState extends State<PasswordStep> {
       builder: (context, vaultState) {
         final isProcessing = vaultState.isProcessing;
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 48),
+        return OnboardingPage(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Icon
               Container(

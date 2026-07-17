@@ -8,7 +8,8 @@ import 'widgets/welcome_step.dart';
 
 /// Full-screen onboarding flow for first-time users.
 ///
-/// Contains a [PageView] with three steps:
+/// Three steps, cross-faded (no PageView — sliding from welcome to privacy
+/// mode must not flash the account page in between):
 /// 1. Welcome — explains the system; choose account (default) or privacy mode.
 /// 2. Account — central-server sign in/up; backup restore/create is automatic.
 /// 3. Privacy — create a local-only vault (or restore from a backup file);
@@ -21,25 +22,22 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  final _pageController = PageController();
+  int _page = 0;
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _goTo(int page) {
-    _pageController.animateToPage(
-      page,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
-    );
-  }
+  void _goTo(int page) => setState(() => _page = page);
 
   @override
   Widget build(BuildContext context) {
     final theme = context.read<ThemeCubit>().state;
+
+    final page = switch (_page) {
+      1 => AccountStep(onBack: () => _goTo(0)),
+      2 => PasswordStep(onBack: () => _goTo(0)),
+      _ => WelcomeStep(
+          onContinueWithAccount: () => _goTo(1),
+          onContinuePrivately: () => _goTo(2),
+        ),
+    };
 
     return Scaffold(
       backgroundColor: theme.bgPrimary,
@@ -47,17 +45,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                WelcomeStep(
-                  onContinueWithAccount: () => _goTo(1),
-                  onContinuePrivately: () => _goTo(2),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.02),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
                 ),
-                AccountStep(onBack: () => _goTo(0)),
-                PasswordStep(onBack: () => _goTo(0)),
-              ],
+              ),
+              child: KeyedSubtree(key: ValueKey(_page), child: page),
             ),
           ),
         ),

@@ -7,6 +7,7 @@ import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/message_banner.dart';
 import '../../../theme/custom_colors.dart';
+import 'onboarding_page.dart';
 import 'password_strength_indicator.dart';
 
 /// Default onboarding step — sign in to or create a Rift account.
@@ -16,22 +17,42 @@ import 'password_strength_indicator.dart';
 /// vault is created and uploaded. The router leaves onboarding as soon as
 /// the vault unlocks. Only a privacy-mode backup (manually chosen vault
 /// password) requires the extra unlock prompt rendered here.
-class AccountStep extends StatelessWidget {
+class AccountStep extends StatefulWidget {
   final VoidCallback onBack;
 
   const AccountStep({super.key, required this.onBack});
+
+  @override
+  State<AccountStep> createState() => _AccountStepState();
+}
+
+class _AccountStepState extends State<AccountStep> {
+  /// Set when the user returns from the email-confirmation view — the auth
+  /// form should then open in sign-in mode (they already have an account).
+  bool _preferSignIn = false;
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<SupabaseBackupCubit, SupabaseBackupState>(
       builder: (context, state) {
         if (state.needsVaultPassword) {
-          return _VaultPasswordView(state: state, onBack: onBack);
+          return _VaultPasswordView(state: state, onBack: widget.onBack);
         }
         if (state.needsEmailConfirmation) {
-          return _EmailConfirmationView(state: state, onBack: onBack);
+          return _EmailConfirmationView(
+            state: state,
+            onBack: widget.onBack,
+            onSignIn: () {
+              setState(() => _preferSignIn = true);
+              context.read<SupabaseBackupCubit>().clearMessage();
+            },
+          );
         }
-        return _AuthView(state: state, onBack: onBack);
+        return _AuthView(
+          state: state,
+          onBack: widget.onBack,
+          initialSignUp: !_preferSignIn,
+        );
       },
     );
   }
@@ -42,8 +63,13 @@ class AccountStep extends StatelessWidget {
 class _AuthView extends StatefulWidget {
   final SupabaseBackupState state;
   final VoidCallback onBack;
+  final bool initialSignUp;
 
-  const _AuthView({required this.state, required this.onBack});
+  const _AuthView({
+    required this.state,
+    required this.onBack,
+    this.initialSignUp = true,
+  });
 
   @override
   State<_AuthView> createState() => _AuthViewState();
@@ -53,8 +79,15 @@ class _AuthViewState extends State<_AuthView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
-  bool _isSignUp = true;
+  late bool _isSignUp = widget.initialSignUp;
   String? _validationError;
+
+  @override
+  void initState() {
+    super.initState();
+    // Coming back from "check your inbox" — prefill the address they used.
+    _emailController.text = widget.state.email ?? '';
+  }
 
   @override
   void dispose() {
@@ -97,14 +130,11 @@ class _AuthViewState extends State<_AuthView> {
     final theme = context.read<ThemeCubit>().state;
     final isProcessing = widget.state.isProcessing;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 32),
-            Container(
+    return OnboardingPage(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
               width: 64,
               height: 64,
               decoration: BoxDecoration(
@@ -288,13 +318,11 @@ class _AuthViewState extends State<_AuthView> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
                 ],
               ),
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -304,17 +332,21 @@ class _AuthViewState extends State<_AuthView> {
 class _EmailConfirmationView extends StatelessWidget {
   final SupabaseBackupState state;
   final VoidCallback onBack;
+  final VoidCallback onSignIn;
 
-  const _EmailConfirmationView({required this.state, required this.onBack});
+  const _EmailConfirmationView({
+    required this.state,
+    required this.onBack,
+    required this.onSignIn,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = context.read<ThemeCubit>().state;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
+    return OnboardingPage(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 64,
@@ -356,8 +388,7 @@ class _EmailConfirmationView extends StatelessWidget {
           const SizedBox(height: 32),
           AppButton(
             label: 'I\'ve confirmed — sign in',
-            onPressed: () =>
-                context.read<SupabaseBackupCubit>().clearMessage(),
+            onPressed: onSignIn,
           ),
           const SizedBox(height: 12),
           AppButton(
@@ -406,10 +437,9 @@ class _VaultPasswordViewState extends State<_VaultPasswordView> {
     final theme = context.read<ThemeCubit>().state;
     final isProcessing = widget.state.isProcessing;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
+    return OnboardingPage(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 64,
