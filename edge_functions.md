@@ -37,7 +37,10 @@ Every function returns HTTP 200 with a JSON envelope:
   (migration 003), so multiple devices hold independent sessions. Expired tokens, challenges,
   and invites are cleaned up by pg_cron jobs.
 - **Permissions** live on the user row: `is_server_admin`, `is_channel_manager`,
-  `can_create_tokens`. Delegation rule: an invite can only grant permissions its creator holds.
+  `can_create_tokens`. Discord-style management: invites are plain (everyone joins with
+  baseline permissions — no admin/manager, but invite-creation allowed by default), and
+  server admins promote/demote members afterwards via `set_user_permissions`. The only
+  permission-carrying invite is the hidden bootstrap invite from `create_server`.
 
 ### Shared "server context" payload
 
@@ -71,13 +74,15 @@ Every function returns HTTP 200 with a JSON envelope:
 | 4 | `verify_challenge` | signature | `public_key`, `nonce`, `signature` (b64 over `"<nonce>@<host>"`), `host`, `server_id` | server context + fresh `token` (1 h). Nonce is burned before verification |
 | 5 | `rotate_key` | signature by **old** key | `old_public_key`, `new_public_key`, `nonce`, `signature` (b64 over `"rotate:<newPubKeyB64>@<nonce>@<host>"`), `host`, `server_id` | success only. Replaces the user's key, deletes **all** their session tokens (old key may be compromised) |
 | 6 | `is_username_available` | none | `username` | `username`, `available` |
-| 7 | `create_invite` | Bearer + `can_create_tokens` | `is_server_admin?`, `is_channel_manager?`, `can_create_tokens?`, `max_uses?` (null = unlimited, default 1), `expires_in_seconds?` (null = never) | `invite_code`. Can only grant permissions the caller holds |
+| 7 | `create_invite` | Bearer + `can_create_tokens` | `max_uses?` (null = unlimited, default 1), `expires_in_seconds?` (null = never) | `invite_code`. Plain invite — carries no permissions |
 | 8 | `get_server_details` | Bearer | — | server context (no `token` refresh) |
 | 9 | `update_server` | Bearer + `is_server_admin` | any of `name`, `icon_url`, `livekit_api_key`, `livekit_secret_key` | updated fields |
 | 10 | `create_channel` | Bearer + `is_channel_manager` | `name` (unique per server), `channel_type` (`voice` \| `text`) | channel row |
 | 11 | `delete_channel` | Bearer + `is_channel_manager` | `channel_id` (must belong to token's server) | confirmation |
 | 12 | `get_channel_token` | Bearer | `channel_id`, `screen_share?` | `token`: LiveKit JWT (room = channel id, identity = user id, `_screenshare` suffix when screen sharing, `roomAdmin` for channel managers, 1 h TTL). The function pre-creates the LiveKit room server-side; client grants never include `roomCreate`. **Moderation is enforced here**: muted users get no `microphone` in `canPublishSources`, deafened users get `canSubscribe: false`, and the flags ride along as participant metadata |
 | 13 | `moderate_user` | Bearer + (`is_channel_manager` or `is_server_admin`) | `user_id`, `is_muted?`, `is_deafened?` (at least one) | `user_id`, `is_muted`, `is_deafened`, `applied_live`. Persists the flags on the users row and, if the target is currently in a voice channel, live-applies via LiveKit `updateParticipant` (permissions revoked + metadata broadcast). Server admins cannot be moderated |
+| 14 | `list_users` | Bearer (any member) | — | `users`: array of `{id, username, display_name, created_at, permissions{…}, is_muted, is_deafened, is_banned}` |
+| 15 | `set_user_permissions` | Bearer + `is_server_admin` | `user_id`, `is_server_admin?`, `is_channel_manager?`, `can_create_tokens?` (at least one) | `user_id`, `permissions{…}`. Callers cannot edit their own permissions (last-admin lockout guard) |
 
 ## Database schema
 
@@ -111,7 +116,7 @@ The docker-compose stack serves functions from its `volumes/functions/` director
 `main` router (path `/functions/v1/<name>` → `/home/deno/functions/<name>`):
 
 ```bash
-cp -r edge_functions/supabase/functions/{_shared,create_server,register,get_challenge,verify_challenge,rotate_key,is_username_available,create_invite,get_server_details,update_server,create_channel,delete_channel,get_channel_token,moderate_user} \
+cp -r edge_functions/supabase/functions/{_shared,create_server,register,get_challenge,verify_challenge,rotate_key,is_username_available,create_invite,get_server_details,update_server,create_channel,delete_channel,get_channel_token,moderate_user,list_users,set_user_permissions} \
       <stack>/volumes/functions/
 docker restart supabase-edge-functions
 ```
