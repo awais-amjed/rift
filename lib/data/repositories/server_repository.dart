@@ -260,21 +260,23 @@ class ServerRepository {
     );
   }
 
-  /// Mute or unmute a participant (requires channel manager).
-  Future<APIResponse> muteParticipant(
+  /// Persistently mute/unmute/deafen/undeafen a user (requires channel
+  /// manager or server admin). State is stored server-side and enforced in
+  /// LiveKit token grants, so it survives rejoins and can't be self-reverted.
+  Future<APIResponse> moderateUser(
     String supabaseUrl, {
     String? bearerToken,
-    required String channelId,
-    required String participantIdentity,
-    required bool muted,
+    required String userId,
+    bool? isMuted,
+    bool? isDeafened,
   }) {
     return _post(
       supabaseUrl,
-      'mute_participant',
+      'moderate_user',
       {
-        'channel_id': channelId,
-        'participant_identity': participantIdentity,
-        'muted': muted,
+        'user_id': userId,
+        if (isMuted != null) 'is_muted': isMuted,
+        if (isDeafened != null) 'is_deafened': isDeafened,
       },
       bearerToken: bearerToken,
     );

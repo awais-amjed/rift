@@ -5,22 +5,29 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   ServerCubit? get _serverCubit;
 
   /// Mutes/unmutes a participant for everyone in the room (requires is_channel_manager).
-  Future<bool> muteParticipantForEveryone({
+  /// Server-side moderation: persistently mute/deafen a user for everyone.
+  /// [participantIdentity] may be a screenshare identity — the suffix is
+  /// stripped to obtain the user id.
+  Future<bool> moderateParticipant({
     required String participantIdentity,
-    required bool muted,
+    bool? muted,
+    bool? deafened,
   }) async {
-    final channelId = state.currentChannelId;
-    if (channelId == null) return false;
     final serverCubit = _serverCubit;
     if (serverCubit == null) return false;
 
-    final response = await serverCubit.muteParticipant(
-      channelId: channelId,
-      participantIdentity: participantIdentity,
-      muted: muted,
+    final userId = participantIdentity.endsWith('_screenshare')
+        ? participantIdentity.substring(
+            0, participantIdentity.length - '_screenshare'.length)
+        : participantIdentity;
+
+    final response = await serverCubit.moderateUser(
+      userId: userId,
+      isMuted: muted,
+      isDeafened: deafened,
     );
     if (!response.success) {
-      debugPrint('muteParticipantForEveryone error: ${response.error}');
+      debugPrint('moderateParticipant error: ${response.error}');
     }
     return response.success;
   }

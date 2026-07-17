@@ -38,19 +38,20 @@ mixin _ServerApiMixin on Cubit<ServerState> {
         ),
       );
 
-  /// Mutes/unmutes a participant server-wide (requires is_channel_manager).
-  Future<APIResponse> muteParticipant({
-    required String channelId,
-    required String participantIdentity,
-    required bool muted,
+  /// Persistently mutes/deafens a user server-wide (requires channel
+  /// manager or server admin).
+  Future<APIResponse> moderateUser({
+    required String userId,
+    bool? isMuted,
+    bool? isDeafened,
   }) =>
       _callWithAutoRefresh(
-        (token) => _repository.muteParticipant(
+        (token) => _repository.moderateUser(
           state.selectedServer!.supabaseUrl,
           bearerToken: token,
-          channelId: channelId,
-          participantIdentity: participantIdentity,
-          muted: muted,
+          userId: userId,
+          isMuted: isMuted,
+          isDeafened: isDeafened,
         ),
       );
 

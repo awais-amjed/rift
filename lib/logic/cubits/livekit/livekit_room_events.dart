@@ -73,6 +73,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
       ..on<ActiveSpeakersChangedEvent>((e) => _syncParticipants())
       ..on<TrackMutedEvent>((e) => _syncParticipants())
       ..on<TrackUnmutedEvent>((e) => _syncParticipants())
+      // Server-side moderation state arrives via participant metadata and
+      // permission updates (moderate_user edge function).
+      ..on<ParticipantMetadataUpdatedEvent>((e) => _syncParticipants())
+      ..on<ParticipantPermissionsUpdatedEvent>((e) => _syncParticipants())
       ..on<RoomDisconnectedEvent>((e) {
         // Only handle unexpected disconnects; intentional disconnects set state beforehand.
         if (state.connectionState == LiveKitConnectionState.connected) {

@@ -36,7 +36,20 @@ class ParticipantContextMenu extends StatelessWidget {
             final liveKitState = context.watch<LiveKitCubit>().state;
             final serverState = context.watch<ServerCubit>().state;
             final permissions = serverState.selectedServer?.user?.permissions;
-            final isChannelManager = permissions?.isChannelManager ?? false;
+            final isModerator = (permissions?.isChannelManager ?? false) ||
+                (permissions?.isServerAdmin ?? false);
+
+            // Server-side moderation state of the target (from LiveKit
+            // participant metadata).
+            final baseIdentity = identity.endsWith('_screenshare')
+                ? identity.substring(
+                    0, identity.length - '_screenshare'.length)
+                : identity;
+            final targetInfo = appState.participants
+                .where((p) => p.identity == baseIdentity)
+                .firstOrNull;
+            final isServerMuted = targetInfo?.isServerMuted ?? false;
+            final isServerDeafened = targetInfo?.isServerDeafened ?? false;
 
             final bool isMuted;
             final double volume;
@@ -110,21 +123,38 @@ class ParticipantContextMenu extends StatelessWidget {
                           }
                         },
                       ),
-                      // Mute for everyone (channel managers only, remote participants only)
-                      if (!isLocal && isChannelManager)
+                      // Server-side moderation (moderators only, remote
+                      // participants only). Persists across rejoins.
+                      if (!isLocal && isModerator) ...[
                         _MenuItem(
-                          icon: Icons.mic_off,
-                          label: 'Mute for everyone',
-                          isDangerous: true,
+                          icon: isServerMuted ? Icons.mic : Icons.mic_off,
+                          label: isServerMuted
+                              ? 'Server unmute'
+                              : 'Server mute',
+                          isDangerous: !isServerMuted,
                           onTap: () {
-                            context
-                                .read<LiveKitCubit>()
-                                .muteParticipantForEveryone(
+                            context.read<LiveKitCubit>().moderateParticipant(
                                   participantIdentity: identity,
-                                  muted: true,
+                                  muted: !isServerMuted,
                                 );
                           },
                         ),
+                        _MenuItem(
+                          icon: isServerDeafened
+                              ? Icons.headset
+                              : Icons.headset_off,
+                          label: isServerDeafened
+                              ? 'Server undeafen'
+                              : 'Server deafen',
+                          isDangerous: !isServerDeafened,
+                          onTap: () {
+                            context.read<LiveKitCubit>().moderateParticipant(
+                                  participantIdentity: identity,
+                                  deafened: !isServerDeafened,
+                                );
+                          },
+                        ),
+                      ],
                       // Volume slider (only for remote participants)
                       if (!isLocal) ...[
                         Padding(

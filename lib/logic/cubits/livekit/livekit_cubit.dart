@@ -205,17 +205,21 @@ class LiveKitCubit extends Cubit<LiveKitState>
     ));
 
     // Sync participant info to AppCubit for the UI.
-    final infos = allParticipants
-        .map((p) => ParticipantInfo(
-              identity: p.identity,
-              name: p.name,
-              isSpeaking: p.isSpeaking,
-              isMicrophoneEnabled: p.isMicrophoneEnabled(),
-              isCameraEnabled: p.isCameraEnabled(),
-              isLocal: p is LocalParticipant,
-              isScreenshare: p.identity.endsWith('_screenshare'),
-            ))
-        .toList();
+    final infos = allParticipants.map((p) {
+      final moderation =
+          ParticipantInfo.moderationFromMetadata(p.metadata);
+      return ParticipantInfo(
+        identity: p.identity,
+        name: p.name,
+        isSpeaking: p.isSpeaking,
+        isMicrophoneEnabled: p.isMicrophoneEnabled(),
+        isCameraEnabled: p.isCameraEnabled(),
+        isLocal: p is LocalParticipant,
+        isScreenshare: p.identity.endsWith('_screenshare'),
+        isServerMuted: moderation.muted,
+        isServerDeafened: moderation.deafened,
+      );
+    }).toList();
 
     _appCubit.setParticipants(infos);
   }

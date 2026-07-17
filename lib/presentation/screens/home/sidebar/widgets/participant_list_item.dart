@@ -95,11 +95,35 @@ class ParticipantListItem extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Server-side moderation indicators
+                  if (participant.isServerDeafened) ...[
+                    Tooltip(
+                      message: 'Deafened by a moderator',
+                      child: Icon(
+                        Icons.headset_off,
+                        size: 11,
+                        color: CustomColors.error.withValues(alpha: 0.85),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  if (participant.isServerMuted) ...[
+                    Tooltip(
+                      message: 'Muted by a moderator',
+                      child: Icon(
+                        Icons.mic_off,
+                        size: 11,
+                        color: CustomColors.error.withValues(alpha: 0.85),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                   // Mic icon
-                  _MicIcon(
-                    isMuted: isMuted,
-                    isMicEnabled: participant.isMicrophoneEnabled,
-                  ),
+                  if (!participant.isServerMuted)
+                    _MicIcon(
+                      isMuted: isMuted,
+                      isMicEnabled: participant.isMicrophoneEnabled,
+                    ),
                 ],
               ),
             ),
