@@ -54,7 +54,8 @@ Every function returns HTTP 200 with a JSON envelope:
   "supabase_key": "…",       // this instance's anon key
   "user": {
     "id": "uuid", "username": "…", "display_name": "…",
-    "permissions": { "is_server_admin": false, "is_channel_manager": false, "can_create_tokens": false }
+    "permissions": { "is_server_admin": false, "is_channel_manager": false, "can_create_tokens": false },
+    "is_muted": false, "is_deafened": false
   },
   "channels": [ { "id": "uuid", "name": "…", "channel_type": "voice" | "text" } ]
 }
@@ -75,8 +76,8 @@ Every function returns HTTP 200 with a JSON envelope:
 | 9 | `update_server` | Bearer + `is_server_admin` | any of `name`, `icon_url`, `livekit_api_key`, `livekit_secret_key` | updated fields |
 | 10 | `create_channel` | Bearer + `is_channel_manager` | `name` (unique per server), `channel_type` (`voice` \| `text`) | channel row |
 | 11 | `delete_channel` | Bearer + `is_channel_manager` | `channel_id` (must belong to token's server) | confirmation |
-| 12 | `get_channel_token` | Bearer | `channel_id`, `screen_share?` | `token`: LiveKit JWT (room = channel id, identity = user id, `_screenshare` suffix when screen sharing, `roomAdmin` for channel managers, 1 h TTL). The function pre-creates the LiveKit room server-side; client grants never include `roomCreate` |
-| 13 | `mute_participant` | Bearer + (`is_channel_manager` or `is_server_admin`) | `channel_id`, `participant_identity`, `muted` | echo of the request. Uses LiveKit RoomService `mutePublishedTrack` |
+| 12 | `get_channel_token` | Bearer | `channel_id`, `screen_share?` | `token`: LiveKit JWT (room = channel id, identity = user id, `_screenshare` suffix when screen sharing, `roomAdmin` for channel managers, 1 h TTL). The function pre-creates the LiveKit room server-side; client grants never include `roomCreate`. **Moderation is enforced here**: muted users get no `microphone` in `canPublishSources`, deafened users get `canSubscribe: false`, and the flags ride along as participant metadata |
+| 13 | `moderate_user` | Bearer + (`is_channel_manager` or `is_server_admin`) | `user_id`, `is_muted?`, `is_deafened?` (at least one) | `user_id`, `is_muted`, `is_deafened`, `applied_live`. Persists the flags on the users row and, if the target is currently in a voice channel, live-applies via LiveKit `updateParticipant` (permissions revoked + metadata broadcast). Server admins cannot be moderated |
 
 ## Database schema
 
@@ -90,6 +91,8 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
    `(server_id, …)` instead of globally.
 3. **003_per_device_tokens.sql** — drops `tokens.user_id` UNIQUE so each device holds its own
    session token.
+4. **004_moderation_flags.sql** — `users.is_muted` / `users.is_deafened`, the persistent
+   source of truth for server-side moderation.
 
 ## Deployment
 
@@ -108,7 +111,7 @@ The docker-compose stack serves functions from its `volumes/functions/` director
 `main` router (path `/functions/v1/<name>` → `/home/deno/functions/<name>`):
 
 ```bash
-cp -r edge_functions/supabase/functions/{_shared,create_server,register,get_challenge,verify_challenge,rotate_key,is_username_available,create_invite,get_server_details,update_server,create_channel,delete_channel,get_channel_token,mute_participant} \
+cp -r edge_functions/supabase/functions/{_shared,create_server,register,get_challenge,verify_challenge,rotate_key,is_username_available,create_invite,get_server_details,update_server,create_channel,delete_channel,get_channel_token,moderate_user} \
       <stack>/volumes/functions/
 docker restart supabase-edge-functions
 ```
