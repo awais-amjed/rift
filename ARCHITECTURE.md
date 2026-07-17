@@ -76,10 +76,12 @@ Public-key challenge-response; no passwords ever reach self-hosted servers.
 **Permissions** are three token/user flags — `is_server_admin`, `is_channel_manager`,
 `can_create_tokens` — with the delegation rule: *you can only grant what you hold*.
 
-**Known limitation (to fix):** `tokens.user_id` is UNIQUE — one live session per user per server.
-Two devices logged in simultaneously invalidate each other's tokens in a refresh ping-pong.
-Fix: drop the constraint so each device holds its own token row. LiveKit identity collision
-(two devices in the same voice channel) is a separate, deferred issue.
+**Multi-device sessions (fixed July 2026):** each successful login inserts its own token row —
+migration `003_per_device_tokens.sql` dropped the old `tokens.user_id` UNIQUE constraint that made
+two devices invalidate each other in a refresh ping-pong. Expired rows are garbage-collected by a
+pg_cron job. Key rotation still deletes *all* of a user's tokens (the old key may be compromised,
+so every session must re-authenticate). LiveKit identity collision (two devices in the same voice
+channel) is a separate, deferred issue.
 
 ---
 

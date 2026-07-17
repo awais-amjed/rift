@@ -1,640 +1,126 @@
-# Rift Edge Functions API Documentation
+# Rift Edge Functions API
 
-This document provides comprehensive documentation for all Supabase Edge Functions in the Rift
-application.
+Reference for the Supabase Edge Functions that power a self-hosted Rift server.
+Source lives in [`edge_functions/supabase/functions/`](edge_functions/supabase/functions/) —
+one directory per function plus `_shared/` helpers. The Flutter client's mirror of this API is
+`lib/data/repositories/server_repository.dart`; keep the two in sync.
 
 ## Base URL
 
-All functions are deployed under the Supabase Functions endpoint:
-
 ```
-https://<project-ref>.supabase.co/functions/v1/
+<supabase-url>/functions/v1/<function_name>
 ```
 
-For local development:
+All requests are `POST` with a JSON body. Session-protected endpoints take the Rift session
+token (an opaque 64-char hex string, **not** a JWT) as `Authorization: Bearer <token>`.
 
+## Response format
+
+Every function returns HTTP 200 with a JSON envelope:
+
+```jsonc
+{ "success": true,  "data": { ... } }                                  // success
+{ "success": false, "error": "Human message", "code": "machine_code" } // failure
 ```
-http://127.0.0.1:54321/functions/v1/
-```
 
-## Response Format
+`code` values are defined in `_shared/error_codes.ts` and mirrored in
+`lib/data/enums/error_code.dart` — keep both lists identical. The client switches on `code`
+(e.g. `token_invalid` / `token_expired` / `token_unlinked` trigger silent re-authentication).
 
-All functions return a consistent JSON response format:
+## Auth model
 
-**Success Response:**
+- **Invites, not passwords.** New users register with an invite code plus their Ed25519 public
+  key and stable ID (both derived client-side from the master seed — see ARCHITECTURE.md §1–2).
+- **Challenge-response login.** `get_challenge` issues a 60-second nonce; the client signs
+  `"<nonce>@<host>"` and calls `verify_challenge`, which returns a fresh 1-hour session token.
+- **Per-device sessions.** Every successful `verify_challenge` inserts its own token row
+  (migration 003), so multiple devices hold independent sessions. Expired tokens, challenges,
+  and invites are cleaned up by pg_cron jobs.
+- **Permissions** live on the user row: `is_server_admin`, `is_channel_manager`,
+  `can_create_tokens`. Delegation rule: an invite can only grant permissions its creator holds.
 
-```json
+### Shared "server context" payload
+
+`register`, `verify_challenge`, and `get_server_details` all return the same shape
+(built by `_shared/server_context.ts`):
+
+```jsonc
 {
-  "success": true,
-  "data": { ... }
+  "token": "…",              // session token (register / verify_challenge only)
+  "server_id": "uuid",
+  "name": "…",
+  "icon_url": "… | null",
+  "livekit_url": "…",
+  "supabase_key": "…",       // this instance's anon key
+  "user": {
+    "id": "uuid", "username": "…", "display_name": "…",
+    "permissions": { "is_server_admin": false, "is_channel_manager": false, "can_create_tokens": false }
+  },
+  "channels": [ { "id": "uuid", "name": "…", "channel_type": "voice" | "text" } ]
 }
 ```
-
-**Error Response:**
-
-```json
-{
-  "success": false,
-  "error": "Error message"
-}
-```
-
-All responses have HTTP status code 200. The `success` field indicates whether the operation was
-successful.
-
----
 
 ## Functions
 
-### 1. Create Server
-
-**Endpoint:** `/create_server`
-
-**Method:** `POST`
-
-**Description:** Creates a new server with LiveKit configuration, generates a unique seeding secret
-for token generation, and automatically creates an admin token with full permissions (
-is_server_admin, is_channel_manager, can_create_tokens).
-
-**Input Parameters:**
-
-```json
-{
-  "name": "string (required)",
-  "icon_url": "string (optional)",
-  "livekit_url": "string (required)",
-  "livekit_api_key": "string (required)",
-  "livekit_secret_key": "string (required)"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "server": {
-      "id": "uuid",
-      "created_at": "timestamp",
-      "name": "string",
-      "icon_url": "string | null",
-      "livekit_url": "string",
-      "livekit_api_key": "string",
-      "livekit_secret_key": "string",
-      "seeding_secret": "string"
-    },
-    "token": "string - Admin access token with all permissions"
-  }
-}
-```
-
-**Permissions Required:** None (public endpoint for creating new servers)
-
-**Notes:**
-
-- The returned token has full admin permissions: `is_server_admin`, `is_channel_manager`, and
-  `can_create_tokens` all set to `true`
-- This token can be used immediately to manage the server, create channels, and generate additional
-  access tokens
-
----
-
-### 2. Create Access Token
-
-**Endpoint:** `/create_access_token`
-
-**Method:** `POST`
-
-**Description:** Generates a new access token for a server with specified permissions. The calling
-user must have `can_create_tokens` permission. Uses the server's seeding secret to generate a secure
-HMAC-SHA256 token.
-
-**Permission Restrictions:**
-
-- Only users with a specific permission can grant that permission to new tokens
-- Only admins (`is_server_admin`) can create admin tokens
-- Only channel managers (`is_channel_manager`) can create channel manager tokens
-- Only users with `can_create_tokens` can grant the invite permission to new tokens
-
-**Input Parameters:**
-
-```json
-{
-  "token": "string (required) - Caller's access token",
-  "is_server_admin": "boolean (optional, default: false)",
-  "is_channel_manager": "boolean (optional, default: false)",
-  "can_create_tokens": "boolean (optional, default: false)"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "token": "string - New access token",
-    "livekit_url": "string - Server's LiveKit URL"
-  }
-}
-```
-
-**Permissions Required:**
-
-- `can_create_tokens` (base requirement to create any token)
-- `is_server_admin` (required if setting `is_server_admin: true` on new token)
-- `is_channel_manager` (required if setting `is_channel_manager: true` on new token)
-- `can_create_tokens` (required if setting `can_create_tokens: true` on new token)
-
-**Error Messages:**
-
-- `"Permission denied: user cannot create tokens"` - Caller lacks `can_create_tokens`
-- `"Permission denied: Only admins can create admins"` - Caller is not an admin but tried to create
-  an admin token
-- `"Permission denied: Only channel managers can create channel managers"` - Caller is not a channel
-  manager but tried to create a channel manager token
--
-`"Permission denied: Only people with invite permission can grant invite permission to new tokens"` -
-Caller lacks `can_create_tokens` but tried to grant it
-
----
-
-### 3. Join Server
-
-**Endpoint:** `/join_server`
-
-**Method:** `POST`
-
-**Description:** Creates a new user account and links it to an existing token. The token must not
-already be linked to a user. The username must be unique across all users.
-
-**Input Parameters:**
-
-```json
-{
-  "token": "string (required) - Access token to link",
-  "username": "string (required) - Unique username",
-  "display_name": "string (required) - User's display name"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "server_id": "uuid",
-    "user_id": "uuid",
-    "username": "string",
-    "display_name": "string"
-  }
-}
-```
-
-**Permissions Required:** Valid token that is not yet linked to a user
-
-**Validation:**
-
-- Token must exist and not be linked to a user
-- Username must be unique
-
----
-
-### 4. Is Username Available
-
-**Endpoint:** `/is_username_available`
-
-**Method:** `POST`
-
-**Description:** Checks if a username is available for registration.
-
-**Input Parameters:**
-
-```json
-{
-  "username": "string (required)"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "username": "string",
-    "available": "boolean"
-  }
-}
-```
-
-**Permissions Required:** None (public endpoint)
-
----
-
-### 5. Get Server Details
-
-**Endpoint:** `/get_server_details`
-
-**Method:** `POST`
-
-**Description:** Retrieves server information, user details (if linked to the token) with their
-permissions, and a list of all channels in the server.
-
-**Input Parameters:**
-
-```json
-{
-  "token": "string (required)"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "server_id": "uuid",
-    "name": "string - Server name",
-    "icon_url": "string | null - Server icon URL",
-    "livekit_url": "string - LiveKit server URL",
-    "user": {
-      "id": "uuid",
-      "username": "string",
-      "display_name": "string",
-      "permissions": {
-        "is_server_admin": "boolean",
-        "is_channel_manager": "boolean",
-        "can_create_tokens": "boolean"
-      }
-    } | null,
-    "channels": [
-      {
-        "id": "uuid",
-        "name": "string",
-        "channel_type": "voice | text"
-      }
-    ]
-  }
-}
-```
-
-**Permissions Required:** Valid token
-
-**Notes:**
-
-- `user` field is `null` if the token is not linked to a user yet
-- `permissions` object shows the user's current permissions for this server
-
----
-
-### 6. Update Server
-
-**Endpoint:** `/update_server`
-
-**Method:** `POST`
-
-**Description:** Updates server details. At least one field must be provided for update. Only server
-admins can update server details.
-
-**Input Parameters:**
-
-```json
-{
-  "token": "string (required)",
-  "name": "string (optional)",
-  "icon_url": "string (optional)",
-  "livekit_api_key": "string (optional)",
-  "livekit_secret_key": "string (optional)"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "name": "string",
-    "icon_url": "string | null",
-    "livekit_api_key": "string",
-    "livekit_secret_key": "string"
-  }
-}
-```
-
-**Permissions Required:** `is_server_admin`
-
-**Validation:**
-
-- At least one field to update must be provided
-
----
-
-### 7. Create Channel
-
-**Endpoint:** `/create_channel`
-
-**Method:** `POST`
-
-**Description:** Creates a new channel in the server. Channel names must be unique within a server.
-Only channel managers can create channels.
-
-**Input Parameters:**
-
-```json
-{
-  "token": "string (required)",
-  "name": "string (required) - Channel name",
-  "channel_type": "voice | text (required)"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "name": "string",
-    "channel_type": "voice | text",
-    "created_at": "timestamp"
-  }
-}
-```
-
-**Permissions Required:** `is_channel_manager`
-
-**Validation:**
-
-- `channel_type` must be either "voice" or "text"
-- Channel name must be unique within the server
-
----
-
-### 8. Delete Channel
-
-**Endpoint:** `/delete_channel`
-
-**Method:** `POST`
-
-**Description:** Deletes a channel from the server. Only channel managers can delete channels, and
-the channel must belong to the same server as the token.
-
-**Input Parameters:**
-
-```json
-{
-  "token": "string (required)",
-  "channel_id": "uuid (required)"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "message": "Channel deleted successfully",
-    "channel_id": "uuid"
-  }
-}
-```
-
-**Permissions Required:** `is_channel_manager`
-
-**Validation:**
-
-- Channel must exist
-- Channel must belong to the same server as the token
-
----
-
-### 9. Get Channel Token
-
-**Endpoint:** `/get_channel_token`
-
-**Method:** `POST`
-
-**Description:** Generates a LiveKit JWT token for joining a specific voice/text channel. The token
-includes appropriate permissions based on the user's role. The user must be linked to the token (
-have a user account). If `screen_share` is true, the identity will have `_screenshare` appended to
-it for screen sharing sessions.
-
-**Input Parameters:**
-
-```json
-{
-  "token": "string (required) - Access token",
-  "channel_id": "uuid (required) - Channel to join",
-  "screen_share": "boolean (optional, default: false) - Append _screenshare to identity for screen sharing"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "token": "string - LiveKit JWT token"
-  }
-}
-```
-
-**Permissions Required:** Valid token linked to a user
-
-**LiveKit Token Grants:**
-
-- `roomCreate`: true
-- `roomJoin`: true
-- `room`: channel_id (the channel ID is used as the room name)
-- `canPublish`: true
-- `canSubscribe`: true
-- `roomAdmin`: Based on `is_channel_manager` permission
-- `identity`: user_id (or user_id_screenshare if `screen_share` is true)
-- `name`: display_name
-- `ttl`: 1 hour
-
-**Validation:**
-
-- Token must be linked to a user
-- Channel must exist
-- User information must be present in the database
-
----
-
-### 10. Mute Participant
-
-**Endpoint:** `/mute_participant`
-
-**Method:** `POST`
-
-**Description:** Allows channel managers and server admins to mute or unmute a participant in a
-voice channel. Uses LiveKit's RoomService API to control participant audio publishing.
-
-**Input Parameters:**
-
-```json
-{
-  "token": "string (required) - Access token",
-  "channel_id": "uuid (required) - Channel ID (room)",
-  "participant_identity": "string (required) - User ID of participant to mute/unmute",
-  "muted": "boolean (required) - True to mute, false to unmute"
-}
-```
-
-**Output:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "server_id": "uuid",
-    "channel_id": "uuid",
-    "participant_identity": "string",
-    "muted": "boolean"
-  }
-}
-```
-
-**Permissions Required:** `is_channel_manager` OR `is_server_admin`
-
-**Validation:**
-
-- Token must have either channel manager or server admin permissions
-- Channel must exist
-- LiveKit credentials must be configured for the server
-
-**Notes:**
-
-- Uses LiveKit's `mutePublishedTrack` API
-- The mute action affects all audio tracks published by the participant
-- The participant will be notified of the mute state change via LiveKit
-
----
-
-## Permission Levels
-
-### Token Permissions
-
-Each access token can have the following permissions:
-
-| Permission           | Description                                                                     |
-|----------------------|---------------------------------------------------------------------------------|
-| `is_server_admin`    | Can update server settings (name, icon, LiveKit credentials), mute participants |
-| `is_channel_manager` | Can create and delete channels, mute participants, gets `roomAdmin` in LiveKit  |
-| `can_create_tokens`  | Can generate new access tokens with custom permissions                          |
-
-### Permission Hierarchy
-
-- **Server Admin**: Can modify server-level settings but doesn't automatically get channel or token
-  creation permissions
-- **Channel Manager**: Can manage channels and has elevated permissions in LiveKit rooms
-- **Token Creator**: Can generate new access tokens for inviting users with specific permissions
-
-### Permission Delegation Rules
-
-When creating new access tokens, users can only grant permissions they themselves possess:
-
-- To create a token with `is_server_admin: true`, the caller must have `is_server_admin`
-- To create a token with `is_channel_manager: true`, the caller must have `is_channel_manager`
-- To create a token with `can_create_tokens: true`, the caller must have `can_create_tokens`
-
-This ensures a hierarchical permission model where permissions cannot be escalated beyond what the
-caller has.
-
----
-
-## Authentication Flow
-
-1. **Create Server** → Get server details
-2. **Create Access Token** → Generate first token (with elevated permissions)
-3. **Join Server** → Link token to user account (username + display_name)
-4. **Get Channel Token** → Generate LiveKit token for voice/video communication
-
----
-
-## Error Handling
-
-Common error responses:
-
-| Error                                     | Description                                      |
-|-------------------------------------------|--------------------------------------------------|
-| `Missing required field: <field>`         | A required input parameter is missing            |
-| `Invalid token provided`                  | The provided token doesn't exist in the database |
-| `Unauthorized: <reason>`                  | The user lacks required permissions              |
-| `<Resource> not found`                    | The requested resource doesn't exist             |
-| `Username already taken`                  | The username is not available                    |
-| `A channel with this name already exists` | Duplicate channel name in server                 |
-| `Token is already linked to a user`       | Cannot join server with an already-linked token  |
-
----
-
-## Development
-
-### Local Testing
-
-1. Start Supabase locally:
+| # | Function | Auth | Input (body) | Returns (`data`) |
+|---|---|---|---|---|
+| 1 | `create_server` | `service_key` in body must equal the instance's service_role key | `name`, `livekit_url`, `livekit_api_key`, `livekit_secret_key`, `icon_url?` | `server_id`, `name`, `supabase_url`, `supabase_key`, `invite_code` (single-use admin invite: all three permissions) |
+| 2 | `register` | invite code | `invite_code`, `public_key` (b64, 32 B), `stable_id` (b64, 32 B), `username`, `display_name` | server context + `token`. Atomic: user + first token created in one transaction (`create_user_with_token` RPC); invite claimed atomically (`claim_invite` RPC) |
+| 3 | `get_challenge` | none (key must belong to a registered, non-banned user) | `public_key`, `server_id` | `nonce` (60 s TTL, one active per key — upsert replaces) |
+| 4 | `verify_challenge` | signature | `public_key`, `nonce`, `signature` (b64 over `"<nonce>@<host>"`), `host`, `server_id` | server context + fresh `token` (1 h). Nonce is burned before verification |
+| 5 | `rotate_key` | signature by **old** key | `old_public_key`, `new_public_key`, `nonce`, `signature` (b64 over `"rotate:<newPubKeyB64>@<nonce>@<host>"`), `host`, `server_id` | success only. Replaces the user's key, deletes **all** their session tokens (old key may be compromised) |
+| 6 | `is_username_available` | none | `username` | `username`, `available` |
+| 7 | `create_invite` | Bearer + `can_create_tokens` | `is_server_admin?`, `is_channel_manager?`, `can_create_tokens?`, `max_uses?` (null = unlimited, default 1), `expires_in_seconds?` (null = never) | `invite_code`. Can only grant permissions the caller holds |
+| 8 | `get_server_details` | Bearer | — | server context (no `token` refresh) |
+| 9 | `update_server` | Bearer + `is_server_admin` | any of `name`, `icon_url`, `livekit_api_key`, `livekit_secret_key` | updated fields |
+| 10 | `create_channel` | Bearer + `is_channel_manager` | `name` (unique per server), `channel_type` (`voice` \| `text`) | channel row |
+| 11 | `delete_channel` | Bearer + `is_channel_manager` | `channel_id` (must belong to token's server) | confirmation |
+| 12 | `get_channel_token` | Bearer | `channel_id`, `screen_share?` | `token`: LiveKit JWT (room = channel id, identity = user id, `_screenshare` suffix when screen sharing, `roomAdmin` for channel managers, 1 h TTL). The function pre-creates the LiveKit room server-side; client grants never include `roomCreate` |
+| 13 | `mute_participant` | Bearer + (`is_channel_manager` or `is_server_admin`) | `channel_id`, `participant_identity`, `muted` | echo of the request. Uses LiveKit RoomService `mutePublishedTrack` |
+
+## Database schema
+
+Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
+
+1. **001_initial_schema.sql** — tables `servers`, `users`, `channels`, `tokens`, `invites`,
+   `auth_challenges`; RLS enabled with no policies (all access via service_role in functions);
+   pg_cron cleanup jobs; `claim_invite` + `create_user_with_token` RPCs (service_role-only);
+   public `servers` storage bucket for icons.
+2. **002_per_server_identity_uniqueness.sql** — `public_key` / `stable_id` unique per
+   `(server_id, …)` instead of globally.
+3. **003_per_device_tokens.sql** — drops `tokens.user_id` UNIQUE so each device holds its own
+   session token.
+
+## Deployment
+
+### Hosted Supabase project
 
 ```bash
-supabase start
+cd edge_functions
+supabase functions deploy --project-ref <ref>
 ```
 
-2. Test function locally:
+Apply the migrations via the SQL editor or `psql` in order.
+
+### Self-hosted Docker stack
+
+The docker-compose stack serves functions from its `volumes/functions/` directory via the
+`main` router (path `/functions/v1/<name>` → `/home/deno/functions/<name>`):
 
 ```bash
-curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/<function_name>' \
-  --header 'Authorization: Bearer <anon_key>' \
-  --header 'Content-Type: application/json' \
-  --data '{"key":"value"}'
+cp -r edge_functions/supabase/functions/{_shared,create_server,register,get_challenge,verify_challenge,rotate_key,is_username_available,create_invite,get_server_details,update_server,create_channel,delete_channel,get_channel_token,mute_participant} \
+      <stack>/volumes/functions/
+docker restart supabase-edge-functions
 ```
 
-### Deployment
+Apply migrations with `docker exec -i supabase-db psql -U postgres -v ON_ERROR_STOP=1 -f - < <file>`.
 
-Deploy all functions:
+Requirements for the stack's `.env`: `FUNCTIONS_VERIFY_JWT=false` (Rift session tokens are not
+JWTs, and `register`/`get_challenge` are called with no Authorization header at all).
 
-```bash
-supabase functions deploy
-```
+### LiveKit
 
-Deploy a specific function:
-
-```bash
-supabase functions deploy <function_name>
-```
-
----
-
-## Database Schema
-
-For detailed database schema information, see [schema.md](./supabase/schema/schema.md).
-
-### Key Tables
-
-- **servers**: Server configuration and LiveKit settings
-- **users**: User accounts (username, display_name)
-- **channels**: Voice and text channels
-- **tokens**: Access tokens with permissions
-
----
-
-## Security Notes
-
-1. All functions use `SUPABASE_SERVICE_ROLE_KEY` for database operations
-2. Tokens are generated using HMAC-SHA256 with server-specific seeding secrets
-3. LiveKit tokens have a 1-hour TTL
-4. All responses use HTTP 200 status code with a `success` field for consistency
-5. Permission checks are performed server-side for all privileged operations
-
----
-
-## Support
-
-For issues or questions, please refer to the project documentation or contact the development team.
-
+The functions read LiveKit credentials from the `servers` row, so the `livekit_url` stored at
+`create_server` time must be reachable **from the functions container as well as from clients**
+— use a LAN IP (e.g. `ws://192.168.1.6:7880`), never `localhost`. When running
+`livekit-server --dev` locally, start it with `--bind 0.0.0.0`.
