@@ -46,3 +46,5 @@ app.*.map.json
 
 own_rust_code
 .firebase
+# Supabase CLI local state
+supabase/.temp/
