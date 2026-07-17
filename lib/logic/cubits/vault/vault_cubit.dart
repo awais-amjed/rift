@@ -113,20 +113,14 @@ class VaultCubit extends Cubit<VaultState>
   Future<List<({String url, String version})>> getJoinedServers() =>
       _storage.getJoinedServers();
 
-  // ──────────────────────────────────────────────────────────
-  // Dev helpers
-  // ──────────────────────────────────────────────────────────
-
-  /// Wipes all secure storage and resets to [AuthStatus.fresh]. Dev/test only.
-  /// Calling this in production destroys the user's identity permanently.
+  /// Wipes all secure storage and resets to [AuthStatus.fresh], sending the
+  /// user back to onboarding.
+  ///
+  /// Used by "sign out of this device" (safe — the cloud backup preserves the
+  /// identity) and by the debug reset. For a privacy-mode vault with no backup
+  /// this destroys the identity permanently, so callers must confirm first.
   Future<void> resetVault() async {
-    assert(
-      () {
-        HelperMethods.printDebug('[VaultCubit] resetVault() called — dev/test only');
-        return true;
-      }(),
-      'resetVault() must not be called in production builds.',
-    );
+    HelperMethods.printDebug('[VaultCubit] resetVault() — wiping secure storage');
     await _storage.deleteAll();
     _identityCache.clear();
     emit(const VaultState(status: AuthStatus.fresh));

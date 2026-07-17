@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/cubits/vault/vault_cubit.dart';
@@ -186,6 +187,49 @@ class _SignedInPanel extends StatelessWidget {
 
   const _SignedInPanel({required this.themeState, required this.state});
 
+  /// Signs out of the account AND removes the vault + server list from this
+  /// device, returning to onboarding. The cloud backup is untouched, so
+  /// signing back in restores everything.
+  Future<void> _signOutOfDevice(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out of this device?'),
+        content: const Text(
+          'Your encrypted cloud backup stays safe. The vault and server '
+          'list on this device will be removed — sign back in to restore '
+          'them automatically.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(color: CustomColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final backupCubit = context.read<SupabaseBackupCubit>();
+    final serverCubit = context.read<ServerCubit>();
+    final vaultCubit = context.read<VaultCubit>();
+    final navigator = Navigator.of(context);
+
+    await backupCubit.signOut();
+    await serverCubit.reset();
+    await vaultCubit.resetVault();
+
+    // Close the settings dialog — the router now shows onboarding.
+    navigator.popUntil((route) => route.isFirst);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<SupabaseBackupCubit>();
@@ -220,7 +264,8 @@ class _SignedInPanel extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: isProcessing ? null : cubit.signOut,
+                onPressed:
+                    isProcessing ? null : () => _signOutOfDevice(context),
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
                   minimumSize: const Size(48, 28),
