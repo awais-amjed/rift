@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/invite_link.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
@@ -23,8 +24,7 @@ class _InviteModalState extends State<InviteModal> {
   bool _isGenerating = false;
   String? _inviteToken;
   String? _error;
-  bool _copiedToken = false;
-  bool _copiedUrl = false;
+  bool _copiedLink = false;
 
   // Expiry — default: 7 days (index 2)
   int _expiryIndex = 2;
@@ -34,7 +34,7 @@ class _InviteModalState extends State<InviteModal> {
 
   void _resetToken() {
     _inviteToken = null;
-    _copiedToken = false;
+    _copiedLink = false;
     _error = null;
   }
 
@@ -88,6 +88,9 @@ class _InviteModalState extends State<InviteModal> {
         return BlocBuilder<ServerCubit, ServerState>(
           builder: (context, serverState) {
             final server = serverState.selectedServer;
+            final inviteLink = (_inviteToken != null && server != null)
+                ? InviteLink.build(server.supabaseUrl, _inviteToken!)
+                : null;
 
             return Dialog(
               backgroundColor: themeState.bgPrimary,
@@ -162,25 +165,6 @@ class _InviteModalState extends State<InviteModal> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Server URL
-                          FieldLabel(
-                            label: 'Server URL',
-                            textColor: themeState.textTertiary,
-                          ),
-                          const SizedBox(height: 6),
-                          CopyableField(
-                            value: server?.supabaseUrl ?? '',
-                            copied: _copiedUrl,
-                            onCopy: () => _copyToClipboard(
-                              server?.supabaseUrl ?? '',
-                              (v) => setState(() => _copiedUrl = v),
-                            ),
-                            bgColor: themeState.bgSecondary,
-                            borderColor: themeState.borderPrimary,
-                            textColor: themeState.textTertiary,
-                          ),
-                          const SizedBox(height: 16),
-
                           // Expiry picker
                           FieldLabel(
                             label: 'Expires In',
@@ -220,24 +204,25 @@ class _InviteModalState extends State<InviteModal> {
 
                           const SizedBox(height: 16),
 
-                          // Invite code output. Invites are plain — members
-                          // join with baseline permissions and admins promote
-                          // them later from the Members dialog.
+                          // Single invite link (server URL + code combined) —
+                          // the invitee only pastes one thing. Invites are
+                          // plain: members join with baseline permissions and
+                          // admins promote them later from the Members dialog.
                           FieldLabel(
-                            label: 'Invite Code',
+                            label: 'Invite Link',
                             textColor: themeState.textTertiary,
                           ),
                           const SizedBox(height: 6),
                           CopyableField(
-                            value: _inviteToken,
+                            value: inviteLink,
                             placeholder: _isGenerating
                                 ? 'Generating...'
-                                : 'Click generate to create a token',
-                            copied: _copiedToken,
-                            onCopy: _inviteToken != null
+                                : 'Click generate to create an invite link',
+                            copied: _copiedLink,
+                            onCopy: inviteLink != null
                                 ? () => _copyToClipboard(
-                                    _inviteToken!,
-                                    (v) => setState(() => _copiedToken = v),
+                                    inviteLink,
+                                    (v) => setState(() => _copiedLink = v),
                                   )
                                 : null,
                             bgColor: themeState.bgSecondary,
@@ -259,7 +244,8 @@ class _InviteModalState extends State<InviteModal> {
 
                           const SizedBox(height: 10),
                           Text(
-                            'Share both the server URL and token with the person you want to invite.',
+                            'Share this link with the person you want to invite — '
+                            'they paste it as one field to join.',
                             style: TextStyle(
                               fontSize: 11,
                               color: themeState.textQuaternary,

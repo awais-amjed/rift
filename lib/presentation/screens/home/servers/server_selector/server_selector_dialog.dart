@@ -40,7 +40,7 @@ class _ServerSelectorDialogState extends State<ServerSelectorDialog> {
       case _SelectorMode.pickMode:
         return 'Join an existing server or create a new one';
       case _SelectorMode.join:
-        return 'Join a server with an invite code';
+        return 'Join a server with an invite link';
       case _SelectorMode.create:
         return 'Set up your own server with Supabase and LiveKit';
     }

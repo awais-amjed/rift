@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/invite_link.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -8,8 +9,8 @@ import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
 import '../../../theme/custom_colors.dart';
 
-/// Form to join an existing server using a Supabase URL, invite code,
-/// and a username / display name.
+/// Form to join an existing server using a single invite link (server URL +
+/// invite code combined) plus a username / display name.
 class JoinServerForm extends StatefulWidget {
   final VoidCallback onSuccess;
   final VoidCallback onCancel;
@@ -25,8 +26,7 @@ class JoinServerForm extends StatefulWidget {
 }
 
 class _JoinServerFormState extends State<JoinServerForm> {
-  final _supabaseUrlCtrl = TextEditingController();
-  final _inviteCodeCtrl = TextEditingController();
+  final _inviteLinkCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
   final _displayNameCtrl = TextEditingController();
 
@@ -34,15 +34,13 @@ class _JoinServerFormState extends State<JoinServerForm> {
   String? _error;
 
   bool get _canSubmit =>
-      _supabaseUrlCtrl.text.trim().isNotEmpty &&
-      _inviteCodeCtrl.text.trim().isNotEmpty &&
+      _inviteLinkCtrl.text.trim().isNotEmpty &&
       _usernameCtrl.text.trim().isNotEmpty &&
       _displayNameCtrl.text.trim().isNotEmpty;
 
   @override
   void dispose() {
-    _supabaseUrlCtrl.dispose();
-    _inviteCodeCtrl.dispose();
+    _inviteLinkCtrl.dispose();
     _usernameCtrl.dispose();
     _displayNameCtrl.dispose();
     super.dispose();
@@ -51,13 +49,22 @@ class _JoinServerFormState extends State<JoinServerForm> {
   Future<void> _submit() async {
     if (!_canSubmit) return;
 
+    final link = InviteLink.parse(_inviteLinkCtrl.text);
+    if (link == null) {
+      setState(() {
+        _error = "That doesn't look like a complete invite link. Ask the "
+            'server admin for a new one.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    final supabaseUrl = _supabaseUrlCtrl.text.trim();
-    final inviteCode = _inviteCodeCtrl.text.trim();
+    final supabaseUrl = link.serverUrl;
+    final inviteCode = link.inviteCode;
     final username = _usernameCtrl.text.trim();
     final displayName = _displayNameCtrl.text.trim();
 
@@ -101,19 +108,11 @@ class _JoinServerFormState extends State<JoinServerForm> {
         if (_error != null) _ErrorBanner(message: _error!),
 
         AppTextField(
-          controller: _supabaseUrlCtrl,
-          label: 'Server URL',
-          hint: 'https://xxxxx.supabase.co',
+          controller: _inviteLinkCtrl,
+          label: 'Invite Link',
+          hint: 'Paste the invite link you received',
           enabled: !_isLoading,
           autofocus: true,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 12),
-        AppTextField(
-          controller: _inviteCodeCtrl,
-          label: 'Invite Code',
-          hint: 'Paste the invite code you received',
-          enabled: !_isLoading,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),

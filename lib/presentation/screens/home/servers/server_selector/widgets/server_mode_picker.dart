@@ -23,7 +23,7 @@ class ServerModePicker extends StatelessWidget {
         _ModeCard(
           icon: Icons.login,
           title: 'Join Server',
-          subtitle: 'Join an existing server with an invite code',
+          subtitle: 'Join an existing server with an invite link',
           onTap: onJoin,
         ),
         const SizedBox(height: 10),
