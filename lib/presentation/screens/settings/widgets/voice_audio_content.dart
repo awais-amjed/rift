@@ -9,6 +9,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
 import 'audio_device_section.dart';
+import 'mic_test/mic_test_section.dart';
 
 class VoiceAudioContent extends StatefulWidget {
   final ThemeState themeState;
@@ -103,6 +104,9 @@ class _VoiceAudioContentState extends State<VoiceAudioContent> {
               onChanged: (v) =>
                   context.read<AppCubit>().setAutoGainControl(v),
             ),
+            const SizedBox(height: 20),
+            // ── Mic Test ─────────────────────────────────────
+            MicTestSection(themeState: themeState),
             const SizedBox(height: 24),
             Divider(color: themeState.borderPrimary),
             const SizedBox(height: 16),
