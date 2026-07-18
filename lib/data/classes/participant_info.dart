@@ -2,6 +2,12 @@ import 'dart:convert';
 
 class ParticipantInfo {
   final String identity;
+
+  /// The user id this participant belongs to, derived from [identity] (which
+  /// also carries a device segment). Per-user concerns — local mute/volume,
+  /// moderation, de-duplicating a multi-device user — key off this.
+  final String userId;
+
   final String name;
   final bool isSpeaking;
   final bool isMicrophoneEnabled;
@@ -16,6 +22,7 @@ class ParticipantInfo {
 
   const ParticipantInfo({
     required this.identity,
+    required this.userId,
     required this.name,
     this.isSpeaking = false,
     this.isMicrophoneEnabled = false,

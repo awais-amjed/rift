@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../../data/participant_identity.dart';
 import '../participants_tile/participant_tile.dart';
 
 /// Grid view displaying all participants with adaptive column count.
@@ -22,7 +23,8 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   String? _expandedParticipantIdentity;
 
   Widget _buildTile(Participant p) {
-    final setting = widget.participantSettings[p.identity];
+    final setting =
+        widget.participantSettings[ParticipantIdentity.userIdOf(p.identity)];
     final isMuted = (setting as dynamic)?.muted ?? false;
     return ParticipantTileWidget(
       participant: p,
@@ -60,7 +62,8 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
         },
       );
 
-      final setting = widget.participantSettings[expandedParticipant.identity];
+      final setting = widget.participantSettings[
+          ParticipantIdentity.userIdOf(expandedParticipant.identity)];
       final isMuted = (setting as dynamic)?.muted ?? false;
 
       return ParticipantTileWidget(
@@ -74,11 +77,11 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
     // Screenshares get a hero layout: the share fills most of the width and
     // camera tiles collapse into a scrollable rail on the right.
     final shares = widget.participants
-        .where((p) => p.identity.endsWith('_screenshare'))
+        .where((p) => ParticipantIdentity.isScreenshare(p.identity))
         .toList();
     if (shares.isNotEmpty && widget.participants.length > shares.length) {
       final cameras = widget.participants
-          .where((p) => !p.identity.endsWith('_screenshare'))
+          .where((p) => !ParticipantIdentity.isScreenshare(p.identity))
           .toList();
       return Padding(
         padding: const EdgeInsets.all(12),
@@ -162,7 +165,8 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
               itemCount: widget.participants.length,
               itemBuilder: (context, index) {
                 final p = widget.participants[index];
-                final setting = widget.participantSettings[p.identity];
+                final setting = widget
+                    .participantSettings[ParticipantIdentity.userIdOf(p.identity)];
                 final isMuted = (setting as dynamic)?.muted ?? false;
                 return ParticipantTileWidget(
                   participant: p,

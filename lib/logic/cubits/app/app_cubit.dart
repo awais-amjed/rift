@@ -76,13 +76,16 @@ class AppCubit extends HydratedCubit<AppState> {
   }
 
   // ── Persisted: per-participant volume/mute ───────────────
+  // Keyed by user id (not the raw LiveKit identity, which carries a per-device
+  // segment) so a user's local mute/volume follows them across devices and
+  // sessions.
 
-  void setParticipantSetting(String identity, {bool? muted, double? volume}) {
+  void setParticipantSetting(String userId, {bool? muted, double? volume}) {
     final existing =
-        state.participantSettings[identity] ?? const ParticipantSetting();
+        state.participantSettings[userId] ?? const ParticipantSetting();
     final updated = Map<String, ParticipantSetting>.from(
       state.participantSettings,
-    )..[identity] = existing.copyWith(muted: muted, volume: volume);
+    )..[userId] = existing.copyWith(muted: muted, volume: volume);
     emit(state.copyWith(participantSettings: updated));
   }
 

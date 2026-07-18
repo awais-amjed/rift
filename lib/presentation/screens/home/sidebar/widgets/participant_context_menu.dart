@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/participant_identity.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
@@ -40,13 +41,11 @@ class ParticipantContextMenu extends StatelessWidget {
                 (permissions?.isServerAdmin ?? false);
 
             // Server-side moderation state of the target (from LiveKit
-            // participant metadata).
-            final baseIdentity = identity.endsWith('_screenshare')
-                ? identity.substring(
-                    0, identity.length - '_screenshare'.length)
-                : identity;
+            // participant metadata), matched by user id so a screenshare or
+            // multi-device identity still resolves to the right person.
+            final targetUserId = ParticipantIdentity.userIdOf(identity);
             final targetInfo = appState.participants
-                .where((p) => p.identity == baseIdentity)
+                .where((p) => p.userId == targetUserId)
                 .firstOrNull;
             final isServerMuted = targetInfo?.isServerMuted ?? false;
             final isServerDeafened = targetInfo?.isServerDeafened ?? false;
@@ -58,7 +57,7 @@ class ParticipantContextMenu extends StatelessWidget {
               isMuted = !liveKitState.isMicEnabled;
               volume = 1.0; // Volume slider not applicable for self
             } else {
-              final setting = appState.participantSettings[identity];
+              final setting = appState.participantSettings[targetUserId];
               isMuted = setting?.muted ?? false;
               volume = setting?.volume ?? 1.0;
             }

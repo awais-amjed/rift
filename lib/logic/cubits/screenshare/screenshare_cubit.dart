@@ -98,7 +98,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       }
 
       final livekitToken = response.data['token'] as String;
-      final identityWithScreenshare = '${user.id}_screenshare';
+      // Use the identity the server embedded in this token (it carries the
+      // per-device segment that keeps the base and screenshare connections
+      // paired); fall back to the legacy form only if it's absent.
+      final identityWithScreenshare =
+          response.data['identity'] as String? ?? '${user.id}_screenshare';
 
       final config = ScreenShareConfig(
         livekitUrl: livekitUrl,

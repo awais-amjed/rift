@@ -6,6 +6,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../data/classes/participant_info.dart';
+import '../../../data/participant_identity.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
@@ -210,18 +211,43 @@ class LiveKitCubit extends Cubit<LiveKitState>
           ParticipantInfo.moderationFromMetadata(p.metadata);
       return ParticipantInfo(
         identity: p.identity,
+        userId: ParticipantIdentity.userIdOf(p.identity),
         name: p.name,
         isSpeaking: p.isSpeaking,
         isMicrophoneEnabled: p.isMicrophoneEnabled(),
         isCameraEnabled: p.isCameraEnabled(),
         isLocal: p is LocalParticipant,
-        isScreenshare: p.identity.endsWith('_screenshare'),
+        isScreenshare: ParticipantIdentity.isScreenshare(p.identity),
         isServerMuted: moderation.muted,
         isServerDeafened: moderation.deafened,
       );
     }).toList();
 
-    _appCubit.setParticipants(infos);
+    _appCubit.setParticipants(_dedupeByUser(infos));
+  }
+
+  /// Collapses a user who is present from multiple devices into a single
+  /// roster entry (one per user, and one per user's screenshare). The kept
+  /// entry prefers the local participant, then a speaking one, then a
+  /// mic-enabled one, so the surviving row reflects the "active" device.
+  List<ParticipantInfo> _dedupeByUser(List<ParticipantInfo> infos) {
+    final byKey = <String, ParticipantInfo>{};
+    for (final info in infos) {
+      final key = '${info.userId}|${info.isScreenshare}';
+      final existing = byKey[key];
+      if (existing == null || _isBetterEntry(info, existing)) {
+        byKey[key] = info;
+      }
+    }
+    return byKey.values.toList();
+  }
+
+  bool _isBetterEntry(ParticipantInfo candidate, ParticipantInfo current) {
+    int rank(ParticipantInfo p) =>
+        (p.isLocal ? 4 : 0) +
+        (p.isSpeaking ? 2 : 0) +
+        (p.isMicrophoneEnabled ? 1 : 0);
+    return rank(candidate) > rank(current);
   }
 
   void _onAppStateChanged(AppState appState) {
@@ -279,15 +305,16 @@ class LiveKitCubit extends Cubit<LiveKitState>
     if (room == null) return;
 
     final settings = _appCubit.state.participantSettings;
-    for (final entry in settings.entries) {
-      final identity = entry.key;
-      final setting = entry.value;
-
-      final participant = room.remoteParticipants[identity];
-      if (participant == null) continue;
+    for (final participant in room.remoteParticipants.values) {
+      final identity = participant.identity;
 
       // Screenshare participants have their audio managed separately.
-      if (identity.endsWith('_screenshare')) continue;
+      if (ParticipantIdentity.isScreenshare(identity)) continue;
+
+      // Per-user local mute/volume is keyed by user id, not the raw identity
+      // (which carries a per-device segment).
+      final setting = settings[ParticipantIdentity.userIdOf(identity)];
+      if (setting == null) continue;
 
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;

@@ -156,7 +156,7 @@ class VoiceChannelTile extends StatelessWidget {
                                   (p) => ParticipantListItem(
                                     participant: p,
                                     setting: appState
-                                        .participantSettings[p.identity],
+                                        .participantSettings[p.userId],
                                     contextMenu: ParticipantContextMenu(
                                       identity: p.identity,
                                       name: p.name,

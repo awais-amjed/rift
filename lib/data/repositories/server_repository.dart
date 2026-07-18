@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
@@ -6,6 +7,19 @@ import '../classes/api_response.dart';
 
 /// Repository for all Supabase Edge Function API calls.
 class ServerRepository {
+  /// A stable per-run device id, mixed into LiveKit participant identities so
+  /// the same user can be connected from multiple devices without the later
+  /// connection kicking the earlier one. It only has to be consistent within a
+  /// single app run — long enough for a voice session and its screen-share to
+  /// share it — so an in-memory value (regenerated each launch) is sufficient;
+  /// per-user state persists under the user id, not the identity.
+  static final String _deviceId = _generateDeviceId();
+
+  static String _generateDeviceId() {
+    final rng = Random.secure();
+    return List.generate(8, (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+  }
+
   // ──────────────────────────────────────────────────────────
   // Internal helpers
   // ──────────────────────────────────────────────────────────
@@ -264,7 +278,11 @@ class ServerRepository {
     return _post(
       supabaseUrl,
       'get_channel_token',
-      {'channel_id': channelId, 'screen_share': screenShare},
+      {
+        'channel_id': channelId,
+        'screen_share': screenShare,
+        'device_id': _deviceId,
+      },
       bearerToken: bearerToken,
     );
   }

@@ -6,8 +6,8 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
 
   /// Mutes/unmutes a participant for everyone in the room (requires is_channel_manager).
   /// Server-side moderation: persistently mute/deafen a user for everyone.
-  /// [participantIdentity] may be a screenshare identity — the suffix is
-  /// stripped to obtain the user id.
+  /// [participantIdentity] may be a screenshare or multi-device identity — the
+  /// user id is extracted from it.
   Future<bool> moderateParticipant({
     required String participantIdentity,
     bool? muted,
@@ -16,10 +16,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     final serverCubit = _serverCubit;
     if (serverCubit == null) return false;
 
-    final userId = participantIdentity.endsWith('_screenshare')
-        ? participantIdentity.substring(
-            0, participantIdentity.length - '_screenshare'.length)
-        : participantIdentity;
+    final userId = ParticipantIdentity.userIdOf(participantIdentity);
 
     final response = await serverCubit.moderateUser(
       userId: userId,
@@ -44,7 +41,10 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
         if (track != null) track.mediaStreamTrack.enabled = !muted;
       }
     }
-    _appCubit.setParticipantSetting(identity, muted: muted);
+    _appCubit.setParticipantSetting(
+      ParticipantIdentity.userIdOf(identity),
+      muted: muted,
+    );
   }
 
   /// Sets the local volume for a remote participant's audio (this user only).
@@ -65,7 +65,10 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
         }
       }
     }
-    _appCubit.setParticipantSetting(identity, volume: volume);
+    _appCubit.setParticipantSetting(
+      ParticipantIdentity.userIdOf(identity),
+      volume: volume,
+    );
   }
 }
 

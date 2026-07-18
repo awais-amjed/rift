@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/participant_identity.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -67,8 +68,13 @@ class _ContextStripState extends State<ContextStrip> {
 
                 return BlocBuilder<LiveKitCubit, LiveKitState>(
                   builder: (context, lkState) {
+                    // Count distinct users, not raw connections, so a user on
+                    // multiple devices (or their screenshare) counts once.
                     final count = lkState.participants
-                        .where((p) => !p.identity.endsWith('_screenshare'))
+                        .where((p) =>
+                            !ParticipantIdentity.isScreenshare(p.identity))
+                        .map((p) => ParticipantIdentity.userIdOf(p.identity))
+                        .toSet()
                         .length;
 
                     return Container(
