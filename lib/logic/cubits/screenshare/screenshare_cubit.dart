@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -14,12 +16,28 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
   final ServerCubit _serverCubit;
   final LiveKitCubit? _livekitCubit;
 
+  StreamSubscription<ScreenshareEvent>? _eventSub;
+
   ScreenshareCubit({
     required ServerCubit serverCubit,
     LiveKitCubit? livekitCubit,
   }) : _serverCubit = serverCubit,
        _livekitCubit = livekitCubit,
-       super(const ScreenshareState());
+       super(const ScreenshareState()) {
+    // Desktop screen sharing runs in Rust; listen for its lifecycle events
+    // (e.g. the shared window being closed) so we can stop and update the UI.
+    if (!kIsWeb) {
+      _eventSub = screenshareEventStream().listen(_onRustScreenshareEvent);
+    }
+  }
+
+  void _onRustScreenshareEvent(ScreenshareEvent event) {
+    if (event == ScreenshareEvent.sourceClosed &&
+        state.status == ScreenshareStatus.sharing) {
+      // The captured window was closed — tear the session down and reset UI.
+      stopScreenShare();
+    }
+  }
 
   /// Starts screen sharing with the given settings.
   Future<void> startScreenShare({
@@ -193,5 +211,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
 
   void clearError() {
     emit(state.copyWith(clearError: true));
+  }
+
+  @override
+  Future<void> close() async {
+    await _eventSub?.cancel();
+    return super.close();
   }
 }

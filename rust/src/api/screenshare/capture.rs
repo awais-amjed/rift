@@ -9,6 +9,7 @@ use livekit::webrtc::prelude::{
     I420Buffer, VideoBuffer, VideoFrame, VideoResolution, VideoRotation,
 };
 use livekit::webrtc::video_source::native::NativeVideoSource;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -195,10 +196,22 @@ fn run_capture_loop(
         }
     });
 
+    // Set when the capture source reports a permanent error — for a window
+    // capture that means the window was closed/destroyed. The capture loop
+    // watches this and ends the session.
+    let source_lost = Arc::new(AtomicBool::new(false));
+    let source_lost_cb = Arc::clone(&source_lost);
+
     let callback = move |result: Result<DesktopFrame, CaptureError>| {
-        if let Ok(frame) = result {
-            // Wrap the frame to bypass the !Send restriction
-            let _ = frame_tx.try_send(SendableFrame(frame));
+        match result {
+            Ok(frame) => {
+                // Wrap the frame to bypass the !Send restriction
+                let _ = frame_tx.try_send(SendableFrame(frame));
+            }
+            // Permanent = the source is gone (window closed). Temporary and any
+            // other transient error are ignored — the next tick retries.
+            Err(CaptureError::Permanent) => source_lost_cb.store(true, Ordering::Relaxed),
+            Err(_) => {}
         }
     };
 
@@ -253,6 +266,14 @@ fn run_capture_loop(
             }
             Err(RecvTimeoutError::Timeout) => {
                 capturer.capture_frame();
+
+                // The shared window was closed — notify Flutter so it can tear
+                // the session down, then stop capturing.
+                if source_lost.load(Ordering::Relaxed) {
+                    println!("✗ Capture source closed — ending screenshare");
+                    super::emit_screenshare_event(super::ScreenshareEvent::SourceClosed);
+                    break;
+                }
 
                 // Advance the deadline for the next frame
                 next_frame_time += frame_interval;

@@ -8,6 +8,12 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'screenshare/types.dart';
 
 // These functions are ignored because they are not marked as `pub`: `wait_for_resolution`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `emit_screenshare_event`
+
+/// Subscribe to screenshare lifecycle events (e.g. the shared window closing).
+/// Flutter listens to the returned stream for the app's lifetime.
+Stream<ScreenshareEvent> screenshareEventStream() =>
+    RustLib.instance.api.crateApiScreenshareScreenshareEventStream();
 
 /// Start screen sharing with the given configuration.
 /// Connects to LiveKit room with the provided token.
@@ -24,3 +30,10 @@ Future<List<CaptureSource>> listCaptureSources({
 }) => RustLib.instance.api.crateApiScreenshareListCaptureSources(
   captureFullScreen: captureFullScreen,
 );
+
+/// Lifecycle events pushed from the Rust screenshare layer up to Flutter.
+enum ScreenshareEvent {
+  /// The captured window was closed/destroyed, so capture stopped at the
+  /// source. Flutter should tear the session down and update its UI.
+  sourceClosed,
+}

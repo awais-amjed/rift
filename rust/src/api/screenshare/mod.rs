@@ -17,11 +17,38 @@ use capture::{list_capture_sources as list_capture_sources_impl, spawn_capture_t
 use track::publish_video_track;
 use types::{CaptureCommand, ScreenShareSession, SESSION};
 
+use crate::frb_generated::StreamSink;
 use livekit::prelude::*;
 use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
 use livekit::webrtc::prelude::VideoResolution;
 use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::sync::{Arc, Condvar, Mutex};
+
+/// Lifecycle events pushed from the Rust screenshare layer up to Flutter.
+pub enum ScreenshareEvent {
+    /// The captured window was closed/destroyed, so capture stopped at the
+    /// source. Flutter should tear the session down and update its UI.
+    SourceClosed,
+}
+
+// Sink for delivering [ScreenshareEvent]s to Dart. Set once when Flutter
+// subscribes; replaced if it subscribes again.
+static EVENT_SINK: Mutex<Option<StreamSink<ScreenshareEvent>>> = Mutex::new(None);
+
+/// Subscribe to screenshare lifecycle events (e.g. the shared window closing).
+/// Flutter listens to the returned stream for the app's lifetime.
+pub fn screenshare_event_stream(sink: StreamSink<ScreenshareEvent>) {
+    *EVENT_SINK.lock().unwrap() = Some(sink);
+}
+
+/// Emit an event to Flutter if a listener is attached. Safe to call from the
+/// capture thread.
+#[flutter_rust_bridge::frb(ignore)]
+pub fn emit_screenshare_event(event: ScreenshareEvent) {
+    if let Some(sink) = EVENT_SINK.lock().unwrap().as_ref() {
+        let _ = sink.add(event);
+    }
+}
 
 /// Start screen sharing with the given configuration.
 /// Connects to LiveKit room with the provided token.
