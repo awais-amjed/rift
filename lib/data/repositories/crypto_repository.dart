@@ -5,15 +5,21 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
+import '../classes/chat_identity.dart';
+import '../classes/message_envelope.dart';
 import '../classes/server_identity.dart';
+import '../classes/wrapped_key.dart';
 
 export '../classes/server_identity.dart';
+
+part 'crypto_repository_chat.dart';
 
 /// Repository wrapping all cryptographic operations.
 ///
 /// Uses the `cryptography` package for Argon2id, AES-GCM, HMAC-SHA256,
-/// Ed25519, and secure random generation.
-class CryptoRepository {
+/// Ed25519, X25519, and secure random generation. Chat/messaging crypto
+/// lives in the `_ChatCryptoMixin` part.
+class CryptoRepository with _ChatCryptoMixin {
   // ──────────────────────────────────────────────────────────
   // Random generation
   // ──────────────────────────────────────────────────────────
@@ -126,6 +132,7 @@ class CryptoRepository {
   // ──────────────────────────────────────────────────────────
 
   /// Encrypt [plaintext] with AES-256-GCM using [key].
+  @override
   Future<({Uint8List ciphertext, Uint8List iv})> encrypt({
     required String plaintext,
     required Uint8List key,
@@ -144,6 +151,7 @@ class CryptoRepository {
   }
 
   /// Decrypt [ciphertext] with AES-256-GCM using [key] and [iv].
+  @override
   Future<String> decrypt({
     required Uint8List ciphertext,
     required Uint8List key,
@@ -172,6 +180,7 @@ class CryptoRepository {
   // ──────────────────────────────────────────────────────────
 
   /// Compute HMAC-SHA256(key, message) and return raw bytes.
+  @override
   Future<Uint8List> hmacSha256({
     required Uint8List key,
     required String message,

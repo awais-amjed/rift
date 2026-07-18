@@ -131,6 +131,32 @@ Diffie-Hellman between sender private key and recipient public key → shared se
 Only the two identities can ever decrypt. Seed recovery restores full history; true seed loss
 makes history permanently unreadable (accepted).
 
+### DM topology — two tiers (decided July 2026)
+
+Same Design-1 crypto in both tiers; different hosts, different policies. The central server is
+a **funnel, not a home**: the project runs on no revenue, so central hosting cost must stay
+flat. People find each other on central, exchange first messages there, then move real
+conversations to a self-hosted server they share (or any messenger they like).
+
+|               | Central DMs                            | Server DMs                                     |
+|---------------|----------------------------------------|------------------------------------------------|
+| Purpose       | discovery + first contact              | real conversations                             |
+| Storage       | central Supabase                       | a self-hosted server both users are members of |
+| Identity keys | X25519 derived for the central host    | X25519 derived for that server's host          |
+| Delivery      | GoTrue RLS + native Realtime           | Edge Functions + Realtime Broadcast            |
+| Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) | none imposed by Rift — operator's hardware, operator's call |
+| Media         | none (text only)                       | allowed (operator's storage)                   |
+
+- Central limits are enforced **server-side** (the send path checks a daily counter; a
+  scheduled job sweeps expired and over-cap rows) — a modified client can't bypass them.
+  Default knobs (tunable constants): ~100 messages/day per sender, 30-day TTL, ~500 messages
+  per conversation.
+- Deletion is server-side: past the TTL/cap the ciphertext is gone from central; clients
+  render what the server still has.
+- The UI surfaces the remaining daily quota as it tightens and nudges long conversations
+  toward a shared server ("Continue on <server>" when one exists).
+- Privacy-mode users (no central account) simply have no central DMs; server DMs still work.
+
 ### Group channels — "Design 2": wrapped channel key
 - Each channel has a random symmetric **channel key**; every message encrypted once with it.
 - The server stores a **keyring**: the channel key encrypted separately for each member's public
