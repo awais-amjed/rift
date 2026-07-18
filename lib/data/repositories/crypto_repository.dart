@@ -10,7 +10,10 @@ import '../classes/message_envelope.dart';
 import '../classes/server_identity.dart';
 import '../classes/wrapped_key.dart';
 
+export '../classes/chat_identity.dart';
+export '../classes/message_envelope.dart';
 export '../classes/server_identity.dart';
+export '../classes/wrapped_key.dart';
 
 part 'crypto_repository_chat.dart';
 

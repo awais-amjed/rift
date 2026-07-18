@@ -16,9 +16,10 @@ part 'server_state.dart';
 part 'server_crud.dart';
 part 'server_selection.dart';
 part 'server_api.dart';
+part 'server_chat_api.dart';
 
 class ServerCubit extends HydratedCubit<ServerState>
-    with _ServerCrudMixin, _ServerSelectionMixin, _ServerApiMixin {
+    with _ServerCrudMixin, _ServerSelectionMixin, _ServerApiMixin, _ServerChatApiMixin {
   @override
   final ServerRepository _repository = ServerRepository();
 

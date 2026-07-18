@@ -83,6 +83,11 @@ Every function returns HTTP 200 with a JSON envelope:
 | 13 | `moderate_user` | Bearer + (`is_channel_manager` or `is_server_admin`) | `user_id`, `is_muted?`, `is_deafened?` (at least one) | `user_id`, `is_muted`, `is_deafened`, `applied_live`. Persists the flags on the users row and, if the target is currently in a voice channel, live-applies via LiveKit `updateParticipant` (permissions revoked + metadata broadcast). Server admins cannot be moderated |
 | 14 | `list_users` | Bearer (any member) | — | `users`: array of `{id, username, display_name, created_at, permissions{…}, is_muted, is_deafened, is_banned}` |
 | 15 | `set_user_permissions` | Bearer + `is_server_admin` | `user_id`, `is_server_admin?`, `is_channel_manager?`, `can_create_tokens?` (at least one) | `user_id`, `permissions{…}`. Callers cannot edit their own permissions (last-admin lockout guard) |
+| 16 | `publish_chat_key` | Bearer | `chat_public_key` (b64, 32 B X25519) | `chat_public_key`. Idempotent upsert of the caller's chat identity (deterministic per seed+host); called after login |
+| 17 | `send_message` | Bearer | `channel_id`, `ciphertext` (b64, ≤16384 chars), `nonce` (b64), `signature` (b64 Ed25519 over `"chatmsg:v1:<channel_id>:<key_version>:<nonce>:<ciphertext>"`), `key_version` | `id` (bigserial), `created_at`, `channel_id`, `sender_id`. Server stores the E2E envelope opaquely and attests sender + timestamp. Clients broadcast a Realtime ping (`chat:<channel_id>`) after success; the row is the source of truth |
+| 18 | `list_messages` | Bearer | `channel_id`, `before_id?` (history, newest-first) \| `after_id?` (catch-up, oldest-first), `limit?` (default 50, max 100) | `messages`: array of envelope rows + `sender_name`, `sender_public_key` (server-attested, for signature verification), and `has_more` |
+| 19 | `get_channel_key` | Bearer | `channel_id` | `current_version` (0 = bootstrap needed), `my_keys` (caller's sealed entries, all versions), `members_missing` (`{user_id, chat_public_key}` of keyed members lacking a current-version entry — any client may heal them) |
+| 20 | `post_channel_keys` | Bearer | `channel_id`, `key_version` (≤ current+1), `entries`: `[{user_id, ephemeral_public_key, ciphertext, nonce}]` | `entries_stored`. One INSERT, no ON CONFLICT: on 23505 returns `keyring_conflict` — first writer wins, losers refetch and re-wrap |
 
 ## Database schema
 
@@ -98,6 +103,9 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
    session token.
 4. **004_moderation_flags.sql** — `users.is_muted` / `users.is_deafened`, the persistent
    source of truth for server-side moderation.
+5. **005_chat_messages.sql** — E2E chat: `messages` (opaque envelopes), `channel_keyring`
+   (sealed channel keys, unique `(channel_id, key_version, user_id)`),
+   `users.chat_public_key` (X25519, published by clients).
 
 ## Deployment
 

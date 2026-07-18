@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/classes/chat_message.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
-import 'chat_message.dart';
 import 'widgets/chat_message_row.dart';
 
 /// Scrollable message history, newest at the bottom (reversed list, so it

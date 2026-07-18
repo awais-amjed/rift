@@ -4,6 +4,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
   CryptoRepository get _crypto;
   ServerRepository get _serverRepo;
   Map<String, ServerIdentity> get _identityCache;
+  Map<String, ChatIdentity> get _chatIdentityCache;
   Future<void> _addServerToVault(String host, {String version = 'v1'});
 
   // ──────────────────────────────────────────────────────────
@@ -27,6 +28,28 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       version: version,
     );
     _identityCache[cacheKey] = identity;
+    return identity;
+  }
+
+  /// Derive or retrieve the cached X25519 chat identity for a given host
+  /// (E2E messaging — ARCHITECTURE.md §4). Same per-host/versioned scheme as
+  /// the Ed25519 auth identity, domain-separated in the derivation context.
+  Future<ChatIdentity> getChatIdentityForHost(
+    String host, {
+    String version = 'v1',
+  }) async {
+    final cacheKey = '$host:$version';
+    if (_chatIdentityCache.containsKey(cacheKey)) {
+      return _chatIdentityCache[cacheKey]!;
+    }
+
+    final seed = CryptoRepository.fromBase64(state.masterSeed!);
+    final identity = await _crypto.deriveChatIdentity(
+      masterSeed: seed,
+      host: host,
+      version: version,
+    );
+    _chatIdentityCache[cacheKey] = identity;
     return identity;
   }
 

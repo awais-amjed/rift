@@ -39,6 +39,10 @@ class VaultCubit extends Cubit<VaultState>
   @override
   final Map<String, ServerIdentity> _identityCache = {};
 
+  /// In-memory cache of derived X25519 chat identities per host.
+  @override
+  final Map<String, ChatIdentity> _chatIdentityCache = {};
+
   /// Called after a successful [importBackup] to reconcile the server list.
   /// Receives the full server metadata maps from the backup.
   @override
@@ -123,6 +127,7 @@ class VaultCubit extends Cubit<VaultState>
     HelperMethods.printDebug('[VaultCubit] resetVault() — wiping secure storage');
     await _storage.deleteAll();
     _identityCache.clear();
+    _chatIdentityCache.clear();
     emit(const VaultState(status: AuthStatus.fresh));
   }
 }

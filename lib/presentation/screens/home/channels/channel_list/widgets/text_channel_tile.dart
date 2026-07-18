@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../data/classes/channel.dart';
+import '../../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 
-/// Tile for displaying a text channel.
+/// Tile for displaying a text channel. Tapping opens its E2E chat in the
+/// center pane (and tapping the open one closes it).
 class TextChannelTile extends StatelessWidget {
   final Channel channel;
 
@@ -12,36 +14,71 @@ class TextChannelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: BlocBuilder<ThemeCubit, ThemeState>(
-        builder: (context, themeState) {
-          return InkWell(
-            borderRadius: BorderRadius.circular(10),
-            hoverColor: themeState.bgHover,
-            onTap: () {},
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Row(
-                children: [
-                  Icon(Icons.tag, size: 17, color: themeState.textQuaternary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      channel.name,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: themeState.textSecondary,
-                      ),
-                    ),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return BlocBuilder<ChannelChatCubit, ChannelChatState>(
+          buildWhen: (prev, curr) => prev.channelId != curr.channelId,
+          builder: (context, chatState) {
+            final isSelected = chatState.channelId == channel.id;
+
+            return Material(
+              color:
+                  isSelected ? themeState.channelActiveBg : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                hoverColor: themeState.bgHover,
+                onTap: () {
+                  final cubit = context.read<ChannelChatCubit>();
+                  if (isSelected) {
+                    cubit.closeChannel();
+                  } else {
+                    cubit.openChannel(channel.id);
+                  }
+                },
+                child: Container(
+                  decoration: isSelected
+                      ? BoxDecoration(
+                          border: Border.all(
+                            color: themeState.channelActiveBorder,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        )
+                      : null,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.tag,
+                        size: 17,
+                        color: isSelected
+                            ? themeState.primary
+                            : themeState.textQuaternary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          channel.name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isSelected
+                                ? themeState.channelActiveText
+                                : themeState.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          );
-        },
-      ),
+            );
+          },
+        );
+      },
     );
   }
 }

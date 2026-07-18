@@ -5,8 +5,10 @@ import 'package:http/http.dart' as http;
 
 import '../classes/api_response.dart';
 
+part 'server_repository_chat.dart';
+
 /// Repository for all Supabase Edge Function API calls.
-class ServerRepository {
+class ServerRepository with _ChatApiMixin {
   /// A stable per-run device id, mixed into LiveKit participant identities so
   /// the same user can be connected from multiple devices without the later
   /// connection kicking the earlier one. It only has to be consistent within a
@@ -24,6 +26,7 @@ class ServerRepository {
   // Internal helpers
   // ──────────────────────────────────────────────────────────
 
+  @override
   Future<APIResponse> _post(
     String supabaseUrl,
     String functionName,
