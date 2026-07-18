@@ -47,6 +47,9 @@ class VoiceChannelTile extends StatelessWidget {
         return BlocBuilder<AppCubit, AppState>(
           builder: (context, appState) {
             final liveKitParticipants = isSelected ? appState.participants : [];
+            // Exclude screenshare pseudo-participants — they aren't people.
+            final voiceParticipants =
+                liveKitParticipants.where((p) => !p.isScreenshare).toList();
 
             return BlocBuilder<ChannelPresenceCubit, ChannelPresenceState>(
               builder: (context, presenceState) {
@@ -55,7 +58,7 @@ class VoiceChannelTile extends StatelessWidget {
                     : presenceState.usersIn(channel.id);
 
                 final count = isSelected
-                    ? liveKitParticipants.length
+                    ? voiceParticipants.length
                     : presenceUsers.length;
 
                 return Column(
@@ -136,7 +139,7 @@ class VoiceChannelTile extends StatelessWidget {
                       ),
                     ),
                     // LiveKit participants (when in the channel)
-                    if (isSelected && liveKitParticipants.isNotEmpty)
+                    if (isSelected && voiceParticipants.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(left: 16),
                         child: Container(
@@ -150,8 +153,7 @@ class VoiceChannelTile extends StatelessWidget {
                             ),
                           ),
                           child: Column(
-                            children: liveKitParticipants
-                                .where((p) => !p.isScreenshare)
+                            children: voiceParticipants
                                 .map(
                                   (p) => ParticipantListItem(
                                     participant: p,

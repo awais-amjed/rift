@@ -43,7 +43,11 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
   SupabaseClient? _client;
   RealtimeChannel? _channel;
   String? _currentServerId;
-  LiveKitConnectionState? _lastLkConnectionState;
+  bool _subscribed = false;
+
+  /// The channel we currently have the local user tracked in, or null when not
+  /// tracked. Reconciled against LiveKit state so we never leak a stale entry.
+  String? _trackedChannelId;
 
   ChannelPresenceCubit({
     required ServerCubit serverCubit,
@@ -52,10 +56,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
         _livekitCubit = livekitCubit,
         super(const ChannelPresenceState()) {
     _serverSub = serverCubit.stream.listen(_onServerChanged);
-    _lkSub = livekitCubit.stream.listen(_onLiveKitChanged);
+    _lkSub = livekitCubit.stream.listen((_) => _reconcileTracking());
     // Bootstrap with current state
     _onServerChanged(serverCubit.state);
-    _lastLkConnectionState = livekitCubit.state.connectionState;
   }
 
   // ── Server changes ───────────────────────────────────────────────────────
@@ -71,6 +74,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
 
   void _connectPresence(Server server) {
     _currentServerId = server.id;
+    _trackedChannelId = null;
+    _subscribed = false;
     _client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
     _channel = _client!.channel('presence:${server.id}');
 
@@ -78,20 +83,15 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
         .onPresenceSync((_) => _syncPresence())
         .onPresenceJoin((_) => _syncPresence())
         .onPresenceLeave((_) => _syncPresence())
-        .subscribe((status, [err]) async {
+        .subscribe((status, [err]) {
           if (status == RealtimeSubscribeStatus.subscribed) {
-            final lkState = _livekitCubit.state;
-            if (lkState.connectionState == LiveKitConnectionState.connected &&
-                lkState.currentChannelId != null) {
-              final user = _serverCubit.state.selectedServer?.user;
-              if (user != null) {
-                await _track(
-                  channelId: lkState.currentChannelId!,
-                  userId: user.id,
-                  displayName: user.displayName,
-                );
-              }
-            }
+            // (Re)subscribed — re-establish our presence from scratch (a
+            // realtime reconnect drops the server-side entry).
+            _subscribed = true;
+            _trackedChannelId = null;
+            _reconcileTracking();
+          } else {
+            _subscribed = false;
           }
         });
   }
@@ -102,6 +102,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     _channel = null;
     _client = null;
     _currentServerId = null;
+    _trackedChannelId = null;
+    _subscribed = false;
     try {
       await channel?.untrack();
       await channel?.unsubscribe();
@@ -113,28 +115,33 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
 
   // ── LiveKit state → track / untrack ─────────────────────────────────────
 
-  void _onLiveKitChanged(LiveKitState lkState) {
-    final prev = _lastLkConnectionState;
-    _lastLkConnectionState = lkState.connectionState;
+  /// Brings the tracked presence in line with the live LiveKit state: tracked
+  /// in exactly the channel we're connected to, and untracked otherwise. Driven
+  /// by connection state rather than transitions, so an error/network-drop path
+  /// (connected → error → disconnected) still clears our presence.
+  void _reconcileTracking() {
+    // Only touch presence once the channel is actually subscribed.
+    if (_channel == null || !_subscribed) return;
 
-    final justConnected =
-        lkState.connectionState == LiveKitConnectionState.connected &&
-            prev != LiveKitConnectionState.connected;
+    final lkState = _livekitCubit.state;
+    final channelId =
+        lkState.connectionState == LiveKitConnectionState.connected
+            ? lkState.currentChannelId
+            : null;
 
-    final justDisconnected =
-        lkState.connectionState == LiveKitConnectionState.disconnected &&
-            prev == LiveKitConnectionState.connected;
+    if (channelId == _trackedChannelId) return;
 
-    if (justConnected && lkState.currentChannelId != null) {
+    if (channelId != null) {
       final user = _serverCubit.state.selectedServer?.user;
-      if (user != null) {
-        _track(
-          channelId: lkState.currentChannelId!,
-          userId: user.id,
-          displayName: user.displayName,
-        );
-      }
-    } else if (justDisconnected) {
+      if (user == null) return;
+      _trackedChannelId = channelId;
+      _track(
+        channelId: channelId,
+        userId: user.id,
+        displayName: user.displayName,
+      );
+    } else {
+      _trackedChannelId = null;
       _untrack();
     }
   }
@@ -163,6 +170,12 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     if (isClosed) return;
     final entries = _channel?.presenceState() ?? <SinglePresenceState>[];
 
+    // The local user is rendered from LiveKit participants in their selected
+    // channel, never from presence — so exclude self here. This also means a
+    // stale self-entry (e.g. before an untrack round-trips) can never show us
+    // as "still in" a channel we've left.
+    final localUserId = _serverCubit.state.selectedServer?.user?.id;
+
     final Map<String, List<PresenceUser>> result = {};
     for (final entry in entries) {
       for (final presence in entry.presences) {
@@ -173,6 +186,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
         if (channelId == null || userId == null || displayName == null) {
           continue;
         }
+        if (userId == localUserId) continue;
         result.putIfAbsent(channelId, () => []).add(
               PresenceUser(userId: userId, displayName: displayName),
             );
