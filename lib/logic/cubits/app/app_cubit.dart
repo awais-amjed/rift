@@ -73,6 +73,12 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(autoGainControl: value));
   }
 
+  /// Voice-activity gate threshold (0..1). The LiveKitCubit watches this and
+  /// gates mic transmission accordingly during a call.
+  void setVoiceActivityThreshold(double value) {
+    emit(state.copyWith(voiceActivityThreshold: value.clamp(0.0, 1.0)));
+  }
+
   void setStatsOverlayPinned(bool pinned) {
     emit(state.copyWith(statsOverlayPinned: pinned));
   }

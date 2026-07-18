@@ -36,6 +36,8 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   noiseSuppression: json['noiseSuppression'] as bool? ?? true,
   echoCancellation: json['echoCancellation'] as bool? ?? true,
   autoGainControl: json['autoGainControl'] as bool? ?? true,
+  voiceActivityThreshold:
+      (json['voiceActivityThreshold'] as num?)?.toDouble() ?? 0.0,
 );
 
 Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
@@ -61,4 +63,5 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'noiseSuppression': instance.noiseSuppression,
   'echoCancellation': instance.echoCancellation,
   'autoGainControl': instance.autoGainControl,
+  'voiceActivityThreshold': instance.voiceActivityThreshold,
 };

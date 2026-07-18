@@ -142,55 +142,108 @@ class _MicTestSectionState extends State<MicTestSection> {
   @override
   Widget build(BuildContext context) {
     final themeState = widget.themeState;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Mic Test',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: themeState.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Speak to check your input level. Uses your selected input device '
-          'and the audio-processing settings above.',
-          style: TextStyle(color: themeState.textTertiary, fontSize: 12),
-        ),
-        const SizedBox(height: 12),
-        MicLevelMeter(
-          level: _level,
-          active: _testing,
-          themeState: themeState,
-        ),
-        const SizedBox(height: 12),
-        Row(
+    return BlocBuilder<AppCubit, AppState>(
+      buildWhen: (a, b) =>
+          a.voiceActivityThreshold != b.voiceActivityThreshold ||
+          a.pushToTalkEnabled != b.pushToTalkEnabled,
+      builder: (context, appState) {
+        final threshold = appState.voiceActivityThreshold;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppButton(
-              label: _testing ? 'Stop Test' : 'Test Mic',
-              onPressed: _busy ? null : _toggle,
-              variant:
-                  _testing ? AppButtonVariant.secondary : AppButtonVariant.primary,
-              isLoading: _busy,
-            ),
-            const SizedBox(width: 10),
-            if (_testing)
-              Text(
-                'Listening…',
-                style: TextStyle(color: themeState.textTertiary, fontSize: 12),
+            Text(
+              'Input Sensitivity',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: themeState.textPrimary,
               ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'How loud your mic must be to transmit. Drag the threshold, then '
+              'Test Mic and speak — input left of the marker is muted. Leave at '
+              '0% for an open mic.',
+              style: TextStyle(color: themeState.textTertiary, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            MicLevelMeter(
+              level: _level,
+              active: _testing,
+              threshold: threshold,
+              themeState: themeState,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Text(
+                  'Threshold',
+                  style:
+                      TextStyle(color: themeState.textSecondary, fontSize: 12),
+                ),
+                Expanded(
+                  child: Slider(
+                    value: threshold.clamp(0.0, 1.0),
+                    onChanged: (v) =>
+                        context.read<AppCubit>().setVoiceActivityThreshold(v),
+                    activeColor: themeState.primary,
+                    inactiveColor: themeState.bgActive,
+                  ),
+                ),
+                SizedBox(
+                  width: 36,
+                  child: Text(
+                    threshold <= 0 ? 'Off' : '${(threshold * 100).round()}%',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: themeState.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (appState.pushToTalkEnabled)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Ignored while Push-to-Talk is on.',
+                  style:
+                      TextStyle(color: themeState.textTertiary, fontSize: 11),
+                ),
+              ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                AppButton(
+                  label: _testing ? 'Stop Test' : 'Test Mic',
+                  onPressed: _busy ? null : _toggle,
+                  variant: _testing
+                      ? AppButtonVariant.secondary
+                      : AppButtonVariant.primary,
+                  isLoading: _busy,
+                ),
+                const SizedBox(width: 10),
+                if (_testing)
+                  Text(
+                    'Listening…',
+                    style: TextStyle(
+                        color: themeState.textTertiary, fontSize: 12),
+                  ),
+              ],
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style:
+                    const TextStyle(color: CustomColors.error, fontSize: 12),
+              ),
+            ],
           ],
-        ),
-        if (_error != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _error!,
-            style: const TextStyle(color: CustomColors.error, fontSize: 12),
-          ),
-        ],
-      ],
+        );
+      },
     );
   }
 }

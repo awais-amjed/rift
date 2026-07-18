@@ -105,7 +105,7 @@ class _VoiceAudioContentState extends State<VoiceAudioContent> {
                   context.read<AppCubit>().setAutoGainControl(v),
             ),
             const SizedBox(height: 20),
-            // ── Mic Test ─────────────────────────────────────
+            // ── Input Sensitivity + Mic Test ─────────────────
             MicTestSection(themeState: themeState),
             const SizedBox(height: 24),
             Divider(color: themeState.borderPrimary),

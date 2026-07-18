@@ -19,10 +19,16 @@ part 'livekit_media_controls.dart';
 part 'livekit_participants.dart';
 part 'livekit_screenshare.dart';
 part 'livekit_room_events.dart';
+part 'livekit_voice_activity.dart';
 
 /// Cubit managing LiveKit room connections, participants, and media controls.
 class LiveKitCubit extends Cubit<LiveKitState>
-    with _MediaControlsMixin, _ParticipantMixin, _ScreenshareMixin, _RoomEventsMixin {
+    with
+        _MediaControlsMixin,
+        _ParticipantMixin,
+        _ScreenshareMixin,
+        _RoomEventsMixin,
+        _VoiceActivityMixin {
   @override
   final AppCubit _appCubit;
   final TokenCubit _tokenCubit;
@@ -268,6 +274,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
       unawaited(_refreshMicrophoneCapture());
     }
 
+    // Voice-activity threshold change: attach/detach or retune the gate.
+    if (previous.voiceActivityThreshold != appState.voiceActivityThreshold) {
+      unawaited(_updateVoiceActivityMonitor());
+    }
+
     final pttChanged =
         previous.pushToTalkEnabled != appState.pushToTalkEnabled ||
         previous.pushToTalkKeyId != appState.pushToTalkKeyId;
@@ -305,6 +316,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
       shouldTransmit,
       audioCaptureOptions: _buildAudioCaptureOptions(),
     );
+    // Re-bind the voice-activity gate to the (possibly new) mic track.
+    await _updateVoiceActivityMonitor();
     if (syncParticipants) _syncParticipants();
   }
 
@@ -377,6 +390,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
   }
 
   Future<void> _cleanupRoom() async {
+    await _stopVoiceActivityMonitor();
+
     final room = state.room;
     if (room == null) return;
 

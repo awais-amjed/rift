@@ -4,6 +4,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   AppCubit get _appCubit;
   Future<void> _syncMicrophoneTransmission({bool syncParticipants = false});
   void _syncParticipants();
+  Future<void> _updateVoiceActivityMonitor();
 
   /// Toggles microphone. If deafened, un-deafens instead (restoring mic).
   Future<void> toggleMicrophone() async {
@@ -39,6 +40,8 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
       }
       _appCubit.setAudioEnabled(false);
       emit(state.copyWith(isDeafened: true, isMicEnabled: false));
+      // The mic track is gone — detach the voice-activity gate from it.
+      await _updateVoiceActivityMonitor();
     } else {
       if (room != null) {
         // Re-subscribe all remote audio tracks, restoring per-participant settings.

@@ -26,6 +26,11 @@ class AppState {
   final bool echoCancellation;
   final bool autoGainControl;
 
+  /// Voice-activity gate threshold, 0..1. In voice-activity mode (push-to-talk
+  /// off) the mic only transmits when its input level is at or above this.
+  /// 0 disables the gate (open mic — the previous behaviour).
+  final double voiceActivityThreshold;
+
   // ── Transient (not stored in JSON) ─────────────────────────
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool isHovered;
@@ -55,6 +60,7 @@ class AppState {
     this.noiseSuppression = true,
     this.echoCancellation = true,
     this.autoGainControl = true,
+    this.voiceActivityThreshold = 0.0,
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
@@ -84,6 +90,7 @@ class AppState {
     bool? noiseSuppression,
     bool? echoCancellation,
     bool? autoGainControl,
+    double? voiceActivityThreshold,
     bool? isHovered,
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
@@ -114,6 +121,8 @@ class AppState {
       noiseSuppression: noiseSuppression ?? this.noiseSuppression,
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,
+      voiceActivityThreshold:
+          voiceActivityThreshold ?? this.voiceActivityThreshold,
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId
           ? null
