@@ -21,6 +21,11 @@ class AppState {
   final String? outputDeviceId;
   final String? inputDeviceId;
 
+  // ── Audio processing (applied to the mic capture track) ────
+  final bool noiseSuppression;
+  final bool echoCancellation;
+  final bool autoGainControl;
+
   // ── Transient (not stored in JSON) ─────────────────────────
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool isHovered;
@@ -47,6 +52,9 @@ class AppState {
     this.statsOverlayPinned = false,
     this.outputDeviceId,
     this.inputDeviceId,
+    this.noiseSuppression = true,
+    this.echoCancellation = true,
+    this.autoGainControl = true,
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
@@ -73,6 +81,9 @@ class AppState {
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
     bool clearInputDeviceId = false,
+    bool? noiseSuppression,
+    bool? echoCancellation,
+    bool? autoGainControl,
     bool? isHovered,
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
@@ -100,6 +111,9 @@ class AppState {
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
       outputDeviceId: clearOutputDeviceId ? null : (outputDeviceId ?? this.outputDeviceId),
       inputDeviceId: clearInputDeviceId ? null : (inputDeviceId ?? this.inputDeviceId),
+      noiseSuppression: noiseSuppression ?? this.noiseSuppression,
+      echoCancellation: echoCancellation ?? this.echoCancellation,
+      autoGainControl: autoGainControl ?? this.autoGainControl,
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId
           ? null

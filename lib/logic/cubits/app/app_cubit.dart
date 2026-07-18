@@ -57,6 +57,22 @@ class AppCubit extends HydratedCubit<AppState> {
     WindowsAudioDucking.apply(disable: value);
   }
 
+  // ── Audio processing (mic capture) ───────────────────────
+  // The LiveKitCubit watches AppState and re-publishes the mic track when any
+  // of these change, so a toggle takes effect mid-call.
+
+  void setNoiseSuppression(bool value) {
+    emit(state.copyWith(noiseSuppression: value));
+  }
+
+  void setEchoCancellation(bool value) {
+    emit(state.copyWith(echoCancellation: value));
+  }
+
+  void setAutoGainControl(bool value) {
+    emit(state.copyWith(autoGainControl: value));
+  }
+
   void setStatsOverlayPinned(bool pinned) {
     emit(state.copyWith(statsOverlayPinned: pinned));
   }

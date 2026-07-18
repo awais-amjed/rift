@@ -117,7 +117,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
     }
 
     final room = Room(
-      roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
+      roomOptions: RoomOptions(
+        adaptiveStream: true,
+        dynacast: true,
+        defaultAudioCaptureOptions: _buildAudioCaptureOptions(),
+      ),
     );
     _setupRoomListeners(room);
 
@@ -253,6 +257,17 @@ class LiveKitCubit extends Cubit<LiveKitState>
   void _onAppStateChanged(AppState appState) {
     final previous = _lastAppState;
     _lastAppState = appState;
+
+    // Audio-processing toggles: recreate the mic track so the new capture
+    // constraints apply mid-call.
+    final audioProcessingChanged =
+        previous.noiseSuppression != appState.noiseSuppression ||
+        previous.echoCancellation != appState.echoCancellation ||
+        previous.autoGainControl != appState.autoGainControl;
+    if (audioProcessingChanged) {
+      unawaited(_refreshMicrophoneCapture());
+    }
+
     final pttChanged =
         previous.pushToTalkEnabled != appState.pushToTalkEnabled ||
         previous.pushToTalkKeyId != appState.pushToTalkKeyId;
@@ -283,8 +298,38 @@ class LiveKitCubit extends Cubit<LiveKitState>
       micEnabled: state.isMicEnabled,
       deafened: state.isDeafened,
     );
-    await room.localParticipant?.setMicrophoneEnabled(shouldTransmit);
+    // Pass the current capture options so a fresh mic track (created on
+    // unmute) always picks up the latest noise-suppression / echo / AGC
+    // settings, not the ones frozen into RoomOptions at connect time.
+    await room.localParticipant?.setMicrophoneEnabled(
+      shouldTransmit,
+      audioCaptureOptions: _buildAudioCaptureOptions(),
+    );
     if (syncParticipants) _syncParticipants();
+  }
+
+  /// Builds mic capture options from the persisted audio-processing settings.
+  /// [deviceId] is intentionally left unset — input-device selection is
+  /// handled globally via `Hardware.instance.selectAudioInput`.
+  AudioCaptureOptions _buildAudioCaptureOptions() {
+    final settings = _appCubit.state;
+    return AudioCaptureOptions(
+      noiseSuppression: settings.noiseSuppression,
+      echoCancellation: settings.echoCancellation,
+      autoGainControl: settings.autoGainControl,
+    );
+  }
+
+  /// Re-publishes the mic track so changed capture options take effect during
+  /// a live call. WebRTC bakes these constraints in at track creation, so the
+  /// track must be recreated — stop it, then let the normal transmission sync
+  /// bring it back with the new options.
+  Future<void> _refreshMicrophoneCapture() async {
+    final room = state.room;
+    if (room == null) return;
+    if (state.connectionState != LiveKitConnectionState.connected) return;
+    await room.localParticipant?.setMicrophoneEnabled(false);
+    await _syncMicrophoneTransmission();
   }
 
   /// Applies HIGH video quality to screenshare tracks from remote participants.

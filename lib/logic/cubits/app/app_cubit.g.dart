@@ -33,6 +33,9 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   statsOverlayPinned: json['statsOverlayPinned'] as bool? ?? false,
   outputDeviceId: json['outputDeviceId'] as String?,
   inputDeviceId: json['inputDeviceId'] as String?,
+  noiseSuppression: json['noiseSuppression'] as bool? ?? true,
+  echoCancellation: json['echoCancellation'] as bool? ?? true,
+  autoGainControl: json['autoGainControl'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
@@ -55,4 +58,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'statsOverlayPinned': instance.statsOverlayPinned,
   'outputDeviceId': instance.outputDeviceId,
   'inputDeviceId': instance.inputDeviceId,
+  'noiseSuppression': instance.noiseSuppression,
+  'echoCancellation': instance.echoCancellation,
+  'autoGainControl': instance.autoGainControl,
 };

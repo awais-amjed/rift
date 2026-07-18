@@ -64,6 +64,48 @@ class _VoiceAudioContentState extends State<VoiceAudioContent> {
             const SizedBox(height: 24),
             Divider(color: themeState.borderPrimary),
             const SizedBox(height: 16),
+            // ── Audio Processing (cross-platform) ────────────
+            Text(
+              'Audio Processing',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: themeState.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _ToggleRow(
+              themeState: themeState,
+              title: 'Noise suppression',
+              description: 'Filters out steady background noise like fans, '
+                  'keyboards, and hum before it reaches the call.',
+              value: appState.noiseSuppression,
+              onChanged: (v) =>
+                  context.read<AppCubit>().setNoiseSuppression(v),
+            ),
+            const SizedBox(height: 14),
+            _ToggleRow(
+              themeState: themeState,
+              title: 'Echo cancellation',
+              description: 'Stops other participants\' audio, picked up by your '
+                  'mic, from echoing back to them.',
+              value: appState.echoCancellation,
+              onChanged: (v) =>
+                  context.read<AppCubit>().setEchoCancellation(v),
+            ),
+            const SizedBox(height: 14),
+            _ToggleRow(
+              themeState: themeState,
+              title: 'Automatic gain control',
+              description: 'Evens out your mic level as you move nearer to or '
+                  'further from the mic.',
+              value: appState.autoGainControl,
+              onChanged: (v) =>
+                  context.read<AppCubit>().setAutoGainControl(v),
+            ),
+            const SizedBox(height: 24),
+            Divider(color: themeState.borderPrimary),
+            const SizedBox(height: 16),
             // ── Audio Ducking (Windows only) ─────────────────
             if (!kIsWeb && Platform.isWindows) ...[
               Text(
@@ -229,6 +271,56 @@ class _VoiceAudioContentState extends State<VoiceAudioContent> {
           ],
         );
       },
+    );
+  }
+}
+
+/// A titled description + trailing switch, the standard layout for a boolean
+/// setting in this screen.
+class _ToggleRow extends StatelessWidget {
+  final ThemeState themeState;
+  final String title;
+  final String description;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _ToggleRow({
+    required this.themeState,
+    required this.title,
+    required this.description,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: themeState.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: TextStyle(
+                  color: themeState.textTertiary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Switch(value: value, onChanged: onChanged),
+      ],
     );
   }
 }
