@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import 'widgets/sidebar_content.dart';
 
 /// Shown when the sidebar is unpinned. Renders an invisible hot-zone on the
@@ -44,7 +46,7 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
           ),
         ),
 
-        // ── Invisible hot-zone strip on the left edge ─────────
+        // ── Hot-zone strip on the left edge, with a visible handle ────
         if (!_hovered)
           Positioned(
             left: 0,
@@ -53,7 +55,24 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
             width: _hotZoneWidth,
             child: MouseRegion(
               onEnter: (_) => setState(() => _hovered = true),
-              child: const SizedBox.expand(),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: 4,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: context
+                        .watch<ThemeCubit>()
+                        .state
+                        .primary
+                        .withValues(alpha: 0.55),
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(4),
+                      bottomRight: Radius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
       ],

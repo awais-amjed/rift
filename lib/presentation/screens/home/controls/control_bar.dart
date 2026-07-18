@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,44 +11,14 @@ import '../../../theme/custom_colors.dart';
 import '../screenshare/screen_share_settings_dialog.dart';
 
 /// Floating control bar shown at the bottom of the video area.
-/// Auto-hides after inactivity and reappears when the mouse moves.
-class ControlBar extends StatefulWidget {
-  const ControlBar({super.key});
+///
+/// Visibility is driven by the parent ([RoomView]) so it fades in lockstep
+/// with the context strip — together they form focus mode: idle in a call and
+/// the chrome fades, leaving the video edge-to-edge.
+class ControlBar extends StatelessWidget {
+  final bool visible;
 
-  @override
-  ControlBarState createState() => ControlBarState();
-}
-
-class ControlBarState extends State<ControlBar> {
-  static const _hideDelay = Duration(seconds: 2);
-
-  bool _visible = true;
-  Timer? _hideTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _scheduleHide();
-  }
-
-  @override
-  void dispose() {
-    _hideTimer?.cancel();
-    super.dispose();
-  }
-
-  void _scheduleHide() {
-    _hideTimer?.cancel();
-    _hideTimer = Timer(_hideDelay, () {
-      if (mounted) setState(() => _visible = false);
-    });
-  }
-
-  /// Called by the parent when pointer activity is detected anywhere in the area.
-  void onActivity() {
-    if (!_visible) setState(() => _visible = true);
-    _scheduleHide();
-  }
+  const ControlBar({super.key, required this.visible});
 
   @override
   Widget build(BuildContext context) {
@@ -64,14 +32,14 @@ class ControlBarState extends State<ControlBar> {
               right: 0,
               child: Center(
                 child: AnimatedOpacity(
-                  opacity: _visible ? 1.0 : 0.0,
+                  opacity: visible ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 300),
                   child: AnimatedSlide(
-                    offset: _visible ? Offset.zero : const Offset(0, 0.4),
+                    offset: visible ? Offset.zero : const Offset(0, 0.4),
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
                     child: IgnorePointer(
-                      ignoring: !_visible,
+                      ignoring: !visible,
                       child: _ControlBarContent(
                         isMicEnabled: livekitState.isMicEnabled,
                         isCameraEnabled: livekitState.isCameraEnabled,
