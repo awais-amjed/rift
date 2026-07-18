@@ -81,13 +81,17 @@ Every function returns HTTP 200 with a JSON envelope:
 | 11 | `delete_channel` | Bearer + `is_channel_manager` | `channel_id` (must belong to token's server) | confirmation |
 | 12 | `get_channel_token` | Bearer | `channel_id`, `screen_share?`, `device_id?` | `token`: LiveKit JWT + `identity`. Identity = `<userId>~<deviceId>` (client-supplied `device_id`, sanitised; userId prefix is always server-set so it can't be spoofed), with a `_screenshare` suffix when screen sharing. The device segment lets one user join from multiple devices without a LiveKit identity collision kicking the earlier connection. `roomAdmin` for channel managers, 1 h TTL. The function pre-creates the LiveKit room server-side; client grants never include `roomCreate`. **Moderation is enforced here**: muted users get no `microphone` in `canPublishSources`, deafened users get `canSubscribe: false`, and the flags ride along as participant metadata |
 | 13 | `moderate_user` | Bearer + (`is_channel_manager` or `is_server_admin`) | `user_id`, `is_muted?`, `is_deafened?` (at least one) | `user_id`, `is_muted`, `is_deafened`, `applied_live`. Persists the flags on the users row and, if the target is currently in a voice channel, live-applies via LiveKit `updateParticipant` (permissions revoked + metadata broadcast). Server admins cannot be moderated |
-| 14 | `list_users` | Bearer (any member) | — | `users`: array of `{id, username, display_name, created_at, permissions{…}, is_muted, is_deafened, is_banned}` |
+| 14 | `list_users` | Bearer (any member) | — | `users`: array of `{id, username, display_name, created_at, permissions{…}, is_muted, is_deafened, is_banned, chat_public_key}` |
 | 15 | `set_user_permissions` | Bearer + `is_server_admin` | `user_id`, `is_server_admin?`, `is_channel_manager?`, `can_create_tokens?` (at least one) | `user_id`, `permissions{…}`. Callers cannot edit their own permissions (last-admin lockout guard) |
-| 16 | `publish_chat_key` | Bearer | `chat_public_key` (b64, 32 B X25519) | `chat_public_key`. Idempotent upsert of the caller's chat identity (deterministic per seed+host); called after login |
+| 16 | `publish_chat_key` | Bearer | `chat_public_key` (b64, 32 B X25519) | `chat_public_key`, `newly_published`. Idempotent upsert of the caller's chat identity (deterministic per seed+host); called after login. `newly_published` tells the client to ring the key-sweep doorbell |
 | 17 | `send_message` | Bearer | `channel_id`, `ciphertext` (b64, ≤16384 chars), `nonce` (b64), `signature` (b64 Ed25519 over `"chatmsg:v1:<channel_id>:<key_version>:<nonce>:<ciphertext>"`), `key_version` | `id` (bigserial), `created_at`, `channel_id`, `sender_id`. Server stores the E2E envelope opaquely and attests sender + timestamp. Clients broadcast a Realtime ping (`chat:<channel_id>`) after success; the row is the source of truth |
 | 18 | `list_messages` | Bearer | `channel_id`, `before_id?` (history, newest-first) \| `after_id?` (catch-up, oldest-first), `limit?` (default 50, max 100) | `messages`: array of envelope rows + `sender_name`, `sender_public_key` (server-attested, for signature verification), and `has_more` |
 | 19 | `get_channel_key` | Bearer | `channel_id` | `current_version` (0 = bootstrap needed), `my_keys` (caller's sealed entries, all versions), `members_missing` (`{user_id, chat_public_key}` of keyed members lacking a current-version entry — any client may heal them) |
 | 20 | `post_channel_keys` | Bearer | `channel_id`, `key_version` (≤ current+1), `entries`: `[{user_id, ephemeral_public_key, ciphertext, nonce}]` | `entries_stored`. One INSERT, no ON CONFLICT: on 23505 returns `keyring_conflict` — first writer wins, losers refetch and re-wrap |
+| 21 | `sweep_channel_keys` | Bearer | — | `work`: per text channel the caller can help — `key_version: 0` + all keyed members (bootstrap), or the current version + caller's sealed `my_key` + `members_missing` (healing). Clients run it on launch/server-select and on the `keysweep:<server_id>` Broadcast doorbell |
+| 22 | `send_dm` | Bearer | `recipient_id`, envelope (`ciphertext`, `nonce`, `signature`, `key_version`) | `id`, `created_at`. Design-1 DM envelope; recipient must be a keyed, non-banned member. Signature context is `"dm:<lowerUserId>:<higherUserId>"`. Sender rings the recipient's `dm:<server_id>:<user_id>` Broadcast topic after the ack |
+| 23 | `list_dms` | Bearer | `peer_id`, `before_id?` \| `after_id?`, `limit?` | `messages` (both directions of the pair, sender name + Ed25519 key attested), `has_more` |
+| 24 | `list_dm_conversations` | Bearer | — | `conversations`: one per peer — peer identity material (display name, Ed25519 + X25519 keys) and the latest envelope for the client-decrypted preview |
 
 ## Database schema
 
@@ -106,6 +110,8 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
 5. **005_chat_messages.sql** — E2E chat: `messages` (opaque envelopes), `channel_keyring`
    (sealed channel keys, unique `(channel_id, key_version, user_id)`),
    `users.chat_public_key` (X25519, published by clients).
+6. **006_dm_messages.sql** — E2E server DMs: `dm_messages` (opaque pair envelopes, no
+   keyring — Design-1 pairwise DH; pair + per-side indexes).
 
 ## Deployment
 

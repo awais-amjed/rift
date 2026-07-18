@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../profile/user_profile.dart';
+import 'home_dm_button.dart';
 import 'sidebar_channel_list.dart';
 import 'sidebar_header.dart';
 import 'sidebar_actions.dart';
@@ -43,6 +44,7 @@ class SidebarContent extends StatelessWidget {
               SizedBox(height: topPadding),
               SidebarHeader(),
               SidebarActions(),
+              HomeDmButton(),
               SidebarChannelList(),
               UserProfile(),
             ],

@@ -121,7 +121,7 @@ no realtime state sync and none is needed — live state (presence, voice) lives
 
 ---
 
-## 4. Chat encryption — [Planned — chat is not built yet]
+## 4. Chat encryption — [Implemented July 2026 — group channels, server DMs, central DMs]
 
 All messages E2E encrypted. Encryption keys are X25519, derived from the master seed exactly like
 the Ed25519 identities (per-host, versioned) — **the backup format needs no changes**.

@@ -6,14 +6,15 @@ import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../chat/channel_chat_view.dart';
+import '../dms/home_dm_view.dart';
 import '../participants_grid/participants_grid.dart';
 
-/// The home screen's center pane: text-channel chat when one is open,
-/// otherwise the voice/video area.
+/// The home screen's center pane: the Home (DMs) surface when open, else
+/// text-channel chat when one is open, otherwise the voice/video area.
 ///
 /// Owns the voice connect/disconnect listener so it stays mounted regardless
-/// of which pane is showing — you can read a text channel while remaining in
-/// a voice call.
+/// of which pane is showing — you can read chat or DMs while remaining in a
+/// voice call.
 class MainContent extends StatelessWidget {
   const MainContent({super.key});
 
@@ -42,14 +43,22 @@ class MainContent extends StatelessWidget {
           cameraEnabled: appState.videoEnabled,
         );
       },
-      child: BlocBuilder<ChannelChatCubit, ChannelChatState>(
-        buildWhen: (prev, curr) =>
-            (prev.channelId == null) != (curr.channelId == null),
-        builder: (context, chatState) {
-          if (chatState.channelId != null) {
-            return const ChannelChatView();
+      child: BlocBuilder<AppCubit, AppState>(
+        buildWhen: (prev, curr) => prev.homeViewOpen != curr.homeViewOpen,
+        builder: (context, appState) {
+          if (appState.homeViewOpen) {
+            return const HomeDmView();
           }
-          return const ParticipantsGrid();
+          return BlocBuilder<ChannelChatCubit, ChannelChatState>(
+            buildWhen: (prev, curr) =>
+                (prev.channelId == null) != (curr.channelId == null),
+            builder: (context, chatState) {
+              if (chatState.channelId != null) {
+                return const ChannelChatView();
+              }
+              return const ParticipantsGrid();
+            },
+          );
         },
       ),
     );

@@ -20,6 +20,10 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(isPinned: isPinned));
   }
 
+  void setHomeViewOpen(bool open) {
+    emit(state.copyWith(homeViewOpen: open));
+  }
+
   // ── Persisted: title bar ─────────────────────────────────
 
   void setTitleBarVisible(bool visible) {

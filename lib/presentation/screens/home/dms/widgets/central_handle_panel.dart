@@ -1,0 +1,68 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/app_button.dart';
+import '../../../../common/app_text_field.dart';
+
+/// Inline claim-a-handle panel, shown when the user is signed in to central
+/// but hasn't created a directory profile yet.
+class CentralHandlePanel extends StatefulWidget {
+  const CentralHandlePanel({super.key});
+
+  @override
+  State<CentralHandlePanel> createState() => _CentralHandlePanelState();
+}
+
+class _CentralHandlePanelState extends State<CentralHandlePanel> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeState = context.watch<ThemeCubit>().state;
+    final state = context.watch<CentralDmCubit>().state;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pick a handle so people can find you:',
+            style: TextStyle(fontSize: 12, color: themeState.textTertiary),
+          ),
+          const SizedBox(height: 8),
+          AppTextField(
+            controller: _controller,
+            hint: 'your_handle',
+          ),
+          if (state.error != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              state.error!,
+              style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+            ),
+          ],
+          const SizedBox(height: 8),
+          AppButton(
+            label: 'Claim handle',
+            isLoading: state.claiming,
+            expanded: true,
+            onPressed: state.claiming
+                ? null
+                : () => context
+                    .read<CentralDmCubit>()
+                    .claimHandle(_controller.text),
+          ),
+        ],
+      ),
+    );
+  }
+}

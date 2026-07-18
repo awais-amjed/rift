@@ -88,6 +88,22 @@ E2E chat envelopes (ARCHITECTURE.md §4) — the server only ever stores ciphert
 | signature   | text        | Required                            | Sender's Ed25519 signature over the canonical payload, base64  |
 | key_version | integer     | Required                            | Channel-key version that encrypted this message                |
 
+### dm_messages
+
+E2E direct messages between members (Design 1 — pairwise X25519 DH, no keyring).
+Signature context: `dm:<lowerUserId>:<higherUserId>`.
+
+| Column       | Type        | Constraints                                       | Description                          |
+|--------------|-------------|---------------------------------------------------|--------------------------------------|
+| id           | bigserial   | Primary Key                                       | Monotonic id — pagination + catch-up |
+| created_at   | timestamptz | Auto-created                                      | Server-assigned send time            |
+| sender_id    | uuid        | Required, FK → users.id                           | Author (server-attested)             |
+| recipient_id | uuid        | Required, FK → users.id, `<> sender_id`           | Recipient                            |
+| ciphertext   | text        | Required                                          | AES-256-GCM + tag, base64            |
+| nonce        | text        | Required                                          | AES-GCM nonce, base64                |
+| signature    | text        | Required                                          | Sender's Ed25519 signature, base64   |
+| key_version  | integer     | Required                                          | Always 1 for DMs (no rotation)       |
+
 ### channel_keyring
 
 The symmetric channel key sealed per member (ephemeral-static X25519 "sealed box") —
