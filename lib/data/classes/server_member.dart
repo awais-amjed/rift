@@ -11,6 +11,10 @@ class ServerMember {
   final bool isDeafened;
   final bool isBanned;
 
+  /// X25519 chat key (base64) — null until the member publishes one. Needed
+  /// to start an E2E DM with them.
+  final String? chatPublicKey;
+
   const ServerMember({
     required this.id,
     required this.username,
@@ -19,6 +23,7 @@ class ServerMember {
     this.isMuted = false,
     this.isDeafened = false,
     this.isBanned = false,
+    this.chatPublicKey,
   });
 
   factory ServerMember.fromJson(Map<String, dynamic> json) {
@@ -34,6 +39,7 @@ class ServerMember {
       isMuted: json['is_muted'] == true,
       isDeafened: json['is_deafened'] == true,
       isBanned: json['is_banned'] == true,
+      chatPublicKey: json['chat_public_key'] as String?,
     );
   }
 
@@ -50,6 +56,7 @@ class ServerMember {
       isMuted: isMuted ?? this.isMuted,
       isDeafened: isDeafened ?? this.isDeafened,
       isBanned: isBanned,
+      chatPublicKey: chatPublicKey,
     );
   }
 }

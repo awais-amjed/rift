@@ -14,6 +14,7 @@ import '../vault/vault_cubit.dart';
 part 'channel_chat_state.dart';
 part 'channel_chat_keyring.dart';
 part 'channel_chat_messages.dart';
+part 'channel_chat_sweep.dart';
 
 /// E2E chat for the selected server's text channels (ARCHITECTURE.md §4,
 /// Design 2). One channel is open at a time:
@@ -29,7 +30,7 @@ part 'channel_chat_messages.dart';
 ///   database is the single source of truth, the ping is just a doorbell
 ///   (so a forged broadcast can at worst cause a fetch).
 class ChannelChatCubit extends Cubit<ChannelChatState>
-    with _ChatKeyringMixin, _ChatMessagesMixin {
+    with _ChatKeyringMixin, _ChatMessagesMixin, _ChatSweepMixin {
   @override
   final ServerCubit _serverCubit;
   @override
@@ -61,6 +62,8 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// Guards against a stale async continuation writing into a newer channel.
   int _openGeneration = 0;
 
+  StreamSubscription<VaultState>? _vaultSub;
+
   ChannelChatCubit({
     required ServerCubit serverCubit,
     required VaultCubit vaultCubit,
@@ -70,6 +73,10 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         _crypto = crypto ?? CryptoRepository(),
         super(const ChannelChatState()) {
     _serverSub = serverCubit.stream.listen(_onServerChanged);
+    // The vault unlocks asynchronously at startup — chat readiness (key
+    // publish + sweep) waits for the master seed.
+    _vaultSub = vaultCubit.stream.listen((_) => _ensureServerChatReady());
+    _ensureServerChatReady();
   }
 
   // ──────────────────────────────────────────────────────────
@@ -147,9 +154,83 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     if (state.channelId != null && serverId != _rtServerId) {
       closeChannel();
     }
+    _ensureServerChatReady();
   }
 
   String? _rtServerId;
+
+  // ──────────────────────────────────────────────────────────
+  // Server chat readiness: key publish + sweep + doorbell
+  // ──────────────────────────────────────────────────────────
+
+  /// The server we've completed chat setup for this run (published our chat
+  /// key, subscribed the key-sweep topic, ran the initial sweep).
+  String? _readyServerId;
+  SupabaseClient? _sweepRtClient;
+  RealtimeChannel? _sweepRtChannel;
+
+  /// Idempotent: brings chat readiness in line with the selected server.
+  /// Requires a logged-in server user and an unlocked vault; called on
+  /// construction, server change, and vault unlock.
+  Future<void> _ensureServerChatReady() async {
+    final server = _serverCubit.state.selectedServer;
+    if (server == null || server.user == null) {
+      await _teardownSweepRealtime();
+      _readyServerId = null;
+      return;
+    }
+    if (_vaultCubit.state.masterSeed == null) return;
+    if (server.id == _readyServerId) return;
+    _readyServerId = server.id;
+
+    await _teardownSweepRealtime();
+    _setupSweepRealtime(server);
+
+    final newlyPublished = await _ensureChatKeyPublished(server);
+    // A newly keyed member: tell online members to wrap for us right away.
+    if (newlyPublished) _ringKeySweepDoorbell();
+    unawaited(_runKeySweep());
+  }
+
+  void _setupSweepRealtime(Server server) {
+    if (server.supabaseKey == null) return;
+    _sweepRtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
+    _sweepRtChannel = _sweepRtClient!.channel('keysweep:${server.id}')
+      ..onBroadcast(
+        event: 'sweep',
+        callback: (_) => _onKeySweepDoorbell(),
+      )
+      ..subscribe();
+  }
+
+  Future<void> _teardownSweepRealtime() async {
+    final channel = _sweepRtChannel;
+    final client = _sweepRtClient;
+    _sweepRtChannel = null;
+    _sweepRtClient = null;
+    try {
+      await channel?.unsubscribe();
+      client?.removeAllChannels();
+      await client?.dispose();
+    } catch (_) {}
+  }
+
+  @override
+  void _ringKeySweepDoorbell() {
+    try {
+      _sweepRtChannel?.sendBroadcastMessage(event: 'sweep', payload: {});
+    } catch (_) {}
+  }
+
+  void _onKeySweepDoorbell() {
+    if (isClosed) return;
+    // Someone published a key or healed entries: do our share of wrapping,
+    // and if we're the one waiting for access, refetch our keyring.
+    unawaited(_runKeySweep());
+    if (state.status == ChannelChatStatus.waitingForKey) {
+      unawaited(retry());
+    }
+  }
 
   // ──────────────────────────────────────────────────────────
   // Realtime doorbell
@@ -210,7 +291,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   Future<void> close() async {
     await _serverSub?.cancel();
+    await _vaultSub?.cancel();
     await _teardownRealtime();
+    await _teardownSweepRealtime();
     return super.close();
   }
 }

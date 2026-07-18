@@ -19,7 +19,9 @@ import 'logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/cubits/voice_stats/voice_stats_cubit.dart';
 import 'logic/cubits/app/app_cubit.dart';
+import 'logic/cubits/central_dm/central_dm_cubit.dart';
 import 'logic/cubits/channel_chat/channel_chat_cubit.dart';
+import 'logic/cubits/dm/dm_cubit.dart';
 import 'logic/cubits/livekit/livekit_cubit.dart';
 import 'logic/cubits/screenshare/screenshare_cubit.dart';
 import 'logic/cubits/server/server_cubit.dart';
@@ -223,6 +225,17 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
             BlocProvider(
               create: (context) => ChannelChatCubit(
                 serverCubit: context.read<ServerCubit>(),
+                vaultCubit: widget.vaultCubit,
+              ),
+            ),
+            BlocProvider(
+              create: (context) => DmCubit(
+                serverCubit: context.read<ServerCubit>(),
+                vaultCubit: widget.vaultCubit,
+              ),
+            ),
+            BlocProvider(
+              create: (context) => CentralDmCubit(
                 vaultCubit: widget.vaultCubit,
               ),
             ),

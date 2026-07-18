@@ -62,6 +62,54 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
         ),
       );
 
+  /// List key-distribution work available to the local user.
+  Future<APIResponse> sweepChannelKeys() => _callWithAutoRefresh(
+        (token) => _repository.sweepChannelKeys(
+          state.selectedServer!.supabaseUrl,
+          bearerToken: token,
+        ),
+      );
+
+  /// Store one E2E DM envelope for [recipientId].
+  Future<APIResponse> sendDm({
+    required String recipientId,
+    required Map<String, dynamic> envelope,
+  }) =>
+      _callWithAutoRefresh(
+        (token) => _repository.sendDm(
+          state.selectedServer!.supabaseUrl,
+          recipientId: recipientId,
+          envelope: envelope,
+          bearerToken: token,
+        ),
+      );
+
+  /// Page through the DM conversation with [peerId].
+  Future<APIResponse> listDms({
+    required String peerId,
+    int? beforeId,
+    int? afterId,
+    int? limit,
+  }) =>
+      _callWithAutoRefresh(
+        (token) => _repository.listDms(
+          state.selectedServer!.supabaseUrl,
+          peerId: peerId,
+          beforeId: beforeId,
+          afterId: afterId,
+          limit: limit,
+          bearerToken: token,
+        ),
+      );
+
+  /// List DM conversations for the local user.
+  Future<APIResponse> listDmConversations() => _callWithAutoRefresh(
+        (token) => _repository.listDmConversations(
+          state.selectedServer!.supabaseUrl,
+          bearerToken: token,
+        ),
+      );
+
   /// Store sealed keyring entries for a key version.
   Future<APIResponse> postChannelKeys({
     required String channelId,

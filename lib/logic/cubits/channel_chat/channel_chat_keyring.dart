@@ -11,6 +11,7 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
   Map<int, Uint8List> get _keys;
   Set<String> get _publishedChatKey;
   void _setCurrentKeyVersion(int version);
+  void _ringKeySweepDoorbell();
 
   /// The chat identity is pinned to v1 for now: the auth key's rotation
   /// version must NOT rotate the chat identity, or every wrapped channel key
@@ -27,13 +28,19 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
     );
   }
 
-  Future<void> _ensureChatKeyPublished(Server server) async {
-    if (_publishedChatKey.contains(server.id)) return;
+  /// Publish our chat key if not done this run. Returns true when the server
+  /// reports the key as newly published (we're a newly keyed member and
+  /// should ring the key-sweep doorbell).
+  Future<bool> _ensureChatKeyPublished(Server server) async {
+    if (_publishedChatKey.contains(server.id)) return false;
     final identity = await _chatIdentity(server);
-    if (identity == null) return;
+    if (identity == null) return false;
     final response =
         await _serverCubit.publishChatKey(identity.publicKeyBase64);
-    if (response.success) _publishedChatKey.add(server.id);
+    if (!response.success) return false;
+    _publishedChatKey.add(server.id);
+    final data = response.data as Map<String, dynamic>?;
+    return data?['newly_published'] == true;
   }
 
   /// Fetch + unwrap the keyring for [channelId]; bootstrap v1 when the
@@ -154,11 +161,13 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
           ...wrapped.toJson(),
         });
       }
-      await _serverCubit.postChannelKeys(
+      final response = await _serverCubit.postChannelKeys(
         channelId: channelId,
         keyVersion: keyVersion,
         entries: entries,
       );
+      // Wake the healed members so their waiting screens refetch.
+      if (response.success) _ringKeySweepDoorbell();
     } catch (e) {
       HelperMethods.printDebug('[Chat] heal failed: $e');
     }

@@ -79,6 +79,62 @@ mixin _ChatApiMixin {
     );
   }
 
+  /// List every channel where the caller can do key-distribution work:
+  /// version-0 channels to bootstrap, and channels where the caller holds the
+  /// current key while other keyed members lack entries.
+  Future<APIResponse> sweepChannelKeys(
+    String supabaseUrl, {
+    String? bearerToken,
+  }) {
+    return _post(supabaseUrl, 'sweep_channel_keys', {}, bearerToken: bearerToken);
+  }
+
+  /// Store one E2E direct-message envelope for [recipientId].
+  Future<APIResponse> sendDm(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String recipientId,
+    required Map<String, dynamic> envelope,
+  }) {
+    return _post(
+      supabaseUrl,
+      'send_dm',
+      {'recipient_id': recipientId, ...envelope},
+      bearerToken: bearerToken,
+    );
+  }
+
+  /// Page through the DM conversation with [peerId].
+  Future<APIResponse> listDms(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String peerId,
+    int? beforeId,
+    int? afterId,
+    int? limit,
+  }) {
+    return _post(
+      supabaseUrl,
+      'list_dms',
+      {
+        'peer_id': peerId,
+        'before_id': ?beforeId,
+        'after_id': ?afterId,
+        'limit': ?limit,
+      },
+      bearerToken: bearerToken,
+    );
+  }
+
+  /// List DM conversations (one per peer, latest envelope included).
+  Future<APIResponse> listDmConversations(
+    String supabaseUrl, {
+    String? bearerToken,
+  }) {
+    return _post(supabaseUrl, 'list_dm_conversations', {},
+        bearerToken: bearerToken);
+  }
+
   /// Store sealed keyring entries for [keyVersion]. Fails with
   /// `keyring_conflict` if another writer won the version race.
   Future<APIResponse> postChannelKeys(
