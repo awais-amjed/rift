@@ -10,15 +10,23 @@ import 'widgets/server_mode_picker.dart';
 enum _SelectorMode { list, pickMode, join, create }
 
 /// Full-screen modal for selecting, adding, or managing servers.
+///
+/// Switching between joined servers now happens in the anchored
+/// [ServerSwitcherPopover]; this dialog is opened for the add / join / create
+/// flows (via [startAtAddFlow]) and remains the fallback list view.
 class ServerSelectorDialog extends StatefulWidget {
-  const ServerSelectorDialog({super.key});
+  /// Open directly on the "Add Server" step instead of the server list.
+  final bool startAtAddFlow;
+
+  const ServerSelectorDialog({super.key, this.startAtAddFlow = false});
 
   @override
   State<ServerSelectorDialog> createState() => _ServerSelectorDialogState();
 }
 
 class _ServerSelectorDialogState extends State<ServerSelectorDialog> {
-  _SelectorMode _mode = _SelectorMode.list;
+  late _SelectorMode _mode =
+      widget.startAtAddFlow ? _SelectorMode.pickMode : _SelectorMode.list;
 
   String get _title {
     switch (_mode) {

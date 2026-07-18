@@ -8,6 +8,7 @@ import '../../../../common/app_modal.dart';
 import '../../servers/server_button/server_button.dart';
 import '../../servers/server_button/widgets/no_server_button.dart';
 import '../../servers/server_selector/server_selector_dialog.dart';
+import '../../servers/server_switcher/server_switcher_popover.dart';
 
 /// Header section of the sidebar with server button and pin toggle.
 class SidebarHeader extends StatelessWidget {
@@ -27,9 +28,9 @@ class SidebarHeader extends StatelessWidget {
                 server != null
                     ? ServerButton(
                         server: server,
-                        onTap: () => _openServerSelector(context),
+                        onTap: () => _openServerSwitcher(context),
                       )
-                    : NoServerButton(onTap: () => _openServerSelector(context)),
+                    : NoServerButton(onTap: () => _openAddServerDialog(context)),
 
                 // Pin toggle button
                 Positioned(
@@ -69,7 +70,17 @@ class SidebarHeader extends StatelessWidget {
     );
   }
 
-  void _openServerSelector(BuildContext context) {
+  /// Switching between joined servers: anchored popover on the server row.
+  void _openServerSwitcher(BuildContext context) {
+    ServerSwitcherPopover.show(
+      context,
+      onAddServer: () => _openAddServerDialog(context),
+    );
+  }
+
+  /// Adding / joining / creating a server: the full dialog, opened on its
+  /// "Add Server" step.
+  void _openAddServerDialog(BuildContext context) {
     showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
@@ -77,7 +88,7 @@ class SidebarHeader extends StatelessWidget {
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<AppCubit>()),
         ],
-        child: const ServerSelectorDialog(),
+        child: const ServerSelectorDialog(startAtAddFlow: true),
       ),
     );
   }
