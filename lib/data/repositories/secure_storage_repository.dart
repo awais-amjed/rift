@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../classes/encrypted_seed.dart';
@@ -11,11 +12,15 @@ import '../classes/encrypted_vault.dart';
 /// the encrypted vault blob (silently re-encrypted, key = HMAC(masterSeed)),
 /// the encrypted seed blob (password-protected, for backup export),
 /// and the joined servers list.
+///
+/// Dev builds namespace their keys with a `dev.` prefix so a release and a
+/// dev instance on the same machine hold independent identities.
 class SecureStorageRepository {
-  static const _keyMasterSeed = 'master_seed';
-  static const _keyEncryptedVault = 'encrypted_vault';
-  static const _keyEncryptedSeed = 'encrypted_seed';
-  static const _keyJoinedServers = 'joined_servers';
+  static const _prefix = kReleaseMode ? '' : 'dev.';
+  static const _keyMasterSeed = '${_prefix}master_seed';
+  static const _keyEncryptedVault = '${_prefix}encrypted_vault';
+  static const _keyEncryptedSeed = '${_prefix}encrypted_seed';
+  static const _keyJoinedServers = '${_prefix}joined_servers';
 
   final FlutterSecureStorage _storage;
 
@@ -120,7 +125,15 @@ class SecureStorageRepository {
   // ── Wipe ─────────────────────────────────────────────────
 
   /// Delete all stored secrets (for testing / account reset).
-  Future<void> deleteAll() => _storage.deleteAll();
+  ///
+  /// Deletes only this build's namespaced keys — `_storage.deleteAll()` would
+  /// also wipe the other build flavor's secrets from the shared keyring.
+  Future<void> deleteAll() => Future.wait([
+        _storage.delete(key: _keyMasterSeed),
+        _storage.delete(key: _keyEncryptedVault),
+        _storage.delete(key: _keyEncryptedSeed),
+        _storage.delete(key: _keyJoinedServers),
+      ]);
 }
 
 

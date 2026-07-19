@@ -44,16 +44,30 @@ void main() async {
   if (!kIsWeb) await RustLib.init();
 
   // Initialize Supabase for cloud backup session persistence.
+  // Dev builds use their own session key so a release + dev instance can run
+  // side by side on one machine without sharing the central account session.
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseKey,
+    authOptions: kReleaseMode
+        ? const FlutterAuthClientOptions()
+        : FlutterAuthClientOptions(
+            localStorage: SharedPreferencesLocalStorage(
+              persistSessionKey:
+                  'sb-${Uri.parse(SupabaseConfig.supabaseUrl).host.split(".").first}-auth-token-dev',
+            ),
+          ),
   );
 
+  // Dev builds keep hydrated state in a separate subdirectory for the same
+  // reason; release builds keep the original path (existing installs).
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: kIsWeb
         ? HydratedStorageDirectory.web
         : HydratedStorageDirectory(
-            (await getApplicationDocumentsDirectory()).path,
+            kReleaseMode
+                ? (await getApplicationDocumentsDirectory()).path
+                : '${(await getApplicationDocumentsDirectory()).path}/rift_dev',
           ),
   );
 
