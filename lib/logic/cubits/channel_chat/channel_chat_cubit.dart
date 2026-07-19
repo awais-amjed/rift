@@ -45,6 +45,14 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   final Set<String> _publishedChatKey = {};
 
+  /// The master seed [_publishedChatKey] is valid for — a vault reset in the
+  /// same run yields a new identity whose key must be republished.
+  @override
+  String? _publishedChatKeySeed;
+
+  @override
+  void _setPublishedChatKeySeed(String seed) => _publishedChatKeySeed = seed;
+
   /// Unwrapped channel keys for the open channel, by key version.
   @override
   final Map<int, Uint8List> _keys = {};
@@ -120,7 +128,10 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
     if (keyStatus == _KeyringStatus.waiting) {
       // No entry sealed to us yet — another member's client will heal us.
+      // Ring the sweep doorbell so online members re-check right away, even
+      // if the original "newly published" ring was lost.
       emit(state.copyWith(status: ChannelChatStatus.waitingForKey));
+      _ringKeySweepDoorbell();
       return;
     }
 
@@ -189,6 +200,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     final newlyPublished = await _ensureChatKeyPublished(server);
     // A newly keyed member: tell online members to wrap for us right away.
     if (newlyPublished) _ringKeySweepDoorbell();
+    // If the publish didn't stick (locked vault, network/auth failure), leave
+    // readiness unset so the next server/vault event retries the whole setup.
+    if (!_publishedChatKey.contains(server.id)) _readyServerId = null;
     unawaited(_runKeySweep());
   }
 

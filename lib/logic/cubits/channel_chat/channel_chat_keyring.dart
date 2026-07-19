@@ -10,6 +10,8 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
   Set<String> get _publishedChatKey;
+  String? get _publishedChatKeySeed;
+  void _setPublishedChatKeySeed(String seed);
   void _setCurrentKeyVersion(int version);
   void _ringKeySweepDoorbell();
 
@@ -32,6 +34,16 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
   /// reports the key as newly published (we're a newly keyed member and
   /// should ring the key-sweep doorbell).
   Future<bool> _ensureChatKeyPublished(Server server) async {
+    final seed = _vaultCubit.state.masterSeed;
+    if (seed == null) return false;
+    // The publish guard is per identity, not per app run: after a vault reset
+    // + rejoin in the same run, the new user's key must still be published —
+    // a stale guard here leaves the member unkeyed and unable to ever be
+    // granted channel access (ISSUES.md #1).
+    if (seed != _publishedChatKeySeed) {
+      _publishedChatKey.clear();
+      _setPublishedChatKeySeed(seed);
+    }
     if (_publishedChatKey.contains(server.id)) return false;
     final identity = await _chatIdentity(server);
     if (identity == null) return false;
