@@ -13,6 +13,12 @@ mixin _DmMessagesMixin on Cubit<DmState> {
   void _leavePeerTopic();
   void _ringPeerDoorbell();
 
+  /// Fire OS notifications for newly-arrived messages across all conversations.
+  void _notifyFromConversations(List<DmConversation> conversations);
+
+  /// The open peer just sent a message — used to clear their typing indicator.
+  void _onOpenPeerMessage();
+
   int _pendingCounter = 0;
 
   String? get _localUserId => _serverCubit.state.selectedServer?.user?.id;
@@ -72,6 +78,7 @@ mixin _DmMessagesMixin on Cubit<DmState> {
       conversations: conversations,
       conversationsLoading: false,
     ));
+    _notifyFromConversations(conversations);
   }
 
   // ──────────────────────────────────────────────────────────
@@ -166,6 +173,8 @@ mixin _DmMessagesMixin on Cubit<DmState> {
         .toList();
 
     emit(state.copyWith(messages: [...kept, ...fresh]));
+
+    if (fresh.any((m) => !m.isMine)) _onOpenPeerMessage();
   }
 
   Future<void> loadMoreHistory() async {

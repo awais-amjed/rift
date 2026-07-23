@@ -18,6 +18,10 @@ class DmState {
   final List<ChatMessage> messages;
   final bool hasMoreHistory;
   final bool isLoadingMore;
+
+  /// The open peer's display name while they're typing, else null.
+  final String? typingPeerName;
+
   final String? error;
 
   const DmState({
@@ -29,6 +33,7 @@ class DmState {
     this.messages = const [],
     this.hasMoreHistory = false,
     this.isLoadingMore = false,
+    this.typingPeerName,
     this.error,
   });
 
@@ -41,6 +46,8 @@ class DmState {
     List<ChatMessage>? messages,
     bool? hasMoreHistory,
     bool? isLoadingMore,
+    String? typingPeerName,
+    bool clearTyping = false,
     String? error,
     bool clearError = false,
     bool closeConversation = false,
@@ -57,6 +64,9 @@ class DmState {
       hasMoreHistory:
           closeConversation ? false : (hasMoreHistory ?? this.hasMoreHistory),
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      typingPeerName: (closeConversation || clearTyping)
+          ? null
+          : (typingPeerName ?? this.typingPeerName),
       error: clearError ? null : (error ?? this.error),
     );
   }

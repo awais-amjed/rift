@@ -73,6 +73,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView> {
     switch (state.chatStatus) {
       case DmChatStatus.ready:
         return ChatMessageList(
+          key: ValueKey(state.openPeerId),
           messages: state.messages,
           controller: _scrollController,
         );

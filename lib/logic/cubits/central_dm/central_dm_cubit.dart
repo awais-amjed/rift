@@ -10,6 +10,7 @@ import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
+import '../../services/notification_service.dart';
 import '../vault/vault_cubit.dart';
 
 part 'central_dm_state.dart';
@@ -35,6 +36,9 @@ class CentralDmCubit extends Cubit<CentralDmState> with _CentralDmMessagesMixin 
 
   @override
   final Map<String, Uint8List> _dmKeys = {};
+
+  /// Diffs conversation snapshots to raise notifications for new central DMs.
+  final NewMessageNotifier _notifier = NewMessageNotifier();
 
   CentralDmCubit({
     required VaultCubit vaultCubit,
@@ -150,7 +154,13 @@ class CentralDmCubit extends Cubit<CentralDmState> with _CentralDmMessagesMixin 
     final channel = _incoming;
     _incoming = null;
     _dmKeys.clear();
+    _notifier.reset();
     if (channel != null) await _repo.unsubscribe(channel);
+  }
+
+  @override
+  void _notifyFromConversations(List<DmConversation> conversations) {
+    _notifier.scan(conversations, titleFor: (c) => c.peerName);
   }
 
   // ──────────────────────────────────────────────────────────

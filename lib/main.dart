@@ -30,6 +30,8 @@ import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/token/token_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
+import 'logic/services/notification_service.dart';
+import 'logic/services/window_focus_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'presentation/common/title_bar_overlay.dart';
 import 'presentation/routing/app_routes.dart';
@@ -73,6 +75,7 @@ void main() async {
 
   if (!kIsWeb) {
     await windowManager.ensureInitialized();
+    await NotificationService.instance.init();
 
     final appCubit = AppCubit();
     final windowSize = appCubit.state.windowWidth != null
@@ -163,6 +166,20 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
       await windowManager.close();
     }
   }
+
+  // Focus tracking drives whether incoming messages raise an OS notification —
+  // we only notify while the user isn't looking at the app.
+  @override
+  void onWindowFocus() => WindowFocusService.instance.setFocused(true);
+
+  @override
+  void onWindowBlur() => WindowFocusService.instance.setFocused(false);
+
+  @override
+  void onWindowMinimize() => WindowFocusService.instance.setFocused(false);
+
+  @override
+  void onWindowRestore() => WindowFocusService.instance.setFocused(true);
 
   @override
   void onWindowResize() async {

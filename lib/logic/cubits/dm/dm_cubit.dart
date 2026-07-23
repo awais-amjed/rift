@@ -9,6 +9,7 @@ import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
+import '../../services/notification_service.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -41,6 +42,16 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
   SupabaseClient? _rtClient;
   RealtimeChannel? _peerTopic;
   String? _readyServerId;
+
+  /// Diffs conversation snapshots to raise notifications for new DMs.
+  final NewMessageNotifier _notifier = NewMessageNotifier();
+
+  /// Expiry timer + rate-limit for the typing indicator.
+  Timer? _typingTimer;
+  DateTime? _lastTypingSent;
+
+  static const _typingThrottle = Duration(seconds: 2);
+  static const _typingTimeout = Duration(seconds: 5);
 
   DmCubit({
     required ServerCubit serverCubit,
@@ -77,6 +88,10 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
   Future<void> _reset() async {
     _readyServerId = null;
     _dmKeys.clear();
+    _notifier.reset();
+    _typingTimer?.cancel();
+    _typingTimer = null;
+    _lastTypingSent = null;
     await _teardownRealtime();
     if (!isClosed) emit(const DmState());
   }
@@ -125,6 +140,7 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
     _rtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
     _rtClient!.channel('dm:${server.id}:${server.user!.id}')
       ..onBroadcast(event: 'new_dm', callback: (_) => _onDoorbell())
+      ..onBroadcast(event: 'typing', callback: _onTyping)
       ..subscribe();
   }
 
@@ -149,6 +165,10 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
 
   @override
   void _leavePeerTopic() {
+    // Leaving the open conversation also clears any pending typing indicator.
+    _typingTimer?.cancel();
+    _typingTimer = null;
+    _lastTypingSent = null;
     final topic = _peerTopic;
     _peerTopic = null;
     if (topic != null) {
@@ -174,6 +194,59 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
   }
 
   // ──────────────────────────────────────────────────────────
+  // Typing indicators
+  // ──────────────────────────────────────────────────────────
+
+  /// Broadcast to the open peer's inbox that we're typing (throttled).
+  void notifyTyping() {
+    final now = DateTime.now();
+    if (_lastTypingSent != null &&
+        now.difference(_lastTypingSent!) < _typingThrottle) {
+      return;
+    }
+    final user = _serverCubit.state.selectedServer?.user;
+    if (user == null || _peerTopic == null) return;
+    _lastTypingSent = now;
+    try {
+      _peerTopic!.sendBroadcastMessage(
+        event: 'typing',
+        payload: {'from': user.id, 'name': user.displayName},
+      );
+    } catch (_) {}
+  }
+
+  void _onTyping(Map<String, dynamic> payload) {
+    if (isClosed) return;
+    final data = (payload['payload'] ?? payload) as Map<String, dynamic>?;
+    final from = data?['from'] as String?;
+    final name = data?['name'] as String?;
+    // Only surface typing for the conversation the user currently has open.
+    if (from == null || name == null || from != state.openPeerId) return;
+
+    _typingTimer?.cancel();
+    _typingTimer = Timer(_typingTimeout, () {
+      if (!isClosed) emit(state.copyWith(clearTyping: true));
+    });
+    if (state.typingPeerName != name) {
+      emit(state.copyWith(typingPeerName: name));
+    }
+  }
+
+  @override
+  void _onOpenPeerMessage() {
+    _typingTimer?.cancel();
+    _typingTimer = null;
+    if (!isClosed && state.typingPeerName != null) {
+      emit(state.copyWith(clearTyping: true));
+    }
+  }
+
+  @override
+  void _notifyFromConversations(List<DmConversation> conversations) {
+    _notifier.scan(conversations, titleFor: (c) => c.peerName);
+  }
+
+  // ──────────────────────────────────────────────────────────
   // Lifecycle
   // ──────────────────────────────────────────────────────────
 
@@ -181,6 +254,7 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
   Future<void> close() async {
     await _serverSub?.cancel();
     await _vaultSub?.cancel();
+    _typingTimer?.cancel();
     await _teardownRealtime();
     return super.close();
   }

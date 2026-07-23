@@ -8,6 +8,8 @@ import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
+import '../../services/notification_service.dart';
+import '../../services/window_focus_service.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -66,6 +68,15 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   SupabaseClient? _rtClient;
   RealtimeChannel? _rtChannel;
+
+  /// Per-user expiry timers for typing indicators (removed when they lapse).
+  final Map<String, Timer> _typingTimers = {};
+
+  /// Rate-limit for our outgoing typing pings.
+  DateTime? _lastTypingSent;
+
+  static const _typingThrottle = Duration(seconds: 2);
+  static const _typingTimeout = Duration(seconds: 5);
 
   /// Guards against a stale async continuation writing into a newer channel.
   int _openGeneration = 0;
@@ -259,6 +270,10 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         event: 'new_message',
         callback: (_) => _onDoorbell(),
       )
+      ..onBroadcast(
+        event: 'typing',
+        callback: _onTyping,
+      )
       ..subscribe();
   }
 
@@ -268,11 +283,82 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     _rtChannel = null;
     _rtClient = null;
     _rtServerId = null;
+    _lastTypingSent = null;
+    for (final timer in _typingTimers.values) {
+      timer.cancel();
+    }
+    _typingTimers.clear();
     try {
       await channel?.unsubscribe();
       client?.removeAllChannels();
       await client?.dispose();
     } catch (_) {}
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Typing indicators
+  // ──────────────────────────────────────────────────────────
+
+  /// Broadcast that we're typing in the open channel (throttled). Called by
+  /// the composer on each keystroke.
+  void notifyTyping() {
+    final now = DateTime.now();
+    if (_lastTypingSent != null &&
+        now.difference(_lastTypingSent!) < _typingThrottle) {
+      return;
+    }
+    final user = _serverCubit.state.selectedServer?.user;
+    if (user == null || _rtChannel == null) return;
+    _lastTypingSent = now;
+    try {
+      _rtChannel!.sendBroadcastMessage(
+        event: 'typing',
+        payload: {'from': user.id, 'name': user.displayName},
+      );
+    } catch (_) {}
+  }
+
+  void _onTyping(Map<String, dynamic> payload) {
+    if (isClosed) return;
+    final data = (payload['payload'] ?? payload) as Map<String, dynamic>?;
+    final from = data?['from'] as String?;
+    final name = data?['name'] as String?;
+    final myId = _serverCubit.state.selectedServer?.user?.id;
+    if (from == null || name == null || from == myId) return;
+
+    _typingTimers[from]?.cancel();
+    _typingTimers[from] = Timer(_typingTimeout, () => _removeTyping(from));
+    if (state.typingUsers[from] == name) return;
+    emit(state.copyWith(typingUsers: {...state.typingUsers, from: name}));
+  }
+
+  void _removeTyping(String userId) {
+    _typingTimers.remove(userId)?.cancel();
+    if (isClosed || !state.typingUsers.containsKey(userId)) return;
+    emit(state.copyWith(
+      typingUsers: {...state.typingUsers}..remove(userId),
+    ));
+  }
+
+  @override
+  void _onFreshIncoming(List<ChatMessage> incoming) {
+    // A message from someone means they've stopped typing.
+    for (final m in incoming) {
+      _removeTyping(m.authorId);
+    }
+    if (WindowFocusService.instance.isFocused) return;
+    final channelName = _serverCubit.state.selectedServer?.channels
+        .where((c) => c.id == state.channelId)
+        .map((c) => c.name)
+        .firstOrNull;
+    for (final m in incoming) {
+      NotificationService.instance.showMessage(
+        title: channelName != null
+            ? '${m.authorName} in #$channelName'
+            : m.authorName,
+        body: m.text,
+      );
+    }
   }
 
   /// Notify other members that a new row exists. Fire-and-forget: the row in

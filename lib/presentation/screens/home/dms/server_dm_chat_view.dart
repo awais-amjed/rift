@@ -5,6 +5,7 @@ import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/widgets/typing_indicator.dart';
 import 'widgets/dm_chat_header.dart';
 
 /// The open server-DM conversation: header + history + composer, on the
@@ -54,11 +55,17 @@ class _ServerDmChatViewState extends State<ServerDmChatView> {
           onClose: () => context.read<DmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),
-        if (state.chatStatus == DmChatStatus.ready)
+        if (state.chatStatus == DmChatStatus.ready) ...[
+          TypingIndicator(
+            names: state.typingPeerName != null ? [state.typingPeerName!] : const [],
+            themeState: themeState,
+          ),
           ChatComposer(
             hintText: 'Message ${state.openPeerName ?? ''}',
             onSend: (text) => context.read<DmCubit>().sendDm(text),
+            onTyping: () => context.read<DmCubit>().notifyTyping(),
           ),
+        ],
       ],
     );
   }
@@ -67,6 +74,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView> {
     switch (state.chatStatus) {
       case DmChatStatus.ready:
         return ChatMessageList(
+          key: ValueKey(state.openPeerId),
           messages: state.messages,
           controller: _scrollController,
         );

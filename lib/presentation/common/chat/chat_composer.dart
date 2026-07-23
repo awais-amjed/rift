@@ -11,6 +11,10 @@ import '../../../logic/cubits/theme/theme_cubit.dart';
 /// field — central DMs put the quota meter there.
 class ChatComposer extends StatefulWidget {
   final ValueChanged<String> onSend;
+
+  /// Called (throttled by the caller) as the user types, to broadcast a typing
+  /// indicator to the other members. Fires only for non-empty edits.
+  final VoidCallback? onTyping;
   final String hintText;
   final bool enabled;
   final Widget? footer;
@@ -18,6 +22,7 @@ class ChatComposer extends StatefulWidget {
   const ChatComposer({
     super.key,
     required this.onSend,
+    this.onTyping,
     this.hintText = 'Send a message',
     this.enabled = true,
     this.footer,
@@ -86,6 +91,9 @@ class _ChatComposerState extends State<ChatComposer> {
                           controller: _controller,
                           focusNode: _focusNode,
                           enabled: widget.enabled,
+                          onChanged: (value) {
+                            if (value.trim().isNotEmpty) widget.onTyping?.call();
+                          },
                           minLines: 1,
                           maxLines: 6,
                           style: TextStyle(

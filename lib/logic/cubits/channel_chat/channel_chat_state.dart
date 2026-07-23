@@ -31,6 +31,10 @@ class ChannelChatState {
   final bool hasMoreHistory;
   final bool isLoadingMore;
 
+  /// Members currently typing in the open channel, by user id → display name
+  /// (excludes us). Backed by short-lived expiry timers in the cubit.
+  final Map<String, String> typingUsers;
+
   final String? error;
 
   const ChannelChatState({
@@ -39,6 +43,7 @@ class ChannelChatState {
     this.messages = const [],
     this.hasMoreHistory = false,
     this.isLoadingMore = false,
+    this.typingUsers = const {},
     this.error,
   });
 
@@ -48,6 +53,7 @@ class ChannelChatState {
     List<ChatMessage>? messages,
     bool? hasMoreHistory,
     bool? isLoadingMore,
+    Map<String, String>? typingUsers,
     String? error,
     bool clearError = false,
   }) {
@@ -57,6 +63,7 @@ class ChannelChatState {
       messages: messages ?? this.messages,
       hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      typingUsers: typingUsers ?? this.typingUsers,
       error: clearError ? null : (error ?? this.error),
     );
   }

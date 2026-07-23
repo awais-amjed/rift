@@ -13,6 +13,9 @@ mixin _CentralDmMessagesMixin on Cubit<CentralDmState> {
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
   Future<ServerIdentity> _signingIdentity();
 
+  /// Fire OS notifications for newly-arrived messages across all conversations.
+  void _notifyFromConversations(List<DmConversation> conversations);
+
   int _pendingCounter = 0;
 
   /// Signing keys per peer from the directory (base64) — for verification.
@@ -117,6 +120,7 @@ mixin _CentralDmMessagesMixin on Cubit<CentralDmState> {
       conversations: conversations,
       conversationsLoading: false,
     ));
+    _notifyFromConversations(conversations);
   }
 
   // ──────────────────────────────────────────────────────────

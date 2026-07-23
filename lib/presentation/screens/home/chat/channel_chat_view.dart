@@ -5,6 +5,7 @@ import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/widgets/typing_indicator.dart';
 import 'widgets/chat_header.dart';
 import 'widgets/chat_status_view.dart';
 
@@ -56,11 +57,18 @@ class _ChannelChatViewState extends State<ChannelChatView> {
                 children: [
                   const ChatHeader(),
                   Expanded(child: _buildBody(context, chatState)),
-                  if (chatState.status == ChannelChatStatus.ready)
+                  if (chatState.status == ChannelChatStatus.ready) ...[
+                    TypingIndicator(
+                      names: chatState.typingUsers.values.toList(),
+                      themeState: themeState,
+                    ),
                     ChatComposer(
                       onSend: (text) =>
                           context.read<ChannelChatCubit>().sendMessage(text),
+                      onTyping: () =>
+                          context.read<ChannelChatCubit>().notifyTyping(),
                     ),
+                  ],
                 ],
               ),
             );
@@ -74,6 +82,7 @@ class _ChannelChatViewState extends State<ChannelChatView> {
     switch (chatState.status) {
       case ChannelChatStatus.ready:
         return ChatMessageList(
+          key: ValueKey(chatState.channelId),
           messages: chatState.messages,
           controller: _scrollController,
         );

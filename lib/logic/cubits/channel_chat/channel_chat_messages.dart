@@ -12,6 +12,10 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
   int get _currentKeyVersion;
   void _ringDoorbell();
 
+  /// Called with messages that just arrived live (not the initial backlog and
+  /// not our own sends) so the hub can clear typing state and notify.
+  void _onFreshIncoming(List<ChatMessage> incoming);
+
   int _pendingCounter = 0;
 
   /// The newest server-acknowledged message id (pending ids aren't numeric).
@@ -74,6 +78,9 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
         .toList();
 
     emit(state.copyWith(messages: [...kept, ...fresh]));
+
+    final freshIncoming = fresh.where((m) => !m.isMine).toList();
+    if (freshIncoming.isNotEmpty) _onFreshIncoming(freshIncoming);
   }
 
   /// Scroll-up pagination: prepend the page before the oldest loaded row.

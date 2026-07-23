@@ -15,11 +15,16 @@ class ChatMessageRow extends StatelessWidget {
   final bool showHeader;
   final ThemeState themeState;
 
+  /// When true, the row fades + slides in once on first build (a freshly
+  /// arrived incoming message). Continuation of existing rows never animates.
+  final bool animateIn;
+
   const ChatMessageRow({
     super.key,
     required this.message,
     required this.showHeader,
     required this.themeState,
+    this.animateIn = false,
   });
 
   String _timeLabel(DateTime t) {
@@ -37,6 +42,24 @@ class ChatMessageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final row = _buildRow();
+    if (!animateIn) return row;
+    // One-shot entrance: fade up over a short slide. TweenAnimationBuilder only
+    // runs on first build (the end value never changes), so a later rebuild of
+    // the same row — theme change, list scroll — won't replay it.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(offset: Offset(0, (1 - t) * 8), child: child),
+      ),
+      child: row,
+    );
+  }
+
+  Widget _buildRow() {
     return Opacity(
       opacity: message.isPending ? 0.5 : 1.0,
       child: Padding(
