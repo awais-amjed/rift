@@ -18,8 +18,12 @@ class APIResponse {
     return APIResponse(success: true, data: data);
   }
 
-  factory APIResponse.error(dynamic error) {
-    return APIResponse(success: false, error: _errorToString(error));
+  factory APIResponse.error(dynamic error, {String? errorCode}) {
+    return APIResponse(
+      success: false,
+      error: _errorToString(error),
+      errorCode: errorCode,
+    );
   }
 
   static String _errorToString(dynamic e) {

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show User;
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, User;
 
 import '../../../data/enums/auth_status.dart';
 import '../../../data/repositories/crypto_repository.dart';
@@ -41,6 +41,12 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
   Timer? _autoBackupTimer;
   static const _autoBackupDebounce = Duration(seconds: 3);
 
+  StreamSubscription<AuthState>? _authSub;
+
+  /// Set while the user intentionally signs out, so the auth-change listener
+  /// doesn't mistake it for the session being lost server-side.
+  bool _intentionalSignOut = false;
+
   SupabaseBackupCubit({
     required VaultCubit vaultCubit,
     SupabaseBackupRepository? repo,
@@ -54,11 +60,51 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
     if (user != null) {
       emit(SupabaseBackupState(isSignedIn: true, email: user.email));
     }
+    // React to the session going away later — e.g. the account was deleted
+    // server-side and the token can no longer be refreshed.
+    _authSub = _repo.authChanges.listen(_onAuthChange);
+  }
+
+  /// Reconcile signed-in state with GoTrue's session. When the session is lost
+  /// unexpectedly (deleted account / unrecoverable expiry) we drop to guest —
+  /// the local vault + servers are untouched, since the central account is
+  /// optional — and tell the user so they're not silently stuck.
+  void _onAuthChange(AuthState authState) {
+    if (isClosed) return;
+    final signedIn = authState.session != null;
+
+    if (signedIn) {
+      if (!state.isSignedIn) {
+        emit(state.copyWith(
+          isSignedIn: true,
+          email: authState.session?.user.email,
+        ));
+      }
+      return;
+    }
+
+    // Session gone. Ignore our own explicit sign-out (handled in signOut()).
+    if (_intentionalSignOut) {
+      _intentionalSignOut = false;
+      return;
+    }
+    if (state.isSignedIn) {
+      _accountVaultPassword = null;
+      _pendingCloudBackup = null;
+      emit(state.copyWith(isSignedIn: false, email: null));
+      HelperMethods.showNotificationToast(
+        title: 'Signed out',
+        description:
+            'Your cloud account session ended. Sign in again from Settings '
+            'to resume backups.',
+      );
+    }
   }
 
   @override
   Future<void> close() {
     _autoBackupTimer?.cancel();
+    _authSub?.cancel();
     return super.close();
   }
 
@@ -148,6 +194,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
 
   /// Signs out of the central server. The local vault is untouched.
   Future<void> signOut() async {
+    _intentionalSignOut = true;
     emit(state.copyWith(isProcessing: true, clearMessage: true));
     final response = await _repo.signOut();
     if (!response.success) {

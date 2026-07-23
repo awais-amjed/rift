@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -35,17 +36,39 @@ class ServerRepository with _ChatApiMixin {
   }) async {
     try {
       final uri = Uri.parse('$supabaseUrl/functions/v1/$functionName');
-      final response = await http.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
-        },
-        body: jsonEncode(body),
-      );
+      final response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
       final result = jsonDecode(response.body) as Map<String, dynamic>;
       return _fromSupabaseCF(result);
+    } on TimeoutException {
+      return APIResponse.error(
+        "This server isn't responding — it may be offline. Try again later.",
+        errorCode: 'server_unreachable',
+      );
     } catch (e) {
+      // Distinguish "can't reach the server" from other failures so the UI can
+      // show a friendly offline message instead of a raw exception.
+      final msg = e.toString().toLowerCase();
+      final isConnectionError = e is http.ClientException ||
+          msg.contains('socketexception') ||
+          msg.contains('failed host lookup') ||
+          msg.contains('connection refused') ||
+          msg.contains('connection closed') ||
+          msg.contains('network is unreachable');
+      if (isConnectionError) {
+        return APIResponse.error(
+          "Can't reach this server. It may be offline, or check your connection.",
+          errorCode: 'server_unreachable',
+        );
+      }
       return APIResponse.error(e);
     }
   }

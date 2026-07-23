@@ -31,6 +31,11 @@ class SupabaseBackupRepository {
 
   bool get isSignedIn => currentUser != null;
 
+  /// Auth state changes (sign-in/out, token refresh). Emits `signedOut` when
+  /// the session is lost — e.g. the account was deleted server-side and the
+  /// token can no longer be refreshed.
+  Stream<AuthState> get authChanges => _client.auth.onAuthStateChange;
+
   /// Signs up a new user on the central server.
   ///
   /// On success [APIResponse.data] is a map:

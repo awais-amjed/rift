@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -148,8 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 const EdgeInsets.fromLTRB(20, 12, 20, 16),
                             child: Row(
                               children: [
-                                if (kDebugMode)
-                                  TextButton.icon(
+                                TextButton.icon(
                                     onPressed: () async {
                                       final confirmed =
                                           await showDialog<bool>(
@@ -158,8 +157,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           title:
                                               const Text('Reset Vault?'),
                                           content: const Text(
-                                            'This will wipe all keys and saved servers from secure storage. '
-                                            'You will be sent back to onboarding.',
+                                            'This wipes all keys and saved servers from this device and '
+                                            'returns you to onboarding. If you have no cloud backup, your '
+                                            'identity will be permanently lost.',
                                           ),
                                           actions: [
                                             TextButton(
