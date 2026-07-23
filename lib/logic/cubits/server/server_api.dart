@@ -178,28 +178,6 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     );
   }
 
-  /// Rotates the Ed25519 keypair for the selected server. Delegates crypto to
-  /// [vaultCubit] and persists the new key version to state.
-  Future<({bool success, String? error})> rotateServerKey(
-    VaultCubit vaultCubit,
-  ) async {
-    final server = state.selectedServer;
-    if (server == null) {
-      return (success: false, error: 'No server selected');
-    }
-
-    final result = await vaultCubit.rotateKey(supabaseUrl: server.supabaseUrl, serverId: server.id);
-
-    if (!result.success) {
-      return (success: false, error: result.error ?? 'Key rotation failed');
-    }
-
-    // Persist the new version so the next login derives the correct keypair.
-    updateServer(server.id, keyVersion: result.newVersion);
-
-    return (success: true, error: null);
-  }
-
   /// Create a new channel in the selected server.
   Future<({bool success, String? error})> createChannel({
     required String name,

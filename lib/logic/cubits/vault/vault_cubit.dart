@@ -16,17 +16,15 @@ part 'vault_state.dart';
 part 'vault_creation.dart';
 part 'vault_identity.dart';
 part 'vault_auth.dart';
-part 'vault_key_rotation.dart';
 part 'vault_backup.dart';
 
 /// Manages the user's encrypted vault: creation, server identity derivation,
-/// challenge-response login, key rotation, and backup export/import.
+/// SIWS login, and backup export/import.
 class VaultCubit extends Cubit<VaultState>
     with
         _VaultCreationMixin,
         _VaultIdentityMixin,
         _VaultAuthMixin,
-        _VaultKeyRotationMixin,
         _VaultBackupMixin {
   @override
   final CryptoRepository _crypto;
@@ -91,7 +89,6 @@ class VaultCubit extends Cubit<VaultState>
 
   /// Re-encrypts the vault blob from the current joined_servers list.
   /// Uses HMAC(masterSeed, "vault:v1") — always available without a password.
-  @override
   Future<void> _syncVaultBlob() async {
     if (state.masterSeed == null) return;
 

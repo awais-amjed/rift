@@ -120,82 +120,44 @@ class ServerRepository with _ChatApiMixin {
   // Registration & Auth
   // ──────────────────────────────────────────────────────────
 
-  /// Register on a server using an invite code + cryptographic identity.
-  /// Used for both initial server setup (admin) and joining via invite.
-  /// Returns full server context including a new auth token.
+  /// Sign in with a SIWS message + signature. Proxied to GoTrue's web3 grant
+  /// server-side (so no anon key is needed client-side). Returns the GoTrue
+  /// session (access_token + refresh_token).
+  Future<APIResponse> login(
+    String supabaseUrl, {
+    required String message,
+    required String signature,
+  }) {
+    return _post(supabaseUrl, 'login', {
+      'message': message,
+      'signature': signature,
+    });
+  }
+
+  /// Register a server profile bound to the caller's SIWS identity.
+  /// [bearerToken] is the GoTrue access token obtained from [login]. Returns
+  /// full server context (no token — the client already holds the JWT).
   Future<APIResponse> register(
     String supabaseUrl, {
+    required String bearerToken,
     required String inviteCode,
     required String publicKey,
     required String stableId,
     required String username,
     required String displayName,
   }) {
-    return _post(supabaseUrl, 'register', {
-      'invite_code': inviteCode,
-      'public_key': publicKey,
-      'stable_id': stableId,
-      'username': username,
-      'display_name': displayName,
-    });
-  }
-
-  /// Request a challenge nonce for Ed25519 authentication.
-  Future<APIResponse> getChallenge(
-    String supabaseUrl, {
-    required String publicKey,
-    required String serverId,
-  }) {
-    return _post(supabaseUrl, 'get_challenge', {
-      'public_key': publicKey,
-      'server_id': serverId,
-    });
-  }
-
-  /// Verify a signed challenge to authenticate and get full server context.
-  ///
-  /// [host] is the hostname the client used to derive its Ed25519 identity
-  /// (i.e. `Uri.parse(supabaseUrl).host`). Sending it explicitly lets the
-  /// server reconstruct the signed message without relying on the Host header
-  /// (which reverse proxies may rewrite).
-  Future<APIResponse> verifyChallenge(
-    String supabaseUrl, {
-    required String publicKey,
-    required String nonce,
-    required String signature,
-    required String host,
-    required String serverId,
-  }) {
-    return _post(supabaseUrl, 'verify_challenge', {
-      'public_key': publicKey,
-      'nonce': nonce,
-      'signature': signature,
-      'host': host,
-      'server_id': serverId,
-    });
-  }
-
-  /// Rotate Ed25519 key: proves ownership with old key, replaces with new key.
-  ///
-  /// [nonce] is a server-issued rotation challenge obtained via [getChallenge].
-  /// [host] is the hostname used for key derivation — same note as [verifyChallenge].
-  Future<APIResponse> rotateKey(
-    String supabaseUrl, {
-    required String oldPublicKey,
-    required String newPublicKey,
-    required String nonce,
-    required String signature,
-    required String host,
-    required String serverId,
-  }) {
-    return _post(supabaseUrl, 'rotate_key', {
-      'old_public_key': oldPublicKey,
-      'new_public_key': newPublicKey,
-      'nonce': nonce,
-      'signature': signature,
-      'host': host,
-      'server_id': serverId,
-    });
+    return _post(
+      supabaseUrl,
+      'register',
+      {
+        'invite_code': inviteCode,
+        'public_key': publicKey,
+        'stable_id': stableId,
+        'username': username,
+        'display_name': displayName,
+      },
+      bearerToken: bearerToken,
+    );
   }
 
   /// Check whether a username is available on the given server.

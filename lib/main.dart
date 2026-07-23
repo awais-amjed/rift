@@ -23,6 +23,7 @@ import 'logic/cubits/central_dm/central_dm_cubit.dart';
 import 'logic/cubits/channel_chat/channel_chat_cubit.dart';
 import 'logic/cubits/dm/dm_cubit.dart';
 import 'logic/cubits/livekit/livekit_cubit.dart';
+import 'logic/cubits/notifications/server_notifications_cubit.dart';
 import 'logic/cubits/screenshare/screenshare_cubit.dart';
 import 'logic/cubits/server/server_cubit.dart';
 import 'logic/cubits/supabase_backup/supabase_backup_cubit.dart';
@@ -268,6 +269,14 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
             BlocProvider(
               create: (context) => CentralDmCubit(
                 vaultCubit: widget.vaultCubit,
+              ),
+            ),
+            BlocProvider(
+              // Not lazy: the per-server notifications subscription must run
+              // whenever a server is selected, not only when a chat view reads it.
+              lazy: false,
+              create: (context) => ServerNotificationsCubit(
+                serverCubit: context.read<ServerCubit>(),
               ),
             ),
             BlocProvider(

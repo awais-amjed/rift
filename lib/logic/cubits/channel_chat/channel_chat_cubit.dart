@@ -8,8 +8,6 @@ import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
-import '../../services/notification_service.dart';
-import '../../services/window_focus_service.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -342,22 +340,11 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   @override
   void _onFreshIncoming(List<ChatMessage> incoming) {
-    // A message from someone means they've stopped typing.
+    // Clear the sender's typing indicator. OS notifications for every channel
+    // (including this one) are raised by ServerNotificationsCubit from the
+    // notifications table, so we don't fire them here — avoids double-notify.
     for (final m in incoming) {
       _removeTyping(m.authorId);
-    }
-    if (WindowFocusService.instance.isFocused) return;
-    final channelName = _serverCubit.state.selectedServer?.channels
-        .where((c) => c.id == state.channelId)
-        .map((c) => c.name)
-        .firstOrNull;
-    for (final m in incoming) {
-      NotificationService.instance.showMessage(
-        title: channelName != null
-            ? '${m.authorName} in #$channelName'
-            : m.authorName,
-        body: m.text,
-      );
     }
   }
 

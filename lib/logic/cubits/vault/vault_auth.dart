@@ -26,63 +26,62 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
   }
 
   // ──────────────────────────────────────────────────────────
-  // Phase 3: Challenge-response login
+  // Sign-in-with-Web3 (SIWS) login
   // ──────────────────────────────────────────────────────────
 
-  /// Performs a challenge-response handshake and returns a session token.
+  /// Sign a SIWS message with this host's Ed25519 key and exchange it for a
+  /// GoTrue session via the `login` proxy. Returns the access token (JWT).
+  /// Shared by both re-login and first-time registration.
+  Future<({String? accessToken, String? error})> siwsLogin(
+    String supabaseUrl,
+  ) async {
+    final host = Uri.parse(supabaseUrl).host;
+    final identity = await getIdentityForHost(host);
+    final signed = await _crypto.signSiws(
+      keyPair: identity.keyPair,
+      publicKeyBytes: identity.publicKeyBytes,
+      domain: host,
+      uri: supabaseUrl,
+    );
+    final response = await _serverRepo.login(
+      supabaseUrl,
+      message: signed.message,
+      signature: signed.signatureBase64,
+    );
+    if (!response.success) {
+      return (accessToken: null, error: response.error);
+    }
+    final data = response.data as Map<String, dynamic>?;
+    final accessToken = data?['access_token'] as String?;
+    if (accessToken == null) {
+      return (accessToken: null, error: 'Login returned no access token');
+    }
+    return (accessToken: accessToken, error: null);
+  }
+
+  /// Re-authenticate an existing server session: SIWS login for a fresh JWT,
+  /// then refresh the server context. Returns `{token, ...context}`; callers
+  /// (reAuthenticate) read `data['token']`.
   Future<({bool success, String? error, Map<String, dynamic>? data})>
       loginToServer({
     required String supabaseUrl,
     required String serverId,
   }) async {
     try {
-      final host = Uri.parse(supabaseUrl).host;
-
-      // Resolve the current key version so logins work after key rotation.
-      final joinedServers = await _storage.getJoinedServers();
-      final serverEntry = joinedServers
-          .cast<({String url, String version})?>()
-          .firstWhere((s) => s?.url == host, orElse: () => null);
-      final version = serverEntry?.version ?? 'v1';
-
-      final identity = await getIdentityForHost(host, version: version);
-
-      final challengeResponse = await _serverRepo.getChallenge(
-        supabaseUrl,
-        publicKey: identity.publicKeyBase64,
-        serverId: serverId,
-      );
-
-      if (!challengeResponse.success) {
-        return (success: false, error: challengeResponse.error, data: null);
+      final login = await siwsLogin(supabaseUrl);
+      if (login.accessToken == null) {
+        return (success: false, error: login.error, data: null);
       }
+      final token = login.accessToken!;
 
-      final nonce = challengeResponse.data['nonce'] as String;
-
-      final signature = await _crypto.signChallenge(
-        keyPair: identity.keyPair,
-        nonce: nonce,
-        host: host,
-      );
-
-      final verifyResponse = await _serverRepo.verifyChallenge(
-        supabaseUrl,
-        publicKey: identity.publicKeyBase64,
-        nonce: nonce,
-        signature: CryptoRepository.toBase64(signature),
-        host: host,
-        serverId: serverId,
-      );
-
-      if (!verifyResponse.success) {
-        return (success: false, error: verifyResponse.error, data: null);
+      final data = <String, dynamic>{'token': token};
+      final details =
+          await _serverRepo.getServerDetails(supabaseUrl, bearerToken: token);
+      if (details.success && details.data is Map) {
+        data.addAll(details.data as Map<String, dynamic>);
+        data['token'] = token; // context no longer carries a token
       }
-
-      return (
-        success: true,
-        error: null,
-        data: verifyResponse.data as Map<String, dynamic>,
-      );
+      return (success: true, error: null, data: data);
     } catch (e) {
       HelperMethods.printDebug('[Vault] loginToServer error: $e');
       return (success: false, error: e.toString(), data: null);

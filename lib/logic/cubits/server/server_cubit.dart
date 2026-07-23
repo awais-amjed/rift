@@ -61,8 +61,9 @@ class ServerCubit extends HydratedCubit<ServerState>
                   response.error!.contains('No token found') ||
                   response.error!.contains('Token is not linked'))));
 
-  /// Re-runs the Ed25519 challenge-response for the selected server.
-  /// On success, persists the new token and returns it; returns null on failure.
+  /// Re-runs SIWS login for the selected server (silent — the key is derived
+  /// from the seed). On success, persists the new JWT and returns it; null on
+  /// failure.
   Future<String?> reAuthenticate() async {
     final server = state.selectedServer;
     if (server == null || _vaultCubit == null) return null;

@@ -6,6 +6,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
   Map<String, ServerIdentity> get _identityCache;
   Map<String, ChatIdentity> get _chatIdentityCache;
   Future<void> _addServerToVault(String host, {String version = 'v1'});
+  Future<({String? accessToken, String? error})> siwsLogin(String supabaseUrl);
 
   // ──────────────────────────────────────────────────────────
   // Phase 2: Joining a server
@@ -65,8 +66,18 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       final host = Uri.parse(supabaseUrl).host;
       final identity = await getIdentityForHost(host);
 
+      // 1. SIWS login first — creates the GoTrue identity (signup) and yields
+      //    the JWT that register binds the profile to (users.id = auth.uid()).
+      final login = await siwsLogin(supabaseUrl);
+      if (login.accessToken == null) {
+        return (success: false, error: login.error, data: null);
+      }
+      final token = login.accessToken!;
+
+      // 2. Create the server profile row.
       final response = await _serverRepo.register(
         supabaseUrl,
+        bearerToken: token,
         inviteCode: inviteCode,
         publicKey: identity.publicKeyBase64,
         stableId: identity.stableId,
@@ -83,7 +94,10 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       return (
         success: true,
         error: null,
-        data: response.data as Map<String, dynamic>,
+        data: <String, dynamic>{
+          'token': token,
+          ...(response.data as Map<String, dynamic>),
+        },
       );
     } catch (e) {
       HelperMethods.printDebug('[Vault] registerOnServer error: $e');

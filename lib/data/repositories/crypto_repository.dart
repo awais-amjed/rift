@@ -239,50 +239,44 @@ class CryptoRepository with _ChatCryptoMixin {
   }
 
   // ──────────────────────────────────────────────────────────
-  // Ed25519 — Challenge-response signing
+  // Ed25519 — Sign-in-with-Web3 (SIWS) login signing
   // ──────────────────────────────────────────────────────────
 
-  /// Sign a challenge message with an Ed25519 keypair.
+  /// Build and sign a Sign-in-with-Solana (SIWS) message for [domain]/[uri]
+  /// with an Ed25519 keypair. The base58 of the public key is the "Solana
+  /// address" GoTrue keys the identity on. Returns the exact message that was
+  /// signed plus the base64 signature — both posted to the `login` function.
   ///
-  /// The message format is "nonce@host" as specified in auth.md.
-  Future<Uint8List> signChallenge({
+  /// `Chain ID: solana:mainnet` and the base64 signature encoding are required
+  /// by GoTrue's web3 grant (verified against the local stack — see auth.md).
+  Future<({String message, String signatureBase64})> signSiws({
     required SimpleKeyPair keyPair,
-    required String nonce,
-    required String host,
+    required Uint8List publicKeyBytes,
+    required String domain,
+    required String uri,
   }) async {
-    final message = '$nonce@$host';
-    final ed = Ed25519();
-    final signature = await ed.sign(
-      utf8.encode(message),
-      keyPair: keyPair,
-    );
-    return Uint8List.fromList(signature.bytes);
-  }
+    final address = toBase58(publicKeyBytes);
+    final nonce = toBase64(_secureRandomBytes(12))
+        .replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+    final issuedAt = DateTime.now().toUtc().toIso8601String();
 
-  // ──────────────────────────────────────────────────────────
-  // Ed25519 — Key rotation signing
-  // ──────────────────────────────────────────────────────────
+    final message = '$domain wants you to sign in with your Solana account:\n'
+        '$address\n'
+        '\n'
+        'Sign in to Rift.\n'
+        '\n'
+        'URI: $uri\n'
+        'Version: 1\n'
+        'Chain ID: solana:mainnet\n'
+        'Nonce: $nonce\n'
+        'Issued At: $issuedAt';
 
-  /// Sign a key rotation payload with the OLD keypair.
-  ///
-  /// Message format: "rotate:<newPublicKeyBase64>@<nonce>@<host>"
-  /// The nonce is a server-issued challenge that prevents replay attacks.
-  /// The server verifies this using the old public key, then replaces it
-  /// with the new one.
-  Future<Uint8List> signRotation({
-    required SimpleKeyPair oldKeyPair,
-    required Uint8List newPublicKeyBytes,
-    required String nonce,
-    required String host,
-  }) async {
-    final newPubB64 = toBase64(newPublicKeyBytes);
-    final message = 'rotate:$newPubB64@$nonce@$host';
     final ed = Ed25519();
-    final signature = await ed.sign(
-      utf8.encode(message),
-      keyPair: oldKeyPair,
+    final signature = await ed.sign(utf8.encode(message), keyPair: keyPair);
+    return (
+      message: message,
+      signatureBase64: toBase64(Uint8List.fromList(signature.bytes)),
     );
-    return Uint8List.fromList(signature.bytes);
   }
 
   // ──────────────────────────────────────────────────────────
@@ -293,6 +287,34 @@ class CryptoRepository with _ChatCryptoMixin {
 
   static Uint8List fromBase64(String b64) =>
       Uint8List.fromList(base64Decode(b64));
+
+  static const _b58Alphabet =
+      '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+  /// Base58 (Bitcoin/Solana alphabet) encode — used for the SIWS address.
+  static String toBase58(Uint8List bytes) {
+    if (bytes.isEmpty) return '';
+    var intVal = BigInt.zero;
+    for (final b in bytes) {
+      intVal = (intVal << 8) | BigInt.from(b);
+    }
+    final buffer = StringBuffer();
+    final base = BigInt.from(58);
+    while (intVal > BigInt.zero) {
+      final rem = (intVal % base).toInt();
+      intVal = intVal ~/ base;
+      buffer.write(_b58Alphabet[rem]);
+    }
+    // Leading zero bytes → leading '1's.
+    for (final b in bytes) {
+      if (b == 0) {
+        buffer.write('1');
+      } else {
+        break;
+      }
+    }
+    return buffer.toString().split('').reversed.join();
+  }
 }
 
 
