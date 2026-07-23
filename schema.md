@@ -13,20 +13,19 @@
 | livekit_url        | text        | Required                    | LiveKit server URL                       |
 | livekit_api_key    | text        | Required                    | LiveKit API key                          |
 | livekit_secret_key | text        | Required                    | LiveKit secret key                       |
-| seeding_secret     | text        | Required                    | Secret used for generating access tokens |
 
 ### users
 
 | Column             | Type        | Constraints                        | Description                                      |
 |--------------------|-------------|------------------------------------|-------------------------------------------------|
-| id                 | uuid        | Primary Key, Auto-generated        | Unique user identifier                           |
+| id                 | uuid        | Primary Key, FK → auth.users.id (cascade) | = `auth.uid()` (GoTrue identity), supplied at register — not auto-generated |
 | created_at         | timestamptz | Auto-created                       | Timestamp of user creation                       |
 | server_id          | uuid        | Required, Foreign Key → servers.id | The server this user is registered on            |
 | username           | text        | Required, Unique                   | Unique username                                  |
 | display_name       | text        | Required                           | User's display name                              |
-| public_key         | text        | Not Null, Unique per server        | Ed25519 public key (base64). Updates on rotation |
+| public_key         | text        | Not Null, Unique per server        | Ed25519 public key (base64) — SIWS login + message signing |
 | stable_id          | text        | Not Null, Unique per server        | Permanent HMAC identity hash. Never changes      |
-| is_banned          | boolean     | Default: false                     | If true, all logins/rotations are rejected       |
+| is_banned          | boolean     | Default: false                     | If true, the user is rejected on every call      |
 | is_server_admin    | boolean     | Default: false                     | Whether user has server admin privileges         |
 | is_channel_manager | boolean     | Default: false                     | Whether user can manage channels                 |
 | can_create_tokens  | boolean     | Default: false                     | Whether user can create invites                  |
@@ -43,19 +42,6 @@
 | server_id    | uuid         | Required, Foreign Key → servers.id | Reference to associated server  |
 | name         | text         | Required                           | Channel name                    |
 | channel_type | channel_type | Required                           | Type of channel (voice or text) |
-
-### tokens
-
-Short-lived auth credentials (1 hour TTL), always linked to a user.
-
-| Column     | Type        | Constraints                        | Description                         |
-|------------|-------------|------------------------------------|------------------------------------|
-| id         | uuid        | Primary Key, Auto-generated        | Unique token identifier             |
-| created_at | timestamptz | Auto-created                       | Timestamp of token creation         |
-| server_id  | uuid        | Required, Foreign Key → servers.id | Reference to associated server      |
-| token      | text        | Required, Unique                   | Auth token value                    |
-| user_id    | uuid        | Foreign Key → users.id             | Reference to associated user        |
-| expires_at | timestamptz | Required, Default: now()           | Token expiry — refreshed on login   |
 
 ### invites
 
@@ -124,13 +110,21 @@ no ON CONFLICT: first writer wins, losers re-wrap the winner's key.
 
 Unique: `(channel_id, key_version, user_id)`.
 
-### auth_challenges
+### notifications
 
-| Column     | Type          | Constraints          | Description                                        |
-|------------|---------------|----------------------|----------------------------------------------------|
-| nonce      | text          | Primary Key          | Random challenge string                            |
-| expires_at | timestamptz   | Not Null             | Set to NOW() + INTERVAL '60 seconds'               |
-| public_key | text          | Not Null, Unique     | One active challenge per key — upsert replaces old |
+Per-recipient channel-message notifications (migration 007). Fanned out by `send_message`, read
+directly by clients over authenticated Realtime (Postgres Changes) — RLS scopes each subscription
+to `auth.uid()`. Added to the `supabase_realtime` publication.
+
+| Column     | Type        | Constraints                          | Description                             |
+|------------|-------------|--------------------------------------|-----------------------------------------|
+| id         | bigserial   | Primary Key                          | Monotonic notification id               |
+| created_at | timestamptz | Auto-created                         | Server-assigned time                    |
+| user_id    | uuid        | Required, FK → users.id (cascade)    | Recipient (RLS: `auth.uid() = user_id`) |
+| channel_id | uuid        | Required, FK → channels.id (cascade) | Channel the message was sent to         |
+| message_id | bigint      | Required, FK → messages.id (cascade) | The message that triggered this         |
+| sender_id  | uuid        | Required, FK → users.id (cascade)    | Message author                          |
+| read_at    | timestamptz | Nullable                             | Set when the client marks it read       |
 
 ## Enums
 

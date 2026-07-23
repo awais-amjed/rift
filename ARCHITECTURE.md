@@ -9,7 +9,7 @@ Reference for how authentication and encryption work across the system. Each sec
 |---|---|
 | Flutter app | UI on all platforms; all cryptography runs client-side (`CryptoRepository`) |
 | Rust core (`rust/`) | Screen capture + audio pipeline, publishes to LiveKit via flutter_rust_bridge |
-| Self-hosted server | One Supabase project (Postgres + Edge Functions) + one LiveKit server. Anyone can run one; holds users, channels, tokens — and later, messages |
+| Self-hosted server | One Supabase project (Postgres + Edge Functions) + one LiveKit server. Anyone can run one; holds users, channels, messages, and E2E keyring material |
 | Central Supabase | Optional convenience service run by the project: account (email+password) + encrypted vault backups. Never required — privacy mode works without it |
 
 The trust model in one line: **self-hosted server admins are trusted with membership and (plaintext
@@ -30,15 +30,15 @@ password ──Argon2id(salt, 64 MiB, 2 iter)──► vault key (256-bit)
                                                 │
 master seed (random 32 B) ◄──AES-256-GCM decrypt┘        (EncryptedSeed blob)
    │
-   ├─ HMAC-SHA256(seed, "<host>:<version>") ──► child seed ──► Ed25519 keypair (per server)
-   ├─ HMAC-SHA256(seed, "<host>:identity")  ──► stable_id (permanent, survives key rotation)
+   ├─ HMAC-SHA256(seed, "<host>:<version>") ──► child seed ──► Ed25519 keypair (SIWS login + signing)
+   ├─ HMAC-SHA256(seed, "<host>:identity")  ──► stable_id (permanent per-server identity)
    └─ HMAC-SHA256(seed, "vault:v1")         ──► vault blob key (AES-256-GCM)
 ```
 
 - `<host>` is the hostname of the self-hosted server's Supabase URL, so identities are
   **per-server**: servers cannot correlate a user across servers by key material.
-- `<version>` (`v1`, `v2`, …) supports key rotation: bumping it yields a fresh keypair from the
-  same seed; `stable_id` is version-independent and never changes.
+- `<version>` is retained only as a derivation hook for a future crypto migration — it's always
+  `v1` now (key rotation was removed; see §2). `stable_id` is version-independent.
 - Argon2id runs in a background isolate (`Isolate.run`) — never on the UI thread.
 - The master seed lives in platform secure storage (`flutter_secure_storage`), never in
   HydratedBloc/JSON state.
@@ -53,35 +53,39 @@ Portable JSON with three client-side-encrypted blobs (`BackupFile`):
 | `vault` | joined-servers list (host + key version) | HMAC(seed, "vault:v1") |
 | `encrypted_servers` | full server metadata (name, icon, supabase/livekit URLs, anon key) | same key, separate IV |
 
-Session tokens are **intentionally excluded** — they're 1-hour credentials re-minted on import via
-challenge-response. Restore = enter password → decrypt seed → derive everything → re-authenticate
+Session JWTs are **intentionally excluded** — they're short-lived credentials re-minted on import
+via SIWS login. Restore = enter password → decrypt seed → derive everything → re-authenticate
 everywhere. Storage providers only ever see ciphertext.
 
 ---
 
 ## 2. Self-hosted server auth — [Implemented]
 
-Public-key challenge-response; no passwords ever reach self-hosted servers.
+**Sign-in-with-Web3 (SIWS / Solana).** GoTrue issues the session; no passwords, and no
+seed-derived secret ever reaches the server (auth is a signature). Full design in `auth.md`.
 
-1. **Register** (once, invite code required): client sends `public_key` + `stable_id` + username.
-2. **Login**: client requests a challenge → server upserts a 60-second nonce for that public key
-   (`auth_challenges`, one active per key) → client signs `"<nonce>@<host>"` with Ed25519 →
-   server verifies and issues a session token (1 h TTL, `tokens` table).
-   Binding `<host>` into the signature prevents a malicious server replaying the login elsewhere.
-3. **Key rotation**: client signs `"rotate:<newPubKeyB64>@<nonce>@<host>"` with the **old** key;
-   server swaps `public_key`, `stable_id` unchanged. Client bumps `<version>` in the vault.
-4. **Session refresh**: all API calls flow through `ServerCubit._callWithAutoRefresh` — expired
-   tokens trigger a silent re-login and one retry.
+1. **Register** (once, invite code required): the client first does a SIWS login (below) to obtain
+   a JWT, then calls `register` with that JWT + `public_key` + `stable_id` + username. The profile
+   row is bound to the GoTrue identity — `users.id = auth.uid()` — so every FK carries the GoTrue
+   uuid and RLS ownership is simply `auth.uid() = <col>`.
+2. **Login (SIWS)**: the client signs a Sign-in-with-Solana message with its per-host Ed25519 key
+   (base58 of the key is the "address") and posts it to the `login` Edge Function, which proxies
+   GoTrue's `grant_type=web3` server-side (so no anon key is needed client-side) and returns a
+   GoTrue session (access JWT + refresh token). `Chain ID: solana:mainnet`, base64 signature.
+3. **Session refresh**: all API calls flow through `ServerCubit._callWithAutoRefresh`; a session
+   near expiry (or a rejected JWT) triggers a silent re-login — the key is derived from the seed,
+   so it never prompts. `server.token` holds the JWT.
+4. **Authorization**: Edge Functions verify the JWT (`auth.getUser`) and load the `users` row for
+   permissions + ban state on every call (ban is enforced instantly on the edge path). Simple
+   per-user surfaces (the `notifications` table) are read directly via RLS `auth.uid() = user_id`.
 
-**Permissions** are three token/user flags — `is_server_admin`, `is_channel_manager`,
+**Permissions** are three user flags — `is_server_admin`, `is_channel_manager`,
 `can_create_tokens` — with the delegation rule: *you can only grant what you hold*.
 
-**Multi-device sessions (fixed July 2026):** each successful login inserts its own token row —
-migration `003_per_device_tokens.sql` dropped the old `tokens.user_id` UNIQUE constraint that made
-two devices invalidate each other in a refresh ping-pong. Expired rows are garbage-collected by a
-pg_cron job. Key rotation still deletes *all* of a user's tokens (the old key may be compromised,
-so every session must re-authenticate). LiveKit identity collision (two devices in the same voice
-channel) is a separate, deferred issue.
+**Removed:** key rotation and the whole opaque-token + challenge machinery (`tokens` /
+`auth_challenges` tables, `get_challenge` / `verify_challenge` / `rotate_key`). Seed-derived keys
+share the seed's fate, so per-derived-key rotation defended against nothing reachable here.
+Assumes **one server per Supabase instance** (per-host key ⇒ one GoTrue identity).
 
 ---
 

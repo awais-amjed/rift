@@ -68,8 +68,8 @@ edge_functions.md   # Edge Function API doc — update when functions change
 - All Edge Function calls return the shared `APIResponse` (mirrors the
   `{success, data, error, code}` envelope). Check `response.success`; never assume HTTP errors —
   the API always returns 200.
-- Session-token expiry is handled centrally by `ServerCubit._callWithAutoRefresh`; new API calls
-  must go through it rather than re-implementing refresh/retry.
+- Session (JWT) expiry is handled centrally by `ServerCubit._callWithAutoRefresh` (a silent SIWS
+  re-login); new API calls must go through it rather than re-implementing refresh/retry.
 - Enums carry their own `fromString` / `toJson` conversions (see `channel_type.dart`).
 
 ## Crypto rules
@@ -79,8 +79,8 @@ edge_functions.md   # Edge Function API doc — update when functions change
   heavy crypto off the main isolate the same way.
 - Secrets at rest go through `SecureStorageRepository` (flutter_secure_storage), never
   HydratedBloc/JSON state.
-- Anything touching vault export/import or key rotation must keep backward compatibility with
-  existing `BackupFile.version` values.
+- Anything touching vault export/import must keep backward compatibility with existing
+  `BackupFile.version` values.
 
 ## Presentation
 
