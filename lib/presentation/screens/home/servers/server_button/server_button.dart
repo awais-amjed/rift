@@ -37,7 +37,27 @@ class ServerButton extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  ServerAvatar(server: server),
+                  // Unread on another server → a dot on the avatar's corner
+                  // (kept off the trailing edge, which holds the pin/chevron).
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ServerAvatar(server: server),
+                      if (otherUnread > 0)
+                        Positioned(
+                          top: -1,
+                          right: -1,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: themeState.sidebarBg,
+                              shape: BoxShape.circle,
+                            ),
+                            child: UnreadDot(themeState: themeState, size: 9),
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -50,10 +70,6 @@ class ServerButton extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (otherUnread > 0) ...[
-                    const SizedBox(width: 8),
-                    UnreadDot(themeState: themeState),
-                  ],
                 ],
               ),
             ),
