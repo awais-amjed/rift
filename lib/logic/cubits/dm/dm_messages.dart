@@ -12,6 +12,7 @@ mixin _DmMessagesMixin on Cubit<DmState> {
   void _joinPeerTopic(String peerId);
   void _leavePeerTopic();
   void _ringPeerDoorbell();
+  void _ringReactionDoorbell();
 
   /// Fire OS notifications for newly-arrived messages across all conversations.
   void _notifyFromConversations(List<DmConversation> conversations);
@@ -140,6 +141,7 @@ mixin _DmMessagesMixin on Cubit<DmState> {
       messages: decrypted.reversed.toList(),
       hasMoreHistory: data['has_more'] as bool? ?? false,
     ));
+    unawaited(refreshReactions());
   }
 
   Future<void> _fetchAfterLatest() async {
@@ -173,6 +175,7 @@ mixin _DmMessagesMixin on Cubit<DmState> {
         .toList();
 
     emit(state.copyWith(messages: [...kept, ...fresh]));
+    unawaited(refreshReactions());
 
     if (fresh.any((m) => !m.isMine)) _onOpenPeerMessage();
   }
@@ -210,6 +213,7 @@ mixin _DmMessagesMixin on Cubit<DmState> {
       hasMoreHistory: data['has_more'] as bool? ?? false,
       isLoadingMore: false,
     ));
+    unawaited(refreshReactions());
   }
 
   // ──────────────────────────────────────────────────────────
@@ -412,4 +416,92 @@ mixin _DmMessagesMixin on Cubit<DmState> {
           nonceB64: attachment.nonceB64,
         ),
       );
+
+  // ──────────────────────────────────────────────────────────
+  // Reactions (not E2E — server-visible; ARCHITECTURE.md §4)
+  // ──────────────────────────────────────────────────────────
+
+  Future<void> toggleReaction(String messageId, String emoji) async {
+    final peerId = state.openPeerId;
+    final idNum = int.tryParse(messageId);
+    if (peerId == null || idNum == null) return;
+
+    _applyOptimisticReaction(messageId, emoji);
+
+    final response = await _serverCubit.toggleReaction(
+      scope: 'dm',
+      peerId: peerId,
+      messageId: idNum,
+      emoji: emoji,
+    );
+    if (state.openPeerId != peerId) return;
+    if (response.success) {
+      _ringReactionDoorbell();
+    } else {
+      HelperMethods.showError(error: 'Failed to react');
+    }
+    await refreshReactions();
+  }
+
+  Future<void> refreshReactions() async {
+    final peerId = state.openPeerId;
+    if (peerId == null) return;
+    final ids = state.messages
+        .where((m) => !m.isPending)
+        .map((m) => int.tryParse(m.id))
+        .whereType<int>()
+        .toList();
+    if (ids.isEmpty) return;
+
+    final response = await _serverCubit.listReactions(
+      scope: 'dm',
+      peerId: peerId,
+      messageIds: ids,
+    );
+    if (!response.success || state.openPeerId != peerId) return;
+    _mergeReactions(response.data as Map<String, dynamic>);
+  }
+
+  void _mergeReactions(Map<String, dynamic> data) {
+    final raw = (data['reactions'] as Map).cast<String, dynamic>();
+    emit(state.copyWith(
+      messages: state.messages.map((m) {
+        final list = raw[m.id];
+        final reactions = list == null
+            ? const <MessageReaction>[]
+            : (list as List)
+                .cast<Map<String, dynamic>>()
+                .map(MessageReaction.fromJson)
+                .toList();
+        return m.copyWith(reactions: reactions);
+      }).toList(),
+    ));
+  }
+
+  void _applyOptimisticReaction(String messageId, String emoji) {
+    emit(state.copyWith(
+      messages: state.messages.map((m) {
+        if (m.id != messageId) return m;
+        final list = [...m.reactions];
+        final idx = list.indexWhere((r) => r.emoji == emoji);
+        if (idx == -1) {
+          list.add(MessageReaction(emoji: emoji, count: 1, mine: true));
+        } else {
+          final r = list[idx];
+          if (r.mine) {
+            final c = r.count - 1;
+            if (c <= 0) {
+              list.removeAt(idx);
+            } else {
+              list[idx] = MessageReaction(emoji: emoji, count: c, mine: false);
+            }
+          } else {
+            list[idx] =
+                MessageReaction(emoji: emoji, count: r.count + 1, mine: true);
+          }
+        }
+        return m.copyWith(reactions: list);
+      }).toList(),
+    ));
+  }
 }

@@ -90,6 +90,24 @@ Signature context: `dm:<lowerUserId>:<higherUserId>`.
 | signature    | text        | Required                                          | Sender's Ed25519 signature, base64   |
 | key_version  | integer     | Required                                          | Always 1 for DMs (no rotation)       |
 
+### message_reactions / dm_message_reactions (migration 012)
+
+Emoji reactions on channel messages / server DMs. **Not E2E** — the server
+stores who reacted with which emoji, in the clear (accepted metadata trade-off,
+ARCHITECTURE.md §4). One row per (message, user, emoji); toggling re-adds or
+removes it. RLS enabled with no policies (access is via the service-role
+`toggle_reaction` / `list_reactions` edge functions). On the **central** project
+the equivalent table is `dm_reactions` with participant-scoped RLS (direct
+client access, not an edge function).
+
+| Column     | Type        | Constraints                                    | Description                     |
+|------------|-------------|------------------------------------------------|---------------------------------|
+| message_id | bigint      | FK → messages.id / dm_messages.id, cascade     | Reacted-to message              |
+| user_id    | uuid        | FK → users.id, cascade                         | Reactor                         |
+| emoji      | text        | 1–32 chars                                     | The emoji                       |
+| created_at | timestamptz | Auto-created                                   | When added                      |
+| —          | —           | Primary Key (message_id, user_id, emoji)       | One reaction per user per emoji |
+
 ### channel_keyring
 
 The symmetric channel key sealed per member (ephemeral-static X25519 "sealed box") —

@@ -8,6 +8,7 @@ import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/message_body.dart';
+import '../../../data/classes/message_reaction.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
@@ -146,6 +147,7 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
     _rtClient!.channel('dm:${server.id}:${server.user!.id}')
       ..onBroadcast(event: 'new_dm', callback: (_) => _onDoorbell())
       ..onBroadcast(event: 'typing', callback: _onTyping)
+      ..onBroadcast(event: 'reaction', callback: (_) => refreshReactions())
       ..subscribe();
   }
 
@@ -187,6 +189,13 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
   void _ringPeerDoorbell() {
     try {
       _peerTopic?.sendBroadcastMessage(event: 'new_dm', payload: {});
+    } catch (_) {}
+  }
+
+  @override
+  void _ringReactionDoorbell() {
+    try {
+      _peerTopic?.sendBroadcastMessage(event: 'reaction', payload: {});
     } catch (_) {}
   }
 

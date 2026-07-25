@@ -24,11 +24,15 @@ class ChatMessageList extends StatefulWidget {
   /// surfaces without attachment support.
   final AttachmentLoader? attachmentLoader;
 
+  /// Toggle a reaction on a message. Null disables reactions on this surface.
+  final void Function(String messageId, String emoji)? onToggleReaction;
+
   const ChatMessageList({
     super.key,
     required this.messages,
     this.controller,
     this.attachmentLoader,
+    this.onToggleReaction,
   });
 
   @override
@@ -108,6 +112,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               showHeader: _showHeader(index),
               themeState: themeState,
               attachmentLoader: widget.attachmentLoader,
+              onToggleReaction: widget.onToggleReaction,
               animateIn: animating.contains(message.id),
             );
           },

@@ -172,9 +172,10 @@ A `test/` suite covers **pure, deterministic logic**:
   attachment-blob `encryptBytes`/`decryptBytes`, and the signed message envelope, each
   with its negative case (forge, replay across channels, key-version tamper, wrong key).
 - **Models / state** (`server_model_test.dart`, `notifications_state_test.dart`,
-  `message_model_test.dart`, `message_body_test.dart`) — JSON round-trips, token-freshness
-  and unread math, the `signedPayload` binding, permission defaults, and the structured
-  message body (attachment round-trip + legacy plain-text compatibility).
+  `message_model_test.dart`, `message_body_test.dart`, `message_reaction_test.dart`) — JSON
+  round-trips, token-freshness and unread math, the `signedPayload` binding, permission
+  defaults, the structured message body (attachment round-trip + legacy plain-text
+  compatibility), and reaction parsing + `ChatMessage.copyWith`.
 - **Storage isolation** (`storage_namespace_test.dart`) — `RIFT_PROFILE` namespacing.
 
 Run with `flutter test`; it must pass (alongside `flutter analyze`) before committing.

@@ -7,6 +7,7 @@ import 'package:supabase/supabase.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/message_body.dart';
+import '../../../data/classes/message_reaction.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
@@ -276,6 +277,10 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         event: 'typing',
         callback: _onTyping,
       )
+      ..onBroadcast(
+        event: 'reaction',
+        callback: (_) => refreshReactions(),
+      )
       ..subscribe();
   }
 
@@ -359,6 +364,15 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   void _ringDoorbell() {
     try {
       _rtChannel?.sendBroadcastMessage(event: 'new_message', payload: {});
+    } catch (_) {}
+  }
+
+  /// Notify other members that reactions changed, so they re-fetch. Same
+  /// fire-and-forget doorbell pattern as [_ringDoorbell].
+  @override
+  void _ringReactionDoorbell() {
+    try {
+      _rtChannel?.sendBroadcastMessage(event: 'reaction', payload: {});
     } catch (_) {}
   }
 

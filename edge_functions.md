@@ -133,6 +133,12 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
     edge-function change: attachments ride *inside* the existing message envelope (structured
     `MessageBody`), and blobs move over the Storage REST API. The central project needs an
     equivalent `central-dm-attachments` bucket (10 MB, own-folder insert) — see LOCAL_DEV.
+12. **012_reactions.sql** — `message_reactions` + `dm_message_reactions` tables (NOT E2E —
+    server-visible emoji tallies). Served by two new functions: **`toggle_reaction`**
+    (`{scope: "channel"|"dm", channel_id?/peer_id?, message_id, emoji}` — flips the caller's
+    reaction, returns `{reacted}`) and **`list_reactions`** (`{scope, …, message_ids[]}` →
+    `{reactions: {id: [{emoji,count,mine}]}}`, membership-filtered). The central project uses a
+    `dm_reactions` table with participant-scoped RLS instead (direct client ops) — see LOCAL_DEV.
 
 ## Deployment
 

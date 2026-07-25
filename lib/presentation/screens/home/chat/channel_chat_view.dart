@@ -87,6 +87,7 @@ class _ChannelChatViewState extends State<ChannelChatView> {
           messages: chatState.messages,
           controller: _scrollController,
           attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
+          onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
         );
       case ChannelChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

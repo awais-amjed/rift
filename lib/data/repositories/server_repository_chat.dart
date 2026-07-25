@@ -25,6 +25,53 @@ mixin _ChatApiMixin {
     );
   }
 
+  /// Toggle the caller's [emoji] reaction on a message. [scope] is `channel`
+  /// (pass [channelId]) or `dm` (pass [peerId]). Returns `{ reacted }`.
+  Future<APIResponse> toggleReaction(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String scope,
+    String? channelId,
+    String? peerId,
+    required int messageId,
+    required String emoji,
+  }) {
+    return _post(
+      supabaseUrl,
+      'toggle_reaction',
+      {
+        'scope': scope,
+        'channel_id': ?channelId,
+        'peer_id': ?peerId,
+        'message_id': messageId,
+        'emoji': emoji,
+      },
+      bearerToken: bearerToken,
+    );
+  }
+
+  /// Aggregated reactions for [messageIds] (`{ reactions: { id: [...] } }`).
+  Future<APIResponse> listReactions(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String scope,
+    String? channelId,
+    String? peerId,
+    required List<int> messageIds,
+  }) {
+    return _post(
+      supabaseUrl,
+      'list_reactions',
+      {
+        'scope': scope,
+        'channel_id': ?channelId,
+        'peer_id': ?peerId,
+        'message_ids': messageIds,
+      },
+      bearerToken: bearerToken,
+    );
+  }
+
   /// Store one E2E message envelope. Returns the server-attested
   /// `id` + `created_at`.
   Future<APIResponse> sendMessage(

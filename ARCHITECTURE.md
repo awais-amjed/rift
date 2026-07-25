@@ -202,6 +202,14 @@ Attachments (images, voice notes, files) are E2E-encrypted just like text:
 - Central attachments count against the sender's daily DM quota and are bounded
   by a per-file size cap (bucket `file_size_limit`).
 
+**Emoji reactions are deliberately NOT E2E.** Unlike message content, an emoji
+tally is stored in the clear (`message_reactions` / `dm_message_reactions`, or
+`dm_reactions` on central) — the server sees who reacted with which emoji. This
+is the accepted metadata cost of a Discord-like reaction UX; message *content*
+stays encrypted. Toggling is one call (add if absent, else remove); clients
+fetch aggregated counts via `list_reactions` and refresh live off the same
+Realtime doorbell used for messages (self-hosted) or on the next fetch (central).
+
 ### Decisions locked in for day one
 1. **Every message is Ed25519-signed by the sender** — a shared channel key must not allow
    member/server forgery. Unsigned history can't be retro-signed, so this ships with message v1.

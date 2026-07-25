@@ -104,6 +104,45 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
         ),
       );
 
+  /// Toggle the caller's [emoji] reaction on a message ([scope] `channel` or
+  /// `dm`; pass [channelId] or [peerId]).
+  Future<APIResponse> toggleReaction({
+    required String scope,
+    String? channelId,
+    String? peerId,
+    required int messageId,
+    required String emoji,
+  }) =>
+      _callWithAutoRefresh(
+        (token) => _repository.toggleReaction(
+          state.selectedServer!.supabaseUrl,
+          scope: scope,
+          channelId: channelId,
+          peerId: peerId,
+          messageId: messageId,
+          emoji: emoji,
+          bearerToken: token,
+        ),
+      );
+
+  /// Aggregated reactions for a set of loaded messages.
+  Future<APIResponse> listReactions({
+    required String scope,
+    String? channelId,
+    String? peerId,
+    required List<int> messageIds,
+  }) =>
+      _callWithAutoRefresh(
+        (token) => _repository.listReactions(
+          state.selectedServer!.supabaseUrl,
+          scope: scope,
+          channelId: channelId,
+          peerId: peerId,
+          messageIds: messageIds,
+          bearerToken: token,
+        ),
+      );
+
   /// Fetch my sealed channel keys + current version + healing set.
   Future<APIResponse> getChannelKey(String channelId) =>
       _callWithAutoRefresh(
