@@ -117,6 +117,9 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
    `users.id → auth.users(id)` (so `users.id = auth.uid()`); adds the `notifications` table
    (RLS `auth.uid() = user_id`, added to the `supabase_realtime` publication for authenticated
    Postgres-Changes delivery). Assumes one server per Supabase instance.
+8. **008_notifications_retention.sql** — bounds `notifications` growth: hourly
+   `cleanup-notifications` pg_cron job prunes rows read >1 day ago or older than 7 days,
+   plus `idx_notifications_created_at`.
 
 ## Deployment
 

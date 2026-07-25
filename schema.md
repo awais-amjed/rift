@@ -116,6 +116,10 @@ Per-recipient channel-message notifications (migration 007). Fanned out by `send
 directly by clients over authenticated Realtime (Postgres Changes) — RLS scopes each subscription
 to `auth.uid()`. Added to the `supabase_realtime` publication.
 
+Transient signal, not a source of truth (the message lives in `messages`), so it's pruned to bound
+growth (migration 008): an hourly `cleanup-notifications` pg_cron job deletes rows read more than a
+day ago or older than 7 days. `idx_notifications_created_at` backs the age prune.
+
 | Column     | Type        | Constraints                          | Description                             |
 |------------|-------------|--------------------------------------|-----------------------------------------|
 | id         | bigserial   | Primary Key                          | Monotonic notification id               |
