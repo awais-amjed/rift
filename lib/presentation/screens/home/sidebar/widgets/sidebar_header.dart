@@ -8,6 +8,7 @@ import '../../../../common/app_modal.dart';
 import '../../servers/server_button/server_button.dart';
 import '../../servers/server_button/widgets/no_server_button.dart';
 import '../../servers/server_selector/server_selector_dialog.dart';
+import '../../servers/server_settings/server_settings_dialog.dart';
 import '../../servers/server_switcher/server_switcher_popover.dart';
 
 /// Header section of the sidebar with server button and pin toggle.
@@ -32,33 +33,54 @@ class SidebarHeader extends StatelessWidget {
                       )
                     : NoServerButton(onTap: () => _openAddServerDialog(context)),
 
-                // Pin toggle button
+                // Right-side controls: server settings (admins) + pin toggle
                 Positioned(
                   right: 4,
                   top: 0,
                   bottom: 0,
                   child: Center(
-                    child: BlocBuilder<AppCubit, AppState>(
-                      buildWhen: (p, c) => p.isPinned != c.isPinned,
-                      builder: (context, appState) {
-                        return IconButton(
-                          onPressed: () => context.read<AppCubit>().setIsPinned(
-                            !appState.isPinned,
-                          ),
-                          icon: Icon(
-                            appState.isPinned
-                                ? Icons.chevron_left
-                                : Icons.push_pin_outlined,
-                            size: 20,
-                            color: themeState.textTertiary,
-                          ),
-                          style: IconButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (server?.user?.permissions.isServerAdmin ?? false)
+                          IconButton(
+                            onPressed: () => _openServerSettings(context),
+                            tooltip: 'Server settings',
+                            icon: Icon(
+                              Icons.settings_outlined,
+                              size: 18,
+                              color: themeState.textTertiary,
+                            ),
+                            style: IconButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
                           ),
-                        );
-                      },
+                        BlocBuilder<AppCubit, AppState>(
+                          buildWhen: (p, c) => p.isPinned != c.isPinned,
+                          builder: (context, appState) {
+                            return IconButton(
+                              onPressed: () =>
+                                  context.read<AppCubit>().setIsPinned(
+                                        !appState.isPinned,
+                                      ),
+                              icon: Icon(
+                                appState.isPinned
+                                    ? Icons.chevron_left
+                                    : Icons.push_pin_outlined,
+                                size: 20,
+                                color: themeState.textTertiary,
+                              ),
+                              style: IconButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -67,6 +89,20 @@ class SidebarHeader extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  /// Admin-only settings for the selected server (name + LiveKit config).
+  void _openServerSettings(BuildContext context) {
+    showCustomDialog(
+      context: context,
+      builder: (_) => MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: context.read<ServerCubit>()),
+          BlocProvider.value(value: context.read<ThemeCubit>()),
+        ],
+        child: const ServerSettingsDialog(),
+      ),
     );
   }
 

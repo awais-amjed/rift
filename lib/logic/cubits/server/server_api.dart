@@ -212,6 +212,50 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     return (success: true, error: null);
   }
 
+  /// Update the selected server's settings (admin only). Only non-null fields
+  /// are sent; the LiveKit API key / secret are write-only (never stored client
+  /// side — the client only keeps [Server.livekitUrl]). On success the local
+  /// name/icon/url are updated and the `server_events` doorbell is pinged so
+  /// other members pick up the change.
+  Future<({bool success, String? error})> updateServerDetails({
+    String? name,
+    String? iconUrl,
+    String? livekitUrl,
+    String? livekitApiKey,
+    String? livekitSecretKey,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, error: 'No server selected');
+    }
+
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.updateServer(
+        server.supabaseUrl,
+        bearerToken: token,
+        name: name,
+        iconUrl: iconUrl,
+        livekitUrl: livekitUrl,
+        livekitApiKey: livekitApiKey,
+        livekitSecretKey: livekitSecretKey,
+      ),
+    );
+
+    if (!response.success) {
+      return (success: false, error: response.error ?? 'Failed to update server');
+    }
+
+    final data = (response.data as Map?)?.cast<String, dynamic>() ?? const {};
+    updateServer(
+      server.id,
+      name: data['name'] as String? ?? name,
+      iconUrl: data['icon_url'] as String?,
+      livekitUrl: data['livekit_url'] as String? ?? livekitUrl,
+    );
+    _onServerEvent?.call();
+    return (success: true, error: null);
+  }
+
   /// Refresh the channel list and other details for the selected server.
   Future<({bool success, String? error})> refreshServerDetails() async {
     final server = state.selectedServer;

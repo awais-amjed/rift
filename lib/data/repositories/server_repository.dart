@@ -123,6 +123,7 @@ class ServerRepository with _ChatApiMixin {
     String? bearerToken,
     String? name,
     String? iconUrl,
+    String? livekitUrl,
     String? livekitApiKey,
     String? livekitSecretKey,
   }) {
@@ -132,6 +133,7 @@ class ServerRepository with _ChatApiMixin {
       {
         if (name != null) 'name': name,
         if (iconUrl != null) 'icon_url': iconUrl,
+        if (livekitUrl != null) 'livekit_url': livekitUrl,
         if (livekitApiKey != null) 'livekit_api_key': livekitApiKey,
         if (livekitSecretKey != null) 'livekit_secret_key': livekitSecretKey,
       },
