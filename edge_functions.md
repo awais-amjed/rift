@@ -92,6 +92,7 @@ Every function returns HTTP 200 with a JSON envelope:
 | 20 | `send_dm` | Bearer | `recipient_id`, envelope (`ciphertext`, `nonce`, `signature`, `key_version`) | `id`, `created_at`. Design-1 DM envelope; recipient must be a keyed, non-banned member. Signature context is `"dm:<lowerUserId>:<higherUserId>"`. Sender rings the recipient's `dm:<server_id>:<user_id>` Broadcast topic after the ack |
 | 21 | `list_dms` | Bearer | `peer_id`, `before_id?` \| `after_id?`, `limit?` | `messages` (both directions of the pair, sender name + Ed25519 key attested), `has_more` |
 | 22 | `list_dm_conversations` | Bearer | — | `conversations`: one per peer — peer identity material (display name, Ed25519 + X25519 keys) and the latest envelope for the client-decrypted preview |
+| 23 | `resolve_invite` | none | `invite_code` | `server_id`, `server_name`. Maps an invite to its server **without consuming it**, so the client can derive its per-`(host, server_id)` SIWS identity before login/register (needed when several servers share one project). Registration still validates + atomically claims the invite |
 
 ## Database schema
 
@@ -116,13 +117,17 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
 7. **007_jwt_siws_auth.sql** — SIWS/JWT auth: drops `tokens` + `auth_challenges`; binds
    `users.id → auth.users(id)` (so `users.id = auth.uid()`); adds the `notifications` table
    (RLS `auth.uid() = user_id`, added to the `supabase_realtime` publication for authenticated
-   Postgres-Changes delivery). Assumes one server per Supabase instance.
+   Postgres-Changes delivery). Assumed one server per Supabase instance — lifted by 010.
 8. **008_notifications_retention.sql** — bounds `notifications` growth: hourly
    `cleanup-notifications` pg_cron job prunes rows read >1 day ago or older than 7 days,
    plus `idx_notifications_created_at`.
 9. **009_register_atomic.sql** — folds invite-claim + identity/username checks + profile
    insert into one transactional `register_user` RPC (invite consumed only on success, so a
    failed register never burns a use); drops the orphaned `create_user_with_token`.
+10. **010_multi_server_per_project.sql** — allows multiple servers per Supabase project:
+    username uniqueness → per-server (`(server_id, username)`), and `register_user`'s username
+    check scoped to the server. Pairs with the client deriving identity per `(host, server_id)`
+    and the new `resolve_invite` function.
 
 ## Deployment
 

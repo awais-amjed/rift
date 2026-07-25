@@ -30,13 +30,15 @@ password ──Argon2id(salt, 64 MiB, 2 iter)──► vault key (256-bit)
                                                 │
 master seed (random 32 B) ◄──AES-256-GCM decrypt┘        (EncryptedSeed blob)
    │
-   ├─ HMAC-SHA256(seed, "<host>:<version>") ──► child seed ──► Ed25519 keypair (SIWS login + signing)
-   ├─ HMAC-SHA256(seed, "<host>:identity")  ──► stable_id (permanent per-server identity)
-   └─ HMAC-SHA256(seed, "vault:v1")         ──► vault blob key (AES-256-GCM)
+   ├─ HMAC-SHA256(seed, "<host>:<server_id>:<version>") ──► child seed ──► Ed25519 keypair (SIWS login + signing)
+   ├─ HMAC-SHA256(seed, "<host>:<server_id>:identity")  ──► stable_id (permanent per-server identity)
+   └─ HMAC-SHA256(seed, "vault:v1")                     ──► vault blob key (AES-256-GCM)
 ```
 
-- `<host>` is the hostname of the self-hosted server's Supabase URL, so identities are
-  **per-server**: servers cannot correlate a user across servers by key material.
+- `<host>` is the hostname of the self-hosted server's Supabase URL and `<server_id>` the specific
+  server, so identities are **per-server** — servers can't correlate a user across servers by key
+  material, and two servers sharing one Supabase project still get distinct identities (see §2).
+  (The central host derives per-host, without a `<server_id>`.)
 - `<version>` is retained only as a derivation hook for a future crypto migration — it's always
   `v1` now (key rotation was removed; see §2). `stable_id` is version-independent.
 - Argon2id runs in a background isolate (`Isolate.run`) — never on the UI thread.
@@ -64,28 +66,36 @@ everywhere. Storage providers only ever see ciphertext.
 **Sign-in-with-Web3 (SIWS / Solana).** GoTrue issues the session; no passwords, and no
 seed-derived secret ever reaches the server (auth is a signature). Full design in `auth.md`.
 
-1. **Register** (once, invite code required): the client first does a SIWS login (below) to obtain
-   a JWT, then calls `register` with that JWT + `public_key` + `stable_id` + username. The profile
-   row is bound to the GoTrue identity — `users.id = auth.uid()` — so every FK carries the GoTrue
-   uuid and RLS ownership is simply `auth.uid() = <col>`.
-2. **Login (SIWS)**: the client signs a Sign-in-with-Solana message with its per-host Ed25519 key
-   (base58 of the key is the "address") and posts it to the `login` Edge Function, which proxies
-   GoTrue's `grant_type=web3` server-side (so no anon key is needed client-side) and returns a
-   GoTrue session (access JWT + refresh token). `Chain ID: solana:mainnet`, base64 signature.
-3. **Session refresh**: all API calls flow through `ServerCubit._callWithAutoRefresh`; a session
-   near expiry (or a rejected JWT) triggers a silent re-login — the key is derived from the seed,
-   so it never prompts. `server.token` holds the JWT.
-4. **Authorization**: Edge Functions verify the JWT (`auth.getUser`) and load the `users` row for
-   permissions + ban state on every call (ban is enforced instantly on the edge path). Simple
-   per-user surfaces (the `notifications` table) are read directly via RLS `auth.uid() = user_id`.
+1. **Register** (once, invite code required): the client first resolves the invite to its
+   `server_id` (`resolve_invite`, no consume), does a SIWS login (below) to obtain a JWT, then
+   calls `register` with that JWT + `public_key` + `stable_id` + username. The profile row is bound
+   to the GoTrue identity — `users.id = auth.uid()` — so every FK carries the GoTrue uuid and RLS
+   ownership is simply `auth.uid() = <col>`.
+2. **Login (SIWS)**: the client signs a Sign-in-with-Solana message with its per-`(host, server_id)`
+   Ed25519 key (base58 of the key is the "address") and posts it to the `login` Edge Function, which
+   proxies GoTrue's `grant_type=web3` server-side (so no anon key is needed client-side) and returns
+   a GoTrue session (access JWT + refresh token). `Chain ID: solana:mainnet`, base64 signature.
+3. **Session refresh**: all API calls flow through `ServerCubit._callWithAutoRefresh` (and the
+   notifications cubit keeps every *joined* server's JWT fresh); a session near expiry (or a rejected
+   JWT) triggers a silent re-login — the key is derived from the seed, so it never prompts.
+   `server.token` holds the JWT.
+4. **Authorization**: Edge Functions verify the JWT locally against the stack's JWKS (ES256, no
+   GoTrue round-trip — `_shared/jwt.ts`) and load the `users` row for permissions + ban state on
+   every call (ban / deleted-user is enforced instantly on the edge path). Simple per-user surfaces
+   (the `notifications` table) are read directly via RLS `auth.uid() = user_id`.
 
 **Permissions** are three user flags — `is_server_admin`, `is_channel_manager`,
 `can_create_tokens` — with the delegation rule: *you can only grant what you hold*.
 
+**Multiple servers per project:** identity is derived per `(host, server_id)` —
+`childSeed = HMAC(seed, "<host>:<serverId>:<version>")` — so two servers sharing one Supabase
+project yield **distinct** SIWS identities (distinct `auth.uid()`), and the same person can join
+both. Username uniqueness is per-server (migration 010); `public_key` / `stable_id` already were.
+The central host derives per-host (no `server_id`), unchanged.
+
 **Removed:** key rotation and the whole opaque-token + challenge machinery (`tokens` /
 `auth_challenges` tables, `get_challenge` / `verify_challenge` / `rotate_key`). Seed-derived keys
 share the seed's fate, so per-derived-key rotation defended against nothing reachable here.
-Assumes **one server per Supabase instance** (per-host key ⇒ one GoTrue identity).
 
 ---
 

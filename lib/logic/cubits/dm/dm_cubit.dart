@@ -112,7 +112,8 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
   /// The Ed25519 signing identity for this server (message signatures).
   @override
   Future<ServerIdentity> _vaultIdentityFor(Server server) =>
-      _vaultCubit.getIdentityForHost(_hostOf(server), version: server.keyVersion);
+      _vaultCubit.getIdentityForHost(_hostOf(server),
+          serverId: server.id, version: server.keyVersion);
 
   @override
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey) async {

@@ -207,18 +207,26 @@ class CryptoRepository with _ChatCryptoMixin {
 
   /// Derive the full server identity from the master seed and host.
   ///
-  /// Returns the Ed25519 keypair (for auth) and the stable ID (for bans).
-  /// - childSeed = HMAC-SHA256(masterSeed, "host:version")
-  /// - stableId  = HMAC-SHA256(masterSeed, "host:identity")
+  /// Returns the Ed25519 keypair (for auth/signing) and the stable ID (for
+  /// bans). When [serverId] is given the derivation is **scoped to that server**,
+  /// so multiple servers sharing one Supabase host (project) each get a distinct
+  /// SIWS identity — without it, two servers in one project would collide on
+  /// `auth.uid()`. [serverId] is null only for the central host (one identity
+  /// per host); that path is unchanged, preserving existing central keys.
+  /// - childSeed = HMAC-SHA256(masterSeed, "<host>[:<serverId>]:<version>")
+  /// - stableId  = HMAC-SHA256(masterSeed, "<host>[:<serverId>]:identity")
   Future<ServerIdentity> deriveServerIdentity({
     required Uint8List masterSeed,
     required String host,
+    String? serverId,
     String version = 'v1',
   }) async {
+    final scope = serverId == null ? host : '$host:$serverId';
+
     // Derive child seed → Ed25519 keypair
     final childSeed = await hmacSha256(
       key: masterSeed,
-      message: '$host:$version',
+      message: '$scope:$version',
     );
 
     final ed = Ed25519();
@@ -228,7 +236,7 @@ class CryptoRepository with _ChatCryptoMixin {
     // Derive stable ID
     final stableIdBytes = await hmacSha256(
       key: masterSeed,
-      message: '$host:identity',
+      message: '$scope:identity',
     );
 
     return ServerIdentity(

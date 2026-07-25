@@ -4,7 +4,8 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
   SecureStorageRepository get _storage;
   ServerRepository get _serverRepo;
   CryptoRepository get _crypto;
-  Future<ServerIdentity> getIdentityForHost(String host, {String version = 'v1'});
+  Future<ServerIdentity> getIdentityForHost(String host,
+      {String? serverId, String version = 'v1'});
 
   // ──────────────────────────────────────────────────────────
   // Startup check
@@ -29,14 +30,16 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
   // Sign-in-with-Web3 (SIWS) login
   // ──────────────────────────────────────────────────────────
 
-  /// Sign a SIWS message with this host's Ed25519 key and exchange it for a
+  /// Sign a SIWS message with this server's Ed25519 key and exchange it for a
   /// GoTrue session via the `login` proxy. Returns the access token (JWT).
-  /// Shared by both re-login and first-time registration.
+  /// Shared by both re-login and first-time registration. [serverId] scopes the
+  /// identity so servers sharing a host (project) sign in as distinct users.
   Future<({String? accessToken, String? error})> siwsLogin(
-    String supabaseUrl,
-  ) async {
+    String supabaseUrl, {
+    required String serverId,
+  }) async {
     final host = Uri.parse(supabaseUrl).host;
-    final identity = await getIdentityForHost(host);
+    final identity = await getIdentityForHost(host, serverId: serverId);
     final signed = await _crypto.signSiws(
       keyPair: identity.keyPair,
       publicKeyBytes: identity.publicKeyBytes,
@@ -68,7 +71,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
     required String serverId,
   }) async {
     try {
-      final login = await siwsLogin(supabaseUrl);
+      final login = await siwsLogin(supabaseUrl, serverId: serverId);
       if (login.accessToken == null) {
         return (success: false, error: login.error, data: null);
       }

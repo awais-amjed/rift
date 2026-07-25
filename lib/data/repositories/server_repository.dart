@@ -157,6 +157,25 @@ class ServerRepository with _ChatApiMixin {
     });
   }
 
+  /// Resolve an invite code to its server (id + name) without consuming it.
+  /// Needed before login/register so the per-(host, serverId) SIWS identity can
+  /// be derived when several servers share one Supabase project.
+  Future<({bool success, String? serverId, String? serverName, String? error})>
+      resolveInvite(String supabaseUrl, String inviteCode) async {
+    final response =
+        await _post(supabaseUrl, 'resolve_invite', {'invite_code': inviteCode});
+    if (!response.success || response.data is! Map) {
+      return (success: false, serverId: null, serverName: null, error: response.error);
+    }
+    final data = response.data as Map<String, dynamic>;
+    return (
+      success: true,
+      serverId: data['server_id'] as String?,
+      serverName: data['server_name'] as String?,
+      error: null,
+    );
+  }
+
   /// Register a server profile bound to the caller's SIWS identity.
   /// [bearerToken] is the GoTrue access token obtained from [login]. Returns
   /// full server context (no token — the client already holds the JWT).

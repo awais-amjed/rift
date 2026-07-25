@@ -203,6 +203,7 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
       final host = Uri.parse(server.supabaseUrl).host;
       final identity = await _vaultCubit.getIdentityForHost(
         host,
+        serverId: server.id,
         version: server.keyVersion,
       );
       final envelope = await _crypto.sealMessage(

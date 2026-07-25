@@ -6,18 +6,25 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
   Map<String, ServerIdentity> get _identityCache;
   Map<String, ChatIdentity> get _chatIdentityCache;
   Future<void> _addServerToVault(String host, {String version = 'v1'});
-  Future<({String? accessToken, String? error})> siwsLogin(String supabaseUrl);
+  Future<({String? accessToken, String? error})> siwsLogin(String supabaseUrl,
+      {required String serverId});
 
   // ──────────────────────────────────────────────────────────
   // Phase 2: Joining a server
   // ──────────────────────────────────────────────────────────
 
-  /// Derive or retrieve the cached identity for a given host.
+  /// Derive or retrieve the cached auth identity for a host.
+  ///
+  /// [serverId] scopes the identity to a specific server so multiple servers on
+  /// one Supabase host (project) get distinct SIWS identities. It is null only
+  /// for the central host (see [central_dm]); self-hosted callers pass the
+  /// server id.
   Future<ServerIdentity> getIdentityForHost(
     String host, {
+    String? serverId,
     String version = 'v1',
   }) async {
-    final cacheKey = '$host:$version';
+    final cacheKey = '$host:${serverId ?? ''}:$version';
     if (_identityCache.containsKey(cacheKey)) {
       return _identityCache[cacheKey]!;
     }
@@ -26,6 +33,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
     final identity = await _crypto.deriveServerIdentity(
       masterSeed: seed,
       host: host,
+      serverId: serverId,
       version: version,
     );
     _identityCache[cacheKey] = identity;
@@ -64,17 +72,27 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
   }) async {
     try {
       final host = Uri.parse(supabaseUrl).host;
-      final identity = await getIdentityForHost(host);
 
-      // 1. SIWS login first — creates the GoTrue identity (signup) and yields
-      //    the JWT that register binds the profile to (users.id = auth.uid()).
-      final login = await siwsLogin(supabaseUrl);
+      // 1. Resolve the invite to its server id BEFORE deriving the identity:
+      //    with multiple servers per Supabase project the identity is scoped to
+      //    (host, serverId), so we must know the server first (see auth.md).
+      final resolved = await _serverRepo.resolveInvite(supabaseUrl, inviteCode);
+      if (!resolved.success || resolved.serverId == null) {
+        return (success: false, error: resolved.error ?? 'Invalid invite', data: null);
+      }
+      final serverId = resolved.serverId!;
+      final identity = await getIdentityForHost(host, serverId: serverId);
+
+      // 2. SIWS login — creates the per-(host, serverId) GoTrue identity (signup)
+      //    and yields the JWT that register binds the profile to
+      //    (users.id = auth.uid()).
+      final login = await siwsLogin(supabaseUrl, serverId: serverId);
       if (login.accessToken == null) {
         return (success: false, error: login.error, data: null);
       }
       final token = login.accessToken!;
 
-      // 2. Create the server profile row.
+      // 3. Create the server profile row.
       final response = await _serverRepo.register(
         supabaseUrl,
         bearerToken: token,

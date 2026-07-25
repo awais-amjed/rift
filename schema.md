@@ -18,10 +18,10 @@
 
 | Column             | Type        | Constraints                        | Description                                      |
 |--------------------|-------------|------------------------------------|-------------------------------------------------|
-| id                 | uuid        | Primary Key, FK → auth.users.id (cascade) | = `auth.uid()` (GoTrue identity), supplied at register — not auto-generated |
+| id                 | uuid        | Primary Key, FK → auth.users.id (cascade) | = `auth.uid()` (GoTrue identity), supplied at register — not auto-generated. Identity is derived per `(host, server_id)`, so the same person on two servers in one project has two distinct ids |
 | created_at         | timestamptz | Auto-created                       | Timestamp of user creation                       |
 | server_id          | uuid        | Required, Foreign Key → servers.id | The server this user is registered on            |
-| username           | text        | Required, Unique                   | Unique username                                  |
+| username           | text        | Required, Unique per server        | Username, unique within a server (migration 010) — the same name may exist on other servers in the project |
 | display_name       | text        | Required                           | User's display name                              |
 | public_key         | text        | Not Null, Unique per server        | Ed25519 public key (base64) — SIWS login + message signing |
 | stable_id          | text        | Not Null, Unique per server        | Permanent HMAC identity hash. Never changes      |
