@@ -164,10 +164,19 @@ flutter build linux --release        # Linux build
 
 ## Testing
 
-A `test/` suite covers **pure, deterministic logic** — crypto derivation
-(`crypto_repository_test.dart`), and model/state invariants + JSON
-(`server_model_test.dart`, `notifications_state_test.dart`). Run with `flutter test`;
-it must pass (alongside `flutter analyze`) before committing.
+A `test/` suite covers **pure, deterministic logic**:
+- **Auth crypto** (`crypto_repository_test.dart`) — server-identity derivation
+  (determinism, per-`(host, serverId)` separation), SIWS message signing, encoding.
+- **E2E messaging crypto** (`chat_crypto_test.dart`) — chat-identity derivation and
+  its domain separation from the auth key, DM-key symmetry, channel-key wrap/unwrap,
+  and the signed message envelope, each with its negative case (forge, replay across
+  channels, key-version tamper, wrong key).
+- **Models / state** (`server_model_test.dart`, `notifications_state_test.dart`,
+  `message_model_test.dart`) — JSON round-trips, token-freshness and unread math,
+  the `signedPayload` binding, permission defaults.
+- **Storage isolation** (`storage_namespace_test.dart`) — `RIFT_PROFILE` namespacing.
+
+Run with `flutter test`; it must pass (alongside `flutter analyze`) before committing.
 
 Keep tests pure and fast: no network, Supabase, platform channels, or a running app.
 Good targets are repository *pure functions* (crypto, encoding), cubit `State` classes
