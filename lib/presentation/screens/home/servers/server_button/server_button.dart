@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
+import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/unread_badge.dart';
 import 'widgets/server_avatar.dart';
 
 /// Displays the currently selected server in the sidebar header.
@@ -14,6 +16,10 @@ class ServerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Activity on *other* servers → a dot nudging the user to open the switcher.
+    final otherUnread = context.select<ServerNotificationsCubit, int>(
+      (c) => c.state.totalUnreadExcept(server.id),
+    );
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return Material(
@@ -44,6 +50,10 @@ class ServerButton extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (otherUnread > 0) ...[
+                    const SizedBox(width: 8),
+                    UnreadDot(themeState: themeState),
+                  ],
                 ],
               ),
             ),

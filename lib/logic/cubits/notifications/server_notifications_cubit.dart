@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
+import '../../../data/classes/server.dart';
 import '../../services/notification_service.dart';
 import '../../services/window_focus_service.dart';
 import '../channel_chat/channel_chat_cubit.dart';
@@ -11,32 +12,35 @@ import '../server/server_cubit.dart';
 
 part 'server_notifications_state.dart';
 
-/// One authenticated Realtime + REST connection per selected server to its
-/// `notifications` table (RLS-scoped to `auth.uid()`), driving:
+/// One authenticated Realtime + REST connection **per joined server** to its
+/// `notifications` table (RLS-scoped to `auth.uid()`), so unread badges and OS
+/// notifications work everywhere at once — not just on the server you're looking
+/// at. Rows are fanned out by `send_message`, so this covers channels the user
+/// never opened, on servers they aren't currently viewing.
 ///
-/// - **per-channel unread badges** — seeded by a REST fetch on subscribe and
-///   kept live by Postgres-Changes INSERTs (rows are fanned out by
-///   `send_message`, so this covers channels the user never opened),
-/// - **OS notifications** while the window is unfocused,
-/// - **read tracking** — opening a channel (or refocusing the window while one
-///   is open) marks its notifications read (`read_at`), which clears the badge
-///   and lets the retention job (migration 008) prune them.
-///
-/// Scope is the selected server; switching servers re-seeds from that server's
-/// table (the source of truth), so unread persists across sessions.
+/// Responsibilities:
+/// - **Per-(server, channel) unread** — each subscription is seeded by an
+///   authenticated REST fetch and kept live by Postgres-Changes INSERTs.
+/// - **OS notifications** while the window is unfocused (any server).
+/// - **Read tracking** — opening a channel, a message landing in the open+
+///   focused channel, or refocusing the window marks that channel's
+///   notifications read (`read_at`), clearing the badge and letting the
+///   retention job (migration 008) prune them.
+/// - **Token freshness** — background servers' JWTs are refreshed before they
+///   expire (via [ServerCubit.reAuthenticateServer]) so their subscriptions
+///   don't lapse while another server is in focus.
 class ServerNotificationsCubit extends Cubit<NotificationsState> {
   final ServerCubit _serverCubit;
   StreamSubscription<ServerState>? _serverSub;
   StreamSubscription<ChannelChatState>? _chatSub;
+  Timer? _refreshTimer;
 
-  SupabaseClient? _client;
-  RealtimeChannel? _channel;
-  String? _serverId;
-  String? _token;
-  String? _userId;
+  /// Per-server live subscription + authenticated client, keyed by server id.
+  final Map<String, _ServerSub> _subs = {};
 
-  /// The text channel currently open in the chat view (if any) — messages
-  /// arriving here while focused are read immediately, not badged.
+  /// The open text channel and the server it belongs to (always the selected
+  /// server). Messages arriving here while focused are read, not badged.
+  String? _openServerId;
   String? _openChannelId;
 
   ServerNotificationsCubit({
@@ -47,54 +51,79 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
     _serverSub = serverCubit.stream.listen((_) => _sync());
     _chatSub = chatCubit.stream.listen(_onChatChanged);
     WindowFocusService.instance.focused.addListener(_onFocusChanged);
-    _openChannelId = chatCubit.state.channelId;
+    if (chatCubit.state.channelId != null) {
+      _openServerId = serverCubit.state.selectedServerId;
+      _openChannelId = chatCubit.state.channelId;
+    }
+    // Keep background servers' JWTs fresh so their subscriptions don't lapse.
+    _refreshTimer =
+        Timer.periodic(const Duration(minutes: 1), (_) => _sync());
     _sync();
   }
 
-  // ── Server subscription lifecycle ─────────────────────────────
+  // ── Subscription lifecycle (one per joined server) ────────────
 
-  Future<void> _sync() async {
-    final server = _serverCubit.state.selectedServer;
-    if (server == null ||
-        server.supabaseKey == null ||
-        server.user == null ||
-        server.token.isEmpty) {
-      await _teardown();
-      return;
+  void _sync() {
+    final servers = _serverCubit.state.servers;
+    final joined = <String>{};
+
+    for (final server in servers) {
+      if (server.supabaseKey == null ||
+          server.user == null ||
+          server.token.isEmpty) {
+        continue;
+      }
+      joined.add(server.id);
+
+      // Keep the JWT fresh (coalesced; no-op if already fresh/refreshing).
+      final nearExpiry = server.isTokenNearExpiry;
+      if (nearExpiry) {
+        unawaited(_serverCubit.reAuthenticateServer(server.id));
+      }
+
+      final existing = _subs[server.id];
+      if (existing == null) {
+        // Don't open a subscription with a stale/expired JWT (hydrated tokens
+        // read as near-expiry on startup) — wait for the refresh above to land
+        // a fresh token, which re-triggers _sync and subscribes then.
+        if (!nearExpiry) _subscribe(server);
+      } else if (existing.token != server.token) {
+        // Token rotated (silent re-auth) → re-point both transports and re-seed.
+        existing.token = server.token;
+        _authClient(existing.client, server.supabaseKey!, server.token);
+        unawaited(_seed(server.id));
+      }
     }
 
-    // New server → (re)subscribe with a fresh authenticated client.
-    if (server.id != _serverId) {
-      await _teardown();
-      _serverId = server.id;
-      _token = server.token;
-      _userId = server.user!.id;
-      final client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-      _authClient(client, server.supabaseKey!, server.token);
-      _client = client;
-      _channel = client.channel('notifications:${server.id}')
-        ..onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'notifications',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'user_id',
-            value: _userId,
-          ),
-          callback: _onInsert,
-        )
-        ..subscribe();
-      await _seedUnread();
-      return;
+    // Tear down subscriptions for servers we've left.
+    for (final id in _subs.keys.toList()) {
+      if (!joined.contains(id)) _teardownServer(id);
     }
+  }
 
-    // Same server, token refreshed (silent re-auth) → update both transports so
-    // the RLS subscription + REST calls keep matching after the old JWT expires.
-    if (server.token != _token) {
-      _token = server.token;
-      if (_client != null) _authClient(_client!, server.supabaseKey!, server.token);
-    }
+  void _subscribe(Server server) {
+    final client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
+    _authClient(client, server.supabaseKey!, server.token);
+    final channel = client.channel('notifications:${server.id}')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'notifications',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: server.user!.id,
+        ),
+        callback: (payload) => _onInsert(server.id, payload),
+      )
+      ..subscribe();
+    _subs[server.id] = _ServerSub(
+      client: client,
+      channel: channel,
+      token: server.token,
+      userId: server.user!.id,
+    );
+    unawaited(_seed(server.id));
   }
 
   /// Point both REST and Realtime at the user's JWT so RLS sees `auth.uid()`.
@@ -103,30 +132,31 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
     client.realtime.setAuth(token);
   }
 
-  /// Fetch current unread rows and fold them into per-channel counts. The open
-  /// channel is treated as already read.
-  Future<void> _seedUnread() async {
-    final client = _client;
-    final userId = _userId;
-    if (client == null || userId == null) return;
+  /// Fetch a server's current unread rows and fold them into per-channel counts.
+  /// The open channel is treated as already read.
+  Future<void> _seed(String serverId) async {
+    final sub = _subs[serverId];
+    if (sub == null) return;
     try {
-      final rows = await client
+      final rows = await sub.client
           .from('notifications')
           .select('channel_id')
-          .eq('user_id', userId)
+          .eq('user_id', sub.userId)
           .isFilter('read_at', null);
 
       final counts = <String, int>{};
       for (final row in rows) {
         final cid = row['channel_id'] as String?;
-        if (cid == null || cid == _openChannelId) continue;
+        if (cid == null) continue;
+        if (serverId == _openServerId && cid == _openChannelId) continue;
         counts[cid] = (counts[cid] ?? 0) + 1;
       }
-      if (isClosed) return;
-      emit(NotificationsState(unreadByChannel: counts));
+      if (isClosed || !_subs.containsKey(serverId)) return;
+      _setServerUnread(serverId, counts);
 
-      // Clear anything already accrued for the channel we're looking at.
-      if (_openChannelId != null) markChannelRead(_openChannelId!);
+      if (serverId == _openServerId && _openChannelId != null) {
+        markChannelRead(serverId, _openChannelId!);
+      }
     } catch (_) {
       // Best-effort — a failed seed just means no badges until the next event.
     }
@@ -134,24 +164,22 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
 
   // ── Live delivery ─────────────────────────────────────────────
 
-  void _onInsert(PostgresChangePayload payload) {
+  void _onInsert(String serverId, PostgresChangePayload payload) {
     if (isClosed) return;
     final channelId = payload.newRecord['channel_id'] as String?;
     if (channelId == null) return;
     final focused = WindowFocusService.instance.isFocused;
 
-    // Looking at this channel → it's read; don't badge or notify.
-    if (channelId == _openChannelId && focused) {
-      markChannelRead(channelId);
+    // Looking at this exact channel → it's read; don't badge or notify.
+    if (focused && serverId == _openServerId && channelId == _openChannelId) {
+      markChannelRead(serverId, channelId);
       return;
     }
 
-    final next = Map<String, int>.from(state.unreadByChannel);
-    next[channelId] = (next[channelId] ?? 0) + 1;
-    emit(state.copyWith(unreadByChannel: next));
+    _bumpUnread(serverId, channelId);
 
     if (!focused) {
-      final server = _serverCubit.state.selectedServer;
+      final server = _serverById(serverId);
       String? channelName;
       for (final c in server?.channels ?? const []) {
         if (c.id == channelId) {
@@ -170,66 +198,127 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
   // ── Read tracking ─────────────────────────────────────────────
 
   void _onChatChanged(ChannelChatState chatState) {
-    if (chatState.channelId == _openChannelId) return;
-    _openChannelId = chatState.channelId;
-    if (_openChannelId != null) markChannelRead(_openChannelId!);
+    final channelId = chatState.channelId;
+    if (channelId == _openChannelId) return;
+    _openChannelId = channelId;
+    if (channelId != null) {
+      _openServerId = _serverCubit.state.selectedServerId;
+      if (_openServerId != null) markChannelRead(_openServerId!, channelId);
+    } else {
+      _openServerId = null;
+    }
   }
 
   void _onFocusChanged() {
-    if (WindowFocusService.instance.isFocused && _openChannelId != null) {
-      markChannelRead(_openChannelId!);
+    if (WindowFocusService.instance.isFocused &&
+        _openServerId != null &&
+        _openChannelId != null) {
+      markChannelRead(_openServerId!, _openChannelId!);
     }
   }
 
-  /// Mark every unread notification for [channelId] read and clear its badge.
+  /// Mark every unread notification for a channel read and clear its badge.
   /// Local state updates optimistically; the RLS UPDATE is best-effort (a
   /// failure self-heals on the next re-seed).
-  void markChannelRead(String channelId) {
-    if (state.unreadFor(channelId) > 0) {
-      final next = Map<String, int>.from(state.unreadByChannel)..remove(channelId);
-      emit(state.copyWith(unreadByChannel: next));
-    }
-    final client = _client;
-    final userId = _userId;
-    if (client == null || userId == null) return;
+  void markChannelRead(String serverId, String channelId) {
+    _clearChannel(serverId, channelId);
+    final sub = _subs[serverId];
+    if (sub == null) return;
     unawaited(() async {
       try {
-        await client
+        await sub.client
             .from('notifications')
             .update({'read_at': DateTime.now().toUtc().toIso8601String()})
-            .eq('user_id', userId)
+            .eq('user_id', sub.userId)
             .eq('channel_id', channelId)
             .isFilter('read_at', null);
       } catch (_) {}
     }());
   }
 
+  // ── Immutable state helpers ───────────────────────────────────
+
+  void _setServerUnread(String serverId, Map<String, int> counts) {
+    final next = Map<String, Map<String, int>>.from(state.unreadByServer);
+    if (counts.isEmpty) {
+      next.remove(serverId);
+    } else {
+      next[serverId] = counts;
+    }
+    emit(state.copyWith(unreadByServer: next));
+  }
+
+  void _bumpUnread(String serverId, String channelId) {
+    final next = Map<String, Map<String, int>>.from(state.unreadByServer);
+    final channels = Map<String, int>.from(next[serverId] ?? const {});
+    channels[channelId] = (channels[channelId] ?? 0) + 1;
+    next[serverId] = channels;
+    emit(state.copyWith(unreadByServer: next));
+  }
+
+  void _clearChannel(String serverId, String channelId) {
+    final channels = state.unreadByServer[serverId];
+    if (channels == null || !channels.containsKey(channelId)) return;
+    final next = Map<String, Map<String, int>>.from(state.unreadByServer);
+    final updated = Map<String, int>.from(channels)..remove(channelId);
+    if (updated.isEmpty) {
+      next.remove(serverId);
+    } else {
+      next[serverId] = updated;
+    }
+    emit(state.copyWith(unreadByServer: next));
+  }
+
   // ── Teardown ──────────────────────────────────────────────────
 
-  Future<void> _teardown() async {
-    _serverId = null;
-    _token = null;
-    _userId = null;
-    final channel = _channel;
-    final client = _client;
-    _channel = null;
-    _client = null;
-    if (!isClosed && state.unreadByChannel.isNotEmpty) {
-      emit(const NotificationsState());
+  Server? _serverById(String serverId) {
+    for (final s in _serverCubit.state.servers) {
+      if (s.id == serverId) return s;
     }
-    try {
-      await channel?.unsubscribe();
-      client?.removeAllChannels();
-      await client?.dispose();
-    } catch (_) {}
+    return null;
+  }
+
+  void _teardownServer(String serverId) {
+    final sub = _subs.remove(serverId);
+    if (sub == null) return;
+    if (state.unreadByServer.containsKey(serverId)) {
+      final next = Map<String, Map<String, int>>.from(state.unreadByServer)
+        ..remove(serverId);
+      if (!isClosed) emit(state.copyWith(unreadByServer: next));
+    }
+    unawaited(() async {
+      try {
+        await sub.channel.unsubscribe();
+        sub.client.removeAllChannels();
+        await sub.client.dispose();
+      } catch (_) {}
+    }());
   }
 
   @override
   Future<void> close() async {
     WindowFocusService.instance.focused.removeListener(_onFocusChanged);
+    _refreshTimer?.cancel();
     await _serverSub?.cancel();
     await _chatSub?.cancel();
-    await _teardown();
+    for (final id in _subs.keys.toList()) {
+      _teardownServer(id);
+    }
     return super.close();
   }
+}
+
+/// A single server's authenticated notifications connection.
+class _ServerSub {
+  final SupabaseClient client;
+  final RealtimeChannel channel;
+  final String userId;
+  String token;
+
+  _ServerSub({
+    required this.client,
+    required this.channel,
+    required this.userId,
+    required this.token,
+  });
 }

@@ -5,7 +5,9 @@ import '../../../../../../../data/classes/channel.dart';
 import '../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
+import '../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../common/unread_badge.dart';
 
 /// Tile for displaying a text channel. Tapping opens its E2E chat in the
 /// center pane (and tapping the open one closes it).
@@ -23,10 +25,12 @@ class TextChannelTile extends StatelessWidget {
           builder: (context, chatState) {
             final isSelected = chatState.channelId == channel.id;
             // Unread count for this channel; a selected/open channel is read.
-            final unread = isSelected
+            final serverId =
+                context.select<ServerCubit, String?>((c) => c.state.selectedServerId);
+            final unread = (isSelected || serverId == null)
                 ? 0
                 : context.select<ServerNotificationsCubit, int>(
-                    (c) => c.state.unreadFor(channel.id),
+                    (c) => c.state.unreadForChannel(serverId, channel.id),
                   );
             final hasUnread = unread > 0;
 
@@ -89,7 +93,7 @@ class TextChannelTile extends StatelessWidget {
                       ),
                       if (hasUnread) ...[
                         const SizedBox(width: 8),
-                        _UnreadBadge(count: unread, themeState: themeState),
+                        UnreadBadge(count: unread, themeState: themeState),
                       ],
                     ],
                   ),
@@ -99,36 +103,6 @@ class TextChannelTile extends StatelessWidget {
           },
         );
       },
-    );
-  }
-}
-
-/// Small pill showing a channel's unread message count (capped at "99+").
-class _UnreadBadge extends StatelessWidget {
-  final int count;
-  final ThemeState themeState;
-
-  const _UnreadBadge({required this.count, required this.themeState});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 18),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: themeState.primary,
-        borderRadius: BorderRadius.circular(9),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        count > 99 ? '99+' : '$count',
-        style: TextStyle(
-          fontSize: 11,
-          height: 1.1,
-          fontWeight: FontWeight.w700,
-          color: themeState.onPrimary,
-        ),
-      ),
     );
   }
 }

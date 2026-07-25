@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../server_selector/widgets/server_list_view.dart';
@@ -28,6 +29,7 @@ class ServerSwitcherPopover {
 
     final serverCubit = anchorContext.read<ServerCubit>();
     final themeCubit = anchorContext.read<ThemeCubit>();
+    final notificationsCubit = anchorContext.read<ServerNotificationsCubit>();
     final overlay = Overlay.of(anchorContext);
 
     late OverlayEntry entry;
@@ -43,6 +45,7 @@ class ServerSwitcherPopover {
         providers: [
           BlocProvider.value(value: serverCubit),
           BlocProvider.value(value: themeCubit),
+          BlocProvider.value(value: notificationsCubit),
         ],
         child: _ServerSwitcherOverlay(
           anchor: anchor,

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../data/classes/server.dart';
+import '../../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_modal.dart';
+import '../../../../../common/unread_badge.dart';
 import 'remove_server_dialog.dart';
 import 'server_avatar.dart';
 
@@ -38,6 +40,9 @@ class ServerListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unread = context.select<ServerNotificationsCubit, int>(
+      (c) => c.state.unreadForServer(server.id),
+    );
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return Material(
@@ -77,6 +82,11 @@ class ServerListItem extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // Unread badge
+                  if (unread > 0) ...[
+                    UnreadBadge(count: unread, themeState: themeState),
+                    const SizedBox(width: 8),
+                  ],
                   // Selected indicator
                   if (isSelected) ...[
                     Text(

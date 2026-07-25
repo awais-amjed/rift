@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -35,8 +37,10 @@ class ServerCubit extends HydratedCubit<ServerState>
     _onServersChanged = callback;
   }
 
-  /// Guards against concurrent background token refreshes.
-  bool _isRefreshingToken = false;
+  /// In-flight token refreshes keyed by server id, so concurrent callers
+  /// (proactive near-expiry refresh + a reactive retry) coalesce onto one
+  /// SIWS re-login and all observe its result.
+  final Map<String, Future<String?>> _refreshing = {};
 
   ServerCubit() : super(const ServerState());
 
@@ -61,24 +65,49 @@ class ServerCubit extends HydratedCubit<ServerState>
                   response.error!.contains('No token found') ||
                   response.error!.contains('Token is not linked'))));
 
-  /// Re-runs SIWS login for the selected server (silent — the key is derived
-  /// from the seed). On success, persists the new JWT and returns it; null on
-  /// failure.
-  Future<String?> reAuthenticate() async {
-    final server = state.selectedServer;
-    if (server == null || _vaultCubit == null) return null;
+  /// Silent SIWS re-login for the selected server. Thin wrapper over
+  /// [reAuthenticateServer].
+  Future<String?> reAuthenticate() {
+    final id = state.selectedServerId;
+    if (id == null) return Future.value(null);
+    return reAuthenticateServer(id);
+  }
+
+  /// Silent SIWS re-login for any joined server (not only the selected one — the
+  /// notifications cubit keeps every subscribed server's JWT fresh so its
+  /// Realtime subscription doesn't lapse). The key is derived from the seed, so
+  /// it never prompts. On success persists the new JWT and returns it; null on
+  /// failure. Concurrent calls for the same server share one refresh.
+  Future<String?> reAuthenticateServer(String serverId) {
+    final existing = _refreshing[serverId];
+    if (existing != null) return existing;
+    final future = _doReAuthenticate(serverId);
+    _refreshing[serverId] = future;
+    future.whenComplete(() => _refreshing.remove(serverId));
+    return future;
+  }
+
+  Future<String?> _doReAuthenticate(String serverId) async {
+    if (_vaultCubit == null) return null;
+    Server? server;
+    for (final s in state.servers) {
+      if (s.id == serverId) {
+        server = s;
+        break;
+      }
+    }
+    if (server == null) return null;
 
     final result = await _vaultCubit!.loginToServer(
       supabaseUrl: server.supabaseUrl,
-      serverId: server.id,
+      serverId: serverId,
     );
-
     if (!result.success || result.data == null) return null;
 
     final newToken = result.data!['token'] as String?;
     if (newToken == null) return null;
 
-    updateServer(server.id, token: newToken);
+    updateServer(serverId, token: newToken);
     return newToken;
   }
 
@@ -92,15 +121,15 @@ class ServerCubit extends HydratedCubit<ServerState>
     final server = state.selectedServer;
     if (server == null) return APIResponse.error('No server selected');
 
-    if (server.isTokenNearExpiry && !_isRefreshingToken && _vaultCubit != null) {
-      _isRefreshingToken = true;
-      reAuthenticate().then((_) => _isRefreshingToken = false);
+    if (server.isTokenNearExpiry && _vaultCubit != null) {
+      // Proactive refresh; coalesced by reAuthenticateServer.
+      unawaited(reAuthenticateServer(server.id));
     }
 
     var response = await call(server.token);
 
     if (_isSessionInvalid(response) && _vaultCubit != null) {
-      final newToken = await reAuthenticate();
+      final newToken = await reAuthenticateServer(server.id);
       if (newToken != null) {
         response = await call(newToken);
       }
