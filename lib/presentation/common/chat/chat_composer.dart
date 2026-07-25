@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -59,6 +60,8 @@ class _ChatComposerState extends State<ChatComposer> {
   Timer? _recordTimer;
   String? _recordPath;
 
+  bool _showEmoji = false;
+
   @override
   void dispose() {
     _recordTimer?.cancel();
@@ -114,6 +117,12 @@ class _ChatComposerState extends State<ChatComposer> {
 
   void _removeStaged(int index) {
     setState(() => _staged.removeAt(index));
+  }
+
+  void _toggleEmoji() {
+    setState(() => _showEmoji = !_showEmoji);
+    // Keep the field focused so inserted emoji land at the cursor.
+    if (_showEmoji) _focusNode.requestFocus();
   }
 
   // ── Voice notes ───────────────────────────────────────────
@@ -335,6 +344,23 @@ class _ChatComposerState extends State<ChatComposer> {
                           visualDensity: VisualDensity.compact,
                         ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 5),
+                        child: IconButton(
+                          onPressed: widget.enabled ? _toggleEmoji : null,
+                          icon: Icon(
+                            Icons.emoji_emotions_outlined,
+                            size: 20,
+                            color: _showEmoji
+                                ? themeState.primary
+                                : (widget.enabled
+                                      ? themeState.textTertiary
+                                      : themeState.textQuaternary),
+                          ),
+                          tooltip: 'Emoji',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
                       Expanded(
                         child: Focus(
                           onKeyEvent: _onKeyEvent,
@@ -411,6 +437,43 @@ class _ChatComposerState extends State<ChatComposer> {
                 const SizedBox(height: 6),
                 widget.footer!,
               ],
+              if (_showEmoji && !_isRecording)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: SizedBox(
+                    height: 256,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: EmojiPicker(
+                        textEditingController: _controller,
+                        onEmojiSelected: (_, _) => setState(() {}),
+                        config: Config(
+                          height: 256,
+                          emojiViewConfig: EmojiViewConfig(
+                            backgroundColor: themeState.bgSecondary,
+                            columns: 9,
+                            emojiSizeMax: 26,
+                          ),
+                          categoryViewConfig: CategoryViewConfig(
+                            backgroundColor: themeState.bgSecondary,
+                            iconColor: themeState.textQuaternary,
+                            iconColorSelected: themeState.primary,
+                            indicatorColor: themeState.primary,
+                            dividerColor: themeState.borderPrimary,
+                            backspaceColor: themeState.primary,
+                          ),
+                          bottomActionBarConfig: const BottomActionBarConfig(
+                            enabled: false,
+                          ),
+                          searchViewConfig: SearchViewConfig(
+                            backgroundColor: themeState.bgSecondary,
+                            buttonIconColor: themeState.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         );
