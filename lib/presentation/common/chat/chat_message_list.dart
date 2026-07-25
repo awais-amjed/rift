@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../data/classes/chat_message.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
@@ -8,7 +9,8 @@ import 'widgets/chat_message_row.dart';
 
 /// Scrollable message history, newest at the bottom (reversed list, so it
 /// stays pinned to the latest message). Consecutive messages from the same
-/// author within [groupWindow] collapse under one header, Discord-style.
+/// author within [groupWindow] collapse under one header, Discord-style, and a
+/// day divider is inserted whenever the calendar date changes.
 ///
 /// Freshly-arrived incoming messages animate in (fade + slide). Give the list
 /// a `ValueKey` per conversation/channel so switching chats starts a new
@@ -49,12 +51,39 @@ class _ChatMessageListState extends State<ChatMessageList> {
   /// animates old rows in.
   int _maxSeenId = 0;
 
-  bool _showHeader(int index) {
-    if (index == 0) return true;
-    final prev = widget.messages[index - 1];
-    final curr = widget.messages[index];
-    return prev.authorId != curr.authorId ||
-        curr.sentAt.difference(prev.sentAt) > ChatMessageList.groupWindow;
+  /// Build the flat render list: messages interleaved with day dividers, each
+  /// message tagged with whether it opens a group (shows avatar + header).
+  List<_StreamItem> _buildItems() {
+    final items = <_StreamItem>[];
+    for (var i = 0; i < widget.messages.length; i++) {
+      final cur = widget.messages[i];
+      final prev = i > 0 ? widget.messages[i - 1] : null;
+      final newDay = prev == null ||
+          !_sameDay(prev.sentAt.toLocal(), cur.sentAt.toLocal());
+      if (newDay) items.add(_DateItem(_dayLabel(cur.sentAt.toLocal())));
+
+      // When it's not a new day, prev is guaranteed non-null (newDay covers it).
+      final showHeader = newDay ||
+          prev.authorId != cur.authorId ||
+          cur.sentAt.difference(prev.sentAt) > ChatMessageList.groupWindow;
+      items.add(_MsgItem(cur, showHeader));
+    }
+    return items;
+  }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  static String _dayLabel(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final that = DateTime(d.year, d.month, d.day);
+    final diff = today.difference(that).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    if (diff < 7) return DateFormat('EEEE').format(d); // weekday
+    if (d.year == now.year) return DateFormat('EEEE, MMM d').format(d);
+    return DateFormat('MMM d, yyyy').format(d);
   }
 
   /// Ids to animate this build: newly-seen incoming messages, but only once the
@@ -88,36 +117,84 @@ class _ChatMessageListState extends State<ChatMessageList> {
           return Center(
             child: Text(
               'No messages yet — say hi!',
-              style: TextStyle(
-                fontSize: 14,
-                color: themeState.textTertiary,
-              ),
+              style: TextStyle(fontSize: 14, color: themeState.textTertiary),
             ),
           );
         }
 
         final animating = _computeAnimating();
+        final items = _buildItems();
 
         return ListView.builder(
           controller: widget.controller,
           reverse: true,
           padding: const EdgeInsets.only(top: 12, bottom: 12),
-          itemCount: widget.messages.length,
+          itemCount: items.length,
           itemBuilder: (context, reversedIndex) {
-            final index = widget.messages.length - 1 - reversedIndex;
-            final message = widget.messages[index];
+            final item = items[items.length - 1 - reversedIndex];
+            if (item is _DateItem) {
+              return _DateDivider(label: item.label, themeState: themeState);
+            }
+            final msg = (item as _MsgItem).message;
             return ChatMessageRow(
-              key: ValueKey(message.id),
-              message: message,
-              showHeader: _showHeader(index),
+              key: ValueKey(msg.id),
+              message: msg,
+              showHeader: item.showHeader,
               themeState: themeState,
               attachmentLoader: widget.attachmentLoader,
               onToggleReaction: widget.onToggleReaction,
-              animateIn: animating.contains(message.id),
+              animateIn: animating.contains(msg.id),
             );
           },
         );
       },
+    );
+  }
+}
+
+/// An item in the flattened render list — a message or a day divider.
+sealed class _StreamItem {}
+
+class _DateItem extends _StreamItem {
+  final String label;
+  _DateItem(this.label);
+}
+
+class _MsgItem extends _StreamItem {
+  final ChatMessage message;
+  final bool showHeader;
+  _MsgItem(this.message, this.showHeader);
+}
+
+/// A centered day label with hairline rules on either side.
+class _DateDivider extends StatelessWidget {
+  final String label;
+  final ThemeState themeState;
+
+  const _DateDivider({required this.label, required this.themeState});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: themeState.borderPrimary, height: 1)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: themeState.textQuaternary,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          Expanded(child: Divider(color: themeState.borderPrimary, height: 1)),
+        ],
+      ),
     );
   }
 }
