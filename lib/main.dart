@@ -277,6 +277,7 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
               lazy: false,
               create: (context) => ServerNotificationsCubit(
                 serverCubit: context.read<ServerCubit>(),
+                chatCubit: context.read<ChannelChatCubit>(),
               ),
             ),
             BlocProvider(

@@ -6,22 +6,27 @@ import 'package:flutter/foundation.dart';
 /// cubits read [isFocused] to decide whether an incoming message warrants an OS
 /// notification — we never notify while the user is looking at the app.
 ///
+/// [focused] is exposed as a [ValueListenable] so cubits can also react to
+/// focus being *regained* — e.g. marking the open channel read when the user
+/// returns to the window.
+///
 /// Defaults to focused: the window is visible and focused at launch, and on web
 /// (where there are no window events) we simply never notify.
 class WindowFocusService {
   WindowFocusService._();
   static final WindowFocusService instance = WindowFocusService._();
 
-  bool _focused = true;
+  final ValueNotifier<bool> focused = ValueNotifier<bool>(true);
 
   /// True while the window is focused (and not minimized).
-  bool get isFocused => _focused;
+  bool get isFocused => focused.value;
 
   void setFocused(bool value) {
-    if (kDebugMode && value != _focused) {
+    if (value == focused.value) return;
+    if (kDebugMode) {
       // Cheap breadcrumb; focus transitions are rare.
       debugPrint('[WindowFocus] focused=$value');
     }
-    _focused = value;
+    focused.value = value;
   }
 }
