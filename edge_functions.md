@@ -72,7 +72,7 @@ Every function returns HTTP 200 with a JSON envelope:
 |---|---|---|---|---|
 | 1 | `create_server` | `service_key` in body must equal the instance's service_role key | `name`, `livekit_url`, `livekit_api_key`, `livekit_secret_key`, `icon_url?` | `server_id`, `name`, `supabase_url`, `supabase_key`, `invite_code` (single-use admin invite: all three permissions) |
 | 2 | `login` | none (self-authenticating via the signature) | `message` (SIWS text), `signature` (b64 Ed25519 over the message) | GoTrue session: `access_token` (JWT), `refresh_token`, `expires_at`, … Proxies `grant_type=web3` server-side so the client needs no anon key. `Chain ID: solana:mainnet` |
-| 3 | `register` | Bearer (SIWS JWT) | `invite_code`, `public_key` (b64, 32 B), `stable_id` (b64, 32 B), `username`, `display_name` | server context (no token — the client already holds the JWT). Binds `users.id = auth.uid()`; invite claimed atomically (`claim_invite` RPC) |
+| 3 | `register` | Bearer (SIWS JWT) | `invite_code`, `public_key` (b64, 32 B), `stable_id` (b64, 32 B), `username`, `display_name` | server context (no token — the client already holds the JWT). Binds `users.id = auth.uid()`; invite claim + identity/username checks + profile insert run in one atomic `register_user` RPC, so a failed register never burns an invite use (migration 009) |
 | 4 | `is_username_available` | none | `username` | `username`, `available` |
 | 5 | `create_invite` | Bearer + `can_create_tokens` | `max_uses?` (null = unlimited, default 1), `expires_in_seconds?` (null = never) | `invite_code` (short base58, ~10 chars, retried on the `code` UNIQUE constraint). Plain invite — carries no permissions. The client shares it as a combined link `<server-url>#<invite_code>` |
 | 6 | `get_server_details` | Bearer | — | server context (no token) |
@@ -101,7 +101,7 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
    `auth_challenges`; RLS enabled with no policies (all access via service_role in functions);
    pg_cron cleanup jobs; `claim_invite` + `create_user_with_token` RPCs (service_role-only);
    public `servers` storage bucket for icons. *(The token/challenge tables it creates are dropped
-   by 007.)*
+   by 007; `create_user_with_token` is dropped by 009.)*
 2. **002_per_server_identity_uniqueness.sql** — `public_key` / `stable_id` unique per
    `(server_id, …)` instead of globally.
 3. **003_per_device_tokens.sql** — drops `tokens.user_id` UNIQUE (historical — the `tokens`
@@ -120,6 +120,9 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
 8. **008_notifications_retention.sql** — bounds `notifications` growth: hourly
    `cleanup-notifications` pg_cron job prunes rows read >1 day ago or older than 7 days,
    plus `idx_notifications_created_at`.
+9. **009_register_atomic.sql** — folds invite-claim + identity/username checks + profile
+   insert into one transactional `register_user` RPC (invite consumed only on success, so a
+   failed register never burns a use); drops the orphaned `create_user_with_token`.
 
 ## Deployment
 
