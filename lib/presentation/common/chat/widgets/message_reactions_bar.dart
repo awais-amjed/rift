@@ -149,7 +149,9 @@ Future<void> showReactionPicker(
     context: anchorContext,
     position: position,
     color: themeState.bgElevated,
-    elevation: 8,
+    // Kill the Material-3 elevation surface tint — it darkens the popover.
+    surfaceTintColor: Colors.transparent,
+    elevation: 6,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(14),
       side: BorderSide(color: themeState.borderPrimary),
@@ -157,7 +159,7 @@ Future<void> showReactionPicker(
     constraints: const BoxConstraints(minWidth: 240, maxWidth: 300),
     items: [
       PopupMenuItem<String>(
-        enabled: false,
+        enabled: true,
         padding: EdgeInsets.zero,
         child: Builder(
           builder: (menuContext) => Padding(

@@ -223,64 +223,50 @@ class _ChatComposerState extends State<ChatComposer> {
     return '$m:$s';
   }
 
+  /// The in-progress recording row. Returns a bare Row (the shared bar
+  /// container wraps it) with the same 38px controls as the input row, so the
+  /// bar keeps its height when recording starts.
   Widget _recordingBar(ThemeState themeState) {
-    return Container(
-      decoration: BoxDecoration(
-        color: themeState.bgTertiary,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: themeState.borderPrimary),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: _cancelRecording,
-            icon: Icon(
-              Icons.delete_outline_rounded,
-              size: 20,
-              color: themeState.textTertiary,
-            ),
-            tooltip: 'Discard',
-            visualDensity: VisualDensity.compact,
+    return Row(
+      children: [
+        _ComposerIconButton(
+          icon: Icons.delete_outline_rounded,
+          tooltip: 'Discard',
+          themeState: themeState,
+          onPressed: _cancelRecording,
+        ),
+        const SizedBox(width: 2),
+        Container(
+          width: 9,
+          height: 9,
+          decoration: const BoxDecoration(
+            color: Color(0xFFE5484D),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: 2),
-          Container(
-            width: 9,
-            height: 9,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE5484D),
-              shape: BoxShape.circle,
-            ),
+        ),
+        const SizedBox(width: 9),
+        Text(
+          'Recording…',
+          style: TextStyle(fontSize: 14, color: themeState.textSecondary),
+        ),
+        const Spacer(),
+        Text(
+          _fmtElapsed(_elapsed),
+          style: TextStyle(
+            fontSize: 13,
+            fontFeatures: const [FontFeature.tabularFigures()],
+            color: themeState.textTertiary,
           ),
-          const SizedBox(width: 8),
-          Text(
-            'Recording…',
-            style: TextStyle(fontSize: 14, color: themeState.textSecondary),
-          ),
-          const Spacer(),
-          Text(
-            _fmtElapsed(_elapsed),
-            style: TextStyle(
-              fontSize: 13,
-              fontFeatures: const [FontFeature.tabularFigures()],
-              color: themeState.textTertiary,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 2, left: 4),
-            child: IconButton(
-              onPressed: _stopRecording,
-              icon: Icon(
-                Icons.stop_circle_rounded,
-                size: 26,
-                color: themeState.primary,
-              ),
-              tooltip: 'Stop & attach',
-              visualDensity: VisualDensity.compact,
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 4),
+        _ComposerIconButton(
+          icon: Icons.stop_circle_rounded,
+          tooltip: 'Stop & attach',
+          themeState: themeState,
+          active: true,
+          onPressed: _stopRecording,
+        ),
+      ],
     );
   }
 
@@ -317,90 +303,96 @@ class _ChatComposerState extends State<ChatComposer> {
                   themeState: themeState,
                   onRemove: _removeStaged,
                 ),
-              if (_isRecording)
-                _recordingBar(themeState)
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: themeState.bgTertiary,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: themeState.borderPrimary),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _ComposerIconButton(
-                        icon: Icons.add_rounded,
-                        tooltip: 'Attach files',
-                        themeState: themeState,
-                        onPressed: widget.enabled ? _pickFiles : null,
-                      ),
-                      _ComposerIconButton(
-                        icon: Icons.emoji_emotions_outlined,
-                        tooltip: 'Emoji',
-                        themeState: themeState,
-                        active: _showEmoji,
-                        onPressed: widget.enabled ? _toggleEmoji : null,
-                      ),
-                      Expanded(
-                        child: Focus(
-                          onKeyEvent: _onKeyEvent,
-                          child: TextField(
-                            controller: _controller,
-                            focusNode: _focusNode,
-                            enabled: widget.enabled,
-                            onChanged: (value) {
-                              // Rebuild so the send button enables/disables.
-                              setState(() {});
-                              if (value.trim().isNotEmpty) {
-                                widget.onTyping?.call();
-                              }
-                            },
-                            minLines: 1,
-                            maxLines: 6,
-                            style: TextStyle(
-                              fontSize: 14,
-                              height: 1.35,
-                              color: themeState.textPrimary,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: widget.hintText,
-                              hintStyle: TextStyle(
-                                fontSize: 14,
-                                color: themeState.textQuaternary,
-                              ),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                4,
-                                9,
-                                4,
-                                9,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                decoration: BoxDecoration(
+                  color: themeState.bgTertiary,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: themeState.borderPrimary),
+                ),
+                child: _isRecording
+                    ? _recordingBar(themeState)
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _ComposerIconButton(
+                            icon: Icons.add_rounded,
+                            tooltip: 'Attach files',
+                            themeState: themeState,
+                            onPressed: widget.enabled ? _pickFiles : null,
+                          ),
+                          _ComposerIconButton(
+                            icon: Icons.emoji_emotions_outlined,
+                            tooltip: 'Emoji',
+                            themeState: themeState,
+                            active: _showEmoji,
+                            onPressed: widget.enabled ? _toggleEmoji : null,
+                          ),
+                          Expanded(
+                            child: Focus(
+                              onKeyEvent: _onKeyEvent,
+                              child: TextField(
+                                controller: _controller,
+                                focusNode: _focusNode,
+                                enabled: widget.enabled,
+                                onChanged: (value) {
+                                  // Rebuild so the send button enables/disables.
+                                  setState(() {});
+                                  if (value.trim().isNotEmpty) {
+                                    widget.onTyping?.call();
+                                  }
+                                },
+                                minLines: 1,
+                                maxLines: 6,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  height: 1.35,
+                                  color: themeState.textPrimary,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: widget.hintText,
+                                  hintStyle: TextStyle(
+                                    fontSize: 14,
+                                    color: themeState.textQuaternary,
+                                  ),
+                                  // The bar itself is the surface — don't paint the
+                                  // global filled InputDecoration box inside it.
+                                  filled: false,
+                                  fillColor: Colors.transparent,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  isCollapsed: true,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 10,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                          _ComposerIconButton(
+                            icon: Icons.mic_none_rounded,
+                            tooltip: 'Record a voice message',
+                            themeState: themeState,
+                            onPressed:
+                                (widget.enabled &&
+                                    _staged.length <
+                                        ChatComposer.maxAttachments)
+                                ? _startRecording
+                                : null,
+                          ),
+                          const SizedBox(width: 2),
+                          _SendButton(
+                            themeState: themeState,
+                            enabled: canSend,
+                            onPressed: _send,
+                          ),
+                        ],
                       ),
-                      _ComposerIconButton(
-                        icon: Icons.mic_none_rounded,
-                        tooltip: 'Record a voice message',
-                        themeState: themeState,
-                        onPressed:
-                            (widget.enabled &&
-                                _staged.length < ChatComposer.maxAttachments)
-                            ? _startRecording
-                            : null,
-                      ),
-                      const SizedBox(width: 2),
-                      _SendButton(
-                        themeState: themeState,
-                        enabled: canSend,
-                        onPressed: _send,
-                      ),
-                    ],
-                  ),
-                ),
+              ),
               if (widget.footer != null) ...[
                 const SizedBox(height: 6),
                 widget.footer!,
@@ -638,7 +630,9 @@ class _SendButton extends StatelessWidget {
               child: Icon(
                 Icons.arrow_upward_rounded,
                 size: 19,
-                color: enabled ? themeState.onPrimary : themeState.textQuaternary,
+                color: enabled
+                    ? themeState.onPrimary
+                    : themeState.textQuaternary,
               ),
             ),
           ),
