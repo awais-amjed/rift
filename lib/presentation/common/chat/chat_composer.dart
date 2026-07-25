@@ -321,45 +321,27 @@ class _ChatComposerState extends State<ChatComposer> {
                 _recordingBar(themeState)
               else
                 Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                   decoration: BoxDecoration(
                     color: themeState.bgTertiary,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: themeState.borderPrimary),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 4, bottom: 5),
-                        child: IconButton(
-                          onPressed: widget.enabled ? _pickFiles : null,
-                          icon: Icon(
-                            Icons.add_circle_outline_rounded,
-                            size: 20,
-                            color: widget.enabled
-                                ? themeState.textTertiary
-                                : themeState.textQuaternary,
-                          ),
-                          tooltip: 'Attach files',
-                          visualDensity: VisualDensity.compact,
-                        ),
+                      _ComposerIconButton(
+                        icon: Icons.add_rounded,
+                        tooltip: 'Attach files',
+                        themeState: themeState,
+                        onPressed: widget.enabled ? _pickFiles : null,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 5),
-                        child: IconButton(
-                          onPressed: widget.enabled ? _toggleEmoji : null,
-                          icon: Icon(
-                            Icons.emoji_emotions_outlined,
-                            size: 20,
-                            color: _showEmoji
-                                ? themeState.primary
-                                : (widget.enabled
-                                      ? themeState.textTertiary
-                                      : themeState.textQuaternary),
-                          ),
-                          tooltip: 'Emoji',
-                          visualDensity: VisualDensity.compact,
-                        ),
+                      _ComposerIconButton(
+                        icon: Icons.emoji_emotions_outlined,
+                        tooltip: 'Emoji',
+                        themeState: themeState,
+                        active: _showEmoji,
+                        onPressed: widget.enabled ? _toggleEmoji : null,
                       ),
                       Expanded(
                         child: Focus(
@@ -371,13 +353,15 @@ class _ChatComposerState extends State<ChatComposer> {
                             onChanged: (value) {
                               // Rebuild so the send button enables/disables.
                               setState(() {});
-                              if (value.trim().isNotEmpty)
+                              if (value.trim().isNotEmpty) {
                                 widget.onTyping?.call();
+                              }
                             },
                             minLines: 1,
                             maxLines: 6,
                             style: TextStyle(
                               fontSize: 14,
+                              height: 1.35,
                               color: themeState.textPrimary,
                             ),
                             decoration: InputDecoration(
@@ -388,47 +372,31 @@ class _ChatComposerState extends State<ChatComposer> {
                               ),
                               border: InputBorder.none,
                               isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 12,
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                4,
+                                9,
+                                4,
+                                9,
                               ),
                             ),
                           ),
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 5),
-                        child: IconButton(
-                          onPressed:
-                              (widget.enabled &&
-                                  _staged.length < ChatComposer.maxAttachments)
-                              ? _startRecording
-                              : null,
-                          icon: Icon(
-                            Icons.mic_none_rounded,
-                            size: 20,
-                            color: widget.enabled
-                                ? themeState.textTertiary
-                                : themeState.textQuaternary,
-                          ),
-                          tooltip: 'Record a voice message',
-                          visualDensity: VisualDensity.compact,
-                        ),
+                      _ComposerIconButton(
+                        icon: Icons.mic_none_rounded,
+                        tooltip: 'Record a voice message',
+                        themeState: themeState,
+                        onPressed:
+                            (widget.enabled &&
+                                _staged.length < ChatComposer.maxAttachments)
+                            ? _startRecording
+                            : null,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6, bottom: 5),
-                        child: IconButton(
-                          onPressed: canSend ? _send : null,
-                          icon: Icon(
-                            Icons.send_rounded,
-                            size: 19,
-                            color: canSend
-                                ? themeState.primary
-                                : themeState.textQuaternary,
-                          ),
-                          tooltip: 'Send',
-                          visualDensity: VisualDensity.compact,
-                        ),
+                      const SizedBox(width: 2),
+                      _SendButton(
+                        themeState: themeState,
+                        enabled: canSend,
+                        onPressed: _send,
                       ),
                     ],
                   ),
@@ -589,6 +557,93 @@ class _StagedChip extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A uniform, square tap-target icon for the composer's action row (attach,
+/// emoji, mic). Fixed size so every control lines up regardless of the icon.
+class _ComposerIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final ThemeState themeState;
+  final VoidCallback? onPressed;
+  final bool active;
+
+  const _ComposerIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.themeState,
+    required this.onPressed,
+    this.active = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    final color = active
+        ? themeState.primary
+        : (enabled ? themeState.textTertiary : themeState.textQuaternary);
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 400),
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        hoverColor: themeState.bgHover,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Icon(icon, size: 21, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+/// The send button: a filled accent circle when there's something to send,
+/// a muted ghost icon otherwise. Same footprint as [_ComposerIconButton].
+class _SendButton extends StatelessWidget {
+  final ThemeState themeState;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  const _SendButton({
+    required this.themeState,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Send',
+      waitDuration: const Duration(milliseconds: 400),
+      child: InkWell(
+        onTap: enabled ? onPressed : null,
+        customBorder: const CircleBorder(),
+        hoverColor: enabled ? Colors.transparent : themeState.bgHover,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: enabled ? 32 : 30,
+              height: enabled ? 32 : 30,
+              decoration: BoxDecoration(
+                color: enabled ? themeState.primary : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.arrow_upward_rounded,
+                size: 19,
+                color: enabled ? themeState.onPrimary : themeState.textQuaternary,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

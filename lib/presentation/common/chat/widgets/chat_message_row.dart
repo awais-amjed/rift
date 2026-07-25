@@ -150,8 +150,8 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                         reactions: message.reactions,
                         themeState: themeState,
                         onToggle: _toggle,
-                        onAdd: () =>
-                            showReactionPicker(context, themeState, _toggle),
+                        onAdd: (anchorCtx) =>
+                            showReactionPicker(anchorCtx, themeState, _toggle),
                       ),
                   ],
                 ),
@@ -235,14 +235,15 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                 icon: Icons.add_reaction_outlined,
                 tooltip: 'React',
                 themeState: themeState,
-                onTap: () => showReactionPicker(context, themeState, _toggle),
+                onTap: (anchorCtx) =>
+                    showReactionPicker(anchorCtx, themeState, _toggle),
               ),
             if (_canCopy)
               _ToolbarButton(
                 icon: Icons.content_copy_rounded,
                 tooltip: 'Copy text',
                 themeState: themeState,
-                onTap: _copy,
+                onTap: (_) => _copy(),
               ),
           ],
         ),
@@ -277,7 +278,7 @@ class _ToolbarButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final ThemeState themeState;
-  final VoidCallback onTap;
+  final void Function(BuildContext anchorContext) onTap;
 
   const _ToolbarButton({
     required this.icon,
@@ -291,7 +292,7 @@ class _ToolbarButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: InkWell(
-        onTap: onTap,
+        onTap: () => onTap(context),
         borderRadius: BorderRadius.circular(7),
         hoverColor: themeState.bgHover,
         child: Padding(
