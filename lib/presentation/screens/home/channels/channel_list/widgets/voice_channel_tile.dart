@@ -8,7 +8,10 @@ import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../sidebar/widgets/participant_context_menu.dart';
 import '../../../sidebar/widgets/participant_list_item.dart';
 
-/// Tile for displaying a voice channel with participants.
+/// Tile for a voice channel. Shows the channel name and — Discord-style — the
+/// list of people currently in it: the live LiveKit participants when it's the
+/// channel you're in, otherwise the Realtime-presence members of any other
+/// channel.
 class VoiceChannelTile extends StatelessWidget {
   final Channel channel;
   final bool isSelected;
@@ -25,10 +28,10 @@ class VoiceChannelTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        Color bgColor;
-        Color textColor;
-        Color iconColor;
-        BorderSide? borderSide;
+        final Color bgColor;
+        final Color textColor;
+        final Color iconColor;
+        final BorderSide? borderSide;
 
         if (isSelected) {
           bgColor = themeState.channelActiveBg;
@@ -41,8 +44,6 @@ class VoiceChannelTile extends StatelessWidget {
           iconColor = themeState.textQuaternary;
           borderSide = null;
         }
-
-        final hoverColor = themeState.bgHover;
 
         return BlocBuilder<AppCubit, AppState>(
           builder: (context, appState) {
@@ -57,7 +58,7 @@ class VoiceChannelTile extends StatelessWidget {
                     ? const <PresenceUser>[]
                     : presenceState.usersIn(channel.id);
 
-                final count = isSelected
+                final memberCount = isSelected
                     ? voiceParticipants.length
                     : presenceUsers.length;
 
@@ -68,15 +69,12 @@ class VoiceChannelTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
-                        hoverColor: hoverColor,
+                        hoverColor: themeState.bgHover,
                         onTap: onTap,
                         child: Container(
                           decoration: borderSide != null
                               ? BoxDecoration(
-                                  border: Border.all(
-                                    color: borderSide.color,
-                                    width: borderSide.width,
-                                  ),
+                                  border: Border.all(color: borderSide.color),
                                   borderRadius: BorderRadius.circular(10),
                                 )
                               : null,
@@ -98,33 +96,8 @@ class VoiceChannelTile extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              if (!isSelected && presenceUsers.isNotEmpty)
-                                _PresenceAvatarStack(
-                                  users: presenceUsers,
-                                  themeState: themeState,
-                                )
-                              else if (count > 0)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 5,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: themeState.primary.withValues(
-                                      alpha: 0.15,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '$count',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: themeState.primary,
-                                    ),
-                                  ),
-                                ),
-                              if (isSelected && count == 0)
+                              // Empty channel you're in → a small "live" dot.
+                              if (isSelected && memberCount == 0)
                                 Container(
                                   width: 8,
                                   height: 8,
@@ -138,37 +111,38 @@ class VoiceChannelTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // LiveKit participants (when in the channel)
+
+                    // Members in the channel you're connected to (full LiveKit
+                    // state: speaking, mute, moderation, context menu).
                     if (isSelected && voiceParticipants.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16),
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 2, bottom: 4),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              left: BorderSide(
-                                color: themeState.borderPrimary,
-                                width: 1.5,
+                      _MemberColumn(
+                        themeState: themeState,
+                        children: voiceParticipants
+                            .map(
+                              (p) => ParticipantListItem(
+                                participant: p,
+                                setting: appState.participantSettings[p.userId],
+                                contextMenu: ParticipantContextMenu(
+                                  identity: p.identity,
+                                  name: p.name,
+                                  isLocal: p.isLocal,
+                                ),
                               ),
-                            ),
-                          ),
-                          child: Column(
-                            children: voiceParticipants
-                                .map(
-                                  (p) => ParticipantListItem(
-                                    participant: p,
-                                    setting: appState
-                                        .participantSettings[p.userId],
-                                    contextMenu: ParticipantContextMenu(
-                                      identity: p.identity,
-                                      name: p.name,
-                                      isLocal: p.isLocal,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
+                            )
+                            .toList(),
+                      ),
+
+                    // Members in any other channel (Realtime presence — name
+                    // only; live mic/speaking state isn't available remotely).
+                    if (!isSelected && presenceUsers.isNotEmpty)
+                      _MemberColumn(
+                        themeState: themeState,
+                        children: presenceUsers
+                            .map((u) => _PresenceMemberRow(
+                                  user: u,
+                                  themeState: themeState,
+                                ))
+                            .toList(),
                       ),
                   ],
                 );
@@ -181,73 +155,76 @@ class VoiceChannelTile extends StatelessWidget {
   }
 }
 
-/// Overlapping mini-avatar stack showing who's in a channel you haven't
-/// joined — presence at a glance without spending a row per user.
-class _PresenceAvatarStack extends StatelessWidget {
-  static const _maxAvatars = 3;
-
-  final List<PresenceUser> users;
+/// The indented, left-ruled container that holds a voice channel's member rows.
+class _MemberColumn extends StatelessWidget {
   final ThemeState themeState;
+  final List<Widget> children;
 
-  const _PresenceAvatarStack({required this.users, required this.themeState});
+  const _MemberColumn({required this.themeState, required this.children});
 
   @override
   Widget build(BuildContext context) {
-    final visible = users.take(_maxAvatars).toList();
-    final overflow = users.length - visible.length;
-
-    return Tooltip(
-      message: users.map((u) => u.displayName).join(', '),
-      waitDuration: const Duration(milliseconds: 400),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 20.0 + (visible.length - 1) * 13.0,
-            height: 20,
-            child: Stack(
-              children: [
-                for (var i = 0; i < visible.length; i++)
-                  Positioned(
-                    left: i * 13.0,
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: themeState.bgActive,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: themeState.bgSecondary,
-                          width: 1.5,
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        visible[i].displayName.isNotEmpty
-                            ? visible[i].displayName[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                          color: themeState.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+    return Padding(
+      padding: const EdgeInsets.only(left: 16),
+      child: Container(
+        margin: const EdgeInsets.only(top: 2, bottom: 4),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: themeState.borderPrimary, width: 1.5),
           ),
-          if (overflow > 0) ...[
-            const SizedBox(width: 4),
-            Text(
-              '+$overflow',
+        ),
+        child: Column(children: children),
+      ),
+    );
+  }
+}
+
+/// A member of a voice channel you're not in — rendered from Realtime presence,
+/// so we only have their name (no live mic/speaking state). Visually matches
+/// [ParticipantListItem] minus the mic controls.
+class _PresenceMemberRow extends StatelessWidget {
+  final PresenceUser user;
+  final ThemeState themeState;
+
+  const _PresenceMemberRow({required this.user, required this.themeState});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: themeState.bgTertiary,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              user.displayName.isNotEmpty
+                  ? user.displayName[0].toUpperCase()
+                  : '?',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.w700,
-                color: themeState.textTertiary,
+                color: themeState.textQuaternary,
               ),
             ),
-          ],
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              user.displayName,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: themeState.textSecondary,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ],
       ),
     );
