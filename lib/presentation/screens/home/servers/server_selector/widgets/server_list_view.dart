@@ -25,6 +25,11 @@ class ServerListView extends StatelessWidget {
           return EmptyServerList(onAddServer: onAddServer);
         }
 
+        // Capture the cubit up front: onDelete fires after an async confirm
+        // dialog, by which point this context may be deactivated (the popover
+        // closed), so reading it there throws.
+        final serverCubit = context.read<ServerCubit>();
+
         return Column(
           children: [
             ...state.servers.map(
@@ -32,11 +37,11 @@ class ServerListView extends StatelessWidget {
                 server: server,
                 isSelected: server.id == state.selectedServer?.id,
                 onTap: () {
-                  context.read<ServerCubit>().selectServer(server);
+                  serverCubit.selectServer(server);
                   onClose();
                 },
                 onDelete: () {
-                  context.read<ServerCubit>().removeServer(server.id);
+                  serverCubit.removeServer(server.id);
                 },
               ),
             ),
