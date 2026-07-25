@@ -164,6 +164,14 @@ flutter build linux --release        # Linux build
 
 ## Testing
 
-Do not write tests. There is no test suite, and none should be added unless the user
-explicitly asks for one. Verify changes by running the app (`flutter analyze` + a manual
-check of the affected flow).
+A `test/` suite covers **pure, deterministic logic** — crypto derivation
+(`crypto_repository_test.dart`), and model/state invariants + JSON
+(`server_model_test.dart`, `notifications_state_test.dart`). Run with `flutter test`;
+it must pass (alongside `flutter analyze`) before committing.
+
+Keep tests pure and fast: no network, Supabase, platform channels, or a running app.
+Good targets are repository *pure functions* (crypto, encoding), cubit `State` classes
+(unread math, `copyWith` invariants), and model `fromJson`/`toJson`. Don't add widget or
+integration tests, and don't mock the backend, unless asked — backend behaviour is
+verified against the local stack (see `LOCAL_DEV.md`), not with mocks. When you fix a
+logic bug in one of these pure areas, add a case that would have caught it.
