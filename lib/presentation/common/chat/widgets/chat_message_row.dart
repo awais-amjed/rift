@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/chat_message.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import 'attachment_loader.dart';
+import 'message_attachments.dart';
 
 /// One message in the chat list — flat Discord-style row, not a bubble.
 ///
@@ -15,6 +17,10 @@ class ChatMessageRow extends StatelessWidget {
   final bool showHeader;
   final ThemeState themeState;
 
+  /// Fetches attachment bytes on demand. Null when the chat surface doesn't
+  /// support attachments (then attachments simply aren't rendered).
+  final AttachmentLoader? attachmentLoader;
+
   /// When true, the row fades + slides in once on first build (a freshly
   /// arrived incoming message). Continuation of existing rows never animates.
   final bool animateIn;
@@ -24,6 +30,7 @@ class ChatMessageRow extends StatelessWidget {
     required this.message,
     required this.showHeader,
     required this.themeState,
+    this.attachmentLoader,
     this.animateIn = false,
   });
 
@@ -110,14 +117,22 @@ class ChatMessageRow extends StatelessWidget {
                         ],
                       ),
                     ),
-                  SelectableText(
-                    message.text,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.35,
-                      color: themeState.textSecondary,
+                  if (message.text.isNotEmpty)
+                    SelectableText(
+                      message.text,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.35,
+                        color: themeState.textSecondary,
+                      ),
                     ),
-                  ),
+                  if (message.attachments.isNotEmpty &&
+                      attachmentLoader != null)
+                    MessageAttachments(
+                      attachments: message.attachments,
+                      loader: attachmentLoader!,
+                      themeState: themeState,
+                    ),
                 ],
               ),
             ),

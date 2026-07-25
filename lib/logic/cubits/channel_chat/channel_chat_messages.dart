@@ -152,11 +152,13 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
           );
           continue;
         }
+        final body = MessageBody.decode(plaintext);
         result.add(ChatMessage(
           id: '${row['id']}',
           authorId: row['sender_id'] as String,
           authorName: row['sender_name'] as String? ?? 'Unknown',
-          text: plaintext,
+          text: body.text,
+          attachments: body.attachments,
           sentAt: DateTime.parse(row['created_at'] as String),
           isMine: row['sender_id'] == localUserId,
         ));
@@ -171,10 +173,14 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
   // Sending
   // ──────────────────────────────────────────────────────────
 
-  /// Seal, sign, and send [text]; shows an optimistic pending message until
-  /// the server acknowledges. On failure the pending message is removed and
-  /// an error toast shown.
-  Future<void> sendMessage(String text) async {
+  /// Seal, sign, and send a message ([text] and/or [attachments]); shows an
+  /// optimistic pending message until the server acknowledges. Attachments are
+  /// encrypted + uploaded first; on any failure the pending message is removed
+  /// and an error toast shown.
+  Future<void> sendMessage(
+    String text, {
+    List<PendingAttachment> attachments = const [],
+  }) async {
     final channelId = state.channelId;
     final server = _serverCubit.state.selectedServer;
     final user = server?.user;
@@ -186,20 +192,32 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
         state.status != ChannelChatStatus.ready) {
       return;
     }
+    final trimmed = text.trim();
+    if (trimmed.isEmpty && attachments.isEmpty) return;
 
     final pendingId = 'pending-${_pendingCounter++}';
-    final pending = ChatMessage(
-      id: pendingId,
-      authorId: user.id,
-      authorName: user.displayName,
-      text: text,
-      sentAt: DateTime.now(),
-      isMine: true,
-      isPending: true,
-    );
-    emit(state.copyWith(messages: [...state.messages, pending]));
+    // Show the text immediately; attachments appear once uploaded.
+    emit(state.copyWith(messages: [
+      ...state.messages,
+      ChatMessage(
+        id: pendingId,
+        authorId: user.id,
+        authorName: user.displayName,
+        text: trimmed,
+        sentAt: DateTime.now(),
+        isMine: true,
+        isPending: true,
+      ),
+    ]));
 
     try {
+      final uploaded = await ChatAttachmentUploader.uploadAll(
+        pending: attachments,
+        uploadOne: (bytes) =>
+            _serverCubit.uploadAttachment(scopePrefix: channelId, data: bytes),
+      );
+      if (state.channelId != channelId) return;
+
       final host = Uri.parse(server.supabaseUrl).host;
       final identity = await _vaultCubit.getIdentityForHost(
         host,
@@ -207,7 +225,7 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
         version: server.keyVersion,
       );
       final envelope = await _crypto.sealMessage(
-        plaintext: text,
+        plaintext: MessageBody(text: trimmed, attachments: uploaded).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,
         contextId: channelId,
@@ -234,7 +252,8 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
         id: '${data['id']}',
         authorId: user.id,
         authorName: user.displayName,
-        text: text,
+        text: trimmed,
+        attachments: uploaded,
         sentAt: DateTime.parse(data['created_at'] as String),
         isMine: true,
       );
@@ -245,6 +264,12 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
         ],
       ));
       _ringDoorbell();
+    } on AttachmentUploadException catch (e) {
+      HelperMethods.printDebug('[Chat] attachment upload failed: $e');
+      if (state.channelId == channelId) {
+        _removePending(pendingId);
+        HelperMethods.showError(error: 'Failed to upload attachment');
+      }
     } catch (e) {
       HelperMethods.printDebug('[Chat] send failed: $e');
       if (state.channelId == channelId) {
@@ -259,4 +284,15 @@ mixin _ChatMessagesMixin on Cubit<ChannelChatState> {
       messages: state.messages.where((m) => m.id != pendingId).toList(),
     ));
   }
+
+  /// Fetch + decrypt an attachment's bytes (cache-first) for rendering.
+  Future<Uint8List?> loadAttachment(Attachment attachment) =>
+      ChatAttachmentUploader.load(
+        attachment: attachment,
+        download: () => _serverCubit.downloadAttachment(
+          path: attachment.storagePath,
+          keyB64: attachment.keyB64,
+          nonceB64: attachment.nonceB64,
+        ),
+      );
 }

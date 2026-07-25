@@ -5,10 +5,62 @@ part of 'server_cubit.dart';
 /// token auto-refresh and server resolution.
 mixin _ServerChatApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
+  AttachmentRepository get _attachments;
 
   Future<APIResponse> _callWithAutoRefresh(
     Future<APIResponse> Function(String token) call,
   );
+
+  static const String _attachmentsBucket = 'chat-attachments';
+
+  /// Encrypt + upload an attachment blob to the selected server, scoped under
+  /// [scopePrefix] (channel id / DM context). On success `data` is
+  /// `({String path, String keyB64, String nonceB64})`.
+  Future<APIResponse> uploadAttachment({
+    required String scopePrefix,
+    required Uint8List data,
+  }) {
+    final server = state.selectedServer;
+    final anonKey = server?.supabaseKey;
+    if (server == null || anonKey == null) {
+      return Future.value(APIResponse.error('No server selected'));
+    }
+    return _callWithAutoRefresh(
+      (token) => _attachments.uploadEncrypted(
+        baseUrl: server.supabaseUrl,
+        anonKey: anonKey,
+        bearerToken: token,
+        bucket: _attachmentsBucket,
+        scopePrefix: scopePrefix,
+        data: data,
+      ),
+    );
+  }
+
+  /// Download + decrypt an attachment blob from the selected server. On success
+  /// `data` is the decrypted `Uint8List`.
+  Future<APIResponse> downloadAttachment({
+    required String path,
+    required String keyB64,
+    required String nonceB64,
+  }) {
+    final server = state.selectedServer;
+    final anonKey = server?.supabaseKey;
+    if (server == null || anonKey == null) {
+      return Future.value(APIResponse.error('No server selected'));
+    }
+    return _callWithAutoRefresh(
+      (token) => _attachments.downloadDecrypted(
+        baseUrl: server.supabaseUrl,
+        anonKey: anonKey,
+        bearerToken: token,
+        bucket: _attachmentsBucket,
+        path: path,
+        keyB64: keyB64,
+        nonceB64: nonceB64,
+      ),
+    );
+  }
 
   /// Publish the local user's X25519 chat public key (idempotent).
   Future<APIResponse> publishChatKey(String chatPublicKey) =>

@@ -178,6 +178,44 @@ class CryptoRepository with _ChatCryptoMixin {
     );
   }
 
+  /// Generate a fresh random 256-bit key for encrypting a single attachment.
+  Uint8List generateFileKey() => _secureRandomBytes(32);
+
+  /// Encrypt raw bytes with AES-256-GCM using [key] (attachment blobs). The
+  /// returned ciphertext includes the GCM auth tag, matching [decryptBytes].
+  Future<({Uint8List ciphertext, Uint8List iv})> encryptBytes({
+    required Uint8List data,
+    required Uint8List key,
+  }) async {
+    final algorithm = AesGcm.with256bits();
+    final secretBox = await algorithm.encrypt(data, secretKey: SecretKey(key));
+    return (
+      ciphertext: Uint8List.fromList(secretBox.concatenation(nonce: false)),
+      iv: Uint8List.fromList(secretBox.nonce),
+    );
+  }
+
+  /// Decrypt AES-256-GCM [ciphertext] (tag appended) with [key] and [iv].
+  /// Throws on tampering (auth failure).
+  Future<Uint8List> decryptBytes({
+    required Uint8List ciphertext,
+    required Uint8List key,
+    required Uint8List iv,
+  }) async {
+    final algorithm = AesGcm.with256bits();
+    final macLength = algorithm.macAlgorithm.macLength;
+    final encryptedBytes = ciphertext.sublist(0, ciphertext.length - macLength);
+    final macBytes = ciphertext.sublist(ciphertext.length - macLength);
+
+    final secretBox = SecretBox(
+      encryptedBytes,
+      nonce: iv,
+      mac: Mac(macBytes),
+    );
+    final clear = await algorithm.decrypt(secretBox, secretKey: SecretKey(key));
+    return Uint8List.fromList(clear);
+  }
+
   // ──────────────────────────────────────────────────────────
   // HMAC-SHA256 — Identity derivation
   // ──────────────────────────────────────────────────────────

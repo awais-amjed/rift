@@ -169,11 +169,12 @@ A `test/` suite covers **pure, deterministic logic**:
   (determinism, per-`(host, serverId)` separation), SIWS message signing, encoding.
 - **E2E messaging crypto** (`chat_crypto_test.dart`) — chat-identity derivation and
   its domain separation from the auth key, DM-key symmetry, channel-key wrap/unwrap,
-  and the signed message envelope, each with its negative case (forge, replay across
-  channels, key-version tamper, wrong key).
+  attachment-blob `encryptBytes`/`decryptBytes`, and the signed message envelope, each
+  with its negative case (forge, replay across channels, key-version tamper, wrong key).
 - **Models / state** (`server_model_test.dart`, `notifications_state_test.dart`,
-  `message_model_test.dart`) — JSON round-trips, token-freshness and unread math,
-  the `signedPayload` binding, permission defaults.
+  `message_model_test.dart`, `message_body_test.dart`) — JSON round-trips, token-freshness
+  and unread math, the `signedPayload` binding, permission defaults, and the structured
+  message body (attachment round-trip + legacy plain-text compatibility).
 - **Storage isolation** (`storage_namespace_test.dart`) — `RIFT_PROFILE` namespacing.
 
 Run with `flutter test`; it must pass (alongside `flutter analyze`) before committing.

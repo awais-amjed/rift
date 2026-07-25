@@ -62,7 +62,8 @@ class _ServerDmChatViewState extends State<ServerDmChatView> {
           ),
           ChatComposer(
             hintText: 'Message ${state.openPeerName ?? ''}',
-            onSend: (text) => context.read<DmCubit>().sendDm(text),
+            onSend: (text, attachments) =>
+                context.read<DmCubit>().sendDm(text, attachments: attachments),
             onTyping: () => context.read<DmCubit>().notifyTyping(),
           ),
         ],
@@ -77,6 +78,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView> {
           key: ValueKey(state.openPeerId),
           messages: state.messages,
           controller: _scrollController,
+          attachmentLoader: context.read<DmCubit>().loadAttachment,
         );
       case DmChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

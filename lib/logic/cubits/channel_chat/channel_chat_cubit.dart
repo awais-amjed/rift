@@ -4,10 +4,14 @@ import 'dart:typed_data';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
+import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
+import '../../../data/classes/message_body.dart';
+import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
+import '../../services/chat_attachment_uploader.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 

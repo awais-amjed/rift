@@ -124,6 +124,46 @@ void main() {
     });
   });
 
+  group('encryptBytes / decryptBytes (attachment blobs)', () {
+    final data = Uint8List.fromList(List<int>.generate(5000, (i) => i & 0xff));
+
+    test('round-trips arbitrary bytes', () async {
+      final key = crypto.generateFileKey();
+      final enc = await crypto.encryptBytes(data: data, key: key);
+      final dec = await crypto.decryptBytes(
+          ciphertext: enc.ciphertext, key: key, iv: enc.iv);
+      expect(dec, data);
+    });
+
+    test('a fresh file key is 32 bytes and random', () {
+      final a = crypto.generateFileKey();
+      final b = crypto.generateFileKey();
+      expect(a.length, 32);
+      expect(a, isNot(b));
+    });
+
+    test('the wrong key throws (AES-GCM auth failure)', () async {
+      final key = crypto.generateFileKey();
+      final wrong = crypto.generateFileKey();
+      final enc = await crypto.encryptBytes(data: data, key: key);
+      await expectLater(
+        crypto.decryptBytes(ciphertext: enc.ciphertext, key: wrong, iv: enc.iv),
+        throwsA(anything),
+      );
+    });
+
+    test('tampered ciphertext throws', () async {
+      final key = crypto.generateFileKey();
+      final enc = await crypto.encryptBytes(data: data, key: key);
+      final tampered = Uint8List.fromList(enc.ciphertext)
+        ..[0] = enc.ciphertext[0] ^ 0xff;
+      await expectLater(
+        crypto.decryptBytes(ciphertext: tampered, key: key, iv: enc.iv),
+        throwsA(anything),
+      );
+    });
+  });
+
   group('sealMessage / openMessage', () {
     // Ed25519 auth identity doubles as the message signing key.
     Future<({dynamic id, Uint8List pub})> senderIdentity() async {

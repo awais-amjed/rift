@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -9,6 +10,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/enums/error_code.dart';
+import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../vault/vault_cubit.dart';
 
@@ -24,6 +26,10 @@ class ServerCubit extends HydratedCubit<ServerState>
     with _ServerCrudMixin, _ServerSelectionMixin, _ServerApiMixin, _ServerChatApiMixin {
   @override
   final ServerRepository _repository = ServerRepository();
+
+  /// E2E-encrypted attachment upload/download (self-hosted Storage REST).
+  @override
+  final AttachmentRepository _attachments = AttachmentRepository();
 
   /// Injected after construction — allows re-authentication without a circular dependency.
   @override

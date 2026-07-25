@@ -159,7 +159,7 @@ conversations to a self-hosted server they share (or any messenger they like).
 | Identity keys | X25519 derived for the central host    | X25519 derived for that server's host          |
 | Delivery      | GoTrue RLS + native Realtime           | Edge Functions + Realtime Broadcast            |
 | Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) | none imposed by Rift — operator's hardware, operator's call |
-| Media         | none (text only)                       | allowed (operator's storage)                   |
+| Media         | allowed; counts against quota, per-file size cap | allowed (operator's storage)         |
 
 - Central limits are enforced **server-side** (the send path checks a daily counter; a
   scheduled job sweeps expired and over-cap rows) — a modified client can't bypass them.
@@ -179,6 +179,28 @@ conversations to a self-hosted server they share (or any messenger they like).
   (decision: wrap **all** historical key versions — full scrollback, Discord expectation).
 - **Kick/ban**: rotate to a new channel key version for subsequent messages.
 - **Seed-loss recovery**: re-invite + re-wrap restores history access without touching messages.
+
+### Rich messages — structured body + attachments [Implemented July 2026]
+
+A message's encrypted plaintext is no longer a bare string but a small **tagged
+JSON body** (`{t:"rift.msg", v, text, att:[…]}`, `MessageBody`). This carries
+attachments (and future rich content) **without changing the envelope wire
+format, message tables, or signatures** — only the *content* of the sealed
+string changed. Decoding is backward compatible: any plaintext that isn't our
+tagged JSON — every pre-existing message — is treated as plain text.
+
+Attachments (images, voice notes, files) are E2E-encrypted just like text:
+- The file **bytes** are AES-256-GCM-encrypted client-side under a **fresh
+  per-file key** and uploaded as an opaque blob to a Storage bucket
+  (`chat-attachments` on each self-hosted server; `central-dm-attachments` on
+  central). The server only ever holds ciphertext.
+- The per-file key + nonce + metadata (name, mime, size, storage path) live
+  **inside** the (separately-encrypted) message body — never as storage
+  metadata. So a compromised server can't decrypt a blob it stores, nor learn
+  its filename. Bucket access is "authenticated" (blobs are useless without the
+  in-message key; paths are unguessable random names).
+- Central attachments count against the sender's daily DM quota and are bounded
+  by a per-file size cap (bucket `file_size_limit`).
 
 ### Decisions locked in for day one
 1. **Every message is Ed25519-signed by the sender** — a shared channel key must not allow

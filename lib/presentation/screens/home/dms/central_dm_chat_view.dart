@@ -63,7 +63,9 @@ class _CentralDmChatViewState extends State<CentralDmChatView> {
                 : 'Message @${state.openPeerHandle ?? ''}',
             enabled: !quotaEmpty,
             footer: const QuotaMeter(),
-            onSend: (text) => context.read<CentralDmCubit>().sendDm(text),
+            onSend: (text, attachments) => context
+                .read<CentralDmCubit>()
+                .sendDm(text, attachments: attachments),
           ),
       ],
     );
@@ -76,6 +78,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView> {
           key: ValueKey(state.openPeerId),
           messages: state.messages,
           controller: _scrollController,
+          attachmentLoader: context.read<CentralDmCubit>().loadAttachment,
         );
       case DmChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

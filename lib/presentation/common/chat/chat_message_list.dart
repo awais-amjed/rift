@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/chat_message.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
+import 'widgets/attachment_loader.dart';
 import 'widgets/chat_message_row.dart';
 
 /// Scrollable message history, newest at the bottom (reversed list, so it
@@ -19,7 +20,16 @@ class ChatMessageList extends StatefulWidget {
   final List<ChatMessage> messages;
   final ScrollController? controller;
 
-  const ChatMessageList({super.key, required this.messages, this.controller});
+  /// Fetches attachment bytes on demand (wired to the chat cubit). Null on
+  /// surfaces without attachment support.
+  final AttachmentLoader? attachmentLoader;
+
+  const ChatMessageList({
+    super.key,
+    required this.messages,
+    this.controller,
+    this.attachmentLoader,
+  });
 
   @override
   State<ChatMessageList> createState() => _ChatMessageListState();
@@ -97,6 +107,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               message: message,
               showHeader: _showHeader(index),
               themeState: themeState,
+              attachmentLoader: widget.attachmentLoader,
               animateIn: animating.contains(message.id),
             );
           },

@@ -63,8 +63,9 @@ class _ChannelChatViewState extends State<ChannelChatView> {
                       themeState: themeState,
                     ),
                     ChatComposer(
-                      onSend: (text) =>
-                          context.read<ChannelChatCubit>().sendMessage(text),
+                      onSend: (text, attachments) => context
+                          .read<ChannelChatCubit>()
+                          .sendMessage(text, attachments: attachments),
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                     ),
@@ -85,6 +86,7 @@ class _ChannelChatViewState extends State<ChannelChatView> {
           key: ValueKey(chatState.channelId),
           messages: chatState.messages,
           controller: _scrollController,
+          attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
         );
       case ChannelChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

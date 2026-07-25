@@ -128,6 +128,11 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
     username uniqueness → per-server (`(server_id, username)`), and `register_user`'s username
     check scoped to the server. Pairs with the client deriving identity per `(host, server_id)`
     and the new `resolve_invite` function.
+11. **011_attachments_storage.sql** — creates the private `chat-attachments` storage bucket
+    (25 MB cap) with authenticated insert/select RLS, for E2E-encrypted attachment blobs. No
+    edge-function change: attachments ride *inside* the existing message envelope (structured
+    `MessageBody`), and blobs move over the Storage REST API. The central project needs an
+    equivalent `central-dm-attachments` bucket (10 MB, own-folder insert) — see LOCAL_DEV.
 
 ## Deployment
 

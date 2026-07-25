@@ -4,12 +4,16 @@ import 'dart:typed_data';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, RealtimeChannel;
 
+import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/dm_conversation.dart';
+import '../../../data/classes/message_body.dart';
+import '../../../data/classes/pending_attachment.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
+import '../../services/chat_attachment_uploader.dart';
 import '../../services/notification_service.dart';
 import '../vault/vault_cubit.dart';
 

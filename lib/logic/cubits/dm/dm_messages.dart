@@ -276,13 +276,15 @@ mixin _DmMessagesMixin on Cubit<DmState> {
       );
       if (plaintext == null) return null;
 
+      final body = MessageBody.decode(plaintext);
       return ChatMessage(
         id: '${row['id']}',
         authorId: senderId,
         authorName: isMine
             ? (_serverCubit.state.selectedServer?.user?.displayName ?? 'Me')
             : (row['sender_name'] as String? ?? peerName),
-        text: plaintext,
+        text: body.text,
+        attachments: body.attachments,
         sentAt: DateTime.parse(row['created_at'] as String),
         isMine: isMine,
       );
@@ -296,7 +298,10 @@ mixin _DmMessagesMixin on Cubit<DmState> {
   // Sending
   // ──────────────────────────────────────────────────────────
 
-  Future<void> sendDm(String text) async {
+  Future<void> sendDm(
+    String text, {
+    List<PendingAttachment> attachments = const [],
+  }) async {
     final peerId = state.openPeerId;
     final server = _serverCubit.state.selectedServer;
     final user = server?.user;
@@ -308,23 +313,36 @@ mixin _DmMessagesMixin on Cubit<DmState> {
     }
     final key = _dmKeys[peerId];
     if (key == null) return;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty && attachments.isEmpty) return;
 
     final pendingId = 'pending-${_pendingCounter++}';
-    final pending = ChatMessage(
-      id: pendingId,
-      authorId: user.id,
-      authorName: user.displayName,
-      text: text,
-      sentAt: DateTime.now(),
-      isMine: true,
-      isPending: true,
-    );
-    emit(state.copyWith(messages: [...state.messages, pending]));
+    emit(state.copyWith(messages: [
+      ...state.messages,
+      ChatMessage(
+        id: pendingId,
+        authorId: user.id,
+        authorName: user.displayName,
+        text: trimmed,
+        sentAt: DateTime.now(),
+        isMine: true,
+        isPending: true,
+      ),
+    ]));
 
     try {
+      final scope =
+          DmCubit.conversationContext(user.id, peerId).replaceAll(':', '_');
+      final uploaded = await ChatAttachmentUploader.uploadAll(
+        pending: attachments,
+        uploadOne: (bytes) =>
+            _serverCubit.uploadAttachment(scopePrefix: scope, data: bytes),
+      );
+      if (state.openPeerId != peerId) return;
+
       final identity = await _vaultIdentityFor(server);
       final envelope = await _crypto.sealMessage(
-        plaintext: text,
+        plaintext: MessageBody(text: trimmed, attachments: uploaded).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,
         contextId: DmCubit.conversationContext(user.id, peerId),
@@ -350,7 +368,8 @@ mixin _DmMessagesMixin on Cubit<DmState> {
         id: '${data['id']}',
         authorId: user.id,
         authorName: user.displayName,
-        text: text,
+        text: trimmed,
+        attachments: uploaded,
         sentAt: DateTime.parse(data['created_at'] as String),
         isMine: true,
       );
@@ -362,6 +381,12 @@ mixin _DmMessagesMixin on Cubit<DmState> {
       ));
       _ringPeerDoorbell();
       unawaited(refreshConversations());
+    } on AttachmentUploadException catch (e) {
+      HelperMethods.printDebug('[DM] attachment upload failed: $e');
+      if (state.openPeerId == peerId) {
+        _removePending(pendingId);
+        HelperMethods.showError(error: 'Failed to upload attachment');
+      }
     } catch (e) {
       HelperMethods.printDebug('[DM] send failed: $e');
       if (state.openPeerId == peerId) {
@@ -376,4 +401,15 @@ mixin _DmMessagesMixin on Cubit<DmState> {
       messages: state.messages.where((m) => m.id != pendingId).toList(),
     ));
   }
+
+  /// Fetch + decrypt an attachment's bytes (cache-first) for rendering.
+  Future<Uint8List?> loadAttachment(Attachment attachment) =>
+      ChatAttachmentUploader.load(
+        attachment: attachment,
+        download: () => _serverCubit.downloadAttachment(
+          path: attachment.storagePath,
+          keyB64: attachment.keyB64,
+          nonceB64: attachment.nonceB64,
+        ),
+      );
 }

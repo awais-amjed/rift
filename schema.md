@@ -143,3 +143,21 @@ day ago or older than 7 days. `idx_notifications_created_at` backs the age prune
 
 - **Access**: Public
 - **Purpose**: Storage for server-related assets (e.g., icons)
+
+### chat-attachments (migration 011)
+
+- **Access**: Private; RLS allows any authenticated member to insert/select.
+- **Size cap**: 25 MB per object (`file_size_limit`).
+- **Purpose**: E2E-encrypted attachment blobs for channels + server DMs. Each
+  object is AES-256-GCM ciphertext under a per-file key that lives only inside
+  the encrypted message body — the server can't decrypt them. Objects are named
+  `<scope>/<random>.bin` (scope = channel id or DM context). "Authenticated
+  read" leaks nothing: the bytes are meaningless without the in-message key and
+  paths are unguessable.
+
+### central-dm-attachments (central project only)
+
+- **Access**: Private; insert restricted to the caller's own `<uid>/` folder,
+  select for any authenticated user. 10 MB per-object cap.
+- **Purpose**: same E2E-encrypted blobs for central DMs; uploads count against
+  the sender's daily DM quota.
