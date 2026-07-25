@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/pending_attachment.dart';
@@ -48,8 +53,16 @@ class _ChatComposerState extends State<ChatComposer> {
   final FocusNode _focusNode = FocusNode();
   final List<PendingAttachment> _staged = [];
 
+  final AudioRecorder _recorder = AudioRecorder();
+  bool _isRecording = false;
+  Duration _elapsed = Duration.zero;
+  Timer? _recordTimer;
+  String? _recordPath;
+
   @override
   void dispose() {
+    _recordTimer?.cancel();
+    _recorder.dispose();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -83,12 +96,14 @@ class _ChatComposerState extends State<ChatComposer> {
         final mime = (file.mimeType != null && file.mimeType!.isNotEmpty)
             ? file.mimeType!
             : mimeFromName(name);
-        _staged.add(PendingAttachment(
-          bytes: bytes,
-          name: name,
-          mime: mime,
-          kind: AttachmentKind.fromMime(mime),
-        ));
+        _staged.add(
+          PendingAttachment(
+            bytes: bytes,
+            name: name,
+            mime: mime,
+            kind: AttachmentKind.fromMime(mime),
+          ),
+        );
       }
       if (mounted) setState(() {});
     } catch (e) {
@@ -99,6 +114,165 @@ class _ChatComposerState extends State<ChatComposer> {
 
   void _removeStaged(int index) {
     setState(() => _staged.removeAt(index));
+  }
+
+  // ── Voice notes ───────────────────────────────────────────
+
+  Future<void> _startRecording() async {
+    if (!widget.enabled ||
+        _isRecording ||
+        _staged.length >= ChatComposer.maxAttachments) {
+      return;
+    }
+    try {
+      if (!await _recorder.hasPermission()) {
+        HelperMethods.showError(error: 'Microphone permission denied.');
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final path =
+          '${dir.path}/rift_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          numChannels: 1,
+          bitRate: 64000,
+        ),
+        path: path,
+      );
+      if (!mounted) return;
+      _recordPath = path;
+      setState(() {
+        _isRecording = true;
+        _elapsed = Duration.zero;
+      });
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _elapsed += const Duration(seconds: 1));
+      });
+    } catch (e) {
+      HelperMethods.printDebug('[Composer] record start failed: $e');
+      HelperMethods.showError(
+        error: "Couldn't start recording — is a microphone available?",
+      );
+    }
+  }
+
+  /// Stop and stage the recording as an audio attachment.
+  Future<void> _stopRecording() async {
+    _recordTimer?.cancel();
+    final durationMs = _elapsed.inMilliseconds;
+    String? path;
+    try {
+      path = await _recorder.stop();
+    } catch (e) {
+      HelperMethods.printDebug('[Composer] record stop failed: $e');
+    }
+    if (!mounted) return;
+    setState(() => _isRecording = false);
+    if (path == null) return;
+
+    try {
+      final file = File(path);
+      final bytes = await file.readAsBytes();
+      await file.delete().catchError((_) => file);
+      if (!mounted) return;
+      setState(() {
+        _staged.add(
+          PendingAttachment(
+            bytes: bytes,
+            name: 'Voice message.m4a',
+            mime: 'audio/mp4',
+            kind: AttachmentKind.audio,
+            durationMs: durationMs,
+          ),
+        );
+      });
+    } catch (e) {
+      HelperMethods.printDebug('[Composer] reading recording failed: $e');
+      HelperMethods.showError(error: "Couldn't save the recording.");
+    }
+  }
+
+  /// Discard the in-progress recording.
+  Future<void> _cancelRecording() async {
+    _recordTimer?.cancel();
+    try {
+      await _recorder.cancel();
+    } catch (_) {
+      // ignore — nothing to keep anyway
+    }
+    final path = _recordPath;
+    if (path != null) {
+      unawaited(File(path).delete().catchError((_) => File(path)));
+    }
+    if (mounted) setState(() => _isRecording = false);
+  }
+
+  String _fmtElapsed(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Widget _recordingBar(ThemeState themeState) {
+    return Container(
+      decoration: BoxDecoration(
+        color: themeState.bgTertiary,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: themeState.borderPrimary),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _cancelRecording,
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              size: 20,
+              color: themeState.textTertiary,
+            ),
+            tooltip: 'Discard',
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 2),
+          Container(
+            width: 9,
+            height: 9,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE5484D),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Recording…',
+            style: TextStyle(fontSize: 14, color: themeState.textSecondary),
+          ),
+          const Spacer(),
+          Text(
+            _fmtElapsed(_elapsed),
+            style: TextStyle(
+              fontSize: 13,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: themeState.textTertiary,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 2, left: 4),
+            child: IconButton(
+              onPressed: _stopRecording,
+              icon: Icon(
+                Icons.stop_circle_rounded,
+                size: 26,
+                color: themeState.primary,
+              ),
+              tooltip: 'Stop & attach',
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -119,7 +293,8 @@ class _ChatComposerState extends State<ChatComposer> {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final canSend = widget.enabled &&
+        final canSend =
+            widget.enabled &&
             (_controller.text.trim().isNotEmpty || _staged.isNotEmpty);
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
@@ -133,82 +308,105 @@ class _ChatComposerState extends State<ChatComposer> {
                   themeState: themeState,
                   onRemove: _removeStaged,
                 ),
-              Container(
-                decoration: BoxDecoration(
-                  color: themeState.bgTertiary,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: themeState.borderPrimary),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4, bottom: 5),
-                      child: IconButton(
-                        onPressed: widget.enabled ? _pickFiles : null,
-                        icon: Icon(
-                          Icons.add_circle_outline_rounded,
-                          size: 20,
-                          color: widget.enabled
-                              ? themeState.textTertiary
-                              : themeState.textQuaternary,
-                        ),
-                        tooltip: 'Attach files',
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                    Expanded(
-                      child: Focus(
-                        onKeyEvent: _onKeyEvent,
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          enabled: widget.enabled,
-                          onChanged: (value) {
-                            // Rebuild so the send button enables/disables.
-                            setState(() {});
-                            if (value.trim().isNotEmpty) widget.onTyping?.call();
-                          },
-                          minLines: 1,
-                          maxLines: 6,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: themeState.textPrimary,
+              if (_isRecording)
+                _recordingBar(themeState)
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    color: themeState.bgTertiary,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: themeState.borderPrimary),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 5),
+                        child: IconButton(
+                          onPressed: widget.enabled ? _pickFiles : null,
+                          icon: Icon(
+                            Icons.add_circle_outline_rounded,
+                            size: 20,
+                            color: widget.enabled
+                                ? themeState.textTertiary
+                                : themeState.textQuaternary,
                           ),
-                          decoration: InputDecoration(
-                            hintText: widget.hintText,
-                            hintStyle: TextStyle(
+                          tooltip: 'Attach files',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      Expanded(
+                        child: Focus(
+                          onKeyEvent: _onKeyEvent,
+                          child: TextField(
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            enabled: widget.enabled,
+                            onChanged: (value) {
+                              // Rebuild so the send button enables/disables.
+                              setState(() {});
+                              if (value.trim().isNotEmpty)
+                                widget.onTyping?.call();
+                            },
+                            minLines: 1,
+                            maxLines: 6,
+                            style: TextStyle(
                               fontSize: 14,
-                              color: themeState.textQuaternary,
+                              color: themeState.textPrimary,
                             ),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 12,
+                            decoration: InputDecoration(
+                              hintText: widget.hintText,
+                              hintStyle: TextStyle(
+                                fontSize: 14,
+                                color: themeState.textQuaternary,
+                              ),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 12,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6, bottom: 5),
-                      child: IconButton(
-                        onPressed: canSend ? _send : null,
-                        icon: Icon(
-                          Icons.send_rounded,
-                          size: 19,
-                          color: canSend
-                              ? themeState.primary
-                              : themeState.textQuaternary,
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 5),
+                        child: IconButton(
+                          onPressed:
+                              (widget.enabled &&
+                                  _staged.length < ChatComposer.maxAttachments)
+                              ? _startRecording
+                              : null,
+                          icon: Icon(
+                            Icons.mic_none_rounded,
+                            size: 20,
+                            color: widget.enabled
+                                ? themeState.textTertiary
+                                : themeState.textQuaternary,
+                          ),
+                          tooltip: 'Record a voice message',
+                          visualDensity: VisualDensity.compact,
                         ),
-                        tooltip: 'Send',
-                        visualDensity: VisualDensity.compact,
                       ),
-                    ),
-                  ],
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6, bottom: 5),
+                        child: IconButton(
+                          onPressed: canSend ? _send : null,
+                          icon: Icon(
+                            Icons.send_rounded,
+                            size: 19,
+                            color: canSend
+                                ? themeState.primary
+                                : themeState.textQuaternary,
+                          ),
+                          tooltip: 'Send',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               if (widget.footer != null) ...[
                 const SizedBox(height: 6),
                 widget.footer!,
@@ -319,7 +517,11 @@ class _StagedChip extends StatelessWidget {
                 border: Border.all(color: themeState.borderPrimary),
               ),
               padding: const EdgeInsets.all(2),
-              child: Icon(Icons.close, size: 14, color: themeState.textSecondary),
+              child: Icon(
+                Icons.close,
+                size: 14,
+                color: themeState.textSecondary,
+              ),
             ),
           ),
         ),
