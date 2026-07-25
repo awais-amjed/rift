@@ -26,6 +26,7 @@ import 'logic/cubits/livekit/livekit_cubit.dart';
 import 'logic/cubits/notifications/server_notifications_cubit.dart';
 import 'logic/cubits/screenshare/screenshare_cubit.dart';
 import 'logic/cubits/server/server_cubit.dart';
+import 'logic/cubits/server_events/server_events_cubit.dart';
 import 'logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/token/token_cubit.dart';
@@ -279,6 +280,17 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
                 serverCubit: context.read<ServerCubit>(),
                 chatCubit: context.read<ChannelChatCubit>(),
               ),
+            ),
+            BlocProvider(
+              // Not lazy: subscribes to the selected server's realtime event
+              // doorbell so structural changes (new channels, …) show live.
+              lazy: false,
+              create: (context) {
+                final serverCubit = context.read<ServerCubit>();
+                final events = ServerEventsCubit(serverCubit: serverCubit);
+                serverCubit.setOnServerEvent(events.notifyServerChanged);
+                return events;
+              },
             ),
             BlocProvider(
               // Not lazy: must exist at startup to receive vault/server change

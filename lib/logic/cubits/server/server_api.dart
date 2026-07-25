@@ -3,6 +3,10 @@ part of 'server_cubit.dart';
 mixin _ServerApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
 
+  /// Ping the `server_events` doorbell after a structural change (channel
+  /// create/delete, …) so other members refresh in realtime.
+  void Function()? get _onServerEvent;
+
   Future<APIResponse> _callWithAutoRefresh(
     Future<APIResponse> Function(String token) call,
   );
@@ -201,8 +205,10 @@ mixin _ServerApiMixin on Cubit<ServerState> {
       return (success: false, error: response.error ?? 'Failed to create channel');
     }
 
-    // Refresh the channel list to include the newly created one.
+    // Refresh our own channel list to include the newly created one, and ping
+    // the server_events doorbell so other members refresh in realtime.
     await refreshServerDetails();
+    _onServerEvent?.call();
     return (success: true, error: null);
   }
 

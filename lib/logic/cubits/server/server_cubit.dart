@@ -37,6 +37,16 @@ class ServerCubit extends HydratedCubit<ServerState>
     _onServersChanged = callback;
   }
 
+  /// Called after a structural change to the *selected* server (e.g. a channel
+  /// created) — wired to the `server_events` Broadcast doorbell so other members
+  /// refresh in realtime.
+  @override
+  void Function()? _onServerEvent;
+
+  void setOnServerEvent(void Function() callback) {
+    _onServerEvent = callback;
+  }
+
   /// In-flight token refreshes keyed by server id, so concurrent callers
   /// (proactive near-expiry refresh + a reactive retry) coalesce onto one
   /// SIWS re-login and all observe its result.

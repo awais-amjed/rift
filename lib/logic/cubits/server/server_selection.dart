@@ -3,6 +3,8 @@ part of 'server_cubit.dart';
 mixin _ServerSelectionMixin on Cubit<ServerState> {
   VaultCubit? get _vaultCubit;
 
+  Future<({bool success, String? error})> refreshServerDetails();
+
   void updateServer(
     String serverId, {
     String? name,
@@ -131,9 +133,15 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
 
   void selectServer(Server server) {
     setSelectedServer(server);
-    // Token is stale on cold start or after the near-expiry window — re-auth in the background.
-    if (server.isTokenNearExpiry && _vaultCubit != null) {
+    if (_vaultCubit == null) return;
+    // Always pull fresh details on select so channels/permissions changed while
+    // this server was in the background appear immediately. A stale token
+    // (cold start / past the near-expiry window) re-auths first; otherwise a
+    // lightweight details refresh on the current token.
+    if (server.isTokenNearExpiry) {
       loginSelectedServer();
+    } else {
+      refreshServerDetails();
     }
   }
 }
