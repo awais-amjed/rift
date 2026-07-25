@@ -13,14 +13,32 @@ import '../classes/encrypted_vault.dart';
 /// the encrypted seed blob (password-protected, for backup export),
 /// and the joined servers list.
 ///
-/// Dev builds namespace their keys with a `dev.` prefix so a release and a
-/// dev instance on the same machine hold independent identities.
+/// Instances namespace their keys so independent identities can coexist on one
+/// machine's shared keyring. The prefix defaults to the build flavor (release =
+/// none, debug = `dev.`) but is overridden at startup by `RIFT_PROFILE` (see
+/// `main.dart`) so multiple same-mode instances can each be isolated.
 class SecureStorageRepository {
-  static const _prefix = kReleaseMode ? '' : 'dev.';
-  static const _keyMasterSeed = '${_prefix}master_seed';
-  static const _keyEncryptedVault = '${_prefix}encrypted_vault';
-  static const _keyEncryptedSeed = '${_prefix}encrypted_seed';
-  static const _keyJoinedServers = '${_prefix}joined_servers';
+  /// Key namespace prefix (e.g. `''`, `'dev.'`, `'a.'`). Set once at startup
+  /// before any storage access; defaults to the build-flavor value so behaviour
+  /// is unchanged when `RIFT_PROFILE` is unset.
+  static String namespacePrefix = kReleaseMode ? '' : 'dev.';
+
+  /// Resolve the storage namespace suffix: an explicit `RIFT_PROFILE`
+  /// ([envProfile]) wins; otherwise it follows the build flavor — `''` for
+  /// release (the original, un-namespaced install) and `'dev'` for debug.
+  static String resolveSuffix({String? envProfile, required bool releaseMode}) {
+    if (envProfile != null && envProfile.isNotEmpty) return envProfile;
+    return releaseMode ? '' : 'dev';
+  }
+
+  /// The key prefix for a given [suffix] (`''` → none, else `'<suffix>.'`).
+  static String prefixForSuffix(String suffix) =>
+      suffix.isEmpty ? '' : '$suffix.';
+
+  String get _keyMasterSeed => '${namespacePrefix}master_seed';
+  String get _keyEncryptedVault => '${namespacePrefix}encrypted_vault';
+  String get _keyEncryptedSeed => '${namespacePrefix}encrypted_seed';
+  String get _keyJoinedServers => '${namespacePrefix}joined_servers';
 
   final FlutterSecureStorage _storage;
 

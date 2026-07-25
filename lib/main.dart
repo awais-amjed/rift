@@ -38,40 +38,54 @@ import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'presentation/common/title_bar_overlay.dart';
 import 'presentation/routing/app_routes.dart';
 import 'presentation/theme/app_theme.dart';
+import 'data/repositories/secure_storage_repository.dart';
 import 'src/rust/frb_generated.dart';
 import 'supabase_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Storage isolation namespace. Independent identities on one machine are kept
+  // apart by namespacing every storage axis (secure storage, HydratedBloc dir,
+  // central session key). By default this follows the build flavor (release =
+  // none, debug = "dev"), but RIFT_PROFILE overrides it so you can run several
+  // same-mode instances — e.g. `RIFT_PROFILE=a ./rift` and `RIFT_PROFILE=b ./rift`
+  // — each fully isolated. Empty string = the release default (existing installs).
+  final storageSuffix = SecureStorageRepository.resolveSuffix(
+    envProfile: kIsWeb ? null : Platform.environment['RIFT_PROFILE'],
+    releaseMode: kReleaseMode,
+  );
+  SecureStorageRepository.namespacePrefix =
+      SecureStorageRepository.prefixForSuffix(storageSuffix);
+
   // Initialize Rust bridge (not supported on web)
   if (!kIsWeb) await RustLib.init();
 
-  // Initialize Supabase for cloud backup session persistence.
-  // Dev builds use their own session key so a release + dev instance can run
-  // side by side on one machine without sharing the central account session.
+  // Initialize Supabase for cloud backup session persistence. A non-empty
+  // storage suffix gives this instance its own central-session key so it doesn't
+  // share the account session with another instance on the same machine.
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseKey,
-    authOptions: kReleaseMode
+    authOptions: storageSuffix.isEmpty
         ? const FlutterAuthClientOptions()
         : FlutterAuthClientOptions(
             localStorage: SharedPreferencesLocalStorage(
               persistSessionKey:
-                  'sb-${Uri.parse(SupabaseConfig.supabaseUrl).host.split(".").first}-auth-token-dev',
+                  'sb-${Uri.parse(SupabaseConfig.supabaseUrl).host.split(".").first}-auth-token-$storageSuffix',
             ),
           ),
   );
 
-  // Dev builds keep hydrated state in a separate subdirectory for the same
-  // reason; release builds keep the original path (existing installs).
+  // Keep hydrated state in a per-suffix subdirectory (release default keeps the
+  // original path so existing installs are untouched).
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: kIsWeb
         ? HydratedStorageDirectory.web
         : HydratedStorageDirectory(
-            kReleaseMode
+            storageSuffix.isEmpty
                 ? (await getApplicationDocumentsDirectory()).path
-                : '${(await getApplicationDocumentsDirectory()).path}/rift_dev',
+                : '${(await getApplicationDocumentsDirectory()).path}/rift_$storageSuffix',
           ),
   );
 
