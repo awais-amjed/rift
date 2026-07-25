@@ -58,13 +58,45 @@ String humanSize(int bytes) {
 }
 
 /// Saves [bytes] to a user-chosen location. Shared by images + file cards.
-Future<void> saveToDisk(String suggestedName, Uint8List bytes) async {
+///
+/// If the chosen path already exists we ask before overwriting — some desktop
+/// save dialogs (notably GTK on Linux) don't prompt on overwrite themselves.
+Future<void> saveToDisk(
+  BuildContext context,
+  String suggestedName,
+  Uint8List bytes,
+) async {
   final location = await getSaveLocation(suggestedName: suggestedName);
   if (location == null) return;
-  await File(location.path).writeAsBytes(bytes);
-  HelperMethods.showToast(
-    title: 'Saved',
-    description: suggestedName,
+
+  final file = File(location.path);
+  if (await file.exists()) {
+    if (!context.mounted) return;
+    final replace = await _confirmReplace(context, file.uri.pathSegments.last);
+    if (replace != true) return;
+  }
+
+  await file.writeAsBytes(bytes);
+  HelperMethods.showToast(title: 'Saved', description: suggestedName);
+}
+
+Future<bool?> _confirmReplace(BuildContext context, String name) {
+  return showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Replace file?'),
+      content: Text('"$name" already exists. Replace it?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Replace'),
+        ),
+      ],
+    ),
   );
 }
 
@@ -149,7 +181,7 @@ class _ImageThumb extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.download_rounded, color: Colors.white),
                     tooltip: 'Save',
-                    onPressed: () => saveToDisk(attachment.name, bytes),
+                    onPressed: () => saveToDisk(context, attachment.name, bytes),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: Colors.white),
@@ -193,7 +225,8 @@ class _FileCardState extends State<_FileCard> {
       HelperMethods.showError(error: "Couldn't download that file.");
       return;
     }
-    await saveToDisk(widget.attachment.name, bytes);
+    if (!mounted) return;
+    await saveToDisk(context, widget.attachment.name, bytes);
   }
 
   @override
