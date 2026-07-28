@@ -49,8 +49,7 @@ class _NewCentralDmDialogState extends State<NewCentralDmDialog> {
     _debounce = Timer(const Duration(milliseconds: 300), () async {
       if (!mounted) return;
       setState(() => _searching = true);
-      final results =
-          await context.read<CentralDmCubit>().searchHandles(value);
+      final results = await context.read<CentralDmCubit>().searchHandles(value);
       if (!mounted) return;
       setState(() {
         _results = results;
@@ -91,15 +90,12 @@ class _NewCentralDmDialogState extends State<NewCentralDmDialog> {
                               hoverColor: themeState.bgHover,
                               onTap: () {
                                 context.read<DmCubit>().closeConversation();
-                                context
-                                    .read<CentralDmCubit>()
-                                    .openConversation(
-                                      peerId: result.peerId,
-                                      peerHandle: result.peerName,
-                                      peerChatKey: result.peerChatPublicKey,
-                                      peerSigningKey:
-                                          result.peerSigningPublicKey,
-                                    );
+                                context.read<CentralDmCubit>().openConversation(
+                                  peerId: result.peerId,
+                                  peerHandle: result.peerName,
+                                  peerChatKey: result.peerChatPublicKey,
+                                  peerSigningKey: result.peerSigningPublicKey,
+                                );
                                 Navigator.of(context).pop();
                               },
                               child: Padding(

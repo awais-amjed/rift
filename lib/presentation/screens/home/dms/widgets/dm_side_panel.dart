@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart' as central;
+import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart'
+    as central;
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -21,8 +22,7 @@ class DmSidePanel extends StatelessWidget {
     final themeState = context.watch<ThemeCubit>().state;
     final centralState = context.watch<central.CentralDmCubit>().state;
     final dmState = context.watch<DmCubit>().state;
-    final serverName =
-        context.watch<ServerCubit>().state.selectedServer?.name;
+    final serverName = context.watch<ServerCubit>().state.selectedServer?.name;
 
     return ListView(
       padding: const EdgeInsets.all(12),
@@ -40,7 +40,8 @@ class DmSidePanel extends StatelessWidget {
         if (centralState.status == central.CentralDmStatus.signedOut)
           _HintText(
             themeState: themeState,
-            text: 'Sign in to your Rift account (Settings → Backup) to '
+            text:
+                'Sign in to your Rift account (Settings → Backup) to '
                 'message people across servers.',
           )
         else if (centralState.status == central.CentralDmStatus.needsHandle ||
@@ -49,7 +50,8 @@ class DmSidePanel extends StatelessWidget {
         else if (centralState.conversations.isEmpty)
           _HintText(
             themeState: themeState,
-            text: 'Find people by handle and say hi — then move long '
+            text:
+                'Find people by handle and say hi — then move long '
                 'conversations to a server you share.',
           )
         else
@@ -62,11 +64,11 @@ class DmSidePanel extends StatelessWidget {
               onTap: () {
                 context.read<DmCubit>().closeConversation();
                 context.read<central.CentralDmCubit>().openConversation(
-                      peerId: c.peerId,
-                      peerHandle: c.peerName,
-                      peerChatKey: c.peerChatPublicKey,
-                      peerSigningKey: c.peerSigningPublicKey,
-                    );
+                  peerId: c.peerId,
+                  peerHandle: c.peerName,
+                  peerChatKey: c.peerChatPublicKey,
+                  peerSigningKey: c.peerSigningPublicKey,
+                );
               },
             ),
           ),
@@ -103,10 +105,10 @@ class DmSidePanel extends StatelessWidget {
               onTap: () {
                 context.read<central.CentralDmCubit>().closeConversation();
                 context.read<DmCubit>().openConversation(
-                      peerId: c.peerId,
-                      peerName: c.peerName,
-                      peerChatKey: c.peerChatPublicKey,
-                    );
+                  peerId: c.peerId,
+                  peerName: c.peerName,
+                  peerChatKey: c.peerChatPublicKey,
+                );
               },
             ),
           ),

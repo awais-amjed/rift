@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart' as central;
+import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart'
+    as central;
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -53,8 +54,12 @@ class _NewServerDmDialogState extends State<NewServerDmDialog> {
   @override
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
-    final localUserId =
-        context.read<ServerCubit>().state.selectedServer?.user?.id;
+    final localUserId = context
+        .read<ServerCubit>()
+        .state
+        .selectedServer
+        ?.user
+        ?.id;
 
     return AppModal(
       title: 'New Direct Message',
@@ -69,30 +74,30 @@ class _NewServerDmDialogState extends State<NewServerDmDialog> {
                 ),
               )
             : _members == null
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
-                    children: [
-                      for (final member in _members!)
-                        if (member.id != localUserId && !member.isBanned)
-                          _MemberRow(
-                            member: member,
-                            themeState: themeState,
-                            onTap: member.chatPublicKey == null
-                                ? null
-                                : () {
-                                    context
-                                        .read<central.CentralDmCubit>()
-                                        .closeConversation();
-                                    context.read<DmCubit>().openConversation(
-                                          peerId: member.id,
-                                          peerName: member.displayName,
-                                          peerChatKey: member.chatPublicKey,
-                                        );
-                                    Navigator.of(context).pop();
-                                  },
-                          ),
-                    ],
-                  ),
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                children: [
+                  for (final member in _members!)
+                    if (member.id != localUserId && !member.isBanned)
+                      _MemberRow(
+                        member: member,
+                        themeState: themeState,
+                        onTap: member.chatPublicKey == null
+                            ? null
+                            : () {
+                                context
+                                    .read<central.CentralDmCubit>()
+                                    .closeConversation();
+                                context.read<DmCubit>().openConversation(
+                                  peerId: member.id,
+                                  peerName: member.displayName,
+                                  peerChatKey: member.chatPublicKey,
+                                );
+                                Navigator.of(context).pop();
+                              },
+                      ),
+                ],
+              ),
       ),
     );
   }

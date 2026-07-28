@@ -39,10 +39,7 @@ class _CentralHandlePanelState extends State<CentralHandlePanel> {
             style: TextStyle(fontSize: 12, color: themeState.textTertiary),
           ),
           const SizedBox(height: 8),
-          AppTextField(
-            controller: _controller,
-            hint: 'your_handle',
-          ),
+          AppTextField(controller: _controller, hint: 'your_handle'),
           if (state.error != null) ...[
             const SizedBox(height: 6),
             Text(
@@ -57,9 +54,9 @@ class _CentralHandlePanelState extends State<CentralHandlePanel> {
             expanded: true,
             onPressed: state.claiming
                 ? null
-                : () => context
-                    .read<CentralDmCubit>()
-                    .claimHandle(_controller.text),
+                : () => context.read<CentralDmCubit>().claimHandle(
+                    _controller.text,
+                  ),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/typing_indicator.dart';
 import 'widgets/chat_header.dart';
 import 'widgets/chat_status_view.dart';
@@ -19,31 +20,10 @@ class ChannelChatView extends StatefulWidget {
   State<ChannelChatView> createState() => _ChannelChatViewState();
 }
 
-class _ChannelChatViewState extends State<ChannelChatView> {
-  final ScrollController _scrollController = ScrollController();
-
+class _ChannelChatViewState extends State<ChannelChatView>
+    with ChatScrollLoadMore<ChannelChatView> {
   @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  /// The list is reversed, so "scrolled to the oldest message" is the far end
-  /// of the scroll extent — load the next history page shortly before it.
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 200) {
-      context.read<ChannelChatCubit>().loadMoreHistory();
-    }
-  }
+  void loadMoreHistory() => context.read<ChannelChatCubit>().loadMoreHistory();
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +65,7 @@ class _ChannelChatViewState extends State<ChannelChatView> {
         return ChatMessageList(
           key: ValueKey(chatState.channelId),
           messages: chatState.messages,
-          controller: _scrollController,
+          controller: scrollController,
           attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
           onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
         );
@@ -95,7 +75,8 @@ class _ChannelChatViewState extends State<ChannelChatView> {
         return const ChatStatusView(
           icon: Icons.key_outlined,
           title: 'Waiting for channel access',
-          message: 'Another member needs to come online to grant you the '
+          message:
+              'Another member needs to come online to grant you the '
               'encryption key for this channel.',
           showRetry: true,
         );

@@ -25,9 +25,7 @@ class ChatHeader extends StatelessWidget {
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: themeState.borderPrimary),
-        ),
+        border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
       ),
       child: Row(
         children: [
@@ -52,13 +50,8 @@ class ChatHeader extends StatelessWidget {
           ),
           const Spacer(),
           IconButton(
-            onPressed: () =>
-                context.read<ChannelChatCubit>().closeChannel(),
-            icon: Icon(
-              Icons.close,
-              size: 18,
-              color: themeState.textTertiary,
-            ),
+            onPressed: () => context.read<ChannelChatCubit>().closeChannel(),
+            icon: Icon(Icons.close, size: 18, color: themeState.textTertiary),
             tooltip: 'Close chat',
             visualDensity: VisualDensity.compact,
           ),

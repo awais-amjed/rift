@@ -5,6 +5,7 @@ import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/typing_indicator.dart';
 import 'widgets/dm_chat_header.dart';
 
@@ -17,29 +18,10 @@ class ServerDmChatView extends StatefulWidget {
   State<ServerDmChatView> createState() => _ServerDmChatViewState();
 }
 
-class _ServerDmChatViewState extends State<ServerDmChatView> {
-  final ScrollController _scrollController = ScrollController();
-
+class _ServerDmChatViewState extends State<ServerDmChatView>
+    with ChatScrollLoadMore<ServerDmChatView> {
   @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 200) {
-      context.read<DmCubit>().loadMoreHistory();
-    }
-  }
+  void loadMoreHistory() => context.read<DmCubit>().loadMoreHistory();
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +39,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView> {
         Expanded(child: _buildBody(state, themeState)),
         if (state.chatStatus == DmChatStatus.ready) ...[
           TypingIndicator(
-            names: state.typingPeerName != null ? [state.typingPeerName!] : const [],
+            names: state.typingPeerName != null
+                ? [state.typingPeerName!]
+                : const [],
             themeState: themeState,
           ),
           ChatComposer(
@@ -77,7 +61,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView> {
         return ChatMessageList(
           key: ValueKey(state.openPeerId),
           messages: state.messages,
-          controller: _scrollController,
+          controller: scrollController,
           attachmentLoader: context.read<DmCubit>().loadAttachment,
           onToggleReaction: context.read<DmCubit>().toggleReaction,
         );

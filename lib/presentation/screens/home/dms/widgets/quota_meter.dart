@@ -36,9 +36,9 @@ class QuotaMeter extends StatelessWidget {
           child: Text(
             exhausted
                 ? 'Daily limit reached — central DMs are for finding each '
-                    'other. Continue on a server you share!'
+                      'other. Continue on a server you share!'
                 : '$remaining of $quota messages left today — for longer '
-                    'chats, move to a shared server.',
+                      'chats, move to a shared server.',
             style: TextStyle(fontSize: 11, color: color),
           ),
         ),

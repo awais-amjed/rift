@@ -33,8 +33,7 @@ class HomeDmView extends StatelessWidget {
   }
 
   Widget _buildChatArea(BuildContext context) {
-    final serverOpen =
-        context.watch<DmCubit>().state.openPeerId != null;
+    final serverOpen = context.watch<DmCubit>().state.openPeerId != null;
     final centralOpen =
         context.watch<central.CentralDmCubit>().state.openPeerId != null;
 
@@ -54,8 +53,11 @@ class _EmptyChatHint extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.forum_outlined,
-              size: 44, color: themeState.textQuaternary),
+          Icon(
+            Icons.forum_outlined,
+            size: 44,
+            color: themeState.textQuaternary,
+          ),
           const SizedBox(height: 12),
           Text(
             'Pick a conversation',

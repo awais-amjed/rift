@@ -44,10 +44,7 @@ class DmChatHeader extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             subtitle,
-            style: TextStyle(
-              fontSize: 11,
-              color: themeState.textQuaternary,
-            ),
+            style: TextStyle(fontSize: 11, color: themeState.textQuaternary),
           ),
           const SizedBox(width: 10),
           Tooltip(

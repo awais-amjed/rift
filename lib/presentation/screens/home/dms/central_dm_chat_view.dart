@@ -5,6 +5,7 @@ import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/chat_scroll_load_more.dart';
 import 'widgets/dm_chat_header.dart';
 import 'widgets/quota_meter.dart';
 
@@ -17,29 +18,10 @@ class CentralDmChatView extends StatefulWidget {
   State<CentralDmChatView> createState() => _CentralDmChatViewState();
 }
 
-class _CentralDmChatViewState extends State<CentralDmChatView> {
-  final ScrollController _scrollController = ScrollController();
-
+class _CentralDmChatViewState extends State<CentralDmChatView>
+    with ChatScrollLoadMore<CentralDmChatView> {
   @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 200) {
-      context.read<CentralDmCubit>().loadMoreHistory();
-    }
-  }
+  void loadMoreHistory() => context.read<CentralDmCubit>().loadMoreHistory();
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +59,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView> {
         return ChatMessageList(
           key: ValueKey(state.openPeerId),
           messages: state.messages,
-          controller: _scrollController,
+          controller: scrollController,
           attachmentLoader: context.read<CentralDmCubit>().loadAttachment,
           onToggleReaction: context.read<CentralDmCubit>().toggleReaction,
         );

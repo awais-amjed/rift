@@ -45,10 +45,7 @@ class ChatStatusView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: themeState.textTertiary,
-              ),
+              style: TextStyle(fontSize: 13, color: themeState.textTertiary),
             ),
             if (showRetry) ...[
               const SizedBox(height: 16),
