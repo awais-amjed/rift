@@ -8,6 +8,8 @@ piece of chrome can collapse/hide), fast native screensharing.
 These conventions are extracted from the existing code. Match them; don't introduce parallel
 patterns. For how identity, auth, and encryption work (current and planned), see
 `ARCHITECTURE.md` — consult it before touching vault, auth, backup, or (future) messaging code.
+**`CODE_STYLE.md` covers file size budgets, one-widget-per-file, extracting shared logic, and
+central constants — read it before adding to an existing file or copying a block of code.**
 
 ## Layout
 
