@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../common/chat/chat_composer.dart';
+import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
 import 'widgets/dm_chat_header.dart';
 import 'widgets/quota_meter.dart';

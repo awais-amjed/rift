@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
-import 'package:rift/presentation/common/chat/chat_composer.dart';
+import 'package:rift/presentation/common/chat/composer/chat_composer.dart';
 
 /// In-memory stand-in so [ThemeCubit] (a HydratedCubit) can be built in tests.
 class _MemoryStorage implements Storage {
