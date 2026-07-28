@@ -70,7 +70,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
     bool? cameraEnabled,
   }) async {
     final hadRoom = state.room != null;
-    final wasConnecting = state.connectionState == LiveKitConnectionState.connecting;
+    final wasConnecting =
+        state.connectionState == LiveKitConnectionState.connecting;
 
     // Emit 'connecting' before cleanup so the RoomDisconnectedEvent fired during
     // _cleanupRoom is not misread as an unexpected disconnect and doesn't clear
@@ -89,18 +90,22 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     final server = _serverCubit?.state.selectedServer;
     if (server == null) {
-      emit(state.copyWith(
-        connectionState: LiveKitConnectionState.error,
-        error: 'No server selected',
-      ));
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: 'No server selected',
+        ),
+      );
       return;
     }
     final livekitUrl = server.livekitUrl;
     if (livekitUrl == null) {
-      emit(state.copyWith(
-        connectionState: LiveKitConnectionState.error,
-        error: 'No LiveKit URL configured for this server',
-      ));
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: 'No LiveKit URL configured for this server',
+        ),
+      );
       return;
     }
 
@@ -112,10 +117,12 @@ class LiveKitCubit extends Cubit<LiveKitState>
       final response = await _serverCubit!.getChannelToken(channelId);
       if (!response.success) {
         debugPrint('[LiveKit] Failed to get channel token: ${response.error}');
-        emit(state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          error: response.error ?? 'Failed to get channel token',
-        ));
+        emit(
+          state.copyWith(
+            connectionState: LiveKitConnectionState.error,
+            error: response.error ?? 'Failed to get channel token',
+          ),
+        );
         return;
       }
       livekitToken = response.data['token'] as String;
@@ -148,12 +155,14 @@ class LiveKitCubit extends Cubit<LiveKitState>
         ),
       );
 
-      emit(state.copyWith(
-        connectionState: LiveKitConnectionState.connected,
-        room: room,
-        isMicEnabled: useMicEnabled,
-        isCameraEnabled: useCameraEnabled,
-      ));
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.connected,
+          room: room,
+          isMicEnabled: useMicEnabled,
+          isCameraEnabled: useCameraEnabled,
+        ),
+      );
 
       await _syncMicrophoneTransmission();
       SoundService.instance.playJoin();
@@ -161,10 +170,12 @@ class LiveKitCubit extends Cubit<LiveKitState>
       _applyStoredSettings();
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] room.connect() threw: $e');
-      emit(state.copyWith(
-        connectionState: LiveKitConnectionState.error,
-        error: 'Failed to connect: $e',
-      ));
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: 'Failed to connect: $e',
+        ),
+      );
       await room.disconnect();
       await room.dispose();
     }
@@ -180,12 +191,14 @@ class LiveKitCubit extends Cubit<LiveKitState>
     _appCubit.setParticipants([]);
     _appCubit.setSelectedChannelId(null);
 
-    emit(state.copyWith(
-      connectionState: LiveKitConnectionState.disconnected,
-      clearChannelId: true,
-      clearError: true,
-      participants: [],
-    ));
+    emit(
+      state.copyWith(
+        connectionState: LiveKitConnectionState.disconnected,
+        clearChannelId: true,
+        clearError: true,
+        participants: [],
+      ),
+    );
 
     await _cleanupRoom();
     emit(state.copyWith(clearRoom: true));
@@ -207,18 +220,20 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     // Don't derive mic state from LiveKit when deafened — deafen forces the
     // WebRTC track off but the cubit state should reflect the pre-deafen value.
-    emit(state.copyWith(
-      participants: allParticipants,
-      isCameraEnabled:
-          room.localParticipant?.isCameraEnabled() ?? state.isCameraEnabled,
-      isScreenSharing:
-          room.localParticipant?.isScreenShareEnabled() ?? state.isScreenSharing,
-    ));
+    emit(
+      state.copyWith(
+        participants: allParticipants,
+        isCameraEnabled:
+            room.localParticipant?.isCameraEnabled() ?? state.isCameraEnabled,
+        isScreenSharing:
+            room.localParticipant?.isScreenShareEnabled() ??
+            state.isScreenSharing,
+      ),
+    );
 
     // Sync participant info to AppCubit for the UI.
     final infos = allParticipants.map((p) {
-      final moderation =
-          ParticipantInfo.moderationFromMetadata(p.metadata);
+      final moderation = ParticipantInfo.moderationFromMetadata(p.metadata);
       return ParticipantInfo(
         identity: p.identity,
         userId: ParticipantIdentity.userIdOf(p.identity),
@@ -302,7 +317,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
   }
 
   @override
-  Future<void> _syncMicrophoneTransmission({bool syncParticipants = false}) async {
+  Future<void> _syncMicrophoneTransmission({
+    bool syncParticipants = false,
+  }) async {
     final room = state.room;
     if (room == null) return;
     final shouldTransmit = _shouldTransmitMic(

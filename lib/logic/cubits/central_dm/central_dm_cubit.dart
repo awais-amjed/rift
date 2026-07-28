@@ -2,24 +2,29 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, RealtimeChannel;
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show AuthState, RealtimeChannel;
 
+import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/message_body.dart';
-import '../../../data/classes/message_reaction.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
 import '../../services/chat_attachment_uploader.dart';
+import '../../services/chat_message_ops.dart';
 import '../../services/notification_service.dart';
 import '../vault/vault_cubit.dart';
 
 part 'central_dm_state.dart';
-part 'central_dm_messages.dart';
+part 'central_dm_conversations.dart';
+part 'central_dm_history.dart';
+part 'central_dm_send.dart';
+part 'central_dm_reactions.dart';
 
 /// Central DMs — the discovery/first-contact tier (ARCHITECTURE.md §4).
 ///
@@ -28,7 +33,12 @@ part 'central_dm_messages.dart';
 /// central server enforces the funnel limits (daily quota, 30-day TTL,
 /// history cap). Requires a signed-in central account and an unlocked vault;
 /// privacy-mode users simply see the signed-out state.
-class CentralDmCubit extends Cubit<CentralDmState> with _CentralDmMessagesMixin {
+class CentralDmCubit extends Cubit<CentralDmState>
+    with
+        _CentralDmConversationsMixin,
+        _CentralDmHistoryMixin,
+        _CentralDmSendMixin,
+        _CentralDmReactionsMixin {
   @override
   final CentralDmRepository _repo;
   final VaultCubit _vaultCubit;
@@ -42,6 +52,14 @@ class CentralDmCubit extends Cubit<CentralDmState> with _CentralDmMessagesMixin 
   @override
   final Map<String, Uint8List> _dmKeys = {};
 
+  /// Signing keys per peer from the directory (base64) — for verification.
+  @override
+  final Map<String, String> _peerSigningKeys = {};
+
+  /// Chat keys per peer from the directory (base64) — for DM derivation.
+  @override
+  final Map<String, String> _peerChatKeys = {};
+
   /// Diffs conversation snapshots to raise notifications for new central DMs.
   final NewMessageNotifier _notifier = NewMessageNotifier();
 
@@ -49,17 +67,16 @@ class CentralDmCubit extends Cubit<CentralDmState> with _CentralDmMessagesMixin 
     required VaultCubit vaultCubit,
     CentralDmRepository? repo,
     CryptoRepository? crypto,
-  })  : _vaultCubit = vaultCubit,
-        _repo = repo ?? CentralDmRepository(),
-        _crypto = crypto ?? CryptoRepository(),
-        super(const CentralDmState()) {
+  }) : _vaultCubit = vaultCubit,
+       _repo = repo ?? CentralDmRepository(),
+       _crypto = crypto ?? CryptoRepository(),
+       super(const CentralDmState()) {
     _authSub = _repo.authChanges.listen((_) => _ensureReady());
     _vaultSub = vaultCubit.stream.listen((_) => _ensureReady());
     _ensureReady();
   }
 
-  static String get _centralHost =>
-      Uri.parse(SupabaseConfig.supabaseUrl).host;
+  static String get _centralHost => Uri.parse(SupabaseConfig.supabaseUrl).host;
 
   @override
   String? get _myUserId => _repo.currentUser?.id;
@@ -105,9 +122,11 @@ class CentralDmCubit extends Cubit<CentralDmState> with _CentralDmMessagesMixin 
   Future<void> claimHandle(String handle) async {
     final normalized = handle.trim().toLowerCase();
     if (!RegExp(r'^[a-z0-9_]{3,20}$').hasMatch(normalized)) {
-      emit(state.copyWith(
-        error: 'Handles are 3–20 characters: a–z, 0–9, underscore.',
-      ));
+      emit(
+        state.copyWith(
+          error: 'Handles are 3–20 characters: a–z, 0–9, underscore.',
+        ),
+      );
       return;
     }
     emit(state.copyWith(claiming: true, clearError: true));
@@ -135,11 +154,13 @@ class CentralDmCubit extends Cubit<CentralDmState> with _CentralDmMessagesMixin 
     // normally a no-op).
     final chat = await _vaultCubit.getChatIdentityForHost(_centralHost);
     final signing = await _vaultCubit.getIdentityForHost(_centralHost);
-    unawaited(_repo.upsertProfile(
-      handle: handle,
-      chatPublicKey: chat.publicKeyBase64,
-      signingPublicKey: signing.publicKeyBase64,
-    ));
+    unawaited(
+      _repo.upsertProfile(
+        handle: handle,
+        chatPublicKey: chat.publicKeyBase64,
+        signingPublicKey: signing.publicKeyBase64,
+      ),
+    );
 
     _incoming ??= _repo.subscribeIncoming(_onIncoming);
     emit(state.copyWith(status: CentralDmStatus.ready, myHandle: handle));
@@ -178,12 +199,14 @@ class CentralDmCubit extends Cubit<CentralDmState> with _CentralDmMessagesMixin 
     final response = await _repo.searchHandles(normalized);
     if (!response.success) return const [];
     return ((response.data as List).cast<Map<String, dynamic>>())
-        .map((row) => DmConversation(
-              peerId: row['user_id'] as String,
-              peerName: row['handle'] as String,
-              peerChatPublicKey: row['chat_public_key'] as String?,
-              peerSigningPublicKey: row['signing_public_key'] as String?,
-            ))
+        .map(
+          (row) => DmConversation(
+            peerId: row['user_id'] as String,
+            peerName: row['handle'] as String,
+            peerChatPublicKey: row['chat_public_key'] as String?,
+            peerSigningPublicKey: row['signing_public_key'] as String?,
+          ),
+        )
         .toList();
   }
 

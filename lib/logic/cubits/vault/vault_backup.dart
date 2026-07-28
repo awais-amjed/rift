@@ -15,7 +15,7 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
   /// The servers list is encrypted with the vault key so the backup is fully
   /// opaque — no plaintext metadata is exposed to the storage provider.
   Future<({bool success, String? content, String? error})>
-      exportBackup() async {
+  exportBackup() async {
     try {
       final encryptedSeed = await _storage.getEncryptedSeed();
       final encryptedVault = await _storage.getEncryptedVault();
@@ -108,8 +108,9 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
       List<Map<String, dynamic>> serverMaps = [];
       if (backup.encryptedServers != null) {
         final serversJson = await _crypto.decrypt(
-          ciphertext:
-              CryptoRepository.fromBase64(backup.encryptedServers!.ciphertext),
+          ciphertext: CryptoRepository.fromBase64(
+            backup.encryptedServers!.ciphertext,
+          ),
           key: vaultKey,
           iv: CryptoRepository.fromBase64(backup.encryptedServers!.iv),
         );
@@ -119,8 +120,12 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
       } else {
         // Legacy v1 backup — fall back to url/version stubs from vault blob.
         serverMaps = joinedServers
-            .map((s) =>
-                <String, dynamic>{'supabaseUrl': s.url, 'keyVersion': s.version})
+            .map(
+              (s) => <String, dynamic>{
+                'supabaseUrl': s.url,
+                'keyVersion': s.version,
+              },
+            )
             .toList();
       }
 
@@ -141,4 +146,3 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
     }
   }
 }
-

@@ -40,9 +40,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
   }
 
   /// Starts screen sharing with the given settings.
-  Future<void> startScreenShare({
-    required ScreenShareSettings settings,
-  }) async {
+  Future<void> startScreenShare({required ScreenShareSettings settings}) async {
     emit(state.copyWith(status: ScreenshareStatus.connecting));
 
     try {
@@ -60,7 +58,12 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
 
         final channelId = _livekitCubit.state.currentChannelId;
         if (channelId == null) {
-          emit(state.copyWith(status: ScreenshareStatus.error, error: 'Not connected to a channel'));
+          emit(
+            state.copyWith(
+              status: ScreenshareStatus.error,
+              error: 'Not connected to a channel',
+            ),
+          );
           return;
         }
 
@@ -79,31 +82,54 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       // Resolve server context
       final server = _serverCubit.state.selectedServer;
       if (server == null) {
-        emit(state.copyWith(status: ScreenshareStatus.error, error: 'No server selected'));
+        emit(
+          state.copyWith(
+            status: ScreenshareStatus.error,
+            error: 'No server selected',
+          ),
+        );
         return;
       }
 
       final livekitUrl = server.livekitUrl;
       if (livekitUrl == null) {
-        emit(state.copyWith(status: ScreenshareStatus.error, error: 'No LiveKit URL configured'));
+        emit(
+          state.copyWith(
+            status: ScreenshareStatus.error,
+            error: 'No LiveKit URL configured',
+          ),
+        );
         return;
       }
 
       final user = server.user;
       if (user == null) {
-        emit(state.copyWith(status: ScreenshareStatus.error, error: 'No user info available'));
+        emit(
+          state.copyWith(
+            status: ScreenshareStatus.error,
+            error: 'No user info available',
+          ),
+        );
         return;
       }
 
       final channelId = _livekitCubit?.state.currentChannelId;
       if (channelId == null) {
-        emit(state.copyWith(status: ScreenshareStatus.error, error: 'Not connected to a channel'));
+        emit(
+          state.copyWith(
+            status: ScreenshareStatus.error,
+            error: 'Not connected to a channel',
+          ),
+        );
         return;
       }
 
       // On desktop, delegate to the Rust LiveKit implementation.
       // Get a screenshare-specific token via ServerCubit.
-      final response = await _serverCubit.getChannelToken(channelId, screenShare: true);
+      final response = await _serverCubit.getChannelToken(
+        channelId,
+        screenShare: true,
+      );
 
       if (!response.success) {
         emit(

@@ -79,9 +79,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   /// Servers not present in the backup are removed.
   void syncWithImportedVault(List<Map<String, dynamic>> importedServers) {
     final staleTime = DateTime.fromMillisecondsSinceEpoch(0);
-    final existingByUrl = {
-      for (final s in state.servers) s.supabaseUrl: s,
-    };
+    final existingByUrl = {for (final s in state.servers) s.supabaseUrl: s};
 
     final restored = <Server>[];
     for (final meta in importedServers) {
@@ -93,39 +91,42 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
       final existing = existingByUrl[url];
       if (existing != null) {
         // Existing server — update key version and mark token stale.
-        restored.add(existing.copyWith(
-          keyVersion: keyVersion,
-          tokenIssuedAt: staleTime,
-        ));
+        restored.add(
+          existing.copyWith(keyVersion: keyVersion, tokenIssuedAt: staleTime),
+        );
       } else {
         // Fresh device — reconstruct a minimal Server from backup metadata.
         final id = meta['id'] as String?;
         if (id == null) continue;
-        restored.add(Server(
-          id: id,
-          name: (meta['name'] as String?) ?? 'Server',
-          iconUrl: meta['iconUrl'] as String?,
-          supabaseUrl: url,
-          supabaseKey: meta['supabaseKey'] as String?,
-          livekitUrl: meta['livekitUrl'] as String?,
-          token: '', // stale — login will replace it
-          keyVersion: keyVersion,
-          tokenIssuedAt: staleTime,
-        ));
+        restored.add(
+          Server(
+            id: id,
+            name: (meta['name'] as String?) ?? 'Server',
+            iconUrl: meta['iconUrl'] as String?,
+            supabaseUrl: url,
+            supabaseKey: meta['supabaseKey'] as String?,
+            livekitUrl: meta['livekitUrl'] as String?,
+            token: '', // stale — login will replace it
+            keyVersion: keyVersion,
+            tokenIssuedAt: staleTime,
+          ),
+        );
       }
     }
 
     final newSelectedId = restored.any((s) => s.id == state.selectedServerId)
         ? state.selectedServerId
         : restored.isNotEmpty
-            ? restored.first.id
-            : null;
+        ? restored.first.id
+        : null;
 
-    emit(state.copyWith(
-      servers: restored,
-      selectedServerId: newSelectedId,
-      clearSelectedServerId: newSelectedId == null,
-    ));
+    emit(
+      state.copyWith(
+        servers: restored,
+        selectedServerId: newSelectedId,
+        clearSelectedServerId: newSelectedId == null,
+      ),
+    );
 
     // Re-authenticate the selected server with the restored identity.
     if (restored.isNotEmpty) loginSelectedServer();
@@ -145,4 +146,3 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     }
   }
 }
-

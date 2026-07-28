@@ -15,8 +15,7 @@ class CachedToken {
   });
 
   /// Tokens have a 1-hour TTL; we consider them valid for 55 minutes.
-  bool get isValid =>
-      DateTime.now().difference(createdAt).inMinutes < 55;
+  bool get isValid => DateTime.now().difference(createdAt).inMinutes < 55;
 
   Map<String, dynamic> toJson() => {
     'supabaseUrl': supabaseUrl,
@@ -42,4 +41,3 @@ class TokenState {
   TokenState copyWith({Map<String, CachedToken>? tokens}) =>
       TokenState(tokens: tokens ?? this.tokens);
 }
-

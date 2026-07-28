@@ -42,7 +42,8 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     }
 
     if (subscribedAny) {
-      final updated = Set<String>.from(state.subscribedScreenshares)..add(identity);
+      final updated = Set<String>.from(state.subscribedScreenshares)
+        ..add(identity);
       emit(state.copyWith(subscribedScreenshares: updated));
       _syncParticipants();
     } else {
@@ -85,14 +86,17 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     }
 
     if (unsubscribedAny) {
-      final updated = Set<String>.from(state.subscribedScreenshares)..remove(identity);
+      final updated = Set<String>.from(state.subscribedScreenshares)
+        ..remove(identity);
       emit(state.copyWith(subscribedScreenshares: updated));
       _syncParticipants();
     }
   }
 
   /// Toggle screen sharing on/off.
-  Future<void> toggleScreenShare({ScreenShareCaptureOptions? captureOptions}) async {
+  Future<void> toggleScreenShare({
+    ScreenShareCaptureOptions? captureOptions,
+  }) async {
     final room = state.room;
     if (room == null) return;
 
@@ -101,7 +105,8 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       await room.localParticipant?.setScreenShareEnabled(
         next,
         screenShareCaptureOptions:
-            captureOptions ?? ScreenShareCaptureOptions(useiOSBroadcastExtension: false),
+            captureOptions ??
+            ScreenShareCaptureOptions(useiOSBroadcastExtension: false),
       );
       emit(state.copyWith(isScreenSharing: next));
       _syncParticipants();
@@ -110,4 +115,3 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     }
   }
 }
-

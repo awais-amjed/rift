@@ -23,7 +23,11 @@ part 'server_api.dart';
 part 'server_chat_api.dart';
 
 class ServerCubit extends HydratedCubit<ServerState>
-    with _ServerCrudMixin, _ServerSelectionMixin, _ServerApiMixin, _ServerChatApiMixin {
+    with
+        _ServerCrudMixin,
+        _ServerSelectionMixin,
+        _ServerApiMixin,
+        _ServerChatApiMixin {
   @override
   final ServerRepository _repository = ServerRepository();
 
@@ -203,15 +207,17 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// Intentionally excludes [Server.token] and [Server.tokenIssuedAt].
   List<Map<String, dynamic>> getServersForExport() {
     return state.servers
-        .map((s) => {
-              'id': s.id,
-              'name': s.name,
-              'iconUrl': s.iconUrl,
-              'supabaseUrl': s.supabaseUrl,
-              'supabaseKey': s.supabaseKey,
-              'livekitUrl': s.livekitUrl,
-              'keyVersion': s.keyVersion,
-            })
+        .map(
+          (s) => {
+            'id': s.id,
+            'name': s.name,
+            'iconUrl': s.iconUrl,
+            'supabaseUrl': s.supabaseUrl,
+            'supabaseKey': s.supabaseKey,
+            'livekitUrl': s.livekitUrl,
+            'keyVersion': s.keyVersion,
+          },
+        )
         .toList();
   }
 

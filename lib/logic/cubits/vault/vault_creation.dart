@@ -37,23 +37,29 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
       );
 
       await _storage.saveMasterSeed(masterSeedB64);
-      await _storage.saveEncryptedSeed(EncryptedSeed(
-        ciphertext: CryptoRepository.toBase64(encSeed.ciphertext),
-        iv: CryptoRepository.toBase64(encSeed.iv),
-        salt: CryptoRepository.toBase64(salt),
-      ));
-      await _storage.saveEncryptedVault(EncryptedVault(
-        ciphertext: CryptoRepository.toBase64(encVault.ciphertext),
-        iv: CryptoRepository.toBase64(encVault.iv),
-      ));
+      await _storage.saveEncryptedSeed(
+        EncryptedSeed(
+          ciphertext: CryptoRepository.toBase64(encSeed.ciphertext),
+          iv: CryptoRepository.toBase64(encSeed.iv),
+          salt: CryptoRepository.toBase64(salt),
+        ),
+      );
+      await _storage.saveEncryptedVault(
+        EncryptedVault(
+          ciphertext: CryptoRepository.toBase64(encVault.ciphertext),
+          iv: CryptoRepository.toBase64(encVault.iv),
+        ),
+      );
 
       emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
     } catch (e) {
       HelperMethods.printDebug('[Vault] createVault error: $e');
-      emit(state.copyWith(
-        isProcessing: false,
-        error: 'Failed to create vault: $e',
-      ));
+      emit(
+        state.copyWith(
+          isProcessing: false,
+          error: 'Failed to create vault: $e',
+        ),
+      );
     }
   }
 
@@ -92,11 +98,13 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
         key: newKey,
       );
 
-      await _storage.saveEncryptedSeed(EncryptedSeed(
-        ciphertext: CryptoRepository.toBase64(encSeed.ciphertext),
-        iv: CryptoRepository.toBase64(encSeed.iv),
-        salt: CryptoRepository.toBase64(newSalt),
-      ));
+      await _storage.saveEncryptedSeed(
+        EncryptedSeed(
+          ciphertext: CryptoRepository.toBase64(encSeed.ciphertext),
+          iv: CryptoRepository.toBase64(encSeed.iv),
+          salt: CryptoRepository.toBase64(newSalt),
+        ),
+      );
 
       return (success: true, error: null);
     } on SecretBoxAuthenticationError {
@@ -107,4 +115,3 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
     }
   }
 }
-

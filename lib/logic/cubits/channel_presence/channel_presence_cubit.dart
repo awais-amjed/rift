@@ -52,9 +52,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
   ChannelPresenceCubit({
     required ServerCubit serverCubit,
     required LiveKitCubit livekitCubit,
-  })  : _serverCubit = serverCubit,
-        _livekitCubit = livekitCubit,
-        super(const ChannelPresenceState()) {
+  }) : _serverCubit = serverCubit,
+       _livekitCubit = livekitCubit,
+       super(const ChannelPresenceState()) {
     _serverSub = serverCubit.stream.listen(_onServerChanged);
     _lkSub = livekitCubit.stream.listen((_) => _reconcileTracking());
     // Bootstrap with current state
@@ -126,8 +126,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     final lkState = _livekitCubit.state;
     final channelId =
         lkState.connectionState == LiveKitConnectionState.connected
-            ? lkState.currentChannelId
-            : null;
+        ? lkState.currentChannelId
+        : null;
 
     if (channelId == _trackedChannelId) return;
 
@@ -187,9 +187,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
           continue;
         }
         if (userId == localUserId) continue;
-        result.putIfAbsent(channelId, () => []).add(
-              PresenceUser(userId: userId, displayName: displayName),
-            );
+        result
+            .putIfAbsent(channelId, () => [])
+            .add(PresenceUser(userId: userId, displayName: displayName));
       }
     }
 
@@ -206,4 +206,3 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     return super.close();
   }
 }
-

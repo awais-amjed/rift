@@ -51,10 +51,10 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
     required VaultCubit vaultCubit,
     SupabaseBackupRepository? repo,
     CryptoRepository? crypto,
-  })  : _repo = repo ?? SupabaseBackupRepository(),
-        _crypto = crypto ?? CryptoRepository(),
-        _vaultCubit = vaultCubit,
-        super(const SupabaseBackupState()) {
+  }) : _repo = repo ?? SupabaseBackupRepository(),
+       _crypto = crypto ?? CryptoRepository(),
+       _vaultCubit = vaultCubit,
+       super(const SupabaseBackupState()) {
     // Reflect any persisted session restored by supabase_flutter on startup.
     final user = _repo.currentUser;
     if (user != null) {
@@ -75,10 +75,12 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
 
     if (signedIn) {
       if (!state.isSignedIn) {
-        emit(state.copyWith(
-          isSignedIn: true,
-          email: authState.session?.user.email,
-        ));
+        emit(
+          state.copyWith(
+            isSignedIn: true,
+            email: authState.session?.user.email,
+          ),
+        );
       }
       return;
     }
@@ -117,10 +119,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
   /// If the server requires email confirmation the state transitions to
   /// [SupabaseBackupState.needsEmailConfirmation]; the sync then runs on the
   /// sign-in that follows confirmation.
-  Future<void> signUp({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signUp({required String email, required String password}) async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
 
     final keys = await _crypto.deriveAccountKeys(
@@ -157,10 +156,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
   }
 
   /// Signs in to the central server.
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
 
     final keys = await _crypto.deriveAccountKeys(
@@ -327,7 +323,9 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
         clearMessage: true,
       ),
     );
-    await _uploadBackup(successMessage: 'Cloud backup replaced with this device\'s vault.');
+    await _uploadBackup(
+      successMessage: 'Cloud backup replaced with this device\'s vault.',
+    );
   }
 
   /// Conflict resolver: restore the cloud backup, replacing the local vault.
@@ -385,7 +383,10 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
     final backupJson = downloadResponse.data as String?;
     if (backupJson == null) {
       emit(
-        state.copyWith(isProcessing: false, error: 'No backup found on server.'),
+        state.copyWith(
+          isProcessing: false,
+          error: 'No backup found on server.',
+        ),
       );
       return;
     }

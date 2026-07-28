@@ -71,4 +71,3 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     );
   }
 }
-

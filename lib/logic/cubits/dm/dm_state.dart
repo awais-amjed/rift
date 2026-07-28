@@ -56,13 +56,16 @@ class DmState {
       conversations: conversations ?? this.conversations,
       conversationsLoading: conversationsLoading ?? this.conversationsLoading,
       openPeerId: closeConversation ? null : (openPeerId ?? this.openPeerId),
-      openPeerName:
-          closeConversation ? null : (openPeerName ?? this.openPeerName),
-      chatStatus:
-          closeConversation ? DmChatStatus.closed : (chatStatus ?? this.chatStatus),
+      openPeerName: closeConversation
+          ? null
+          : (openPeerName ?? this.openPeerName),
+      chatStatus: closeConversation
+          ? DmChatStatus.closed
+          : (chatStatus ?? this.chatStatus),
       messages: closeConversation ? const [] : (messages ?? this.messages),
-      hasMoreHistory:
-          closeConversation ? false : (hasMoreHistory ?? this.hasMoreHistory),
+      hasMoreHistory: closeConversation
+          ? false
+          : (hasMoreHistory ?? this.hasMoreHistory),
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       typingPeerName: (closeConversation || clearTyping)
           ? null

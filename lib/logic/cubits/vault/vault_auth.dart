@@ -4,8 +4,11 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
   SecureStorageRepository get _storage;
   ServerRepository get _serverRepo;
   CryptoRepository get _crypto;
-  Future<ServerIdentity> getIdentityForHost(String host,
-      {String? serverId, String version = 'v1'});
+  Future<ServerIdentity> getIdentityForHost(
+    String host, {
+    String? serverId,
+    String version = 'v1',
+  });
 
   // ──────────────────────────────────────────────────────────
   // Startup check
@@ -66,10 +69,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
   /// then refresh the server context. Returns `{token, ...context}`; callers
   /// (reAuthenticate) read `data['token']`.
   Future<({bool success, String? error, Map<String, dynamic>? data})>
-      loginToServer({
-    required String supabaseUrl,
-    required String serverId,
-  }) async {
+  loginToServer({required String supabaseUrl, required String serverId}) async {
     try {
       final login = await siwsLogin(supabaseUrl, serverId: serverId);
       if (login.accessToken == null) {
@@ -78,8 +78,10 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
       final token = login.accessToken!;
 
       final data = <String, dynamic>{'token': token};
-      final details =
-          await _serverRepo.getServerDetails(supabaseUrl, bearerToken: token);
+      final details = await _serverRepo.getServerDetails(
+        supabaseUrl,
+        bearerToken: token,
+      );
       if (details.success && details.data is Map) {
         data.addAll(details.data as Map<String, dynamic>);
         data['token'] = token; // context no longer carries a token
@@ -91,4 +93,3 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
     }
   }
 }
-

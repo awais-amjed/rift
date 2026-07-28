@@ -6,8 +6,10 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
   Map<String, ServerIdentity> get _identityCache;
   Map<String, ChatIdentity> get _chatIdentityCache;
   Future<void> _addServerToVault(String host, {String version = 'v1'});
-  Future<({String? accessToken, String? error})> siwsLogin(String supabaseUrl,
-      {required String serverId});
+  Future<({String? accessToken, String? error})> siwsLogin(
+    String supabaseUrl, {
+    required String serverId,
+  });
 
   // ──────────────────────────────────────────────────────────
   // Phase 2: Joining a server
@@ -64,7 +66,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
 
   /// Register on a server with an invite code.
   Future<({bool success, String? error, Map<String, dynamic>? data})>
-      registerOnServer({
+  registerOnServer({
     required String supabaseUrl,
     required String inviteCode,
     required String username,
@@ -78,7 +80,11 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       //    (host, serverId), so we must know the server first (see auth.md).
       final resolved = await _serverRepo.resolveInvite(supabaseUrl, inviteCode);
       if (!resolved.success || resolved.serverId == null) {
-        return (success: false, error: resolved.error ?? 'Invalid invite', data: null);
+        return (
+          success: false,
+          error: resolved.error ?? 'Invalid invite',
+          data: null,
+        );
       }
       final serverId = resolved.serverId!;
       final identity = await getIdentityForHost(host, serverId: serverId);
@@ -123,6 +129,3 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
     }
   }
 }
-
-
-

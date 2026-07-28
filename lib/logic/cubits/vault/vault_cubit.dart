@@ -71,10 +71,10 @@ class VaultCubit extends Cubit<VaultState>
     CryptoRepository? crypto,
     SecureStorageRepository? storage,
     ServerRepository? serverRepo,
-  })  : _crypto = crypto ?? CryptoRepository(),
-        _storage = storage ?? SecureStorageRepository(),
-        _serverRepo = serverRepo ?? ServerRepository(),
-        super(const VaultState());
+  }) : _crypto = crypto ?? CryptoRepository(),
+       _storage = storage ?? SecureStorageRepository(),
+       _serverRepo = serverRepo ?? ServerRepository(),
+       super(const VaultState());
 
   // ──────────────────────────────────────────────────────────
   // Vault persistence helpers
@@ -103,10 +103,12 @@ class VaultCubit extends Cubit<VaultState>
     });
 
     final encrypted = await _crypto.encrypt(plaintext: payload, key: vaultKey);
-    await _storage.saveEncryptedVault(EncryptedVault(
-      ciphertext: CryptoRepository.toBase64(encrypted.ciphertext),
-      iv: CryptoRepository.toBase64(encrypted.iv),
-    ));
+    await _storage.saveEncryptedVault(
+      EncryptedVault(
+        ciphertext: CryptoRepository.toBase64(encrypted.ciphertext),
+        iv: CryptoRepository.toBase64(encrypted.iv),
+      ),
+    );
 
     _onVaultChanged?.call();
   }
@@ -121,7 +123,9 @@ class VaultCubit extends Cubit<VaultState>
   /// identity) and by the debug reset. For a privacy-mode vault with no backup
   /// this destroys the identity permanently, so callers must confirm first.
   Future<void> resetVault() async {
-    HelperMethods.printDebug('[VaultCubit] resetVault() — wiping secure storage');
+    HelperMethods.printDebug(
+      '[VaultCubit] resetVault() — wiping secure storage',
+    );
     await _storage.deleteAll();
     _identityCache.clear();
     _chatIdentityCache.clear();

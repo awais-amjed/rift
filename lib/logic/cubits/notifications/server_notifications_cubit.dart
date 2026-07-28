@@ -46,8 +46,8 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
   ServerNotificationsCubit({
     required ServerCubit serverCubit,
     required ChannelChatCubit chatCubit,
-  })  : _serverCubit = serverCubit,
-        super(const NotificationsState()) {
+  }) : _serverCubit = serverCubit,
+       super(const NotificationsState()) {
     _serverSub = serverCubit.stream.listen((_) => _sync());
     _chatSub = chatCubit.stream.listen(_onChatChanged);
     WindowFocusService.instance.focused.addListener(_onFocusChanged);
@@ -56,8 +56,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
       _openChannelId = chatCubit.state.channelId;
     }
     // Keep background servers' JWTs fresh so their subscriptions don't lapse.
-    _refreshTimer =
-        Timer.periodic(const Duration(minutes: 1), (_) => _sync());
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) => _sync());
     _sync();
   }
 
@@ -189,8 +188,9 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
       }
       NotificationService.instance.showMessage(
         title: server?.name ?? 'Rift',
-        body:
-            channelName != null ? 'New message in #$channelName' : 'New message',
+        body: channelName != null
+            ? 'New message in #$channelName'
+            : 'New message',
       );
     }
   }

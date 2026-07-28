@@ -32,27 +32,25 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   Future<APIResponse> getChannelToken(
     String channelId, {
     bool screenShare = false,
-  }) =>
-      _callWithAutoRefresh(
-        (token) => _repository.getChannelToken(
-          state.selectedServer!.supabaseUrl,
-          channelId,
-          screenShare: screenShare,
-          bearerToken: token,
-        ),
-      );
+  }) => _callWithAutoRefresh(
+    (token) => _repository.getChannelToken(
+      state.selectedServer!.supabaseUrl,
+      channelId,
+      screenShare: screenShare,
+      bearerToken: token,
+    ),
+  );
 
   /// Fetch the full member list for the selected server.
   Future<({bool success, List<ServerMember>? members, String? error})>
-      listMembers() async {
+  listMembers() async {
     final server = state.selectedServer;
     if (server == null) {
       return (success: false, members: null, error: 'No server selected');
     }
 
     final response = await _callWithAutoRefresh(
-      (token) =>
-          _repository.listUsers(server.supabaseUrl, bearerToken: token),
+      (token) => _repository.listUsers(server.supabaseUrl, bearerToken: token),
     );
 
     if (!response.success) {
@@ -75,17 +73,16 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     bool? isServerAdmin,
     bool? isChannelManager,
     bool? canCreateTokens,
-  }) =>
-      _callWithAutoRefresh(
-        (token) => _repository.setUserPermissions(
-          state.selectedServer!.supabaseUrl,
-          bearerToken: token,
-          userId: userId,
-          isServerAdmin: isServerAdmin,
-          isChannelManager: isChannelManager,
-          canCreateTokens: canCreateTokens,
-        ),
-      );
+  }) => _callWithAutoRefresh(
+    (token) => _repository.setUserPermissions(
+      state.selectedServer!.supabaseUrl,
+      bearerToken: token,
+      userId: userId,
+      isServerAdmin: isServerAdmin,
+      isChannelManager: isChannelManager,
+      canCreateTokens: canCreateTokens,
+    ),
+  );
 
   /// Persistently mutes/deafens a user server-wide (requires channel
   /// manager or server admin).
@@ -93,16 +90,15 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     required String userId,
     bool? isMuted,
     bool? isDeafened,
-  }) =>
-      _callWithAutoRefresh(
-        (token) => _repository.moderateUser(
-          state.selectedServer!.supabaseUrl,
-          bearerToken: token,
-          userId: userId,
-          isMuted: isMuted,
-          isDeafened: isDeafened,
-        ),
-      );
+  }) => _callWithAutoRefresh(
+    (token) => _repository.moderateUser(
+      state.selectedServer!.supabaseUrl,
+      bearerToken: token,
+      userId: userId,
+      isMuted: isMuted,
+      isDeafened: isDeafened,
+    ),
+  );
 
   /// Creates a new server. On success returns the single-use admin invite code.
   Future<({bool success, String? inviteCode, String? error})> createServer({
@@ -165,21 +161,9 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   }
 
   /// Validate an invite code without registering a user.
-  Future<
-    ({
-      bool success,
-      String? error,
-      String? serverId,
-      String? serverName,
-    })
-  >
+  Future<({bool success, String? error, String? serverId, String? serverName})>
   validateInvite(String supabaseUrl, String inviteCode) async {
-    return (
-      success: true,
-      error: null,
-      serverId: null,
-      serverName: null,
-    );
+    return (success: true, error: null, serverId: null, serverName: null);
   }
 
   /// Create a new channel in the selected server.
@@ -202,7 +186,10 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     );
 
     if (!response.success) {
-      return (success: false, error: response.error ?? 'Failed to create channel');
+      return (
+        success: false,
+        error: response.error ?? 'Failed to create channel',
+      );
     }
 
     // Refresh our own channel list to include the newly created one, and ping
@@ -242,7 +229,10 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     );
 
     if (!response.success) {
-      return (success: false, error: response.error ?? 'Failed to update server');
+      return (
+        success: false,
+        error: response.error ?? 'Failed to update server',
+      );
     }
 
     final data = (response.data as Map?)?.cast<String, dynamic>() ?? const {};
@@ -264,7 +254,8 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     }
 
     final response = await _callWithAutoRefresh(
-      (token) => _repository.getServerDetails(server.supabaseUrl, bearerToken: token),
+      (token) =>
+          _repository.getServerDetails(server.supabaseUrl, bearerToken: token),
     );
 
     if (response.success) {
@@ -277,10 +268,9 @@ mixin _ServerApiMixin on Cubit<ServerState> {
           [];
       final supabaseKey = data['supabase_key'] as String?;
       final rawUser = data['user'];
-      final user =
-          rawUser != null
-              ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
-              : null;
+      final user = rawUser != null
+          ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
+          : null;
 
       updateServer(
         server.id,
@@ -297,4 +287,3 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     }
   }
 }
-

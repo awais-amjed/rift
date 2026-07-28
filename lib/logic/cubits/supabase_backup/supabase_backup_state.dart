@@ -51,8 +51,9 @@ class SupabaseBackupState {
       cloudBackupConflict: cloudBackupConflict ?? this.cloudBackupConflict,
       email: email ?? this.email,
       error: clearMessage ? null : (error ?? this.error),
-      successMessage:
-          clearMessage ? null : (successMessage ?? this.successMessage),
+      successMessage: clearMessage
+          ? null
+          : (successMessage ?? this.successMessage),
     );
   }
 
@@ -72,13 +73,13 @@ class SupabaseBackupState {
 
   @override
   int get hashCode => Object.hash(
-        isProcessing,
-        isSignedIn,
-        needsEmailConfirmation,
-        needsVaultPassword,
-        cloudBackupConflict,
-        email,
-        error,
-        successMessage,
-      );
+    isProcessing,
+    isSignedIn,
+    needsEmailConfirmation,
+    needsVaultPassword,
+    cloudBackupConflict,
+    email,
+    error,
+    successMessage,
+  );
 }

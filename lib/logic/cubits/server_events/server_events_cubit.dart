@@ -26,8 +26,8 @@ class ServerEventsCubit extends Cubit<int> {
   String? _serverId;
 
   ServerEventsCubit({required ServerCubit serverCubit})
-      : _serverCubit = serverCubit,
-        super(0) {
+    : _serverCubit = serverCubit,
+      super(0) {
     _serverSub = serverCubit.stream.listen((_) => _sync());
     _sync();
   }

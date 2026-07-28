@@ -59,7 +59,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
               e.publication.unsubscribe();
             }
           } else if (e.publication.source == TrackSource.screenShareAudio) {
-            if (!state.subscribedScreenshares.contains(e.participant.identity)) {
+            if (!state.subscribedScreenshares.contains(
+              e.participant.identity,
+            )) {
               e.publication.unsubscribe();
             }
           }
@@ -92,4 +94,3 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
       });
   }
 }
-

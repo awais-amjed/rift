@@ -51,10 +51,8 @@ class TokenCubit extends HydratedCubit<TokenState> {
     try {
       final raw = json['tokens'] as Map<String, dynamic>? ?? {};
       final tokens = raw.map(
-        (key, value) => MapEntry(
-          key,
-          CachedToken.fromJson(value as Map<String, dynamic>),
-        ),
+        (key, value) =>
+            MapEntry(key, CachedToken.fromJson(value as Map<String, dynamic>)),
       );
       return TokenState(tokens: tokens);
     } catch (_) {
@@ -78,4 +76,3 @@ class TokenCubit extends HydratedCubit<TokenState> {
     emit(state.copyWith(tokens: updated));
   }
 }
-

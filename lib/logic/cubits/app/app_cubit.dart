@@ -88,17 +88,21 @@ class AppCubit extends HydratedCubit<AppState> {
   }
 
   void setOutputDeviceId(String? deviceId) {
-    emit(state.copyWith(
-      outputDeviceId: deviceId,
-      clearOutputDeviceId: deviceId == null,
-    ));
+    emit(
+      state.copyWith(
+        outputDeviceId: deviceId,
+        clearOutputDeviceId: deviceId == null,
+      ),
+    );
   }
 
   void setInputDeviceId(String? deviceId) {
-    emit(state.copyWith(
-      inputDeviceId: deviceId,
-      clearInputDeviceId: deviceId == null,
-    ));
+    emit(
+      state.copyWith(
+        inputDeviceId: deviceId,
+        clearInputDeviceId: deviceId == null,
+      ),
+    );
   }
 
   // ── Persisted: per-participant volume/mute ───────────────

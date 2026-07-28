@@ -125,8 +125,7 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
           if (s.type == 'remote-inbound-rtp' && s.values['kind'] == 'audio') {
             final fractionLost = s.values['fractionLost'] as num?;
             if (fractionLost != null) {
-              packetLossPercent =
-                  (fractionLost * 100).clamp(0, 100).toDouble();
+              packetLossPercent = (fractionLost * 100).clamp(0, 100).toDouble();
             }
             if (rttMs == null) {
               final rtt = s.values['roundTripTime'] as num?;

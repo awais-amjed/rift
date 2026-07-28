@@ -28,6 +28,8 @@ class NotificationsState {
     return total;
   }
 
-  NotificationsState copyWith({Map<String, Map<String, int>>? unreadByServer}) =>
+  NotificationsState copyWith({
+    Map<String, Map<String, int>>? unreadByServer,
+  }) =>
       NotificationsState(unreadByServer: unreadByServer ?? this.unreadByServer);
 }

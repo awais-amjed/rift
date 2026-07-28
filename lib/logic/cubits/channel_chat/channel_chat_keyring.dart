@@ -47,8 +47,9 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
     if (_publishedChatKey.contains(server.id)) return false;
     final identity = await _chatIdentity(server);
     if (identity == null) return false;
-    final response =
-        await _serverCubit.publishChatKey(identity.publicKeyBase64);
+    final response = await _serverCubit.publishChatKey(
+      identity.publicKeyBase64,
+    );
     if (!response.success) return false;
     _publishedChatKey.add(server.id);
     final data = response.data as Map<String, dynamic>?;
@@ -75,13 +76,16 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
       final data = response.data as Map<String, dynamic>;
       final currentVersion = data['current_version'] as int;
       final myKeys = (data['my_keys'] as List).cast<Map<String, dynamic>>();
-      final missing =
-          (data['members_missing'] as List).cast<Map<String, dynamic>>();
+      final missing = (data['members_missing'] as List)
+          .cast<Map<String, dynamic>>();
 
       if (currentVersion == 0) {
         // No key yet — we're the bootstrapper (or we lose the race and loop).
-        final bootstrapped =
-            await _bootstrapKeyring(channelId, identity, missing);
+        final bootstrapped = await _bootstrapKeyring(
+          channelId,
+          identity,
+          missing,
+        );
         if (bootstrapped == _KeyringStatus.ready) return _KeyringStatus.ready;
         if (bootstrapped == _KeyringStatus.error) return _KeyringStatus.error;
         continue; // conflict — refetch the winner's keyring
@@ -125,13 +129,11 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
     for (final member in members) {
       final wrapped = await _crypto.wrapKey(
         key: channelKey,
-        recipientPublicKey:
-            CryptoRepository.fromBase64(member['chat_public_key'] as String),
+        recipientPublicKey: CryptoRepository.fromBase64(
+          member['chat_public_key'] as String,
+        ),
       );
-      entries.add({
-        'user_id': member['user_id'],
-        ...wrapped.toJson(),
-      });
+      entries.add({'user_id': member['user_id'], ...wrapped.toJson()});
     }
 
     final response = await _serverCubit.postChannelKeys(
@@ -165,13 +167,11 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
       for (final member in members) {
         final wrapped = await _crypto.wrapKey(
           key: channelKey,
-          recipientPublicKey:
-              CryptoRepository.fromBase64(member['chat_public_key'] as String),
+          recipientPublicKey: CryptoRepository.fromBase64(
+            member['chat_public_key'] as String,
+          ),
         );
-        entries.add({
-          'user_id': member['user_id'],
-          ...wrapped.toJson(),
-        });
+        entries.add({'user_id': member['user_id'], ...wrapped.toJson()});
       }
       final response = await _serverCubit.postChannelKeys(
         channelId: channelId,

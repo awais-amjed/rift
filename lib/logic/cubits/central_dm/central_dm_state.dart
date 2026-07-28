@@ -80,14 +80,16 @@ class CentralDmState {
       quota: quota ?? this.quota,
       remaining: remaining ?? this.remaining,
       openPeerId: closeConversation ? null : (openPeerId ?? this.openPeerId),
-      openPeerHandle:
-          closeConversation ? null : (openPeerHandle ?? this.openPeerHandle),
+      openPeerHandle: closeConversation
+          ? null
+          : (openPeerHandle ?? this.openPeerHandle),
       chatStatus: closeConversation
           ? DmChatStatus.closed
           : (chatStatus ?? this.chatStatus),
       messages: closeConversation ? const [] : (messages ?? this.messages),
-      hasMoreHistory:
-          closeConversation ? false : (hasMoreHistory ?? this.hasMoreHistory),
+      hasMoreHistory: closeConversation
+          ? false
+          : (hasMoreHistory ?? this.hasMoreHistory),
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: clearError ? null : (error ?? this.error),
     );

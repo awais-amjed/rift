@@ -8,18 +8,21 @@ import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/message_body.dart';
-import '../../../data/classes/message_reaction.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/chat_attachment_uploader.dart';
+import '../../services/chat_message_ops.dart';
 import '../../services/notification_service.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'dm_state.dart';
-part 'dm_messages.dart';
+part 'dm_conversations.dart';
+part 'dm_history.dart';
+part 'dm_send.dart';
+part 'dm_reactions.dart';
 
 /// E2E direct messages between members of the selected server
 /// (ARCHITECTURE.md §4, Design 1 — encrypt to identity).
@@ -29,7 +32,12 @@ part 'dm_messages.dart';
 /// chat key, the conversation just works. Live delivery uses a per-user
 /// Realtime doorbell topic (`dm:<serverId>:<userId>`); the database row is
 /// authoritative, the ping is a doorbell exactly like channel chat.
-class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
+class DmCubit extends Cubit<DmState>
+    with
+        _DmConversationsMixin,
+        _DmHistoryMixin,
+        _DmSendMixin,
+        _DmReactionsMixin {
   @override
   final ServerCubit _serverCubit;
   final VaultCubit _vaultCubit;
@@ -62,10 +70,10 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
     required ServerCubit serverCubit,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
-  })  : _serverCubit = serverCubit,
-        _vaultCubit = vaultCubit,
-        _crypto = crypto ?? CryptoRepository(),
-        super(const DmState()) {
+  }) : _serverCubit = serverCubit,
+       _vaultCubit = vaultCubit,
+       _crypto = crypto ?? CryptoRepository(),
+       super(const DmState()) {
     _serverSub = serverCubit.stream.listen((_) => _onServerChanged());
     _vaultSub = vaultCubit.stream.listen((_) => _onServerChanged());
     _onServerChanged();
@@ -117,8 +125,11 @@ class DmCubit extends Cubit<DmState> with _DmMessagesMixin {
   /// The Ed25519 signing identity for this server (message signatures).
   @override
   Future<ServerIdentity> _vaultIdentityFor(Server server) =>
-      _vaultCubit.getIdentityForHost(_hostOf(server),
-          serverId: server.id, version: server.keyVersion);
+      _vaultCubit.getIdentityForHost(
+        _hostOf(server),
+        serverId: server.id,
+        version: server.keyVersion,
+      );
 
   @override
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey) async {

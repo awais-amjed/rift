@@ -7,18 +7,20 @@ import 'package:supabase/supabase.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/message_body.dart';
-import '../../../data/classes/message_reaction.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/chat_attachment_uploader.dart';
+import '../../services/chat_message_ops.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'channel_chat_state.dart';
 part 'channel_chat_keyring.dart';
-part 'channel_chat_messages.dart';
+part 'channel_chat_history.dart';
+part 'channel_chat_send.dart';
+part 'channel_chat_reactions.dart';
 part 'channel_chat_sweep.dart';
 
 /// E2E chat for the selected server's text channels (ARCHITECTURE.md §4,
@@ -35,7 +37,12 @@ part 'channel_chat_sweep.dart';
 ///   database is the single source of truth, the ping is just a doorbell
 ///   (so a forged broadcast can at worst cause a fetch).
 class ChannelChatCubit extends Cubit<ChannelChatState>
-    with _ChatKeyringMixin, _ChatMessagesMixin, _ChatSweepMixin {
+    with
+        _ChatKeyringMixin,
+        _ChannelChatHistoryMixin,
+        _ChannelChatSendMixin,
+        _ChannelChatReactionsMixin,
+        _ChatSweepMixin {
   @override
   final ServerCubit _serverCubit;
   @override
@@ -90,10 +97,10 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     required ServerCubit serverCubit,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
-  })  : _serverCubit = serverCubit,
-        _vaultCubit = vaultCubit,
-        _crypto = crypto ?? CryptoRepository(),
-        super(const ChannelChatState()) {
+  }) : _serverCubit = serverCubit,
+       _vaultCubit = vaultCubit,
+       _crypto = crypto ?? CryptoRepository(),
+       super(const ChannelChatState()) {
     _serverSub = serverCubit.stream.listen(_onServerChanged);
     // The vault unlocks asynchronously at startup — chat readiness (key
     // publish + sweep) waits for the master seed.
@@ -110,17 +117,18 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     final generation = ++_openGeneration;
     await _teardownRealtime();
 
-    emit(ChannelChatState(
-      status: ChannelChatStatus.loading,
-      channelId: channelId,
-    ));
+    emit(
+      ChannelChatState(status: ChannelChatStatus.loading, channelId: channelId),
+    );
 
     final server = _serverCubit.state.selectedServer;
     if (server == null || server.user == null) {
-      emit(state.copyWith(
-        status: ChannelChatStatus.error,
-        error: 'No server selected',
-      ));
+      emit(
+        state.copyWith(
+          status: ChannelChatStatus.error,
+          error: 'No server selected',
+        ),
+      );
       return;
     }
 
@@ -131,10 +139,12 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     if (_isStale(generation)) return;
 
     if (keyStatus == _KeyringStatus.error) {
-      emit(state.copyWith(
-        status: ChannelChatStatus.error,
-        error: 'Could not load the channel key',
-      ));
+      emit(
+        state.copyWith(
+          status: ChannelChatStatus.error,
+          error: 'Could not load the channel key',
+        ),
+      );
       return;
     }
 
@@ -170,8 +180,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     await openChannel(channelId);
   }
 
-  bool _isStale(int generation) =>
-      isClosed || generation != _openGeneration;
+  bool _isStale(int generation) => isClosed || generation != _openGeneration;
 
   void _onServerChanged(ServerState serverState) {
     // Switching (or losing) the server closes the open chat.
@@ -224,10 +233,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     if (server.supabaseKey == null) return;
     _sweepRtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
     _sweepRtChannel = _sweepRtClient!.channel('keysweep:${server.id}')
-      ..onBroadcast(
-        event: 'sweep',
-        callback: (_) => _onKeySweepDoorbell(),
-      )
+      ..onBroadcast(event: 'sweep', callback: (_) => _onKeySweepDoorbell())
       ..subscribe();
   }
 
@@ -269,18 +275,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     _rtServerId = server.id;
     _rtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
     _rtChannel = _rtClient!.channel('chat:$channelId')
-      ..onBroadcast(
-        event: 'new_message',
-        callback: (_) => _onDoorbell(),
-      )
-      ..onBroadcast(
-        event: 'typing',
-        callback: _onTyping,
-      )
-      ..onBroadcast(
-        event: 'reaction',
-        callback: (_) => refreshReactions(),
-      )
+      ..onBroadcast(event: 'new_message', callback: (_) => _onDoorbell())
+      ..onBroadcast(event: 'typing', callback: _onTyping)
+      ..onBroadcast(event: 'reaction', callback: (_) => refreshReactions())
       ..subscribe();
   }
 
@@ -342,9 +339,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   void _removeTyping(String userId) {
     _typingTimers.remove(userId)?.cancel();
     if (isClosed || !state.typingUsers.containsKey(userId)) return;
-    emit(state.copyWith(
-      typingUsers: {...state.typingUsers}..remove(userId),
-    ));
+    emit(state.copyWith(typingUsers: {...state.typingUsers}..remove(userId)));
   }
 
   @override

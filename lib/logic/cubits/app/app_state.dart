@@ -122,8 +122,12 @@ class AppState {
       windowY: windowY ?? this.windowY,
       disableAudioDucking: disableAudioDucking ?? this.disableAudioDucking,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
-      outputDeviceId: clearOutputDeviceId ? null : (outputDeviceId ?? this.outputDeviceId),
-      inputDeviceId: clearInputDeviceId ? null : (inputDeviceId ?? this.inputDeviceId),
+      outputDeviceId: clearOutputDeviceId
+          ? null
+          : (outputDeviceId ?? this.outputDeviceId),
+      inputDeviceId: clearInputDeviceId
+          ? null
+          : (inputDeviceId ?? this.inputDeviceId),
       noiseSuppression: noiseSuppression ?? this.noiseSuppression,
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,

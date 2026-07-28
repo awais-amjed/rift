@@ -46,8 +46,10 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
       if (room != null) {
         // Re-subscribe all remote audio tracks, restoring per-participant settings.
         for (final participant in room.remoteParticipants.values) {
-          final setting = _appCubit.state.participantSettings[
-              ParticipantIdentity.userIdOf(participant.identity)];
+          final setting =
+              _appCubit.state.participantSettings[ParticipantIdentity.userIdOf(
+                participant.identity,
+              )];
           final isMuted = setting?.muted ?? false;
           for (final pub in participant.audioTrackPublications) {
             await pub.subscribe();
@@ -95,4 +97,3 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     _syncParticipants();
   }
 }
-

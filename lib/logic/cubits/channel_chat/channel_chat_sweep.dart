@@ -50,8 +50,8 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
   ) async {
     final channelId = job['channel_id'] as String;
     final version = job['key_version'] as int;
-    final missing =
-        (job['members_missing'] as List).cast<Map<String, dynamic>>();
+    final missing = (job['members_missing'] as List)
+        .cast<Map<String, dynamic>>();
     if (missing.isEmpty) return false;
 
     final Uint8List channelKey;
@@ -72,8 +72,9 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
     for (final member in missing) {
       final wrapped = await _crypto.wrapKey(
         key: channelKey,
-        recipientPublicKey:
-            CryptoRepository.fromBase64(member['chat_public_key'] as String),
+        recipientPublicKey: CryptoRepository.fromBase64(
+          member['chat_public_key'] as String,
+        ),
       );
       entries.add({'user_id': member['user_id'], ...wrapped.toJson()});
     }
