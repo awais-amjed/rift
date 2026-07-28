@@ -76,10 +76,16 @@ seams that have worked for chat, in order:
 Cross-mixin contracts:
 
 - A mixin declares what it needs as an **abstract getter/method** at the top, grouped
-  before the implementation, and the cubit class or another mixin supplies it.
-- Prefer calling a **public** member across mixins. A *private* member implemented in one
-  mixin and called from another trips `unused_element` — either keep both the call and the
-  implementation in the same mixin, or make the member public.
+  before the implementation, and something else supplies it.
+- **Satisfy those declarations from the cubit class**, not from a sibling mixin. A
+  *private* member declared abstract in one mixin and implemented in another trips
+  `unused_element` — the analyzer resolves the call to the abstract declaration and never
+  sees the implementation. The class is the meeting point: it holds the state and the
+  handful of internals several mixins share (`_uploadBackup`, `_postAuthSync`).
+- If a member really must live in a sibling mixin, make it **public** — `unused_element`
+  only fires on private declarations. Say in its doc comment that it is cubit-internal
+  (`setupRoomListeners`).
+- The class calling *into* a mixin needs no declaration at all — that's plain inheritance.
 - State stays in the cubit class (`final Map<String, Uint8List> _dmKeys = {}`) with
   `@override` on the field and an abstract getter in each mixin that reads it.
 
