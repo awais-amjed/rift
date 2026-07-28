@@ -15,6 +15,17 @@ import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/helper_methods.dart';
 import '../../../logic/services/mime_util.dart';
 
+/// Shared geometry for the composer row. Every control is a square of
+/// [_controlSize] and the single-line field is padded to exactly that height,
+/// so icons, text and the send button all sit on the same centre line — and
+/// stay there as the field grows to multiple lines.
+const double _controlSize = 38;
+const double _iconSize = 20;
+const double _fieldFontSize = 14;
+const double _fieldLineHeight = 1.4;
+const double _fieldVPad =
+    (_controlSize - _fieldFontSize * _fieldLineHeight) / 2;
+
 /// Message input row: attach button + multiline text field + send button, with
 /// a row of staged-attachment chips above the field once files are picked.
 ///
@@ -247,7 +258,11 @@ class _ChatComposerState extends State<ChatComposer> {
         const SizedBox(width: 9),
         Text(
           'Recording…',
-          style: TextStyle(fontSize: 14, color: themeState.textSecondary),
+          style: TextStyle(
+            fontSize: _fieldFontSize,
+            height: _fieldLineHeight,
+            color: themeState.textSecondary,
+          ),
         ),
         const Spacer(),
         Text(
@@ -345,14 +360,25 @@ class _ChatComposerState extends State<ChatComposer> {
                                 minLines: 1,
                                 maxLines: 6,
                                 style: TextStyle(
-                                  fontSize: 14,
-                                  height: 1.35,
+                                  fontSize: _fieldFontSize,
+                                  height: _fieldLineHeight,
                                   color: themeState.textPrimary,
+                                ),
+                                // Pin the line box: without this an emoji (or
+                                // any taller glyph) stretches the line and the
+                                // whole bar jumps as you type.
+                                strutStyle: const StrutStyle(
+                                  fontSize: _fieldFontSize,
+                                  height: _fieldLineHeight,
+                                  forceStrutHeight: true,
                                 ),
                                 decoration: InputDecoration(
                                   hintText: widget.hintText,
+                                  // Same metrics as the real text, so the hint
+                                  // sits exactly where typing will start.
                                   hintStyle: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: _fieldFontSize,
+                                    height: _fieldLineHeight,
                                     color: themeState.textQuaternary,
                                   ),
                                   // The bar itself is the surface — don't paint the
@@ -366,8 +392,8 @@ class _ChatComposerState extends State<ChatComposer> {
                                   isCollapsed: true,
                                   isDense: true,
                                   contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 10,
+                                    horizontal: 6,
+                                    vertical: _fieldVPad,
                                   ),
                                 ),
                               ),
@@ -384,7 +410,6 @@ class _ChatComposerState extends State<ChatComposer> {
                                 ? _startRecording
                                 : null,
                           ),
-                          const SizedBox(width: 2),
                           _SendButton(
                             themeState: themeState,
                             enabled: canSend,
@@ -584,9 +609,11 @@ class _ComposerIconButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         hoverColor: themeState.bgHover,
         child: SizedBox(
-          width: 38,
-          height: 38,
-          child: Icon(icon, size: 21, color: color),
+          width: _controlSize,
+          height: _controlSize,
+          child: Center(
+            child: Icon(icon, size: _iconSize, color: color),
+          ),
         ),
       ),
     );
@@ -616,23 +643,27 @@ class _SendButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         hoverColor: enabled ? Colors.transparent : themeState.bgHover,
         child: SizedBox(
-          width: 38,
-          height: 38,
+          width: _controlSize,
+          height: _controlSize,
           child: Center(
+            // Fixed footprint in both states — only the colours cross-fade, so
+            // the arrow doesn't hop when the message becomes sendable.
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 120),
-              width: enabled ? 32 : 30,
-              height: enabled ? 32 : 30,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: enabled ? themeState.primary : Colors.transparent,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.arrow_upward_rounded,
-                size: 19,
-                color: enabled
-                    ? themeState.onPrimary
-                    : themeState.textQuaternary,
+              child: Center(
+                child: Icon(
+                  Icons.arrow_upward_rounded,
+                  size: _iconSize,
+                  color: enabled
+                      ? themeState.onPrimary
+                      : themeState.textQuaternary,
+                ),
               ),
             ),
           ),
