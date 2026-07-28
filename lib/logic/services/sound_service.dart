@@ -35,13 +35,12 @@ class SoundService {
       await player.setVolume(0.15);
       await player.play(AssetSource(asset));
       // Dispose once playback finishes (or after a generous timeout).
-      player.onPlayerComplete.first.timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {},
-      ).then((_) => player.dispose()).catchError((_) => player.dispose());
+      player.onPlayerComplete.first
+          .timeout(const Duration(seconds: 10), onTimeout: () {})
+          .then((_) => player.dispose())
+          .catchError((_) => player.dispose());
     } catch (e) {
       debugPrint('SoundService: failed to play $asset – $e');
     }
   }
 }
-

@@ -4,4 +4,3 @@ class WindowsAudioDucking {
   static void restore() {}
   static void apply({required bool disable}) {}
 }
-

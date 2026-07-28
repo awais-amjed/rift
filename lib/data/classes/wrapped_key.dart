@@ -30,8 +30,8 @@ class WrappedKey {
   }
 
   Map<String, dynamic> toJson() => {
-        'ephemeral_public_key': ephemeralPublicKey,
-        'ciphertext': ciphertext,
-        'nonce': nonce,
-      };
+    'ephemeral_public_key': ephemeralPublicKey,
+    'ciphertext': ciphertext,
+    'nonce': nonce,
+  };
 }

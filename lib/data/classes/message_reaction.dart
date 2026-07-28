@@ -12,7 +12,8 @@ class MessageReaction {
     required this.mine,
   });
 
-  factory MessageReaction.fromJson(Map<String, dynamic> json) => MessageReaction(
+  factory MessageReaction.fromJson(Map<String, dynamic> json) =>
+      MessageReaction(
         emoji: json['emoji'] as String,
         count: (json['count'] as num).toInt(),
         mine: json['mine'] as bool? ?? false,

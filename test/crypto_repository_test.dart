@@ -14,9 +14,15 @@ void main() {
   group('deriveServerIdentity', () {
     test('is deterministic for the same (seed, host, serverId)', () async {
       final a = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'a.example.com', serverId: 's1');
+        masterSeed: seed,
+        host: 'a.example.com',
+        serverId: 's1',
+      );
       final b = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'a.example.com', serverId: 's1');
+        masterSeed: seed,
+        host: 'a.example.com',
+        serverId: 's1',
+      );
 
       expect(a.publicKeyBase64, b.publicKeyBase64);
       expect(a.stableId, b.stableId);
@@ -25,9 +31,15 @@ void main() {
     test('same host, different serverId → distinct identity '
         '(the multi-server-per-project guarantee)', () async {
       final s1 = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'shared.example.com', serverId: 's1');
+        masterSeed: seed,
+        host: 'shared.example.com',
+        serverId: 's1',
+      );
       final s2 = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'shared.example.com', serverId: 's2');
+        masterSeed: seed,
+        host: 'shared.example.com',
+        serverId: 's2',
+      );
 
       expect(s1.publicKeyBase64, isNot(s2.publicKeyBase64));
       expect(s1.stableId, isNot(s2.stableId));
@@ -35,9 +47,15 @@ void main() {
 
     test('different host → distinct identity', () async {
       final a = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'a.example.com', serverId: 's1');
+        masterSeed: seed,
+        host: 'a.example.com',
+        serverId: 's1',
+      );
       final b = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'b.example.com', serverId: 's1');
+        masterSeed: seed,
+        host: 'b.example.com',
+        serverId: 's1',
+      );
 
       expect(a.publicKeyBase64, isNot(b.publicKeyBase64));
       expect(a.stableId, isNot(b.stableId));
@@ -46,29 +64,47 @@ void main() {
     test('central (serverId null) differs from any server on the same host, '
         'and is stable', () async {
       final central1 = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'h.example.com');
+        masterSeed: seed,
+        host: 'h.example.com',
+      );
       final central2 = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'h.example.com');
+        masterSeed: seed,
+        host: 'h.example.com',
+      );
       final server = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'h.example.com', serverId: 's1');
+        masterSeed: seed,
+        host: 'h.example.com',
+        serverId: 's1',
+      );
 
       expect(central1.publicKeyBase64, central2.publicKeyBase64); // unchanged
       expect(central1.publicKeyBase64, isNot(server.publicKeyBase64));
     });
 
     test('different seed → distinct identity', () async {
-      final otherSeed = Uint8List.fromList(List<int>.generate(32, (i) => 31 - i));
+      final otherSeed = Uint8List.fromList(
+        List<int>.generate(32, (i) => 31 - i),
+      );
       final a = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'h', serverId: 's1');
+        masterSeed: seed,
+        host: 'h',
+        serverId: 's1',
+      );
       final b = await crypto.deriveServerIdentity(
-          masterSeed: otherSeed, host: 'h', serverId: 's1');
+        masterSeed: otherSeed,
+        host: 'h',
+        serverId: 's1',
+      );
 
       expect(a.publicKeyBase64, isNot(b.publicKeyBase64));
     });
 
     test('public key is 32 bytes (Ed25519)', () async {
       final id = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'h', serverId: 's1');
+        masterSeed: seed,
+        host: 'h',
+        serverId: 's1',
+      );
       expect(id.publicKeyBytes.length, 32);
     });
   });
@@ -76,7 +112,10 @@ void main() {
   group('signSiws', () {
     test('produces a well-formed SIWS message that verifies', () async {
       final id = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'localhost', serverId: 's1');
+        masterSeed: seed,
+        host: 'localhost',
+        serverId: 's1',
+      );
       final address = CryptoRepository.toBase58(id.publicKeyBytes);
 
       final signed = await crypto.signSiws(
@@ -87,8 +126,10 @@ void main() {
       );
 
       // Format required by GoTrue's web3 grant (verified on the stack).
-      expect(signed.message, startsWith(
-          'localhost wants you to sign in with your Solana account:'));
+      expect(
+        signed.message,
+        startsWith('localhost wants you to sign in with your Solana account:'),
+      );
       expect(signed.message, contains('\n$address\n'));
       expect(signed.message, contains('URI: http://localhost:8000'));
       expect(signed.message, contains('Chain ID: solana:mainnet'));
@@ -109,7 +150,10 @@ void main() {
 
     test('a tampered message fails verification', () async {
       final id = await crypto.deriveServerIdentity(
-          masterSeed: seed, host: 'localhost', serverId: 's1');
+        masterSeed: seed,
+        host: 'localhost',
+        serverId: 's1',
+      );
       final signed = await crypto.signSiws(
         keyPair: id.keyPair,
         publicKeyBytes: id.publicKeyBytes,
@@ -133,7 +177,10 @@ void main() {
   group('encoding helpers', () {
     test('base64 round-trips', () {
       final bytes = Uint8List.fromList([0, 1, 2, 250, 255]);
-      expect(CryptoRepository.fromBase64(CryptoRepository.toBase64(bytes)), bytes);
+      expect(
+        CryptoRepository.fromBase64(CryptoRepository.toBase64(bytes)),
+        bytes,
+      );
     });
 
     test('base58 preserves leading zeros as "1"s', () {
@@ -146,7 +193,8 @@ void main() {
 
     test('base58 uses only the base58 alphabet (no 0 O I l)', () {
       final s = CryptoRepository.toBase58(
-          Uint8List.fromList(List<int>.generate(32, (i) => (i * 7) & 0xff)));
+        Uint8List.fromList(List<int>.generate(32, (i) => (i * 7) & 0xff)),
+      );
       expect(s, matches(RegExp(r'^[1-9A-HJ-NP-Za-km-z]+$')));
     });
   });

@@ -20,7 +20,10 @@ class ServerRepository with _ChatApiMixin {
 
   static String _generateDeviceId() {
     final rng = Random.secure();
-    return List.generate(8, (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+    return List.generate(
+      8,
+      (_) => rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
   }
 
   // ──────────────────────────────────────────────────────────
@@ -57,7 +60,8 @@ class ServerRepository with _ChatApiMixin {
       // Distinguish "can't reach the server" from other failures so the UI can
       // show a friendly offline message instead of a raw exception.
       final msg = e.toString().toLowerCase();
-      final isConnectionError = e is http.ClientException ||
+      final isConnectionError =
+          e is http.ClientException ||
           msg.contains('socketexception') ||
           msg.contains('failed host lookup') ||
           msg.contains('connection refused') ||
@@ -114,7 +118,12 @@ class ServerRepository with _ChatApiMixin {
     String supabaseUrl, {
     String? bearerToken,
   }) {
-    return _post(supabaseUrl, 'get_server_details', {}, bearerToken: bearerToken);
+    return _post(
+      supabaseUrl,
+      'get_server_details',
+      {},
+      bearerToken: bearerToken,
+    );
   }
 
   /// Update server details (admin only).
@@ -127,18 +136,13 @@ class ServerRepository with _ChatApiMixin {
     String? livekitApiKey,
     String? livekitSecretKey,
   }) {
-    return _post(
-      supabaseUrl,
-      'update_server',
-      {
-        if (name != null) 'name': name,
-        if (iconUrl != null) 'icon_url': iconUrl,
-        if (livekitUrl != null) 'livekit_url': livekitUrl,
-        if (livekitApiKey != null) 'livekit_api_key': livekitApiKey,
-        if (livekitSecretKey != null) 'livekit_secret_key': livekitSecretKey,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'update_server', {
+      if (name != null) 'name': name,
+      if (iconUrl != null) 'icon_url': iconUrl,
+      if (livekitUrl != null) 'livekit_url': livekitUrl,
+      if (livekitApiKey != null) 'livekit_api_key': livekitApiKey,
+      if (livekitSecretKey != null) 'livekit_secret_key': livekitSecretKey,
+    }, bearerToken: bearerToken);
   }
 
   // ──────────────────────────────────────────────────────────
@@ -163,11 +167,17 @@ class ServerRepository with _ChatApiMixin {
   /// Needed before login/register so the per-(host, serverId) SIWS identity can
   /// be derived when several servers share one Supabase project.
   Future<({bool success, String? serverId, String? serverName, String? error})>
-      resolveInvite(String supabaseUrl, String inviteCode) async {
-    final response =
-        await _post(supabaseUrl, 'resolve_invite', {'invite_code': inviteCode});
+  resolveInvite(String supabaseUrl, String inviteCode) async {
+    final response = await _post(supabaseUrl, 'resolve_invite', {
+      'invite_code': inviteCode,
+    });
     if (!response.success || response.data is! Map) {
-      return (success: false, serverId: null, serverName: null, error: response.error);
+      return (
+        success: false,
+        serverId: null,
+        serverName: null,
+        error: response.error,
+      );
     }
     final data = response.data as Map<String, dynamic>;
     return (
@@ -190,18 +200,13 @@ class ServerRepository with _ChatApiMixin {
     required String username,
     required String displayName,
   }) {
-    return _post(
-      supabaseUrl,
-      'register',
-      {
-        'invite_code': inviteCode,
-        'public_key': publicKey,
-        'stable_id': stableId,
-        'username': username,
-        'display_name': displayName,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'register', {
+      'invite_code': inviteCode,
+      'public_key': publicKey,
+      'stable_id': stableId,
+      'username': username,
+      'display_name': displayName,
+    }, bearerToken: bearerToken);
   }
 
   /// Check whether a username is available on the given server.
@@ -220,15 +225,10 @@ class ServerRepository with _ChatApiMixin {
     int? maxUses = 1,
     int? expiresInSeconds,
   }) {
-    return _post(
-      supabaseUrl,
-      'create_invite',
-      {
-        'max_uses': maxUses,
-        if (expiresInSeconds != null) 'expires_in_seconds': expiresInSeconds,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'create_invite', {
+      'max_uses': maxUses,
+      if (expiresInSeconds != null) 'expires_in_seconds': expiresInSeconds,
+    }, bearerToken: bearerToken);
   }
 
   /// List all members of the server with permissions and moderation state.
@@ -245,17 +245,12 @@ class ServerRepository with _ChatApiMixin {
     bool? isChannelManager,
     bool? canCreateTokens,
   }) {
-    return _post(
-      supabaseUrl,
-      'set_user_permissions',
-      {
-        'user_id': userId,
-        if (isServerAdmin != null) 'is_server_admin': isServerAdmin,
-        if (isChannelManager != null) 'is_channel_manager': isChannelManager,
-        if (canCreateTokens != null) 'can_create_tokens': canCreateTokens,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'set_user_permissions', {
+      'user_id': userId,
+      if (isServerAdmin != null) 'is_server_admin': isServerAdmin,
+      if (isChannelManager != null) 'is_channel_manager': isChannelManager,
+      if (canCreateTokens != null) 'can_create_tokens': canCreateTokens,
+    }, bearerToken: bearerToken);
   }
 
   // ──────────────────────────────────────────────────────────
@@ -269,12 +264,10 @@ class ServerRepository with _ChatApiMixin {
     required String name,
     required String channelType,
   }) {
-    return _post(
-      supabaseUrl,
-      'create_channel',
-      {'name': name, 'channel_type': channelType},
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'create_channel', {
+      'name': name,
+      'channel_type': channelType,
+    }, bearerToken: bearerToken);
   }
 
   /// Get a LiveKit JWT for joining a channel.
@@ -284,16 +277,11 @@ class ServerRepository with _ChatApiMixin {
     bool screenShare = false,
     String? bearerToken,
   }) {
-    return _post(
-      supabaseUrl,
-      'get_channel_token',
-      {
-        'channel_id': channelId,
-        'screen_share': screenShare,
-        'device_id': _deviceId,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'get_channel_token', {
+      'channel_id': channelId,
+      'screen_share': screenShare,
+      'device_id': _deviceId,
+    }, bearerToken: bearerToken);
   }
 
   /// Delete a channel (requires channel manager).
@@ -302,12 +290,9 @@ class ServerRepository with _ChatApiMixin {
     String channelId, {
     String? bearerToken,
   }) {
-    return _post(
-      supabaseUrl,
-      'delete_channel',
-      {'channel_id': channelId},
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'delete_channel', {
+      'channel_id': channelId,
+    }, bearerToken: bearerToken);
   }
 
   /// Persistently mute/unmute/deafen/undeafen a user (requires channel
@@ -320,15 +305,10 @@ class ServerRepository with _ChatApiMixin {
     bool? isMuted,
     bool? isDeafened,
   }) {
-    return _post(
-      supabaseUrl,
-      'moderate_user',
-      {
-        'user_id': userId,
-        if (isMuted != null) 'is_muted': isMuted,
-        if (isDeafened != null) 'is_deafened': isDeafened,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'moderate_user', {
+      'user_id': userId,
+      if (isMuted != null) 'is_muted': isMuted,
+      if (isDeafened != null) 'is_deafened': isDeafened,
+    }, bearerToken: bearerToken);
   }
 }

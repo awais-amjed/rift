@@ -30,13 +30,12 @@ void main() {
         int keyVersion = 1,
         String nonce = 'n',
         String ciphertext = 'ct',
-      }) =>
-          MessageEnvelope.signedPayload(
-            contextId: contextId,
-            keyVersion: keyVersion,
-            nonce: nonce,
-            ciphertext: ciphertext,
-          );
+      }) => MessageEnvelope.signedPayload(
+        contextId: contextId,
+        keyVersion: keyVersion,
+        nonce: nonce,
+        ciphertext: ciphertext,
+      );
 
       final base = p();
       expect(base, 'chatmsg:v1:c1:1:n:ct');
@@ -55,7 +54,10 @@ void main() {
         nonce: 'bg==',
       );
       final json = wrapped.toJson();
-      expect(json.keys, containsAll(['ephemeral_public_key', 'ciphertext', 'nonce']));
+      expect(
+        json.keys,
+        containsAll(['ephemeral_public_key', 'ciphertext', 'nonce']),
+      );
 
       final back = WrappedKey.fromJson(json);
       expect(back.ephemeralPublicKey, wrapped.ephemeralPublicKey);

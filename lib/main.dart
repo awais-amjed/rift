@@ -282,9 +282,8 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
               ),
             ),
             BlocProvider(
-              create: (context) => CentralDmCubit(
-                vaultCubit: widget.vaultCubit,
-              ),
+              create: (context) =>
+                  CentralDmCubit(vaultCubit: widget.vaultCubit),
             ),
             BlocProvider(
               // Not lazy: the per-server notifications subscription must run

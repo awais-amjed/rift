@@ -58,13 +58,14 @@ class ChatMessageOps {
     required List<ChatMessage> current,
     required List<ChatMessage> incoming,
   }) {
-    final known =
-        current.where((m) => !m.isPending).map((m) => m.id).toSet();
+    final known = current.where((m) => !m.isPending).map((m) => m.id).toSet();
     final fresh = incoming.where((m) => !known.contains(m.id)).toList();
     if (fresh.isEmpty) return (merged: current, fresh: const []);
 
-    final freshMineTexts =
-        fresh.where((m) => m.isMine).map((m) => m.text).toSet();
+    final freshMineTexts = fresh
+        .where((m) => m.isMine)
+        .map((m) => m.text)
+        .toSet();
     final kept = current
         .where(
           (m) => !(m.isPending && m.isMine && freshMineTexts.contains(m.text)),

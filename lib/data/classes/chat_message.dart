@@ -37,14 +37,14 @@ class ChatMessage {
   });
 
   ChatMessage copyWith({List<MessageReaction>? reactions}) => ChatMessage(
-        id: id,
-        authorId: authorId,
-        authorName: authorName,
-        text: text,
-        sentAt: sentAt,
-        isMine: isMine,
-        attachments: attachments,
-        reactions: reactions ?? this.reactions,
-        isPending: isPending,
-      );
+    id: id,
+    authorId: authorId,
+    authorName: authorName,
+    text: text,
+    sentAt: sentAt,
+    isMine: isMine,
+    attachments: attachments,
+    reactions: reactions ?? this.reactions,
+    isPending: isPending,
+  );
 }

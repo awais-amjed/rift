@@ -8,15 +8,14 @@
 /// needed. The password layer lives in [EncryptedSeed] instead.
 class EncryptedVault {
   final String ciphertext; // base64-encoded AES-GCM ciphertext
-  final String iv;         // base64-encoded 12-byte nonce
+  final String iv; // base64-encoded 12-byte nonce
 
   const EncryptedVault({required this.ciphertext, required this.iv});
 
   Map<String, dynamic> toJson() => {'ciphertext': ciphertext, 'iv': iv};
 
   factory EncryptedVault.fromJson(Map<String, dynamic> json) => EncryptedVault(
-        ciphertext: json['ciphertext'] as String,
-        iv: json['iv'] as String,
-      );
+    ciphertext: json['ciphertext'] as String,
+    iv: json['iv'] as String,
+  );
 }
-

@@ -35,29 +35,29 @@ class ErrorCode {
 
   // ── User ─────────────────────────────────────────────────────────────────────
   static const String userNotFound = 'user_not_found';
-  static const String userBanned   = 'user_banned';
+  static const String userBanned = 'user_banned';
 
   // ── Server ───────────────────────────────────────────────────────────────────
-  static const String serverNotFound            = 'server_not_found';
-  static const String serverKeyInvalid          = 'server_key_invalid';
-  static const String serverCredentialsMissing  = 'server_credentials_missing';
+  static const String serverNotFound = 'server_not_found';
+  static const String serverKeyInvalid = 'server_key_invalid';
+  static const String serverCredentialsMissing = 'server_credentials_missing';
 
   // ── Channel ──────────────────────────────────────────────────────────────────
-  static const String channelNotFound      = 'channel_not_found';
+  static const String channelNotFound = 'channel_not_found';
   static const String channelNameDuplicate = 'channel_name_duplicate';
-  static const String channelTypeInvalid   = 'channel_type_invalid';
-  static const String channelWrongServer   = 'channel_wrong_server';
+  static const String channelTypeInvalid = 'channel_type_invalid';
+  static const String channelWrongServer = 'channel_wrong_server';
 
   // ── Key rotation ─────────────────────────────────────────────────────────────
-  static const String keySame   = 'key_same';
-  static const String keyInUse  = 'key_in_use';
+  static const String keySame = 'key_same';
+  static const String keyInUse = 'key_in_use';
 
   // ── Registration ─────────────────────────────────────────────────────────────
-  static const String inviteInvalid   = 'invite_invalid';
+  static const String inviteInvalid = 'invite_invalid';
   static const String inviteExhausted = 'invite_exhausted';
-  static const String inviteExpired   = 'invite_expired';
-  static const String identityTaken   = 'identity_taken';
-  static const String usernameTaken   = 'username_taken';
+  static const String inviteExpired = 'invite_expired';
+  static const String identityTaken = 'identity_taken';
+  static const String usernameTaken = 'username_taken';
 
   /// public_key field is not valid base64 or not exactly 32 bytes.
   static const String invalidPublicKey = 'invalid_public_key';
@@ -69,8 +69,8 @@ class ErrorCode {
   static const String permissionDenied = 'permission_denied';
 
   // ── Generic ───────────────────────────────────────────────────────────────────
-  static const String missingFields   = 'missing_fields';
-  static const String dbError         = 'db_error';
+  static const String missingFields = 'missing_fields';
+  static const String dbError = 'db_error';
   static const String unexpectedError = 'unexpected_error';
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -78,8 +78,5 @@ class ErrorCode {
   /// Returns true for any code that means the session token is no longer
   /// valid and the client should attempt re-authentication.
   static bool isSessionInvalid(String? code) =>
-      code == tokenInvalid ||
-      code == tokenExpired ||
-      code == tokenUnlinked;
+      code == tokenInvalid || code == tokenExpired || code == tokenUnlinked;
 }
-

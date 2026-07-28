@@ -52,20 +52,14 @@ class SupabaseBackupRepository {
 
       // Session is null → email confirmation required.
       if (response.session == null) {
-        return APIResponse.success({
-          'user': null,
-          'needsConfirmation': true,
-        });
+        return APIResponse.success({'user': null, 'needsConfirmation': true});
       }
 
       final user = response.user;
       if (user == null) {
         return APIResponse.error('Sign-up succeeded but no user was returned.');
       }
-      return APIResponse.success({
-        'user': user,
-        'needsConfirmation': false,
-      });
+      return APIResponse.success({'user': user, 'needsConfirmation': false});
     } catch (e) {
       return APIResponse.error(e);
     }
@@ -114,7 +108,9 @@ class SupabaseBackupRepository {
       if (uid == null) return APIResponse.error('Not signed in.');
 
       final bytes = utf8.encode(backupJson);
-      await _client.storage.from(_bucket).uploadBinary(
+      await _client.storage
+          .from(_bucket)
+          .uploadBinary(
             '$uid/vault.json',
             bytes,
             fileOptions: const FileOptions(

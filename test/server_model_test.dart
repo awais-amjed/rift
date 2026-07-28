@@ -5,12 +5,12 @@ import 'package:rift/data/enums/channel_type.dart';
 
 void main() {
   Server base() => Server(
-        id: 'srv1',
-        name: 'Test',
-        supabaseUrl: 'http://localhost:8000',
-        token: 'tok1',
-        tokenIssuedAt: DateTime.now(),
-      );
+    id: 'srv1',
+    name: 'Test',
+    supabaseUrl: 'http://localhost:8000',
+    token: 'tok1',
+    tokenIssuedAt: DateTime.now(),
+  );
 
   group('Server token freshness', () {
     test('a freshly issued token is not near expiry', () {
@@ -45,9 +45,15 @@ void main() {
 
   group('Server JSON', () {
     test('round-trips through toJson/fromJson', () {
-      final s = base().copyWith(channels: [
-        const Channel(id: 'c1', name: 'general', channelType: ChannelType.text),
-      ]);
+      final s = base().copyWith(
+        channels: [
+          const Channel(
+            id: 'c1',
+            name: 'general',
+            channelType: ChannelType.text,
+          ),
+        ],
+      );
       final restored = Server.fromJson(s.toJson());
 
       expect(restored.id, s.id);
@@ -64,7 +70,11 @@ void main() {
 
   group('Channel JSON', () {
     test('round-trips with snake_case channel_type', () {
-      const c = Channel(id: 'c1', name: 'voice-1', channelType: ChannelType.voice);
+      const c = Channel(
+        id: 'c1',
+        name: 'voice-1',
+        channelType: ChannelType.voice,
+      );
       final json = c.toJson();
       expect(json['channel_type'], 'voice');
 

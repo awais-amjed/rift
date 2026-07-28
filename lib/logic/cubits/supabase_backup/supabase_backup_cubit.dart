@@ -10,6 +10,9 @@ import '../../../logic/helper_methods.dart';
 import '../vault/vault_cubit.dart';
 
 part 'supabase_backup_state.dart';
+part 'supabase_backup_auth.dart';
+part 'supabase_backup_restore.dart';
+part 'supabase_backup_transfer.dart';
 
 /// Manages the central-server account and cloud backup sync.
 ///
@@ -25,21 +28,30 @@ part 'supabase_backup_state.dart';
 /// - fresh device + no backup      → create vault + upload
 /// - local vault  + no backup      → upload (adopts the vault into the account)
 /// - local vault  + cloud backup   → surface a conflict for the user to resolve
-class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
+class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
+    with
+        _SupabaseBackupAuthMixin,
+        _SupabaseBackupRestoreMixin,
+        _SupabaseBackupTransferMixin {
+  @override
   final SupabaseBackupRepository _repo;
+  @override
   final CryptoRepository _crypto;
+  @override
   final VaultCubit _vaultCubit;
 
   /// Derived vault password for the signed-in account (Option B).
   /// Memory-only — never persisted or transmitted. Null when signed out or
   /// when the session was restored from disk (re-derived on next sign-in).
+  @override
   String? _accountVaultPassword;
 
   /// Cloud backup JSON awaiting a user decision (password prompt / conflict).
+  @override
   String? _pendingCloudBackup;
 
+  @override
   Timer? _autoBackupTimer;
-  static const _autoBackupDebounce = Duration(seconds: 3);
 
   StreamSubscription<AuthState>? _authSub;
 
@@ -110,106 +122,12 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
     return super.close();
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Auth
-  // ──────────────────────────────────────────────────────────
+  // ── Post-auth reconciliation ──────────────────────────────
 
-  /// Creates a new account on the central server.
-  ///
-  /// If the server requires email confirmation the state transitions to
-  /// [SupabaseBackupState.needsEmailConfirmation]; the sync then runs on the
-  /// sign-in that follows confirmation.
-  Future<void> signUp({required String email, required String password}) async {
-    emit(state.copyWith(isProcessing: true, clearMessage: true));
-
-    final keys = await _crypto.deriveAccountKeys(
-      email: email,
-      password: password,
-    );
-
-    final response = await _repo.signUp(
-      email: email,
-      password: keys.authPassword,
-    );
-    if (!response.success) {
-      emit(state.copyWith(isProcessing: false, error: response.error));
-      return;
-    }
-
-    final data = response.data as Map<String, dynamic>;
-    final needsConfirmation = data['needsConfirmation'] as bool;
-    if (needsConfirmation) {
-      emit(
-        state.copyWith(
-          isProcessing: false,
-          needsEmailConfirmation: true,
-          email: email,
-        ),
-      );
-      return;
-    }
-
-    final user = data['user'] as User;
-    _accountVaultPassword = keys.vaultPassword;
-    emit(state.copyWith(isSignedIn: true, email: user.email));
-    await _postAuthSync();
-  }
-
-  /// Signs in to the central server.
-  Future<void> signIn({required String email, required String password}) async {
-    emit(state.copyWith(isProcessing: true, clearMessage: true));
-
-    final keys = await _crypto.deriveAccountKeys(
-      email: email,
-      password: password,
-    );
-
-    final response = await _repo.signIn(
-      email: email,
-      password: keys.authPassword,
-    );
-    if (!response.success) {
-      HelperMethods.printDebug(
-        '[SupabaseBackup] signIn failed: ${response.error}',
-      );
-      emit(state.copyWith(isProcessing: false, error: response.error));
-      return;
-    }
-
-    final user = response.data as User;
-    _accountVaultPassword = keys.vaultPassword;
-    emit(
-      state.copyWith(
-        isSignedIn: true,
-        needsEmailConfirmation: false,
-        email: user.email,
-      ),
-    );
-    await _postAuthSync();
-  }
-
-  /// Signs out of the central server. The local vault is untouched.
-  Future<void> signOut() async {
-    _intentionalSignOut = true;
-    emit(state.copyWith(isProcessing: true, clearMessage: true));
-    final response = await _repo.signOut();
-    if (!response.success) {
-      HelperMethods.printDebug(
-        '[SupabaseBackup] signOut failed: ${response.error}',
-      );
-      emit(state.copyWith(isProcessing: false, error: response.error));
-      return;
-    }
-    _accountVaultPassword = null;
-    _pendingCloudBackup = null;
-    _autoBackupTimer?.cancel();
-    emit(const SupabaseBackupState());
-  }
-
-  // ──────────────────────────────────────────────────────────
-  // Post-auth reconciliation
-  // ──────────────────────────────────────────────────────────
-
+  /// Decides what a fresh session means for this device: import, create,
+  /// upload, or surface a conflict. The four outcomes are spelled out in the
+  /// class doc above.
+  @override
   Future<void> _postAuthSync() async {
     emit(state.copyWith(isProcessing: true));
 
@@ -256,180 +174,9 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
     await _uploadBackup(successMessage: 'Account connected. Backup saved.');
   }
 
-  /// Imports [backupJson], trying the derived account password first and
-  /// falling back to a user prompt when the backup was encrypted with a
-  /// manually chosen vault password (privacy-mode export).
-  Future<void> _importPendingBackup(String backupJson) async {
-    final derived = _accountVaultPassword;
-    if (derived != null) {
-      final result = await _vaultCubit.importBackup(
-        jsonContent: backupJson,
-        password: derived,
-      );
-      if (result.success) {
-        _pendingCloudBackup = null;
-        emit(
-          state.copyWith(
-            isProcessing: false,
-            successMessage: 'Backup restored from your account.',
-          ),
-        );
-        return;
-      }
-    }
+  // ── Shared internals ──────────────────────────────────────
 
-    _pendingCloudBackup = backupJson;
-    emit(state.copyWith(isProcessing: false, needsVaultPassword: true));
-  }
-
-  /// Completes a pending import with a manually entered vault password.
-  Future<void> submitVaultPassword(String vaultPassword) async {
-    final backupJson = _pendingCloudBackup;
-    if (backupJson == null) return;
-
-    emit(state.copyWith(isProcessing: true, clearMessage: true));
-    final result = await _vaultCubit.importBackup(
-      jsonContent: backupJson,
-      password: vaultPassword,
-    );
-    if (result.success) {
-      _pendingCloudBackup = null;
-      emit(
-        state.copyWith(
-          isProcessing: false,
-          needsVaultPassword: false,
-          successMessage: 'Backup restored from your account.',
-        ),
-      );
-      // Re-encrypt under the derived password so future restores are silent.
-      await _reencryptUnderAccountPassword(vaultPassword);
-    } else {
-      emit(
-        state.copyWith(
-          isProcessing: false,
-          error: result.error ?? 'Failed to import backup.',
-        ),
-      );
-    }
-  }
-
-  /// Conflict resolver: keep the local vault, overwriting the cloud backup.
-  Future<void> keepLocalVault() async {
-    _pendingCloudBackup = null;
-    emit(
-      state.copyWith(
-        isProcessing: true,
-        cloudBackupConflict: false,
-        clearMessage: true,
-      ),
-    );
-    await _uploadBackup(
-      successMessage: 'Cloud backup replaced with this device\'s vault.',
-    );
-  }
-
-  /// Conflict resolver: restore the cloud backup, replacing the local vault.
-  Future<void> restoreCloudBackup() async {
-    final backupJson = _pendingCloudBackup;
-    if (backupJson == null) return;
-    emit(
-      state.copyWith(
-        isProcessing: true,
-        cloudBackupConflict: false,
-        clearMessage: true,
-      ),
-    );
-    await _importPendingBackup(backupJson);
-  }
-
-  /// Dismisses pending prompts without acting (e.g. user backed out).
-  void dismissPending() {
-    _pendingCloudBackup = null;
-    emit(
-      state.copyWith(
-        needsVaultPassword: false,
-        cloudBackupConflict: false,
-        clearMessage: true,
-      ),
-    );
-  }
-
-  // ──────────────────────────────────────────────────────────
-  // Backup
-  // ──────────────────────────────────────────────────────────
-
-  /// Manual "save to cloud" action from settings.
-  Future<void> saveBackupToCloud() async {
-    emit(state.copyWith(isProcessing: true, clearMessage: true));
-    await _uploadBackup(successMessage: 'Backup saved to cloud successfully.');
-  }
-
-  /// Downloads the cloud backup and imports it into the vault.
-  ///
-  /// Uses the derived account password when available; [vaultPassword]
-  /// overrides it (manual restore of a privacy-mode backup).
-  Future<void> importBackupFromCloud({String? vaultPassword}) async {
-    emit(state.copyWith(isProcessing: true, clearMessage: true));
-
-    final downloadResponse = await _repo.downloadBackup();
-    if (!downloadResponse.success) {
-      HelperMethods.printDebug(
-        '[SupabaseBackup] downloadBackup failed: ${downloadResponse.error}',
-      );
-      emit(state.copyWith(isProcessing: false, error: downloadResponse.error));
-      return;
-    }
-
-    final backupJson = downloadResponse.data as String?;
-    if (backupJson == null) {
-      emit(
-        state.copyWith(
-          isProcessing: false,
-          error: 'No backup found on server.',
-        ),
-      );
-      return;
-    }
-
-    if (vaultPassword != null) {
-      _pendingCloudBackup = backupJson;
-      await submitVaultPassword(vaultPassword);
-    } else {
-      await _importPendingBackup(backupJson);
-    }
-  }
-
-  /// Debounced, silent backup upload — called whenever the vault or server
-  /// list changes. No-op when signed out or the vault is locked.
-  void autoBackup() {
-    if (!state.isSignedIn) return;
-    if (_vaultCubit.state.status != AuthStatus.unlocked) return;
-
-    _autoBackupTimer?.cancel();
-    _autoBackupTimer = Timer(_autoBackupDebounce, () async {
-      final export = await _vaultCubit.exportBackup();
-      if (!export.success || export.content == null) {
-        HelperMethods.printDebug(
-          '[SupabaseBackup] autoBackup export failed: ${export.error}',
-        );
-        return;
-      }
-      final response = await _repo.uploadBackup(export.content!);
-      if (!response.success) {
-        HelperMethods.printDebug(
-          '[SupabaseBackup] autoBackup upload failed: ${response.error}',
-        );
-      }
-    });
-  }
-
-  void clearMessage() =>
-      emit(state.copyWith(clearMessage: true, needsEmailConfirmation: false));
-
-  // ──────────────────────────────────────────────────────────
-  // Helpers
-  // ──────────────────────────────────────────────────────────
-
+  @override
   Future<void> _uploadBackup({required String successMessage}) async {
     final export = await _vaultCubit.exportBackup();
     if (!export.success || export.content == null) {
@@ -451,25 +198,5 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState> {
       return;
     }
     emit(state.copyWith(isProcessing: false, successMessage: successMessage));
-  }
-
-  /// After importing a privacy-mode backup with a manual password, re-encrypt
-  /// the seed under the derived account password and re-upload, so future
-  /// sign-ins on fresh devices restore without a prompt.
-  Future<void> _reencryptUnderAccountPassword(String oldPassword) async {
-    final derived = _accountVaultPassword;
-    if (derived == null) return;
-
-    final result = await _vaultCubit.changeVaultPassword(
-      oldPassword: oldPassword,
-      newPassword: derived,
-    );
-    if (!result.success) {
-      HelperMethods.printDebug(
-        '[SupabaseBackup] re-encrypt after import failed: ${result.error}',
-      );
-      return;
-    }
-    autoBackup();
   }
 }

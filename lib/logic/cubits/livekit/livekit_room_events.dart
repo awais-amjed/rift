@@ -7,7 +7,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
   void _applyStoredSettings();
   void _applyScreenshareQualitySettings(Participant participant);
 
-  void _setupRoomListeners(Room room) {
+  /// Public because the connection mixin wires this up when a room is
+  /// created — cubit-internal, not part of the UI-facing API.
+  void setupRoomListeners(Room room) {
     final listener = room.createListener();
     _listeners.add(listener);
 

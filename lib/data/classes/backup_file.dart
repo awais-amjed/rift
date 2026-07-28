@@ -43,26 +43,26 @@ class BackupFile {
   });
 
   Map<String, dynamic> toJson() => {
-        'version': version,
-        'seed': seed.toJson(),
-        'vault': vault.toJson(),
-        if (encryptedServers != null)
-          'encrypted_servers': encryptedServers!.toJson(),
-      };
+    'version': version,
+    'seed': seed.toJson(),
+    'vault': vault.toJson(),
+    if (encryptedServers != null)
+      'encrypted_servers': encryptedServers!.toJson(),
+  };
 
   factory BackupFile.fromJson(Map<String, dynamic> json) => BackupFile(
-        version: json['version'] as int,
-        seed: EncryptedSeed.fromJson(json['seed'] as Map<String, dynamic>),
-        vault: EncryptedVault.fromJson(json['vault'] as Map<String, dynamic>),
-        encryptedServers: json['encrypted_servers'] != null
-            ? EncryptedVault.fromJson(
-                json['encrypted_servers'] as Map<String, dynamic>)
-            : null,
-      );
+    version: json['version'] as int,
+    seed: EncryptedSeed.fromJson(json['seed'] as Map<String, dynamic>),
+    vault: EncryptedVault.fromJson(json['vault'] as Map<String, dynamic>),
+    encryptedServers: json['encrypted_servers'] != null
+        ? EncryptedVault.fromJson(
+            json['encrypted_servers'] as Map<String, dynamic>,
+          )
+        : null,
+  );
 
   String toJsonString() => jsonEncode(toJson());
 
   factory BackupFile.fromJsonString(String s) =>
       BackupFile.fromJson(jsonDecode(s) as Map<String, dynamic>);
 }
-

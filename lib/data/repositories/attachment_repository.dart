@@ -27,8 +27,8 @@ class AttachmentRepository {
   final http.Client _http;
 
   AttachmentRepository({CryptoRepository? crypto, http.Client? httpClient})
-      : _crypto = crypto ?? CryptoRepository(),
-        _http = httpClient ?? http.Client();
+    : _crypto = crypto ?? CryptoRepository(),
+      _http = httpClient ?? http.Client();
 
   static final _rng = Random.secure();
 
@@ -60,19 +60,18 @@ class AttachmentRepository {
     required Uint8List ciphertext,
     required String keyB64,
     required String nonceB64,
-  }) =>
-      _crypto.decryptBytes(
-        ciphertext: ciphertext,
-        key: CryptoRepository.fromBase64(keyB64),
-        iv: CryptoRepository.fromBase64(nonceB64),
-      );
+  }) => _crypto.decryptBytes(
+    ciphertext: ciphertext,
+    key: CryptoRepository.fromBase64(keyB64),
+    iv: CryptoRepository.fromBase64(nonceB64),
+  );
 
   // ── Self-hosted Storage REST transport ────────────────────
 
   Map<String, String> _headers(String anonKey, String bearerToken) => {
-        'apikey': anonKey,
-        'Authorization': 'Bearer $bearerToken',
-      };
+    'apikey': anonKey,
+    'Authorization': 'Bearer $bearerToken',
+  };
 
   /// Encrypt [data] and upload it to [bucket] under [scopePrefix].
   /// On success `data` is `({String path, String keyB64, String nonceB64})`.
@@ -106,9 +105,11 @@ class AttachmentRepository {
       if (resp.statusCode >= 300) {
         return APIResponse.error('Upload failed (${resp.statusCode})');
       }
-      return APIResponse.success(
-        (path: path, keyB64: blob.keyB64, nonceB64: blob.nonceB64),
-      );
+      return APIResponse.success((
+        path: path,
+        keyB64: blob.keyB64,
+        nonceB64: blob.nonceB64,
+      ));
     } catch (e) {
       return APIResponse.error(e);
     }

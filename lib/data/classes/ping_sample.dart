@@ -4,4 +4,3 @@ class PingSample {
 
   const PingSample({required this.time, required this.rttMs});
 }
-

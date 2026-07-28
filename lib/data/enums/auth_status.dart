@@ -9,4 +9,3 @@ enum AuthStatus {
   /// Vault created, master seed available in memory. App is ready.
   unlocked,
 }
-

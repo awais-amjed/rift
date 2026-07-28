@@ -43,7 +43,7 @@ class SecureStorageRepository {
   final FlutterSecureStorage _storage;
 
   SecureStorageRepository({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   // ── Master Seed ──────────────────────────────────────────
 
@@ -61,11 +61,10 @@ class SecureStorageRepository {
   // ── Encrypted Vault ──────────────────────────────────────
 
   /// Persist the encrypted vault blob (key = HMAC(masterSeed, "vault:v1")).
-  Future<void> saveEncryptedVault(EncryptedVault vault) =>
-      _storage.write(
-        key: _keyEncryptedVault,
-        value: jsonEncode(vault.toJson()),
-      );
+  Future<void> saveEncryptedVault(EncryptedVault vault) => _storage.write(
+    key: _keyEncryptedVault,
+    value: jsonEncode(vault.toJson()),
+  );
 
   /// Read the encrypted vault blob, or null if not set.
   Future<EncryptedVault?> getEncryptedVault() async {
@@ -78,10 +77,7 @@ class SecureStorageRepository {
 
   /// Persist the encrypted seed blob (key = Argon2id(password, salt)).
   Future<void> saveEncryptedSeed(EncryptedSeed seed) =>
-      _storage.write(
-        key: _keyEncryptedSeed,
-        value: jsonEncode(seed.toJson()),
-      );
+      _storage.write(key: _keyEncryptedSeed, value: jsonEncode(seed.toJson()));
 
   /// Read the encrypted seed blob, or null if not set.
   Future<EncryptedSeed?> getEncryptedSeed() async {
@@ -116,9 +112,8 @@ class SecureStorageRepository {
   }
 
   /// Replace the entire joined servers list (used during backup import).
-  Future<void> setJoinedServers(
-    List<({String url, String version})> servers,
-  ) => _saveJoinedServers(servers);
+  Future<void> setJoinedServers(List<({String url, String version})> servers) =>
+      _saveJoinedServers(servers);
 
   /// Update the key derivation version for a server (after key rotation).
   Future<void> updateServerVersion(String host, String newVersion) async {
@@ -132,13 +127,12 @@ class SecureStorageRepository {
 
   Future<void> _saveJoinedServers(
     List<({String url, String version})> servers,
-  ) =>
-      _storage.write(
-        key: _keyJoinedServers,
-        value: jsonEncode(
-          servers.map((s) => {'url': s.url, 'version': s.version}).toList(),
-        ),
-      );
+  ) => _storage.write(
+    key: _keyJoinedServers,
+    value: jsonEncode(
+      servers.map((s) => {'url': s.url, 'version': s.version}).toList(),
+    ),
+  );
 
   // ── Wipe ─────────────────────────────────────────────────
 
@@ -147,12 +141,9 @@ class SecureStorageRepository {
   /// Deletes only this build's namespaced keys — `_storage.deleteAll()` would
   /// also wipe the other build flavor's secrets from the shared keyring.
   Future<void> deleteAll() => Future.wait([
-        _storage.delete(key: _keyMasterSeed),
-        _storage.delete(key: _keyEncryptedVault),
-        _storage.delete(key: _keyEncryptedSeed),
-        _storage.delete(key: _keyJoinedServers),
-      ]);
+    _storage.delete(key: _keyMasterSeed),
+    _storage.delete(key: _keyEncryptedVault),
+    _storage.delete(key: _keyEncryptedSeed),
+    _storage.delete(key: _keyJoinedServers),
+  ]);
 }
-
-
-

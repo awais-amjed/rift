@@ -108,7 +108,9 @@ class CentralDmRepository {
     try {
       final blob = await _attachments.seal(data);
       final path = AttachmentRepository.buildPath(scopePrefix);
-      await _client.storage.from(_attachmentsBucket).uploadBinary(
+      await _client.storage
+          .from(_attachmentsBucket)
+          .uploadBinary(
             path,
             blob.ciphertext,
             fileOptions: const FileOptions(
@@ -116,9 +118,11 @@ class CentralDmRepository {
               upsert: false,
             ),
           );
-      return APIResponse.success(
-        (path: path, keyB64: blob.keyB64, nonceB64: blob.nonceB64),
-      );
+      return APIResponse.success((
+        path: path,
+        keyB64: blob.keyB64,
+        nonceB64: blob.nonceB64,
+      ));
     } catch (e) {
       return APIResponse.error(e);
     }
@@ -132,8 +136,9 @@ class CentralDmRepository {
     required String nonceB64,
   }) async {
     try {
-      final bytes =
-          await _client.storage.from(_attachmentsBucket).download(path);
+      final bytes = await _client.storage
+          .from(_attachmentsBucket)
+          .download(path);
       final clear = await _attachments.open(
         ciphertext: bytes,
         keyB64: keyB64,
@@ -233,13 +238,16 @@ class CentralDmRepository {
     required Map<String, dynamic> envelope,
   }) async {
     try {
-      final result = await _client.rpc('send_dm', params: {
-        'recipient': recipientId,
-        'ciphertext': envelope['ciphertext'],
-        'nonce': envelope['nonce'],
-        'signature': envelope['signature'],
-        'key_version': envelope['key_version'],
-      });
+      final result = await _client.rpc(
+        'send_dm',
+        params: {
+          'recipient': recipientId,
+          'ciphertext': envelope['ciphertext'],
+          'nonce': envelope['nonce'],
+          'signature': envelope['signature'],
+          'key_version': envelope['key_version'],
+        },
+      );
       return APIResponse.success(result);
     } on PostgrestException catch (e) {
       final known = [
@@ -279,7 +287,10 @@ class CentralDmRepository {
   }) async {
     try {
       final myId = _client.auth.currentUser!.id;
-      var query = _client.from('dm_messages').select().or(
+      var query = _client
+          .from('dm_messages')
+          .select()
+          .or(
             'and(sender_id.eq.$myId,recipient_id.eq.$peerId),'
             'and(sender_id.eq.$peerId,recipient_id.eq.$myId)',
           );

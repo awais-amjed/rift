@@ -117,8 +117,9 @@ mixin _ChatCryptoMixin {
     );
 
     return WrappedKey(
-      ephemeralPublicKey:
-          CryptoRepository.toBase64(Uint8List.fromList(ephemeralPublic.bytes)),
+      ephemeralPublicKey: CryptoRepository.toBase64(
+        Uint8List.fromList(ephemeralPublic.bytes),
+      ),
       ciphertext: CryptoRepository.toBase64(sealed.ciphertext),
       nonce: CryptoRepository.toBase64(sealed.iv),
     );
@@ -184,9 +185,7 @@ mixin _ChatCryptoMixin {
     return MessageEnvelope(
       ciphertext: ciphertextB64,
       nonce: nonceB64,
-      signature: CryptoRepository.toBase64(
-        Uint8List.fromList(signature.bytes),
-      ),
+      signature: CryptoRepository.toBase64(Uint8List.fromList(signature.bytes)),
       keyVersion: keyVersion,
     );
   }
@@ -211,10 +210,7 @@ mixin _ChatCryptoMixin {
       utf8.encode(payload),
       signature: Signature(
         CryptoRepository.fromBase64(envelope.signature),
-        publicKey: SimplePublicKey(
-          senderPublicKey,
-          type: KeyPairType.ed25519,
-        ),
+        publicKey: SimplePublicKey(senderPublicKey, type: KeyPairType.ed25519),
       ),
     );
     if (!valid) return null;

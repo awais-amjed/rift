@@ -9,8 +9,8 @@
 /// to run again on the same device unless the user changes their password.
 class EncryptedSeed {
   final String ciphertext; // base64-encoded AES-GCM ciphertext of masterSeed
-  final String iv;         // base64-encoded 12-byte nonce
-  final String salt;       // base64-encoded 32-byte Argon2id salt (unencrypted)
+  final String iv; // base64-encoded 12-byte nonce
+  final String salt; // base64-encoded 32-byte Argon2id salt (unencrypted)
 
   const EncryptedSeed({
     required this.ciphertext,
@@ -19,15 +19,14 @@ class EncryptedSeed {
   });
 
   Map<String, dynamic> toJson() => {
-        'ciphertext': ciphertext,
-        'iv': iv,
-        'salt': salt,
-      };
+    'ciphertext': ciphertext,
+    'iv': iv,
+    'salt': salt,
+  };
 
   factory EncryptedSeed.fromJson(Map<String, dynamic> json) => EncryptedSeed(
-        ciphertext: json['ciphertext'] as String,
-        iv: json['iv'] as String,
-        salt: json['salt'] as String,
-      );
+    ciphertext: json['ciphertext'] as String,
+    iv: json['iv'] as String,
+    salt: json['salt'] as String,
+  );
 }
-

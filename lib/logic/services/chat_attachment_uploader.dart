@@ -14,9 +14,9 @@ class ChatAttachmentUploader {
   static final _rng = Random.secure();
 
   static String _attachmentId() => List.generate(
-        8,
-        (_) => _rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
-      ).join();
+    8,
+    (_) => _rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ).join();
 
   /// Uploads every [pending] file in order and returns the resulting
   /// [Attachment]s. Each uploaded blob's plaintext bytes are stashed in the
@@ -37,21 +37,24 @@ class ChatAttachmentUploader {
           response.error ?? 'Attachment upload failed',
         );
       }
-      final r = response.data as ({String path, String keyB64, String nonceB64});
+      final r =
+          response.data as ({String path, String keyB64, String nonceB64});
       AttachmentCache.instance.put(r.path, pa.bytes);
-      result.add(Attachment(
-        id: _attachmentId(),
-        kind: pa.kind,
-        name: pa.name,
-        mime: pa.mime,
-        size: pa.size,
-        storagePath: r.path,
-        keyB64: r.keyB64,
-        nonceB64: r.nonceB64,
-        width: pa.width,
-        height: pa.height,
-        durationMs: pa.durationMs,
-      ));
+      result.add(
+        Attachment(
+          id: _attachmentId(),
+          kind: pa.kind,
+          name: pa.name,
+          mime: pa.mime,
+          size: pa.size,
+          storagePath: r.path,
+          keyB64: r.keyB64,
+          nonceB64: r.nonceB64,
+          width: pa.width,
+          height: pa.height,
+          durationMs: pa.durationMs,
+        ),
+      );
     }
     return result;
   }

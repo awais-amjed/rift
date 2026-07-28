@@ -4,21 +4,24 @@ import 'package:rift/data/classes/message_body.dart';
 
 void main() {
   Attachment sampleAttachment() => const Attachment(
-        id: 'a1',
-        kind: AttachmentKind.image,
-        name: 'cat.png',
-        mime: 'image/png',
-        size: 1234,
-        storagePath: 'chan-1/deadbeef.bin',
-        keyB64: 'a2V5',
-        nonceB64: 'bm9uY2U=',
-        width: 640,
-        height: 480,
-      );
+    id: 'a1',
+    kind: AttachmentKind.image,
+    name: 'cat.png',
+    mime: 'image/png',
+    size: 1234,
+    storagePath: 'chan-1/deadbeef.bin',
+    keyB64: 'a2V5',
+    nonceB64: 'bm9uY2U=',
+    width: 640,
+    height: 480,
+  );
 
   group('MessageBody encode/decode', () {
     test('round-trips text + attachments', () {
-      final body = MessageBody(text: 'look 👀', attachments: [sampleAttachment()]);
+      final body = MessageBody(
+        text: 'look 👀',
+        attachments: [sampleAttachment()],
+      );
       final decoded = MessageBody.decode(body.encode());
 
       expect(decoded.text, 'look 👀');
@@ -33,7 +36,9 @@ void main() {
     });
 
     test('a text-only body encodes without an attachments array', () {
-      final decoded = MessageBody.decode(const MessageBody(text: 'hi').encode());
+      final decoded = MessageBody.decode(
+        const MessageBody(text: 'hi').encode(),
+      );
       expect(decoded.text, 'hi');
       expect(decoded.attachments, isEmpty);
     });

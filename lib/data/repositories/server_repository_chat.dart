@@ -17,12 +17,9 @@ mixin _ChatApiMixin {
     String? bearerToken,
     required String chatPublicKey,
   }) {
-    return _post(
-      supabaseUrl,
-      'publish_chat_key',
-      {'chat_public_key': chatPublicKey},
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'publish_chat_key', {
+      'chat_public_key': chatPublicKey,
+    }, bearerToken: bearerToken);
   }
 
   /// Toggle the caller's [emoji] reaction on a message. [scope] is `channel`
@@ -36,18 +33,13 @@ mixin _ChatApiMixin {
     required int messageId,
     required String emoji,
   }) {
-    return _post(
-      supabaseUrl,
-      'toggle_reaction',
-      {
-        'scope': scope,
-        'channel_id': ?channelId,
-        'peer_id': ?peerId,
-        'message_id': messageId,
-        'emoji': emoji,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'toggle_reaction', {
+      'scope': scope,
+      'channel_id': ?channelId,
+      'peer_id': ?peerId,
+      'message_id': messageId,
+      'emoji': emoji,
+    }, bearerToken: bearerToken);
   }
 
   /// Aggregated reactions for [messageIds] (`{ reactions: { id: [...] } }`).
@@ -59,17 +51,12 @@ mixin _ChatApiMixin {
     String? peerId,
     required List<int> messageIds,
   }) {
-    return _post(
-      supabaseUrl,
-      'list_reactions',
-      {
-        'scope': scope,
-        'channel_id': ?channelId,
-        'peer_id': ?peerId,
-        'message_ids': messageIds,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'list_reactions', {
+      'scope': scope,
+      'channel_id': ?channelId,
+      'peer_id': ?peerId,
+      'message_ids': messageIds,
+    }, bearerToken: bearerToken);
   }
 
   /// Store one E2E message envelope. Returns the server-attested
@@ -80,12 +67,10 @@ mixin _ChatApiMixin {
     required String channelId,
     required Map<String, dynamic> envelope,
   }) {
-    return _post(
-      supabaseUrl,
-      'send_message',
-      {'channel_id': channelId, ...envelope},
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'send_message', {
+      'channel_id': channelId,
+      ...envelope,
+    }, bearerToken: bearerToken);
   }
 
   /// Page through a channel's envelopes. Pass [beforeId] for history
@@ -98,17 +83,12 @@ mixin _ChatApiMixin {
     int? afterId,
     int? limit,
   }) {
-    return _post(
-      supabaseUrl,
-      'list_messages',
-      {
-        'channel_id': channelId,
-        'before_id': ?beforeId,
-        'after_id': ?afterId,
-        'limit': ?limit,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'list_messages', {
+      'channel_id': channelId,
+      'before_id': ?beforeId,
+      'after_id': ?afterId,
+      'limit': ?limit,
+    }, bearerToken: bearerToken);
   }
 
   /// Fetch my sealed channel keys + current version + members missing
@@ -118,12 +98,9 @@ mixin _ChatApiMixin {
     String? bearerToken,
     required String channelId,
   }) {
-    return _post(
-      supabaseUrl,
-      'get_channel_key',
-      {'channel_id': channelId},
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'get_channel_key', {
+      'channel_id': channelId,
+    }, bearerToken: bearerToken);
   }
 
   /// List every channel where the caller can do key-distribution work:
@@ -133,7 +110,12 @@ mixin _ChatApiMixin {
     String supabaseUrl, {
     String? bearerToken,
   }) {
-    return _post(supabaseUrl, 'sweep_channel_keys', {}, bearerToken: bearerToken);
+    return _post(
+      supabaseUrl,
+      'sweep_channel_keys',
+      {},
+      bearerToken: bearerToken,
+    );
   }
 
   /// Store one E2E direct-message envelope for [recipientId].
@@ -143,12 +125,10 @@ mixin _ChatApiMixin {
     required String recipientId,
     required Map<String, dynamic> envelope,
   }) {
-    return _post(
-      supabaseUrl,
-      'send_dm',
-      {'recipient_id': recipientId, ...envelope},
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'send_dm', {
+      'recipient_id': recipientId,
+      ...envelope,
+    }, bearerToken: bearerToken);
   }
 
   /// Page through the DM conversation with [peerId].
@@ -160,17 +140,12 @@ mixin _ChatApiMixin {
     int? afterId,
     int? limit,
   }) {
-    return _post(
-      supabaseUrl,
-      'list_dms',
-      {
-        'peer_id': peerId,
-        'before_id': ?beforeId,
-        'after_id': ?afterId,
-        'limit': ?limit,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'list_dms', {
+      'peer_id': peerId,
+      'before_id': ?beforeId,
+      'after_id': ?afterId,
+      'limit': ?limit,
+    }, bearerToken: bearerToken);
   }
 
   /// List DM conversations (one per peer, latest envelope included).
@@ -178,8 +153,12 @@ mixin _ChatApiMixin {
     String supabaseUrl, {
     String? bearerToken,
   }) {
-    return _post(supabaseUrl, 'list_dm_conversations', {},
-        bearerToken: bearerToken);
+    return _post(
+      supabaseUrl,
+      'list_dm_conversations',
+      {},
+      bearerToken: bearerToken,
+    );
   }
 
   /// Store sealed keyring entries for [keyVersion]. Fails with
@@ -191,15 +170,10 @@ mixin _ChatApiMixin {
     required int keyVersion,
     required List<Map<String, dynamic>> entries,
   }) {
-    return _post(
-      supabaseUrl,
-      'post_channel_keys',
-      {
-        'channel_id': channelId,
-        'key_version': keyVersion,
-        'entries': entries,
-      },
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'post_channel_keys', {
+      'channel_id': channelId,
+      'key_version': keyVersion,
+      'entries': entries,
+    }, bearerToken: bearerToken);
   }
 }

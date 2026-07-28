@@ -34,12 +34,12 @@ class MessageBody {
   /// with no attachments still encodes as the tagged object (senders are always
   /// current-version); readers accept both shapes.
   String encode() => jsonEncode({
-        't': _tag,
-        'v': version,
-        'text': text,
-        if (attachments.isNotEmpty)
-          'att': attachments.map((a) => a.toJson()).toList(),
-      });
+    't': _tag,
+    'v': version,
+    'text': text,
+    if (attachments.isNotEmpty)
+      'att': attachments.map((a) => a.toJson()).toList(),
+  });
 
   /// Parse a decrypted plaintext into a body. Anything that isn't our tagged
   /// JSON object is wrapped verbatim as a text-only body, so legacy messages
@@ -48,7 +48,8 @@ class MessageBody {
     try {
       final decoded = jsonDecode(plaintext);
       if (decoded is Map<String, dynamic> && decoded['t'] == _tag) {
-        final att = (decoded['att'] as List?)
+        final att =
+            (decoded['att'] as List?)
                 ?.cast<Map<String, dynamic>>()
                 .map(Attachment.fromJson)
                 .toList() ??

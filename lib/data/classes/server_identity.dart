@@ -19,4 +19,3 @@ class ServerIdentity {
   /// The public key as a base64 string (sent to the server).
   String get publicKeyBase64 => CryptoRepository.toBase64(publicKeyBytes);
 }
-

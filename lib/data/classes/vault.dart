@@ -9,28 +9,25 @@ class Vault {
   const Vault({required this.masterSeed, this.joinedServers = const []});
 
   Map<String, dynamic> toJson() => {
-        'master_seed': masterSeed,
-        'joined_servers': joinedServers.map((s) => s.toJson()).toList(),
-      };
+    'master_seed': masterSeed,
+    'joined_servers': joinedServers.map((s) => s.toJson()).toList(),
+  };
 
   factory Vault.fromJson(Map<String, dynamic> json) => Vault(
-        masterSeed: json['master_seed'] as String,
-        joinedServers: (json['joined_servers'] as List<dynamic>?)
-                ?.map((e) =>
-                    JoinedServer.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-      );
+    masterSeed: json['master_seed'] as String,
+    joinedServers:
+        (json['joined_servers'] as List<dynamic>?)
+            ?.map((e) => JoinedServer.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
+  );
 
   String toJsonString() => jsonEncode(toJson());
 
   factory Vault.fromJsonString(String jsonString) =>
       Vault.fromJson(jsonDecode(jsonString) as Map<String, dynamic>);
 
-  Vault copyWith({
-    String? masterSeed,
-    List<JoinedServer>? joinedServers,
-  }) {
+  Vault copyWith({String? masterSeed, List<JoinedServer>? joinedServers}) {
     return Vault(
       masterSeed: masterSeed ?? this.masterSeed,
       joinedServers: joinedServers ?? this.joinedServers,
@@ -51,15 +48,14 @@ class JoinedServer {
   });
 
   Map<String, dynamic> toJson() => {
-        'url': url,
-        'version': version,
-        'joined_at': joinedAt.toIso8601String(),
-      };
+    'url': url,
+    'version': version,
+    'joined_at': joinedAt.toIso8601String(),
+  };
 
   factory JoinedServer.fromJson(Map<String, dynamic> json) => JoinedServer(
-        url: json['url'] as String,
-        version: json['version'] as String,
-        joinedAt: DateTime.parse(json['joined_at'] as String),
-      );
+    url: json['url'] as String,
+    version: json['version'] as String,
+    joinedAt: DateTime.parse(json['joined_at'] as String),
+  );
 }
-

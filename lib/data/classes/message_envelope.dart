@@ -32,11 +32,11 @@ class MessageEnvelope {
   }
 
   Map<String, dynamic> toJson() => {
-        'ciphertext': ciphertext,
-        'nonce': nonce,
-        'signature': signature,
-        'key_version': keyVersion,
-      };
+    'ciphertext': ciphertext,
+    'nonce': nonce,
+    'signature': signature,
+    'key_version': keyVersion,
+  };
 
   /// Canonical string the sender signs and receivers verify. Binds the
   /// ciphertext to its context (channel/conversation id) and key version so a
@@ -46,6 +46,5 @@ class MessageEnvelope {
     required int keyVersion,
     required String nonce,
     required String ciphertext,
-  }) =>
-      'chatmsg:v1:$contextId:$keyVersion:$nonce:$ciphertext';
+  }) => 'chatmsg:v1:$contextId:$keyVersion:$nonce:$ciphertext';
 }

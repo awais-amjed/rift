@@ -166,16 +166,9 @@ class CryptoRepository with _ChatCryptoMixin {
     final encryptedBytes = ciphertext.sublist(0, ciphertext.length - macLength);
     final macBytes = ciphertext.sublist(ciphertext.length - macLength);
 
-    final secretBox = SecretBox(
-      encryptedBytes,
-      nonce: iv,
-      mac: Mac(macBytes),
-    );
+    final secretBox = SecretBox(encryptedBytes, nonce: iv, mac: Mac(macBytes));
 
-    return algorithm.decryptString(
-      secretBox,
-      secretKey: SecretKey(key),
-    );
+    return algorithm.decryptString(secretBox, secretKey: SecretKey(key));
   }
 
   /// Generate a fresh random 256-bit key for encrypting a single attachment.
@@ -207,11 +200,7 @@ class CryptoRepository with _ChatCryptoMixin {
     final encryptedBytes = ciphertext.sublist(0, ciphertext.length - macLength);
     final macBytes = ciphertext.sublist(ciphertext.length - macLength);
 
-    final secretBox = SecretBox(
-      encryptedBytes,
-      nonce: iv,
-      mac: Mac(macBytes),
-    );
+    final secretBox = SecretBox(encryptedBytes, nonce: iv, mac: Mac(macBytes));
     final clear = await algorithm.decrypt(secretBox, secretKey: SecretKey(key));
     return Uint8List.fromList(clear);
   }
@@ -302,11 +291,13 @@ class CryptoRepository with _ChatCryptoMixin {
     required String uri,
   }) async {
     final address = toBase58(publicKeyBytes);
-    final nonce = toBase64(_secureRandomBytes(12))
-        .replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
+    final nonce = toBase64(
+      _secureRandomBytes(12),
+    ).replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
     final issuedAt = DateTime.now().toUtc().toIso8601String();
 
-    final message = '$domain wants you to sign in with your Solana account:\n'
+    final message =
+        '$domain wants you to sign in with your Solana account:\n'
         '$address\n'
         '\n'
         'Sign in to Rift.\n'
@@ -362,6 +353,3 @@ class CryptoRepository with _ChatCryptoMixin {
     return buffer.toString().split('').reversed.join();
   }
 }
-
-
-

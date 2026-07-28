@@ -12,9 +12,11 @@ import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
 import '../token/token_cubit.dart';
 import '../../helper_methods.dart';
+import '../../services/participant_roster.dart';
 import '../../services/sound_service.dart';
 
 part 'livekit_state.dart';
+part 'livekit_connection.dart';
 part 'livekit_media_controls.dart';
 part 'livekit_participants.dart';
 part 'livekit_screenshare.dart';
@@ -24,6 +26,7 @@ part 'livekit_voice_activity.dart';
 /// Cubit managing LiveKit room connections, participants, and media controls.
 class LiveKitCubit extends Cubit<LiveKitState>
     with
+        _LiveKitConnectionMixin,
         _MediaControlsMixin,
         _ParticipantMixin,
         _ScreenshareMixin,
@@ -31,9 +34,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _VoiceActivityMixin {
   @override
   final AppCubit _appCubit;
+  @override
   final TokenCubit _tokenCubit;
   @override
   final ServerCubit? _serverCubit;
+  @override
   ScreenshareCubit? _screenshareCubit;
   @override
   final List<EventsListener<RoomEvent>> _listeners = [];
@@ -57,153 +62,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
   void setScreenshareCubit(ScreenshareCubit cubit) {
     _screenshareCubit = cubit;
   }
-
-  // ──────────────────────────────────────────────────────────
-  // Connection
-  // ──────────────────────────────────────────────────────────
-
-  /// Connects to a LiveKit channel. Server context is resolved internally via
-  /// [_serverCubit]; callers only supply the channel and media preferences.
-  Future<void> connectToChannel({
-    required String channelId,
-    bool? micEnabled,
-    bool? cameraEnabled,
-  }) async {
-    final hadRoom = state.room != null;
-    final wasConnecting =
-        state.connectionState == LiveKitConnectionState.connecting;
-
-    // Emit 'connecting' before cleanup so the RoomDisconnectedEvent fired during
-    // _cleanupRoom is not misread as an unexpected disconnect and doesn't clear
-    // the new channel ID.
-    emit(
-      state.copyWith(
-        connectionState: LiveKitConnectionState.connecting,
-        currentChannelId: channelId,
-        clearError: true,
-      ),
-    );
-
-    if (hadRoom || wasConnecting) await _cleanupRoom();
-
-    emit(state.copyWith(clearRoom: true));
-
-    final server = _serverCubit?.state.selectedServer;
-    if (server == null) {
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          error: 'No server selected',
-        ),
-      );
-      return;
-    }
-    final livekitUrl = server.livekitUrl;
-    if (livekitUrl == null) {
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          error: 'No LiveKit URL configured for this server',
-        ),
-      );
-      return;
-    }
-
-    String livekitToken;
-    final cached = _tokenCubit.getValidToken(server.supabaseUrl, channelId);
-    if (cached != null) {
-      livekitToken = cached.token;
-    } else {
-      final response = await _serverCubit!.getChannelToken(channelId);
-      if (!response.success) {
-        debugPrint('[LiveKit] Failed to get channel token: ${response.error}');
-        emit(
-          state.copyWith(
-            connectionState: LiveKitConnectionState.error,
-            error: response.error ?? 'Failed to get channel token',
-          ),
-        );
-        return;
-      }
-      livekitToken = response.data['token'] as String;
-      _tokenCubit.saveToken(server.supabaseUrl, channelId, livekitToken);
-    }
-
-    final room = Room(
-      roomOptions: RoomOptions(
-        adaptiveStream: true,
-        dynacast: true,
-        defaultAudioCaptureOptions: _buildAudioCaptureOptions(),
-      ),
-    );
-    _setupRoomListeners(room);
-
-    try {
-      final useMicEnabled = micEnabled ?? state.isMicEnabled;
-      final useCameraEnabled = cameraEnabled ?? state.isCameraEnabled;
-      final joinMicEnabled = _shouldTransmitMic(
-        micEnabled: useMicEnabled,
-        deafened: state.isDeafened,
-      );
-
-      await room.connect(
-        livekitUrl,
-        livekitToken,
-        fastConnectOptions: FastConnectOptions(
-          microphone: TrackOption(enabled: joinMicEnabled),
-          camera: TrackOption(enabled: useCameraEnabled),
-        ),
-      );
-
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.connected,
-          room: room,
-          isMicEnabled: useMicEnabled,
-          isCameraEnabled: useCameraEnabled,
-        ),
-      );
-
-      await _syncMicrophoneTransmission();
-      SoundService.instance.playJoin();
-      _syncParticipants();
-      _applyStoredSettings();
-    } catch (e) {
-      HelperMethods.printDebug('[LiveKit] room.connect() threw: $e');
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          error: 'Failed to connect: $e',
-        ),
-      );
-      await room.disconnect();
-      await room.dispose();
-    }
-  }
-
-  /// Disconnects from the current room.
-  Future<void> disconnect() async {
-    if (_screenshareCubit?.state.isSharing == true) {
-      await _screenshareCubit?.stopScreenShare();
-    }
-
-    SoundService.instance.playLeave();
-    _appCubit.setParticipants([]);
-    _appCubit.setSelectedChannelId(null);
-
-    emit(
-      state.copyWith(
-        connectionState: LiveKitConnectionState.disconnected,
-        clearChannelId: true,
-        clearError: true,
-        participants: [],
-      ),
-    );
-
-    await _cleanupRoom();
-    emit(state.copyWith(clearRoom: true));
-  }
-
   // ──────────────────────────────────────────────────────────
   // Internal helpers
   // ──────────────────────────────────────────────────────────
@@ -248,32 +106,12 @@ class LiveKitCubit extends Cubit<LiveKitState>
       );
     }).toList();
 
-    _appCubit.setParticipants(_dedupeByUser(infos));
+    _appCubit.setParticipants(ParticipantRoster.dedupeByUser(infos));
   }
 
   /// Collapses a user who is present from multiple devices into a single
   /// roster entry (one per user, and one per user's screenshare). The kept
   /// entry prefers the local participant, then a speaking one, then a
-  /// mic-enabled one, so the surviving row reflects the "active" device.
-  List<ParticipantInfo> _dedupeByUser(List<ParticipantInfo> infos) {
-    final byKey = <String, ParticipantInfo>{};
-    for (final info in infos) {
-      final key = '${info.userId}|${info.isScreenshare}';
-      final existing = byKey[key];
-      if (existing == null || _isBetterEntry(info, existing)) {
-        byKey[key] = info;
-      }
-    }
-    return byKey.values.toList();
-  }
-
-  bool _isBetterEntry(ParticipantInfo candidate, ParticipantInfo current) {
-    int rank(ParticipantInfo p) =>
-        (p.isLocal ? 4 : 0) +
-        (p.isSpeaking ? 2 : 0) +
-        (p.isMicrophoneEnabled ? 1 : 0);
-    return rank(candidate) > rank(current);
-  }
 
   void _onAppStateChanged(AppState appState) {
     final previous = _lastAppState;
@@ -403,32 +241,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
           }
         }
       }
-    }
-  }
-
-  Future<void> _cleanupRoom() async {
-    await _stopVoiceActivityMonitor();
-
-    final room = state.room;
-    if (room == null) return;
-
-    try {
-      if (room.connectionState == ConnectionState.connected ||
-          room.connectionState == ConnectionState.connecting) {
-        await room.disconnect();
-      }
-      for (final l in _listeners) {
-        try {
-          l.dispose();
-        } catch (e) {
-          HelperMethods.printDebug('Error disposing listener: $e');
-        }
-      }
-      _listeners.clear();
-      emit(state.copyWith(subscribedScreenshares: {}));
-      await room.dispose();
-    } catch (e) {
-      HelperMethods.printDebug('Error during room cleanup: $e');
     }
   }
 

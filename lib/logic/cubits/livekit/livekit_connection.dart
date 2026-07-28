@@ -1,0 +1,192 @@
+part of 'livekit_cubit.dart';
+
+/// Joining and leaving a LiveKit room, and tearing the room down cleanly.
+///
+/// Connecting always cleans up any previous room first, and emits
+/// `connecting` before it does — otherwise the disconnect event fired during
+/// cleanup reads as an unexpected drop and clears the new channel.
+mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
+  AppCubit get _appCubit;
+  TokenCubit get _tokenCubit;
+  ServerCubit? get _serverCubit;
+  List<EventsListener<RoomEvent>> get _listeners;
+
+  ScreenshareCubit? get _screenshareCubit;
+
+  /// Implemented by the cubit and its other mixins.
+  void _syncParticipants();
+  void setupRoomListeners(Room room);
+  void _applyStoredSettings();
+  Future<void> _stopVoiceActivityMonitor();
+  Future<void> _syncMicrophoneTransmission();
+  bool _shouldTransmitMic({required bool micEnabled, required bool deafened});
+  AudioCaptureOptions _buildAudioCaptureOptions();
+
+  /// Connects to a LiveKit channel. Server context is resolved internally via
+  /// [_serverCubit]; callers only supply the channel and media preferences.
+  Future<void> connectToChannel({
+    required String channelId,
+    bool? micEnabled,
+    bool? cameraEnabled,
+  }) async {
+    final hadRoom = state.room != null;
+    final wasConnecting =
+        state.connectionState == LiveKitConnectionState.connecting;
+
+    // Emit 'connecting' before cleanup so the RoomDisconnectedEvent fired during
+    // _cleanupRoom is not misread as an unexpected disconnect and doesn't clear
+    // the new channel ID.
+    emit(
+      state.copyWith(
+        connectionState: LiveKitConnectionState.connecting,
+        currentChannelId: channelId,
+        clearError: true,
+      ),
+    );
+
+    if (hadRoom || wasConnecting) await _cleanupRoom();
+
+    emit(state.copyWith(clearRoom: true));
+
+    final server = _serverCubit?.state.selectedServer;
+    if (server == null) {
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: 'No server selected',
+        ),
+      );
+      return;
+    }
+    final livekitUrl = server.livekitUrl;
+    if (livekitUrl == null) {
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: 'No LiveKit URL configured for this server',
+        ),
+      );
+      return;
+    }
+
+    String livekitToken;
+    final cached = _tokenCubit.getValidToken(server.supabaseUrl, channelId);
+    if (cached != null) {
+      livekitToken = cached.token;
+    } else {
+      final response = await _serverCubit!.getChannelToken(channelId);
+      if (!response.success) {
+        debugPrint('[LiveKit] Failed to get channel token: ${response.error}');
+        emit(
+          state.copyWith(
+            connectionState: LiveKitConnectionState.error,
+            error: response.error ?? 'Failed to get channel token',
+          ),
+        );
+        return;
+      }
+      livekitToken = response.data['token'] as String;
+      _tokenCubit.saveToken(server.supabaseUrl, channelId, livekitToken);
+    }
+
+    final room = Room(
+      roomOptions: RoomOptions(
+        adaptiveStream: true,
+        dynacast: true,
+        defaultAudioCaptureOptions: _buildAudioCaptureOptions(),
+      ),
+    );
+    setupRoomListeners(room);
+
+    try {
+      final useMicEnabled = micEnabled ?? state.isMicEnabled;
+      final useCameraEnabled = cameraEnabled ?? state.isCameraEnabled;
+      final joinMicEnabled = _shouldTransmitMic(
+        micEnabled: useMicEnabled,
+        deafened: state.isDeafened,
+      );
+
+      await room.connect(
+        livekitUrl,
+        livekitToken,
+        fastConnectOptions: FastConnectOptions(
+          microphone: TrackOption(enabled: joinMicEnabled),
+          camera: TrackOption(enabled: useCameraEnabled),
+        ),
+      );
+
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.connected,
+          room: room,
+          isMicEnabled: useMicEnabled,
+          isCameraEnabled: useCameraEnabled,
+        ),
+      );
+
+      await _syncMicrophoneTransmission();
+      SoundService.instance.playJoin();
+      _syncParticipants();
+      _applyStoredSettings();
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] room.connect() threw: $e');
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          error: 'Failed to connect: $e',
+        ),
+      );
+      await room.disconnect();
+      await room.dispose();
+    }
+  }
+
+  /// Disconnects from the current room.
+  Future<void> disconnect() async {
+    if (_screenshareCubit?.state.isSharing == true) {
+      await _screenshareCubit?.stopScreenShare();
+    }
+
+    SoundService.instance.playLeave();
+    _appCubit.setParticipants([]);
+    _appCubit.setSelectedChannelId(null);
+
+    emit(
+      state.copyWith(
+        connectionState: LiveKitConnectionState.disconnected,
+        clearChannelId: true,
+        clearError: true,
+        participants: [],
+      ),
+    );
+
+    await _cleanupRoom();
+    emit(state.copyWith(clearRoom: true));
+  }
+
+  Future<void> _cleanupRoom() async {
+    await _stopVoiceActivityMonitor();
+
+    final room = state.room;
+    if (room == null) return;
+
+    try {
+      if (room.connectionState == ConnectionState.connected ||
+          room.connectionState == ConnectionState.connecting) {
+        await room.disconnect();
+      }
+      for (final l in _listeners) {
+        try {
+          l.dispose();
+        } catch (e) {
+          HelperMethods.printDebug('Error disposing listener: $e');
+        }
+      }
+      _listeners.clear();
+      emit(state.copyWith(subscribedScreenshares: {}));
+      await room.dispose();
+    } catch (e) {
+      HelperMethods.printDebug('Error during room cleanup: $e');
+    }
+  }
+}

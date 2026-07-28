@@ -86,16 +86,16 @@ class Attachment {
 
   /// Compact keys — this JSON is encrypted, but small envelopes are still nice.
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'kind': kind.name,
-        'name': name,
-        'mime': mime,
-        'size': size,
-        'path': storagePath,
-        'key': keyB64,
-        'nonce': nonceB64,
-        if (width != null) 'w': width,
-        if (height != null) 'h': height,
-        if (durationMs != null) 'dur': durationMs,
-      };
+    'id': id,
+    'kind': kind.name,
+    'name': name,
+    'mime': mime,
+    'size': size,
+    'path': storagePath,
+    'key': keyB64,
+    'nonce': nonceB64,
+    if (width != null) 'w': width,
+    if (height != null) 'h': height,
+    if (durationMs != null) 'dur': durationMs,
+  };
 }

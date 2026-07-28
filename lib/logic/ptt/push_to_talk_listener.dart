@@ -38,8 +38,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
 
     if (!kIsWeb && Platform.isWindows) {
-      _bgSub =
-          _kPttChannel.receiveBroadcastStream().listen(_handleBgKeyEvent);
+      _bgSub = _kPttChannel.receiveBroadcastStream().listen(_handleBgKeyEvent);
     }
   }
 
@@ -157,4 +156,3 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
   @override
   Widget build(BuildContext context) => widget.child;
 }
-
