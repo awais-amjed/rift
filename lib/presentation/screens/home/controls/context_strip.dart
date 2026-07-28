@@ -71,8 +71,9 @@ class _ContextStripState extends State<ContextStrip> {
                     // Count distinct users, not raw connections, so a user on
                     // multiple devices (or their screenshare) counts once.
                     final count = lkState.participants
-                        .where((p) =>
-                            !ParticipantIdentity.isScreenshare(p.identity))
+                        .where(
+                          (p) => !ParticipantIdentity.isScreenshare(p.identity),
+                        )
                         .map((p) => ParticipantIdentity.userIdOf(p.identity))
                         .toSet()
                         .length;

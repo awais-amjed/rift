@@ -106,7 +106,10 @@ class _ServerSwitcherOverlayState extends State<_ServerSwitcherOverlay>
       (widget.overlaySize.width - width - 8).clamp(8.0, double.infinity),
     );
     final top = widget.anchor.bottom + gap;
-    final maxHeight = (widget.overlaySize.height - top - 12).clamp(120.0, 520.0);
+    final maxHeight = (widget.overlaySize.height - top - 12).clamp(
+      120.0,
+      520.0,
+    );
 
     return Stack(
       children: [
@@ -125,7 +128,10 @@ class _ServerSwitcherOverlayState extends State<_ServerSwitcherOverlay>
             opacity: _controller,
             child: ScaleTransition(
               scale: Tween<double>(begin: 0.96, end: 1.0).animate(
-                CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+                CurvedAnimation(
+                  parent: _controller,
+                  curve: Curves.easeOutCubic,
+                ),
               ),
               alignment: Alignment.topLeft,
               child: Material(

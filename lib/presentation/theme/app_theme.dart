@@ -8,8 +8,7 @@ class AppTheme {
   /// Widgets read colors from `ThemeState` getters; this only feeds the
   /// framework-level defaults (inputs, scaffold, dividers, text).
   static ThemeData fromPalette(AppPalette palette, Brightness brightness) {
-    final colors =
-        brightness == Brightness.dark ? palette.dark : palette.light;
+    final colors = brightness == Brightness.dark ? palette.dark : palette.light;
 
     return ThemeData(
       brightness: brightness,
@@ -24,8 +23,9 @@ class AppTheme {
         surfaceContainerHighest: colors.bgTertiary,
         error: CustomColors.error,
       ),
-      scaffoldBackgroundColor:
-          brightness == Brightness.dark ? colors.bgSecondary : colors.bgPrimary,
+      scaffoldBackgroundColor: brightness == Brightness.dark
+          ? colors.bgSecondary
+          : colors.bgPrimary,
       cardColor: colors.bgSecondary,
       dividerColor: colors.border,
       inputDecorationTheme: InputDecorationTheme(
@@ -45,8 +45,10 @@ class AppTheme {
         ),
         labelStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
         hintStyle: TextStyle(color: colors.textQuaternary),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
       ),
       textTheme: TextTheme(
         bodyMedium: TextStyle(color: colors.textSecondary),

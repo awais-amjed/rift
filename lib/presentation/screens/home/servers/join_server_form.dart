@@ -52,7 +52,8 @@ class _JoinServerFormState extends State<JoinServerForm> {
     final link = InviteLink.parse(_inviteLinkCtrl.text);
     if (link == null) {
       setState(() {
-        _error = "That doesn't look like a complete invite link. Ask the "
+        _error =
+            "That doesn't look like a complete invite link. Ask the "
             'server admin for a new one.';
       });
       return;

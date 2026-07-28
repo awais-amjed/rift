@@ -25,8 +25,9 @@ class ServerSelectorDialog extends StatefulWidget {
 }
 
 class _ServerSelectorDialogState extends State<ServerSelectorDialog> {
-  late _SelectorMode _mode =
-      widget.startAtAddFlow ? _SelectorMode.pickMode : _SelectorMode.list;
+  late _SelectorMode _mode = widget.startAtAddFlow
+      ? _SelectorMode.pickMode
+      : _SelectorMode.list;
 
   String get _title {
     switch (_mode) {

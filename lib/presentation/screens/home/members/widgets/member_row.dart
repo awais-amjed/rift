@@ -22,7 +22,8 @@ class MemberRow extends StatelessWidget {
     bool? isServerAdmin,
     bool? isChannelManager,
     bool? canCreateTokens,
-  }) onPermissionChanged;
+  })
+  onPermissionChanged;
   final void Function({bool? muted, bool? deafened}) onModerate;
 
   const MemberRow({
@@ -54,8 +55,10 @@ class MemberRow extends StatelessWidget {
                 hoverColor: themeState.bgHover,
                 onTap: _expandable ? onTap : null,
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       // Avatar
@@ -142,9 +145,7 @@ class MemberRow extends StatelessWidget {
                       if (_expandable) ...[
                         const SizedBox(width: 6),
                         Icon(
-                          isExpanded
-                              ? Icons.expand_less
-                              : Icons.expand_more,
+                          isExpanded ? Icons.expand_less : Icons.expand_more,
                           size: 16,
                           color: themeState.textQuaternary,
                         ),

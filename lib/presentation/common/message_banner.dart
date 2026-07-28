@@ -26,22 +26,16 @@ class MessageBanner extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            isError
-                ? Icons.error_outline_rounded
-                : Icons.check_circle_outline,
+            isError ? Icons.error_outline_rounded : Icons.check_circle_outline,
             size: 16,
             color: color,
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              message,
-              style: TextStyle(fontSize: 13, color: color),
-            ),
+            child: Text(message, style: TextStyle(fontSize: 13, color: color)),
           ),
         ],
       ),
     );
   }
 }
-

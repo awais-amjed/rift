@@ -78,31 +78,31 @@ class _VoiceAudioContentState extends State<VoiceAudioContent> {
             _ToggleRow(
               themeState: themeState,
               title: 'Noise suppression',
-              description: 'Filters out steady background noise like fans, '
+              description:
+                  'Filters out steady background noise like fans, '
                   'keyboards, and hum before it reaches the call.',
               value: appState.noiseSuppression,
-              onChanged: (v) =>
-                  context.read<AppCubit>().setNoiseSuppression(v),
+              onChanged: (v) => context.read<AppCubit>().setNoiseSuppression(v),
             ),
             const SizedBox(height: 14),
             _ToggleRow(
               themeState: themeState,
               title: 'Echo cancellation',
-              description: 'Stops other participants\' audio, picked up by your '
+              description:
+                  'Stops other participants\' audio, picked up by your '
                   'mic, from echoing back to them.',
               value: appState.echoCancellation,
-              onChanged: (v) =>
-                  context.read<AppCubit>().setEchoCancellation(v),
+              onChanged: (v) => context.read<AppCubit>().setEchoCancellation(v),
             ),
             const SizedBox(height: 14),
             _ToggleRow(
               themeState: themeState,
               title: 'Automatic gain control',
-              description: 'Evens out your mic level as you move nearer to or '
+              description:
+                  'Evens out your mic level as you move nearer to or '
                   'further from the mic.',
               value: appState.autoGainControl,
-              onChanged: (v) =>
-                  context.read<AppCubit>().setAutoGainControl(v),
+              onChanged: (v) => context.read<AppCubit>().setAutoGainControl(v),
             ),
             const SizedBox(height: 20),
             // ── Input Sensitivity + Mic Test ─────────────────
@@ -159,118 +159,123 @@ class _VoiceAudioContentState extends State<VoiceAudioContent> {
             ],
             // ── Push-to-Talk (Windows only) ──────────────────
             if (!kIsWeb && Platform.isWindows) ...[
-            Text(
-              'Push-to-Talk',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: themeState.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Enable Push-to-Talk',
-                        style: TextStyle(
-                          color: themeState.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        canUsePtt
-                            ? 'Hold the configured key to transmit your mic.'
-                            : 'Push-to-talk is currently available on Windows only.',
-                        style: TextStyle(
-                          color: themeState.textTertiary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+              Text(
+                'Push-to-Talk',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: themeState.textPrimary,
                 ),
-                Switch(
-                  value: appState.pushToTalkEnabled,
-                  onChanged: canUsePtt
-                      ? (value) =>
-                            context.read<AppCubit>().setPushToTalkEnabled(value)
-                      : null,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Keybind',
-              style: TextStyle(
-                color: themeState.textPrimary,
-                fontWeight: FontWeight.w600,
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              keybindLabel,
-              style: TextStyle(color: themeState.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 10),
-            Focus(
-              focusNode: _captureFocusNode,
-              onKeyEvent: (_, event) {
-                if (!_isCapturing || event is! KeyDownEvent) {
-                  return KeyEventResult.ignored;
-                }
-
-                if (event.logicalKey == LogicalKeyboardKey.escape) {
-                  _toggleCapture(false);
-                  return KeyEventResult.handled;
-                }
-
-                final key = event.logicalKey;
-                context.read<AppCubit>().setPushToTalkKeybind(
-                  keyId: key.keyId,
-                  label: _labelForKey(key),
-                );
-                _toggleCapture(false);
-                return KeyEventResult.handled;
-              },
-              child: Row(
+              const SizedBox(height: 12),
+              Row(
                 children: [
                   Expanded(
-                    child: AppButton(
-                      label: _isCapturing
-                          ? 'Press any key...'
-                          : 'Set Push-to-Talk Key',
-                      onPressed: canUsePtt
-                          ? () => _toggleCapture(!_isCapturing)
-                          : null,
-                      variant: _isCapturing
-                          ? AppButtonVariant.secondary
-                          : AppButtonVariant.primary,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Enable Push-to-Talk',
+                          style: TextStyle(
+                            color: themeState.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          canUsePtt
+                              ? 'Hold the configured key to transmit your mic.'
+                              : 'Push-to-talk is currently available on Windows only.',
+                          style: TextStyle(
+                            color: themeState.textTertiary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  AppButton(
-                    label: 'Clear',
-                    onPressed: appState.pushToTalkKeyId == null
-                        ? null
-                        : () =>
-                              context.read<AppCubit>().clearPushToTalkKeybind(),
-                    variant: AppButtonVariant.secondary,
+                  Switch(
+                    value: appState.pushToTalkEnabled,
+                    onChanged: canUsePtt
+                        ? (value) => context
+                              .read<AppCubit>()
+                              .setPushToTalkEnabled(value)
+                        : null,
                   ),
                 ],
               ),
-            ),
-            if (_isCapturing) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
               Text(
-                'Press Esc to cancel key capture.',
-                style: TextStyle(color: themeState.textTertiary, fontSize: 12),
+                'Keybind',
+                style: TextStyle(
+                  color: themeState.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ],
+              const SizedBox(height: 6),
+              Text(
+                keybindLabel,
+                style: TextStyle(color: themeState.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              Focus(
+                focusNode: _captureFocusNode,
+                onKeyEvent: (_, event) {
+                  if (!_isCapturing || event is! KeyDownEvent) {
+                    return KeyEventResult.ignored;
+                  }
+
+                  if (event.logicalKey == LogicalKeyboardKey.escape) {
+                    _toggleCapture(false);
+                    return KeyEventResult.handled;
+                  }
+
+                  final key = event.logicalKey;
+                  context.read<AppCubit>().setPushToTalkKeybind(
+                    keyId: key.keyId,
+                    label: _labelForKey(key),
+                  );
+                  _toggleCapture(false);
+                  return KeyEventResult.handled;
+                },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: AppButton(
+                        label: _isCapturing
+                            ? 'Press any key...'
+                            : 'Set Push-to-Talk Key',
+                        onPressed: canUsePtt
+                            ? () => _toggleCapture(!_isCapturing)
+                            : null,
+                        variant: _isCapturing
+                            ? AppButtonVariant.secondary
+                            : AppButtonVariant.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    AppButton(
+                      label: 'Clear',
+                      onPressed: appState.pushToTalkKeyId == null
+                          ? null
+                          : () => context
+                                .read<AppCubit>()
+                                .clearPushToTalkKeybind(),
+                      variant: AppButtonVariant.secondary,
+                    ),
+                  ],
+                ),
+              ),
+              if (_isCapturing) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Press Esc to cancel key capture.',
+                  style: TextStyle(
+                    color: themeState.textTertiary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ], // end Windows-only PTT block
           ],
         );
@@ -314,10 +319,7 @@ class _ToggleRow extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 description,
-                style: TextStyle(
-                  color: themeState.textTertiary,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: themeState.textTertiary, fontSize: 12),
               ),
             ],
           ),

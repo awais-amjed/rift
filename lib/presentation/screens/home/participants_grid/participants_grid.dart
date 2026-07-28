@@ -45,9 +45,7 @@ class ParticipantsGrid extends StatelessWidget {
               case LiveKitConnectionState.connecting:
                 return const ConnectingView();
               case LiveKitConnectionState.error:
-                return ErrorView(
-                  error: livekitState.error ?? 'Unknown error',
-                );
+                return ErrorView(error: livekitState.error ?? 'Unknown error');
               case LiveKitConnectionState.connected:
                 if (livekitState.room == null) {
                   return const ConnectingView();

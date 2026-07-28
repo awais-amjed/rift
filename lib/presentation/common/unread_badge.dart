@@ -8,11 +8,7 @@ class UnreadBadge extends StatelessWidget {
   final int count;
   final ThemeState themeState;
 
-  const UnreadBadge({
-    super.key,
-    required this.count,
-    required this.themeState,
-  });
+  const UnreadBadge({super.key, required this.count, required this.themeState});
 
   @override
   Widget build(BuildContext context) {

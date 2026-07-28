@@ -102,8 +102,9 @@ class _SourceCard extends StatelessWidget {
             // Preview area
             Expanded(
               child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(7)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(7),
+                ),
                 child: thumbnail != null
                     ? Image.memory(
                         thumbnail!,
@@ -115,8 +116,9 @@ class _SourceCard extends StatelessWidget {
                         child: Icon(
                           Icons.desktop_windows_outlined,
                           size: 28,
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.4),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.4,
+                          ),
                         ),
                       ),
               ),
@@ -130,10 +132,10 @@ class _SourceCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight:
-                      isSelected ? FontWeight.w700 : FontWeight.normal,
-                  color:
-                      isSelected ? colorScheme.primary : colorScheme.onSurface,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                  color: isSelected
+                      ? colorScheme.primary
+                      : colorScheme.onSurface,
                 ),
               ),
             ),
@@ -143,4 +145,3 @@ class _SourceCard extends StatelessWidget {
     );
   }
 }
-

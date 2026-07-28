@@ -7,11 +7,11 @@ class InviteExpiryOption {
 }
 
 const List<InviteExpiryOption> inviteExpiryOptions = [
-  InviteExpiryOption('1 hour',  3600),
-  InviteExpiryOption('1 day',   86400),
-  InviteExpiryOption('7 days',  604800),
+  InviteExpiryOption('1 hour', 3600),
+  InviteExpiryOption('1 day', 86400),
+  InviteExpiryOption('7 days', 604800),
   InviteExpiryOption('30 days', 2592000),
-  InviteExpiryOption('Never',   null),
+  InviteExpiryOption('Never', null),
 ];
 
 /// Max-uses presets shown in the invite modal.
@@ -23,10 +23,9 @@ class InviteUsesOption {
 }
 
 const List<InviteUsesOption> inviteUsesOptions = [
-  InviteUsesOption('1',  1),
-  InviteUsesOption('5',  5),
+  InviteUsesOption('1', 1),
+  InviteUsesOption('5', 5),
   InviteUsesOption('10', 10),
   InviteUsesOption('25', 25),
-  InviteUsesOption('∞',  null),
+  InviteUsesOption('∞', null),
 ];
-

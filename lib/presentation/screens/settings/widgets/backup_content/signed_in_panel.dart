@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -11,6 +10,7 @@ import '../../../../common/message_banner.dart';
 import '../../../../theme/custom_colors.dart';
 
 import 'section_title.dart';
+
 class SignedInPanel extends StatelessWidget {
   final ThemeState themeState;
   final SupabaseBackupState state;
@@ -94,8 +94,9 @@ class SignedInPanel extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed:
-                    isProcessing ? null : () => _signOutOfDevice(context),
+                onPressed: isProcessing
+                    ? null
+                    : () => _signOutOfDevice(context),
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
                   minimumSize: const Size(48, 28),
@@ -141,12 +142,12 @@ class SignedInPanel extends StatelessWidget {
             AppButton(
               label: 'Restore from Cloud',
               variant: AppButtonVariant.secondary,
-              onPressed:
-                  isProcessing ? null : () => cubit.importBackupFromCloud(),
+              onPressed: isProcessing
+                  ? null
+                  : () => cubit.importBackupFromCloud(),
             ),
           ],
         ),
-
 
         // Messages
         if (state.error != null) ...[
@@ -161,4 +162,3 @@ class SignedInPanel extends StatelessWidget {
     );
   }
 }
-

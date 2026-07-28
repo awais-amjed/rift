@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -8,6 +7,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/message_banner.dart';
 
 import 'section_title.dart';
+
 class ConflictPanel extends StatelessWidget {
   final ThemeState themeState;
   final SupabaseBackupState state;
@@ -58,4 +58,3 @@ class ConflictPanel extends StatelessWidget {
     );
   }
 }
-

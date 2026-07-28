@@ -63,11 +63,11 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
     });
 
     final result = await context.read<ServerCubit>().updateServerDetails(
-          name: name,
-          livekitUrl: livekitUrl.isEmpty ? null : livekitUrl,
-          livekitApiKey: apiKey.isEmpty ? null : apiKey,
-          livekitSecretKey: secret.isEmpty ? null : secret,
-        );
+      name: name,
+      livekitUrl: livekitUrl.isEmpty ? null : livekitUrl,
+      livekitApiKey: apiKey.isEmpty ? null : apiKey,
+      livekitSecretKey: secret.isEmpty ? null : secret,
+    );
 
     if (!mounted) return;
 
@@ -115,17 +115,22 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                     Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: CustomColors.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: CustomColors.error.withValues(alpha: 0.3)),
+                          color: CustomColors.error.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Text(
                         _error!,
                         style: const TextStyle(
-                            fontSize: 12, color: CustomColors.error),
+                          fontSize: 12,
+                          color: CustomColors.error,
+                        ),
                       ),
                     ),
                   ],
@@ -165,7 +170,9 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                     'never sent back — leave them blank to keep the current '
                     'values.',
                     style: TextStyle(
-                        fontSize: 11, color: themeState.textTertiary),
+                      fontSize: 11,
+                      color: themeState.textTertiary,
+                    ),
                   ),
                   const SizedBox(height: 24),
 

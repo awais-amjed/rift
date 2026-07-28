@@ -52,9 +52,7 @@ class PermissionToggle extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 15,
-                    color: value
-                        ? themeState.primary
-                        : themeState.textTertiary,
+                    color: value ? themeState.primary : themeState.textTertiary,
                   ),
                 ),
                 const SizedBox(width: 10),

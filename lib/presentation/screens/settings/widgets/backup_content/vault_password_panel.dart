@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -9,6 +8,7 @@ import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 
 import 'section_title.dart';
+
 class VaultPasswordPanel extends StatefulWidget {
   final ThemeState themeState;
   final SupabaseBackupState state;
@@ -86,4 +86,3 @@ class VaultPasswordPanelState extends State<VaultPasswordPanel> {
     );
   }
 }
-

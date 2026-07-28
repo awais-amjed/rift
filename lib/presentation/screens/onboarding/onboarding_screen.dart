@@ -34,9 +34,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       1 => AccountStep(onBack: () => _goTo(0)),
       2 => PasswordStep(onBack: () => _goTo(0)),
       _ => WelcomeStep(
-          onContinueWithAccount: () => _goTo(1),
-          onContinuePrivately: () => _goTo(2),
-        ),
+        onContinueWithAccount: () => _goTo(1),
+        onContinuePrivately: () => _goTo(2),
+      ),
     };
 
     return Scaffold(

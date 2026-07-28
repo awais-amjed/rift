@@ -62,8 +62,10 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
         },
       );
 
-      final setting = widget.participantSettings[
-          ParticipantIdentity.userIdOf(expandedParticipant.identity)];
+      final setting =
+          widget.participantSettings[ParticipantIdentity.userIdOf(
+            expandedParticipant.identity,
+          )];
       final isMuted = (setting as dynamic)?.muted ?? false;
 
       return ParticipantTileWidget(
@@ -165,8 +167,10 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
               itemCount: widget.participants.length,
               itemBuilder: (context, index) {
                 final p = widget.participants[index];
-                final setting = widget
-                    .participantSettings[ParticipantIdentity.userIdOf(p.identity)];
+                final setting =
+                    widget.participantSettings[ParticipantIdentity.userIdOf(
+                      p.identity,
+                    )];
                 final isMuted = (setting as dynamic)?.muted ?? false;
                 return ParticipantTileWidget(
                   participant: p,

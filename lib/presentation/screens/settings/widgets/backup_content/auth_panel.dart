@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -9,6 +8,7 @@ import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 
 import 'section_title.dart';
+
 class AuthPanel extends StatefulWidget {
   final ThemeState themeState;
   final SupabaseBackupState state;
@@ -103,10 +103,7 @@ class AuthPanelState extends State<AuthPanel> {
                   : () => setState(() => _isSignUp = !_isSignUp),
               child: Text(
                 _isSignUp ? 'Already have an account?' : 'Create an account',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.primary,
-                ),
+                style: TextStyle(fontSize: 12, color: theme.primary),
               ),
             ),
           ],
@@ -115,4 +112,3 @@ class AuthPanelState extends State<AuthPanel> {
     );
   }
 }
-

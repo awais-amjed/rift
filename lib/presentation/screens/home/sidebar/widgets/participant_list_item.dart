@@ -33,9 +33,7 @@ class ParticipantListItem extends StatelessWidget {
         final hoverColor = themeState.bgHover;
 
         Widget content = Material(
-          color: isSpeaking
-              ? themeState.primary.withValues(alpha: 0.08)
-              : null,
+          color: isSpeaking ? themeState.primary.withValues(alpha: 0.08) : null,
           borderRadius: BorderRadius.circular(8),
           child: InkWell(
             borderRadius: BorderRadius.circular(8),

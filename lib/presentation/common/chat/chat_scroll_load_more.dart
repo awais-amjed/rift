@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 /// The list is reversed, so "scrolled back to the oldest message" is the far
 /// end of the scroll extent — the page is requested [_threshold] pixels before
 /// it so the history is already there when they arrive. Mix into a chat view's
-/// [State] and implement [loadMoreHistory] with the cubit call.
+/// `State` and implement [loadMoreHistory] with the cubit call.
 mixin ChatScrollLoadMore<T extends StatefulWidget> on State<T> {
   static const double _threshold = 200;
 

@@ -48,8 +48,11 @@ class SignedInView extends StatelessWidget {
           label: 'Save Backup',
           expanded: true,
           isLoading: isProcessing,
-          icon: const Icon(Icons.cloud_upload_rounded,
-              size: 16, color: Colors.white),
+          icon: const Icon(
+            Icons.cloud_upload_rounded,
+            size: 16,
+            color: Colors.white,
+          ),
           onPressed: isProcessing ? null : cubit.saveBackupToCloud,
         ),
 
@@ -88,9 +91,7 @@ class _SignedInBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: CustomColors.success.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: CustomColors.success.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: CustomColors.success.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -122,4 +123,3 @@ class _SignedInBanner extends StatelessWidget {
     );
   }
 }
-

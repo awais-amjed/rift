@@ -26,18 +26,20 @@ class HomeDmButton extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
               hoverColor: themeState.bgHover,
-              onTap: () =>
-                  context.read<AppCubit>().setHomeViewOpen(!selected),
+              onTap: () => context.read<AppCubit>().setHomeViewOpen(!selected),
               child: Container(
                 decoration: selected
                     ? BoxDecoration(
-                        border:
-                            Border.all(color: themeState.channelActiveBorder),
+                        border: Border.all(
+                          color: themeState.channelActiveBorder,
+                        ),
                         borderRadius: BorderRadius.circular(10),
                       )
                     : null,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Icon(

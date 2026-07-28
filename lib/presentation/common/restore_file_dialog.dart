@@ -64,9 +64,9 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
     try {
       final content = await file.readAsString();
       final result = await context.read<VaultCubit>().importBackup(
-            jsonContent: content,
-            password: _passwordController.text,
-          );
+        jsonContent: content,
+        password: _passwordController.text,
+      );
 
       if (!mounted) return;
       if (result.success) {
@@ -124,8 +124,7 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
         AppButton(
           label: 'Cancel',
           variant: AppButtonVariant.secondary,
-          onPressed:
-              _isProcessing ? null : () => Navigator.of(context).pop(),
+          onPressed: _isProcessing ? null : () => Navigator.of(context).pop(),
         ),
         AppButton(
           label: 'Restore',

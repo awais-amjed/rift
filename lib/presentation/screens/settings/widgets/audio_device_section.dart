@@ -28,8 +28,12 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
   Future<void> _loadDevices() async {
     try {
-      final inputFuture = Hardware.instance.enumerateDevices(type: 'audioinput');
-      final outputFuture = Hardware.instance.enumerateDevices(type: 'audiooutput');
+      final inputFuture = Hardware.instance.enumerateDevices(
+        type: 'audioinput',
+      );
+      final outputFuture = Hardware.instance.enumerateDevices(
+        type: 'audiooutput',
+      );
 
       final results = await Future.wait([inputFuture, outputFuture]);
 
@@ -42,7 +46,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
         // Apply saved devices on load
         final appState = context.read<AppCubit>().state;
-        
+
         // Apply saved input device
         if (appState.inputDeviceId != null) {
           final inputDevice = _inputDevices.cast<MediaDevice?>().firstWhere(
@@ -105,12 +109,13 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     if (savedId != null) return savedId;
     if (devices.isEmpty) return null;
     return devices
-        .cast<MediaDevice?>()
-        .firstWhere(
-          (d) => d!.label.toLowerCase().contains('default'),
-          orElse: () => null,
-        )
-        ?.deviceId ?? devices.first.deviceId;
+            .cast<MediaDevice?>()
+            .firstWhere(
+              (d) => d!.label.toLowerCase().contains('default'),
+              orElse: () => null,
+            )
+            ?.deviceId ??
+        devices.first.deviceId;
   }
 
   Widget _buildDeviceDropdown({
@@ -157,18 +162,17 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
               isExpanded: true,
               underline: const SizedBox.shrink(),
               dropdownColor: themeState.bgSecondary,
-              style: TextStyle(
-                color: themeState.textPrimary,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: themeState.textPrimary, fontSize: 13),
               items: devices
-                  .map((device) => DropdownMenuItem<String>(
-                        value: device.deviceId,
-                        child: Text(
-                          device.label.isEmpty ? 'Unknown' : device.label,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ))
+                  .map(
+                    (device) => DropdownMenuItem<String>(
+                      value: device.deviceId,
+                      child: Text(
+                        device.label.isEmpty ? 'Unknown' : device.label,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: (id) => onChanged(id),
             ),
@@ -204,4 +208,3 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     );
   }
 }
-

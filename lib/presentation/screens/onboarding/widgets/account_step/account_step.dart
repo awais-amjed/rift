@@ -53,4 +53,3 @@ class _AccountStepState extends State<AccountStep> {
     );
   }
 }
-

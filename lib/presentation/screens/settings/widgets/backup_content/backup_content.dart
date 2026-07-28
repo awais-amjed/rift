@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -46,8 +45,10 @@ class _BackupBody extends StatelessWidget {
         } else if (state.isSignedIn) {
           cloudPanel = SignedInPanel(themeState: themeState, state: state);
         } else if (state.needsEmailConfirmation) {
-          cloudPanel =
-              ConfirmEmailPanel(themeState: themeState, email: state.email);
+          cloudPanel = ConfirmEmailPanel(
+            themeState: themeState,
+            email: state.email,
+          );
         } else {
           cloudPanel = AuthPanel(themeState: themeState, state: state);
         }
@@ -64,4 +65,3 @@ class _BackupBody extends StatelessWidget {
     );
   }
 }
-

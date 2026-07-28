@@ -299,7 +299,9 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: themeState.isDarkTheme ? themeState.bgSecondary : themeState.bgTertiary,
+        color: themeState.isDarkTheme
+            ? themeState.bgSecondary
+            : themeState.bgTertiary,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isSpeaking ? themeState.primary : themeState.borderPrimary,

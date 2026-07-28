@@ -10,6 +10,7 @@ import '../../../theme/custom_colors.dart';
 import 'onboarding_page.dart';
 import 'password_strength_indicator.dart';
 import '../../../common/restore_file_dialog.dart';
+import '../../../common/feature_header.dart';
 
 /// Privacy-mode onboarding step — create a local-only vault.
 ///
@@ -70,46 +71,13 @@ class _PasswordStepState extends State<PasswordStep> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Icon
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: theme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(
-                  Icons.person_add_rounded,
-                  size: 32,
-                  color: theme.primary,
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              Text(
-                'Create a Local Vault',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: theme.textPrimary,
-                  letterSpacing: -0.3,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 380),
-                child: Text(
-                  'Choose a password to encrypt your identity. Everything '
-                  'stays on this device — no email, no central server.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.5,
-                    color: theme.textTertiary,
-                  ),
-                ),
+              FeatureHeader(
+                icon: Icons.person_add_rounded,
+                title: 'Create a Local Vault',
+                subtitle:
+                    'Choose a password to encrypt your identity. Everything '
+                    'stays on this device — no email, no central server.',
+                themeState: theme,
               ),
 
               const SizedBox(height: 32),
@@ -242,18 +210,15 @@ class _PasswordStepState extends State<PasswordStep> {
                       onPressed: isProcessing
                           ? null
                           : () => showCustomDialog(
-                                context: context,
-                                builder: (_) => BlocProvider.value(
-                                  value: context.read<VaultCubit>(),
-                                  child: const RestoreFileDialog(),
-                                ),
+                              context: context,
+                              builder: (_) => BlocProvider.value(
+                                value: context.read<VaultCubit>(),
+                                child: const RestoreFileDialog(),
                               ),
+                            ),
                       child: Text(
                         'Have a backup file? Restore it instead',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.primary,
-                        ),
+                        style: TextStyle(fontSize: 12, color: theme.primary),
                       ),
                     ),
                   ],

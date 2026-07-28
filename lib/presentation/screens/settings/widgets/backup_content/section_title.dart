@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -21,4 +20,3 @@ class SectionTitle extends StatelessWidget {
     );
   }
 }
-

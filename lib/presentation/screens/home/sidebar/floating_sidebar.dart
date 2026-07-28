@@ -61,11 +61,9 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
                   width: 4,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: context
-                        .watch<ThemeCubit>()
-                        .state
-                        .primary
-                        .withValues(alpha: 0.55),
+                    color: context.watch<ThemeCubit>().state.primary.withValues(
+                      alpha: 0.55,
+                    ),
                     borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(4),
                       bottomRight: Radius.circular(4),

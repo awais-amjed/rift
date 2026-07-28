@@ -13,6 +13,7 @@ import '../../../../common/app_modal.dart';
 import '../../../../common/restore_file_dialog.dart';
 
 import 'section_title.dart';
+
 class FileBackupPanel extends StatefulWidget {
   final ThemeState themeState;
 
@@ -113,4 +114,3 @@ class FileBackupPanelState extends State<FileBackupPanel> {
     );
   }
 }
-

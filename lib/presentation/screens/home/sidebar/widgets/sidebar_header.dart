@@ -31,7 +31,9 @@ class SidebarHeader extends StatelessWidget {
                         server: server,
                         onTap: () => _openServerSwitcher(context),
                       )
-                    : NoServerButton(onTap: () => _openAddServerDialog(context)),
+                    : NoServerButton(
+                        onTap: () => _openAddServerDialog(context),
+                      ),
 
                 // Right-side controls: server settings (admins) + pin toggle
                 Positioned(
@@ -61,10 +63,9 @@ class SidebarHeader extends StatelessWidget {
                           buildWhen: (p, c) => p.isPinned != c.isPinned,
                           builder: (context, appState) {
                             return IconButton(
-                              onPressed: () =>
-                                  context.read<AppCubit>().setIsPinned(
-                                        !appState.isPinned,
-                                      ),
+                              onPressed: () => context
+                                  .read<AppCubit>()
+                                  .setIsPinned(!appState.isPinned),
                               icon: Icon(
                                 appState.isPinned
                                     ? Icons.chevron_left

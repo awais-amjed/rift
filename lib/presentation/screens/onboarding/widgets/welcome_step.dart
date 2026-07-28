@@ -95,7 +95,11 @@ class WelcomeStep extends StatelessWidget {
           AppButton(
             label: 'Continue with an Account',
             onPressed: onContinueWithAccount,
-            icon: const Icon(Icons.arrow_forward, size: 18, color: Colors.white),
+            icon: const Icon(
+              Icons.arrow_forward,
+              size: 18,
+              color: Colors.white,
+            ),
           ),
 
           const SizedBox(height: 12),

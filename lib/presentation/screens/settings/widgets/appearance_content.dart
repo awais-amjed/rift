@@ -68,8 +68,7 @@ class AppearanceContent extends StatelessWidget {
                 palette: palette,
                 isSelected: themeState.paletteId == palette.id,
                 themeState: themeState,
-                onTap: () =>
-                    context.read<ThemeCubit>().setPalette(palette.id),
+                onTap: () => context.read<ThemeCubit>().setPalette(palette.id),
               ),
           ],
         ),
@@ -95,11 +94,11 @@ class _PaletteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Preview swatches always show the palette's own colors for the current
     // brightness, regardless of the active palette.
-    final preview =
-        themeState.isDarkTheme ? palette.dark : palette.light;
+    final preview = themeState.isDarkTheme ? palette.dark : palette.light;
 
-    final borderColor =
-        isSelected ? themeState.channelActiveBorder : themeState.borderPrimary;
+    final borderColor = isSelected
+        ? themeState.channelActiveBorder
+        : themeState.borderPrimary;
 
     return Material(
       color: themeState.bgTertiary,
@@ -191,12 +190,15 @@ class ThemeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor =
-        isSelected ? themeState.channelActiveBorder : themeState.borderPrimary;
-    final bgColor =
-        isSelected ? themeState.channelActiveBg : themeState.bgTertiary;
-    final textColor =
-        isSelected ? themeState.channelActiveText : themeState.textSecondary;
+    final borderColor = isSelected
+        ? themeState.channelActiveBorder
+        : themeState.borderPrimary;
+    final bgColor = isSelected
+        ? themeState.channelActiveBg
+        : themeState.bgTertiary;
+    final textColor = isSelected
+        ? themeState.channelActiveText
+        : themeState.textSecondary;
 
     return Material(
       color: bgColor,
@@ -231,4 +233,3 @@ class ThemeCard extends StatelessWidget {
     );
   }
 }
-

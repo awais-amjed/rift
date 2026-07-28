@@ -40,10 +40,9 @@ class CaptureSourceSection extends StatelessWidget {
           children: [
             Text(
               'Select $label',
-              style: Theme.of(context)
-                  .textTheme
-                  .labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const Spacer(),
             IconButton(
@@ -96,32 +95,45 @@ class _SourceDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = captureFullScreen ? 'Screen' : 'Window';
-    final selectedSource =
-        sources.where((s) => s.index == selectedIndex).firstOrNull;
+    final selectedSource = sources
+        .where((s) => s.index == selectedIndex)
+        .firstOrNull;
 
     return DropdownButtonFormField<int>(
       key: ValueKey(
-          '${captureFullScreen}_${selectedSource?.index}_${sources.length}'),
+        '${captureFullScreen}_${selectedSource?.index}_${sources.length}',
+      ),
       initialValue: selectedSource?.index,
       isExpanded: true,
       decoration: InputDecoration(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
       ),
       items: sources
-          .map((s) => DropdownMenuItem<int>(
-                value: s.index,
-                child: Text(_displayLabel(s, label),
-                    overflow: TextOverflow.ellipsis),
-              ))
+          .map(
+            (s) => DropdownMenuItem<int>(
+              value: s.index,
+              child: Text(
+                _displayLabel(s, label),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
           .toList(),
       selectedItemBuilder: (context) => sources
-          .map((s) => Align(
-                alignment: Alignment.centerLeft,
-                child: Text(_displayLabel(s, label),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-              ))
+          .map(
+            (s) => Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _displayLabel(s, label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
           .toList(),
       onChanged: (value) {
         if (value == null) return;
@@ -137,4 +149,3 @@ class _SourceDropdown extends StatelessWidget {
     return '$label #${source.index + 1} (index ${source.index})';
   }
 }
-

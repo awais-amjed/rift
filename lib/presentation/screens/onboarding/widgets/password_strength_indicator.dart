@@ -31,9 +31,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
                 height: 4,
                 margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
                 decoration: BoxDecoration(
-                  color: active
-                      ? strength.color
-                      : theme.borderPrimary,
+                  color: active ? strength.color : theme.borderPrimary,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -108,5 +106,3 @@ class _PasswordStrength {
 
   const _PasswordStrength(this.level, this.label, this.color);
 }
-
-

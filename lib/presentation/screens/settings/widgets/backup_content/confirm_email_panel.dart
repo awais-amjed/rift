@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -7,6 +6,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 
 import 'section_title.dart';
+
 class ConfirmEmailPanel extends StatelessWidget {
   final ThemeState themeState;
   final String? email;
@@ -41,4 +41,3 @@ class ConfirmEmailPanel extends StatelessWidget {
     );
   }
 }
-

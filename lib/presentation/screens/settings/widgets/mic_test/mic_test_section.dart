@@ -98,8 +98,11 @@ class _MicTestSectionState extends State<MicTestSection> {
       await track?.stop();
       await track?.dispose();
       if (mounted) {
-        setState(() => _error = 'Could not access the microphone. '
-            'Close any app using it and try again.');
+        setState(
+          () => _error =
+              'Could not access the microphone. '
+              'Close any app using it and try again.',
+        );
       }
     }
   }
@@ -178,8 +181,10 @@ class _MicTestSectionState extends State<MicTestSection> {
               children: [
                 Text(
                   'Threshold',
-                  style:
-                      TextStyle(color: themeState.textSecondary, fontSize: 12),
+                  style: TextStyle(
+                    color: themeState.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
                 Expanded(
                   child: Slider(
@@ -209,8 +214,10 @@ class _MicTestSectionState extends State<MicTestSection> {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
                   'Ignored while Push-to-Talk is on.',
-                  style:
-                      TextStyle(color: themeState.textTertiary, fontSize: 11),
+                  style: TextStyle(
+                    color: themeState.textTertiary,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             const SizedBox(height: 10),
@@ -229,7 +236,9 @@ class _MicTestSectionState extends State<MicTestSection> {
                   Text(
                     'Listening…',
                     style: TextStyle(
-                        color: themeState.textTertiary, fontSize: 12),
+                      color: themeState.textTertiary,
+                      fontSize: 12,
+                    ),
                   ),
               ],
             ),
@@ -237,8 +246,7 @@ class _MicTestSectionState extends State<MicTestSection> {
               const SizedBox(height: 8),
               Text(
                 _error!,
-                style:
-                    const TextStyle(color: CustomColors.error, fontSize: 12),
+                style: const TextStyle(color: CustomColors.error, fontSize: 12),
               ),
             ],
           ],

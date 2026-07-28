@@ -37,7 +37,8 @@ class ParticipantContextMenu extends StatelessWidget {
             final liveKitState = context.watch<LiveKitCubit>().state;
             final serverState = context.watch<ServerCubit>().state;
             final permissions = serverState.selectedServer?.user?.permissions;
-            final isModerator = (permissions?.isChannelManager ?? false) ||
+            final isModerator =
+                (permissions?.isChannelManager ?? false) ||
                 (permissions?.isServerAdmin ?? false);
 
             // Server-side moderation state of the target (from LiveKit
@@ -133,9 +134,9 @@ class ParticipantContextMenu extends StatelessWidget {
                           isDangerous: !isServerMuted,
                           onTap: () {
                             context.read<LiveKitCubit>().moderateParticipant(
-                                  participantIdentity: identity,
-                                  muted: !isServerMuted,
-                                );
+                              participantIdentity: identity,
+                              muted: !isServerMuted,
+                            );
                           },
                         ),
                         _MenuItem(
@@ -148,9 +149,9 @@ class ParticipantContextMenu extends StatelessWidget {
                           isDangerous: !isServerDeafened,
                           onTap: () {
                             context.read<LiveKitCubit>().moderateParticipant(
-                                  participantIdentity: identity,
-                                  deafened: !isServerDeafened,
-                                );
+                              participantIdentity: identity,
+                              deafened: !isServerDeafened,
+                            );
                           },
                         ),
                       ],

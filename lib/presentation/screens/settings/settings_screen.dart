@@ -31,22 +31,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   SettingsTab _activeTab = SettingsTab.appearance;
 
   String get _tabTitle => switch (_activeTab) {
-        SettingsTab.appearance => 'Appearance',
-        SettingsTab.voiceAndAudio => 'Voice & Audio',
-        SettingsTab.backup => 'Cloud Backup',
-      };
+    SettingsTab.appearance => 'Appearance',
+    SettingsTab.voiceAndAudio => 'Voice & Audio',
+    SettingsTab.backup => 'Cloud Backup',
+  };
 
   String get _tabSubtitle => switch (_activeTab) {
-        SettingsTab.appearance => 'Customize the look of the app.',
-        SettingsTab.voiceAndAudio => 'Configure voice input behavior.',
-        SettingsTab.backup => 'Save or restore your vault backup.',
-      };
+    SettingsTab.appearance => 'Customize the look of the app.',
+    SettingsTab.voiceAndAudio => 'Configure voice input behavior.',
+    SettingsTab.backup => 'Save or restore your vault backup.',
+  };
 
   IconData get _tabIcon => switch (_activeTab) {
-        SettingsTab.appearance => Icons.palette_outlined,
-        SettingsTab.voiceAndAudio => Icons.headset_outlined,
-        SettingsTab.backup => Icons.cloud_outlined,
-      };
+    SettingsTab.appearance => Icons.palette_outlined,
+    SettingsTab.voiceAndAudio => Icons.headset_outlined,
+    SettingsTab.backup => Icons.cloud_outlined,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -69,13 +69,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     // ── Left sidebar ─────────────────────────────
                     SettingsSidebar(
                       activeTab: _activeTab,
-                      onTabSelected: (tab) =>
-                          setState(() => _activeTab = tab),
+                      onTabSelected: (tab) => setState(() => _activeTab = tab),
                       themeState: themeState,
                       onBack: () => context.pop(),
                     ),
-                    VerticalDivider(
-                        width: 1, color: themeState.borderPrimary),
+                    VerticalDivider(width: 1, color: themeState.borderPrimary),
                     // ── Right content area ───────────────────────
                     Expanded(
                       child: Column(
@@ -83,8 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           // Header
                           Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(24, 20, 16, 16),
+                            padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
                             child: Row(
                               children: [
                                 Icon(
@@ -120,91 +117,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ],
                             ),
                           ),
-                          Divider(
-                              height: 1, color: themeState.borderPrimary),
+                          Divider(height: 1, color: themeState.borderPrimary),
                           // Content
                           Expanded(
                             child: SingleChildScrollView(
                               padding: const EdgeInsets.all(24),
                               child: switch (_activeTab) {
                                 SettingsTab.appearance => AppearanceContent(
-                                    themeState: themeState,
-                                  ),
-                                SettingsTab.voiceAndAudio =>
-                                  VoiceAudioContent(
-                                    themeState: themeState,
-                                  ),
+                                  themeState: themeState,
+                                ),
+                                SettingsTab.voiceAndAudio => VoiceAudioContent(
+                                  themeState: themeState,
+                                ),
                                 SettingsTab.backup => BackupContent(
-                                    themeState: themeState,
-                                  ),
+                                  themeState: themeState,
+                                ),
                               },
                             ),
                           ),
                           // Footer
-                          Divider(
-                              height: 1, color: themeState.borderPrimary),
+                          Divider(height: 1, color: themeState.borderPrimary),
                           Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                             child: Row(
                               children: [
                                 TextButton.icon(
-                                    onPressed: () async {
-                                      final confirmed =
-                                          await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          title:
-                                              const Text('Reset Vault?'),
-                                          content: const Text(
-                                            'This wipes all keys and saved servers from this device and '
-                                            'returns you to onboarding. If you have no cloud backup, your '
-                                            'identity will be permanently lost.',
+                                  onPressed: () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Reset Vault?'),
+                                        content: const Text(
+                                          'This wipes all keys and saved servers from this device and '
+                                          'returns you to onboarding. If you have no cloud backup, your '
+                                          'identity will be permanently lost.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(false),
+                                            child: const Text('Cancel'),
                                           ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.of(ctx)
-                                                      .pop(false),
-                                              child:
-                                                  const Text('Cancel'),
-                                            ),
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.of(ctx)
-                                                      .pop(true),
-                                              child: const Text(
-                                                'Reset',
-                                                style: TextStyle(
-                                                    color: Colors.red),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(true),
+                                            child: const Text(
+                                              'Reset',
+                                              style: TextStyle(
+                                                color: Colors.red,
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirmed == true &&
-                                          context.mounted) {
-                                        await context
-                                            .read<ServerCubit>()
-                                            .reset();
-                                        context
-                                            .read<VaultCubit>()
-                                            .resetVault();
-                                      }
-                                    },
-                                    icon: const Icon(
-                                      Icons.delete_forever,
-                                      size: 16,
-                                      color: Colors.red,
-                                    ),
-                                    label: const Text(
-                                      'Reset Vault',
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                        fontSize: 12,
+                                          ),
+                                        ],
                                       ),
+                                    );
+                                    if (confirmed == true && context.mounted) {
+                                      await context.read<ServerCubit>().reset();
+                                      context.read<VaultCubit>().resetVault();
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    Icons.delete_forever,
+                                    size: 16,
+                                    color: Colors.red,
+                                  ),
+                                  label: const Text(
+                                    'Reset Vault',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 12,
                                     ),
                                   ),
+                                ),
                                 const Spacer(),
                               ],
                             ),
@@ -222,4 +206,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
-

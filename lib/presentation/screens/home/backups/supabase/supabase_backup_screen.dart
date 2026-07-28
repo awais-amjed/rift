@@ -71,4 +71,3 @@ class _SupabaseBackupView extends StatelessWidget {
     );
   }
 }
-

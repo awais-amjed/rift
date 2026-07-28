@@ -19,4 +19,3 @@ class FieldLabel extends StatelessWidget {
     );
   }
 }
-

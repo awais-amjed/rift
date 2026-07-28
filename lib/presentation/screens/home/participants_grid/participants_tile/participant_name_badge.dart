@@ -27,7 +27,9 @@ class ParticipantNameBadge extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color:
-                (themeState.isDarkTheme ? themeState.bgTertiary : themeState.bgSecondary)
+                (themeState.isDarkTheme
+                        ? themeState.bgTertiary
+                        : themeState.bgSecondary)
                     .withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: themeState.borderPrimary),

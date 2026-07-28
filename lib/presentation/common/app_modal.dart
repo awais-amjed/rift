@@ -21,10 +21,7 @@ Future<T?> showCustomDialog<T>({
         SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(ctx).pop(),
       },
-      child: Focus(
-        autofocus: true,
-        child: builder(ctx),
-      ),
+      child: Focus(autofocus: true, child: builder(ctx)),
     ),
   );
 }
@@ -34,10 +31,7 @@ Future<T?> showAppModal<T>({
   required BuildContext context,
   required Widget modal,
 }) {
-  return showCustomDialog<T>(
-    context: context,
-    builder: (_) => modal,
-  );
+  return showCustomDialog<T>(context: context, builder: (_) => modal);
 }
 
 /// Base modal used for most dialogs in the app.
@@ -158,4 +152,3 @@ class AppModal extends StatelessWidget {
     );
   }
 }
-

@@ -149,7 +149,9 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
           setState(() => _thumbnails[source.index] = bytes);
         }
       } catch (e) {
-        HelperMethods.printDebug('Thumbnail load failed for source ${source.index}: $e');
+        HelperMethods.printDebug(
+          'Thumbnail load failed for source ${source.index}: $e',
+        );
       }
     }
   }

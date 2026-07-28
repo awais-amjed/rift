@@ -49,8 +49,9 @@ class VoiceChannelTile extends StatelessWidget {
           builder: (context, appState) {
             final liveKitParticipants = isSelected ? appState.participants : [];
             // Exclude screenshare pseudo-participants — they aren't people.
-            final voiceParticipants =
-                liveKitParticipants.where((p) => !p.isScreenshare).toList();
+            final voiceParticipants = liveKitParticipants
+                .where((p) => !p.isScreenshare)
+                .toList();
 
             return BlocBuilder<ChannelPresenceCubit, ChannelPresenceState>(
               builder: (context, presenceState) {
@@ -138,10 +139,12 @@ class VoiceChannelTile extends StatelessWidget {
                       _MemberColumn(
                         themeState: themeState,
                         children: presenceUsers
-                            .map((u) => _PresenceMemberRow(
-                                  user: u,
-                                  themeState: themeState,
-                                ))
+                            .map(
+                              (u) => _PresenceMemberRow(
+                                user: u,
+                                themeState: themeState,
+                              ),
+                            )
                             .toList(),
                       ),
                   ],

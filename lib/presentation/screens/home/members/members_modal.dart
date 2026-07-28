@@ -49,11 +49,11 @@ class _MembersModalState extends State<MembersModal> {
   }) async {
     setState(() => _busyId = member.id);
     final response = await context.read<ServerCubit>().setUserPermissions(
-          userId: member.id,
-          isServerAdmin: isServerAdmin,
-          isChannelManager: isChannelManager,
-          canCreateTokens: canCreateTokens,
-        );
+      userId: member.id,
+      isServerAdmin: isServerAdmin,
+      isChannelManager: isChannelManager,
+      canCreateTokens: canCreateTokens,
+    );
     if (!mounted) return;
     setState(() {
       _busyId = null;
@@ -81,18 +81,20 @@ class _MembersModalState extends State<MembersModal> {
   }) async {
     setState(() => _busyId = member.id);
     final response = await context.read<ServerCubit>().moderateUser(
-          userId: member.id,
-          isMuted: muted,
-          isDeafened: deafened,
-        );
+      userId: member.id,
+      isMuted: muted,
+      isDeafened: deafened,
+    );
     if (!mounted) return;
     setState(() {
       _busyId = null;
       if (response.success) {
         _members = _members!
-            .map((m) => m.id == member.id
-                ? m.copyWith(isMuted: muted, isDeafened: deafened)
-                : m)
+            .map(
+              (m) => m.id == member.id
+                  ? m.copyWith(isMuted: muted, isDeafened: deafened)
+                  : m,
+            )
             .toList();
       } else {
         _error = response.error;
@@ -104,8 +106,7 @@ class _MembersModalState extends State<MembersModal> {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final viewer =
-            context.watch<ServerCubit>().state.selectedServer?.user;
+        final viewer = context.watch<ServerCubit>().state.selectedServer?.user;
         final viewerPerms = viewer?.permissions;
         final viewerIsAdmin = viewerPerms?.isServerAdmin ?? false;
         final viewerIsModerator =
@@ -201,25 +202,31 @@ class _MembersModalState extends State<MembersModal> {
                           // themselves (the server rejects self-edits).
                           canManagePermissions: viewerIsAdmin && !isSelf,
                           // Moderators mute/deafen non-admins.
-                          canModerate: viewerIsModerator &&
+                          canModerate:
+                              viewerIsModerator &&
                               !isSelf &&
                               !member.permissions.isServerAdmin,
                           onTap: () => setState(() {
-                            _expandedId =
-                                _expandedId == member.id ? null : member.id;
+                            _expandedId = _expandedId == member.id
+                                ? null
+                                : member.id;
                           }),
-                          onPermissionChanged: (
-                                  {isServerAdmin,
-                                  isChannelManager,
-                                  canCreateTokens}) =>
-                              _setPermission(
+                          onPermissionChanged:
+                              ({
+                                isServerAdmin,
+                                isChannelManager,
+                                canCreateTokens,
+                              }) => _setPermission(
+                                member,
+                                isServerAdmin: isServerAdmin,
+                                isChannelManager: isChannelManager,
+                                canCreateTokens: canCreateTokens,
+                              ),
+                          onModerate: ({muted, deafened}) => _moderate(
                             member,
-                            isServerAdmin: isServerAdmin,
-                            isChannelManager: isChannelManager,
-                            canCreateTokens: canCreateTokens,
+                            muted: muted,
+                            deafened: deafened,
                           ),
-                          onModerate: ({muted, deafened}) =>
-                              _moderate(member, muted: muted, deafened: deafened),
                         );
                       },
                     ),

@@ -6,6 +6,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_text_field.dart';
 import '../../../../../common/message_banner.dart';
+import '../../../../../common/feature_header.dart';
 
 /// Sign-up / sign-in form shown when the user is not yet authenticated.
 ///
@@ -56,41 +57,18 @@ class _AuthViewState extends State<AuthView> {
 
     return Column(
       children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: theme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Icon(
-            Icons.cloud_upload_rounded,
-            size: 32,
-            color: theme.primary,
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        Text(
-          _isSignUp ? 'Create Backup Account' : 'Sign In to Cloud Backup',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: theme.textPrimary,
-            letterSpacing: -0.3,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Text(
-          _isSignUp
+        FeatureHeader(
+          icon: Icons.cloud_upload_rounded,
+          title: _isSignUp
+              ? 'Create Backup Account'
+              : 'Sign In to Cloud Backup',
+          subtitle: _isSignUp
               ? 'Your encrypted backup is stored on our central server. '
-                  'Only you can decrypt it.'
+                    'Only you can decrypt it.'
               : 'Sign in to upload or restore your encrypted backup.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, height: 1.5, color: theme.textTertiary),
+          themeState: theme,
+          titleSize: 20,
+          subtitleMaxWidth: double.infinity,
         ),
 
         const SizedBox(height: 32),
@@ -132,8 +110,9 @@ class _AuthViewState extends State<AuthView> {
         const SizedBox(height: 16),
 
         TextButton(
-          onPressed:
-              isProcessing ? null : () => setState(() => _isSignUp = !_isSignUp),
+          onPressed: isProcessing
+              ? null
+              : () => setState(() => _isSignUp = !_isSignUp),
           child: Text(
             _isSignUp
                 ? 'Already have an account? Sign in'
@@ -160,42 +139,17 @@ class _EmailConfirmationView extends StatelessWidget {
 
     return Column(
       children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: theme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Icon(
-            Icons.mark_email_unread_rounded,
-            size: 32,
-            color: theme.primary,
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        Text(
-          'Check Your Email',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: theme.textPrimary,
-            letterSpacing: -0.3,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Text(
-          email != null
+        FeatureHeader(
+          icon: Icons.mark_email_unread_rounded,
+          title: 'Check Your Email',
+          subtitle: email != null
               ? 'A confirmation link was sent to $email.\n'
-                  'Click the link then sign in below.'
+                    'Click the link then sign in below.'
               : 'A confirmation link was sent to your email.\n'
-                  'Click the link then sign in below.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, height: 1.5, color: theme.textTertiary),
+                    'Click the link then sign in below.',
+          themeState: theme,
+          titleSize: 20,
+          subtitleMaxWidth: double.infinity,
         ),
 
         const SizedBox(height: 32),

@@ -18,7 +18,8 @@ class MemberManagePanel extends StatelessWidget {
     bool? isServerAdmin,
     bool? isChannelManager,
     bool? canCreateTokens,
-  }) onPermissionChanged;
+  })
+  onPermissionChanged;
   final void Function({bool? muted, bool? deafened}) onModerate;
 
   const MemberManagePanel({
@@ -83,8 +84,10 @@ class MemberManagePanel extends StatelessWidget {
                 if (canManagePermissions)
                   Divider(height: 1, color: themeState.borderPrimary),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       Expanded(

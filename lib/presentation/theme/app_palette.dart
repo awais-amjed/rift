@@ -81,10 +81,8 @@ class AppPalette {
 
   static const List<AppPalette> all = [indigo, abyss, ember, mono];
 
-  static AppPalette byId(String id) => all.firstWhere(
-        (p) => p.id == id,
-        orElse: () => indigo,
-      );
+  static AppPalette byId(String id) =>
+      all.firstWhere((p) => p.id == id, orElse: () => indigo);
 
   // ── Indigo (default) — indigo-500 on zinc ─────────────────────────────────
   static const indigo = AppPalette(

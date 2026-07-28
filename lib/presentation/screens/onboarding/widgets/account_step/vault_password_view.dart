@@ -7,6 +7,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 import '../onboarding_page.dart';
+import '../../../../common/feature_header.dart';
 
 class VaultPasswordView extends StatefulWidget {
   final SupabaseBackupState state;
@@ -28,9 +29,9 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
   }
 
   void _unlock() {
-    context
-        .read<SupabaseBackupCubit>()
-        .submitVaultPassword(_vaultPasswordController.text);
+    context.read<SupabaseBackupCubit>().submitVaultPassword(
+      _vaultPasswordController.text,
+    );
   }
 
   @override
@@ -42,43 +43,14 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: theme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              Icons.lock_open_rounded,
-              size: 32,
-              color: theme.primary,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Unlock Your Backup',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: theme.textPrimary,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: Text(
-              'We found your backup, but it\'s protected by a separately '
-              'chosen vault password (privacy mode). Enter it once — '
-              'future restores will be automatic.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: theme.textTertiary,
-              ),
-            ),
+          FeatureHeader(
+            icon: Icons.lock_open_rounded,
+            title: 'Unlock Your Backup',
+            subtitle:
+                'We found your backup, but it\'s protected by a separately '
+                'chosen vault password (privacy mode). Enter it once — '
+                'future restores will be automatic.',
+            themeState: theme,
           ),
           const SizedBox(height: 32),
           ConstrainedBox(
@@ -108,8 +80,7 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
                       onPressed: isProcessing
                           ? null
                           : () {
-                              final cubit =
-                                  context.read<SupabaseBackupCubit>();
+                              final cubit = context.read<SupabaseBackupCubit>();
                               cubit.dismissPending();
                               cubit.signOut();
                               widget.onBack();

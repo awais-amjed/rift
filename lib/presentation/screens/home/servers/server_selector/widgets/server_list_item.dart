@@ -98,11 +98,7 @@ class ServerListItem extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Icon(
-                      Icons.check,
-                      size: 16,
-                      color: themeState.primary,
-                    ),
+                    Icon(Icons.check, size: 16, color: themeState.primary),
                   ],
                   // Delete
                   IconButton(

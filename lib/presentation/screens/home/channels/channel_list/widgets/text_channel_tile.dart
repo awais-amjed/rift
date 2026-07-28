@@ -25,8 +25,9 @@ class TextChannelTile extends StatelessWidget {
           builder: (context, chatState) {
             final isSelected = chatState.channelId == channel.id;
             // Unread count for this channel; a selected/open channel is read.
-            final serverId =
-                context.select<ServerCubit, String?>((c) => c.state.selectedServerId);
+            final serverId = context.select<ServerCubit, String?>(
+              (c) => c.state.selectedServerId,
+            );
             final unread = (isSelected || serverId == null)
                 ? 0
                 : context.select<ServerNotificationsCubit, int>(
@@ -35,8 +36,9 @@ class TextChannelTile extends StatelessWidget {
             final hasUnread = unread > 0;
 
             return Material(
-              color:
-                  isSelected ? themeState.channelActiveBg : Colors.transparent,
+              color: isSelected
+                  ? themeState.channelActiveBg
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
@@ -72,8 +74,8 @@ class TextChannelTile extends StatelessWidget {
                         color: isSelected
                             ? themeState.primary
                             : (hasUnread
-                                ? themeState.textPrimary
-                                : themeState.textQuaternary),
+                                  ? themeState.textPrimary
+                                  : themeState.textQuaternary),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -81,13 +83,14 @@ class TextChannelTile extends StatelessWidget {
                           channel.name,
                           style: TextStyle(
                             fontSize: 14,
-                            fontWeight:
-                                hasUnread ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: hasUnread
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                             color: isSelected
                                 ? themeState.channelActiveText
                                 : (hasUnread
-                                    ? themeState.textPrimary
-                                    : themeState.textSecondary),
+                                      ? themeState.textPrimary
+                                      : themeState.textSecondary),
                           ),
                         ),
                       ),
