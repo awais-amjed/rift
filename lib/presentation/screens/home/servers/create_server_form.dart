@@ -6,8 +6,8 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
-import '../../../theme/custom_colors.dart';
 import 'create_user_dialog.dart';
+import '../../../common/message_banner.dart';
 
 /// Form to create a brand new server with Supabase + LiveKit credentials.
 class CreateServerForm extends StatefulWidget {
@@ -112,7 +112,11 @@ class _CreateServerFormState extends State<CreateServerForm> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_error != null) _ErrorBanner(message: _error!),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: MessageBanner(message: _error!, isError: true),
+              ),
 
             AppTextField(
               controller: _nameCtrl,
@@ -231,29 +235,6 @@ class _SectionDivider extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  final String message;
-
-  const _ErrorBanner({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: CustomColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: CustomColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        message,
-        style: const TextStyle(fontSize: 13, color: CustomColors.error),
-      ),
     );
   }
 }

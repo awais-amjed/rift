@@ -5,8 +5,9 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
+import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
-import '../../../../theme/custom_colors.dart';
+import '../../../../common/message_banner.dart';
 
 /// Admin-only settings for the currently selected server: display name and the
 /// LiveKit connection (URL + API key + secret). The API key/secret are
@@ -87,117 +88,67 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return Dialog(
-          backgroundColor: themeState.bgSecondary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: themeState.borderPrimary),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Server Settings',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: themeState.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  if (_error != null) ...[
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: CustomColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: CustomColors.error.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: CustomColors.error,
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  AppTextField(
-                    controller: _nameCtrl,
-                    label: 'Server Name',
-                    hint: 'My Server',
-                    enabled: !_isLoading,
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    controller: _livekitUrlCtrl,
-                    label: 'LiveKit URL',
-                    hint: 'wss://livekit.example.com',
-                    enabled: !_isLoading,
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    controller: _apiKeyCtrl,
-                    label: 'LiveKit API Key',
-                    hint: 'Leave blank to keep current',
-                    enabled: !_isLoading,
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    controller: _secretCtrl,
-                    label: 'LiveKit Secret Key',
-                    hint: 'Leave blank to keep current',
-                    enabled: !_isLoading,
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'The API key and secret are stored only on the server and '
-                    'never sent back — leave them blank to keep the current '
-                    'values.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: themeState.textTertiary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      AppButton(
-                        label: 'Cancel',
-                        variant: AppButtonVariant.secondary,
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                      ),
-                      const SizedBox(width: 12),
-                      AppButton(
-                        label: 'Save',
-                        isLoading: _isLoading,
-                        onPressed: _isLoading ? null : _submit,
-                      ),
-                    ],
-                  ),
-                ],
+        return AppModal(
+          title: 'Server Settings',
+          maxWidth: 460,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_error != null) ...[
+                MessageBanner(message: _error!, isError: true),
+                const SizedBox(height: 12),
+              ],
+              AppTextField(
+                controller: _nameCtrl,
+                label: 'Server Name',
+                hint: 'My Server',
+                enabled: !_isLoading,
               ),
-            ),
+              const SizedBox(height: 16),
+              AppTextField(
+                controller: _livekitUrlCtrl,
+                label: 'LiveKit URL',
+                hint: 'wss://livekit.example.com',
+                enabled: !_isLoading,
+              ),
+              const SizedBox(height: 16),
+              AppTextField(
+                controller: _apiKeyCtrl,
+                label: 'LiveKit API Key',
+                hint: 'Leave blank to keep current',
+                enabled: !_isLoading,
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              AppTextField(
+                controller: _secretCtrl,
+                label: 'LiveKit Secret Key',
+                hint: 'Leave blank to keep current',
+                enabled: !_isLoading,
+                obscureText: true,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'The API key and secret are stored only on the server and '
+                'never sent back — leave them blank to keep the current '
+                'values.',
+                style: TextStyle(fontSize: 11, color: themeState.textTertiary),
+              ),
+            ],
           ),
+          actions: [
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+            ),
+            AppButton(
+              label: 'Save',
+              isLoading: _isLoading,
+              onPressed: _isLoading ? null : _submit,
+            ),
+          ],
         );
       },
     );

@@ -6,8 +6,9 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../common/app_button.dart';
+import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../common/message_banner.dart';
 
 /// Dialog to create a new channel (text or voice) in the current server.
 class CreateChannelDialog extends StatefulWidget {
@@ -63,122 +64,71 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return Dialog(
-          backgroundColor: themeState.bgSecondary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: themeState.borderPrimary),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 448),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        return AppModal(
+          title: 'Create Channel',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_error != null) ...[
+                MessageBanner(message: _error!, isError: true),
+                const SizedBox(height: 12),
+              ],
+              AppTextField(
+                controller: _nameCtrl,
+                label: 'Channel Name',
+                hint: 'general',
+                enabled: !_isLoading,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'CHANNEL TYPE',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                  color: themeState.textTertiary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
                 children: [
-                  Text(
-                    'Create Channel',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: themeState.textPrimary,
-                    ),
+                  _TypeButton(
+                    icon: Icons.tag,
+                    label: 'Text',
+                    selected: _type == ChannelType.text,
+                    onTap: _isLoading
+                        ? null
+                        : () => setState(() => _type = ChannelType.text),
                   ),
-                  const SizedBox(height: 20),
-
-                  if (_error != null) ...[
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: CustomColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: CustomColors.error.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: CustomColors.error,
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  AppTextField(
-                    controller: _nameCtrl,
-                    label: 'Channel Name',
-                    hint: 'general',
-                    enabled: !_isLoading,
-                    autofocus: true,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Channel type
-                  Text(
-                    'CHANNEL TYPE',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                      color: themeState.textTertiary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _TypeButton(
-                        icon: Icons.tag,
-                        label: 'Text',
-                        selected: _type == ChannelType.text,
-                        onTap: _isLoading
-                            ? null
-                            : () => setState(() => _type = ChannelType.text),
-                      ),
-                      const SizedBox(width: 8),
-                      _TypeButton(
-                        icon: Icons.volume_up,
-                        label: 'Voice',
-                        selected: _type == ChannelType.voice,
-                        onTap: _isLoading
-                            ? null
-                            : () => setState(() => _type = ChannelType.voice),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppButton(
-                          label: _isLoading ? 'Creating...' : 'Create Channel',
-                          isLoading: _isLoading,
-                          onPressed: _canSubmit && !_isLoading ? _submit : null,
-                          expanded: true,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      AppButton(
-                        label: 'Cancel',
-                        variant: AppButtonVariant.secondary,
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                      ),
-                    ],
+                  const SizedBox(width: 8),
+                  _TypeButton(
+                    icon: Icons.volume_up,
+                    label: 'Voice',
+                    selected: _type == ChannelType.voice,
+                    onTap: _isLoading
+                        ? null
+                        : () => setState(() => _type = ChannelType.voice),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
+          actions: [
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+            ),
+            AppButton(
+              label: _isLoading ? 'Creating...' : 'Create Channel',
+              isLoading: _isLoading,
+              onPressed: _canSubmit && !_isLoading ? _submit : null,
+              expanded: true,
+            ),
+          ],
         );
       },
     );

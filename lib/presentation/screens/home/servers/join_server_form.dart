@@ -7,7 +7,7 @@ import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../common/message_banner.dart';
 
 /// Form to join an existing server using a single invite link (server URL +
 /// invite code combined) plus a username / display name.
@@ -106,7 +106,11 @@ class _JoinServerFormState extends State<JoinServerForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_error != null) _ErrorBanner(message: _error!),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: MessageBanner(message: _error!, isError: true),
+          ),
 
         AppTextField(
           controller: _inviteLinkCtrl,
@@ -154,29 +158,6 @@ class _JoinServerFormState extends State<JoinServerForm> {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  final String message;
-
-  const _ErrorBanner({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: CustomColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: CustomColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        message,
-        style: const TextStyle(fontSize: 13, color: CustomColors.error),
-      ),
     );
   }
 }
