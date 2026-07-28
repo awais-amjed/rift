@@ -23,8 +23,10 @@ const double _controlSize = 38;
 const double _iconSize = 20;
 const double _fieldFontSize = 14;
 const double _fieldLineHeight = 1.4;
-const double _fieldVPad =
-    (_controlSize - _fieldFontSize * _fieldLineHeight) / 2;
+
+/// Breathing room above and below the text, applied as a plain [Padding] rather
+/// than the decorator's `contentPadding` so it is provably symmetric.
+const double _fieldVPad = 4;
 
 /// Message input row: attach button + multiline text field + send button, with
 /// a row of staged-attachment chips above the field once files are picked.
@@ -74,10 +76,22 @@ class _ChatComposerState extends State<ChatComposer> {
   bool _showEmoji = false;
 
   @override
+  void initState() {
+    super.initState();
+    // The bar lights its border while the field has focus.
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
     _recordTimer?.cancel();
     _recorder.dispose();
     _controller.dispose();
+    _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     super.dispose();
   }
@@ -318,12 +332,17 @@ class _ChatComposerState extends State<ChatComposer> {
                   themeState: themeState,
                   onRemove: _removeStaged,
                 ),
-              Container(
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                 decoration: BoxDecoration(
                   color: themeState.bgTertiary,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: themeState.borderPrimary),
+                  border: Border.all(
+                    color: _focusNode.hasFocus
+                        ? themeState.primary.withValues(alpha: 0.55)
+                        : themeState.borderPrimary,
+                  ),
                 ),
                 child: _isRecording
                     ? _recordingBar(themeState)
@@ -331,69 +350,90 @@ class _ChatComposerState extends State<ChatComposer> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           _ComposerIconButton(
-                            icon: Icons.add_rounded,
+                            icon: Icons.attach_file_rounded,
                             tooltip: 'Attach files',
                             themeState: themeState,
                             onPressed: widget.enabled ? _pickFiles : null,
                           ),
                           _ComposerIconButton(
-                            icon: Icons.emoji_emotions_outlined,
+                            icon: Icons.sentiment_satisfied_alt_rounded,
                             tooltip: 'Emoji',
                             themeState: themeState,
                             active: _showEmoji,
                             onPressed: widget.enabled ? _toggleEmoji : null,
                           ),
+                          // Shrink-wrap the field, then force it to at least a
+                          // control's height and centre it there: the text sits
+                          // on the icons' centre line no matter what the font's
+                          // metrics are, and still grows for multi-line input.
                           Expanded(
-                            child: Focus(
-                              onKeyEvent: _onKeyEvent,
-                              child: TextField(
-                                controller: _controller,
-                                focusNode: _focusNode,
-                                enabled: widget.enabled,
-                                onChanged: (value) {
-                                  // Rebuild so the send button enables/disables.
-                                  setState(() {});
-                                  if (value.trim().isNotEmpty) {
-                                    widget.onTyping?.call();
-                                  }
-                                },
-                                minLines: 1,
-                                maxLines: 6,
-                                style: TextStyle(
-                                  fontSize: _fieldFontSize,
-                                  height: _fieldLineHeight,
-                                  color: themeState.textPrimary,
-                                ),
-                                // Pin the line box: without this an emoji (or
-                                // any taller glyph) stretches the line and the
-                                // whole bar jumps as you type.
-                                strutStyle: const StrutStyle(
-                                  fontSize: _fieldFontSize,
-                                  height: _fieldLineHeight,
-                                  forceStrutHeight: true,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: widget.hintText,
-                                  // Same metrics as the real text, so the hint
-                                  // sits exactly where typing will start.
-                                  hintStyle: TextStyle(
-                                    fontSize: _fieldFontSize,
-                                    height: _fieldLineHeight,
-                                    color: themeState.textQuaternary,
-                                  ),
-                                  // The bar itself is the surface — don't paint the
-                                  // global filled InputDecoration box inside it.
-                                  filled: false,
-                                  fillColor: Colors.transparent,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  disabledBorder: InputBorder.none,
-                                  isCollapsed: true,
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minHeight: _controlSize,
+                              ),
+                              child: Align(
+                                alignment: Alignment.center,
+                                heightFactor: 1,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
                                     vertical: _fieldVPad,
+                                  ),
+                                  child: Focus(
+                                    onKeyEvent: _onKeyEvent,
+                                    child: TextField(
+                                      controller: _controller,
+                                      focusNode: _focusNode,
+                                      enabled: widget.enabled,
+                                      onChanged: (value) {
+                                        // Rebuild so the send button enables/disables.
+                                        setState(() {});
+                                        if (value.trim().isNotEmpty) {
+                                          widget.onTyping?.call();
+                                        }
+                                      },
+                                      minLines: 1,
+                                      maxLines: 6,
+                                      style: TextStyle(
+                                        fontSize: _fieldFontSize,
+                                        height: _fieldLineHeight,
+                                        color: themeState.textPrimary,
+                                      ),
+                                      // Pin the line box: without this an emoji (or
+                                      // any taller glyph) stretches the line and the
+                                      // whole bar jumps as you type.
+                                      strutStyle: const StrutStyle(
+                                        fontSize: _fieldFontSize,
+                                        height: _fieldLineHeight,
+                                        forceStrutHeight: true,
+                                      ),
+                                      decoration: InputDecoration(
+                                        hintText: widget.hintText,
+                                        // Same metrics as the real text, so the hint
+                                        // sits exactly where typing will start.
+                                        hintStyle: TextStyle(
+                                          fontSize: _fieldFontSize,
+                                          height: _fieldLineHeight,
+                                          color: themeState.textQuaternary,
+                                        ),
+                                        // The bar itself is the surface — don't paint the
+                                        // global filled InputDecoration box inside it.
+                                        filled: false,
+                                        fillColor: Colors.transparent,
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        disabledBorder: InputBorder.none,
+                                        isCollapsed: true,
+                                        isDense: true,
+                                        // Vertical room comes from the Padding
+                                        // above; keep the decorator out of it so
+                                        // nothing can bias the text off centre.
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                            ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
