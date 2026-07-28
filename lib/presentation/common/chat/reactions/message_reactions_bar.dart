@@ -5,13 +5,11 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 
 /// The row of emoji-reaction chips shown under a message, plus a small "add
 /// reaction" button. Tapping a chip toggles the local user's reaction; the "+"
-/// opens a quick emoji picker.
+/// opens the quick picker, anchored to the button that was tapped.
 class MessageReactionsBar extends StatelessWidget {
   final List<MessageReaction> reactions;
   final ThemeState themeState;
   final void Function(String emoji) onToggle;
-
-  /// Opens the quick picker, anchored to the tapped "add" button.
   final void Function(BuildContext anchorContext) onAdd;
 
   const MessageReactionsBar({
@@ -105,6 +103,7 @@ class _AddReactionButton extends StatelessWidget {
       color: themeState.bgTertiary,
       shape: StadiumBorder(side: BorderSide(color: themeState.borderPrimary)),
       child: InkWell(
+        // The tapped button's context anchors the picker popover.
         onTap: () => onTap(context),
         customBorder: const StadiumBorder(),
         child: Padding(
@@ -118,72 +117,4 @@ class _AddReactionButton extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Curated quick-reaction emojis. A compact popup — not the full picker — since
-/// reactions are usually one of a common handful.
-const List<String> quickReactionEmojis = [
-  '👍', '❤️', '😂', '🎉', '😮', '😢', '🙏', '🔥',
-  '👀', '✅', '😍', '💯', '👏', '🤔', '😅', '🚀',
-];
-
-/// Show a small popover of quick reactions anchored to [anchorContext] (the
-/// button that was tapped), calling [onSelected] with the chosen emoji.
-///
-/// Uses [showMenu] so the popover appears next to the message and auto-clamps to
-/// the screen edges, instead of floating in the center.
-Future<void> showReactionPicker(
-  BuildContext anchorContext,
-  ThemeState themeState,
-  void Function(String emoji) onSelected,
-) async {
-  final box = anchorContext.findRenderObject() as RenderBox?;
-  final overlay =
-      Overlay.of(anchorContext).context.findRenderObject() as RenderBox?;
-  if (box == null || overlay == null) return;
-
-  final anchor = box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
-  final position = RelativeRect.fromRect(anchor, Offset.zero & overlay.size);
-
-  final selected = await showMenu<String>(
-    context: anchorContext,
-    position: position,
-    color: themeState.bgElevated,
-    // Kill the Material-3 elevation surface tint — it darkens the popover.
-    surfaceTintColor: Colors.transparent,
-    elevation: 6,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(14),
-      side: BorderSide(color: themeState.borderPrimary),
-    ),
-    constraints: const BoxConstraints(minWidth: 240, maxWidth: 300),
-    items: [
-      PopupMenuItem<String>(
-        enabled: true,
-        padding: EdgeInsets.zero,
-        child: Builder(
-          builder: (menuContext) => Padding(
-            padding: const EdgeInsets.all(8),
-            child: Wrap(
-              spacing: 2,
-              runSpacing: 2,
-              children: [
-                for (final e in quickReactionEmojis)
-                  InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () => Navigator.of(menuContext).pop(e),
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: Text(e, style: const TextStyle(fontSize: 22)),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ],
-  );
-
-  if (selected != null) onSelected(selected);
 }

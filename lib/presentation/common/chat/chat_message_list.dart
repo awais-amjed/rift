@@ -4,8 +4,9 @@ import 'package:intl/intl.dart';
 
 import '../../../data/classes/chat_message.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
-import 'widgets/attachment_loader.dart';
-import 'widgets/chat_message_row.dart';
+import 'attachments/attachment_loader.dart';
+import 'date_divider.dart';
+import 'message_row/chat_message_row.dart';
 
 /// Scrollable message history, newest at the bottom (reversed list, so it
 /// stays pinned to the latest message). Consecutive messages from the same
@@ -58,12 +59,14 @@ class _ChatMessageListState extends State<ChatMessageList> {
     for (var i = 0; i < widget.messages.length; i++) {
       final cur = widget.messages[i];
       final prev = i > 0 ? widget.messages[i - 1] : null;
-      final newDay = prev == null ||
+      final newDay =
+          prev == null ||
           !_sameDay(prev.sentAt.toLocal(), cur.sentAt.toLocal());
       if (newDay) items.add(_DateItem(_dayLabel(cur.sentAt.toLocal())));
 
       // When it's not a new day, prev is guaranteed non-null (newDay covers it).
-      final showHeader = newDay ||
+      final showHeader =
+          newDay ||
           prev.authorId != cur.authorId ||
           cur.sentAt.difference(prev.sentAt) > ChatMessageList.groupWindow;
       items.add(_MsgItem(cur, showHeader));
@@ -133,7 +136,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
           itemBuilder: (context, reversedIndex) {
             final item = items[items.length - 1 - reversedIndex];
             if (item is _DateItem) {
-              return _DateDivider(label: item.label, themeState: themeState);
+              return DateDivider(label: item.label, themeState: themeState);
             }
             final msg = (item as _MsgItem).message;
             return ChatMessageRow(
@@ -164,37 +167,4 @@ class _MsgItem extends _StreamItem {
   final ChatMessage message;
   final bool showHeader;
   _MsgItem(this.message, this.showHeader);
-}
-
-/// A centered day label with hairline rules on either side.
-class _DateDivider extends StatelessWidget {
-  final String label;
-  final ThemeState themeState;
-
-  const _DateDivider({required this.label, required this.themeState});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-      child: Row(
-        children: [
-          Expanded(child: Divider(color: themeState.borderPrimary, height: 1)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: themeState.textQuaternary,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
-          Expanded(child: Divider(color: themeState.borderPrimary, height: 1)),
-        ],
-      ),
-    );
-  }
 }

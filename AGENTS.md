@@ -178,6 +178,12 @@ A `test/` suite covers **pure, deterministic logic**:
   compatibility), and reaction parsing + `ChatMessage.copyWith`.
 - **Storage isolation** (`storage_namespace_test.dart`) — `RIFT_PROFILE` namespacing.
 
+One deliberate exception to the "no widget tests" rule below:
+`chat_composer_alignment_test.dart` pins the composer's layout invariants (every
+control on one centre line, the bar's height unchanged by emoji input, multi-line
+growth). It exists because that alignment regressed twice; it pumps only the
+composer with an in-memory `HydratedBloc` storage, so it stays pure and fast.
+
 Run with `flutter test`; it must pass (alongside `flutter analyze`) before committing.
 
 Keep tests pure and fast: no network, Supabase, platform channels, or a running app.
