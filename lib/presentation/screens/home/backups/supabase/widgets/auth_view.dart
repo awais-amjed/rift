@@ -6,6 +6,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_text_field.dart';
 import '../../../../../common/message_banner.dart';
+import '../../../../../common/supabase_auth_form_state.dart';
 import '../../../../../common/feature_header.dart';
 
 /// Sign-up / sign-in form shown when the user is not yet authenticated.
@@ -22,29 +23,8 @@ class AuthView extends StatefulWidget {
   State<AuthView> createState() => _AuthViewState();
 }
 
-class _AuthViewState extends State<AuthView> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isSignUp = false;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    final cubit = context.read<SupabaseBackupCubit>();
-    if (_isSignUp) {
-      cubit.signUp(email: email, password: password);
-    } else {
-      cubit.signIn(email: email, password: password);
-    }
-  }
-
+class _AuthViewState extends State<AuthView>
+    with SupabaseAuthFormState<AuthView> {
   @override
   Widget build(BuildContext context) {
     // Show confirmation-pending screen when server requires email verification.
@@ -59,10 +39,8 @@ class _AuthViewState extends State<AuthView> {
       children: [
         FeatureHeader(
           icon: Icons.cloud_upload_rounded,
-          title: _isSignUp
-              ? 'Create Backup Account'
-              : 'Sign In to Cloud Backup',
-          subtitle: _isSignUp
+          title: isSignUp ? 'Create Backup Account' : 'Sign In to Cloud Backup',
+          subtitle: isSignUp
               ? 'Your encrypted backup is stored on our central server. '
                     'Only you can decrypt it.'
               : 'Sign in to upload or restore your encrypted backup.',
@@ -74,7 +52,7 @@ class _AuthViewState extends State<AuthView> {
         const SizedBox(height: 32),
 
         AppTextField(
-          controller: _emailController,
+          controller: emailController,
           label: 'Email',
           hint: 'you@example.com',
           keyboardType: TextInputType.emailAddress,
@@ -85,12 +63,12 @@ class _AuthViewState extends State<AuthView> {
         const SizedBox(height: 16),
 
         AppTextField(
-          controller: _passwordController,
+          controller: passwordController,
           label: 'Password',
           hint: 'Enter your password',
           obscureText: true,
           enabled: !isProcessing,
-          onEditingComplete: isProcessing ? null : _submit,
+          onEditingComplete: isProcessing ? null : submitCredentials,
         ),
 
         if (widget.state.error != null) ...[
@@ -101,20 +79,18 @@ class _AuthViewState extends State<AuthView> {
         const SizedBox(height: 24),
 
         AppButton(
-          label: _isSignUp ? 'Create Account' : 'Sign In',
+          label: isSignUp ? 'Create Account' : 'Sign In',
           expanded: true,
           isLoading: isProcessing,
-          onPressed: isProcessing ? null : _submit,
+          onPressed: isProcessing ? null : submitCredentials,
         ),
 
         const SizedBox(height: 16),
 
         TextButton(
-          onPressed: isProcessing
-              ? null
-              : () => setState(() => _isSignUp = !_isSignUp),
+          onPressed: isProcessing ? null : toggleAuthMode,
           child: Text(
-            _isSignUp
+            isSignUp
                 ? 'Already have an account? Sign in'
                 : "Don't have an account? Sign up",
             style: TextStyle(fontSize: 13, color: theme.primary),

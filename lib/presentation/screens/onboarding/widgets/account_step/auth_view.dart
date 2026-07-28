@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../common/supabase_auth_form_state.dart';
 import '../../../../theme/custom_colors.dart';
 import '../onboarding_page.dart';
 import '../password_strength_indicator.dart';
@@ -17,6 +18,7 @@ class AuthView extends StatefulWidget {
   final bool initialSignUp;
 
   const AuthView({
+    super.key,
     required this.state,
     required this.onBack,
     this.initialSignUp = true,
@@ -26,31 +28,30 @@ class AuthView extends StatefulWidget {
   State<AuthView> createState() => AuthViewState();
 }
 
-class AuthViewState extends State<AuthView> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+class AuthViewState extends State<AuthView>
+    with SupabaseAuthFormState<AuthView> {
   final _confirmController = TextEditingController();
-  late bool _isSignUp = widget.initialSignUp;
   String? _validationError;
 
   @override
   void initState() {
     super.initState();
+    isSignUp = widget.initialSignUp;
     // Coming back from "check your inbox" — prefill the address they used.
-    _emailController.text = widget.state.email ?? '';
+    emailController.text = widget.state.email ?? '';
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
     _confirmController.dispose();
     super.dispose();
   }
 
+  /// Onboarding validates before handing over to the shared submit — it's the
+  /// only surface where the account is being created from scratch.
   void _submit() {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
+    final email = emailController.text.trim();
+    final password = passwordController.text;
 
     if (email.isEmpty || !email.contains('@')) {
       setState(() => _validationError = 'Enter a valid email address');
@@ -62,18 +63,13 @@ class AuthViewState extends State<AuthView> {
       );
       return;
     }
-    if (_isSignUp && password != _confirmController.text) {
+    if (isSignUp && password != _confirmController.text) {
       setState(() => _validationError = 'Passwords do not match');
       return;
     }
     setState(() => _validationError = null);
 
-    final cubit = context.read<SupabaseBackupCubit>();
-    if (_isSignUp) {
-      cubit.signUp(email: email, password: password);
-    } else {
-      cubit.signIn(email: email, password: password);
-    }
+    submitCredentials();
   }
 
   @override
@@ -86,11 +82,11 @@ class AuthViewState extends State<AuthView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           FeatureHeader(
-            icon: _isSignUp
+            icon: isSignUp
                 ? Icons.person_add_rounded
                 : Icons.cloud_sync_rounded,
-            title: _isSignUp ? 'Create Your Account' : 'Welcome Back',
-            subtitle: _isSignUp
+            title: isSignUp ? 'Create Your Account' : 'Welcome Back',
+            subtitle: isSignUp
                 ? 'One password for everything. It also protects your '
                       'encrypted backup and never leaves this device.'
                 : 'Sign in and your encrypted vault is restored automatically.',
@@ -105,7 +101,7 @@ class AuthViewState extends State<AuthView> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AppTextField(
-                  controller: _emailController,
+                  controller: emailController,
                   label: 'Email',
                   hint: 'you@example.com',
                   keyboardType: TextInputType.emailAddress,
@@ -116,22 +112,22 @@ class AuthViewState extends State<AuthView> {
                 const SizedBox(height: 16),
 
                 AppTextField(
-                  controller: _passwordController,
+                  controller: passwordController,
                   label: 'Password',
-                  hint: _isSignUp
+                  hint: isSignUp
                       ? 'Choose a strong password'
                       : 'Enter your password',
                   obscureText: true,
                   enabled: !isProcessing,
-                  onChanged: _isSignUp ? (_) => setState(() {}) : null,
-                  onEditingComplete: (_isSignUp || isProcessing)
+                  onChanged: isSignUp ? (_) => setState(() {}) : null,
+                  onEditingComplete: (isSignUp || isProcessing)
                       ? null
                       : _submit,
                 ),
 
-                if (_isSignUp) ...[
+                if (isSignUp) ...[
                   const SizedBox(height: 12),
-                  PasswordStrengthIndicator(password: _passwordController.text),
+                  PasswordStrengthIndicator(password: passwordController.text),
                   const SizedBox(height: 20),
                   AppTextField(
                     controller: _confirmController,
@@ -156,7 +152,7 @@ class AuthViewState extends State<AuthView> {
                   ),
                 ],
 
-                if (_isSignUp) ...[
+                if (isSignUp) ...[
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -204,7 +200,7 @@ class AuthViewState extends State<AuthView> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: AppButton(
-                        label: _isSignUp ? 'Create Account' : 'Sign In',
+                        label: isSignUp ? 'Create Account' : 'Sign In',
                         expanded: true,
                         isLoading: isProcessing,
                         onPressed: isProcessing ? null : _submit,
@@ -219,11 +215,11 @@ class AuthViewState extends State<AuthView> {
                   onPressed: isProcessing
                       ? null
                       : () => setState(() {
-                          _isSignUp = !_isSignUp;
+                          isSignUp = !isSignUp;
                           _validationError = null;
                         }),
                   child: Text(
-                    _isSignUp
+                    isSignUp
                         ? 'Already have an account? Sign in'
                         : 'New here? Create an account',
                     style: TextStyle(fontSize: 12, color: theme.primary),
