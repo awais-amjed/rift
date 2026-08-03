@@ -19,8 +19,6 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
   void _applyStoredSettings();
   Future<void> _stopVoiceActivityMonitor();
 
-  /// Supplied by `_RemoteSpeakingMixin` (public — see CODE_STYLE §5).
-  Future<void> stopRemoteSpeakingMonitors();
   Future<void> _syncMicrophoneTransmission();
   bool _shouldTransmitMic({required bool micEnabled, required bool deafened});
   AudioCaptureOptions _buildAudioCaptureOptions();
@@ -169,7 +167,6 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
 
   Future<void> _cleanupRoom() async {
     await _stopVoiceActivityMonitor();
-    await stopRemoteSpeakingMonitors();
 
     final room = state.room;
     if (room == null) return;

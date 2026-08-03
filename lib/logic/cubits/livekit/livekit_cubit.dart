@@ -23,7 +23,6 @@ part 'livekit_participants.dart';
 part 'livekit_screenshare.dart';
 part 'livekit_room_events.dart';
 part 'livekit_voice_activity.dart';
-part 'livekit_remote_speaking.dart';
 
 /// Cubit managing LiveKit room connections, participants, and media controls.
 class LiveKitCubit extends Cubit<LiveKitState>
@@ -33,7 +32,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _ParticipantMixin,
         _ScreenshareMixin,
         _RoomEventsMixin,
-        _RemoteSpeakingMixin,
         _VoiceActivityMixin {
   @override
   final AppCubit _appCubit;
@@ -99,13 +97,16 @@ class LiveKitCubit extends Cubit<LiveKitState>
         identity: p.identity,
         userId: ParticipantIdentity.userIdOf(p.identity),
         name: p.name,
-        // Speaking is measured locally for everyone — the server's
-        // active-speaker view is too coarse to light the glow reliably. A
-        // remote participant we have no monitor for yet (not subscribed)
-        // falls back to the server's view rather than showing silence.
-        isSpeaking: p is LocalParticipant
-            ? localIsSpeaking
-            : (remoteSpeaking(p.identity) ?? p.isSpeaking),
+        // Only the *local* user is measured here. Doing it per remote track
+        // meant one audio analyser per participant — CPU that scales with
+        // channel size to duplicate work the SFU already does. Remote speaking
+        // comes from LiveKit's active-speaker detection, tuned server-side via
+        // `audio.active_level` / `update_interval` (see docs/livekit_tuning).
+        //
+        // The local user stays client-side: that analyser already runs for the
+        // noise gate, so it costs nothing extra, and `update_interval` is a
+        // latency floor you'd feel on your own indicator.
+        isSpeaking: p is LocalParticipant ? localIsSpeaking : p.isSpeaking,
         isMicrophoneEnabled: p.isMicrophoneEnabled(),
         isCameraEnabled: p.isCameraEnabled(),
         isLocal: p is LocalParticipant,

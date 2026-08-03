@@ -255,3 +255,26 @@ Realtime doorbell used for messages (self-hosted) or on the next fetch (central)
 | Self-hosted server's hosting provider | safe | n/a | safe once E2E chat ships | safe | SFU-accessible |
 | Self-hosted server admin | safe | n/a | readable (they're a member anyway) | **safe** | accessible |
 | Device thief (no password) | Argon2id + secure storage | — | — | — | — |
+
+## Speaking indicator
+
+Whether a participant's tile/row glows is decided in two different places, on
+purpose:
+
+- **Remote participants** — LiveKit's active-speaker detection (the SFU already
+  computes audio levels, so the client does no extra work). Sensitivity is a
+  *server* setting: `audio.active_level`, `audio.min_percentile`,
+  `audio.update_interval`, `audio.smooth_intervals`. The stock defaults are too
+  insensitive for conversation; recommended values and what each does are in
+  LOCAL_DEV.md. A deployment that leaves them at default will have a sluggish,
+  under-triggering indicator — that is a configuration problem, not a bug.
+- **The local user** — measured on-device by `SpeechDetector` from the mic
+  level. `update_interval` is a floor on how fast the server view can react and
+  a few hundred ms of lag on your *own* indicator is very noticeable. The
+  analyser this needs already runs for the voice-activity gate, so it is one
+  analyser regardless of channel size.
+
+An earlier version ran an analyser per *remote* track too. It gave identical
+behaviour everywhere with no server config, but the CPU scaled with the number
+of people in the channel to duplicate work the SFU was already doing — not a
+trade worth making.
