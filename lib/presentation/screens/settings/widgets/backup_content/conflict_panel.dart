@@ -6,7 +6,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/message_banner.dart';
 
-import 'section_title.dart';
+import '../section_title.dart';
 
 class ConflictPanel extends StatelessWidget {
   final ThemeState themeState;

@@ -5,7 +5,7 @@ import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 
-import 'section_title.dart';
+import '../section_title.dart';
 
 class ConfirmEmailPanel extends StatelessWidget {
   final ThemeState themeState;

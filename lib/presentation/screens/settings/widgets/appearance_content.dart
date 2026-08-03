@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import 'section_title.dart';
 import '../../../theme/app_palette.dart';
 
 class AppearanceContent extends StatelessWidget {
@@ -14,14 +15,7 @@ class AppearanceContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Theme',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: themeState.textPrimary,
-          ),
-        ),
+        SectionTitle(label: 'Theme', themeState: themeState),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -45,14 +39,7 @@ class AppearanceContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        Text(
-          'Color Palette',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: themeState.textPrimary,
-          ),
-        ),
+        SectionTitle(label: 'Color Palette', themeState: themeState),
         const SizedBox(height: 4),
         Text(
           'Changes the accent and surface tones across the whole app.',

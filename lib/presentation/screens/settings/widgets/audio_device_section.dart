@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
+import 'section_title.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 
 /// Section for selecting audio input and output devices.
@@ -130,14 +131,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: themeState.textPrimary,
-          ),
-        ),
+        SectionTitle(label: label, themeState: themeState),
         const SizedBox(height: 12),
         if (_devicesLoading)
           Text(

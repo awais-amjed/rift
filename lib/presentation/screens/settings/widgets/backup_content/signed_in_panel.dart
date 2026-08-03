@@ -10,7 +10,7 @@ import '../../../../common/confirm_dialog.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../theme/custom_colors.dart';
 
-import 'section_title.dart';
+import '../section_title.dart';
 
 class SignedInPanel extends StatelessWidget {
   final ThemeState themeState;

@@ -7,7 +7,7 @@ import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/supabase_auth_form_state.dart';
 
-import 'section_title.dart';
+import '../section_title.dart';
 
 class AuthPanel extends StatefulWidget {
   final ThemeState themeState;

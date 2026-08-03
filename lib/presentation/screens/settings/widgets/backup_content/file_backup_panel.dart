@@ -12,7 +12,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/restore_file_dialog.dart';
 
-import 'section_title.dart';
+import '../section_title.dart';
 
 class FileBackupPanel extends StatefulWidget {
   final ThemeState themeState;

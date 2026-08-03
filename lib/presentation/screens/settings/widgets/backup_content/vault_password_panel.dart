@@ -7,7 +7,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 
-import 'section_title.dart';
+import '../section_title.dart';
 
 class VaultPasswordPanel extends StatefulWidget {
   final ThemeState themeState;
