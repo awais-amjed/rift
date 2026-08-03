@@ -8,6 +8,11 @@ class ChatMessage {
   final String id;
   final String authorId;
   final String authorName;
+
+  /// The author's avatar object name, or null for initials. Not E2E — avatars
+  /// are stored in the clear (migration 014).
+  final String? authorAvatarPath;
+
   final String text;
 
   /// Decrypted attachments carried in the message body (images, audio, files).
@@ -35,6 +40,7 @@ class ChatMessage {
     required this.authorId,
     required this.authorName,
     required this.text,
+    this.authorAvatarPath,
     required this.sentAt,
     required this.isMine,
     this.attachments = const [],
@@ -51,6 +57,7 @@ class ChatMessage {
     id: id,
     authorId: authorId,
     authorName: authorName,
+    authorAvatarPath: authorAvatarPath,
     text: text ?? this.text,
     sentAt: sentAt,
     isMine: isMine,

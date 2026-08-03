@@ -149,6 +149,17 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
     scoping the write itself (`.eq(sender_id, …)`), so there is no read-then-write gap, and the
     "not found" and "not yours" cases deliberately return the same error rather than leaking
     which. The central project needs `edited_at` plus own-row update/delete RLS — see LOCAL_DEV.
+14. **014_profiles_avatars.sql** — adds `users.avatar_path` and a **private** `avatars` bucket
+    (2 MB), served by **`update_profile`** (`{display_name?, avatar_path?}`). Self only: there is
+    no target parameter, so it can't be aimed at another member even by an admin — renaming
+    someone else is a moderation action and doesn't belong on the endpoint people call to set
+    their own name. `display_name` is per-server (each server is its own identity).
+    `avatar_path` must start with the caller's own user id, so a row can't be pointed at someone
+    else's object; passing it as explicit `null` clears the picture. **Avatars are NOT E2E** —
+    the image is stored in the clear, the same accepted trade-off as reactions, because a picture
+    every member renders gains nothing from per-member wrapping. The bucket is private rather
+    than public-read so avatars aren't fetchable by the unauthenticated internet.
+    `list_users`, `list_messages` and `list_dms` now return `avatar_path` / `sender_avatar_path`.
 
 ## Deployment
 

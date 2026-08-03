@@ -15,6 +15,9 @@ class ServerMember {
   /// to start an E2E DM with them.
   final String? chatPublicKey;
 
+  /// Object name of the avatar inside the `avatars` bucket, or null.
+  final String? avatarPath;
+
   const ServerMember({
     required this.id,
     required this.username,
@@ -24,6 +27,7 @@ class ServerMember {
     this.isDeafened = false,
     this.isBanned = false,
     this.chatPublicKey,
+    this.avatarPath,
   });
 
   factory ServerMember.fromJson(Map<String, dynamic> json) {
@@ -40,6 +44,7 @@ class ServerMember {
       isDeafened: json['is_deafened'] == true,
       isBanned: json['is_banned'] == true,
       chatPublicKey: json['chat_public_key'] as String?,
+      avatarPath: json['avatar_path'] as String?,
     );
   }
 
@@ -57,6 +62,7 @@ class ServerMember {
       isDeafened: isDeafened ?? this.isDeafened,
       isBanned: isBanned,
       chatPublicKey: chatPublicKey,
+      avatarPath: avatarPath,
     );
   }
 }

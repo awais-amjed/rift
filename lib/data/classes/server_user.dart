@@ -6,12 +6,25 @@ class ServerUser {
   final String displayName;
   final UserPermissions permissions;
 
+  /// Object name of the avatar inside the server's `avatars` bucket, or null
+  /// for no avatar (render initials). Not a URL — see migration 014.
+  final String? avatarPath;
+
   const ServerUser({
     required this.id,
     required this.username,
     required this.displayName,
     required this.permissions,
+    this.avatarPath,
   });
+
+  ServerUser copyWith({String? displayName, String? avatarPath}) => ServerUser(
+    id: id,
+    username: username,
+    displayName: displayName ?? this.displayName,
+    permissions: permissions,
+    avatarPath: avatarPath ?? this.avatarPath,
+  );
 
   factory ServerUser.fromJson(Map<String, dynamic> json) {
     return ServerUser(
@@ -23,6 +36,7 @@ class ServerUser {
               json['permissions'] as Map<String, dynamic>,
             )
           : const UserPermissions(),
+      avatarPath: json['avatar_path'] as String?,
     );
   }
 
@@ -31,5 +45,6 @@ class ServerUser {
     'username': username,
     'display_name': displayName,
     'permissions': permissions.toJson(),
+    'avatar_path': ?avatarPath,
   };
 }

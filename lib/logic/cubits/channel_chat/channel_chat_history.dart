@@ -136,6 +136,7 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
             id: '${row['id']}',
             authorId: row['sender_id'] as String,
             authorName: row['sender_name'] as String? ?? 'Unknown',
+            authorAvatarPath: row['sender_avatar_path'] as String?,
             text: body.text,
             attachments: body.attachments,
             sentAt: DateTime.parse(row['created_at'] as String),

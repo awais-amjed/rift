@@ -11,7 +11,9 @@ import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/attachment_repository.dart';
+import '../../../data/repositories/avatar_repository.dart';
 import '../../../data/repositories/server_repository.dart';
+import '../../services/avatar_cache.dart';
 import '../vault/vault_cubit.dart';
 
 part 'server_cubit.g.dart';
@@ -21,19 +23,25 @@ part 'server_crud.dart';
 part 'server_selection.dart';
 part 'server_api.dart';
 part 'server_chat_api.dart';
+part 'server_profile_api.dart';
 
 class ServerCubit extends HydratedCubit<ServerState>
     with
         _ServerCrudMixin,
         _ServerSelectionMixin,
         _ServerApiMixin,
-        _ServerChatApiMixin {
+        _ServerChatApiMixin,
+        _ServerProfileApiMixin {
   @override
   final ServerRepository _repository = ServerRepository();
 
   /// E2E-encrypted attachment upload/download (self-hosted Storage REST).
   @override
   final AttachmentRepository _attachments = AttachmentRepository();
+
+  /// Avatar upload/download — plaintext, unlike attachments (migration 014).
+  @override
+  final AvatarRepository _avatars = AvatarRepository();
 
   /// Injected after construction — allows re-authentication without a circular dependency.
   @override
@@ -42,6 +50,20 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// Called after the server list changes — wired to cloud auto-backup.
   @override
   void Function()? _onServersChanged;
+
+  /// Swap one server in the list, preserving order and selection. Used by the
+  /// profile API to reflect a rename/avatar change without a refetch.
+  @override
+  void _replaceServer(Server server) {
+    emit(
+      state.copyWith(
+        servers: [
+          for (final s in state.servers)
+            if (s.id == server.id) server else s,
+        ],
+      ),
+    );
+  }
 
   void setOnServersChanged(void Function() callback) {
     _onServersChanged = callback;

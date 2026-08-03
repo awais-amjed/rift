@@ -167,6 +167,7 @@ mixin _DmHistoryMixin on Cubit<DmState> {
         authorName: isMine
             ? (_serverCubit.state.selectedServer?.user?.displayName ?? 'Me')
             : (row['sender_name'] as String? ?? peerName),
+        authorAvatarPath: row['sender_avatar_path'] as String?,
         text: body.text,
         attachments: body.attachments,
         sentAt: DateTime.parse(row['created_at'] as String),

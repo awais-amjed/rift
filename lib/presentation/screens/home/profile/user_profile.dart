@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/app_modal.dart';
+import '../../../common/user_avatar.dart';
 import '../../../routing/app_routes.dart';
 import '../../../theme/custom_colors.dart';
 import 'connection_quality/connection_quality_indicator.dart';
+import 'edit/profile_edit_modal.dart';
 
 /// Bottom area of the sidebar showing the current user info + theme toggle.
 class UserProfile extends StatelessWidget {
@@ -43,7 +46,10 @@ class UserProfile extends StatelessWidget {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(8),
                         hoverColor: themeState.bgHover,
-                        onTap: () {},
+                        onTap: () => showAppModal<bool>(
+                          context: context,
+                          modal: const ProfileEditModal(),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -55,19 +61,12 @@ class UserProfile extends StatelessWidget {
                               Stack(
                                 clipBehavior: Clip.none,
                                 children: [
-                                  Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      color: themeState.bgSecondary,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: borderColor),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: const Text(
-                                      '🐱',
-                                      style: TextStyle(fontSize: 18),
-                                    ),
+                                  UserAvatar(
+                                    avatarPath: user?.avatarPath,
+                                    name: displayName,
+                                    size: 36,
+                                    themeState: themeState,
+                                    fallbackColor: themeState.bgSecondary,
                                   ),
                                   Positioned(
                                     bottom: -2,

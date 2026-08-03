@@ -98,6 +98,25 @@ happened since the original send) and stamps `edited_at`. Deletion is a **hard**
 delete, not a tombstone: in an E2E app "deleted" has to mean the ciphertext is
 gone. Reactions cascade with the row.
 
+### users.avatar_path (migration 014)
+
+`users` gained `avatar_path` — the object name inside the server's private
+`avatars` bucket (`<user_id>/<random>.img`), or NULL for no picture (render
+initials). It is a path rather than a URL so the bucket can move without
+rewriting rows, and the random segment means a new upload never collides with a
+cached copy of the old one.
+
+**Avatars are not E2E.** The server stores the image in the clear, the same
+accepted trade-off as reactions: an avatar is shown to every member, so
+per-member wrapping buys nothing. The bucket is private (authenticated read),
+so it isn't exposed to the unauthenticated internet. Message bodies,
+attachments and DMs are unaffected.
+
+Storage RLS: any authenticated member may read; insert/update/delete only
+inside their own `<user_id>/` folder. `update_profile` additionally rejects an
+`avatar_path` outside the caller's folder, so a row can't point at someone
+else's object.
+
 ### message_reactions / dm_message_reactions (migration 012)
 
 Emoji reactions on channel messages / server DMs. **Not E2E** — the server

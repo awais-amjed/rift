@@ -232,6 +232,21 @@ class ServerRepository with _ChatApiMixin {
   }
 
   /// List all members of the server with permissions and moderation state.
+  /// Update the caller's own display name and/or avatar path.
+  /// [clearAvatar] sends an explicit null, which removes the picture.
+  Future<APIResponse> updateProfile(
+    String supabaseUrl, {
+    String? bearerToken,
+    String? displayName,
+    String? avatarPath,
+    bool clearAvatar = false,
+  }) {
+    return _post(supabaseUrl, 'update_profile', {
+      'display_name': ?displayName,
+      if (clearAvatar) 'avatar_path': null else 'avatar_path': ?avatarPath,
+    }, bearerToken: bearerToken);
+  }
+
   Future<APIResponse> listUsers(String supabaseUrl, {String? bearerToken}) {
     return _post(supabaseUrl, 'list_users', {}, bearerToken: bearerToken);
   }

@@ -4,6 +4,7 @@ import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../common/user_avatar.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 
@@ -81,29 +82,16 @@ class MemberRow extends StatelessWidget {
     );
   }
 
-  /// Initials for now — real pictures arrive with the profile feature.
   Widget _avatar() {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Container(
-          width: 26,
-          height: 26,
-          decoration: BoxDecoration(
-            color: themeState.bgTertiary,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            member.displayName.isNotEmpty
-                ? member.displayName[0].toUpperCase()
-                : '?',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: themeState.textTertiary,
-            ),
-          ),
+        UserAvatar(
+          avatarPath: member.avatarPath,
+          name: member.displayName,
+          size: 26,
+          themeState: themeState,
+          fallbackColor: themeState.bgTertiary,
         ),
         // Presence dot, ringed in the panel colour so it reads as a cut-out.
         Positioned(

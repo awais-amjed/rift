@@ -195,6 +195,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                 child: widget.showHeader
                     ? MessageRowAvatar(
                         authorName: message.authorName,
+                        avatarPath: message.authorAvatarPath,
                         themeState: themeState,
                       )
                     : null,
