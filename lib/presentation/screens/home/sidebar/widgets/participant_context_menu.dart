@@ -9,6 +9,16 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 
 /// Dialog-based context menu for a participant — mute toggle + volume slider.
+///
+/// [identity] is a live LiveKit identity when the target is in your voice
+/// channel, or a bare **user id** when they aren't (a member of another voice
+/// channel, listed from Realtime presence). Local mute and volume are stored
+/// per user and re-applied on their next join, so they work either way.
+///
+/// Server-side moderation is offered only for a live participant: its current
+/// state arrives through LiveKit participant metadata, so for anyone else the
+/// menu would have to show a guess. Moderating an absent member is still
+/// possible from the Members dialog, which reads the real state.
 class ParticipantContextMenu extends StatelessWidget {
   final String identity;
   final String name;
@@ -50,6 +60,9 @@ class ParticipantContextMenu extends StatelessWidget {
                 .firstOrNull;
             final isServerMuted = targetInfo?.isServerMuted ?? false;
             final isServerDeafened = targetInfo?.isServerDeafened ?? false;
+            // Absent from the roster → not in a voice channel with us, so
+            // their moderation state is unknown here.
+            final isLive = targetInfo != null;
 
             final bool isMuted;
             final double volume;
@@ -84,7 +97,9 @@ class ParticipantContextMenu extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isLocal ? 'YOU' : 'PARTICIPANT',
+                              isLocal
+                                  ? 'YOU'
+                                  : (isLive ? 'PARTICIPANT' : 'MEMBER'),
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
@@ -125,7 +140,7 @@ class ParticipantContextMenu extends StatelessWidget {
                       ),
                       // Server-side moderation (moderators only, remote
                       // participants only). Persists across rejoins.
-                      if (!isLocal && isModerator) ...[
+                      if (!isLocal && isLive && isModerator) ...[
                         _MenuItem(
                           icon: isServerMuted ? Icons.mic : Icons.mic_off,
                           label: isServerMuted

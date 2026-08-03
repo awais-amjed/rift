@@ -30,11 +30,15 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   }
 
   /// Locally mutes/unmutes a remote participant's audio (this user only).
+  ///
+  /// [identity] may be a live LiveKit identity *or* a bare user id: the
+  /// setting is stored per user (`userIdOf` returns the string unchanged when
+  /// there is no device segment), so this works for a member who isn't in a
+  /// voice channel right now. The preference is always persisted — the live
+  /// track is only touched when they happen to be connected, and
+  /// `_applyStoredSettings` picks it up when they next join.
   Future<void> setParticipantMute(String identity, bool muted) async {
-    final room = state.room;
-    if (room == null) return;
-
-    final participant = room.remoteParticipants[identity];
+    final participant = state.room?.remoteParticipants[identity];
     if (participant != null) {
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
@@ -48,11 +52,10 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   }
 
   /// Sets the local volume for a remote participant's audio (this user only).
+  /// Persisted per user and applied on their next join — see
+  /// [setParticipantMute] for why [identity] may be a bare user id.
   Future<void> setParticipantVolume(String identity, double volume) async {
-    final room = state.room;
-    if (room == null) return;
-
-    final participant = room.remoteParticipants[identity];
+    final participant = state.room?.remoteParticipants[identity];
     if (participant != null) {
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
