@@ -139,6 +139,16 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
     reaction, returns `{reacted}`) and **`list_reactions`** (`{scope, …, message_ids[]}` →
     `{reactions: {id: [{emoji,count,mine}]}}`, membership-filtered). The central project uses a
     `dm_reactions` table with participant-scoped RLS instead (direct client ops) — see LOCAL_DEV.
+13. **013_message_edit_delete.sql** — adds `edited_at` to `messages` and `dm_messages`, served
+    by four new functions: **`edit_message`** / **`edit_dm`** (`{message_id, …envelope}` —
+    overwrites the envelope in place and stamps `edited_at`; **sender only**, so a moderator can
+    remove a message but never rewrite it under its author's name) and **`delete_message`** /
+    **`delete_dm`** (`{message_id}`). Deletion is a **hard** delete: in an E2E app "deleted" must
+    mean the ciphertext is gone, not hidden behind a flag; reactions cascade with the row.
+    `delete_message` also allows a channel manager / server admin. Authorship is enforced by
+    scoping the write itself (`.eq(sender_id, …)`), so there is no read-then-write gap, and the
+    "not found" and "not yours" cases deliberately return the same error rather than leaking
+    which. The central project needs `edited_at` plus own-row update/delete RLS — see LOCAL_DEV.
 
 ## Deployment
 

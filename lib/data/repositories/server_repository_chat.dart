@@ -73,6 +73,59 @@ mixin _ChatApiMixin {
     }, bearerToken: bearerToken);
   }
 
+  /// Replace one channel message's envelope in place (sender only,
+  /// server-enforced). Returns the new `edited_at`.
+  Future<APIResponse> editMessage(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String channelId,
+    required int messageId,
+    required Map<String, dynamic> envelope,
+  }) {
+    return _post(supabaseUrl, 'edit_message', {
+      'channel_id': channelId,
+      'message_id': messageId,
+      ...envelope,
+    }, bearerToken: bearerToken);
+  }
+
+  /// Hard-delete one channel message (sender, or a moderator).
+  Future<APIResponse> deleteMessage(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String channelId,
+    required int messageId,
+  }) {
+    return _post(supabaseUrl, 'delete_message', {
+      'channel_id': channelId,
+      'message_id': messageId,
+    }, bearerToken: bearerToken);
+  }
+
+  /// Replace one server-DM envelope in place (sender only).
+  Future<APIResponse> editDm(
+    String supabaseUrl, {
+    String? bearerToken,
+    required int messageId,
+    required Map<String, dynamic> envelope,
+  }) {
+    return _post(supabaseUrl, 'edit_dm', {
+      'message_id': messageId,
+      ...envelope,
+    }, bearerToken: bearerToken);
+  }
+
+  /// Hard-delete one server DM (sender only; removes it for both sides).
+  Future<APIResponse> deleteDm(
+    String supabaseUrl, {
+    String? bearerToken,
+    required int messageId,
+  }) {
+    return _post(supabaseUrl, 'delete_dm', {
+      'message_id': messageId,
+    }, bearerToken: bearerToken);
+  }
+
   /// Page through a channel's envelopes. Pass [beforeId] for history
   /// (newest-first) or [afterId] for live catch-up (oldest-first).
   Future<APIResponse> listMessages(

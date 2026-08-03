@@ -48,6 +48,24 @@ class ChatMessageOps {
       if (m.id != pendingId) m else acked,
   ];
 
+  /// Apply an edit locally: swap [text] in and stamp [editedAt] on one row.
+  /// Attachments and reactions ride along untouched.
+  static List<ChatMessage> applyEdit(
+    List<ChatMessage> messages, {
+    required String messageId,
+    required String text,
+    required DateTime editedAt,
+  }) => [
+    for (final m in messages)
+      if (m.id != messageId) m else m.copyWith(text: text, editedAt: editedAt),
+  ];
+
+  /// Drop one row — a delete is hard, so there is no tombstone to render.
+  static List<ChatMessage> removeMessage(
+    List<ChatMessage> messages,
+    String messageId,
+  ) => messages.where((m) => m.id != messageId).toList();
+
   /// Fold a freshly-fetched page into what's on screen.
   ///
   /// Rows we already hold are dropped, and a pending bubble is retired only

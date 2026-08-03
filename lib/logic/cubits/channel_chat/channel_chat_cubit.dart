@@ -20,6 +20,7 @@ part 'channel_chat_state.dart';
 part 'channel_chat_keyring.dart';
 part 'channel_chat_history.dart';
 part 'channel_chat_send.dart';
+part 'channel_chat_edit.dart';
 part 'channel_chat_reactions.dart';
 part 'channel_chat_sweep.dart';
 
@@ -41,6 +42,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         _ChatKeyringMixin,
         _ChannelChatHistoryMixin,
         _ChannelChatSendMixin,
+        _ChannelChatEditMixin,
         _ChannelChatReactionsMixin,
         _ChatSweepMixin {
   @override

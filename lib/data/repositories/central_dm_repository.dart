@@ -81,6 +81,58 @@ class CentralDmRepository
     }
   }
 
+  /// Replace one envelope in place (sender only — enforced by RLS *and* the
+  /// `sender_id` filter). Central DMs write straight to the table rather than
+  /// through the quota RPC: an edit isn't a new message, so it must not cost
+  /// quota. Returns the new `edited_at`.
+  Future<APIResponse> editDm({
+    required int messageId,
+    required Map<String, dynamic> envelope,
+  }) async {
+    try {
+      final myId = _client.auth.currentUser!.id;
+      final editedAt = DateTime.now().toUtc().toIso8601String();
+      final rows = await _client
+          .from('dm_messages')
+          .update({
+            'ciphertext': envelope['ciphertext'],
+            'nonce': envelope['nonce'],
+            'signature': envelope['signature'],
+            'key_version': envelope['key_version'],
+            'edited_at': editedAt,
+          })
+          .eq('id', messageId)
+          .eq('sender_id', myId)
+          .select('id, edited_at');
+      if ((rows as List).isEmpty) {
+        return APIResponse.error('Message not found, or not yours to change');
+      }
+      return APIResponse.success(rows.first);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
+  /// Hard-delete one envelope (sender only). Removes it for the peer too —
+  /// there is a single row per message.
+  Future<APIResponse> deleteDm({required int messageId}) async {
+    try {
+      final myId = _client.auth.currentUser!.id;
+      final rows = await _client
+          .from('dm_messages')
+          .delete()
+          .eq('id', messageId)
+          .eq('sender_id', myId)
+          .select('id');
+      if ((rows as List).isEmpty) {
+        return APIResponse.error('Message not found, or not yours to change');
+      }
+      return APIResponse.success(rows.first);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
   /// Page through the conversation with [peerId] (RLS already restricts rows
   /// to the caller's own conversations).
   Future<APIResponse> listDms({

@@ -30,12 +30,25 @@ class ChatMessageList extends StatefulWidget {
   /// Toggle a reaction on a message. Null disables reactions on this surface.
   final void Function(String messageId, String emoji)? onToggleReaction;
 
+  /// Re-seal a message with new text. Null disables editing on this surface.
+  final void Function(String messageId, String text)? onEdit;
+
+  /// Hard-delete a message. Null disables deletion on this surface.
+  final void Function(String messageId)? onDelete;
+
+  /// Whether the local user may delete other people's messages here
+  /// (channel manager / server admin). Always false in DMs.
+  final bool isModerator;
+
   const ChatMessageList({
     super.key,
     required this.messages,
     this.controller,
     this.attachmentLoader,
     this.onToggleReaction,
+    this.onEdit,
+    this.onDelete,
+    this.isModerator = false,
   });
 
   @override
@@ -146,6 +159,9 @@ class _ChatMessageListState extends State<ChatMessageList> {
               themeState: themeState,
               attachmentLoader: widget.attachmentLoader,
               onToggleReaction: widget.onToggleReaction,
+              onEdit: widget.onEdit,
+              onDelete: widget.onDelete,
+              isModerator: widget.isModerator,
               animateIn: animating.contains(msg.id),
             );
           },

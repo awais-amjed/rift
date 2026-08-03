@@ -4,11 +4,15 @@ import 'package:flutter/services.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/message_permissions.dart';
+import '../../confirm_dialog.dart';
 import '../../emoji_text.dart';
 import '../attachments/attachment_loader.dart';
 import '../attachments/message_attachments.dart';
 import '../reactions/message_reactions_bar.dart';
 import '../reactions/reaction_picker.dart';
+import 'message_context_menu.dart';
+import 'message_edit_field.dart';
 import 'message_hover_toolbar.dart';
 import 'message_row_avatar.dart';
 import 'message_row_header.dart';
@@ -32,6 +36,15 @@ class ChatMessageRow extends StatefulWidget {
   /// Toggle a reaction on this message. Null disables reactions on this surface.
   final void Function(String messageId, String emoji)? onToggleReaction;
 
+  /// Re-seal this message with new text. Null disables editing.
+  final void Function(String messageId, String text)? onEdit;
+
+  /// Hard-delete this message. Null disables deletion.
+  final void Function(String messageId)? onDelete;
+
+  /// Whether the local user may delete *other* people's messages here.
+  final bool isModerator;
+
   /// When true, the row fades + slides in once on first build (a freshly
   /// arrived incoming message). Continuation of existing rows never animates.
   final bool animateIn;
@@ -43,6 +56,9 @@ class ChatMessageRow extends StatefulWidget {
     required this.themeState,
     this.attachmentLoader,
     this.onToggleReaction,
+    this.onEdit,
+    this.onDelete,
+    this.isModerator = false,
     this.animateIn = false,
   });
 
@@ -52,20 +68,62 @@ class ChatMessageRow extends StatefulWidget {
 
 class _ChatMessageRowState extends State<ChatMessageRow> {
   bool _hovering = false;
+  bool _editing = false;
 
   ChatMessage get message => widget.message;
   ThemeState get themeState => widget.themeState;
 
   bool get _canReact => widget.onToggleReaction != null && !message.isPending;
   bool get _canCopy => message.text.isNotEmpty;
+  bool get _canEdit =>
+      widget.onEdit != null && MessagePermissions.canEdit(message);
+  bool get _canDelete =>
+      widget.onDelete != null &&
+      MessagePermissions.canDelete(message, isModerator: widget.isModerator);
   bool get _showToolbar =>
-      _hovering && !message.isPending && (_canReact || _canCopy);
+      _hovering && !_editing && !message.isPending && (_canReact || _canCopy);
 
   void _toggle(String emoji) =>
       widget.onToggleReaction?.call(message.id, emoji);
 
   void _pickReaction(BuildContext anchorContext) =>
       showReactionPicker(anchorContext, themeState, _toggle);
+
+  Future<void> _openContextMenu(Offset position) async {
+    if (message.isPending) return;
+    final action = await showMessageContextMenu(
+      context: context,
+      position: position,
+      themeState: themeState,
+      message: message,
+      canEdit: _canEdit,
+      canDelete: _canDelete,
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case MessageMenuAction.copy:
+        await _copy();
+      case MessageMenuAction.edit:
+        setState(() => _editing = true);
+      case MessageMenuAction.delete:
+        await _confirmDelete();
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Delete message?',
+      message: message.text.isNotEmpty
+          ? 'This removes it for everyone. It cannot be undone.'
+          : 'This removes the attachment for everyone. It cannot be undone.',
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline_rounded,
+      isDestructive: true,
+    );
+    if (!confirmed) return;
+    widget.onDelete?.call(message.id);
+  }
 
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: message.text));
@@ -77,21 +135,24 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
     final content = MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          _buildRow(),
-          if (_showToolbar)
-            Positioned(
-              top: -10,
-              right: 14,
-              child: MessageHoverToolbar(
-                themeState: themeState,
-                onReact: _canReact ? _pickReaction : null,
-                onCopy: _canCopy ? (_) => _copy() : null,
+      child: GestureDetector(
+        onSecondaryTapDown: (d) => _openContextMenu(d.globalPosition),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _buildRow(),
+            if (_showToolbar)
+              Positioned(
+                top: -10,
+                right: 14,
+                child: MessageHoverToolbar(
+                  themeState: themeState,
+                  onReact: _canReact ? _pickReaction : null,
+                  onCopy: _canCopy ? (_) => _copy() : null,
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
 
@@ -153,15 +214,37 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       children: [
         if (widget.showHeader)
           MessageRowHeader(message: message, themeState: themeState),
-        if (message.text.isNotEmpty)
+        if (_editing)
+          MessageEditField(
+            initialText: message.text,
+            themeState: themeState,
+            onSave: (text) {
+              setState(() => _editing = false);
+              if (text != message.text) widget.onEdit?.call(message.id, text);
+            },
+            onCancel: () => setState(() => _editing = false),
+          )
+        else if (message.text.isNotEmpty)
           SelectableText.rich(
-            emojiTextSpan(
-              message.text,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.35,
-                color: themeState.textSecondary,
-              ),
+            TextSpan(
+              children: [
+                emojiTextSpan(
+                  message.text,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.35,
+                    color: themeState.textSecondary,
+                  ),
+                ),
+                if (message.isEdited)
+                  TextSpan(
+                    text: '  (edited)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: themeState.textQuaternary,
+                    ),
+                  ),
+              ],
             ),
           ),
         if (message.attachments.isNotEmpty && widget.attachmentLoader != null)

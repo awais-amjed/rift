@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
@@ -59,6 +60,18 @@ class _ChannelChatViewState extends State<ChannelChatView>
     );
   }
 
+  /// Channel managers and server admins may delete anyone's message here.
+  bool _isModerator(BuildContext context) {
+    final permissions = context
+        .read<ServerCubit>()
+        .state
+        .selectedServer
+        ?.user
+        ?.permissions;
+    return (permissions?.isChannelManager ?? false) ||
+        (permissions?.isServerAdmin ?? false);
+  }
+
   Widget _buildBody(BuildContext context, ChannelChatState chatState) {
     switch (chatState.status) {
       case ChannelChatStatus.ready:
@@ -68,6 +81,10 @@ class _ChannelChatViewState extends State<ChannelChatView>
           controller: scrollController,
           attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
           onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
+          onEdit: context.read<ChannelChatCubit>().editMessage,
+          onDelete: context.read<ChannelChatCubit>().deleteMessage,
+          // Channel managers and admins may remove anyone's message.
+          isModerator: _isModerator(context),
         );
       case ChannelChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

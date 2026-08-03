@@ -22,6 +22,7 @@ part 'dm_state.dart';
 part 'dm_conversations.dart';
 part 'dm_history.dart';
 part 'dm_send.dart';
+part 'dm_edit.dart';
 part 'dm_reactions.dart';
 
 /// E2E direct messages between members of the selected server
@@ -37,6 +38,7 @@ class DmCubit extends Cubit<DmState>
         _DmConversationsMixin,
         _DmHistoryMixin,
         _DmSendMixin,
+        _DmEditMixin,
         _DmReactionsMixin {
   @override
   final ServerCubit _serverCubit;

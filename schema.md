@@ -89,6 +89,14 @@ Signature context: `dm:<lowerUserId>:<higherUserId>`.
 | nonce        | text        | Required                                          | AES-GCM nonce, base64                |
 | signature    | text        | Required                                          | Sender's Ed25519 signature, base64   |
 | key_version  | integer     | Required                                          | Always 1 for DMs (no rotation)       |
+| edited_at    | timestamptz | Nullable (migration 013)                          | Last edit; null = never edited       |
+
+Both `messages` and `dm_messages` gained `edited_at` in migration 013. An edit
+overwrites `ciphertext`/`nonce`/`signature`/`key_version` in place (re-sealed
+and re-signed client-side, at the *current* key version — a rotation may have
+happened since the original send) and stamps `edited_at`. Deletion is a **hard**
+delete, not a tombstone: in an E2E app "deleted" has to mean the ciphertext is
+gone. Reactions cascade with the row.
 
 ### message_reactions / dm_message_reactions (migration 012)
 

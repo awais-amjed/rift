@@ -171,6 +171,7 @@ mixin _DmHistoryMixin on Cubit<DmState> {
         attachments: body.attachments,
         sentAt: DateTime.parse(row['created_at'] as String),
         isMine: isMine,
+        editedAt: DateTime.tryParse('${row['edited_at']}'),
       );
     } catch (e) {
       HelperMethods.printDebug('[DM] dropped message ${row['id']}: $e');

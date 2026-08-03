@@ -140,6 +140,7 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
             attachments: body.attachments,
             sentAt: DateTime.parse(row['created_at'] as String),
             isMine: row['sender_id'] == localUserId,
+            editedAt: DateTime.tryParse('${row['edited_at']}'),
           ),
         );
       } catch (e) {

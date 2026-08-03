@@ -85,6 +85,57 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     ),
   );
 
+  /// Replace one channel message's envelope (sender only).
+  Future<APIResponse> editChatMessage({
+    required String channelId,
+    required int messageId,
+    required Map<String, dynamic> envelope,
+  }) => _callWithAutoRefresh(
+    (token) => _repository.editMessage(
+      state.selectedServer!.supabaseUrl,
+      channelId: channelId,
+      messageId: messageId,
+      envelope: envelope,
+      bearerToken: token,
+    ),
+  );
+
+  /// Hard-delete one channel message (sender, or a moderator).
+  Future<APIResponse> deleteChatMessage({
+    required String channelId,
+    required int messageId,
+  }) => _callWithAutoRefresh(
+    (token) => _repository.deleteMessage(
+      state.selectedServer!.supabaseUrl,
+      channelId: channelId,
+      messageId: messageId,
+      bearerToken: token,
+    ),
+  );
+
+  /// Replace one server-DM envelope (sender only).
+  Future<APIResponse> editDm({
+    required int messageId,
+    required Map<String, dynamic> envelope,
+  }) => _callWithAutoRefresh(
+    (token) => _repository.editDm(
+      state.selectedServer!.supabaseUrl,
+      messageId: messageId,
+      envelope: envelope,
+      bearerToken: token,
+    ),
+  );
+
+  /// Hard-delete one server DM (sender only).
+  Future<APIResponse> deleteDm({required int messageId}) =>
+      _callWithAutoRefresh(
+        (token) => _repository.deleteDm(
+          state.selectedServer!.supabaseUrl,
+          messageId: messageId,
+          bearerToken: token,
+        ),
+      );
+
   /// Page through a channel's message envelopes.
   Future<APIResponse> listChatMessages({
     required String channelId,

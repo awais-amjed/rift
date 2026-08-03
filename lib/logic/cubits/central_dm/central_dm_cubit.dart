@@ -24,6 +24,7 @@ part 'central_dm_state.dart';
 part 'central_dm_conversations.dart';
 part 'central_dm_history.dart';
 part 'central_dm_send.dart';
+part 'central_dm_edit.dart';
 part 'central_dm_reactions.dart';
 
 /// Central DMs — the discovery/first-contact tier (ARCHITECTURE.md §4).
@@ -38,6 +39,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
         _CentralDmConversationsMixin,
         _CentralDmHistoryMixin,
         _CentralDmSendMixin,
+        _CentralDmEditMixin,
         _CentralDmReactionsMixin {
   @override
   final CentralDmRepository _repo;

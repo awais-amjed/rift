@@ -64,6 +64,8 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           controller: scrollController,
           attachmentLoader: context.read<DmCubit>().loadAttachment,
           onToggleReaction: context.read<DmCubit>().toggleReaction,
+          onEdit: context.read<DmCubit>().editMessage,
+          onDelete: context.read<DmCubit>().deleteMessage,
         );
       case DmChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

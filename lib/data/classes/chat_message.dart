@@ -24,6 +24,12 @@ class ChatMessage {
   /// Sent optimistically, not yet acknowledged by the server.
   final bool isPending;
 
+  /// When the author last edited this message, or null if never edited.
+  /// Drives the "(edited)" marker.
+  final DateTime? editedAt;
+
+  bool get isEdited => editedAt != null;
+
   const ChatMessage({
     required this.id,
     required this.authorId,
@@ -34,17 +40,23 @@ class ChatMessage {
     this.attachments = const [],
     this.reactions = const [],
     this.isPending = false,
+    this.editedAt,
   });
 
-  ChatMessage copyWith({List<MessageReaction>? reactions}) => ChatMessage(
+  ChatMessage copyWith({
+    List<MessageReaction>? reactions,
+    String? text,
+    DateTime? editedAt,
+  }) => ChatMessage(
     id: id,
     authorId: authorId,
     authorName: authorName,
-    text: text,
+    text: text ?? this.text,
     sentAt: sentAt,
     isMine: isMine,
     attachments: attachments,
     reactions: reactions ?? this.reactions,
     isPending: isPending,
+    editedAt: editedAt ?? this.editedAt,
   );
 }
