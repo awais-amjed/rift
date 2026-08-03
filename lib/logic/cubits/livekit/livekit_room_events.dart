@@ -16,7 +16,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
     listener
       ..on<ParticipantConnectedEvent>((e) {
         final identity = e.participant.identity;
-        if (identity.endsWith('_screenshare')) {
+        if (ParticipantIdentity.isScreenshare(identity)) {
           SoundService.instance.playStreamStarted();
         } else {
           SoundService.instance.playJoin();
@@ -26,7 +26,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
       })
       ..on<ParticipantDisconnectedEvent>((e) {
         final identity = e.participant.identity;
-        if (identity.endsWith('_screenshare')) {
+        if (ParticipantIdentity.isScreenshare(identity)) {
           SoundService.instance.playStreamEnded();
         } else {
           SoundService.instance.playLeave();
@@ -37,7 +37,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
         _syncParticipants();
         _applyStoredSettings();
 
-        if (e.participant.identity.endsWith('_screenshare')) {
+        if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
           if (!state.subscribedScreenshares.contains(e.participant.identity)) {
             // Prevent auto-subscription to unsubscribed screenshares.
             if (e.publication.subscribed) e.publication.unsubscribe();
@@ -53,7 +53,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
       ..on<TrackSubscribedEvent>((e) {
         _syncParticipants();
 
-        if (e.participant.identity.endsWith('_screenshare')) {
+        if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
           if (e.publication.source == TrackSource.screenShareVideo) {
             if (state.subscribedScreenshares.contains(e.participant.identity)) {
               e.publication.setVideoQuality(VideoQuality.HIGH);

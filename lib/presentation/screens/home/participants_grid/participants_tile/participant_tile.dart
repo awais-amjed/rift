@@ -4,17 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../data/participant_identity.dart';
+import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/services/participant_video.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
-import 'avatar_placeholder.dart';
-import 'participant_name_badge.dart';
-import 'stop_watching_button.dart';
-import 'stream_stats_overlay.dart';
-import 'watch_stream_button.dart';
+import 'collapsed_participant_tile.dart';
+import 'expanded_participant_tile.dart';
 
-/// Displays a single participant's video or avatar fallback tile.
+/// One participant's video or avatar, in the grid or on the stage.
+///
+/// Owns the LiveKit listener that keeps the rendered track fresh, the
+/// screenshare subscription, and the auto-hide timer for the expanded
+/// overlays. The two layouts are [CollapsedParticipantTile] and
+/// [ExpandedParticipantTile].
 class ParticipantTileWidget extends StatefulWidget {
   final Participant participant;
   final bool isMuted;
@@ -34,16 +38,17 @@ class ParticipantTileWidget extends StatefulWidget {
 }
 
 class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
+  /// How long the expanded overlays stay up after the pointer stops moving.
+  static const _hideDelay = Duration(seconds: 2);
+
   TrackPublication? _videoPub;
   bool _isSpeaking = false;
   bool _showOverlays = true;
   bool _statsPinned = false;
   Timer? _hideTimer;
 
-  static const _hideDelay = Duration(seconds: 2);
-
   bool get _isScreenshare =>
-      widget.participant.identity.endsWith('_screenshare');
+      ParticipantIdentity.isScreenshare(widget.participant.identity);
 
   @override
   void initState() {
@@ -93,31 +98,14 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   }
 
   void _onParticipantChanged() {
-    if (mounted) {
-      setState(() {
-        _updateVideoTrack();
-        _isSpeaking = widget.participant.isSpeaking;
-      });
-    }
+    if (mounted) setState(_updateVideoTrack);
   }
 
   void _updateVideoTrack() {
-    if (_isScreenshare) {
-      _videoPub = widget.participant.videoTrackPublications
-          .where(
-            (t) => t.source == TrackSource.screenShareVideo && t.track != null,
-          )
-          .cast<TrackPublication?>()
-          .firstOrNull;
-    } else {
-      _videoPub = widget.participant.videoTrackPublications
-          .where(
-            (t) =>
-                t.source == TrackSource.camera && t.track != null && !t.muted,
-          )
-          .cast<TrackPublication?>()
-          .firstOrNull;
-    }
+    _videoPub = ParticipantVideo.activePublication(
+      widget.participant.videoTrackPublications,
+      isScreenshare: _isScreenshare,
+    );
     _isSpeaking = widget.participant.isSpeaking;
   }
 
@@ -131,237 +119,97 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     });
   }
 
+  /// Any pointer movement over the stage brings the overlays back and
+  /// restarts the countdown.
   void _onActivity() {
-    if (widget.isExpanded) {
-      if (!_showOverlays) {
-        setState(() => _showOverlays = true);
-      }
+    if (!widget.isExpanded) return;
+    if (!_showOverlays) setState(() => _showOverlays = true);
+    _scheduleHide();
+  }
+
+  void _onStatsPinnedChanged(bool pinned) {
+    setState(() {
+      _statsPinned = pinned;
+      if (pinned) _showOverlays = true;
+    });
+    if (pinned) {
+      _hideTimer?.cancel();
+    } else {
       _scheduleHide();
     }
   }
+
+  Future<void> _subscribeToScreenshare() => context
+      .read<LiveKitCubit>()
+      .subscribeToScreenshare(widget.participant.identity);
+
+  Future<void> _unsubscribeFromScreenshare() => context
+      .read<LiveKitCubit>()
+      .unsubscribeFromScreenshare(widget.participant.identity);
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
       builder: (context, livekitState) {
-        final isSubscribed = _isScreenshare
-            ? livekitState.subscribedScreenshares.contains(
-                widget.participant.identity,
-              )
-            : true;
+        // Camera tiles are always "subscribed"; only screenshares are opt-in.
+        final isSubscribed =
+            !_isScreenshare ||
+            livekitState.subscribedScreenshares.contains(
+              widget.participant.identity,
+            );
 
         return BlocBuilder<ThemeCubit, ThemeState>(
           builder: (context, themeState) {
-            final hasVideo = _videoPub != null && isSubscribed;
-            final isSpeaking = _isSpeaking && !widget.isMuted;
+            final track = isSubscribed ? _videoPub?.track : null;
+            final videoTrack = track is VideoTrack ? track : null;
+            final showStopButton =
+                _isScreenshare && isSubscribed && videoTrack != null;
             final name = widget.participant.name;
-            final showWatchButton = _isScreenshare && !isSubscribed;
-            final showStopButton = _isScreenshare && isSubscribed && hasVideo;
-
-            final content = GestureDetector(
-              onTap: widget.onTap,
-              behavior: HitTestBehavior.opaque,
-              child: widget.isExpanded
-                  ? _buildExpandedContent(
-                      context: context,
-                      themeState: themeState,
-                      hasVideo: hasVideo,
-                      name: name,
-                      showWatchButton: showWatchButton,
-                      showStopButton: showStopButton,
-                    )
-                  : _buildCollapsedContent(
-                      context: context,
-                      themeState: themeState,
-                      hasVideo: hasVideo,
-                      isSpeaking: isSpeaking,
-                      name: name,
-                      showWatchButton: showWatchButton,
-                      showStopButton: showStopButton,
-                    ),
-            );
-
-            if (widget.participant is LocalParticipant) {
-              return ContextMenuRegion(
-                contextMenu: ParticipantContextMenu(
-                  identity: widget.participant.identity,
-                  name: name,
-                  isLocal: true,
-                ),
-                child: content,
-              );
-            }
 
             return ContextMenuRegion(
               contextMenu: ParticipantContextMenu(
                 identity: widget.participant.identity,
                 name: name,
+                isLocal: widget.participant is LocalParticipant,
               ),
-              child: content,
+              child: GestureDetector(
+                onTap: widget.onTap,
+                behavior: HitTestBehavior.opaque,
+                child: widget.isExpanded
+                    ? ExpandedParticipantTile(
+                        themeState: themeState,
+                        videoTrack: videoTrack,
+                        name: name,
+                        isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                        isMuted: widget.isMuted,
+                        isScreenshare: _isScreenshare,
+                        showWatchButton: _isScreenshare && !isSubscribed,
+                        showStopButton: showStopButton,
+                        showOverlays: _showOverlays,
+                        statsPinned: _statsPinned,
+                        onActivity: _onActivity,
+                        onWatch: _subscribeToScreenshare,
+                        onStopWatching: _unsubscribeFromScreenshare,
+                        onStatsPinnedChanged: _onStatsPinnedChanged,
+                      )
+                    : CollapsedParticipantTile(
+                        themeState: themeState,
+                        videoTrack: videoTrack,
+                        isSpeaking: _isSpeaking && !widget.isMuted,
+                        name: name,
+                        isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                        isMuted: widget.isMuted,
+                        isScreenshare: _isScreenshare,
+                        showWatchButton: _isScreenshare && !isSubscribed,
+                        showStopButton: showStopButton,
+                        onWatch: _subscribeToScreenshare,
+                        onStopWatching: _unsubscribeFromScreenshare,
+                      ),
+              ),
             );
           },
         );
       },
     );
-  }
-
-  Widget _buildExpandedContent({
-    required BuildContext context,
-    required ThemeState themeState,
-    required bool hasVideo,
-    required String name,
-    required bool showWatchButton,
-    required bool showStopButton,
-  }) {
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerMove: (_) => _onActivity(),
-      onPointerHover: (_) => _onActivity(),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (hasVideo && _videoPub!.track is VideoTrack)
-            VideoTrackRenderer(
-              _videoPub!.track as VideoTrack,
-              fit: VideoViewFit.contain,
-            )
-          else if (!showWatchButton)
-            AvatarPlaceholder(name: name, isDark: themeState.isDarkTheme),
-          if (showStopButton && _videoPub!.track is VideoTrack)
-            Positioned(
-              top: 12,
-              right: 12,
-              child: AnimatedOpacity(
-                opacity: (_showOverlays || _statsPinned) ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: IgnorePointer(
-                  ignoring: !_showOverlays && !_statsPinned,
-                  child: StreamStatsOverlay(
-                    track: _videoPub!.track as VideoTrack,
-                    onPinnedChanged: (pinned) {
-                      setState(() => _statsPinned = pinned);
-                      if (pinned) {
-                        _hideTimer?.cancel();
-                        setState(() => _showOverlays = true);
-                      } else {
-                        _scheduleHide();
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ),
-          if (showWatchButton)
-            WatchStreamButton(onTap: () => _subscribeToScreenshare(context)),
-          if (showStopButton)
-            Positioned(
-              bottom: 12,
-              right: 12,
-              child: AnimatedOpacity(
-                opacity: _showOverlays ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: IgnorePointer(
-                  ignoring: !_showOverlays,
-                  child: StopWatchingButton(
-                    onTap: () => _unsubscribeFromScreenshare(context),
-                  ),
-                ),
-              ),
-            ),
-          Positioned(
-            bottom: 12,
-            left: 12,
-            child: AnimatedOpacity(
-              opacity: _showOverlays ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: ParticipantNameBadge(
-                name: name,
-                isMicEnabled: widget.participant.isMicrophoneEnabled(),
-                isMuted: widget.isMuted,
-                isScreenshare: _isScreenshare,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCollapsedContent({
-    required BuildContext context,
-    required ThemeState themeState,
-    required bool hasVideo,
-    required bool isSpeaking,
-    required String name,
-    required bool showWatchButton,
-    required bool showStopButton,
-  }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        color: themeState.isDarkTheme
-            ? themeState.bgSecondary
-            : themeState.bgTertiary,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isSpeaking ? themeState.primary : themeState.borderPrimary,
-          width: isSpeaking ? 2 : 1,
-        ),
-        boxShadow: isSpeaking
-            ? [
-                BoxShadow(
-                  color: themeState.primary.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                ),
-              ]
-            : null,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(13),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (hasVideo && _videoPub!.track is VideoTrack)
-              VideoTrackRenderer(
-                _videoPub!.track as VideoTrack,
-                fit: VideoViewFit.contain,
-              )
-            else if (!showWatchButton)
-              AvatarPlaceholder(name: name, isDark: themeState.isDarkTheme),
-            if (showWatchButton)
-              WatchStreamButton(onTap: () => _subscribeToScreenshare(context)),
-            if (showStopButton)
-              Positioned(
-                bottom: 12,
-                right: 12,
-                child: StopWatchingButton(
-                  onTap: () => _unsubscribeFromScreenshare(context),
-                ),
-              ),
-            Positioned(
-              bottom: 12,
-              left: 12,
-              child: ParticipantNameBadge(
-                name: name,
-                isMicEnabled: widget.participant.isMicrophoneEnabled(),
-                isMuted: widget.isMuted,
-                isScreenshare: _isScreenshare,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _subscribeToScreenshare(BuildContext context) async {
-    final livekitCubit = context.read<LiveKitCubit>();
-    await livekitCubit.subscribeToScreenshare(widget.participant.identity);
-  }
-
-  Future<void> _unsubscribeFromScreenshare(BuildContext context) async {
-    final livekitCubit = context.read<LiveKitCubit>();
-    await livekitCubit.unsubscribeFromScreenshare(widget.participant.identity);
   }
 }

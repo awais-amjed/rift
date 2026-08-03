@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/screen_share_settings.dart';
+import '../../../data/participant_identity.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../livekit/livekit_cubit.dart';
@@ -146,7 +147,8 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       // per-device segment that keeps the base and screenshare connections
       // paired); fall back to the legacy form only if it's absent.
       final identityWithScreenshare =
-          response.data['identity'] as String? ?? '${user.id}_screenshare';
+          response.data['identity'] as String? ??
+          '${user.id}${ParticipantIdentity.screenshareSuffix}';
 
       final config = ScreenShareConfig(
         livekitUrl: livekitUrl,

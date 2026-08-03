@@ -18,10 +18,7 @@ void main() {
     });
 
     test('falls back to the first when that window is gone', () {
-      final picked = ScreenShareSources.pickCaptureSource([
-        src(3),
-        src(4),
-      ], 7);
+      final picked = ScreenShareSources.pickCaptureSource([src(3), src(4)], 7);
       expect(picked?.index, 3);
     });
 
