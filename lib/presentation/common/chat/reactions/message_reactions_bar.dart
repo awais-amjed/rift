@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/message_reaction.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../emoji_text.dart';
 
 /// The row of emoji-reaction chips shown under a message, plus a small "add
 /// reaction" button. Tapping a chip toggles the local user's reaction; the "+"
@@ -73,7 +74,7 @@ class _ReactionChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(reaction.emoji, style: const TextStyle(fontSize: 14)),
+              Text(reaction.emoji, style: emojiRunStyle.copyWith(fontSize: 14)),
               const SizedBox(width: 5),
               Text(
                 '${reaction.count}',

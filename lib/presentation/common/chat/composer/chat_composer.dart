@@ -10,16 +10,17 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/mime_util.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
-import 'composer_emoji_panel.dart';
+import '../../emoji_text.dart';
 import 'composer_icon_button.dart';
 import 'composer_recording_bar.dart';
 import 'composer_send_button.dart';
 import 'composer_staged_row.dart';
 import 'composer_text_field.dart';
+import 'emoji_picker_popup.dart';
 
 /// Message input row: attach + emoji buttons, the text field, a mic and the
 /// send button, with a strip of staged-attachment chips above it once files
-/// are picked and an emoji panel below it on demand.
+/// are picked. The emoji button opens a popover picker.
 ///
 /// Enter sends, Shift+Enter inserts a newline (desktop convention). A message
 /// with neither text nor attachments never sends. [footer] is an optional slot
@@ -53,7 +54,8 @@ class ChatComposer extends StatefulWidget {
 }
 
 class _ChatComposerState extends State<ChatComposer> {
-  final TextEditingController _controller = TextEditingController();
+  // Colours emoji as they are typed, matching how they render once sent.
+  final TextEditingController _controller = EmojiTextEditingController();
   final FocusNode _focusNode = FocusNode();
   final List<PendingAttachment> _staged = [];
 
@@ -61,8 +63,6 @@ class _ChatComposerState extends State<ChatComposer> {
   bool _isRecording = false;
   Duration _elapsed = Duration.zero;
   Timer? _recordTimer;
-
-  bool _showEmoji = false;
 
   bool get _atAttachmentLimit => _staged.length >= ChatComposer.maxAttachments;
 
@@ -141,10 +141,15 @@ class _ChatComposerState extends State<ChatComposer> {
     setState(() => _staged.removeAt(index));
   }
 
-  void _toggleEmoji() {
-    setState(() => _showEmoji = !_showEmoji);
+  Future<void> _openEmojiPicker(BuildContext anchorContext) async {
     // Keep the field focused so inserted emoji land at the cursor.
-    if (_showEmoji) _focusNode.requestFocus();
+    _focusNode.requestFocus();
+    await showEmojiPickerPopup(
+      anchorContext,
+      themeState: context.read<ThemeCubit>().state,
+      controller: _controller,
+      onEmojiSelected: () => setState(() {}),
+    );
   }
 
   // ── Voice notes ───────────────────────────────────────────
@@ -231,12 +236,6 @@ class _ChatComposerState extends State<ChatComposer> {
                 const SizedBox(height: 6),
                 widget.footer!,
               ],
-              if (_showEmoji && !_isRecording)
-                ComposerEmojiPanel(
-                  controller: _controller,
-                  themeState: themeState,
-                  onEmojiSelected: () => setState(() {}),
-                ),
             ],
           ),
         );
@@ -283,12 +282,16 @@ class _ChatComposerState extends State<ChatComposer> {
           themeState: themeState,
           onPressed: widget.enabled ? _pickFiles : null,
         ),
-        ComposerIconButton(
-          icon: Icons.sentiment_satisfied_alt_rounded,
-          tooltip: 'Emoji',
-          themeState: themeState,
-          active: _showEmoji,
-          onPressed: widget.enabled ? _toggleEmoji : null,
+        // Builder so the popover can anchor to the button's own box.
+        Builder(
+          builder: (buttonContext) => ComposerIconButton(
+            icon: Icons.sentiment_satisfied_alt_rounded,
+            tooltip: 'Emoji',
+            themeState: themeState,
+            onPressed: widget.enabled
+                ? () => _openEmojiPicker(buttonContext)
+                : null,
+          ),
         ),
         Expanded(
           child: ComposerTextField(

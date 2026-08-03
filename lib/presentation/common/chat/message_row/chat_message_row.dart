@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../emoji_text.dart';
 import '../attachments/attachment_loader.dart';
 import '../attachments/message_attachments.dart';
 import '../reactions/message_reactions_bar.dart';
@@ -153,12 +154,14 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
         if (widget.showHeader)
           MessageRowHeader(message: message, themeState: themeState),
         if (message.text.isNotEmpty)
-          SelectableText(
-            message.text,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.35,
-              color: themeState.textSecondary,
+          SelectableText.rich(
+            emojiTextSpan(
+              message.text,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.35,
+                color: themeState.textSecondary,
+              ),
             ),
           ),
         if (message.attachments.isNotEmpty && widget.attachmentLoader != null)

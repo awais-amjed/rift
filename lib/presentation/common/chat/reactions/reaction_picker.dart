@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../emoji_text.dart';
 
 /// Curated quick-reaction emojis. A compact popup — not the full picker — since
 /// reactions are usually one of a common handful.
@@ -62,7 +63,7 @@ Widget _emojiGrid(BuildContext menuContext) {
             onTap: () => Navigator.of(menuContext).pop(e),
             child: Padding(
               padding: const EdgeInsets.all(6),
-              child: Text(e, style: const TextStyle(fontSize: 22)),
+              child: Text(e, style: emojiRunStyle.copyWith(fontSize: 22)),
             ),
           ),
       ],
