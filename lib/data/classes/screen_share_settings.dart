@@ -48,6 +48,18 @@ class ScreenShareSettings {
     'codec': codec,
   };
 
+  /// Human label for [resolution], as shown in the settings summary.
+  String get resolutionLabel => switch (resolution) {
+    720 => '720p',
+    1080 => '1080p',
+    1440 => '2K',
+    2160 => '4K',
+    _ => '${resolution}p',
+  };
+
+  /// Passing null keeps the current value, so removing a selection needs an
+  /// explicit [clearVideoSource] / [clearAudioSource] — the settings dialog
+  /// does exactly that when you switch between screen and window capture.
   ScreenShareSettings copyWith({
     int? resolution,
     int? fps,
@@ -58,6 +70,8 @@ class ScreenShareSettings {
     int? selectedVideoSourcePid,
     String? codec,
     AudioSource? selectedAudioSource,
+    bool clearVideoSource = false,
+    bool clearAudioSource = false,
   }) {
     return ScreenShareSettings(
       resolution: resolution ?? this.resolution,
@@ -65,12 +79,16 @@ class ScreenShareSettings {
       bitrate: bitrate ?? this.bitrate,
       shareAudio: shareAudio ?? this.shareAudio,
       captureFullScreen: captureFullScreen ?? this.captureFullScreen,
-      selectedVideoSourceIndex:
-          selectedVideoSourceIndex ?? this.selectedVideoSourceIndex,
-      selectedVideoSourcePid:
-          selectedVideoSourcePid ?? this.selectedVideoSourcePid,
+      selectedVideoSourceIndex: clearVideoSource
+          ? null
+          : selectedVideoSourceIndex ?? this.selectedVideoSourceIndex,
+      selectedVideoSourcePid: clearVideoSource
+          ? null
+          : selectedVideoSourcePid ?? this.selectedVideoSourcePid,
       codec: codec ?? this.codec,
-      selectedAudioSource: selectedAudioSource ?? this.selectedAudioSource,
+      selectedAudioSource: clearAudioSource
+          ? null
+          : selectedAudioSource ?? this.selectedAudioSource,
     );
   }
 }
