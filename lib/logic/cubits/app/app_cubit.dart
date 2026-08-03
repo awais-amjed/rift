@@ -87,6 +87,10 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(statsOverlayPinned: pinned));
   }
 
+  void toggleMembersSidebar() {
+    emit(state.copyWith(membersSidebarOpen: !state.membersSidebarOpen));
+  }
+
   void setOutputDeviceId(String? deviceId) {
     emit(
       state.copyWith(

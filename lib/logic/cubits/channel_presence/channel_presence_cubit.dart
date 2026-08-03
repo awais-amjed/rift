@@ -22,17 +22,31 @@ class ChannelPresenceState {
   /// Maps channelId → list of users currently in that channel.
   final Map<String, List<PresenceUser>> channelPresence;
 
-  const ChannelPresenceState({this.channelPresence = const {}});
+  /// Everyone with the app open on this server, whether or not they're in a
+  /// voice channel — including the local user. Drives the member sidebar's
+  /// online/offline split.
+  final Set<String> onlineUserIds;
+
+  const ChannelPresenceState({
+    this.channelPresence = const {},
+    this.onlineUserIds = const {},
+  });
 
   List<PresenceUser> usersIn(String channelId) =>
       channelPresence[channelId] ?? const [];
+
+  bool isOnline(String userId) => onlineUserIds.contains(userId);
 }
 
 // ── Cubit ────────────────────────────────────────────────────────────────────
 
 /// Maintains Supabase Realtime Presence for the selected server.
-/// Automatically tracks/untracks the local user based on LiveKit connection
-/// state — no changes needed in LiveKitCubit.
+///
+/// The local user is tracked for as long as the server is selected, so
+/// presence answers both questions the UI asks: *who is online here* (the
+/// member sidebar) and *who is in which voice channel* (the channel list). The
+/// tracked `channelId` is null while not in voice, and follows the LiveKit
+/// connection otherwise — no changes needed in LiveKitCubit.
 class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
   final ServerCubit _serverCubit;
   final LiveKitCubit _livekitCubit;
@@ -45,8 +59,12 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
   String? _currentServerId;
   bool _subscribed = false;
 
-  /// The channel we currently have the local user tracked in, or null when not
-  /// tracked. Reconciled against LiveKit state so we never leak a stale entry.
+  /// Whether the local user is tracked at all, and the channel id in that
+  /// entry (null while not in a voice channel). Both are needed: "tracked with
+  /// no channel" and "not tracked" are different states, and collapsing them
+  /// would re-track on every LiveKit event. Reconciled against LiveKit state so
+  /// we never leak a stale entry.
+  bool _tracked = false;
   String? _trackedChannelId;
 
   ChannelPresenceCubit({
@@ -74,6 +92,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
 
   void _connectPresence(Server server) {
     _currentServerId = server.id;
+    _tracked = false;
     _trackedChannelId = null;
     _subscribed = false;
     _client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
@@ -88,6 +107,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
             // (Re)subscribed — re-establish our presence from scratch (a
             // realtime reconnect drops the server-side entry).
             _subscribed = true;
+            _tracked = false;
             _trackedChannelId = null;
             _reconcileTracking();
           } else {
@@ -102,6 +122,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     _channel = null;
     _client = null;
     _currentServerId = null;
+    _tracked = false;
     _trackedChannelId = null;
     _subscribed = false;
     try {
@@ -115,13 +136,17 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
 
   // ── LiveKit state → track / untrack ─────────────────────────────────────
 
-  /// Brings the tracked presence in line with the live LiveKit state: tracked
-  /// in exactly the channel we're connected to, and untracked otherwise. Driven
-  /// by connection state rather than transitions, so an error/network-drop path
-  /// (connected → error → disconnected) still clears our presence.
+  /// Brings the tracked presence in line with the live LiveKit state. We stay
+  /// tracked the whole time the server is selected (that *is* being online);
+  /// only the `channelId` in the entry follows the voice connection. Driven by
+  /// connection state rather than transitions, so an error/network-drop path
+  /// (connected → error → disconnected) still clears the channel.
   void _reconcileTracking() {
     // Only touch presence once the channel is actually subscribed.
     if (_channel == null || !_subscribed) return;
+
+    final user = _serverCubit.state.selectedServer?.user;
+    if (user == null) return;
 
     final lkState = _livekitCubit.state;
     final channelId =
@@ -129,40 +154,29 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
         ? lkState.currentChannelId
         : null;
 
-    if (channelId == _trackedChannelId) return;
+    if (_tracked && channelId == _trackedChannelId) return;
 
-    if (channelId != null) {
-      final user = _serverCubit.state.selectedServer?.user;
-      if (user == null) return;
-      _trackedChannelId = channelId;
-      _track(
-        channelId: channelId,
-        userId: user.id,
-        displayName: user.displayName,
-      );
-    } else {
-      _trackedChannelId = null;
-      _untrack();
-    }
+    _tracked = true;
+    _trackedChannelId = channelId;
+    _track(
+      channelId: channelId,
+      userId: user.id,
+      displayName: user.displayName,
+    );
   }
 
   Future<void> _track({
-    required String channelId,
+    required String? channelId,
     required String userId,
     required String displayName,
   }) async {
     try {
       await _channel?.track({
-        'channelId': channelId,
+        // Absent while not in a voice channel — the entry still means online.
+        'channelId': ?channelId,
         'userId': userId,
         'displayName': displayName,
       });
-    } catch (_) {}
-  }
-
-  Future<void> _untrack() async {
-    try {
-      await _channel?.untrack();
     } catch (_) {}
   }
 
@@ -177,23 +191,29 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     final localUserId = _serverCubit.state.selectedServer?.user?.id;
 
     final Map<String, List<PresenceUser>> result = {};
+    final Set<String> online = {};
     for (final entry in entries) {
       for (final presence in entry.presences) {
         final payload = presence.payload;
         final channelId = payload['channelId'] as String?;
         final userId = payload['userId'] as String?;
         final displayName = payload['displayName'] as String?;
-        if (channelId == null || userId == null || displayName == null) {
-          continue;
-        }
-        if (userId == localUserId) continue;
+        if (userId == null || displayName == null) continue;
+
+        // Online counts the local user — the sidebar lists you too.
+        online.add(userId);
+
+        // ...but the per-channel roster doesn't: the local user's own channel
+        // is rendered from live LiveKit participants, so a stale self-entry
+        // (before an untrack round-trips) can't show us where we no longer are.
+        if (channelId == null || userId == localUserId) continue;
         result
             .putIfAbsent(channelId, () => [])
             .add(PresenceUser(userId: userId, displayName: displayName));
       }
     }
 
-    emit(ChannelPresenceState(channelPresence: result));
+    emit(ChannelPresenceState(channelPresence: result, onlineUserIds: online));
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────

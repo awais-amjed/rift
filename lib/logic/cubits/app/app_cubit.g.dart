@@ -38,6 +38,7 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   autoGainControl: json['autoGainControl'] as bool? ?? true,
   voiceActivityThreshold:
       (json['voiceActivityThreshold'] as num?)?.toDouble() ?? 0.0,
+  membersSidebarOpen: json['membersSidebarOpen'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
@@ -58,6 +59,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'windowY': instance.windowY,
   'disableAudioDucking': instance.disableAudioDucking,
   'statsOverlayPinned': instance.statsOverlayPinned,
+  'membersSidebarOpen': instance.membersSidebarOpen,
   'outputDeviceId': instance.outputDeviceId,
   'inputDeviceId': instance.inputDeviceId,
   'noiseSuppression': instance.noiseSuppression,

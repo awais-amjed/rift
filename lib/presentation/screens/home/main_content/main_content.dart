@@ -7,6 +7,7 @@ import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../chat/channel_chat_view.dart';
 import '../dms/home_dm_view.dart';
+import '../members_sidebar/members_sidebar.dart';
 import '../participants_grid/participants_grid.dart';
 
 /// The home screen's center pane: the Home (DMs) surface when open, else
@@ -46,18 +47,27 @@ class MainContent extends StatelessWidget {
       child: BlocBuilder<AppCubit, AppState>(
         buildWhen: (prev, curr) => prev.homeViewOpen != curr.homeViewOpen,
         builder: (context, appState) {
+          // The DM home view is central-account, not server-scoped, so the
+          // server member list has nothing to say there.
           if (appState.homeViewOpen) {
             return const HomeDmView();
           }
-          return BlocBuilder<ChannelChatCubit, ChannelChatState>(
-            buildWhen: (prev, curr) =>
-                (prev.channelId == null) != (curr.channelId == null),
-            builder: (context, chatState) {
-              if (chatState.channelId != null) {
-                return const ChannelChatView();
-              }
-              return const ParticipantsGrid();
-            },
+          return Row(
+            children: [
+              Expanded(
+                child: BlocBuilder<ChannelChatCubit, ChannelChatState>(
+                  buildWhen: (prev, curr) =>
+                      (prev.channelId == null) != (curr.channelId == null),
+                  builder: (context, chatState) {
+                    if (chatState.channelId != null) {
+                      return const ChannelChatView();
+                    }
+                    return const ParticipantsGrid();
+                  },
+                ),
+              ),
+              const MembersSidebar(),
+            ],
           );
         },
       ),

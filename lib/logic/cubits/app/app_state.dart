@@ -18,6 +18,10 @@ class AppState {
   final double? windowY;
   final bool disableAudioDucking;
   final bool statsOverlayPinned;
+
+  /// Whether the right-hand member sidebar is expanded. Persisted so the
+  /// layout survives a restart.
+  final bool membersSidebarOpen;
   final String? outputDeviceId;
   final String? inputDeviceId;
 
@@ -65,6 +69,7 @@ class AppState {
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.voiceActivityThreshold = 0.0,
+    this.membersSidebarOpen = true,
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
@@ -96,6 +101,7 @@ class AppState {
     bool? echoCancellation,
     bool? autoGainControl,
     double? voiceActivityThreshold,
+    bool? membersSidebarOpen,
     bool? isHovered,
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
@@ -133,6 +139,7 @@ class AppState {
       autoGainControl: autoGainControl ?? this.autoGainControl,
       voiceActivityThreshold:
           voiceActivityThreshold ?? this.voiceActivityThreshold,
+      membersSidebarOpen: membersSidebarOpen ?? this.membersSidebarOpen,
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId
           ? null
