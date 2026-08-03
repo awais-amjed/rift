@@ -63,12 +63,13 @@ class _MembersSidebarState extends State<MembersSidebar> {
               a.participantSettings != b.participantSettings,
           builder: (context, appState) {
             final open = appState.membersSidebarOpen;
+            final targetWidth = open
+                ? K.membersSidebarWidth
+                : K.membersSidebarCollapsedWidth;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 160),
               curve: Curves.easeOutCubic,
-              width: open
-                  ? K.membersSidebarWidth
-                  : K.membersSidebarCollapsedWidth,
+              width: targetWidth,
               decoration: BoxDecoration(
                 // Same surface as the left sidebar — this is the other edge of
                 // the same chrome, not part of the content area.
@@ -77,9 +78,21 @@ class _MembersSidebarState extends State<MembersSidebar> {
                   left: BorderSide(color: themeState.borderPrimary),
                 ),
               ),
-              child: open
-                  ? _buildList(themeState, appState)
-                  : _buildCollapsed(themeState),
+              // The width animates but `open` flips at once, so without this
+              // the full-width content spends the whole animation being laid
+              // out at 42px — a row of overflow errors every toggle. Pin the
+              // child to its destination width and clip instead: it slides
+              // behind the edge rather than being squeezed.
+              child: ClipRect(
+                child: OverflowBox(
+                  alignment: Alignment.centerLeft,
+                  minWidth: targetWidth,
+                  maxWidth: targetWidth,
+                  child: open
+                      ? _buildList(themeState, appState)
+                      : _buildCollapsed(themeState),
+                ),
+              ),
             );
           },
         );

@@ -1,0 +1,136 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift/data/constants.dart';
+import 'package:rift/logic/cubits/app/app_cubit.dart';
+import 'package:rift/data/classes/server_member.dart';
+import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
+import 'package:rift/logic/cubits/server/server_cubit.dart';
+import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/presentation/screens/home/members_sidebar/members_sidebar.dart';
+
+/// In-memory stand-in so the HydratedCubits can be built in tests.
+class _MemoryStorage implements Storage {
+  final Map<String, dynamic> _data = {};
+
+  @override
+  dynamic read(String key) => _data[key];
+
+  @override
+  Future<void> write(String key, dynamic value) async => _data[key] = value;
+
+  @override
+  Future<void> delete(String key) async => _data.remove(key);
+
+  @override
+  Future<void> clear() async => _data.clear();
+
+  @override
+  Future<void> close() async {}
+}
+
+/// Presence with nobody online — enough to render the panel's chrome, which is
+/// what the collapse animation lays out.
+class _StubPresenceCubit extends Cubit<ChannelPresenceState>
+    implements ChannelPresenceCubit {
+  _StubPresenceCubit() : super(const ChannelPresenceState());
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// No server selected and an empty member list — the panel then renders its
+/// chrome and an empty roster, which is exactly the layout the animation moves.
+class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
+  _StubServerCubit() : super(const ServerState());
+
+  @override
+  Future<({bool success, List<ServerMember>? members, String? error})>
+  listMembers() async =>
+      (success: true, members: <ServerMember>[], error: null);
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+Future<void> _pump(WidgetTester tester, AppCubit appCubit) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: MultiBlocProvider(
+          providers: [
+            BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+            BlocProvider<AppCubit>.value(value: appCubit),
+            BlocProvider<ChannelPresenceCubit>(
+              create: (_) => _StubPresenceCubit(),
+            ),
+            BlocProvider<ServerCubit>(create: (_) => _StubServerCubit()),
+          ],
+          child: const Row(
+            children: [
+              Expanded(child: SizedBox()),
+              MembersSidebar(),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+void main() {
+  setUpAll(() => HydratedBloc.storage = _MemoryStorage());
+
+  // The panel's width animates while `membersSidebarOpen` flips at once, so a
+  // naive implementation lays the full-width content out at the collapsed
+  // width for the whole animation — a burst of RenderFlex overflows on every
+  // toggle. Pumping mid-animation is the only way to catch that.
+  testWidgets('collapsing and expanding never overflows mid-animation', (
+    tester,
+  ) async {
+    final appCubit = AppCubit();
+    addTearDown(appCubit.close);
+    await _pump(tester, appCubit);
+    await tester.pumpAndSettle();
+
+    for (var round = 0; round < 2; round++) {
+      for (final _ in [0, 1]) {
+        appCubit.toggleMembersSidebar();
+        // Step through the 160ms animation rather than settling past it.
+        for (var ms = 0; ms <= 180; ms += 20) {
+          await tester.pump(const Duration(milliseconds: 20));
+          expect(
+            tester.takeException(),
+            isNull,
+            reason:
+                'overflow while animating to '
+                '${appCubit.state.membersSidebarOpen ? "open" : "collapsed"}',
+          );
+        }
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+    }
+  });
+
+  testWidgets('settles at the documented widths', (tester) async {
+    final appCubit = AppCubit();
+    addTearDown(appCubit.close);
+    await _pump(tester, appCubit);
+    await tester.pumpAndSettle();
+
+    double panelWidth() => tester.getSize(find.byType(MembersSidebar)).width;
+
+    expect(appCubit.state.membersSidebarOpen, isTrue);
+    expect(panelWidth(), K.membersSidebarWidth);
+
+    appCubit.toggleMembersSidebar();
+    await tester.pumpAndSettle();
+    expect(panelWidth(), K.membersSidebarCollapsedWidth);
+
+    appCubit.toggleMembersSidebar();
+    await tester.pumpAndSettle();
+    expect(panelWidth(), K.membersSidebarWidth);
+  });
+}
