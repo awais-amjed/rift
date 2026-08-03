@@ -23,6 +23,7 @@ part 'livekit_participants.dart';
 part 'livekit_screenshare.dart';
 part 'livekit_room_events.dart';
 part 'livekit_voice_activity.dart';
+part 'livekit_remote_speaking.dart';
 
 /// Cubit managing LiveKit room connections, participants, and media controls.
 class LiveKitCubit extends Cubit<LiveKitState>
@@ -32,6 +33,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _ParticipantMixin,
         _ScreenshareMixin,
         _RoomEventsMixin,
+        _RemoteSpeakingMixin,
         _VoiceActivityMixin {
   @override
   final AppCubit _appCubit;
@@ -97,10 +99,13 @@ class LiveKitCubit extends Cubit<LiveKitState>
         identity: p.identity,
         userId: ParticipantIdentity.userIdOf(p.identity),
         name: p.name,
-        // The local user's speaking state is decided from our own mic level;
-        // the server's active-speaker view is too coarse to light the glow
-        // reliably. Remote participants still come from the server.
-        isSpeaking: p is LocalParticipant ? localIsSpeaking : p.isSpeaking,
+        // Speaking is measured locally for everyone — the server's
+        // active-speaker view is too coarse to light the glow reliably. A
+        // remote participant we have no monitor for yet (not subscribed)
+        // falls back to the server's view rather than showing silence.
+        isSpeaking: p is LocalParticipant
+            ? localIsSpeaking
+            : (remoteSpeaking(p.identity) ?? p.isSpeaking),
         isMicrophoneEnabled: p.isMicrophoneEnabled(),
         isCameraEnabled: p.isCameraEnabled(),
         isLocal: p is LocalParticipant,

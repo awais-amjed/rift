@@ -4,6 +4,11 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
   List<EventsListener<RoomEvent>> get _listeners;
   AppCubit get _appCubit;
   void _syncParticipants();
+
+  /// Supplied by `_RemoteSpeakingMixin` (public — see CODE_STYLE §5).
+  void watchRemoteAudio(RemoteParticipant participant, Track? track);
+  void unwatchRemoteAudio(String identity);
+
   void _applyStoredSettings();
   void _applyScreenshareQualitySettings(Participant participant);
 
@@ -26,6 +31,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
       })
       ..on<ParticipantDisconnectedEvent>((e) {
         final identity = e.participant.identity;
+        unwatchRemoteAudio(identity);
         if (ParticipantIdentity.isScreenshare(identity)) {
           SoundService.instance.playStreamEnded();
         } else {
@@ -52,6 +58,8 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
       })
       ..on<TrackSubscribedEvent>((e) {
         _syncParticipants();
+        // Measure their level ourselves — see _RemoteSpeakingMixin.
+        watchRemoteAudio(e.participant, e.track);
 
         if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
           if (e.publication.source == TrackSource.screenShareVideo) {
@@ -73,7 +81,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
           }
         }
       })
-      ..on<TrackUnpublishedEvent>((e) => _syncParticipants())
+      ..on<TrackUnpublishedEvent>((e) {
+        if (e.publication.source == TrackSource.microphone) {
+          unwatchRemoteAudio(e.participant.identity);
+        }
+        _syncParticipants();
+      })
       ..on<ActiveSpeakersChangedEvent>((e) => _syncParticipants())
       ..on<TrackMutedEvent>((e) => _syncParticipants())
       ..on<TrackUnmutedEvent>((e) => _syncParticipants())
