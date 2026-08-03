@@ -6,10 +6,8 @@ import '../../../../../data/invite_link.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
-import '../../../theme/custom_colors.dart';
-import 'widgets/chip_selector.dart';
-import 'widgets/copyable_field.dart';
-import 'widgets/field_label.dart';
+import '../../../common/app_modal.dart';
+import 'widgets/invite_form.dart';
 import 'widgets/invite_options.dart';
 
 /// Modal to generate and copy an invite token for a server.
@@ -92,206 +90,70 @@ class _InviteModalState extends State<InviteModal> {
                 ? InviteLink.build(server.supabaseUrl, _inviteToken!)
                 : null;
 
-            return Dialog(
-              backgroundColor: themeState.bgPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(color: themeState.borderPrimary),
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 448),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // ── Header ──────────────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 14, 16),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: themeState.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              Icons.person_add_outlined,
-                              size: 18,
-                              color: themeState.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Invite to ${server?.name ?? 'Server'}',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: themeState.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  _buildSummary(),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: themeState.textTertiary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: Icon(
-                              Icons.close,
-                              size: 18,
-                              color: themeState.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Divider(height: 1, color: themeState.borderPrimary),
-
-                    // ── Body ────────────────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Expiry picker
-                          FieldLabel(
-                            label: 'Expires In',
-                            textColor: themeState.textTertiary,
-                          ),
-                          const SizedBox(height: 8),
-                          ChipSelector(
-                            options: inviteExpiryOptions
-                                .map((e) => e.label)
-                                .toList(),
-                            selectedIndex: _expiryIndex,
-                            onSelected: (i) => setState(() {
-                              _expiryIndex = i;
-                              _resetToken();
-                            }),
-                            themeState: themeState,
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Max uses picker
-                          FieldLabel(
-                            label: 'Max Uses',
-                            textColor: themeState.textTertiary,
-                          ),
-                          const SizedBox(height: 8),
-                          ChipSelector(
-                            options: inviteUsesOptions
-                                .map((e) => e.label)
-                                .toList(),
-                            selectedIndex: _usesIndex,
-                            onSelected: (i) => setState(() {
-                              _usesIndex = i;
-                              _resetToken();
-                            }),
-                            themeState: themeState,
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Single invite link (server URL + code combined) —
-                          // the invitee only pastes one thing. Invites are
-                          // plain: members join with baseline permissions and
-                          // admins promote them later from the Members dialog.
-                          FieldLabel(
-                            label: 'Invite Link',
-                            textColor: themeState.textTertiary,
-                          ),
-                          const SizedBox(height: 6),
-                          CopyableField(
-                            value: inviteLink,
-                            placeholder: _isGenerating
-                                ? 'Generating...'
-                                : 'Click generate to create an invite link',
-                            copied: _copiedLink,
-                            onCopy: inviteLink != null
-                                ? () => _copyToClipboard(
-                                    inviteLink,
-                                    (v) => setState(() => _copiedLink = v),
-                                  )
-                                : null,
-                            bgColor: themeState.bgSecondary,
-                            borderColor: themeState.borderPrimary,
-                            textColor: themeState.textTertiary,
-                            placeholderColor: themeState.textQuaternary,
-                          ),
-
-                          if (_error != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: CustomColors.error,
-                              ),
-                            ),
-                          ],
-
-                          const SizedBox(height: 10),
-                          Text(
-                            'Share this link with the person you want to invite — '
-                            'they paste it as one field to join.',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: themeState.textQuaternary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── Footer ───────────────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: AppButton(
-                              label: 'Close',
-                              variant: AppButtonVariant.secondary,
-                              onPressed: () => Navigator.of(context).pop(),
-                              expanded: true,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: AppButton(
-                              label: _isGenerating
-                                  ? 'Generating...'
-                                  : _inviteToken != null
-                                  ? 'Regenerate'
-                                  : 'Generate',
-                              isLoading: _isGenerating,
-                              onPressed: _isGenerating ? null : _generate,
-                              icon: _isGenerating
-                                  ? null
-                                  : const Icon(
-                                      Icons.person_add_outlined,
-                                      size: 15,
-                                      color: Colors.white,
-                                    ),
-                              expanded: true,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+            return AppModal(
+              title: 'Invite to ${server?.name ?? 'Server'}',
+              subtitle: _buildSummary(),
+              titleIcon: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: themeState.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.person_add_outlined,
+                  size: 18,
+                  color: themeState.primary,
                 ),
               ),
+              content: InviteForm(
+                themeState: themeState,
+                expiryIndex: _expiryIndex,
+                usesIndex: _usesIndex,
+                onExpirySelected: (i) => setState(() {
+                  _expiryIndex = i;
+                  _resetToken();
+                }),
+                onUsesSelected: (i) => setState(() {
+                  _usesIndex = i;
+                  _resetToken();
+                }),
+                inviteLink: inviteLink,
+                isGenerating: _isGenerating,
+                copied: _copiedLink,
+                onCopy: inviteLink == null
+                    ? null
+                    : () => _copyToClipboard(
+                        inviteLink,
+                        (v) => setState(() => _copiedLink = v),
+                      ),
+                error: _error,
+              ),
+              actions: [
+                AppButton(
+                  label: 'Close',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: () => Navigator.of(context).pop(),
+                  expanded: true,
+                ),
+                AppButton(
+                  label: _isGenerating
+                      ? 'Generating...'
+                      : _inviteToken != null
+                      ? 'Regenerate'
+                      : 'Generate',
+                  isLoading: _isGenerating,
+                  onPressed: _isGenerating ? null : _generate,
+                  icon: _isGenerating
+                      ? null
+                      : const Icon(
+                          Icons.person_add_outlined,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                  expanded: true,
+                ),
+              ],
             );
           },
         );
