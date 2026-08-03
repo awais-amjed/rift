@@ -46,6 +46,13 @@ chat/
 - Extract to a **pure function or class with no state and no I/O**
   (`logic/services/chat_message_ops.dart`, `logic/services/mime_util.dart`). Pure code is
   reusable, testable without a running app, and can't leak state between callers.
+- **The extraction is only half the job — write the tests.** The point of pulling
+  `VideoStatsSampler` or `ParticipantVideo` out of a widget is that their edge cases
+  (a repeated timestamp, a muted camera vs a muted screenshare) become reachable.
+  A pure helper with no test file has bought you nothing but an extra import.
+- Prefer to put a transform **on the state class it transforms** when one exists
+  (`NotificationsState.incremented`) — that keeps the invariant next to the readers
+  that assume it, rather than in a cubit that happens to call it.
 - Widgets that differ only by data take parameters; they don't get forked.
 - If two things look similar but drift for real reasons (channel vs DM transports), share
   the *logic* and keep the *transport* separate — that is exactly what
@@ -104,9 +111,27 @@ widgets testable and lets a service be reused by a second surface later.
 - Section banners inside longer files: `// ── Section ─────────────`.
 - Delete stale comments as you edit — a wrong comment is worse than none.
 
-## 8. Before you commit
+## 8. Shared UI: use the kit
 
-1. `flutter analyze` clean (no new infos either).
+Before hand-rolling chrome, check `presentation/common/`:
+
+| Need | Use |
+| --- | --- |
+| A dialog | `AppModal` + `showAppModal` (`showCustomDialog` for a bare one) |
+| "Are you sure?" | `showConfirmDialog` — returns a non-null `bool`; dismiss means no |
+| An inline error / notice | `MessageBanner` |
+| A button | `AppButton` (`AppButtonVariant.danger` for destructive) |
+| A settings heading / toggle | `SectionTitle`, `SettingToggleRow` |
+| An onboarding-style hero | `FeatureHeader` |
+
+A dialog that doesn't fit `AppModal` (its body scrolls internally, e.g. a
+`ListView`) should say so in a comment rather than silently re-implementing the
+chrome.
+
+## 9. Before you commit
+
+1. `flutter analyze` clean — the tree is at **zero issues**, including infos, so
+   any output is yours.
 2. `flutter test` green; add pure tests for any pure logic you extracted or fixed.
 3. `dart format` on what you touched.
 4. Did the file you edited get *closer* to the shapes above, or further away?
