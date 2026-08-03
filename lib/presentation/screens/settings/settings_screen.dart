@@ -8,6 +8,8 @@ import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
+import '../../common/confirm_dialog.dart';
+import '../../theme/custom_colors.dart';
 import 'widgets/appearance_content.dart';
 import 'widgets/backup_content/backup_content.dart';
 import 'widgets/settings_sidebar.dart';
@@ -47,6 +49,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     SettingsTab.voiceAndAudio => Icons.headset_outlined,
     SettingsTab.backup => Icons.cloud_outlined,
   };
+
+  /// Wipes the vault and server list from this device and returns to
+  /// onboarding. Irreversible without a cloud or file backup.
+  Future<void> _resetVault() async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Reset Vault?',
+      message:
+          'This wipes all keys and saved servers from this device and returns '
+          'you to onboarding. If you have no cloud backup, your identity will '
+          'be permanently lost.',
+      confirmLabel: 'Reset',
+      icon: Icons.delete_forever,
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    await context.read<ServerCubit>().reset();
+    if (!mounted) return;
+    context.read<VaultCubit>().resetVault();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -142,49 +164,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: Row(
                               children: [
                                 TextButton.icon(
-                                  onPressed: () async {
-                                    final confirmed = await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text('Reset Vault?'),
-                                        content: const Text(
-                                          'This wipes all keys and saved servers from this device and '
-                                          'returns you to onboarding. If you have no cloud backup, your '
-                                          'identity will be permanently lost.',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(ctx).pop(false),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(ctx).pop(true),
-                                            child: const Text(
-                                              'Reset',
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    if (confirmed == true && context.mounted) {
-                                      await context.read<ServerCubit>().reset();
-                                      context.read<VaultCubit>().resetVault();
-                                    }
-                                  },
+                                  onPressed: _resetVault,
                                   icon: const Icon(
                                     Icons.delete_forever,
                                     size: 16,
-                                    color: Colors.red,
+                                    color: CustomColors.error,
                                   ),
                                   label: const Text(
                                     'Reset Vault',
                                     style: TextStyle(
-                                      color: Colors.red,
+                                      color: CustomColors.error,
                                       fontSize: 12,
                                     ),
                                   ),

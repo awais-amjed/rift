@@ -13,7 +13,11 @@ class VaultPasswordPanel extends StatefulWidget {
   final ThemeState themeState;
   final SupabaseBackupState state;
 
-  const VaultPasswordPanel({required this.themeState, required this.state});
+  const VaultPasswordPanel({
+    super.key,
+    required this.themeState,
+    required this.state,
+  });
 
   @override
   State<VaultPasswordPanel> createState() => VaultPasswordPanelState();

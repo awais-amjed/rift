@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../common/app_button.dart';
+import '../../../../common/confirm_dialog.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../theme/custom_colors.dart';
 
@@ -15,37 +16,28 @@ class SignedInPanel extends StatelessWidget {
   final ThemeState themeState;
   final SupabaseBackupState state;
 
-  const SignedInPanel({required this.themeState, required this.state});
+  const SignedInPanel({
+    super.key,
+    required this.themeState,
+    required this.state,
+  });
 
   /// Signs out of the account AND removes the vault + server list from this
   /// device, returning to onboarding. The cloud backup is untouched, so
   /// signing back in restores everything.
   Future<void> _signOutOfDevice(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign out of this device?'),
-        content: const Text(
-          'Your encrypted cloud backup stays safe. The vault and server '
-          'list on this device will be removed — sign back in to restore '
-          'them automatically.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Sign Out',
-              style: TextStyle(color: CustomColors.error),
-            ),
-          ),
-        ],
-      ),
+      title: 'Sign out of this device?',
+      message:
+          'Your encrypted cloud backup stays safe. The vault and server list '
+          'on this device will be removed — sign back in to restore them '
+          'automatically.',
+      confirmLabel: 'Sign Out',
+      icon: Icons.logout_rounded,
+      isDestructive: true,
     );
-    if (confirmed != true || !context.mounted) return;
+    if (!confirmed || !context.mounted) return;
 
     final backupCubit = context.read<SupabaseBackupCubit>();
     final serverCubit = context.read<ServerCubit>();

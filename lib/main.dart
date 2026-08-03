@@ -66,7 +66,7 @@ void main() async {
   // share the account session with another instance on the same machine.
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
-    anonKey: SupabaseConfig.supabaseKey,
+    publishableKey: SupabaseConfig.supabaseKey,
     authOptions: storageSuffix.isEmpty
         ? const FlutterAuthClientOptions()
         : FlutterAuthClientOptions(

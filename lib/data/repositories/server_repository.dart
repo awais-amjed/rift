@@ -137,11 +137,11 @@ class ServerRepository with _ChatApiMixin {
     String? livekitSecretKey,
   }) {
     return _post(supabaseUrl, 'update_server', {
-      if (name != null) 'name': name,
-      if (iconUrl != null) 'icon_url': iconUrl,
-      if (livekitUrl != null) 'livekit_url': livekitUrl,
-      if (livekitApiKey != null) 'livekit_api_key': livekitApiKey,
-      if (livekitSecretKey != null) 'livekit_secret_key': livekitSecretKey,
+      'name': ?name,
+      'icon_url': ?iconUrl,
+      'livekit_url': ?livekitUrl,
+      'livekit_api_key': ?livekitApiKey,
+      'livekit_secret_key': ?livekitSecretKey,
     }, bearerToken: bearerToken);
   }
 
@@ -227,7 +227,7 @@ class ServerRepository with _ChatApiMixin {
   }) {
     return _post(supabaseUrl, 'create_invite', {
       'max_uses': maxUses,
-      if (expiresInSeconds != null) 'expires_in_seconds': expiresInSeconds,
+      'expires_in_seconds': ?expiresInSeconds,
     }, bearerToken: bearerToken);
   }
 
@@ -247,9 +247,9 @@ class ServerRepository with _ChatApiMixin {
   }) {
     return _post(supabaseUrl, 'set_user_permissions', {
       'user_id': userId,
-      if (isServerAdmin != null) 'is_server_admin': isServerAdmin,
-      if (isChannelManager != null) 'is_channel_manager': isChannelManager,
-      if (canCreateTokens != null) 'can_create_tokens': canCreateTokens,
+      'is_server_admin': ?isServerAdmin,
+      'is_channel_manager': ?isChannelManager,
+      'can_create_tokens': ?canCreateTokens,
     }, bearerToken: bearerToken);
   }
 
@@ -307,8 +307,8 @@ class ServerRepository with _ChatApiMixin {
   }) {
     return _post(supabaseUrl, 'moderate_user', {
       'user_id': userId,
-      if (isMuted != null) 'is_muted': isMuted,
-      if (isDeafened != null) 'is_deafened': isDeafened,
+      'is_muted': ?isMuted,
+      'is_deafened': ?isDeafened,
     }, bearerToken: bearerToken);
   }
 }

@@ -12,8 +12,8 @@ mixin ChatScrollLoadMore<T extends StatefulWidget> on State<T> {
 
   final ScrollController scrollController = ScrollController();
 
-  /// Fetch the next page — typically `context.read<SomeChatCubit>()
-  /// .loadMoreHistory()`. Cubits ignore the call when there's nothing more.
+  /// Fetch the next page — typically the chat cubit's own `loadMoreHistory()`.
+  /// Cubits ignore the call when there's nothing more to fetch.
   void loadMoreHistory();
 
   @override

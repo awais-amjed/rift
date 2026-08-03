@@ -17,7 +17,7 @@ import 'section_title.dart';
 class FileBackupPanel extends StatefulWidget {
   final ThemeState themeState;
 
-  const FileBackupPanel({required this.themeState});
+  const FileBackupPanel({super.key, required this.themeState});
 
   @override
   State<FileBackupPanel> createState() => FileBackupPanelState();

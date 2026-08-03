@@ -13,6 +13,7 @@ class EmailConfirmationView extends StatelessWidget {
   final VoidCallback onSignIn;
 
   const EmailConfirmationView({
+    super.key,
     required this.state,
     required this.onBack,
     required this.onSignIn,

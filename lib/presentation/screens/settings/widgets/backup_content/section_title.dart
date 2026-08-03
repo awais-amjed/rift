@@ -6,7 +6,11 @@ class SectionTitle extends StatelessWidget {
   final String label;
   final ThemeState themeState;
 
-  const SectionTitle({required this.label, required this.themeState});
+  const SectionTitle({
+    super.key,
+    required this.label,
+    required this.themeState,
+  });
 
   @override
   Widget build(BuildContext context) {

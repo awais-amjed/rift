@@ -240,8 +240,8 @@ class CryptoRepository with _ChatCryptoMixin {
   /// SIWS identity — without it, two servers in one project would collide on
   /// `auth.uid()`. [serverId] is null only for the central host (one identity
   /// per host); that path is unchanged, preserving existing central keys.
-  /// - childSeed = HMAC-SHA256(masterSeed, "<host>[:<serverId>]:<version>")
-  /// - stableId  = HMAC-SHA256(masterSeed, "<host>[:<serverId>]:identity")
+  /// - childSeed = HMAC-SHA256(masterSeed, `"<host>[:<serverId>]:<version>"`)
+  /// - stableId  = HMAC-SHA256(masterSeed, `"<host>[:<serverId>]:identity"`)
   Future<ServerIdentity> deriveServerIdentity({
     required Uint8List masterSeed,
     required String host,

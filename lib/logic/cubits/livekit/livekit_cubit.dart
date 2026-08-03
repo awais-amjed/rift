@@ -145,6 +145,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
     unawaited(_syncMicrophoneTransmission());
   }
 
+  @override
   bool _shouldTransmitMic({required bool micEnabled, required bool deafened}) {
     if (!micEnabled || deafened) return false;
     final pttEnabled = _appCubit.state.pushToTalkEnabled;
@@ -179,6 +180,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// Builds mic capture options from the persisted audio-processing settings.
   /// [deviceId] is intentionally left unset — input-device selection is
   /// handled globally via `Hardware.instance.selectAudioInput`.
+  @override
   AudioCaptureOptions _buildAudioCaptureOptions() {
     final settings = _appCubit.state;
     return AudioCaptureOptions(

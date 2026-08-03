@@ -5,6 +5,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../logic/helper_methods.dart';
+import '../../confirm_dialog.dart';
 
 String humanSize(int bytes) {
   if (bytes < 1024) return '$bytes B';
@@ -27,30 +28,18 @@ Future<void> saveToDisk(
   final file = File(location.path);
   if (await file.exists()) {
     if (!context.mounted) return;
-    final replace = await _confirmReplace(context, file.uri.pathSegments.last);
-    if (replace != true) return;
+    final replace = await showConfirmDialog(
+      context: context,
+      title: 'Replace file?',
+      message:
+          '"${file.uri.pathSegments.last}" already exists in that folder. '
+          'Replace it?',
+      confirmLabel: 'Replace',
+      icon: Icons.save_as_rounded,
+    );
+    if (!replace) return;
   }
 
   await file.writeAsBytes(bytes);
   HelperMethods.showToast(title: 'Saved', description: suggestedName);
-}
-
-Future<bool?> _confirmReplace(BuildContext context, String name) {
-  return showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Replace file?'),
-      content: Text('"$name" already exists. Replace it?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Replace'),
-        ),
-      ],
-    ),
-  );
 }

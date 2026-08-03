@@ -4,9 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../../data/classes/server.dart';
 import '../../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../common/app_modal.dart';
+import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/unread_badge.dart';
-import 'remove_server_dialog.dart';
 import 'server_avatar.dart';
 
 /// A single server item in the server list.
@@ -24,18 +23,19 @@ class ServerListItem extends StatelessWidget {
     required this.onDelete,
   });
 
-  Future<void> _confirmDelete(
-    BuildContext context,
-    ThemeState themeState,
-  ) async {
-    final confirmed = await showCustomDialog<bool>(
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showConfirmDialog(
       context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<ThemeCubit>(),
-        child: RemoveServerDialog(serverName: server.name),
-      ),
+      title: 'Remove Server',
+      message:
+          'Remove "${server.name}" from your server list? Your account on '
+          'this server will remain intact — you can rejoin with your token '
+          'at any time.',
+      confirmLabel: 'Remove',
+      icon: Icons.logout_rounded,
+      isDestructive: true,
     );
-    if (confirmed == true) onDelete();
+    if (confirmed) onDelete();
   }
 
   @override
@@ -102,7 +102,7 @@ class ServerListItem extends StatelessWidget {
                   ],
                   // Delete
                   IconButton(
-                    onPressed: () => _confirmDelete(context, themeState),
+                    onPressed: () => _confirmDelete(context),
                     icon: Icon(
                       Icons.logout_rounded,
                       size: 15,

@@ -56,7 +56,7 @@ class _TitleBarOverlayState extends State<TitleBarOverlay> {
         final visible = appState.titleBarVisible;
         return ValueListenableBuilder<bool>(
           valueListenable: _hovering,
-          builder: (_, hovering, __) => Stack(
+          builder: (_, hovering, _) => Stack(
             clipBehavior: Clip.none,
             children: [
               // Navigator (routes + its own dialog overlay) sits below.

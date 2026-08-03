@@ -4,8 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
 
-// ...existing code...
-
 /// Shows a dialog that:
 /// - Cannot be dismissed by tapping the barrier
 /// - CAN be dismissed by pressing Escape

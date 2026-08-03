@@ -11,7 +11,7 @@ class ConfirmEmailPanel extends StatelessWidget {
   final ThemeState themeState;
   final String? email;
 
-  const ConfirmEmailPanel({required this.themeState, this.email});
+  const ConfirmEmailPanel({super.key, required this.themeState, this.email});
 
   @override
   Widget build(BuildContext context) {

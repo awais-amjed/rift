@@ -12,7 +12,11 @@ class ConflictPanel extends StatelessWidget {
   final ThemeState themeState;
   final SupabaseBackupState state;
 
-  const ConflictPanel({required this.themeState, required this.state});
+  const ConflictPanel({
+    super.key,
+    required this.themeState,
+    required this.state,
+  });
 
   @override
   Widget build(BuildContext context) {

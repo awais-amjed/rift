@@ -13,7 +13,11 @@ class VaultPasswordView extends StatefulWidget {
   final SupabaseBackupState state;
   final VoidCallback onBack;
 
-  const VaultPasswordView({required this.state, required this.onBack});
+  const VaultPasswordView({
+    super.key,
+    required this.state,
+    required this.onBack,
+  });
 
   @override
   State<VaultPasswordView> createState() => VaultPasswordViewState();

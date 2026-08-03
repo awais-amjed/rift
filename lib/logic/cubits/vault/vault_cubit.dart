@@ -53,6 +53,7 @@ class VaultCubit extends Cubit<VaultState>
   }
 
   /// Called during [exportBackup] to capture the current server list.
+  @override
   List<Map<String, dynamic>> Function()? _getServersForExport;
 
   void setGetServersForExport(List<Map<String, dynamic>> Function() callback) {

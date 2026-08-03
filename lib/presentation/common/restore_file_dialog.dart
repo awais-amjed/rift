@@ -62,8 +62,9 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
     });
 
     try {
+      final vault = context.read<VaultCubit>();
       final content = await file.readAsString();
-      final result = await context.read<VaultCubit>().importBackup(
+      final result = await vault.importBackup(
         jsonContent: content,
         password: _passwordController.text,
       );
