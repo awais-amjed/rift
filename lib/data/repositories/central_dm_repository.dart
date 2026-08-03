@@ -5,226 +5,30 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../classes/api_response.dart';
 import 'attachment_repository.dart';
 
+part 'central_dm_repository_attachments.dart';
+part 'central_dm_repository_directory.dart';
+part 'central_dm_repository_reactions.dart';
+
 /// Central-server DM I/O (Stage 3 — the discovery/first-contact tier,
 /// ARCHITECTURE.md §4). Everything runs over the central Supabase client with
 /// the user's GoTrue session: RLS scopes reads, and writes go through the
 /// quota-enforcing `send_dm` RPC. Content is E2E — this repository only moves
 /// opaque envelopes and directory rows.
-class CentralDmRepository {
+class CentralDmRepository
+    with
+        _CentralDmReactionsMixin,
+        _CentralDmAttachmentsMixin,
+        _CentralDmDirectoryMixin {
+  @override
   SupabaseClient get _client => Supabase.instance.client;
 
   /// Encrypt/decrypt for attachment blobs (bytes moved over the central SDK).
+  @override
   final AttachmentRepository _attachments = AttachmentRepository();
-  static const String _attachmentsBucket = 'central-dm-attachments';
 
   User? get currentUser => _client.auth.currentUser;
 
   Stream<AuthState> get authChanges => _client.auth.onAuthStateChange;
-
-  // ──────────────────────────────────────────────────────────
-  // Reactions (not E2E — server-visible; RLS-scoped direct table ops)
-  // ──────────────────────────────────────────────────────────
-
-  /// Toggle the caller's [emoji] reaction on a central DM message.
-  Future<APIResponse> toggleReaction({
-    required int messageId,
-    required String emoji,
-  }) async {
-    try {
-      final uid = _client.auth.currentUser?.id;
-      if (uid == null) return APIResponse.error('Not signed in');
-
-      final existing = await _client
-          .from('dm_reactions')
-          .select('message_id')
-          .eq('message_id', messageId)
-          .eq('user_id', uid)
-          .eq('emoji', emoji)
-          .maybeSingle();
-
-      if (existing != null) {
-        await _client
-            .from('dm_reactions')
-            .delete()
-            .eq('message_id', messageId)
-            .eq('user_id', uid)
-            .eq('emoji', emoji);
-        return APIResponse.success({'reacted': false});
-      }
-      await _client.from('dm_reactions').insert({
-        'message_id': messageId,
-        'user_id': uid,
-        'emoji': emoji,
-      });
-      return APIResponse.success({'reacted': true});
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
-
-  /// Aggregated reactions for [messageIds], shaped like the self-hosted
-  /// `list_reactions` (`{ reactions: { id: [{emoji,count,mine}] } }`).
-  Future<APIResponse> listReactions({required List<int> messageIds}) async {
-    try {
-      final uid = _client.auth.currentUser?.id;
-      if (messageIds.isEmpty || uid == null) {
-        return APIResponse.success({'reactions': {}});
-      }
-      final rows = await _client
-          .from('dm_reactions')
-          .select('message_id, user_id, emoji')
-          .inFilter('message_id', messageIds);
-
-      final byMsg = <String, Map<String, Map<String, dynamic>>>{};
-      for (final row in (rows as List).cast<Map<String, dynamic>>()) {
-        final mid = '${row['message_id']}';
-        final emoji = row['emoji'] as String;
-        final bucket = byMsg.putIfAbsent(mid, () => {});
-        final agg = bucket.putIfAbsent(
-          emoji,
-          () => {'emoji': emoji, 'count': 0, 'mine': false},
-        );
-        agg['count'] = (agg['count'] as int) + 1;
-        if (row['user_id'] == uid) agg['mine'] = true;
-      }
-      final reactions = <String, dynamic>{};
-      byMsg.forEach((mid, bucket) => reactions[mid] = bucket.values.toList());
-      return APIResponse.success({'reactions': reactions});
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
-
-  // ──────────────────────────────────────────────────────────
-  // Attachments (E2E-encrypted blobs in central storage)
-  // ──────────────────────────────────────────────────────────
-
-  /// Encrypt + upload one attachment blob into the caller's own folder. On
-  /// success `data` is `({String path, String keyB64, String nonceB64})`.
-  Future<APIResponse> uploadAttachment({
-    required String scopePrefix,
-    required Uint8List data,
-  }) async {
-    try {
-      final blob = await _attachments.seal(data);
-      final path = AttachmentRepository.buildPath(scopePrefix);
-      await _client.storage
-          .from(_attachmentsBucket)
-          .uploadBinary(
-            path,
-            blob.ciphertext,
-            fileOptions: const FileOptions(
-              contentType: 'application/octet-stream',
-              upsert: false,
-            ),
-          );
-      return APIResponse.success((
-        path: path,
-        keyB64: blob.keyB64,
-        nonceB64: blob.nonceB64,
-      ));
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
-
-  /// Download + decrypt one attachment blob. On success `data` is the decrypted
-  /// `Uint8List`.
-  Future<APIResponse> downloadAttachment({
-    required String path,
-    required String keyB64,
-    required String nonceB64,
-  }) async {
-    try {
-      final bytes = await _client.storage
-          .from(_attachmentsBucket)
-          .download(path);
-      final clear = await _attachments.open(
-        ciphertext: bytes,
-        keyB64: keyB64,
-        nonceB64: nonceB64,
-      );
-      return APIResponse.success(clear);
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
-
-  // ──────────────────────────────────────────────────────────
-  // Directory (dm_profiles)
-  // ──────────────────────────────────────────────────────────
-
-  /// The caller's own directory row, or success(null) when not created yet.
-  Future<APIResponse> getMyProfile() async {
-    try {
-      final row = await _client
-          .from('dm_profiles')
-          .select()
-          .eq('user_id', _client.auth.currentUser!.id)
-          .maybeSingle();
-      return APIResponse.success(row);
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
-
-  /// Create or refresh the caller's directory row. Fails with a unique
-  /// violation when the handle is taken by someone else.
-  Future<APIResponse> upsertProfile({
-    required String handle,
-    required String chatPublicKey,
-    required String signingPublicKey,
-  }) async {
-    try {
-      await _client.from('dm_profiles').upsert({
-        'user_id': _client.auth.currentUser!.id,
-        'handle': handle,
-        'chat_public_key': chatPublicKey,
-        'signing_public_key': signingPublicKey,
-      }, onConflict: 'user_id');
-      return APIResponse.success(null);
-    } on PostgrestException catch (e) {
-      if (e.code == '23505') {
-        return APIResponse(
-          success: false,
-          error: 'That handle is already taken',
-          errorCode: 'handle_taken',
-        );
-      }
-      return APIResponse.error(e.message);
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
-
-  /// Prefix-search the directory (excluding the caller).
-  Future<APIResponse> searchHandles(String prefix) async {
-    try {
-      final rows = await _client
-          .from('dm_profiles')
-          .select()
-          .ilike('handle', '$prefix%')
-          .neq('user_id', _client.auth.currentUser!.id)
-          .order('handle', ascending: true)
-          .limit(10);
-      return APIResponse.success(rows);
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
-
-  /// Fetch directory rows for a set of user ids.
-  Future<APIResponse> getProfiles(List<String> userIds) async {
-    try {
-      final rows = await _client
-          .from('dm_profiles')
-          .select()
-          .inFilter('user_id', userIds);
-      return APIResponse.success(rows);
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
 
   // ──────────────────────────────────────────────────────────
   // Messages
