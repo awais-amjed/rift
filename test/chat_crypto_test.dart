@@ -188,6 +188,49 @@ void main() {
         );
       },
     );
+
+    test('sealKeyringEntries seals the key to every member', () async {
+      final alice = await crypto.deriveChatIdentity(
+        masterSeed: aliceSeed,
+        host: 'h',
+      );
+      final bob = await crypto.deriveChatIdentity(
+        masterSeed: bobSeed,
+        host: 'h',
+      );
+      final channelKey = crypto.generateChannelKey();
+
+      final entries = await crypto.sealKeyringEntries(
+        key: channelKey,
+        members: [
+          {'user_id': 'alice', 'chat_public_key': alice.publicKeyBase64},
+          {'user_id': 'bob', 'chat_public_key': bob.publicKeyBase64},
+        ],
+      );
+
+      expect(entries.map((e) => e['user_id']), ['alice', 'bob']);
+      // Every member must recover the identical key — a keyring entry built
+      // even slightly wrong locks that member out of the channel.
+      for (final (index, identity) in [alice, bob].indexed) {
+        expect(
+          await crypto.unwrapKey(
+            wrapped: WrappedKey.fromJson(entries[index]),
+            myKeyPair: identity.keyPair,
+          ),
+          channelKey,
+        );
+      }
+    });
+
+    test('sealKeyringEntries on no members produces no entries', () async {
+      expect(
+        await crypto.sealKeyringEntries(
+          key: crypto.generateChannelKey(),
+          members: const [],
+        ),
+        isEmpty,
+      );
+    });
   });
 
   group('encryptBytes / decryptBytes (attachment blobs)', () {

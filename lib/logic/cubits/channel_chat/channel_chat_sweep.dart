@@ -68,16 +68,10 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       postVersion = version;
     }
 
-    final entries = <Map<String, dynamic>>[];
-    for (final member in missing) {
-      final wrapped = await _crypto.wrapKey(
-        key: channelKey,
-        recipientPublicKey: CryptoRepository.fromBase64(
-          member['chat_public_key'] as String,
-        ),
-      );
-      entries.add({'user_id': member['user_id'], ...wrapped.toJson()});
-    }
+    final entries = await _crypto.sealKeyringEntries(
+      key: channelKey,
+      members: missing,
+    );
 
     final posted = await _serverCubit.postChannelKeys(
       channelId: channelId,

@@ -125,6 +125,31 @@ mixin _ChatCryptoMixin {
     );
   }
 
+  /// Seal [key] to every member in [members] and shape the results as
+  /// channel-keyring rows for `post_channel_keys`.
+  ///
+  /// Each member is a row carrying `user_id` and `chat_public_key`; the
+  /// output is `{'user_id': …, …WrappedKey.toJson()}`. Bootstrapping a
+  /// keyring, healing members who lack an entry, and the background sweep all
+  /// need exactly this, and a keyring built even slightly differently by one
+  /// of them would lock those members out of the channel.
+  Future<List<Map<String, dynamic>>> sealKeyringEntries({
+    required Uint8List key,
+    required List<Map<String, dynamic>> members,
+  }) async {
+    final entries = <Map<String, dynamic>>[];
+    for (final member in members) {
+      final wrapped = await wrapKey(
+        key: key,
+        recipientPublicKey: CryptoRepository.fromBase64(
+          member['chat_public_key'] as String,
+        ),
+      );
+      entries.add({'user_id': member['user_id'], ...wrapped.toJson()});
+    }
+    return entries;
+  }
+
   /// Unwrap a key sealed to us with [wrapKey], using our chat identity's
   /// private key. Throws on tampering (AES-GCM auth failure).
   Future<Uint8List> unwrapKey({

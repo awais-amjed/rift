@@ -151,7 +151,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
         counts[cid] = (counts[cid] ?? 0) + 1;
       }
       if (isClosed || !_subs.containsKey(serverId)) return;
-      _setServerUnread(serverId, counts);
+      emit(state.withServerCounts(serverId, counts));
 
       if (serverId == _openServerId && _openChannelId != null) {
         markChannelRead(serverId, _openChannelId!);
@@ -175,7 +175,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
       return;
     }
 
-    _bumpUnread(serverId, channelId);
+    emit(state.incremented(serverId, channelId));
 
     if (!focused) {
       final server = _serverById(serverId);
@@ -221,7 +221,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
   /// Local state updates optimistically; the RLS UPDATE is best-effort (a
   /// failure self-heals on the next re-seed).
   void markChannelRead(String serverId, String channelId) {
-    _clearChannel(serverId, channelId);
+    emit(state.clearedChannel(serverId, channelId));
     final sub = _subs[serverId];
     if (sub == null) return;
     unawaited(() async {
@@ -236,39 +236,6 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
     }());
   }
 
-  // ── Immutable state helpers ───────────────────────────────────
-
-  void _setServerUnread(String serverId, Map<String, int> counts) {
-    final next = Map<String, Map<String, int>>.from(state.unreadByServer);
-    if (counts.isEmpty) {
-      next.remove(serverId);
-    } else {
-      next[serverId] = counts;
-    }
-    emit(state.copyWith(unreadByServer: next));
-  }
-
-  void _bumpUnread(String serverId, String channelId) {
-    final next = Map<String, Map<String, int>>.from(state.unreadByServer);
-    final channels = Map<String, int>.from(next[serverId] ?? const {});
-    channels[channelId] = (channels[channelId] ?? 0) + 1;
-    next[serverId] = channels;
-    emit(state.copyWith(unreadByServer: next));
-  }
-
-  void _clearChannel(String serverId, String channelId) {
-    final channels = state.unreadByServer[serverId];
-    if (channels == null || !channels.containsKey(channelId)) return;
-    final next = Map<String, Map<String, int>>.from(state.unreadByServer);
-    final updated = Map<String, int>.from(channels)..remove(channelId);
-    if (updated.isEmpty) {
-      next.remove(serverId);
-    } else {
-      next[serverId] = updated;
-    }
-    emit(state.copyWith(unreadByServer: next));
-  }
-
   // ── Teardown ──────────────────────────────────────────────────
 
   Server? _serverById(String serverId) {
@@ -281,11 +248,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
   void _teardownServer(String serverId) {
     final sub = _subs.remove(serverId);
     if (sub == null) return;
-    if (state.unreadByServer.containsKey(serverId)) {
-      final next = Map<String, Map<String, int>>.from(state.unreadByServer)
-        ..remove(serverId);
-      if (!isClosed) emit(state.copyWith(unreadByServer: next));
-    }
+    if (!isClosed) emit(state.clearedServer(serverId));
     unawaited(() async {
       try {
         await sub.channel.unsubscribe();
