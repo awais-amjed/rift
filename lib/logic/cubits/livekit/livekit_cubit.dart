@@ -14,6 +14,7 @@ import '../token/token_cubit.dart';
 import '../../helper_methods.dart';
 import '../../services/participant_roster.dart';
 import '../../services/sound_service.dart';
+import '../../services/speech_detector.dart';
 
 part 'livekit_state.dart';
 part 'livekit_connection.dart';
@@ -96,7 +97,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
         identity: p.identity,
         userId: ParticipantIdentity.userIdOf(p.identity),
         name: p.name,
-        isSpeaking: p.isSpeaking,
+        // The local user's speaking state is decided from our own mic level;
+        // the server's active-speaker view is too coarse to light the glow
+        // reliably. Remote participants still come from the server.
+        isSpeaking: p is LocalParticipant ? localIsSpeaking : p.isSpeaking,
         isMicrophoneEnabled: p.isMicrophoneEnabled(),
         isCameraEnabled: p.isCameraEnabled(),
         isLocal: p is LocalParticipant,
