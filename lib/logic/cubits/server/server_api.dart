@@ -41,6 +41,23 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     ),
   );
 
+  /// Last fetched member list, keyed by user id — warmed by [listMembers].
+  ///
+  /// Lets any surface resolve a user id to their profile (notably
+  /// `chat_public_key`, needed to open a DM) without another round trip. Not
+  /// authoritative: [findMember] refetches on a miss.
+  final Map<String, ServerMember> _memberCache = {};
+
+  /// A member by user id, fetching the list once if we haven't got them.
+  /// Null when they aren't a member of the selected server.
+  Future<ServerMember?> findMember(String userId) async {
+    final cached = _memberCache[userId];
+    if (cached != null) return cached;
+    final result = await listMembers();
+    if (!result.success) return null;
+    return _memberCache[userId];
+  }
+
   /// Fetch the full member list for the selected server.
   Future<({bool success, List<ServerMember>? members, String? error})>
   listMembers() async {
@@ -64,6 +81,9 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     final members = ((response.data['users'] as List<dynamic>?) ?? [])
         .map((u) => ServerMember.fromJson(u as Map<String, dynamic>))
         .toList();
+    _memberCache
+      ..clear()
+      ..addEntries(members.map((m) => MapEntry(m.id, m)));
     return (success: true, members: members, error: null);
   }
 

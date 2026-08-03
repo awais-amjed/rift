@@ -12,9 +12,14 @@ import '../../../../common/app_text_field.dart';
 
 /// Handle search for starting a central DM.
 class NewCentralDmDialog extends StatefulWidget {
-  const NewCentralDmDialog({super.key});
+  /// Prefills the handle search — used when arriving from a member's
+  /// context menu, where their server display name is the best guess at a
+  /// handle (central accounts are separate identities, so there is no link).
+  final String? initialQuery;
 
-  static void show(BuildContext context) {
+  const NewCentralDmDialog({super.key, this.initialQuery});
+
+  static void show(BuildContext context, {String? initialQuery}) {
     showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
@@ -22,7 +27,7 @@ class NewCentralDmDialog extends StatefulWidget {
           BlocProvider.value(value: context.read<CentralDmCubit>()),
           BlocProvider.value(value: context.read<DmCubit>()),
         ],
-        child: const NewCentralDmDialog(),
+        child: NewCentralDmDialog(initialQuery: initialQuery),
       ),
     );
   }
@@ -36,6 +41,18 @@ class _NewCentralDmDialogState extends State<NewCentralDmDialog> {
   Timer? _debounce;
   List<DmConversation> _results = const [];
   bool _searching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final query = widget.initialQuery;
+    if (query != null && query.trim().isNotEmpty) {
+      _controller.text = query.trim();
+      // Run the search straight away — the point of arriving prefilled is not
+      // having to retype it.
+      _onChanged(_controller.text);
+    }
+  }
 
   @override
   void dispose() {

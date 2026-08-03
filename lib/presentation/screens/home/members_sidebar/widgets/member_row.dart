@@ -51,22 +51,23 @@ class MemberRow extends StatelessWidget {
       opacity: dim,
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           hoverColor: themeState.bgHover,
           onTap: () {},
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             child: Row(
               children: [
                 _avatar(),
-                const SizedBox(width: 9),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     member.displayName,
                     style: TextStyle(
-                      fontSize: 13,
+                      // Matches the channel tiles in the left sidebar.
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: themeState.textSecondary,
                       overflow: TextOverflow.ellipsis,
@@ -89,7 +90,7 @@ class MemberRow extends StatelessWidget {
         UserAvatar(
           avatarPath: member.avatarPath,
           name: member.displayName,
-          size: 26,
+          size: 28,
           themeState: themeState,
           fallbackColor: themeState.bgTertiary,
         ),
@@ -105,7 +106,7 @@ class MemberRow extends StatelessWidget {
                   ? CustomColors.userStatusOnline
                   : themeState.textQuaternary,
               shape: BoxShape.circle,
-              border: Border.all(color: themeState.bgPrimary, width: 2),
+              border: Border.all(color: themeState.sidebarBg, width: 2),
             ),
           ),
         ),

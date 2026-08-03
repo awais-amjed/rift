@@ -7,6 +7,13 @@ class K {
   // ── Sidebar ───────────────────────────────────────────────
   static const double sidebarWidth = 280;
 
+  /// Right-hand member list. Narrower than the left sidebar — it holds one
+  /// short name per row, not channel trees.
+  static const double membersSidebarWidth = 220;
+
+  /// Collapsed member list: just wide enough for the reopen button.
+  static const double membersSidebarCollapsedWidth = 42;
+
   // ── Chat composer ─────────────────────────────────────────
   /// Every control in the composer row (attach, emoji, mic, send) is a square
   /// of this size, and the text field is floored to it, so the icons and the

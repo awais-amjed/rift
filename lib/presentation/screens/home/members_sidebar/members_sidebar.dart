@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/server_member.dart';
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster.dart';
-import 'widgets/member_group.dart';
+import '../channels/channel_list/widgets/section_header.dart';
 import 'widgets/member_row.dart';
 
 /// The right-hand member list for the selected server — everyone who has
@@ -17,9 +18,6 @@ import 'widgets/member_row.dart';
 /// the server changes); *presence* comes from the Realtime presence channel, so
 /// the online split updates live without refetching the roster.
 class MembersSidebar extends StatefulWidget {
-  static const double width = 210;
-  static const double collapsedWidth = 40;
-
   const MembersSidebar({super.key});
 
   @override
@@ -27,6 +25,9 @@ class MembersSidebar extends StatefulWidget {
 }
 
 class _MembersSidebarState extends State<MembersSidebar> {
+  /// Matches ChatHeader's bar height so the two align across the top.
+  static const double _headerHeight = 46;
+
   List<ServerMember>? _members;
   String? _loadedServerId;
   bool _loading = false;
@@ -66,10 +67,12 @@ class _MembersSidebarState extends State<MembersSidebar> {
               duration: const Duration(milliseconds: 160),
               curve: Curves.easeOutCubic,
               width: open
-                  ? MembersSidebar.width
-                  : MembersSidebar.collapsedWidth,
+                  ? K.membersSidebarWidth
+                  : K.membersSidebarCollapsedWidth,
               decoration: BoxDecoration(
-                color: themeState.bgPrimary,
+                // Same surface as the left sidebar — this is the other edge of
+                // the same chrome, not part of the content area.
+                color: themeState.sidebarBg,
                 border: Border(
                   left: BorderSide(color: themeState.borderPrimary),
                 ),
@@ -86,20 +89,27 @@ class _MembersSidebarState extends State<MembersSidebar> {
 
   /// Collapsed: a narrow strip whose only job is to get the panel back.
   Widget _buildCollapsed(ThemeState themeState) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: IconButton(
-          tooltip: 'Show members',
-          icon: Icon(
-            Icons.people_alt_outlined,
-            size: 18,
-            color: themeState.textTertiary,
+    return Column(
+      children: [
+        // Same height as the header bar, so the button lines up with the chat
+        // header across the top instead of floating.
+        SizedBox(
+          height: _headerHeight,
+          child: Center(
+            child: IconButton(
+              tooltip: 'Show members',
+              visualDensity: VisualDensity.compact,
+              icon: Icon(
+                Icons.people_alt_rounded,
+                size: 18,
+                color: themeState.textTertiary,
+              ),
+              onPressed: () => context.read<AppCubit>().toggleMembersSidebar(),
+            ),
           ),
-          onPressed: () => context.read<AppCubit>().toggleMembersSidebar(),
         ),
-      ),
+        Divider(height: 1, color: themeState.borderPrimary),
+      ],
     );
   }
 
@@ -142,17 +152,27 @@ class _MembersSidebarState extends State<MembersSidebar> {
   }
 
   Widget _header(ThemeState themeState) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 4, 2),
+    // Mirrors ChatHeader's bar so the two line up across the top.
+    return Container(
+      height: _headerHeight,
+      padding: const EdgeInsets.only(left: 14, right: 4),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
+      ),
       child: Row(
         children: [
+          Icon(
+            Icons.people_alt_rounded,
+            size: 16,
+            color: themeState.textQuaternary,
+          ),
+          const SizedBox(width: 8),
           Text(
-            'MEMBERS',
+            'Members',
             style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-              color: themeState.textQuaternary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: themeState.textPrimary,
             ),
           ),
           const Spacer(),
@@ -182,38 +202,50 @@ class _MembersSidebarState extends State<MembersSidebar> {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       children: [
-        if (split.online.isNotEmpty) ...[
-          MemberGroupHeader(
-            label: 'ONLINE',
-            count: split.online.length,
-            themeState: themeState,
-          ),
-          for (final member in split.online)
-            MemberRow(
-              member: member,
-              themeState: themeState,
-              isOnline: true,
-              isMe: member.id == myId,
-              setting: appState.participantSettings[member.id],
-            ),
-        ],
-        if (split.offline.isNotEmpty) ...[
-          MemberGroupHeader(
-            label: 'OFFLINE',
-            count: split.offline.length,
-            themeState: themeState,
-          ),
-          for (final member in split.offline)
-            MemberRow(
-              member: member,
-              themeState: themeState,
-              isOnline: false,
-              isMe: member.id == myId,
-              setting: appState.participantSettings[member.id],
-            ),
-        ],
+        ..._group(
+          themeState,
+          appState,
+          label: 'Online',
+          members: split.online,
+          isOnline: true,
+          myId: myId,
+        ),
+        ..._group(
+          themeState,
+          appState,
+          label: 'Offline',
+          members: split.offline,
+          isOnline: false,
+          myId: myId,
+        ),
         const SizedBox(height: 12),
       ],
     );
+  }
+
+  /// One presence group: the shared [SectionHeader] plus its rows. Empty groups
+  /// render nothing rather than a lone "Offline — 0".
+  List<Widget> _group(
+    ThemeState themeState,
+    AppState appState, {
+    required String label,
+    required List<ServerMember> members,
+    required bool isOnline,
+    required String? myId,
+  }) {
+    if (members.isEmpty) return const [];
+    return [
+      const SizedBox(height: 14),
+      SectionHeader(label: '$label — ${members.length}'),
+      const SizedBox(height: 4),
+      for (final member in members)
+        MemberRow(
+          member: member,
+          themeState: themeState,
+          isOnline: isOnline,
+          isMe: member.id == myId,
+          setting: appState.participantSettings[member.id],
+        ),
+    ];
   }
 }

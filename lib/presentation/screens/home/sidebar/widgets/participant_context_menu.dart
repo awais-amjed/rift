@@ -6,7 +6,11 @@ import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
+import '../../../../../logic/cubits/dm/dm_cubit.dart';
+import '../../../../common/context_menu_region.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../dms/widgets/new_central_dm_dialog.dart';
 
 /// Dialog-based context menu for a participant — mute toggle + volume slider.
 ///
@@ -30,6 +34,43 @@ class ParticipantContextMenu extends StatelessWidget {
     required this.name,
     this.isLocal = false,
   });
+
+  /// Open the server DM with this member.
+  ///
+  /// The chat key is resolved from the member list rather than assumed: a
+  /// voice-channel row only carries an identity and a name, and opening a DM
+  /// without the peer's published key fails with a confusing "hasn't enabled
+  /// encrypted chat" error even when they have.
+  Future<void> _openServerDm(BuildContext context) async {
+    final dismiss = ContextMenuScope.of(context);
+    final serverCubit = context.read<ServerCubit>();
+    final dmCubit = context.read<DmCubit>();
+    final centralCubit = context.read<CentralDmCubit>();
+    final appCubit = context.read<AppCubit>();
+    final userId = ParticipantIdentity.userIdOf(identity);
+
+    dismiss?.call();
+    final member = await serverCubit.findMember(userId);
+
+    // Only one DM surface is open at a time.
+    centralCubit.closeConversation();
+    dmCubit.openConversation(
+      peerId: userId,
+      peerName: member?.displayName ?? name,
+      peerChatKey: member?.chatPublicKey,
+    );
+    appCubit.setHomeViewOpen(true);
+  }
+
+  /// Open the central DM search, prefilled with this member's name.
+  ///
+  /// It can only be a *search*: a central account is a separate identity from a
+  /// server membership and nothing links the two, so their server name is a
+  /// guess at their handle, not a lookup.
+  void _openCentralDm(BuildContext context) {
+    ContextMenuScope.of(context)?.call();
+    NewCentralDmDialog.show(context, initialQuery: name);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +163,20 @@ class ParticipantContextMenu extends StatelessWidget {
                       ),
                       Divider(height: 1, color: borderColor),
                       const SizedBox(height: 4),
+                      // Messaging — not offered for yourself.
+                      if (!isLocal) ...[
+                        _MenuItem(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          label: 'Message',
+                          onTap: () => _openServerDm(context),
+                        ),
+                        _MenuItem(
+                          icon: Icons.public_rounded,
+                          label: 'Message on Central',
+                          onTap: () => _openCentralDm(context),
+                        ),
+                        Divider(height: 9, color: borderColor),
+                      ],
                       // Mute toggle (local only)
                       _MenuItem(
                         icon: isMuted ? Icons.mic_off : Icons.mic,
