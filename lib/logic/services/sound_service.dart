@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
@@ -15,6 +17,9 @@ class SoundService {
   static const _streamStartedAsset = 'audio/stream_started.mp3';
   static const _streamEndedAsset = 'audio/stream_ended.mp3';
 
+  /// How long to wait for a sound to finish before reclaiming its player.
+  static const _maxPlaybackWait = Duration(seconds: 10);
+
   // ──────────────────────────────────────────────────────────
   // Public API
   // ──────────────────────────────────────────────────────────
@@ -29,18 +34,45 @@ class SoundService {
   // ──────────────────────────────────────────────────────────
 
   Future<void> _play(String asset) async {
+    // A fresh player per sound so simultaneous calls don't interfere — which
+    // means every one of them has to be handed back, see [_recycle].
+    final player = AudioPlayer();
     try {
-      // A fresh player per sound so simultaneous calls don't interfere.
-      final player = AudioPlayer();
       await player.setVolume(0.15);
       await player.play(AssetSource(asset));
-      // Dispose once playback finishes (or after a generous timeout).
-      player.onPlayerComplete.first
-          .timeout(const Duration(seconds: 10), onTimeout: () {})
-          .then((_) => player.dispose())
-          .catchError((_) => player.dispose());
     } catch (e) {
       debugPrint('SoundService: failed to play $asset – $e');
+      await _dispose(player);
+      return;
+    }
+    unawaited(_recycle(player));
+  }
+
+  /// Disposes [player] once it finishes, or after [_maxPlaybackWait] if the
+  /// completion event never arrives.
+  ///
+  /// `onPlayerComplete` is declared `Stream<void>` but carries `AudioEvent` at
+  /// runtime, so `Future.timeout` on it fails a cast on its own `onTimeout`
+  /// callback — which used to throw before the disposal was ever scheduled and
+  /// leak a native audio pipeline per sound. Racing a plain delay avoids
+  /// touching the future's type at all.
+  Future<void> _recycle(AudioPlayer player) async {
+    try {
+      await Future.any([
+        player.onPlayerComplete.first.then<void>((_) {}),
+        Future<void>.delayed(_maxPlaybackWait),
+      ]);
+    } catch (e) {
+      debugPrint('SoundService: playback wait failed – $e');
+    }
+    await _dispose(player);
+  }
+
+  Future<void> _dispose(AudioPlayer player) async {
+    try {
+      await player.dispose();
+    } catch (e) {
+      debugPrint('SoundService: failed to dispose player – $e');
     }
   }
 }
