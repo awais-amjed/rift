@@ -278,22 +278,13 @@ class _ChatComposerState extends State<ChatComposer> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
+        // A plus rather than a paperclip: it opens the one "add something"
+        // affordance on the bar, and it is the only control left of the text.
         ComposerIconButton(
-          icon: Icons.attach_file_rounded,
+          icon: Icons.add_rounded,
           tooltip: 'Attach files',
           themeState: themeState,
           onPressed: widget.enabled ? _pickFiles : null,
-        ),
-        // Builder so the popover can anchor to the button's own box.
-        Builder(
-          builder: (buttonContext) => ComposerIconButton(
-            icon: Icons.sentiment_satisfied_alt_rounded,
-            tooltip: 'Emoji',
-            themeState: themeState,
-            onPressed: widget.enabled
-                ? () => _openEmojiPicker(buttonContext)
-                : null,
-          ),
         ),
         Expanded(
           child: ComposerTextField(
@@ -304,6 +295,17 @@ class _ChatComposerState extends State<ChatComposer> {
             hintText: widget.hintText,
             onChanged: _onTextChanged,
             onSubmit: _send,
+          ),
+        ),
+        // Builder so the popover can anchor to the button's own box.
+        Builder(
+          builder: (buttonContext) => ComposerIconButton(
+            icon: Icons.sentiment_satisfied_alt_rounded,
+            tooltip: 'Emoji',
+            themeState: themeState,
+            onPressed: widget.enabled
+                ? () => _openEmojiPicker(buttonContext)
+                : null,
           ),
         ),
         ComposerIconButton(

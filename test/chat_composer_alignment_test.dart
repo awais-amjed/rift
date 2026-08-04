@@ -50,7 +50,7 @@ void main() {
       await _pumpComposer(tester);
 
       final field = tester.getRect(find.byType(EditableText));
-      final attach = tester.getRect(find.byIcon(Icons.attach_file_rounded));
+      final attach = tester.getRect(find.byIcon(Icons.add_rounded));
       final emoji = tester.getRect(
         find.byIcon(Icons.sentiment_satisfied_alt_rounded),
       );

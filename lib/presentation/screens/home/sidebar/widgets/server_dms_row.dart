@@ -33,10 +33,13 @@ class ServerDmsRow extends StatelessWidget {
                 icon: Icons.forum_outlined,
                 label: 'Server DMs',
                 isSelected: appState.surface == HomeSurface.serverDms,
+                // A tally of open threads, not unread news — so it takes the
+                // tinted badge rather than the solid one the channels use.
                 trailing: count > 0
                     ? UnreadBadge(
                         count: count,
                         themeState: context.watch<ThemeCubit>().state,
+                        quiet: true,
                       )
                     : null,
                 onTap: () =>

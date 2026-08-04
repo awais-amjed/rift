@@ -145,8 +145,11 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
             _buildRow(),
             if (_showToolbar)
               Positioned(
-                top: -10,
-                right: 14,
+                // Lifted clear of the row and aligned with its text edge, so
+                // the toolbar reads as belonging to this message rather than
+                // floating between it and the one above.
+                top: -12,
+                right: K.messageRowHPad,
                 child: MessageHoverToolbar(
                   themeState: themeState,
                   onReact: _canReact ? _pickReaction : null,

@@ -10,7 +10,17 @@ class UnreadBadge extends StatelessWidget {
   final int count;
   final ThemeState themeState;
 
-  const UnreadBadge({super.key, required this.count, required this.themeState});
+  /// Tints the pill instead of filling it. For counts that are merely a tally
+  /// — how many DM threads exist — rather than news: a solid accent pill is
+  /// the sidebar's loudest mark and should mean something happened.
+  final bool quiet;
+
+  const UnreadBadge({
+    super.key,
+    required this.count,
+    required this.themeState,
+    this.quiet = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,17 +28,22 @@ class UnreadBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 17),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: themeState.primary,
+        color: quiet
+            ? themeState.primary.withValues(alpha: 0.16)
+            : themeState.primary,
         borderRadius: BorderRadius.circular(K.radiusPill),
       ),
       alignment: Alignment.center,
       child: Text(
         count > 99 ? '99+' : '$count',
-        // The count is knocked *out* of the accent rather than written on it,
-        // so the ink is the canvas the pill floats over — near-black in dark,
-        // near-white in light. `onPrimary` is white in both, which turns the
-        // dark palette's bright accent into a low-contrast smudge.
-        style: AppText.badge.copyWith(height: 1.2, color: themeState.bgPrimary),
+        // Filled, the count is knocked *out* of the accent rather than written
+        // on it, so the ink is the canvas the pill floats over — near-black in
+        // dark, near-white in light. `onPrimary` is white in both, which turns
+        // the dark palette's bright accent into a low-contrast smudge.
+        style: AppText.badge.copyWith(
+          height: 1.2,
+          color: quiet ? themeState.accentBright : themeState.bgPrimary,
+        ),
       ),
     );
   }
