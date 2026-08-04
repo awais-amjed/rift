@@ -8,6 +8,7 @@ import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../common/app_modal.dart';
+import '../../common/canvas_backdrop.dart';
 import 'main_content/main_content.dart';
 import 'servers/server_selector/server_selector_dialog.dart';
 import 'sidebar/floating_sidebar.dart';
@@ -86,37 +87,37 @@ class _HomeScreenState extends State<HomeScreen> {
               prev.titleBarVisible != curr.titleBarVisible,
           builder: (context, appState) {
             final titleBarVisible = appState.titleBarVisible;
-            return Stack(
-              children: [
-                Positioned.fill(
-                  top: kIsWeb ? 0 : (titleBarVisible ? _titleBarHeight : 0),
-                  child: Stack(
-                    children: [
-                      Row(
-                        children: [
-                          if (appState.isPinned)
-                            Sidebar(
-                              topPadding: kIsWeb
-                                  ? 0
-                                  : (titleBarVisible
-                                        ? 0
-                                        : K.titleBarHiddenSidebarPadding),
-                            ),
-                          const Expanded(child: MainContent()),
-                        ],
-                      ),
-                      if (!appState.isPinned)
-                        FloatingSidebar(
-                          topPadding: kIsWeb
-                              ? 0
-                              : (titleBarVisible
-                                    ? 0
-                                    : K.titleBarHiddenSidebarPadding),
-                        ),
-                    ],
-                  ),
+            final topPadding = kIsWeb
+                ? 0.0
+                : (titleBarVisible ? 0.0 : K.titleBarHiddenSidebarPadding);
+            return CanvasBackdrop(
+              child: Padding(
+                // The title bar is painted above the whole app, so the
+                // workspace steps out from under it; the gutter takes over
+                // when it's hidden.
+                padding: EdgeInsets.only(
+                  top: kIsWeb
+                      ? K.panelGutter
+                      : (titleBarVisible ? _titleBarHeight : K.panelGutter),
+                  left: K.panelGutter,
+                  right: K.panelGutter,
+                  bottom: K.panelGutter,
                 ),
-              ],
+                child: Stack(
+                  children: [
+                    Row(
+                      children: [
+                        if (appState.isPinned) Sidebar(topPadding: topPadding),
+                        if (appState.isPinned)
+                          const SizedBox(width: K.panelGutter),
+                        const Expanded(child: MainContent()),
+                      ],
+                    ),
+                    if (!appState.isPinned)
+                      FloatingSidebar(topPadding: topPadding),
+                  ],
+                ),
+              ),
             );
           },
         ),

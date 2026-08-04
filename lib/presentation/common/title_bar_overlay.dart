@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/app/app_cubit.dart';
-import 'app_title_bar.dart';
+import 'title_bar/app_title_bar.dart';
 
 /// Wraps the entire app (above the Navigator) so the title bar always renders
 /// on top of dialogs, sheets, and any other Navigator overlay.

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../profile/user_profile.dart';
 import 'home_dm_button.dart';
 import 'sidebar_channel_list.dart';
@@ -21,36 +19,17 @@ class SidebarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          decoration: BoxDecoration(
-            color: themeState.sidebarBg,
-            border: Border(right: BorderSide(color: themeState.borderPrimary)),
-            boxShadow: isPinned
-                ? null
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: themeState.isDarkTheme ? 0.4 : 0.12,
-                      ),
-                      blurRadius: 24,
-                      offset: const Offset(4, 0),
-                    ),
-                  ],
-          ),
-          child: Column(
-            children: [
-              SizedBox(height: topPadding),
-              SidebarHeader(),
-              SidebarActions(),
-              HomeDmButton(),
-              SidebarChannelList(),
-              UserProfile(),
-            ],
-          ),
-        );
-      },
+    // The panel's background, border and rounding belong to [AppPanel], which
+    // wraps this in both modes — this widget is only the column of contents.
+    return Column(
+      children: [
+        SizedBox(height: topPadding),
+        SidebarHeader(),
+        SidebarActions(),
+        HomeDmButton(),
+        SidebarChannelList(),
+        UserProfile(),
+      ],
     );
   }
 }

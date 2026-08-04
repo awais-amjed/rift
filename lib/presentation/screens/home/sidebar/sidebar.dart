@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../common/app_panel.dart';
 import 'widgets/sidebar_content.dart';
 
 /// Sidebar widget. When pinned, renders the full panel. When unpinned, renders nothing.
@@ -17,7 +18,7 @@ class Sidebar extends StatelessWidget {
       buildWhen: (prev, curr) => prev.isPinned != curr.isPinned,
       builder: (context, appState) {
         if (!appState.isPinned) return const SizedBox.shrink();
-        return SizedBox(
+        return AppPanel(
           width: K.sidebarWidth,
           child: SidebarContent(isPinned: true, topPadding: topPadding),
         );

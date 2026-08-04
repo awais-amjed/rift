@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/app_panel.dart';
+import '../../../theme/app_shadows.dart';
 import 'widgets/sidebar_content.dart';
 
 /// Shown when the sidebar is unpinned. Renders an invisible hot-zone on the
@@ -39,9 +41,12 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
           child: MouseRegion(
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),
-            child: SidebarContent(
-              isPinned: false,
-              topPadding: widget.topPadding,
+            child: AppPanel(
+              shadow: AppShadows.popover,
+              child: SidebarContent(
+                isPinned: false,
+                topPadding: widget.topPadding,
+              ),
             ),
           ),
         ),

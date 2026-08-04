@@ -8,6 +8,7 @@ import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster.dart';
+import '../../../common/app_panel.dart';
 import '../channels/channel_list/widgets/section_header.dart';
 import 'widgets/member_row.dart';
 
@@ -70,27 +71,23 @@ class _MembersSidebarState extends State<MembersSidebar> {
               duration: const Duration(milliseconds: 160),
               curve: Curves.easeOutCubic,
               width: targetWidth,
-              decoration: BoxDecoration(
-                // Same surface as the left sidebar — this is the other edge of
-                // the same chrome, not part of the content area.
-                color: themeState.sidebarBg,
-                border: Border(
-                  left: BorderSide(color: themeState.borderPrimary),
-                ),
-              ),
-              // The width animates but `open` flips at once, so without this
-              // the full-width content spends the whole animation being laid
-              // out at 42px — a row of overflow errors every toggle. Pin the
-              // child to its destination width and clip instead: it slides
-              // behind the edge rather than being squeezed.
-              child: ClipRect(
-                child: OverflowBox(
-                  alignment: Alignment.centerLeft,
-                  minWidth: targetWidth,
-                  maxWidth: targetWidth,
-                  child: open
-                      ? _buildList(themeState, appState)
-                      : _buildCollapsed(themeState),
+              // A panel in its own right — same chrome surface as the left
+              // sidebar, floating beside the content rather than bordering it.
+              child: AppPanel(
+                // The width animates but `open` flips at once, so without this
+                // the full-width content spends the whole animation being laid
+                // out at 42px — a row of overflow errors every toggle. Pin the
+                // child to its destination width and clip instead: it slides
+                // behind the edge rather than being squeezed.
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.centerLeft,
+                    minWidth: targetWidth,
+                    maxWidth: targetWidth,
+                    child: open
+                        ? _buildList(themeState, appState)
+                        : _buildCollapsed(themeState),
+                  ),
                 ),
               ),
             );
