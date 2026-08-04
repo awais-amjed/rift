@@ -8,8 +8,10 @@ import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
+import '../../common/app_panel.dart';
+import '../../common/canvas_backdrop.dart';
 import '../../common/confirm_dialog.dart';
-import '../../theme/custom_colors.dart';
+import '../../theme/app_text.dart';
 import 'widgets/appearance_content.dart';
 import 'widgets/backup_content/backup_content.dart';
 import 'widgets/settings_sidebar.dart';
@@ -70,12 +72,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
     context.read<VaultCubit>().resetVault();
   }
 
+  Widget _buildHeader(ThemeState themeState) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
+      child: Row(
+        spacing: 12,
+        children: [
+          Icon(_tabIcon, size: 20, color: themeState.textPrimary),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tabTitle,
+                  style: AppText.sectionTitle.copyWith(
+                    fontSize: 17,
+                    color: themeState.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _tabSubtitle,
+                  style: AppText.secondary.copyWith(
+                    color: themeState.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return Scaffold(
-          backgroundColor: themeState.bgSecondary,
           body: BlocBuilder<AppCubit, AppState>(
             buildWhen: (prev, curr) =>
                 prev.titleBarVisible != curr.titleBarVisible,
@@ -83,109 +117,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final topOffset = kIsWeb
                   ? 0.0
                   : (appState.titleBarVisible ? K.titleBarHeight : 0.0);
-              return Padding(
-                padding: EdgeInsets.only(top: topOffset),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // ── Left sidebar ─────────────────────────────
-                    SettingsSidebar(
-                      activeTab: _activeTab,
-                      onTabSelected: (tab) => setState(() => _activeTab = tab),
-                      themeState: themeState,
-                      onBack: () => context.pop(),
-                    ),
-                    VerticalDivider(width: 1, color: themeState.borderPrimary),
-                    // ── Right content area ───────────────────────
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _tabIcon,
-                                  size: 20,
-                                  color: themeState.textPrimary,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _tabTitle,
-                                        style: TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.w700,
-                                          color: themeState.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        _tabSubtitle,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: themeState.textTertiary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Divider(height: 1, color: themeState.borderPrimary),
-                          // Content
-                          Expanded(
-                            child: SingleChildScrollView(
-                              padding: const EdgeInsets.all(24),
-                              child: switch (_activeTab) {
-                                SettingsTab.appearance => AppearanceContent(
-                                  themeState: themeState,
-                                ),
-                                SettingsTab.voiceAndAudio => VoiceAudioContent(
-                                  themeState: themeState,
-                                ),
-                                SettingsTab.backup => BackupContent(
-                                  themeState: themeState,
-                                ),
-                              },
-                            ),
-                          ),
-                          // Footer
-                          Divider(height: 1, color: themeState.borderPrimary),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                            child: Row(
-                              children: [
-                                TextButton.icon(
-                                  onPressed: _resetVault,
-                                  icon: const Icon(
-                                    Icons.delete_forever,
-                                    size: 16,
-                                    color: CustomColors.error,
-                                  ),
-                                  label: const Text(
-                                    'Reset Vault',
-                                    style: TextStyle(
-                                      color: CustomColors.error,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                const Spacer(),
-                              ],
-                            ),
-                          ),
-                        ],
+              return CanvasBackdrop(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    K.panelGutter,
+                    topOffset == 0 ? K.panelGutter : topOffset,
+                    K.panelGutter,
+                    K.panelGutter,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ── Left nav panel ───────────────────────────
+                      AppPanel(
+                        width: K.sidebarWidth,
+                        child: SettingsSidebar(
+                          activeTab: _activeTab,
+                          onTabSelected: (tab) =>
+                              setState(() => _activeTab = tab),
+                          themeState: themeState,
+                          onBack: () => context.pop(),
+                          onResetVault: _resetVault,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: K.panelGutter),
+                      // ── Right content panel ──────────────────────
+                      Expanded(
+                        child: AppPanel(
+                          color: themeState.bgContent,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildHeader(themeState),
+                              Divider(
+                                height: 1,
+                                color: themeState.borderPrimary,
+                              ),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.all(24),
+                                  child: switch (_activeTab) {
+                                    SettingsTab.appearance => AppearanceContent(
+                                      themeState: themeState,
+                                    ),
+                                    SettingsTab.voiceAndAudio =>
+                                      VoiceAudioContent(themeState: themeState),
+                                    SettingsTab.backup => BackupContent(
+                                      themeState: themeState,
+                                    ),
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },

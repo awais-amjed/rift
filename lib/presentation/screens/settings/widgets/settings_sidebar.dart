@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
+import 'reset_vault_card.dart';
 import 'settings_tab.dart';
 
 class SettingsSidebar extends StatelessWidget {
@@ -10,84 +11,86 @@ class SettingsSidebar extends StatelessWidget {
   final ThemeState themeState;
   final VoidCallback onBack;
 
+  /// Wipes the vault. Lives at the bottom of the nav rather than in a footer
+  /// under the content, where it sat next to whatever tab you had open.
+  final VoidCallback onResetVault;
+
   const SettingsSidebar({
     super.key,
     required this.activeTab,
     required this.onTabSelected,
     required this.themeState,
     required this.onBack,
+    required this.onResetVault,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: K.sidebarWidth,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Back button + Settings heading ────────────────
-          InkWell(
-            onTap: onBack,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.arrow_back,
-                    size: 20,
-                    color: themeState.textPrimary,
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Settings',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: themeState.textPrimary,
-                        ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Back button + Settings heading ────────────────
+        InkWell(
+          onTap: onBack,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.arrow_back_rounded,
+                  size: 20,
+                  color: themeState.textPrimary,
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Settings',
+                      style: AppText.sectionTitle.copyWith(
+                        fontSize: 17,
+                        color: themeState.textPrimary,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Back to home',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: themeState.textTertiary,
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Back to home',
+                      style: AppText.secondary.copyWith(
+                        color: themeState.textTertiary,
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          Divider(height: 1, color: themeState.borderPrimary),
-          const SizedBox(height: 8),
-          SidebarItem(
-            icon: Icons.palette_outlined,
-            label: 'Appearance',
-            isActive: activeTab == SettingsTab.appearance,
-            themeState: themeState,
-            onTap: () => onTabSelected(SettingsTab.appearance),
-          ),
-          SidebarItem(
-            icon: Icons.headset_outlined,
-            label: 'Voice & Audio',
-            isActive: activeTab == SettingsTab.voiceAndAudio,
-            themeState: themeState,
-            onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
-          ),
-          SidebarItem(
-            icon: Icons.cloud_outlined,
-            label: 'Cloud Backup',
-            isActive: activeTab == SettingsTab.backup,
-            themeState: themeState,
-            onTap: () => onTabSelected(SettingsTab.backup),
-          ),
-        ],
-      ),
+        ),
+        Divider(height: 1, color: themeState.borderPrimary),
+        const SizedBox(height: 8),
+        SidebarItem(
+          icon: Icons.palette_outlined,
+          label: 'Appearance',
+          isActive: activeTab == SettingsTab.appearance,
+          themeState: themeState,
+          onTap: () => onTabSelected(SettingsTab.appearance),
+        ),
+        SidebarItem(
+          icon: Icons.headset_outlined,
+          label: 'Voice & Audio',
+          isActive: activeTab == SettingsTab.voiceAndAudio,
+          themeState: themeState,
+          onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
+        ),
+        SidebarItem(
+          icon: Icons.cloud_outlined,
+          label: 'Cloud Backup',
+          isActive: activeTab == SettingsTab.backup,
+          themeState: themeState,
+          onTap: () => onTabSelected(SettingsTab.backup),
+        ),
+        const Spacer(),
+        ResetVaultCard(themeState: themeState, onTap: onResetVault),
+      ],
     );
   }
 }
