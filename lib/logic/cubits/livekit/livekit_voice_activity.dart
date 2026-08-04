@@ -62,14 +62,44 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     return _appCubit.state.voiceActivityThreshold > 0;
   }
 
+  /// Serialises every visualizer lifecycle step.
+  ///
+  /// [_updateVoiceActivityMonitor] is fired from a dozen places — every mute,
+  /// unmute, deafen, push-to-talk change, threshold change and connect —
+  /// several of them unawaited, and it awaits twice: once tearing the old
+  /// visualizer down and once starting the new one. Two overlapping runs both
+  /// reach the `createVisualizer` line, and only the last one's handle is
+  /// stored. The other is left *started*, attached to the mic track, with
+  /// nothing holding a reference to stop it.
+  ///
+  /// That orphan is the leave-hang. It outlives the track it is sinking, so
+  /// disposing the room tears the track out from under a live native sink,
+  /// and the plugin's audio thread is left holding a freed lock. Hence both
+  /// ways in: mute/unmute a few times, or connect somewhere new — anything
+  /// that runs two of these close enough together.
+  final SerialQueue _vadQueue = SerialQueue(label: '[LiveKit] voice activity');
+
   /// Attaches or detaches the monitor to match the current settings and mic
   /// track. Safe to call repeatedly — after any mic transmission change or
   /// relevant setting change.
-  Future<void> _updateVoiceActivityMonitor() async {
+  Future<void> _updateVoiceActivityMonitor() => _vadQueue.add(_applyMonitor);
+
+  /// Detaches the monitor. Queued behind any in-flight attach, so teardown
+  /// can never run past a half-built visualizer.
+  ///
+  /// Its only callers are in `_LiveKitConnectionMixin`, where the call
+  /// resolves to that mixin's abstract declaration rather than to this body —
+  /// which the unused-element check can't follow across the two mixins.
+  // ignore: unused_element
+  Future<void> _stopVoiceActivityMonitor() => _vadQueue.add(_teardownMonitor);
+
+  Future<void> _applyMonitor() async {
     final track = _localMicPublication()?.track;
 
     if (!_monitorActive || track == null) {
-      await _stopVoiceActivityMonitor();
+      // The private form, not the queued one — this is already running as a
+      // queue step, and waiting on the queue from inside it would deadlock.
+      await _teardownMonitor();
       // Never leave the mic muted by a closed gate once gating is off.
       if (track != null) track.mediaStreamTrack.enabled = true;
       _vadGateOpen = true;
@@ -89,7 +119,7 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
 
     // A different (or first) mic track — rebind the visualizer to it. The mic
     // publication's track is always a LocalAudioTrack (an AudioTrack).
-    await _stopVoiceActivityMonitor();
+    await _teardownMonitor();
     final visualizer = createVisualizer(
       track as AudioTrack,
       options: const AudioVisualizerOptions(barCount: 7, centeredBands: false),
@@ -134,7 +164,7 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     if (track != null) track.mediaStreamTrack.enabled = open;
   }
 
-  Future<void> _stopVoiceActivityMonitor() async {
+  Future<void> _teardownMonitor() async {
     // Take the handles before awaiting anything. Mic changes, settings changes
     // and room teardown all reach here, and a second caller that arrives mid-
     // await would otherwise stop and dispose the same visualizer again.
