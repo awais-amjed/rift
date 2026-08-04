@@ -30,19 +30,24 @@ class MessageAttachments extends StatelessWidget {
         spacing: 8,
         runSpacing: 8,
         children: [
+          // Keyed by attachment so each keeps its own state — an in-flight
+          // fetch, a playback position — if the message's list ever shifts.
           for (final a in attachments)
             switch (a.kind) {
               AttachmentKind.image => AttachmentImageThumb(
+                key: ValueKey(a.id),
                 attachment: a,
                 loader: loader,
                 themeState: themeState,
               ),
               AttachmentKind.audio => AudioMessagePlayer(
+                key: ValueKey(a.id),
                 attachment: a,
                 loader: loader,
                 themeState: themeState,
               ),
               AttachmentKind.file => AttachmentFileCard(
+                key: ValueKey(a.id),
                 attachment: a,
                 loader: loader,
                 themeState: themeState,

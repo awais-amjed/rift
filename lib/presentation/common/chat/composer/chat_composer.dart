@@ -8,6 +8,7 @@ import '../../../../data/classes/attachment.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/image_dimensions.dart';
 import '../../../../logic/services/mime_util.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
 import '../../emoji_text.dart';
@@ -121,12 +122,20 @@ class _ChatComposerState extends State<ChatComposer> {
         final mime = (file.mimeType != null && file.mimeType!.isNotEmpty)
             ? file.mimeType!
             : mimeFromName(name);
+        final kind = AttachmentKind.fromMime(mime);
+        // Recorded now so the receiver's message list can reserve the right
+        // box before it has the bytes to measure.
+        final size = kind == AttachmentKind.image
+            ? await readImageDimensions(bytes)
+            : null;
         _staged.add(
           PendingAttachment(
             bytes: bytes,
             name: name,
             mime: mime,
-            kind: AttachmentKind.fromMime(mime),
+            kind: kind,
+            width: size?.width,
+            height: size?.height,
           ),
         );
       }
