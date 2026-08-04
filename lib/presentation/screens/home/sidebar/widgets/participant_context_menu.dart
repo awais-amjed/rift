@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/participant_identity.dart';
+import '../../../../../../data/enums/home_surface.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
@@ -59,7 +60,7 @@ class ParticipantContextMenu extends StatelessWidget {
       peerName: member?.displayName ?? name,
       peerChatKey: member?.chatPublicKey,
     );
-    appCubit.setHomeViewOpen(true);
+    appCubit.setSurface(HomeSurface.serverDms);
   }
 
   /// Open the central DM search, prefilled with this member's name.
@@ -69,6 +70,9 @@ class ParticipantContextMenu extends StatelessWidget {
   /// guess at their handle, not a lookup.
   void _openCentralDm(BuildContext context) {
     ContextMenuScope.of(context)?.call();
+    // Central DMs are their own surface now, so switch to it — otherwise the
+    // conversation opens behind whatever server pane you were looking at.
+    context.read<AppCubit>().setSurface(HomeSurface.centralDms);
     NewCentralDmDialog.show(context, initialQuery: name);
   }
 

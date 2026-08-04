@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
+import '../../../../data/enums/home_surface.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
@@ -9,7 +10,8 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_panel.dart';
 import '../chat/channel_chat_view.dart';
-import '../dms/home_dm_view.dart';
+import '../dms/central_dm_view.dart';
+import '../dms/server_dm_view.dart';
 import '../members_sidebar/members_sidebar.dart';
 import '../participants_grid/participants_grid.dart';
 
@@ -66,12 +68,16 @@ class MainContent extends StatelessWidget {
         );
       },
       child: BlocBuilder<AppCubit, AppState>(
-        buildWhen: (prev, curr) => prev.homeViewOpen != curr.homeViewOpen,
+        buildWhen: (prev, curr) => prev.surface != curr.surface,
         builder: (context, appState) {
-          // The DM home view is central-account, not server-scoped, so the
-          // server member list has nothing to say there.
-          if (appState.homeViewOpen) {
-            return const _ContentPanel(child: HomeDmView());
+          // Neither DM surface is channel-scoped, so the server member list
+          // has nothing to say on either.
+          if (appState.surface.isDms) {
+            return _ContentPanel(
+              child: appState.surface == HomeSurface.centralDms
+                  ? const CentralDmView()
+                  : const ServerDmView(),
+            );
           }
           return Row(
             children: [

@@ -5,6 +5,7 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
+import '../../../data/enums/home_surface.dart';
 import '../../services/windows_audio_ducking/windows_audio_ducking.dart';
 
 part 'app_cubit.g.dart';
@@ -20,8 +21,10 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(isPinned: isPinned));
   }
 
-  void setHomeViewOpen(bool open) {
-    emit(state.copyWith(homeViewOpen: open));
+  /// Switch the centre pane. Mutually exclusive by construction — there is
+  /// no state where two surfaces are open.
+  void setSurface(HomeSurface surface) {
+    emit(state.copyWith(surface: surface));
   }
 
   // ── Persisted: title bar ─────────────────────────────────

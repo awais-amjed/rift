@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/channel.dart';
+import '../../../../../../data/enums/home_surface.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
@@ -46,7 +47,7 @@ class TextChannelTile extends StatelessWidget {
               : null,
           onTap: () {
             // Opening a channel chat leaves the Home (DMs) surface.
-            context.read<AppCubit>().setHomeViewOpen(false);
+            context.read<AppCubit>().setSurface(HomeSurface.server);
             final cubit = context.read<ChannelChatCubit>();
             if (isSelected) {
               cubit.closeChannel();

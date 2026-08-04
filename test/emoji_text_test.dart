@@ -21,11 +21,9 @@ void main() {
     // rendered as flat monochrome glyphs.
     test('the emoji that text fonts cover are still detected', () {
       for (final emoji in ['😀', '❤', '☺', '⭐', '✅', '➡']) {
-        expect(
-          splitEmojiRuns(emoji),
-          [TextRun(emoji, isEmoji: true)],
-          reason: '$emoji should be an emoji run',
-        );
+        expect(splitEmojiRuns(emoji), [
+          TextRun(emoji, isEmoji: true),
+        ], reason: '$emoji should be an emoji run');
       }
     });
 
@@ -59,15 +57,11 @@ void main() {
     });
 
     test('a variation selector rides with its base', () {
-      expect(splitEmojiRuns('❤️'), [
-        const TextRun('❤️', isEmoji: true),
-      ]);
+      expect(splitEmojiRuns('❤️'), [const TextRun('❤️', isEmoji: true)]);
     });
 
     test('VS15 asks for the text glyph and is honoured', () {
-      expect(splitEmojiRuns('❤︎'), [
-        const TextRun('❤︎', isEmoji: false),
-      ]);
+      expect(splitEmojiRuns('❤︎'), [const TextRun('❤︎', isEmoji: false)]);
     });
 
     // Prose must not get handed to the emoji font.
@@ -79,9 +73,7 @@ void main() {
 
     test('a digit is text but a keycap is emoji', () {
       expect(splitEmojiRuns('7'), [const TextRun('7', isEmoji: false)]);
-      expect(splitEmojiRuns('7️⃣'), [
-        const TextRun('7️⃣', isEmoji: true),
-      ]);
+      expect(splitEmojiRuns('7️⃣'), [const TextRun('7️⃣', isEmoji: true)]);
     });
 
     test('a dangling ZWJ does not swallow the rest of the string', () {

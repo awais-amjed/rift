@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/channel.dart';
+import '../../../../../data/enums/home_surface.dart';
 import '../../../../../data/enums/channel_type.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
@@ -60,7 +61,7 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
     final appCubit = context.read<AppCubit>();
     final chatCubit = context.read<ChannelChatCubit>();
 
-    appCubit.setHomeViewOpen(false);
+    appCubit.setSurface(HomeSurface.server);
     if (channel.channelType == ChannelType.text) {
       chatCubit.openChannel(channel.id);
     } else {

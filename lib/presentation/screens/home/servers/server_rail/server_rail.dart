@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../../data/constants.dart';
+import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -58,13 +59,14 @@ class ServerRail extends StatelessWidget {
 
   Widget _buildHomeButton(BuildContext context) {
     return BlocBuilder<AppCubit, AppState>(
-      buildWhen: (a, b) => a.homeViewOpen != b.homeViewOpen,
+      buildWhen: (a, b) => a.surface != b.surface,
       builder: (context, appState) {
         return RailChipButton(
           icon: Icons.forum_rounded,
-          tooltip: 'Home — your DMs',
-          isSelected: appState.homeViewOpen,
-          onTap: () => context.read<AppCubit>().setHomeViewOpen(true),
+          tooltip: 'Home — your central DMs',
+          isSelected: appState.surface == HomeSurface.centralDms,
+          onTap: () =>
+              context.read<AppCubit>().setSurface(HomeSurface.centralDms),
         );
       },
     );
@@ -83,7 +85,7 @@ class ServerRail extends StatelessWidget {
     // AppState churns on every mic/camera toggle, so the rail listens for the
     // one field it cares about rather than watching the whole cubit.
     return BlocBuilder<AppCubit, AppState>(
-      buildWhen: (a, b) => a.homeViewOpen != b.homeViewOpen,
+      buildWhen: (a, b) => a.surface != b.surface,
       builder: (context, appState) {
         return BlocBuilder<ServerCubit, ServerState>(
           buildWhen: (a, b) =>
@@ -104,10 +106,12 @@ class ServerRail extends StatelessWidget {
                           // can't both be current.
                           isSelected:
                               server.id == serverState.selectedServerId &&
-                              !appState.homeViewOpen,
+                              appState.surface != HomeSurface.centralDms,
                           unreadCount: notifications.unreadForServer(server.id),
                           onTap: () {
-                            context.read<AppCubit>().setHomeViewOpen(false);
+                            context.read<AppCubit>().setSurface(
+                              HomeSurface.server,
+                            );
                             context.read<ServerCubit>().selectServer(server);
                           },
                         ),

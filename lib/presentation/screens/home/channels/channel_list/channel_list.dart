@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/channel.dart';
+import '../../../../../../data/enums/home_surface.dart';
 import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
@@ -84,7 +85,7 @@ class ChannelList extends StatelessWidget {
                 isSelected: selectedChannelId == ch.id,
                 onTap: () {
                   // Joining voice brings the voice pane back to the front.
-                  context.read<AppCubit>().setHomeViewOpen(false);
+                  context.read<AppCubit>().setSurface(HomeSurface.server);
                   context.read<ChannelChatCubit>().closeChannel();
                   if (selectedChannelId != ch.id) {
                     onChannelSelect?.call(ch.id);

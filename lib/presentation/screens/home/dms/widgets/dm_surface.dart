@@ -1,0 +1,75 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
+
+/// The two-column layout a DM surface uses: conversation list on the chrome
+/// surface, the open conversation on the content surface.
+///
+/// The same split as the sidebar and chat panel outside it, one level in —
+/// which is what keeps a DM surface reading as part of the app rather than a
+/// screen of its own.
+class DmSurface extends StatelessWidget {
+  final Widget list;
+
+  /// The open conversation, or null for the resting state.
+  final Widget? conversation;
+
+  /// Shown when nothing is open.
+  final String emptyTitle;
+  final String emptyMessage;
+  final IconData emptyIcon;
+
+  static const double listWidth = 280;
+
+  const DmSurface({
+    super.key,
+    required this.list,
+    required this.emptyTitle,
+    required this.emptyMessage,
+    this.conversation,
+    this.emptyIcon = Icons.forum_outlined,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ColoredBox(
+              color: themeState.bgSecondary,
+              child: SizedBox(width: listWidth, child: list),
+            ),
+            Container(width: 1, color: themeState.borderPrimary),
+            Expanded(child: conversation ?? _buildEmpty(themeState)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildEmpty(ThemeState themeState) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(emptyIcon, size: 44, color: themeState.textQuaternary),
+          const SizedBox(height: 12),
+          Text(
+            emptyTitle,
+            style: AppText.sectionTitle.copyWith(color: themeState.textPrimary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            emptyMessage,
+            textAlign: TextAlign.center,
+            style: AppText.body.copyWith(color: themeState.textTertiary),
+          ),
+        ],
+      ),
+    );
+  }
+}

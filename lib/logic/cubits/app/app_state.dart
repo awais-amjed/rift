@@ -43,9 +43,9 @@ class AppState {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final List<ParticipantInfo> participants;
 
-  /// Whether the Home (DMs) surface is showing in the center pane.
+  /// Which surface the centre pane is showing.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  final bool homeViewOpen;
+  final HomeSurface surface;
 
   const AppState({
     this.isPinned = true,
@@ -73,7 +73,7 @@ class AppState {
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
-    this.homeViewOpen = false,
+    this.surface = HomeSurface.server,
   });
 
   AppState copyWith({
@@ -106,7 +106,7 @@ class AppState {
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
     List<ParticipantInfo>? participants,
-    bool? homeViewOpen,
+    HomeSurface? surface,
   }) {
     return AppState(
       isPinned: isPinned ?? this.isPinned,
@@ -145,7 +145,7 @@ class AppState {
           ? null
           : (selectedChannelId ?? this.selectedChannelId),
       participants: participants ?? this.participants,
-      homeViewOpen: homeViewOpen ?? this.homeViewOpen,
+      surface: surface ?? this.surface,
     );
   }
 

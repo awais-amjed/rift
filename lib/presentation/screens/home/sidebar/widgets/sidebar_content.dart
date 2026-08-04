@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../profile/user_dock/user_dock.dart';
 import '../../servers/server_rail/server_rail.dart';
+import 'server_dms_row.dart';
 import 'sidebar_channel_list.dart';
 import 'sidebar_header.dart';
 import 'sidebar_actions.dart';
@@ -30,6 +31,7 @@ class SidebarContent extends StatelessWidget {
               SizedBox(height: topPadding),
               SidebarHeader(),
               SidebarActions(),
+              ServerDmsRow(),
               SidebarChannelList(),
               UserDock(),
             ],
