@@ -3,9 +3,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/server/server_cubit.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../../logic/services/avatar_cache.dart';
+import 'squircle_avatar.dart';
 
 /// A member's picture, falling back to their initial.
 ///
@@ -18,8 +20,9 @@ class UserAvatar extends StatefulWidget {
   final double size;
   final ThemeState themeState;
 
-  /// Background for the initials fallback. Defaults to `bgActive`.
-  final Color? fallbackColor;
+  /// Stable id picking the fallback gradient. Pass a user id — falling back to
+  /// the name means a rename changes someone's colour.
+  final String? seed;
 
   const UserAvatar({
     super.key,
@@ -27,7 +30,7 @@ class UserAvatar extends StatefulWidget {
     required this.name,
     required this.size,
     required this.themeState,
-    this.fallbackColor,
+    this.seed,
   });
 
   @override
@@ -75,35 +78,25 @@ class _UserAvatarState extends State<UserAvatar> {
   @override
   Widget build(BuildContext context) {
     final bytes = _bytes;
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: ClipOval(
-        child: bytes != null
-            ? Image.memory(
-                bytes,
-                width: widget.size,
-                height: widget.size,
-                fit: BoxFit.cover,
-                gaplessPlayback: true,
-              )
-            : _initials(),
-      ),
-    );
-  }
+    // No picture yet → the same squircle-and-gradient everything else uses,
+    // so a member with an avatar and one without still look like two members
+    // rather than two different kinds of thing.
+    if (bytes == null) {
+      return SquircleAvatar(
+        name: widget.name,
+        seed: widget.seed,
+        size: widget.size,
+      );
+    }
 
-  Widget _initials() {
-    return Container(
-      color: widget.fallbackColor ?? widget.themeState.bgActive,
-      alignment: Alignment.center,
-      child: Text(
-        widget.name.isNotEmpty ? widget.name[0].toUpperCase() : '?',
-        style: TextStyle(
-          // Scales with the circle so one widget serves every call site.
-          fontSize: widget.size * 0.44,
-          fontWeight: FontWeight.w700,
-          color: widget.themeState.textSecondary,
-        ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.size * K.avatarRadiusRatio),
+      child: Image.memory(
+        bytes,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
       ),
     );
   }

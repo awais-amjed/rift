@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/message_reaction.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 import '../../emoji_text.dart';
 
 /// The row of emoji-reaction chips shown under a message, plus a small "add
@@ -59,11 +60,15 @@ class _ReactionChip extends StatelessWidget {
     final mine = reaction.mine;
     return Material(
       color: mine
-          ? themeState.primary.withValues(alpha: 0.16)
-          : themeState.bgTertiary,
+          ? themeState.primary.withValues(alpha: 0.14)
+          : themeState.bgHover,
       shape: StadiumBorder(
         side: BorderSide(
-          color: mine ? themeState.primary : themeState.borderPrimary,
+          // Your own reactions are ringed in the accent; everyone else's get
+          // a hairline, so a glance says which ones you already pressed.
+          color: mine
+              ? themeState.primary.withValues(alpha: 0.35)
+              : themeState.borderElevated,
         ),
       ),
       child: InkWell(
@@ -78,10 +83,10 @@ class _ReactionChip extends StatelessWidget {
               const SizedBox(width: 5),
               Text(
                 '${reaction.count}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: mine ? themeState.primary : themeState.textSecondary,
+                style: AppText.figure.copyWith(
+                  color: mine
+                      ? themeState.accentBright
+                      : themeState.textSecondary,
                 ),
               ),
             ],
@@ -101,8 +106,8 @@ class _AddReactionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: themeState.bgTertiary,
-      shape: StadiumBorder(side: BorderSide(color: themeState.borderPrimary)),
+      color: themeState.bgHover,
+      shape: StadiumBorder(side: BorderSide(color: themeState.borderElevated)),
       child: InkWell(
         // The tapped button's context anchors the picker popover.
         onTap: () => onTap(context),
@@ -111,7 +116,7 @@ class _AddReactionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Icon(
             Icons.add_reaction_outlined,
-            size: 15,
+            size: 14,
             color: themeState.textTertiary,
           ),
         ),

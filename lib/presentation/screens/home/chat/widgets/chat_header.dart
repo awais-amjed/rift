@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/status_chip.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/custom_colors.dart';
+import 'chat_header_button.dart';
 
-/// Header row of the chat pane: # channel-name + E2E badge + close button.
+/// The chat panel's top bar: which channel you're in, that it's encrypted, and
+/// the controls that change what the panel shows.
+///
+/// The encryption chip is stated in green rather than left as a lock icon —
+/// it's the product's central claim, and a chip you can read beats a glyph
+/// you have to hover.
 class ChatHeader extends StatelessWidget {
+  static const double height = 52;
+
   const ChatHeader({super.key});
 
   @override
@@ -15,6 +27,9 @@ class ChatHeader extends StatelessWidget {
     final chatState = context.watch<ChannelChatCubit>().state;
     final channels =
         context.watch<ServerCubit>().state.selectedServer?.channels ?? [];
+    final membersOpen = context.select<AppCubit, bool>(
+      (c) => c.state.membersSidebarOpen,
+    );
 
     final name = channels
         .where((c) => c.id == chatState.channelId)
@@ -22,38 +37,39 @@ class ChatHeader extends StatelessWidget {
         .firstOrNull;
 
     return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: height,
+      padding: const EdgeInsets.fromLTRB(18, 0, 10, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
       ),
       child: Row(
+        spacing: 10,
         children: [
-          Icon(Icons.tag, size: 18, color: themeState.textQuaternary),
-          const SizedBox(width: 8),
-          Text(
-            name ?? 'channel',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: themeState.textPrimary,
+          Icon(Icons.tag_rounded, size: 18, color: themeState.accentBright),
+          Flexible(
+            child: Text(
+              name ?? 'channel',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.panelTitle.copyWith(color: themeState.textPrimary),
             ),
           ),
-          const SizedBox(width: 10),
-          Tooltip(
-            message: 'Messages are end-to-end encrypted',
-            child: Icon(
-              Icons.lock_outline,
-              size: 13,
-              color: themeState.textQuaternary,
-            ),
+          const StatusChip(
+            icon: Icons.lock_outline,
+            label: 'Encrypted',
+            color: CustomColors.success,
           ),
           const Spacer(),
-          IconButton(
-            onPressed: () => context.read<ChannelChatCubit>().closeChannel(),
-            icon: Icon(Icons.close, size: 18, color: themeState.textTertiary),
+          ChatHeaderButton(
+            icon: Icons.people_alt_rounded,
+            tooltip: membersOpen ? 'Hide members' : 'Show members',
+            isActive: membersOpen,
+            onTap: () => context.read<AppCubit>().toggleMembersSidebar(),
+          ),
+          ChatHeaderButton(
+            icon: Icons.close_rounded,
             tooltip: 'Close chat',
-            visualDensity: VisualDensity.compact,
+            onTap: () => context.read<ChannelChatCubit>().closeChannel(),
           ),
         ],
       ),

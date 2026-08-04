@@ -32,8 +32,10 @@ class _ChannelChatViewState extends State<ChannelChatView>
       builder: (context, themeState) {
         return BlocBuilder<ChannelChatCubit, ChannelChatState>(
           builder: (context, chatState) {
-            return Container(
-              color: themeState.bgPrimary,
+            // No background of its own: the content panel it sits in owns
+            // that, and painting over it would break the panel's rounding.
+            return DefaultTextStyle.merge(
+              style: TextStyle(color: themeState.textSecondary),
               child: Column(
                 children: [
                   const ChatHeader(),

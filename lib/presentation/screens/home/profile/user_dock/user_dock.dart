@@ -73,7 +73,6 @@ class UserDock extends StatelessWidget {
             name: user?.displayName ?? 'Guest',
             size: 34,
             themeState: themeState,
-            fallbackColor: themeState.bgSecondary,
           ),
           Positioned(
             right: -2,

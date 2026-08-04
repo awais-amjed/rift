@@ -10,6 +10,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster.dart';
 import '../../../common/app_panel.dart';
 import '../channels/channel_list/widgets/section_header.dart';
+import '../chat/widgets/chat_header.dart';
 import 'widgets/member_row.dart';
 
 /// The right-hand member list for the selected server — everyone who has
@@ -27,7 +28,7 @@ class MembersSidebar extends StatefulWidget {
 
 class _MembersSidebarState extends State<MembersSidebar> {
   /// Matches ChatHeader's bar height so the two align across the top.
-  static const double _headerHeight = 46;
+  static const double _headerHeight = ChatHeader.height;
 
   List<ServerMember>? _members;
   String? _loadedServerId;

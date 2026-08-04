@@ -90,9 +90,9 @@ class MemberRow extends StatelessWidget {
         UserAvatar(
           avatarPath: member.avatarPath,
           name: member.displayName,
+          seed: member.id,
           size: 28,
           themeState: themeState,
-          fallbackColor: themeState.bgTertiary,
         ),
         // Presence dot, ringed in the panel colour so it reads as a cut-out.
         Positioned(

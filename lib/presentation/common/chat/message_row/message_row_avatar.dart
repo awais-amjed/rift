@@ -11,11 +11,15 @@ class MessageRowAvatar extends StatelessWidget {
   final String? avatarPath;
   final ThemeState themeState;
 
+  /// The author's user id, so their colour survives a display-name change.
+  final String? authorId;
+
   const MessageRowAvatar({
     super.key,
     required this.authorName,
     required this.themeState,
     this.avatarPath,
+    this.authorId,
   });
 
   @override
@@ -23,6 +27,7 @@ class MessageRowAvatar extends StatelessWidget {
     return UserAvatar(
       avatarPath: avatarPath,
       name: authorName,
+      seed: authorId,
       size: size,
       themeState: themeState,
     );

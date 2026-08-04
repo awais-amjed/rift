@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_shadows.dart';
 
 /// The send button: a filled accent circle once there's something to send, a
 /// muted ghost arrow otherwise. Its footprint never changes between the two
@@ -38,8 +39,18 @@ class ComposerSendButton extends StatelessWidget {
               width: _circleSize,
               height: _circleSize,
               decoration: BoxDecoration(
-                color: enabled ? themeState.primary : Colors.transparent,
+                // Enabled, this is the app's one action gradient, lit from
+                // below — the single loudest control on the screen, which is
+                // right for the only irreversible thing in the composer.
+                gradient: enabled ? themeState.actionGradient : null,
                 shape: BoxShape.circle,
+                boxShadow: enabled
+                    ? AppShadows.accentGlow(
+                        themeState.primary,
+                        blurRadius: 12,
+                        dy: 2,
+                      )
+                    : null,
               ),
               child: Center(
                 child: Icon(

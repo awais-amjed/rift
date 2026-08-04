@@ -251,11 +251,13 @@ class _ChatComposerState extends State<ChatComposer> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
       decoration: BoxDecoration(
         color: themeState.bgTertiary,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
+          // Focus is carried by the accent ring rather than a caret alone —
+          // the composer is the one place the whole bar should answer.
           color: _focusNode.hasFocus
               ? themeState.primary.withValues(alpha: 0.55)
-              : themeState.borderPrimary,
+              : themeState.borderElevated,
         ),
       ),
       child: _isRecording
