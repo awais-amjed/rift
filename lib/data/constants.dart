@@ -47,6 +47,10 @@ class K {
   /// Collapsed member list: just wide enough for the reopen button.
   static const double membersSidebarCollapsedWidth = 42;
 
+  /// Settings' nav panel. Narrower than the home sidebar — it holds three
+  /// labels, not a channel tree.
+  static const double settingsNavWidth = 264;
+
   // ── Message rows ──────────────────────────────────────────
   /// Left/right padding on a message row. The design's rows run wider than
   /// the panel's own padding so the text has room to breathe at the edges.

@@ -55,7 +55,10 @@ class ResetVaultCard extends StatelessWidget {
                     ),
                     Text(
                       'Reset vault',
-                      style: AppText.row.copyWith(color: CustomColors.error),
+                      style: AppText.secondary.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: CustomColors.error,
+                      ),
                     ),
                   ],
                 ),

@@ -130,7 +130,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       // ── Left nav panel ───────────────────────────
                       AppPanel(
-                        width: K.sidebarWidth,
+                        width: K.settingsNavWidth,
                         child: SettingsSidebar(
                           activeTab: _activeTab,
                           onTabSelected: (tab) =>

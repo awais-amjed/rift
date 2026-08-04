@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/nav_row.dart';
 import '../../../theme/app_text.dart';
 import 'reset_vault_card.dart';
 import 'settings_tab.dart';
@@ -67,83 +68,30 @@ class SettingsSidebar extends StatelessWidget {
         ),
         Divider(height: 1, color: themeState.borderPrimary),
         const SizedBox(height: 8),
-        SidebarItem(
-          icon: Icons.palette_outlined,
-          label: 'Appearance',
-          isActive: activeTab == SettingsTab.appearance,
-          themeState: themeState,
-          onTap: () => onTabSelected(SettingsTab.appearance),
+        // The design's settings nav rows are the sidebar's rows — same
+        // gradient, ring, padding and radius — so they use the same widget
+        // rather than a fork that would drift.
+        _tab(SettingsTab.appearance, Icons.palette_outlined, 'Appearance'),
+        _tab(
+          SettingsTab.voiceAndAudio,
+          Icons.headset_outlined,
+          'Voice & Audio',
         ),
-        SidebarItem(
-          icon: Icons.headset_outlined,
-          label: 'Voice & Audio',
-          isActive: activeTab == SettingsTab.voiceAndAudio,
-          themeState: themeState,
-          onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
-        ),
-        SidebarItem(
-          icon: Icons.cloud_outlined,
-          label: 'Cloud Backup',
-          isActive: activeTab == SettingsTab.backup,
-          themeState: themeState,
-          onTap: () => onTabSelected(SettingsTab.backup),
-        ),
+        _tab(SettingsTab.backup, Icons.cloud_outlined, 'Cloud Backup'),
         const Spacer(),
         ResetVaultCard(themeState: themeState, onTap: onResetVault),
       ],
     );
   }
-}
 
-class SidebarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final ThemeState themeState;
-  final VoidCallback onTap;
-
-  const SidebarItem({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.themeState,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final activeColor = themeState.channelActiveText;
-    final activeBg = themeState.channelActiveBg;
-    final textColor = isActive ? activeColor : themeState.textSecondary;
-    final bgColor = isActive ? activeBg : Colors.transparent;
-
+  Widget _tab(SettingsTab tab, IconData icon, String label) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Material(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-            child: Row(
-              children: [
-                Icon(icon, size: 17, color: textColor),
-                const SizedBox(width: 10),
-                Text(
-                  label,
-                  style: AppText.row.copyWith(
-                    fontSize: 13,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                    color: textColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      child: NavRow(
+        icon: icon,
+        label: label,
+        isSelected: activeTab == tab,
+        onTap: () => onTabSelected(tab),
       ),
     );
   }

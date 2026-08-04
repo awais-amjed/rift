@@ -12,7 +12,23 @@ import '../../logic/cubits/theme/theme_cubit.dart';
 class CanvasBackdrop extends StatelessWidget {
   final Widget child;
 
-  const CanvasBackdrop({super.key, required this.child});
+  /// Where the light comes from. The app workspace is lit from off the
+  /// top-left so the glow falls across the sidebar; onboarding centres it
+  /// above the card, because there the card *is* the subject.
+  final Alignment glowCenter;
+
+  /// How far the glow reaches, as a fraction of the shorter side.
+  final double glowRadius;
+
+  final double glowOpacity;
+
+  const CanvasBackdrop({
+    super.key,
+    required this.child,
+    this.glowCenter = const Alignment(-0.4, -1.1),
+    this.glowRadius = 1.1,
+    this.glowOpacity = 0.09,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,12 +39,10 @@ class CanvasBackdrop extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: RadialGradient(
-                // Centred off-canvas above the left third, so the light falls
-                // across the sidebar and fades before the chat panel.
-                center: const Alignment(-0.4, -1.1),
-                radius: 1.1,
+                center: glowCenter,
+                radius: glowRadius,
                 colors: [
-                  themeState.primary.withValues(alpha: 0.09),
+                  themeState.primary.withValues(alpha: glowOpacity),
                   themeState.primary.withValues(alpha: 0),
                 ],
                 stops: const [0, 0.6],

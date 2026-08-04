@@ -37,11 +37,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     };
 
     return Scaffold(
+      // Onboarding lights the canvas from above centre rather than off the
+      // left, and harder: there is no sidebar to fall across, only a card.
       body: CanvasBackdrop(
+        glowCenter: const Alignment(0, -0.6),
+        glowRadius: 0.9,
+        glowOpacity: 0.13,
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
+              constraints: const BoxConstraints(maxWidth: 560),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 switchInCurve: Curves.easeOut,

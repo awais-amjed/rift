@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_shadows.dart';
 import 'step_dots.dart';
@@ -35,18 +34,24 @@ class OnboardingPage extends StatelessWidget {
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
+                      horizontal: 24,
                       vertical: 32,
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: const EdgeInsets.fromLTRB(32, 32, 32, 28),
+                          padding: const EdgeInsets.fromLTRB(48, 44, 48, 40),
                           decoration: BoxDecoration(
-                            color: themeState.bgSecondary,
-                            borderRadius: BorderRadius.circular(K.radiusDialog),
-                            border: Border.all(color: themeState.borderPrimary),
+                            // Translucent, so the canvas glow reads through
+                            // the card instead of stopping at its edge.
+                            color: themeState.bgSecondary.withValues(
+                              alpha: 0.85,
+                            ),
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: themeState.borderElevated,
+                            ),
                             boxShadow: AppShadows.dialog,
                           ),
                           child: child,
