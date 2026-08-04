@@ -24,14 +24,20 @@ class MemberSearchField extends StatefulWidget {
 }
 
 class _MemberSearchFieldState extends State<MemberSearchField> {
-  List<ServerMember>? _members;
+  /// The in-flight *or* settled roster fetch — not the roster itself.
+  ///
+  /// Holding the list instead meant every search that started before the
+  /// first one came back still saw it empty and launched its own fetch, so
+  /// each keystroke kicked off another full round trip and only the newest
+  /// was ever rendered. One future, assigned before anything is awaited, is
+  /// what makes the second search wait on the first instead of racing it.
+  Future<List<ServerMember>>? _roster;
 
   Future<List<ServerMember>> _search(String query) async {
-    // Read before awaiting: the roster fetch is the only async step, and
-    // reaching back through the context afterwards would be a use-after-
-    // dispose if the panel closed mid-flight.
+    // Read before awaiting: reaching back through the context afterwards
+    // would be a use-after-dispose if the panel closed mid-flight.
     final myId = context.read<ServerCubit>().state.selectedServer?.user?.id;
-    final roster = _members ??= await _load();
+    final roster = await (_roster ??= _load());
     final q = query.trim().toLowerCase();
     return roster
         .where(
@@ -45,7 +51,14 @@ class _MemberSearchFieldState extends State<MemberSearchField> {
 
   Future<List<ServerMember>> _load() async {
     final result = await context.read<ServerCubit>().listMembers();
-    return result.members ?? const [];
+    final members = result.members;
+    if (members == null) {
+      // Don't let a failed fetch be the answer forever — drop the memo so the
+      // next keystroke tries again rather than showing an empty roster.
+      _roster = null;
+      return const [];
+    }
+    return members;
   }
 
   @override
