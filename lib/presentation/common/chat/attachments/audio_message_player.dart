@@ -4,8 +4,10 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/attachment.dart';
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'attachment_loader.dart';
+import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
 
 /// Inline player for an audio attachment (voice note or attached audio file).
@@ -95,50 +97,32 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
     final progress = (_position.inMilliseconds / total).clamp(0.0, 1.0);
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 320),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      constraints: const BoxConstraints(maxWidth: 300),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: theme.bgTertiary,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.borderPrimary),
+        borderRadius: BorderRadius.circular(K.radiusAttachment),
+        border: Border.all(color: theme.borderElevated),
       ),
       child: Row(
+        spacing: 10,
         children: [
-          IconButton(
-            onPressed: _loading ? null : _toggle,
-            visualDensity: VisualDensity.compact,
-            icon: _loading
-                ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.primary,
-                    ),
-                  )
-                : Icon(
-                    _playing
-                        ? Icons.pause_circle_filled_rounded
-                        : Icons.play_circle_fill_rounded,
-                    color: theme.primary,
-                    size: 30,
-                  ),
-          ),
+          _playButton(theme),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(K.radiusPill),
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 4,
-                    backgroundColor: theme.borderPrimary,
+                    backgroundColor: theme.bgActive,
                     color: theme.primary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   _duration == Duration.zero
                       ? widget.attachment.name
@@ -146,12 +130,52 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   // Ticks while playing, so it must not change width.
-                  style: AppText.figure.copyWith(color: theme.textTertiary),
+                  style: AppText.figure.copyWith(
+                    fontSize: 10.5,
+                    color: theme.textQuaternary,
+                  ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// The design's transport control: a lit gradient disc, not a bare glyph —
+  /// it is the one thing on the card you are meant to press.
+  Widget _playButton(ThemeState theme) {
+    return GestureDetector(
+      onTap: _loading ? null : _toggle,
+      child: MouseRegion(
+        cursor: _loading ? SystemMouseCursors.basic : SystemMouseCursors.click,
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            gradient: theme.actionGradient,
+            shape: BoxShape.circle,
+            boxShadow: AppShadows.accentGlow(
+              theme.primary,
+              blurRadius: 10,
+              dy: 2,
+            ),
+          ),
+          child: _loading
+              ? const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Icon(
+                  _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 17,
+                ),
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../data/enums/channel_type.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -9,6 +10,7 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/message_banner.dart';
+import '../../../common/selectable_surface.dart';
 import '../../../theme/app_text.dart';
 
 /// Dialog to create a new channel (text or voice) in the current server.
@@ -87,9 +89,8 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               Text(
                 'CHANNEL TYPE',
                 style: AppText.sectionLabel.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
+                  fontSize: 10.5,
+                  letterSpacing: 1.2,
                   color: themeState.textTertiary,
                 ),
               ),
@@ -136,6 +137,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   }
 }
 
+/// One half of the text/voice segmented control.
 class _TypeButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -151,41 +153,27 @@ class _TypeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Expanded(
-          child: GestureDetector(
-            onTap: onTap,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: selected ? themeState.primary : themeState.bgTertiary,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    size: 16,
-                    color: selected ? Colors.white : themeState.textSecondary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: AppText.row.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : themeState.textSecondary,
-                    ),
-                  ),
-                ],
+    return Expanded(
+      child: SelectableSurface(
+        selected: selected,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(K.radiusButton),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: 7,
+          children: [
+            Icon(icon, size: 15),
+            Text(
+              label,
+              style: AppText.secondary.copyWith(
+                fontSize: 12.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
               ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }

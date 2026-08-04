@@ -49,7 +49,6 @@ class InviteForm extends StatelessWidget {
           options: inviteExpiryOptions.map((e) => e.label).toList(),
           selectedIndex: expiryIndex,
           onSelected: onExpirySelected,
-          themeState: themeState,
         ),
         const SizedBox(height: 16),
 
@@ -59,7 +58,6 @@ class InviteForm extends StatelessWidget {
           options: inviteUsesOptions.map((e) => e.label).toList(),
           selectedIndex: usesIndex,
           onSelected: onUsesSelected,
-          themeState: themeState,
         ),
         const SizedBox(height: 16),
 

@@ -15,36 +15,52 @@ class TypingIndicator extends StatelessWidget {
     required this.themeState,
   });
 
-  String get _label {
+  /// Who is typing, and the verb phrase that follows them — kept apart so the
+  /// names can carry weight while the phrase stays quiet.
+  (String, String) get _parts {
     switch (names.length) {
       case 0:
-        return '';
+        return ('', '');
       case 1:
-        return '${names[0]} is typing';
+        return (names[0], ' is typing');
       case 2:
-        return '${names[0]} and ${names[1]} are typing';
+        return ('${names[0]} and ${names[1]}', ' are typing');
       case 3:
-        return '${names[0]}, ${names[1]} and ${names[2]} are typing';
+        return ('${names[0]}, ${names[1]} and ${names[2]}', ' are typing');
       default:
-        return 'Several people are typing';
+        return ('Several people', ' are typing');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (names.isEmpty) return const SizedBox.shrink();
+    final (who, phrase) = _parts;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 16, 4),
       child: Row(
         children: [
-          _TypingDots(color: themeState.textTertiary),
+          // Accent-tinted rather than grey: the dots are the one moving thing
+          // above the composer, and the design has them read as live.
+          _TypingDots(color: themeState.accentBright),
           const SizedBox(width: 8),
           Flexible(
-            child: Text(
-              _label,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: who,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: themeState.textSecondary,
+                    ),
+                  ),
+                  TextSpan(text: phrase),
+                ],
+              ),
               overflow: TextOverflow.ellipsis,
               style: AppText.secondary.copyWith(
-                fontStyle: FontStyle.italic,
+                fontSize: 11.5,
                 color: themeState.textTertiary,
               ),
             ),
@@ -94,8 +110,8 @@ class _TypingDotsState extends State<_TypingDots>
               child: Opacity(
                 opacity: 0.3 + 0.7 * t,
                 child: Container(
-                  width: 5,
-                  height: 5,
+                  width: 4,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: widget.color,
                     shape: BoxShape.circle,

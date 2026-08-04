@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/attachment.dart';
 import '../../../../data/classes/pending_attachment.dart';
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 
@@ -32,9 +33,9 @@ class ComposerStagedChip extends StatelessWidget {
           width: isImage ? _size : _fileChipWidth,
           height: _size,
           decoration: BoxDecoration(
-            color: themeState.bgSecondary,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: themeState.borderPrimary),
+            color: themeState.bgTertiary,
+            borderRadius: BorderRadius.circular(K.radiusCard),
+            border: Border.all(color: themeState.borderElevated),
           ),
           clipBehavior: Clip.antiAlias,
           child: isImage
@@ -48,23 +49,27 @@ class ComposerStagedChip extends StatelessWidget {
 
   Widget _fileBody() {
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
+        spacing: 8,
         children: [
           Icon(
             attachment.kind == AttachmentKind.audio
                 ? Icons.audiotrack_rounded
-                : Icons.insert_drive_file_outlined,
+                : Icons.description_outlined,
             size: 20,
             color: themeState.textTertiary,
           ),
-          const SizedBox(width: 8),
           Expanded(
             child: Text(
               attachment.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: AppText.label.copyWith(color: themeState.textSecondary),
+              style: AppText.label.copyWith(
+                fontWeight: FontWeight.w400,
+                height: 1.4,
+                color: themeState.textSecondary,
+              ),
             ),
           ),
         ],
@@ -76,13 +81,16 @@ class ComposerStagedChip extends StatelessWidget {
     return GestureDetector(
       onTap: onRemove,
       child: Container(
+        width: 20,
+        height: 20,
+        // The elevated surface, not the canvas: the button overhangs the chip
+        // and has to read as sitting on top of it rather than punched through.
         decoration: BoxDecoration(
-          color: themeState.bgPrimary,
+          color: themeState.bgElevated,
           shape: BoxShape.circle,
-          border: Border.all(color: themeState.borderPrimary),
+          border: Border.all(color: themeState.borderElevated),
         ),
-        padding: const EdgeInsets.all(2),
-        child: Icon(Icons.close, size: 14, color: themeState.textSecondary),
+        child: Icon(Icons.close, size: 12, color: themeState.textSecondary),
       ),
     );
   }

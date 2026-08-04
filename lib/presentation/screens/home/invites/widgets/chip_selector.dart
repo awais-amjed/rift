@@ -1,61 +1,43 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../data/constants.dart';
+import '../../../../common/selectable_surface.dart';
 import '../../../../theme/app_text.dart';
 
-/// A row of equal-width tappable chips where exactly one is selected at a time.
+/// A row of tappable pills where exactly one is selected at a time — invite
+/// expiry, max uses.
+///
+/// The pills size to their own labels and wrap, rather than dividing the row
+/// evenly: "1 hour" and "Never" are short words, and stretching them to equal
+/// thirds turns a compact set of options into a row of wide empty buttons.
 class ChipSelector extends StatelessWidget {
   final List<String> options;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
-  final ThemeState themeState;
 
   const ChipSelector({
     super.key,
     required this.options,
     required this.selectedIndex,
     required this.onSelected,
-    required this.themeState,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
       children: List.generate(options.length, (i) {
         final selected = i == selectedIndex;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: i < options.length - 1 ? 6 : 0),
-            child: GestureDetector(
-              onTap: () => onSelected(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? themeState.primary.withValues(alpha: 0.12)
-                      : themeState.bgSecondary,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: selected
-                        ? themeState.primary.withValues(alpha: 0.5)
-                        : themeState.borderPrimary,
-                    width: selected ? 1.5 : 1,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    options[i],
-                    style: AppText.secondary.copyWith(
-                      fontSize: 12,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected
-                          ? themeState.primary
-                          : themeState.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
+        return SelectableSurface(
+          selected: selected,
+          onTap: () => onSelected(i),
+          borderRadius: BorderRadius.circular(K.radiusPill),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          child: Text(
+            options[i],
+            style: AppText.secondary.copyWith(
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         );

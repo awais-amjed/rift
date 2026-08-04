@@ -75,11 +75,11 @@ class _ReactionChip extends StatelessWidget {
         onTap: onTap,
         customBorder: const StadiumBorder(),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(reaction.emoji, style: emojiRunStyle.copyWith(fontSize: 14)),
+              Text(reaction.emoji, style: emojiRunStyle.copyWith(fontSize: 13)),
               const SizedBox(width: 5),
               Text(
                 '${reaction.count}',

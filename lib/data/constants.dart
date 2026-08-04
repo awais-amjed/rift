@@ -7,6 +7,10 @@ class K {
   /// Cards, context menus, popovers.
   static const double radiusCard = 12;
 
+  /// Attachment cards inside a message. A step above a plain card, so they
+  /// read as objects dropped into the message rather than part of its text.
+  static const double radiusAttachment = 13;
+
   /// List rows, icon buttons, small controls.
   static const double radiusRow = 10;
 
