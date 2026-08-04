@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 
 /// Slim strip above the participant grid: channel name, live participant
 /// count, and session timer. Keeps chrome to one row so the video area stays
@@ -84,18 +85,16 @@ class _ContextStripState extends State<ContextStrip> {
                       child: Row(
                         children: [
                           Icon(
-                            Icons.volume_up,
+                            Icons.volume_up_rounded,
                             size: 14,
-                            color: themeState.textTertiary,
+                            color: themeState.accentBright,
                           ),
                           const SizedBox(width: 7),
                           Flexible(
                             child: Text(
                               channelName ?? 'Voice',
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                              style: AppText.row.copyWith(
                                 color: themeState.textPrimary,
                               ),
                             ),
@@ -103,20 +102,17 @@ class _ContextStripState extends State<ContextStrip> {
                           const SizedBox(width: 8),
                           Text(
                             '·  $count in voice',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: AppText.secondary.copyWith(
                               color: themeState.textTertiary,
                             ),
                           ),
                           const Spacer(),
+                          // Mono and tabular: a timer that ticks must not
+                          // change width as the digits roll over.
                           Text(
                             _elapsed,
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: AppText.figure.copyWith(
                               color: themeState.textTertiary,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
                             ),
                           ),
                         ],

@@ -18,6 +18,10 @@ class ExpandedParticipantTile extends StatelessWidget {
   final ThemeState themeState;
   final VideoTrack? videoTrack;
   final String name;
+
+  /// LiveKit identity, used to pick the avatar's gradient so a
+  /// participant looks the same here as in the sidebar.
+  final String? identity;
   final bool isMicEnabled;
   final bool isMuted;
   final bool isScreenshare;
@@ -35,6 +39,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     required this.themeState,
     required this.videoTrack,
     required this.name,
+    this.identity,
     required this.isMicEnabled,
     required this.isMuted,
     required this.isScreenshare,
@@ -69,7 +74,7 @@ class ExpandedParticipantTile extends StatelessWidget {
           if (videoTrack != null)
             VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain)
           else if (!showWatchButton)
-            AvatarPlaceholder(name: name, isDark: themeState.isDarkTheme),
+            AvatarPlaceholder(name: name, seed: identity),
           if (showStopButton && videoTrack != null)
             Positioned(
               top: 12,

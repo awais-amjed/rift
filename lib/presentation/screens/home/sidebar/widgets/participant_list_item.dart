@@ -3,8 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/participant_info.dart';
 import '../../../../../../data/classes/participant_setting.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../common/speaking_ring.dart';
+import '../../../../common/squircle_avatar.dart';
+import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 
 /// A single participant row inside an active voice channel.
@@ -29,7 +33,6 @@ class ParticipantListItem extends StatelessWidget {
 
         final textSecondary = themeState.textSecondary;
         final textQuaternary = themeState.textQuaternary;
-        final bgTertiary = themeState.bgTertiary;
         final hoverColor = themeState.bgHover;
 
         Widget content = Material(
@@ -42,35 +45,17 @@ class ParticipantListItem extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Row(
                 children: [
-                  // Avatar dot
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: isSpeaking ? themeState.primary : bgTertiary,
-                      shape: BoxShape.circle,
-                      boxShadow: isSpeaking
-                          ? [
-                              BoxShadow(
-                                color: themeState.primary.withValues(
-                                  alpha: 0.3,
-                                ),
-                                blurRadius: 6,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          : null,
+                  // The avatar itself carries the speaking state — the same
+                  // pulsing ring the voice tiles use, at roster scale.
+                  SpeakingRing(
+                    isSpeaking: isSpeaking,
+                    borderRadius: BorderRadius.circular(
+                      22 * K.avatarRadiusRatio,
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      participant.name.isNotEmpty
-                          ? participant.name[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: isSpeaking ? Colors.white : textQuaternary,
-                      ),
+                    child: SquircleAvatar(
+                      name: participant.name,
+                      seed: participant.userId,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -80,11 +65,12 @@ class ParticipantListItem extends StatelessWidget {
                       participant.isLocal
                           ? '${participant.name} (You)'
                           : participant.name,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                      style: AppText.secondary.copyWith(
+                        fontWeight: isSpeaking
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                         color: isSpeaking
-                            ? themeState.primary
+                            ? themeState.channelActiveText
                             : isMuted
                             ? textQuaternary
                             : textSecondary,

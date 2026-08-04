@@ -1,12 +1,16 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
-import '../../../common/app_modal.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/app_modal.dart';
+import '../../../theme/app_shadows.dart';
 import '../../../theme/custom_colors.dart';
 import '../screenshare/screen_share_settings_dialog.dart';
 
@@ -120,95 +124,115 @@ class _ControlBarContent extends StatelessWidget {
       builder: (context, themeState) {
         final bgColor = themeState.bgElevated;
 
-        return Container(
-          padding: const EdgeInsets.all(10),
+        final radius = BorderRadius.circular(K.radiusPill);
+
+        // Glass, not a slab: the pill floats over live video, so it blurs
+        // what's behind it rather than hiding it. The shadow sits outside the
+        // clip — inside, the clip would eat it.
+        return DecoratedBox(
           decoration: BoxDecoration(
-            color: bgColor.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: themeState.borderPrimary),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: themeState.isDarkTheme ? 0.4 : 0.1,
-                ),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            borderRadius: radius,
+            boxShadow: AppShadows.voicePill,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Screen share
-              _ControlButton(
-                icon: isScreenSharing
-                    ? Icons.monitor_outlined
-                    : Icons.present_to_all,
-                isActive: isScreenSharing,
-                tooltip: isScreenSharing ? 'Stop sharing' : 'Share screen',
-                onTap: () => _handleScreenShare(context),
-              ),
-              const SizedBox(width: 4),
-              // Camera
-              _ControlButton(
-                icon: isCameraEnabled ? Icons.videocam : Icons.videocam_off,
-                isDimmed: !isCameraEnabled,
-                tooltip: isCameraEnabled ? 'Turn off camera' : 'Turn on camera',
-                onTap: () => _toggleCamera(context),
-              ),
-              const SizedBox(width: 4),
-              // Mic
-              _ControlButton(
-                icon: isMicEnabled && !isDeafened ? Icons.mic : Icons.mic_off,
-                isError: !isMicEnabled || isDeafened,
-                tooltip: isMicEnabled && !isDeafened ? 'Mute' : 'Unmute',
-                onTap: () => _toggleMic(context),
-              ),
-              const SizedBox(width: 4),
-              // Deafen
-              _ControlButton(
-                icon: isDeafened ? Icons.headset_off : Icons.headset,
-                isError: isDeafened,
-                tooltip: isDeafened ? 'Undeafen' : 'Deafen',
-                onTap: () => _toggleDeafen(context),
-              ),
-              // Divider
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                width: 1,
-                height: 32,
-                color: themeState.borderPrimary,
-              ),
-              // Leave
-              Material(
-                color: CustomColors.error,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => _leave(context),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
+          child: ClipRRect(
+            borderRadius: radius,
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: bgColor.withValues(alpha: 0.72),
+                  borderRadius: radius,
+                  border: Border.all(color: themeState.borderElevated),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Screen share
+                    _ControlButton(
+                      icon: isScreenSharing
+                          ? Icons.monitor_outlined
+                          : Icons.present_to_all,
+                      isActive: isScreenSharing,
+                      tooltip: isScreenSharing
+                          ? 'Stop sharing'
+                          : 'Share screen',
+                      onTap: () => _handleScreenShare(context),
                     ),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.call_end, size: 20, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text(
-                          'Leave',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                    const SizedBox(width: 4),
+                    // Camera
+                    _ControlButton(
+                      icon: isCameraEnabled
+                          ? Icons.videocam
+                          : Icons.videocam_off,
+                      isDimmed: !isCameraEnabled,
+                      tooltip: isCameraEnabled
+                          ? 'Turn off camera'
+                          : 'Turn on camera',
+                      onTap: () => _toggleCamera(context),
+                    ),
+                    const SizedBox(width: 4),
+                    // Mic
+                    _ControlButton(
+                      icon: isMicEnabled && !isDeafened
+                          ? Icons.mic
+                          : Icons.mic_off,
+                      isError: !isMicEnabled || isDeafened,
+                      tooltip: isMicEnabled && !isDeafened ? 'Mute' : 'Unmute',
+                      onTap: () => _toggleMic(context),
+                    ),
+                    const SizedBox(width: 4),
+                    // Deafen
+                    _ControlButton(
+                      icon: isDeafened ? Icons.headset_off : Icons.headset,
+                      isError: isDeafened,
+                      tooltip: isDeafened ? 'Undeafen' : 'Deafen',
+                      onTap: () => _toggleDeafen(context),
+                    ),
+                    // Divider
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 10),
+                      width: 1,
+                      height: 32,
+                      color: themeState.borderPrimary,
+                    ),
+                    // Leave
+                    Material(
+                      color: CustomColors.error,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => _leave(context),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(
+                                Icons.call_end,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Leave',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         );
       },

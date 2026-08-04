@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/speaking_ring.dart';
 import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
@@ -14,6 +15,10 @@ class CollapsedParticipantTile extends StatelessWidget {
   final VideoTrack? videoTrack;
   final bool isSpeaking;
   final String name;
+
+  /// LiveKit identity, used to pick the avatar's gradient so a
+  /// participant looks the same here as in the sidebar.
+  final String? identity;
   final bool isMicEnabled;
   final bool isMuted;
   final bool isScreenshare;
@@ -28,6 +33,7 @@ class CollapsedParticipantTile extends StatelessWidget {
     required this.videoTrack,
     required this.isSpeaking,
     required this.name,
+    this.identity,
     required this.isMicEnabled,
     required this.isMuted,
     required this.isScreenshare,
@@ -39,54 +45,51 @@ class CollapsedParticipantTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        color: themeState.isDarkTheme
-            ? themeState.bgSecondary
-            : themeState.bgTertiary,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isSpeaking ? themeState.primary : themeState.borderPrimary,
-          width: isSpeaking ? 2 : 1,
+    final radius = BorderRadius.circular(14);
+
+    return SpeakingRing(
+      isSpeaking: isSpeaking,
+      borderRadius: radius,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: themeState.isDarkTheme
+              ? themeState.bgSecondary
+              : themeState.bgTertiary,
+          borderRadius: radius,
+          border: Border.all(
+            color: isSpeaking ? themeState.primary : themeState.borderPrimary,
+            width: isSpeaking ? 2 : 1,
+          ),
         ),
-        boxShadow: isSpeaking
-            ? [
-                BoxShadow(
-                  color: themeState.primary.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  spreadRadius: 2,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (videoTrack != null)
+                VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain)
+              else if (!showWatchButton)
+                AvatarPlaceholder(name: name, seed: identity),
+              if (showWatchButton) WatchStreamButton(onTap: onWatch),
+              if (showStopButton)
+                Positioned(
+                  bottom: 12,
+                  right: 12,
+                  child: StopWatchingButton(onTap: onStopWatching),
                 ),
-              ]
-            : null,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(13),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (videoTrack != null)
-              VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain)
-            else if (!showWatchButton)
-              AvatarPlaceholder(name: name, isDark: themeState.isDarkTheme),
-            if (showWatchButton) WatchStreamButton(onTap: onWatch),
-            if (showStopButton)
               Positioned(
                 bottom: 12,
-                right: 12,
-                child: StopWatchingButton(onTap: onStopWatching),
+                left: 12,
+                child: ParticipantNameBadge(
+                  name: name,
+                  isMicEnabled: isMicEnabled,
+                  isMuted: isMuted,
+                  isScreenshare: isScreenshare,
+                ),
               ),
-            Positioned(
-              bottom: 12,
-              left: 12,
-              child: ParticipantNameBadge(
-                name: name,
-                isMicEnabled: isMicEnabled,
-                isMuted: isMuted,
-                isScreenshare: isScreenshare,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

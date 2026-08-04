@@ -1,44 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/squircle_avatar.dart';
 
-/// Avatar placeholder shown when participant has no video
+/// Stands in for a participant who has no camera on.
+///
+/// The same squircle and identity gradient as everywhere else, just large:
+/// a tile with the camera off should still show *who* it is, and the
+/// gradient does that faster than an initial on grey.
 class AvatarPlaceholder extends StatelessWidget {
   final String name;
-  final bool isDark;
 
-  const AvatarPlaceholder({
-    super.key,
-    required this.name,
-    required this.isDark,
-  });
+  /// The participant's identity, so their colour matches their avatar
+  /// everywhere else in the app.
+  final String? seed;
+
+  const AvatarPlaceholder({super.key, required this.name, this.seed});
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Center(
-          child: Container(
-            width: 112,
-            height: 112,
-            decoration: BoxDecoration(
-              color: isDark ? themeState.bgTertiary : themeState.bgActive,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: themeState.borderPrimary),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: TextStyle(
-                fontSize: 40,
-                fontWeight: FontWeight.w700,
-                color: themeState.textTertiary,
-              ),
-            ),
-          ),
-        );
-      },
+    return Center(
+      child: SquircleAvatar(name: name, seed: seed, size: 112),
     );
   }
 }
