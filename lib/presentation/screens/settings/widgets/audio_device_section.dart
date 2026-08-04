@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
+import 'device_dropdown.dart';
 import 'section_title.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
@@ -122,6 +123,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
   Widget _buildDeviceDropdown({
     required String label,
+    required IconData icon,
     required List<MediaDevice> devices,
     required String? selectedDeviceId,
     required ValueChanged<String?> onChanged,
@@ -133,53 +135,29 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionTitle(label: label, themeState: themeState),
-        const SizedBox(height: 12),
-        if (_devicesLoading)
+        const SizedBox(height: 10),
+        if (_devicesLoading || devices.isEmpty)
           Text(
-            'Loading devices...',
-            style: AppText.secondary.copyWith(
-              color: themeState.textTertiary,
-              fontSize: 12,
-            ),
-          )
-        else if (devices.isEmpty)
-          Text(
-            'No devices found',
-            style: AppText.secondary.copyWith(
-              color: themeState.textTertiary,
-              fontSize: 12,
-            ),
+            _devicesLoading ? 'Loading devices…' : 'No devices found',
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
           )
         else
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: themeState.bgSecondary,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: themeState.borderPrimary),
-            ),
-            child: DropdownButton<String>(
-              value: effectiveId,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              dropdownColor: themeState.bgSecondary,
-              style: AppText.rowQuiet.copyWith(
-                color: themeState.textPrimary,
-                fontSize: 13,
-              ),
-              items: devices
-                  .map(
-                    (device) => DropdownMenuItem<String>(
-                      value: device.deviceId,
-                      child: Text(
-                        device.label.isEmpty ? 'Unknown' : device.label,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+          DeviceDropdown<String>(
+            icon: icon,
+            value: effectiveId,
+            themeState: themeState,
+            items: devices
+                .map(
+                  (device) => DropdownMenuItem<String>(
+                    value: device.deviceId,
+                    child: Text(
+                      device.label.isEmpty ? 'Unknown' : device.label,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  )
-                  .toList(),
-              onChanged: (id) => onChanged(id),
-            ),
+                  ),
+                )
+                .toList(),
+            onChanged: onChanged,
           ),
       ],
     );
@@ -195,13 +173,15 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
           children: [
             _buildDeviceDropdown(
               label: 'Input Device',
+              icon: Icons.mic_rounded,
               devices: _inputDevices,
               selectedDeviceId: appState.inputDeviceId,
               onChanged: _selectInputDevice,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
             _buildDeviceDropdown(
               label: 'Output Device',
+              icon: Icons.headset_rounded,
               devices: _outputDevices,
               selectedDeviceId: appState.outputDeviceId,
               onChanged: _selectOutputDevice,

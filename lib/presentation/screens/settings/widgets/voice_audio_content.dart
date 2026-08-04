@@ -27,32 +27,41 @@ class VoiceAudioContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AppCubit, AppState>(
       builder: (context, appState) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AudioDeviceSection(themeState: themeState),
-            _divider(),
-            AudioProcessingSection(themeState: themeState, appState: appState),
-            const SizedBox(height: 20),
-            MicTestSection(themeState: themeState),
-            _divider(),
-            if (_isWindows) ...[
-              SectionTitle(label: 'Audio Ducking', themeState: themeState),
-              const SizedBox(height: 12),
-              SettingToggleRow(
-                themeState: themeState,
-                title: 'Disable automatic volume lowering',
-                description:
-                    "Windows lowers other apps' volume when a call is "
-                    'active. Enable this to prevent that.',
-                value: appState.disableAudioDucking,
-                onChanged: context.read<AppCubit>().setDisableAudioDucking,
-              ),
+        // Held to a readable measure. Every row here is a short label over a
+        // sentence of explanation, and on a wide window those sentences would
+        // otherwise run the full width of the panel.
+        return ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AudioDeviceSection(themeState: themeState),
               _divider(),
-              PushToTalkSection(themeState: themeState, appState: appState),
+              AudioProcessingSection(
+                themeState: themeState,
+                appState: appState,
+              ),
+              const SizedBox(height: 20),
+              MicTestSection(themeState: themeState),
+              _divider(),
+              if (_isWindows) ...[
+                SectionTitle(label: 'Audio Ducking', themeState: themeState),
+                const SizedBox(height: 12),
+                SettingToggleRow(
+                  themeState: themeState,
+                  title: 'Disable automatic volume lowering',
+                  description:
+                      "Windows lowers other apps' volume when a call is "
+                      'active. Enable this to prevent that.',
+                  value: appState.disableAudioDucking,
+                  onChanged: context.read<AppCubit>().setDisableAudioDucking,
+                ),
+                _divider(),
+                PushToTalkSection(themeState: themeState, appState: appState),
+              ],
             ],
-          ],
+          ),
         );
       },
     );

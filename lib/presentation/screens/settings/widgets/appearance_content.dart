@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/selectable_surface.dart';
 import 'section_title.dart';
 import '../../../theme/app_palette.dart';
 import '../../../theme/app_text.dart';
@@ -87,64 +89,55 @@ class _PaletteCard extends StatelessWidget {
     // brightness, regardless of the active palette.
     final preview = themeState.isDarkTheme ? palette.dark : palette.light;
 
-    final borderColor = isSelected
-        ? themeState.channelActiveBorder
-        : themeState.borderPrimary;
-
-    return Material(
-      color: themeState.bgTertiary,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+    return SizedBox(
+      width: 172,
+      child: SelectableSurface(
+        selected: isSelected,
         onTap: onTap,
-        child: Container(
-          width: 148,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor, width: isSelected ? 1.5 : 1),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Swatch row: ground, panel, accent
-              Row(
-                children: [
-                  _swatch(preview.bgPrimary, themeState.borderPrimary),
-                  const SizedBox(width: 6),
-                  _swatch(preview.bgSecondary, themeState.borderPrimary),
-                  const SizedBox(width: 6),
-                  _swatch(preview.primary, Colors.transparent),
-                  const Spacer(),
-                  if (isSelected)
-                    Icon(
-                      Icons.check_circle_rounded,
-                      size: 18,
-                      color: themeState.primary,
-                    ),
-                ],
+        borderRadius: BorderRadius.circular(K.radiusAttachment),
+        padding: const EdgeInsets.all(13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Swatch row: ground, panel, accent
+            Row(
+              spacing: 6,
+              children: [
+                _swatch(preview.bgPrimary, themeState.borderElevated),
+                _swatch(preview.bgSecondary, themeState.borderElevated),
+                _swatch(preview.primary, Colors.transparent),
+                const Spacer(),
+                if (isSelected)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 17,
+                    color: themeState.accentBright,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              palette.name,
+              // The name stays plain white in both states — the ring and the
+              // check already say which one is chosen, and tinting the name
+              // too would make the selected card read as a link.
+              style: AppText.row.copyWith(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: themeState.textPrimary,
               ),
-              const SizedBox(height: 10),
-              Text(
-                palette.name,
-                style: AppText.row.copyWith(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  color: themeState.textPrimary,
-                ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              palette.description,
+              style: AppText.label.copyWith(
+                fontWeight: FontWeight.w400,
+                height: 1.4,
+                color: themeState.textTertiary,
               ),
-              const SizedBox(height: 2),
-              Text(
-                palette.description,
-                style: AppText.label.copyWith(
-                  fontSize: 11,
-                  height: 1.35,
-                  color: themeState.textTertiary,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -156,7 +149,7 @@ class _PaletteCard extends StatelessWidget {
       height: 20,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(7),
         border: Border.all(color: border),
       ),
     );
@@ -181,44 +174,26 @@ class ThemeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = isSelected
-        ? themeState.channelActiveBorder
-        : themeState.borderPrimary;
-    final bgColor = isSelected
-        ? themeState.channelActiveBg
-        : themeState.bgTertiary;
-    final textColor = isSelected
-        ? themeState.channelActiveText
-        : themeState.textSecondary;
-
-    return Material(
-      color: bgColor,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+    return SizedBox(
+      width: 130,
+      child: SelectableSurface(
+        selected: isSelected,
         onTap: onTap,
-        child: Container(
-          width: 110,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor, width: isSelected ? 1.5 : 1),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 28, color: textColor),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: AppText.row.copyWith(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: textColor,
-                ),
+        borderRadius: BorderRadius.circular(K.radiusAttachment),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 26),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: AppText.row.copyWith(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

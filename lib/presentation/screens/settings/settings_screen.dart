@@ -11,6 +11,7 @@ import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../common/app_panel.dart';
 import '../../common/canvas_backdrop.dart';
 import '../../common/confirm_dialog.dart';
+import '../../common/icon_tile.dart';
 import '../../theme/app_text.dart';
 import 'widgets/appearance_content.dart';
 import 'widgets/backup_content/backup_content.dart';
@@ -74,11 +75,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildHeader(ThemeState themeState) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 16),
       child: Row(
         spacing: 12,
         children: [
-          Icon(_tabIcon, size: 20, color: themeState.textPrimary),
+          // The tab's own mark, so the content panel says which section you
+          // are in as loudly as the nav row you clicked to get here.
+          IconTile(
+            icon: _tabIcon,
+            color: themeState.accentBright,
+            size: 36,
+            radius: K.radiusButton,
+            iconSize: 19,
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,11 +95,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text(
                   _tabTitle,
                   style: AppText.sectionTitle.copyWith(
-                    fontSize: 17,
                     color: themeState.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   _tabSubtitle,
                   style: AppText.secondary.copyWith(

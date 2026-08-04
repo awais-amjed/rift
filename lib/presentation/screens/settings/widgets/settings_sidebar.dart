@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/nav_row.dart';
 import '../../../theme/app_text.dart';
@@ -31,43 +32,65 @@ class SettingsSidebar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Back button + Settings heading ────────────────
-        InkWell(
-          onTap: onBack,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.arrow_back_rounded,
-                  size: 20,
-                  color: themeState.textPrimary,
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Settings',
-                      style: AppText.sectionTitle.copyWith(
-                        fontSize: 17,
-                        color: themeState.textPrimary,
-                      ),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onBack,
+            hoverColor: themeState.bgHover,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                spacing: 11,
+                children: [
+                  // The arrow gets its own tile so the row reads as a control
+                  // and lines up with the server header it replaces.
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: themeState.bgHover,
+                      borderRadius: BorderRadius.circular(K.radiusRow),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Back to home',
-                      style: AppText.secondary.copyWith(
-                        color: themeState.textTertiary,
-                      ),
+                    child: Icon(
+                      Icons.arrow_back_rounded,
+                      size: 17,
+                      color: themeState.textSecondary,
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Settings',
+                          style: AppText.panelTitle.copyWith(
+                            color: themeState.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          'Back to home',
+                          style: AppText.label.copyWith(
+                            fontWeight: FontWeight.w400,
+                            color: themeState.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-        Divider(height: 1, color: themeState.borderPrimary),
-        const SizedBox(height: 8),
+        // Inset rather than edge-to-edge: it separates the two halves of the
+        // nav, it isn't the panel's own edge.
+        Container(
+          height: 1,
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          color: themeState.borderPrimary,
+        ),
         // The design's settings nav rows are the sidebar's rows — same
         // gradient, ring, padding and radius — so they use the same widget
         // rather than a fork that would drift.
