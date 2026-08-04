@@ -29,7 +29,8 @@ lib/
     common/       # Shared widgets (AppModal, AppTitleBar, ...)
     routing/      # go_router setup (AppRoutes)
     screens/      # Folder per screen; nested feature folders with widgets/ subfolders
-    theme/        # app_theme.dart (ThemeData) + custom_colors.dart (all color values)
+    theme/        # app_palette.dart + palettes/ (themed colors), app_text.dart (type),
+                  # app_shadows.dart (depth), custom_colors.dart (status colors)
   src/rust/       # GENERATED flutter_rust_bridge bindings — never edit by hand
 rust/src/api/     # Rust API surface exposed to Flutter
 server_migrations/  # Numbered SQL migrations (001_..., 002_...)
@@ -92,16 +93,31 @@ edge_functions.md   # Edge Function API doc — update when functions change
   genuinely a few lines may stay private (`_Foo`) in the same file, but a file approaching a few
   hundred lines with multiple widget classes must be split into a folder. Refactor files toward
   this shape whenever you touch them.
-- **Colors:** never hard-code a `Color` in a widget. Every value lives in `CustomColors`
-  (paired `...Dark` / `...Light` constants), surfaced through a semantic getter on `ThemeState`
-  (`bgSecondary`, `textTertiary`, `channelActiveBg`, ...). Widgets read them via
-  `BlocBuilder<ThemeCubit, ThemeState>`. To add a color: add both Dark/Light constants + one
-  getter — no `isDarkTheme ? ... : ...` branching inside widgets.
-- Planned direction: user-selectable **accent palettes** (indigo stays the default). Keep all new
-  color usage semantic (via `ThemeState` getters) so the accent can be swapped per-user without
-  touching widgets. Semantic status colors (success/warning/error, speaking-green, muted-rose)
-  are shared across palettes and must not be repurposed as accents.
-- Layout constants (widths, heights, paddings reused across files) go in `K`
+- **Colors:** never hard-code a `Color` in a widget. Themed values live in
+  `theme/palettes/*.dart` (one `AppPalette` per file, `dark` + `light`), surfaced through a
+  semantic getter on `ThemeState` (`bgSecondary`, `textTertiary`, `channelActiveBg`, ...).
+  Widgets read them via `BlocBuilder<ThemeCubit, ThemeState>`. To add a color: add the field to
+  `PaletteColors`, give all four palettes both modes, add one getter — no
+  `isDarkTheme ? ... : ...` branching inside widgets. Status colors (success/warning/error,
+  online-green) stay in `CustomColors`, are shared across palettes, and must never be
+  repurposed as accents.
+- **The surface ladder is the layout language, and its order is load-bearing:** `bgPrimary` is
+  the *canvas* the floating panels sit on and is never a content background; `bgContent` carries
+  content panels (chat, stage, settings body); `bgSecondary` carries chrome panels (sidebar,
+  members); `bgTertiary` is inset (fields, composer); `bgElevated` floats above everything
+  (dialogs, menus, popovers). `test/app_palette_test.dart` fails if a palette breaks the
+  ordering or drops body text below WCAG AA on the content panel.
+- **Type:** `AppText` (`theme/app_text.dart`) holds the scale. Its styles carry size, weight,
+  spacing and family but never colour — finish one with
+  `.copyWith(color: themeState.textSecondary)`. Geist for UI; `AppText.meta`/`figure`/`kbd` are
+  mono, reserved for figures that line up or tick in place and for keyboard chips.
+- **Depth:** elevated chrome reads its shadow from `AppShadows`, never a hand-rolled `BoxShadow`.
+- **Shared UI to reuse before hand-rolling:** `AppPanel` (a floating panel), `CanvasBackdrop`
+  (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` / `UserAvatar`,
+  `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`. Avatar gradients come
+  from `IdentityGradients` and are deliberately *not* palette-derived, so a person looks the
+  same to everyone in a channel whatever theme each is running.
+- Layout constants (widths, heights, paddings, radii reused across files) go in `K`
   (`data/constants.dart`), not magic numbers.
 - Dialogs use `showCustomDialog` / `AppModal` from `presentation/common/`; pass existing cubits
   in with `MultiBlocProvider` + `BlocProvider.value` (never construct a new cubit for a dialog).
