@@ -4,18 +4,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/user_permissions.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 
-/// Shows invite and create-channel action buttons based on user permissions.
+/// Invite and members, when the user may see them.
+///
+/// Creating a channel moved to the "+" on the channel-list section headers,
+/// beside the channels it creates.
 class ServerActionBar extends StatelessWidget {
   final UserPermissions permissions;
   final VoidCallback? onInvite;
-  final VoidCallback? onCreateChannel;
   final VoidCallback? onMembers;
 
   const ServerActionBar({
     super.key,
     required this.permissions,
     this.onInvite,
-    this.onCreateChannel,
     this.onMembers,
   });
 
@@ -28,7 +29,6 @@ class ServerActionBar extends StatelessWidget {
         final hoverColor = themeState.bgHover;
 
         final showInvite = permissions.canCreateTokens;
-        final showCreateChannel = permissions.isChannelManager;
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -58,18 +58,6 @@ class ServerActionBar extends StatelessWidget {
                   onTap: onMembers,
                 ),
               ),
-              if (showCreateChannel) ...[
-                const SizedBox(width: 4),
-                Expanded(
-                  child: _ActionButton(
-                    icon: Icons.create_new_folder_outlined,
-                    label: 'New Channel',
-                    color: textTertiary,
-                    hoverColor: hoverColor,
-                    onTap: onCreateChannel,
-                  ),
-                ),
-              ],
             ],
           ),
         );

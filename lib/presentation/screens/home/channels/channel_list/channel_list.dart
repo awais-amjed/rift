@@ -5,6 +5,9 @@ import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../common/app_modal.dart';
+import '../create_channel_dialog.dart';
 import 'widgets/empty_channels_view.dart';
 import 'widgets/section_header.dart';
 import 'widgets/text_channel_tile.dart';
@@ -36,19 +39,45 @@ class ChannelList extends StatelessWidget {
       return const Expanded(child: EmptyChannelsView());
     }
 
+    // Only channel managers get the "+" on a section header.
+    final canCreate =
+        context
+            .watch<ServerCubit>()
+            .state
+            .selectedServer
+            ?.user
+            ?.permissions
+            .isChannelManager ??
+        false;
+    void openCreateChannel() => showCustomDialog(
+      context: context,
+      builder: (_) => MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: context.read<ServerCubit>()),
+          BlocProvider.value(value: context.read<AppCubit>()),
+        ],
+        child: const CreateChannelDialog(),
+      ),
+    );
+
     return Expanded(
       child: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         children: [
           if (textChannels.isNotEmpty) ...[
-            const SectionHeader(label: 'Text'),
-            const SizedBox(height: 4),
+            SectionHeader(
+              label: 'Text',
+              addTooltip: 'Create channel',
+              onAdd: canCreate ? openCreateChannel : null,
+            ),
             ...textChannels.map((ch) => TextChannelTile(channel: ch)),
-            const SizedBox(height: 16),
           ],
           if (voiceChannels.isNotEmpty) ...[
-            const SectionHeader(label: 'Voice'),
-            const SizedBox(height: 4),
+            SectionHeader(
+              label: 'Voice',
+              addTooltip: 'Create channel',
+              onAdd: canCreate ? openCreateChannel : null,
+            ),
             ...voiceChannels.map(
               (ch) => VoiceChannelTile(
                 channel: ch,
