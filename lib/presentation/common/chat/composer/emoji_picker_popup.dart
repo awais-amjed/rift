@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../emoji_text.dart';
+import '../../popover_surface.dart';
 
 const double _popupWidth = 340;
 const double _popupHeight = 320;
@@ -31,14 +32,13 @@ Future<void> showEmojiPickerPopup(
   await showMenu<void>(
     context: anchorContext,
     position: RelativeRect.fromRect(anchor, Offset.zero & overlay.size),
-    color: themeState.bgElevated,
-    // Kill the Material-3 elevation surface tint — it darkens the popover.
+    // Chrome comes from [PopoverSurface] below, so this looks like the app's
+    // other popovers rather than a Material menu. Material must not paint its
+    // own fill or elevation tint behind it.
+    color: Colors.transparent,
     surfaceTintColor: Colors.transparent,
-    elevation: 6,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(14),
-      side: BorderSide(color: themeState.borderPrimary),
-    ),
+    shadowColor: Colors.transparent,
+    elevation: 0,
     constraints: const BoxConstraints(
       minWidth: _popupWidth,
       maxWidth: _popupWidth,
@@ -49,10 +49,12 @@ Future<void> showEmojiPickerPopup(
         // picker's own gesture handlers still receive the tap.
         enabled: false,
         padding: EdgeInsets.zero,
-        child: SizedBox(
-          width: _popupWidth,
-          height: _popupHeight,
-          child: _picker(themeState, controller, onEmojiSelected),
+        child: PopoverSurface(
+          child: SizedBox(
+            width: _popupWidth,
+            height: _popupHeight,
+            child: _picker(themeState, controller, onEmojiSelected),
+          ),
         ),
       ),
     ],
@@ -65,7 +67,9 @@ Widget _picker(
   VoidCallback onEmojiSelected,
 ) {
   return ClipRRect(
-    borderRadius: BorderRadius.circular(13),
+    // One inside the surface's radius, so the picker's own background stops
+    // short of the ring instead of painting over its corners.
+    borderRadius: BorderRadius.circular(PopoverSurface.radius - 1),
     child: EmojiPicker(
       textEditingController: controller,
       onEmojiSelected: (_, _) => onEmojiSelected(),

@@ -2,21 +2,32 @@ import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_shadows.dart';
+import '../../../theme/custom_colors.dart';
 
 /// The floating actions revealed at a message's top-right corner on hover.
+///
+/// Every action a message has is here, not only the safe ones: edit and
+/// delete used to be reachable by right-click alone, which is a gesture
+/// nobody discovers on a chat row. Delete is the odd one out and looks it —
+/// red glyph, red hover — so a row of near-identical icons can't lead you
+/// into it by accident.
 class MessageHoverToolbar extends StatelessWidget {
   final ThemeState themeState;
 
-  /// Both callbacks receive the tapped button's context so a popover (the
-  /// reaction picker) can anchor to it.
+  /// Each callback receives the tapped button's context so a popover (the
+  /// reaction picker) can anchor to it. Null hides that action.
   final void Function(BuildContext anchorContext)? onReact;
   final void Function(BuildContext anchorContext)? onCopy;
+  final void Function(BuildContext anchorContext)? onEdit;
+  final void Function(BuildContext anchorContext)? onDelete;
 
   const MessageHoverToolbar({
     super.key,
     required this.themeState,
     this.onReact,
     this.onCopy,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -47,10 +58,25 @@ class MessageHoverToolbar extends StatelessWidget {
                 ),
               if (onCopy != null)
                 _ToolbarButton(
-                  icon: Icons.content_copy_rounded,
+                  icon: Icons.content_copy_outlined,
                   tooltip: 'Copy text',
                   themeState: themeState,
                   onTap: onCopy!,
+                ),
+              if (onEdit != null)
+                _ToolbarButton(
+                  icon: Icons.edit_outlined,
+                  tooltip: 'Edit',
+                  themeState: themeState,
+                  onTap: onEdit!,
+                ),
+              if (onDelete != null)
+                _ToolbarButton(
+                  icon: Icons.delete_outline,
+                  tooltip: 'Delete',
+                  themeState: themeState,
+                  isDangerous: true,
+                  onTap: onDelete!,
                 ),
             ],
           ),
@@ -64,6 +90,7 @@ class _ToolbarButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final ThemeState themeState;
+  final bool isDangerous;
   final void Function(BuildContext anchorContext) onTap;
 
   const _ToolbarButton({
@@ -71,6 +98,7 @@ class _ToolbarButton extends StatelessWidget {
     required this.tooltip,
     required this.themeState,
     required this.onTap,
+    this.isDangerous = false,
   });
 
   @override
@@ -79,11 +107,17 @@ class _ToolbarButton extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: () => onTap(context),
-        hoverColor: themeState.bgHover,
+        hoverColor: isDangerous
+            ? CustomColors.error.withValues(alpha: 0.14)
+            : themeState.bgHover,
         child: SizedBox(
           width: 32,
           height: 28,
-          child: Icon(icon, size: 15, color: themeState.textSecondary),
+          child: Icon(
+            icon,
+            size: 15,
+            color: isDangerous ? CustomColors.error : themeState.textSecondary,
+          ),
         ),
       ),
     );

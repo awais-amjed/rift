@@ -277,6 +277,9 @@ class _ChatComposerState extends State<ChatComposer> {
         (_controller.text.trim().isNotEmpty || _staged.isNotEmpty);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
+      // A hair apart, so the controls read as a row of separate targets
+      // rather than one welded strip.
+      spacing: 2,
       children: [
         // A plus rather than a paperclip: it opens the one "add something"
         // affordance on the bar, and it is the only control left of the text.

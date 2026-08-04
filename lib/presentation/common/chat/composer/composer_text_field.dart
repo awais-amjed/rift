@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 
 /// The composer's text input, stripped of the global filled [InputDecoration]
 /// so it reads as part of the bar rather than a box inside it.
@@ -65,7 +66,7 @@ class ComposerTextField extends StatelessWidget {
               onChanged: onChanged,
               minLines: 1,
               maxLines: _maxLines,
-              style: TextStyle(
+              style: AppText.body.copyWith(
                 fontSize: K.composerFontSize,
                 height: K.composerLineHeight,
                 color: themeState.textPrimary,
@@ -81,7 +82,7 @@ class ComposerTextField extends StatelessWidget {
                 hintText: hintText,
                 // Same metrics as the real text, so the hint sits exactly
                 // where typing will start.
-                hintStyle: TextStyle(
+                hintStyle: AppText.body.copyWith(
                   fontSize: K.composerFontSize,
                   height: K.composerLineHeight,
                   color: themeState.textQuaternary,
@@ -98,7 +99,7 @@ class ComposerTextField extends StatelessWidget {
                 isDense: true,
                 // Vertical room comes from the Padding above; keep the
                 // decorator out of it so nothing biases the text off centre.
-                contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
               ),
             ),
           ),

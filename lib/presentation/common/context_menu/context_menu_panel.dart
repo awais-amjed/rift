@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/theme/theme_cubit.dart';
-import '../../theme/app_shadows.dart';
 import '../../theme/app_text.dart';
+import '../popover_surface.dart';
 
 /// The floating card a context menu's rows sit in.
 ///
@@ -27,10 +27,6 @@ class ContextMenuPanel extends StatelessWidget {
   final List<Widget> children;
   final double maxWidth;
 
-  /// The design pins the menu card at 15 — between a card (12) and a panel
-  /// (16), which is the register a popover sits in.
-  static const double radius = 15;
-
   const ContextMenuPanel({
     super.key,
     required this.children,
@@ -45,22 +41,18 @@ class ContextMenuPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return Container(
+        return ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: themeState.bgElevated,
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: themeState.borderElevated),
-            boxShadow: AppShadows.popover,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (heading != null) _buildHeading(themeState),
-              ...children,
-            ],
+          child: PopoverSurface(
+            padding: const EdgeInsets.all(6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (heading != null) _buildHeading(themeState),
+                ...children,
+              ],
+            ),
           ),
         );
       },

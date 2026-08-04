@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -188,21 +189,26 @@ class _CreateServerFormState extends State<CreateServerForm> {
             ),
             const SizedBox(height: 20),
 
+            // Back first and sized to its label, the commit filling the rest —
+            // reading order should run from the way out to the way on, not the
+            // other way round.
             Row(
+              spacing: 10,
               children: [
-                Expanded(
-                  child: AppButton(
-                    label: _isLoading ? 'Creating...' : 'Create Server',
-                    onPressed: _canSubmit && !_isLoading ? _submit : null,
-                    isLoading: _isLoading,
-                    expanded: true,
-                  ),
-                ),
-                const SizedBox(width: 10),
                 AppButton(
                   label: 'Back',
                   variant: AppButtonVariant.secondary,
+                  height: K.fieldHeight,
                   onPressed: _isLoading ? null : widget.onCancel,
+                ),
+                Expanded(
+                  child: AppButton(
+                    label: _isLoading ? 'Creating…' : 'Create server',
+                    onPressed: _canSubmit && !_isLoading ? _submit : null,
+                    isLoading: _isLoading,
+                    expanded: true,
+                    height: K.fieldHeight,
+                  ),
                 ),
               ],
             ),

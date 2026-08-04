@@ -83,7 +83,10 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       widget.onDelete != null &&
       MessagePermissions.canDelete(message, isModerator: widget.isModerator);
   bool get _showToolbar =>
-      _hovering && !_editing && !message.isPending && (_canReact || _canCopy);
+      _hovering &&
+      !_editing &&
+      !message.isPending &&
+      (_canReact || _canCopy || _canEdit || _canDelete);
 
   void _toggle(String emoji) =>
       widget.onToggleReaction?.call(message.id, emoji);
@@ -154,6 +157,10 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                   themeState: themeState,
                   onReact: _canReact ? _pickReaction : null,
                   onCopy: _canCopy ? (_) => _copy() : null,
+                  onEdit: _canEdit
+                      ? (_) => setState(() => _editing = true)
+                      : null,
+                  onDelete: _canDelete ? (_) => _confirmDelete() : null,
                 ),
               ),
           ],

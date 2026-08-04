@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../../data/invite_link.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
@@ -142,21 +143,26 @@ class _JoinServerFormState extends State<JoinServerForm> {
         ),
 
         const SizedBox(height: 20),
+        // Back first and sized to its label, the commit filling the rest —
+        // reading order should run from the way out to the way on, not the
+        // other way round.
         Row(
+          spacing: 10,
           children: [
-            Expanded(
-              child: AppButton(
-                label: _isLoading ? 'Joining...' : 'Join Server',
-                onPressed: _canSubmit && !_isLoading ? _submit : null,
-                isLoading: _isLoading,
-                expanded: true,
-              ),
-            ),
-            const SizedBox(width: 10),
             AppButton(
               label: 'Back',
               variant: AppButtonVariant.secondary,
+              height: K.fieldHeight,
               onPressed: _isLoading ? null : widget.onCancel,
+            ),
+            Expanded(
+              child: AppButton(
+                label: _isLoading ? 'Joining…' : 'Join server',
+                onPressed: _canSubmit && !_isLoading ? _submit : null,
+                isLoading: _isLoading,
+                expanded: true,
+                height: K.fieldHeight,
+              ),
             ),
           ],
         ),
