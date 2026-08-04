@@ -58,44 +58,51 @@ class _MembersSidebarState extends State<MembersSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return BlocBuilder<AppCubit, AppState>(
-          buildWhen: (a, b) =>
-              a.membersSidebarOpen != b.membersSidebarOpen ||
-              a.participantSettings != b.participantSettings,
-          builder: (context, appState) {
-            final open = appState.membersSidebarOpen;
-            final targetWidth = open
-                ? K.membersSidebarWidth
-                : K.membersSidebarCollapsedWidth;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOutCubic,
-              width: targetWidth,
-              // A panel in its own right — same chrome surface as the left
-              // sidebar, floating beside the content rather than bordering it.
-              child: AppPanel(
-                // The width animates but `open` flips at once, so without this
-                // the full-width content spends the whole animation being laid
-                // out at 42px — a row of overflow errors every toggle. Pin the
-                // child to its destination width and clip instead: it slides
-                // behind the edge rather than being squeezed.
-                child: ClipRect(
-                  child: OverflowBox(
-                    alignment: Alignment.centerLeft,
-                    minWidth: targetWidth,
-                    maxWidth: targetWidth,
-                    child: open
-                        ? _buildList(themeState, appState)
-                        : _buildCollapsed(themeState),
+    // A server switch happens under us without initState running again, so the
+    // reload is driven from a listener. Doing it from build() called setState()
+    // mid-build and threw whenever the switch arrived during layout.
+    return BlocListener<ServerCubit, ServerState>(
+      listenWhen: (a, b) => a.selectedServer?.id != b.selectedServer?.id,
+      listener: (context, state) => _loadIfNeeded(),
+      child: BlocBuilder<ThemeCubit, ThemeState>(
+        builder: (context, themeState) {
+          return BlocBuilder<AppCubit, AppState>(
+            buildWhen: (a, b) =>
+                a.membersSidebarOpen != b.membersSidebarOpen ||
+                a.participantSettings != b.participantSettings,
+            builder: (context, appState) {
+              final open = appState.membersSidebarOpen;
+              final targetWidth = open
+                  ? K.membersSidebarWidth
+                  : K.membersSidebarCollapsedWidth;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOutCubic,
+                width: targetWidth,
+                // A panel in its own right — same chrome surface as the left
+                // sidebar, floating beside the content rather than bordering it.
+                child: AppPanel(
+                  // The width animates but `open` flips at once, so without this
+                  // the full-width content spends the whole animation being laid
+                  // out at 42px — a row of overflow errors every toggle. Pin the
+                  // child to its destination width and clip instead: it slides
+                  // behind the edge rather than being squeezed.
+                  child: ClipRect(
+                    child: OverflowBox(
+                      alignment: Alignment.centerLeft,
+                      minWidth: targetWidth,
+                      maxWidth: targetWidth,
+                      child: open
+                          ? _buildList(themeState, appState)
+                          : _buildCollapsed(themeState),
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -126,9 +133,6 @@ class _MembersSidebarState extends State<MembersSidebar> {
   }
 
   Widget _buildList(ThemeState themeState, AppState appState) {
-    // A server switch happens under us without initState running again.
-    _loadIfNeeded();
-
     return BlocBuilder<ServerCubit, ServerState>(
       buildWhen: (a, b) => a.selectedServer?.id != b.selectedServer?.id,
       builder: (context, serverState) {
