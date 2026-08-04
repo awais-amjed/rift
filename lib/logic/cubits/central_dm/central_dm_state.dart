@@ -36,6 +36,12 @@ class CentralDmState {
   final bool isLoadingMore;
   final String? error;
 
+  /// Text to seed the handle-search field with. Set when arriving from a
+  /// member's context menu, where their server display name is the best guess
+  /// at a handle — central accounts are separate identities, so nothing links
+  /// the two and it can only ever be a search, not a lookup.
+  final String? handleQuery;
+
   const CentralDmState({
     this.status = CentralDmStatus.signedOut,
     this.myHandle,
@@ -51,6 +57,7 @@ class CentralDmState {
     this.hasMoreHistory = false,
     this.isLoadingMore = false,
     this.error,
+    this.handleQuery,
   });
 
   CentralDmState copyWith({
@@ -68,7 +75,9 @@ class CentralDmState {
     bool? hasMoreHistory,
     bool? isLoadingMore,
     String? error,
+    String? handleQuery,
     bool clearError = false,
+    bool clearHandleQuery = false,
     bool closeConversation = false,
   }) {
     return CentralDmState(
@@ -92,6 +101,7 @@ class CentralDmState {
           : (hasMoreHistory ?? this.hasMoreHistory),
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: clearError ? null : (error ?? this.error),
+      handleQuery: clearHandleQuery ? null : (handleQuery ?? this.handleQuery),
     );
   }
 }

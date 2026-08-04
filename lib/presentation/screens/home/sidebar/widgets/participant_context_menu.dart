@@ -13,7 +13,6 @@ import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/squircle_avatar.dart';
-import '../../dms/widgets/new_central_dm_dialog.dart';
 import '../../../../theme/app_text.dart';
 
 /// Dialog-based context menu for a participant — mute toggle + volume slider.
@@ -76,7 +75,8 @@ class ParticipantContextMenu extends StatelessWidget {
     // Central DMs are their own surface now, so switch to it — otherwise the
     // conversation opens behind whatever server pane you were looking at.
     context.read<AppCubit>().setSurface(HomeSurface.centralDms);
-    NewCentralDmDialog.show(context, initialQuery: name);
+    // Seeds the panel's search field, which focuses itself in response.
+    context.read<CentralDmCubit>().setHandleQuery(name);
   }
 
   @override

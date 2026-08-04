@@ -195,6 +195,19 @@ class CentralDmCubit extends Cubit<CentralDmState>
   // Directory search
   // ──────────────────────────────────────────────────────────
 
+  /// Seeds the handle-search field — see [CentralDmState.handleQuery]. The
+  /// field clears it once consumed, so arriving twice from the same member
+  /// re-opens the search rather than being swallowed as a no-op.
+  void setHandleQuery(String? query) {
+    final trimmed = query?.trim();
+    emit(
+      state.copyWith(
+        handleQuery: trimmed?.isEmpty ?? true ? null : trimmed,
+        clearHandleQuery: trimmed?.isEmpty ?? true,
+      ),
+    );
+  }
+
   Future<List<DmConversation>> searchHandles(String prefix) async {
     final normalized = prefix.trim().toLowerCase();
     if (normalized.isEmpty) return const [];

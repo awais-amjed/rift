@@ -9,20 +9,17 @@ import '../../chat/widgets/chat_header.dart';
 import '../../chat/widgets/chat_header_button.dart';
 import 'dm_conversation_tile.dart';
 
-/// The conversation list down the left of a DM surface.
+/// The conversation list down the left of the server-DM surface.
 ///
-/// Both tiers use this — central DMs and server DMs differ in *which*
-/// conversations they hold and what sits above them, not in how a list of
-/// conversations looks. [slot] is where a tier puts what makes it itself: the
-/// central account's identity and handle search, or nothing at all.
+/// Central DMs no longer come through here: Home is a tier of its own and its
+/// list lives in the sidebar column (see `CentralDmListPanel`). Server DMs are
+/// scoped to the server whose channels the sidebar is already showing, so they
+/// open as a pane inside the content panel instead.
 class DmListPanel extends StatelessWidget {
   final String title;
 
   /// Sits under [title] in the header — a handle, a server name.
   final String? subtitle;
-
-  /// Tier-specific content above the list (identity block, search field).
-  final Widget? slot;
 
   final List<DmConversation> conversations;
   final String? openPeerId;
@@ -35,22 +32,15 @@ class DmListPanel extends StatelessWidget {
   /// Shown in place of the list when there are no conversations.
   final Widget? emptyState;
 
-  /// A standing note under the conversations — the central tier explains what
-  /// it is for there. Scrolls with the list rather than pinning to the panel,
-  /// so it never competes with the dock below it.
-  final Widget? footer;
-
   const DmListPanel({
     super.key,
     required this.title,
     required this.conversations,
     required this.onOpen,
     this.subtitle,
-    this.slot,
     this.openPeerId,
     this.onNew,
     this.emptyState,
-    this.footer,
   });
 
   @override
@@ -61,11 +51,6 @@ class DmListPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildHeader(themeState),
-            if (slot != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                child: slot!,
-              ),
             Expanded(child: _buildList(themeState)),
           ],
         );
@@ -133,16 +118,10 @@ class DmListPanel extends StatelessWidget {
     // scroll with the rows they belong to — the same way channel sections do.
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      itemCount: conversations.length + (footer == null ? 1 : 2),
+      itemCount: conversations.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
           return const SectionHeader(label: 'Conversations');
-        }
-        if (index > conversations.length) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(2, 14, 2, 12),
-            child: footer!,
-          );
         }
         final conversation = conversations[index - 1];
         return DmConversationTile(

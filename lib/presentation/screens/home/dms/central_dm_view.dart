@@ -2,93 +2,78 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../logic/cubits/dm/dm_cubit.dart';
-import '../../../common/hint_card.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 import 'central_dm_chat_view.dart';
-import 'widgets/central_handle_panel.dart';
-import 'widgets/dm_list_panel.dart';
-import 'widgets/dm_surface.dart';
-import 'widgets/new_central_dm_dialog.dart';
 
-/// Home: your central-account DMs.
+/// Home's content panel: the open central conversation, or the resting state.
 ///
-/// Separate from server DMs by design. These belong to your account and
-/// follow you between servers, they are quota-limited, and they exist to help
-/// people find each other — mixing them into a server's list made it
-/// impossible to tell which of those rules applied to a conversation.
+/// The conversation list is not here — it lives in the sidebar column, where
+/// a server's channels would be (see `CentralDmListPanel`). This panel is the
+/// exact counterpart of a channel's chat, and holding only the conversation is
+/// what makes the two tiers feel like the same app.
 class CentralDmView extends StatelessWidget {
   const CentralDmView({super.key});
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<CentralDmCubit>().state;
-    final ready = state.status == CentralDmStatus.ready;
+    if (state.openPeerId != null) return const CentralDmChatView();
+    return _RestingState(status: state.status);
+  }
+}
 
-    return DmSurface(
-      emptyIcon: Icons.public,
-      emptyTitle: 'Your central DMs',
-      emptyMessage: 'Find someone by handle to start a conversation.',
-      conversation: state.openPeerId != null ? const CentralDmChatView() : null,
-      list: DmListPanel(
-        title: 'Direct Messages',
-        subtitle: state.myHandle != null
-            ? '@${state.myHandle}'
-            : 'central account',
-        conversations: state.conversations,
-        openPeerId: state.openPeerId,
-        onNew: ready ? () => NewCentralDmDialog.show(context) : null,
-        slot: _buildSlot(state),
-        emptyState: _buildEmptyState(state),
-        // Says what this tier is *for*, standing under the list rather than
-        // only appearing once it's empty — the rule it states applies most
-        // when there are conversations to move.
-        footer: state.status == CentralDmStatus.ready
-            ? const HintCard(
-                text:
-                    'Central DMs are for finding each other. For longer '
-                    'chats, move to a server you share.',
-              )
-            : null,
-        onOpen: (c) {
-          // Only one DM surface is open at a time.
-          context.read<DmCubit>().closeConversation();
-          context.read<CentralDmCubit>().openConversation(
-            peerId: c.peerId,
-            peerHandle: c.peerName,
-            peerChatKey: c.peerChatPublicKey,
-            peerSigningKey: c.peerSigningPublicKey,
-          );
-        },
+class _RestingState extends StatelessWidget {
+  final CentralDmStatus status;
+
+  const _RestingState({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeState = context.watch<ThemeCubit>().state;
+
+    final (title, message) = switch (status) {
+      CentralDmStatus.signedOut => (
+        'Central DMs need an account',
+        'Sign in under Settings → Cloud Backup to message people across '
+            'servers.',
+      ),
+      CentralDmStatus.needsHandle => (
+        'Pick a handle',
+        'Claim a handle in the panel on the left so people can find you.',
+      ),
+      _ => (
+        'Your central DMs',
+        'Find someone by handle to start a conversation.',
+      ),
+    };
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.public, size: 44, color: themeState.textQuaternary),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: AppText.sectionTitle.copyWith(
+                color: themeState.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 340),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppText.body.copyWith(color: themeState.textTertiary),
+              ),
+            ),
+          ],
+        ),
       ),
     );
-  }
-
-  /// Claiming a handle is the one thing that has to happen before this tier
-  /// works at all, so it sits above the list rather than inside it.
-  Widget? _buildSlot(CentralDmState state) {
-    final needsHandle =
-        state.status == CentralDmStatus.needsHandle || state.claiming;
-    return needsHandle ? const CentralHandlePanel() : null;
-  }
-
-  Widget? _buildEmptyState(CentralDmState state) {
-    switch (state.status) {
-      case CentralDmStatus.signedOut:
-        return const HintCard(
-          icon: Icons.cloud_off_outlined,
-          text:
-              'Sign in to your Rift account (Settings → Cloud Backup) to '
-              'message people across servers.',
-        );
-      case CentralDmStatus.needsHandle:
-        return null;
-      default:
-        return const HintCard(
-          icon: Icons.alternate_email_rounded,
-          text:
-              'Find people by handle and say hi — then move long '
-              'conversations to a server you share.',
-        );
-    }
   }
 }
