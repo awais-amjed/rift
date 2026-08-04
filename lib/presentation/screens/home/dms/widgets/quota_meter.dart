@@ -40,28 +40,32 @@ class QuotaMeter extends StatelessWidget {
               ? CustomColors.warning
               : themeState.textTertiary);
 
+    // Bar and text on one line: the meter is a footnote under the composer,
+    // and stacking it made a limit you're nowhere near look like a warning.
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(4, 7, 4, 0),
+      child: Row(
+        spacing: 8,
         children: [
-          _buildBar(themeState, color, remaining / quota),
-          const SizedBox(height: 6),
-          Row(
-            spacing: 6,
-            children: [
-              Icon(Icons.hourglass_bottom_rounded, size: 12, color: color),
-              Expanded(
-                child: Text(
-                  exhausted
-                      ? 'Daily limit reached — central DMs are for finding '
-                            'each other. Continue on a server you share!'
-                      : '$remaining of $quota messages left today — for '
-                            'longer chats, move to a shared server.',
-                  style: AppText.label.copyWith(color: color),
-                ),
+          Expanded(child: _buildBar(themeState, color, remaining / quota)),
+          Text(
+            exhausted
+                ? 'Daily limit reached'
+                : '$remaining of $quota messages left today',
+            style: AppText.label.copyWith(color: color),
+          ),
+          Flexible(
+            child: Text(
+              exhausted
+                  ? '· continue on a server you share'
+                  : '· move longer chats to a shared server',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.label.copyWith(
+                fontWeight: FontWeight.w400,
+                color: themeState.textQuaternary,
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -74,7 +78,7 @@ class QuotaMeter extends StatelessWidget {
       child: LinearProgressIndicator(
         value: fraction.clamp(0.0, 1.0),
         minHeight: 3,
-        backgroundColor: themeState.bgActive,
+        backgroundColor: themeState.borderPrimary,
         valueColor: AlwaysStoppedAnimation(color),
       ),
     );

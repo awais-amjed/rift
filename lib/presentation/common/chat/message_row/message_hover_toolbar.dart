@@ -81,9 +81,9 @@ class _ToolbarButton extends StatelessWidget {
         onTap: () => onTap(context),
         hoverColor: themeState.bgHover,
         child: SizedBox(
-          width: 30,
-          height: 26,
-          child: Icon(icon, size: 14, color: themeState.textSecondary),
+          width: 32,
+          height: 28,
+          child: Icon(icon, size: 15, color: themeState.textSecondary),
         ),
       ),
     );

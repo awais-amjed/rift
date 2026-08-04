@@ -61,10 +61,10 @@ class AppModal extends StatelessWidget {
         final textTertiary = themeState.textTertiary;
 
         return Dialog(
-          // Dialogs sit on the elevated surface, not the panel one: they
-          // float over content, and matching the panels beneath would make
-          // them read as part of the layout rather than above it.
-          backgroundColor: themeState.bgElevated,
+          // The design puts dialogs on the *panel* surface, with the shadow
+          // doing the lifting — elevated is reserved for menus and popovers,
+          // which open on top of dialogs and need to out-rank them.
+          backgroundColor: themeState.bgSecondary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(K.radiusDialog),
             side: BorderSide(color: themeState.borderElevated),

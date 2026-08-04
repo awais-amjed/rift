@@ -36,7 +36,9 @@ class ComposerIconButton extends StatelessWidget {
       waitDuration: const Duration(milliseconds: 400),
       child: InkWell(
         onTap: onPressed,
-        customBorder: const CircleBorder(),
+        // Rounded squares, matching the send button beside them — a row of
+        // circles around one square reads as a mistake.
+        borderRadius: BorderRadius.circular(K.composerControlRadius),
         hoverColor: themeState.bgHover,
         child: SizedBox(
           width: K.composerControlSize,

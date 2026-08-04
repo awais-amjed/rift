@@ -47,13 +47,23 @@ class K {
   /// Collapsed member list: just wide enough for the reopen button.
   static const double membersSidebarCollapsedWidth = 42;
 
+  // ── Message rows ──────────────────────────────────────────
+  /// Left/right padding on a message row. The design's rows run wider than
+  /// the panel's own padding so the text has room to breathe at the edges.
+  static const double messageRowHPad = 20;
+
+  /// The avatar gutter. Continuation rows leave it empty, which is what makes
+  /// a group read as one block of speech rather than repeated headers.
+  static const double messageGutter = 34;
+
   // ── Chat composer ─────────────────────────────────────────
   /// Every control in the composer row (attach, emoji, mic, send) is a square
   /// of this size, and the text field is floored to it, so the icons and the
   /// text share one centre line whatever the font's metrics are.
-  static const double composerControlSize = 38;
-  static const double composerIconSize = 20;
-  static const double composerFontSize = 14;
+  static const double composerControlSize = 34;
+  static const double composerControlRadius = 10;
+  static const double composerIconSize = 19;
+  static const double composerFontSize = 13.5;
   static const double composerLineHeight = 1.4;
 
   /// Room above/below the composer text, applied as a plain symmetric padding

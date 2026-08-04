@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
@@ -24,7 +25,7 @@ import '../../../theme/app_text.dart';
 /// rows (same author, small gap) show only the indented text. Hovering lights
 /// the whole row and reveals an action toolbar (react + copy).
 class ChatMessageRow extends StatefulWidget {
-  static const double _gutterWidth = 48;
+  static const double _gutterWidth = K.messageGutter;
 
   final ChatMessage message;
   final bool showHeader;
@@ -178,18 +179,24 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
 
   Widget _buildRow() {
     return Container(
-      color: _hovering ? themeState.bgHover : Colors.transparent,
+      // Half the usual hover: a message list is mostly hover surface as the
+      // pointer crosses it, and the full row fill turns reading into a
+      // strobe. It only has to say "the toolbar belongs to this one".
+      color: _hovering
+          ? themeState.textPrimary.withValues(alpha: 0.025)
+          : Colors.transparent,
       child: Opacity(
         opacity: message.isPending ? 0.6 : 1.0,
         child: Padding(
           padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: widget.showHeader ? 8 : 2,
+            left: K.messageRowHPad,
+            right: K.messageRowHPad,
+            top: widget.showHeader ? 7 : 2,
             bottom: 2,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 12,
             children: [
               SizedBox(
                 width: ChatMessageRow._gutterWidth,

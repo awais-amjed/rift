@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../data/constants.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
 import '../../theme/custom_colors.dart';
@@ -32,29 +31,34 @@ class ContextMenuItem extends StatelessWidget {
         final color = isDangerous
             ? CustomColors.error
             : themeState.textSecondary;
-        final radius = BorderRadius.circular(K.radiusRow);
+        final radius = BorderRadius.circular(9);
 
         return Material(
           color: isDangerous
-              ? CustomColors.error.withValues(alpha: 0.1)
+              ? CustomColors.error.withValues(alpha: 0.07)
               : Colors.transparent,
           borderRadius: radius,
           child: InkWell(
             borderRadius: radius,
-            hoverColor: themeState.bgHover,
+            hoverColor: isDangerous
+                ? CustomColors.error.withValues(alpha: 0.14)
+                : themeState.bgHover,
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 spacing: 10,
                 children: [
-                  Icon(icon, size: 16, color: color),
+                  Icon(icon, size: 15, color: color),
                   Expanded(
                     child: Text(
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.rowQuiet.copyWith(color: color),
+                      style: AppText.rowQuiet.copyWith(
+                        fontSize: 13,
+                        color: color,
+                      ),
                     ),
                   ),
                 ],

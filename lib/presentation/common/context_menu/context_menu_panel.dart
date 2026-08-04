@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../data/constants.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_text.dart';
@@ -21,12 +20,16 @@ class ContextMenuPanel extends StatelessWidget {
   final List<Widget> children;
   final double maxWidth;
 
+  /// The design pins the menu card at 15 — between a card (12) and a panel
+  /// (16), which is the register a popover sits in.
+  static const double radius = 15;
+
   const ContextMenuPanel({
     super.key,
     required this.children,
     this.heading,
     this.subheading,
-    this.maxWidth = 224,
+    this.maxWidth = 232,
   });
 
   @override
@@ -38,7 +41,7 @@ class ContextMenuPanel extends StatelessWidget {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: themeState.bgElevated,
-            borderRadius: BorderRadius.circular(K.radiusCard),
+            borderRadius: BorderRadius.circular(radius),
             border: Border.all(color: themeState.borderElevated),
             boxShadow: AppShadows.popover,
           ),
@@ -57,7 +60,7 @@ class ContextMenuPanel extends StatelessWidget {
 
   Widget _buildHeading(ThemeState themeState) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -65,6 +68,8 @@ class ContextMenuPanel extends StatelessWidget {
           Text(
             heading!.toUpperCase(),
             style: AppText.sectionLabel.copyWith(
+              fontSize: 9.5,
+              letterSpacing: 1.3,
               color: themeState.textQuaternary,
             ),
           ),

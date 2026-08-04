@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/custom_colors.dart';
 import 'app_button.dart';
@@ -61,24 +62,27 @@ class _ConfirmDialog extends StatelessWidget {
       builder: (context, themeState) {
         final accent = isDestructive ? CustomColors.error : themeState.primary;
         return Dialog(
-          backgroundColor: themeState.bgPrimary,
+          // The canvas colour would make a dialog read as a hole punched in
+          // the app; it sits on the panel surface like every other dialog,
+          // and the shadow does the lifting.
+          backgroundColor: themeState.bgSecondary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: themeState.borderPrimary),
+            borderRadius: BorderRadius.circular(K.radiusDialog),
+            side: BorderSide(color: themeState.borderElevated),
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
+            constraints: const BoxConstraints(maxWidth: 360),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(26),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(icon, color: accent, size: 22),
                   ),

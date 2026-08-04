@@ -220,7 +220,7 @@ class _ChatComposerState extends State<ChatComposer> {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -248,7 +248,7 @@ class _ChatComposerState extends State<ChatComposer> {
   Widget _buildBar(ThemeState themeState) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 140),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      padding: const EdgeInsets.fromLTRB(8, 6, 6, 6),
       decoration: BoxDecoration(
         color: themeState.bgTertiary,
         borderRadius: BorderRadius.circular(14),
