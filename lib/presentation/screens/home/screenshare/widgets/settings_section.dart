@@ -25,10 +25,8 @@ class SettingsSection extends StatelessWidget {
             Text(
               label.toUpperCase(),
               style: AppText.sectionLabel.copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                color: themeState.textTertiary,
+                letterSpacing: 1.3,
+                color: themeState.textQuaternary,
               ),
             ),
             const SizedBox(height: 8),

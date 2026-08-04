@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/selectable_surface.dart';
 import '../../../../theme/app_text.dart';
 
-/// A chip widget for selecting options in screen share settings
+/// A chip for picking one value in the screen-share settings — a resolution,
+/// a frame rate, a codec.
 class SettingsChip extends StatelessWidget {
   final String label;
   final bool active;
@@ -19,31 +19,20 @@ class SettingsChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: active ? themeState.primary : themeState.bgTertiary,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: active ? themeState.primary : themeState.borderPrimary,
-              ),
-            ),
-            child: Text(
-              label,
-              style: AppText.rowQuiet.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: active ? Colors.white : themeState.textSecondary,
-              ),
-            ),
-          ),
-        );
-      },
+    return SelectableSurface(
+      selected: active,
+      onTap: onTap,
+      // Squarer than the invite chips: these sit in tight rows of three or
+      // four short values, where a full pill spends the width on curve.
+      borderRadius: BorderRadius.circular(8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: Text(
+        label,
+        style: AppText.secondary.copyWith(
+          fontSize: 11.5,
+          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
     );
   }
 }

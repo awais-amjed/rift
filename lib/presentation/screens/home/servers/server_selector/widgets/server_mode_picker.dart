@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../common/icon_tile.dart';
 import '../../../../../theme/app_text.dart';
 
 /// Widget for choosing between joining or creating a server.
@@ -22,15 +24,15 @@ class ServerModePicker extends StatelessWidget {
     return Column(
       children: [
         _ModeCard(
-          icon: Icons.login,
-          title: 'Join Server',
+          icon: Icons.login_rounded,
+          title: 'Join server',
           subtitle: 'Join an existing server with an invite link',
           onTap: onJoin,
         ),
         const SizedBox(height: 10),
         _ModeCard(
           icon: Icons.build_outlined,
-          title: 'Create Server',
+          title: 'Create server',
           subtitle: 'Set up your own server with Supabase and LiveKit',
           onTap: onCreate,
         ),
@@ -58,31 +60,33 @@ class _ModeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
+        final radius = BorderRadius.circular(14);
+
         return Material(
-          color: themeState.bgTertiary,
-          borderRadius: BorderRadius.circular(14),
+          color: themeState.bgHover,
+          borderRadius: radius,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(14),
-            hoverColor: themeState.bgHover,
+            borderRadius: radius,
+            hoverColor: themeState.bgActive,
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: themeState.borderPrimary),
+                borderRadius: radius,
+                border: Border.all(color: themeState.borderElevated),
               ),
               child: Row(
+                spacing: 14,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: themeState.bgSecondary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, size: 22, color: themeState.primary),
+                  // Accent-tinted, not a neutral well: these two cards are the
+                  // only things on the screen to press.
+                  IconTile(
+                    icon: icon,
+                    color: themeState.accentBright,
+                    size: 44,
+                    radius: K.radiusCard,
+                    iconSize: 20,
                   ),
-                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,23 +94,24 @@ class _ModeCard extends StatelessWidget {
                         Text(
                           title,
                           style: AppText.row.copyWith(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
                             color: themeState.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
                           subtitle,
                           style: AppText.secondary.copyWith(
-                            fontSize: 12,
                             color: themeState.textTertiary,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: themeState.textTertiary),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: themeState.textQuaternary,
+                  ),
                 ],
               ),
             ),

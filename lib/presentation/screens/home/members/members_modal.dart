@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/server_member.dart';
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/icon_tile.dart';
 import '../../../theme/custom_colors.dart';
 import 'widgets/member_row.dart';
 import '../../../theme/app_text.dart';
@@ -114,10 +116,13 @@ class _MembersModalState extends State<MembersModal> {
             viewerIsAdmin || (viewerPerms?.isChannelManager ?? false);
 
         return Dialog(
-          backgroundColor: themeState.bgPrimary,
+          // The panel surface, like every other dialog. On the canvas colour
+          // it read as a hole punched through the app rather than a card
+          // floating over it.
+          backgroundColor: themeState.bgSecondary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: themeState.borderPrimary),
+            borderRadius: BorderRadius.circular(K.radiusDialog),
+            side: BorderSide(color: themeState.borderElevated),
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 448, maxHeight: 560),
@@ -129,18 +134,12 @@ class _MembersModalState extends State<MembersModal> {
                   padding: const EdgeInsets.fromLTRB(20, 18, 14, 16),
                   child: Row(
                     children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: themeState.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.group_outlined,
-                          size: 18,
-                          color: themeState.primary,
-                        ),
+                      IconTile(
+                        icon: Icons.group_outlined,
+                        color: themeState.accentBright,
+                        size: 36,
+                        radius: K.radiusButton,
+                        iconSize: 18,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
