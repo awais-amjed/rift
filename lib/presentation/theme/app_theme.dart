@@ -23,9 +23,9 @@ class AppTheme {
         surfaceContainerHighest: colors.bgTertiary,
         error: CustomColors.error,
       ),
-      scaffoldBackgroundColor: brightness == Brightness.dark
-          ? colors.bgSecondary
-          : colors.bgPrimary,
+      // The scaffold is the canvas the floating panels sit on, in both modes —
+      // panels paint their own background over it.
+      scaffoldBackgroundColor: colors.bgPrimary,
       cardColor: colors.bgSecondary,
       dividerColor: colors.border,
       inputDecorationTheme: InputDecorationTheme(

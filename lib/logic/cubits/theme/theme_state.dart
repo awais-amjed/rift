@@ -33,10 +33,24 @@ class ThemeState {
 
   Color get onPrimary => colors.onPrimary;
 
+  /// Accent tuned for text and icons — [primary] is too dim at label sizes.
+  Color get accentBright => colors.accentBright;
+
   Color get gradientPartner => colors.gradientPartner;
 
-  // Backgrounds
+  /// Primary buttons and the composer's send control.
+  LinearGradient get actionGradient => colors.actionGradient;
+
+  /// Server icons and the local user's avatar.
+  LinearGradient get identityGradient => colors.identityGradient;
+
+  /// Fill behind a selected channel/DM row.
+  LinearGradient get activeRowGradient => colors.activeRowGradient;
+
+  // Backgrounds — see PaletteColors for what each rung of the ladder is for.
   Color get bgPrimary => colors.bgPrimary;
+
+  Color get bgContent => colors.bgContent;
 
   Color get bgSecondary => colors.bgSecondary;
 
@@ -47,6 +61,8 @@ class ThemeState {
   Color get bgActive => colors.bgActive;
 
   Color get bgElevated => colors.bgElevated;
+
+  Color get railStrip => colors.railStrip;
 
   // Text colors
   Color get textPrimary => colors.textPrimary;
@@ -59,6 +75,10 @@ class ThemeState {
 
   // Borders
   Color get borderPrimary => colors.border;
+
+  /// For surfaces floating over content, which need more edge than
+  /// [borderPrimary] gives them against the canvas.
+  Color get borderElevated => colors.borderElevated;
 
   // Channel active colors
   Color get channelActiveBg => colors.channelActiveBg;
