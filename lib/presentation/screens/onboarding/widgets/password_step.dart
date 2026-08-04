@@ -73,13 +73,16 @@ class _PasswordStepState extends State<PasswordStep> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Icon
+              // Green rather than accent: this step's badge is making a claim
+              // about safety, not numbering a step.
               FeatureHeader(
-                icon: Icons.person_add_rounded,
-                title: 'Create a Local Vault',
+                icon: Icons.shield_outlined,
+                title: 'Create a local vault',
                 subtitle:
                     'Choose a password to encrypt your identity. Everything '
                     'stays on this device — no email, no central server.',
                 themeState: theme,
+                badgeColor: CustomColors.success,
               ),
 
               const SizedBox(height: 32),

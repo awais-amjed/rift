@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
+import '../../../common/app_mark.dart';
 import 'onboarding_page.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/custom_colors.dart';
 
 /// First step of onboarding — welcome & app overview.
 class WelcomeStep extends StatelessWidget {
@@ -26,22 +29,12 @@ class WelcomeStep extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Icon
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: theme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Icon(
-              Icons.headset_mic_rounded,
-              size: 40,
-              color: theme.primary,
-            ),
-          ),
+          // The brand mark itself, not a tinted tile — this is the first thing
+          // anyone sees of Rift, and it should be the same gradient squircle
+          // that every server and avatar in the app is cut from.
+          const AppMark(size: 76, icon: Icons.headset_mic_rounded, glow: true),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
 
           // Title
           Text(
@@ -60,13 +53,13 @@ class WelcomeStep extends StatelessWidget {
           Text(
             'Your space to hang out.',
             style: AppText.sectionTitle.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: theme.primary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: theme.accentBright,
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
           // Description
           ConstrainedBox(
@@ -78,46 +71,55 @@ class WelcomeStep extends StatelessWidget {
               'synced across devices — or skip the account entirely and keep '
               'everything on this device.',
               textAlign: TextAlign.center,
-              style: AppText.rowQuiet.copyWith(
-                fontSize: 14,
-                height: 1.6,
+              style: AppText.body.copyWith(
+                height: 1.65,
                 color: theme.textTertiary,
               ),
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           // Feature pills
           _FeaturePillRow(theme: theme),
 
-          const SizedBox(height: 40),
+          const SizedBox(height: 36),
 
-          // CTA
-          AppButton(
-            label: 'Continue with an Account',
-            onPressed: onContinueWithAccount,
-            icon: const Icon(
-              Icons.arrow_forward,
-              size: 18,
-              color: Colors.white,
+          // Both CTAs share one width so they read as a stack of choices
+          // rather than two buttons that happen to sit above each other.
+          SizedBox(
+            width: 340,
+            child: Column(
+              spacing: 10,
+              children: [
+                AppButton(
+                  label: 'Continue with an account',
+                  onPressed: onContinueWithAccount,
+                  expanded: true,
+                  height: 44,
+                  icon: const Icon(
+                    Icons.arrow_forward,
+                    size: 17,
+                    color: Colors.white,
+                  ),
+                ),
+                AppButton(
+                  label: 'Use privacy mode',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: onContinuePrivately,
+                  expanded: true,
+                  height: 44,
+                  icon: Icon(
+                    Icons.shield_outlined,
+                    size: 16,
+                    color: theme.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
 
-          const SizedBox(height: 12),
-
-          AppButton(
-            label: 'Use Privacy Mode',
-            variant: AppButtonVariant.secondary,
-            onPressed: onContinuePrivately,
-            icon: Icon(
-              Icons.shield_outlined,
-              size: 18,
-              color: theme.textSecondary,
-            ),
-          ),
-
-          const SizedBox(height: 8),
+          const SizedBox(height: 14),
 
           Text(
             'Privacy mode: no email, no central server — your identity '
@@ -146,33 +148,41 @@ class _FeaturePillRow extends StatelessWidget {
       runSpacing: 8,
       alignment: WrapAlignment.center,
       children: [
-        _pill(Icons.mic_rounded, 'Voice Chat'),
-        _pill(Icons.screen_share_rounded, 'Screen Sharing'),
+        _pill(Icons.mic_rounded, 'Voice chat'),
+        _pill(Icons.screen_share_rounded, 'Screen sharing'),
         _pill(Icons.forum_rounded, 'Channels'),
-        _pill(Icons.dns_rounded, 'Self-Hosted'),
+        _pill(Icons.dns_rounded, 'Self-hosted'),
+        // Green, and last, so it reads as the guarantee over the feature list
+        // rather than as one more feature in it.
+        _pill(
+          Icons.lock_outline,
+          'End-to-end encrypted',
+          color: CustomColors.success,
+        ),
       ],
     );
   }
 
-  Widget _pill(IconData icon, String label) {
+  Widget _pill(IconData icon, String label, {Color? color}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: theme.bgTertiary,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.borderPrimary),
+        color: color?.withValues(alpha: 0.08) ?? theme.bgHover,
+        borderRadius: BorderRadius.circular(K.radiusPill),
+        border: Border.all(
+          color: color?.withValues(alpha: 0.18) ?? theme.borderElevated,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        spacing: 6,
         children: [
-          Icon(icon, size: 14, color: theme.primary),
-          const SizedBox(width: 6),
+          Icon(icon, size: 13, color: color ?? theme.accentBright),
           Text(
             label,
             style: AppText.secondary.copyWith(
-              fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: theme.textSecondary,
+              color: color ?? theme.textSecondary,
             ),
           ),
         ],

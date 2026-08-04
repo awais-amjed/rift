@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_shadows.dart';
 
 /// Rift's brand mark: a squircle of the palette's identity gradient.
 ///
@@ -12,7 +13,15 @@ import '../../logic/cubits/theme/theme_cubit.dart';
 class AppMark extends StatelessWidget {
   final double size;
 
-  const AppMark({super.key, this.size = 16});
+  /// Knocked out of the gradient in white. Only the large hero mark carries
+  /// one — at title-bar size a glyph would be mud.
+  final IconData? icon;
+
+  /// Casts the accent glow under the mark. For the hero mark, which has to
+  /// hold the middle of an otherwise empty canvas.
+  final bool glow;
+
+  const AppMark({super.key, this.size = 16, this.icon, this.glow = false});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +33,17 @@ class AppMark extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: themeState.identityGradient,
             borderRadius: BorderRadius.circular(size * K.avatarRadiusRatio),
+            boxShadow: glow
+                ? AppShadows.accentGlow(
+                    themeState.primary,
+                    blurRadius: 40,
+                    dy: 10,
+                  )
+                : null,
           ),
+          child: icon == null
+              ? null
+              : Icon(icon, size: size / 2, color: Colors.white),
         );
       },
     );

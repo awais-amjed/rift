@@ -10,15 +10,20 @@ import '../theme/app_text.dart';
 /// keeping it in one place is what makes them stay consistent as the accent
 /// palette changes.
 class FeatureHeader extends StatelessWidget {
-  static const double _badgeSize = 64;
-  static const double _iconSize = 32;
+  static const double _badgeSize = 60;
+  static const double _iconSize = 28;
 
   final IconData icon;
   final String title;
   final String? subtitle;
   final ThemeState themeState;
 
-  /// 22 in onboarding steps; the denser dialogs use 20.
+  /// Tints the badge. Defaults to the accent; the privacy-vault step passes
+  /// green, because there the badge is making a claim about safety rather
+  /// than naming a step.
+  final Color? badgeColor;
+
+  /// 21 in onboarding steps; the denser dialogs use 20.
   final double titleSize;
 
   /// Keeps the explanatory line to a readable measure. Pass
@@ -31,12 +36,15 @@ class FeatureHeader extends StatelessWidget {
     required this.title,
     required this.themeState,
     this.subtitle,
-    this.titleSize = 22,
-    this.subtitleMaxWidth = 380,
+    this.badgeColor,
+    this.titleSize = 21,
+    this.subtitleMaxWidth = 340,
   });
 
   @override
   Widget build(BuildContext context) {
+    final accent = badgeColor ?? themeState.accentBright;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -44,17 +52,21 @@ class FeatureHeader extends StatelessWidget {
           width: _badgeSize,
           height: _badgeSize,
           decoration: BoxDecoration(
-            color: themeState.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
+            color: accent.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(18),
+            // The ring is what stops the badge dissolving into the card at
+            // this tint — a 10% wash on a translucent panel is barely there.
+            border: Border.all(color: accent.withValues(alpha: 0.25)),
           ),
-          child: Icon(icon, size: _iconSize, color: themeState.primary),
+          child: Icon(icon, size: _iconSize, color: accent),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         Text(
           title,
           textAlign: TextAlign.center,
           style: AppText.pageTitle.copyWith(
             fontSize: titleSize,
+            letterSpacing: -0.3,
             color: themeState.textPrimary,
           ),
         ),
@@ -65,9 +77,9 @@ class FeatureHeader extends StatelessWidget {
             child: Text(
               subtitle!,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
+              style: AppText.secondary.copyWith(
+                fontSize: 12.5,
+                height: 1.6,
                 color: themeState.textTertiary,
               ),
             ),
