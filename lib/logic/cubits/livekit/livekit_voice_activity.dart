@@ -135,13 +135,19 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   }
 
   Future<void> _stopVoiceActivityMonitor() async {
-    await _vadListener?.dispose();
-    await _vadVisualizer?.stop();
-    await _vadVisualizer?.dispose();
+    // Take the handles before awaiting anything. Mic changes, settings changes
+    // and room teardown all reach here, and a second caller that arrives mid-
+    // await would otherwise stop and dispose the same visualizer again.
+    final listener = _vadListener;
+    final visualizer = _vadVisualizer;
     _vadListener = null;
     _vadVisualizer = null;
     _vadTrackId = null;
     _vadHoldUntil = null;
+
+    await listener?.dispose();
+    await visualizer?.stop();
+    await visualizer?.dispose();
     // A muted mic must not leave the glow stuck on.
     if (_speechDetector.reset()) _syncParticipants();
   }

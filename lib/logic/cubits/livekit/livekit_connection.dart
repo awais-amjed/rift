@@ -13,6 +13,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
 
   ScreenshareCubit? get _screenshareCubit;
 
+  /// Guards [disconnect] against re-entering itself — see its doc comment.
+  bool _disconnecting = false;
+
   /// Implemented by the cubit and its other mixins.
   void _syncParticipants();
   void setupRoomListeners(Room room);
@@ -143,47 +146,66 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
   }
 
   /// Disconnects from the current room.
+  ///
+  /// Runs at most once at a time. Clearing the selected channel below is the
+  /// same signal `MainContent` listens on to leave a call, so this re-enters
+  /// itself on every leave: the second call starts as soon as the first
+  /// awaits, and both then tear down the same [Room].
   Future<void> disconnect() async {
-    if (_screenshareCubit?.state.isSharing == true) {
-      await _screenshareCubit?.stopScreenShare();
+    if (_disconnecting) return;
+    _disconnecting = true;
+    try {
+      if (_screenshareCubit?.state.isSharing == true) {
+        await _screenshareCubit?.stopScreenShare();
+      }
+
+      SoundService.instance.playLeave();
+      _appCubit.setParticipants([]);
+      _appCubit.setSelectedChannelId(null);
+
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.disconnected,
+          clearChannelId: true,
+          clearError: true,
+          participants: [],
+        ),
+      );
+
+      await _cleanupRoom();
+      emit(state.copyWith(clearRoom: true));
+    } finally {
+      _disconnecting = false;
     }
-
-    SoundService.instance.playLeave();
-    _appCubit.setParticipants([]);
-    _appCubit.setSelectedChannelId(null);
-
-    emit(
-      state.copyWith(
-        connectionState: LiveKitConnectionState.disconnected,
-        clearChannelId: true,
-        clearError: true,
-        participants: [],
-      ),
-    );
-
-    await _cleanupRoom();
-    emit(state.copyWith(clearRoom: true));
   }
 
   Future<void> _cleanupRoom() async {
-    await _stopVoiceActivityMonitor();
-
+    // Claim the room and its listeners before the first await. Connecting and
+    // disconnecting both land here, so two teardowns can otherwise overlap and
+    // disconnect and dispose the same Room twice over.
     final room = state.room;
-    if (room == null) return;
+    if (room == null) {
+      await _stopVoiceActivityMonitor();
+      return;
+    }
+    emit(state.copyWith(clearRoom: true));
+    final listeners = List.of(_listeners);
+    _listeners.clear();
+
+    await _stopVoiceActivityMonitor();
 
     try {
       if (room.connectionState == ConnectionState.connected ||
           room.connectionState == ConnectionState.connecting) {
         await room.disconnect();
       }
-      for (final l in _listeners) {
+      for (final l in listeners) {
         try {
           l.dispose();
         } catch (e) {
           HelperMethods.printDebug('Error disposing listener: $e');
         }
       }
-      _listeners.clear();
       emit(state.copyWith(subscribedScreenshares: {}));
       await room.dispose();
     } catch (e) {
