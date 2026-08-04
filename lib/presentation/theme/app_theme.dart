@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_palette.dart';
+import 'app_text.dart';
 import 'custom_colors.dart';
 
 class AppTheme {
@@ -13,6 +14,7 @@ class AppTheme {
     return ThemeData(
       brightness: brightness,
       useMaterial3: true,
+      fontFamily: AppText.sans,
       colorScheme: ColorScheme.fromSeed(
         seedColor: colors.primary,
         brightness: brightness,
@@ -43,21 +45,21 @@ class AppTheme {
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: colors.primary, width: 1.5),
         ),
-        labelStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
-        hintStyle: TextStyle(color: colors.textQuaternary),
+        labelStyle: AppText.secondary.copyWith(color: colors.textTertiary),
+        hintStyle: AppText.body.copyWith(color: colors.textQuaternary),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 10,
         ),
       ),
+      // Framework-level defaults only — widgets style their own text from
+      // AppText. These keep stray Material text (menus, tooltips) on scale.
       textTheme: TextTheme(
-        bodyMedium: TextStyle(color: colors.textSecondary),
-        bodySmall: TextStyle(color: colors.textTertiary),
-        titleMedium: TextStyle(
-          color: colors.textPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-        labelSmall: TextStyle(color: colors.textQuaternary),
+        titleLarge: AppText.sectionTitle.copyWith(color: colors.textPrimary),
+        titleMedium: AppText.panelTitle.copyWith(color: colors.textPrimary),
+        bodyMedium: AppText.body.copyWith(color: colors.textSecondary),
+        bodySmall: AppText.secondary.copyWith(color: colors.textTertiary),
+        labelSmall: AppText.label.copyWith(color: colors.textQuaternary),
       ),
     );
   }

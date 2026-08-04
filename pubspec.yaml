@@ -76,6 +76,29 @@ flutter:
     - assets/images/
     - assets/audio/
 
+  # Bundled rather than fetched at runtime: without this the app inherits
+  # whatever the platform picks, so the same build renders differently on
+  # every machine. Geist + Geist Mono, SIL OFL 1.1 (assets/fonts/OFL.txt).
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/Geist-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Geist-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Geist-Bold.ttf
+          weight: 700
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/GeistMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/GeistMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/GeistMono-SemiBold.ttf
+          weight: 600
+
 inno_bundle:
   id: 919df387-f79b-5d74-bee3-b08f176b2a14
   publisher: Coding Fries
