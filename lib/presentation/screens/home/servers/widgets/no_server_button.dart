@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
 
 /// Placeholder shown when no server is selected.
 class NoServerButton extends StatelessWidget {

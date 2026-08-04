@@ -1,98 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
-import '../../servers/server_button/server_button.dart';
-import '../../servers/server_button/widgets/no_server_button.dart';
+import '../../servers/widgets/no_server_button.dart';
 import '../../servers/server_selector/server_selector_dialog.dart';
 import '../../servers/server_settings/server_settings_dialog.dart';
+import '../quick_switcher/quick_switcher_dialog.dart';
+import 'jump_field.dart';
+import 'server_header.dart';
 
-/// Header section of the sidebar with server button and pin toggle.
+/// The top of the sidebar column: which server you are in, and the way to get
+/// somewhere else inside it.
 class SidebarHeader extends StatelessWidget {
   const SidebarHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return BlocBuilder<ServerCubit, ServerState>(
-          builder: (context, serverState) {
-            final server = serverState.selectedServer;
+    return BlocBuilder<ServerCubit, ServerState>(
+      buildWhen: (a, b) => a.selectedServer != b.selectedServer,
+      builder: (context, serverState) {
+        final server = serverState.selectedServer;
+        if (server == null) {
+          return NoServerButton(onTap: () => _openAddServerDialog(context));
+        }
 
-            return Stack(
-              children: [
-                // Server button or placeholder
-                server != null
-                    ? ServerButton(
-                        server: server,
-                        // Switching servers is the rail's job now. The header
-                        // row is about *this* server, so it opens its
-                        // settings — the same place the gear beside it goes.
-                        onTap: () =>
-                            (server.user?.permissions.isServerAdmin ?? false)
-                            ? _openServerSettings(context)
-                            : null,
-                      )
-                    : NoServerButton(
-                        onTap: () => _openAddServerDialog(context),
-                      ),
-
-                // Right-side controls: server settings (admins) + pin toggle
-                Positioned(
-                  right: 4,
-                  top: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (server?.user?.permissions.isServerAdmin ?? false)
-                          IconButton(
-                            onPressed: () => _openServerSettings(context),
-                            tooltip: 'Server settings',
-                            icon: Icon(
-                              Icons.settings_outlined,
-                              size: 18,
-                              color: themeState.textTertiary,
-                            ),
-                            style: IconButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        BlocBuilder<AppCubit, AppState>(
-                          buildWhen: (p, c) => p.isPinned != c.isPinned,
-                          builder: (context, appState) {
-                            return IconButton(
-                              onPressed: () => context
-                                  .read<AppCubit>()
-                                  .setIsPinned(!appState.isPinned),
-                              icon: Icon(
-                                appState.isPinned
-                                    ? Icons.chevron_left
-                                    : Icons.push_pin_outlined,
-                                size: 20,
-                                color: themeState.textTertiary,
-                              ),
-                              style: IconButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+        final isAdmin = server.user?.permissions.isServerAdmin ?? false;
+        return Column(
+          children: [
+            ServerHeader(
+              server: server,
+              onOpenSettings: isAdmin
+                  ? () => _openServerSettings(context)
+                  : null,
+            ),
+            JumpField(onTap: () => openQuickSwitcher(context)),
+          ],
         );
       },
     );
@@ -126,4 +72,22 @@ class SidebarHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Opens the quick switcher. Lives here rather than inside the dialog so both
+/// the jump field and the keyboard shortcut open it the same way, with the
+/// same cubits passed through.
+void openQuickSwitcher(BuildContext context) {
+  showCustomDialog(
+    context: context,
+    builder: (_) => MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: context.read<ServerCubit>()),
+        BlocProvider.value(value: context.read<AppCubit>()),
+        BlocProvider.value(value: context.read<ChannelChatCubit>()),
+        BlocProvider.value(value: context.read<ThemeCubit>()),
+      ],
+      child: const QuickSwitcherDialog(),
+    ),
+  );
 }
