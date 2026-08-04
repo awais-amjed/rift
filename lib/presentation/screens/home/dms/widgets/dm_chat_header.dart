@@ -49,26 +49,39 @@ class DmChatHeader extends StatelessWidget {
       child: Row(
         spacing: 10,
         children: [
-          SquircleAvatar(name: title, seed: peerId, size: 30),
-          Flexible(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.panelTitle.copyWith(color: themeState.textPrimary),
+          // The identity is one flexible group, so the close button sits hard
+          // against the panel edge. A `Flexible` title beside a `Spacer`
+          // splits the free space with it instead: the title takes only what
+          // it needs and the rest of its share is left stranded *after* the
+          // last child, parking the button in the middle of the bar.
+          Expanded(
+            child: Row(
+              spacing: 10,
+              children: [
+                SquircleAvatar(name: title, seed: peerId, size: 30),
+                Flexible(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.panelTitle.copyWith(
+                      color: themeState.textPrimary,
+                    ),
+                  ),
+                ),
+                StatusChip(
+                  icon: tierIcon,
+                  label: tierLabel,
+                  color: themeState.accentBright,
+                ),
+                const StatusChip(
+                  icon: Icons.lock_outline,
+                  label: 'Encrypted',
+                  color: CustomColors.success,
+                ),
+              ],
             ),
           ),
-          StatusChip(
-            icon: tierIcon,
-            label: tierLabel,
-            color: themeState.accentBright,
-          ),
-          const StatusChip(
-            icon: Icons.lock_outline,
-            label: 'Encrypted',
-            color: CustomColors.success,
-          ),
-          const Spacer(),
           ChatHeaderButton(
             icon: Icons.close_rounded,
             tooltip: 'Close conversation',

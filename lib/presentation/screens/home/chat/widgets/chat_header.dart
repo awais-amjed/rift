@@ -45,21 +45,38 @@ class ChatHeader extends StatelessWidget {
       child: Row(
         spacing: 10,
         children: [
-          Icon(Icons.tag_rounded, size: 18, color: themeState.accentBright),
-          Flexible(
-            child: Text(
-              name ?? 'channel',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.panelTitle.copyWith(color: themeState.textPrimary),
+          // The identity is one flexible group, so the controls sit hard
+          // against the panel edge. A `Flexible` title beside a `Spacer`
+          // splits the free space with it instead: the title takes only what
+          // it needs and the rest of its share is left stranded *after* the
+          // last child, parking the buttons in the middle of the bar.
+          Expanded(
+            child: Row(
+              spacing: 10,
+              children: [
+                Icon(
+                  Icons.tag_rounded,
+                  size: 18,
+                  color: themeState.accentBright,
+                ),
+                Flexible(
+                  child: Text(
+                    name ?? 'channel',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.panelTitle.copyWith(
+                      color: themeState.textPrimary,
+                    ),
+                  ),
+                ),
+                const StatusChip(
+                  icon: Icons.lock_outline,
+                  label: 'Encrypted',
+                  color: CustomColors.success,
+                ),
+              ],
             ),
           ),
-          const StatusChip(
-            icon: Icons.lock_outline,
-            label: 'Encrypted',
-            color: CustomColors.success,
-          ),
-          const Spacer(),
           ChatHeaderButton(
             icon: Icons.people_alt_rounded,
             tooltip: membersOpen ? 'Hide members' : 'Show members',

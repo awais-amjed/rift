@@ -89,31 +89,41 @@ class _ContextStripState extends State<ContextStrip> {
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.volume_up_rounded,
-                            size: 16,
-                            color: themeState.accentBright,
-                          ),
-                          const SizedBox(width: 7),
-                          Flexible(
-                            child: Text(
-                              channelName ?? 'Voice',
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.row.copyWith(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: themeState.textPrimary,
-                              ),
+                          // One flexible group, so the timer sits hard against
+                          // the right edge. A `Flexible` name beside a
+                          // `Spacer` splits the free space with it, leaving
+                          // whatever the name doesn't use stranded past the
+                          // timer and parking it mid-strip.
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.volume_up_rounded,
+                                  size: 16,
+                                  color: themeState.accentBright,
+                                ),
+                                const SizedBox(width: 7),
+                                Flexible(
+                                  child: Text(
+                                    channelName ?? 'Voice',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppText.row.copyWith(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: themeState.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '·  $count in voice',
+                                  style: AppText.secondary.copyWith(
+                                    color: themeState.textTertiary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '·  $count in voice',
-                            style: AppText.secondary.copyWith(
-                              color: themeState.textTertiary,
-                            ),
-                          ),
-                          const Spacer(),
                           // Mono and tabular: a timer that ticks must not
                           // change width as the digits roll over.
                           Text(
