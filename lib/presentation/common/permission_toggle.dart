@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import 'app_switch.dart';
 
 class PermissionToggle extends StatelessWidget {
   final IconData icon;
@@ -78,13 +79,7 @@ class PermissionToggle extends StatelessWidget {
                     ],
                   ),
                 ),
-                Switch(
-                  value: value,
-                  onChanged: onChanged,
-                  activeThumbColor: themeState.primary,
-                  activeTrackColor: themeState.primary.withValues(alpha: 0.4),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+                AppSwitch(value: value, onChanged: onChanged),
               ],
             ),
           ),

@@ -151,11 +151,14 @@ class SignedInPanel extends StatelessWidget {
         // Messages
         if (state.error != null) ...[
           const SizedBox(height: 14),
-          MessageBanner(message: state.error!, isError: true),
+          MessageBanner(message: state.error!, kind: MessageBannerKind.error),
         ],
         if (state.successMessage != null) ...[
           const SizedBox(height: 14),
-          MessageBanner(message: state.successMessage!, isError: false),
+          MessageBanner(
+            message: state.successMessage!,
+            kind: MessageBannerKind.success,
+          ),
         ],
       ],
     );

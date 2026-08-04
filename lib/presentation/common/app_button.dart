@@ -10,6 +10,10 @@ import '../theme/custom_colors.dart';
 enum AppButtonVariant { primary, secondary, danger }
 
 /// Themed button used throughout the app.
+///
+/// The three variants differ only in how they carry weight: primary is the
+/// lit action gradient, danger is a flat red, and secondary is a hairline
+/// ring over a barely-there fill so it recedes beside either of them.
 class AppButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -17,6 +21,10 @@ class AppButton extends StatelessWidget {
   final bool isLoading;
   final Widget? icon;
   final bool expanded;
+
+  /// Defaults to a standalone button. Dialog footers pass [K.fieldHeight] so
+  /// their buttons match the fields above them.
+  final double height;
 
   const AppButton({
     super.key,
@@ -26,29 +34,20 @@ class AppButton extends StatelessWidget {
     this.isLoading = false,
     this.icon,
     this.expanded = false,
+    this.height = K.controlHeight,
   });
 
   @override
   Widget build(BuildContext context) {
     final themeState = context.read<ThemeCubit>().state;
+    final isPrimary = variant == AppButtonVariant.primary;
+    final enabled = !isLoading && onPressed != null;
 
-    Color bgColor;
-    Color fgColor;
-
-    switch (variant) {
-      case AppButtonVariant.primary:
-        bgColor = themeState.primary;
-        fgColor = Colors.white;
-        break;
-      case AppButtonVariant.secondary:
-        bgColor = themeState.bgTertiary;
-        fgColor = themeState.textSecondary;
-        break;
-      case AppButtonVariant.danger:
-        bgColor = CustomColors.error;
-        fgColor = Colors.white;
-        break;
-    }
+    final fgColor = switch (variant) {
+      AppButtonVariant.primary => Colors.white,
+      AppButtonVariant.secondary => themeState.textSecondary,
+      AppButtonVariant.danger => Colors.white,
+    };
 
     Widget child = isLoading
         ? SizedBox(
@@ -59,51 +58,83 @@ class AppButton extends StatelessWidget {
         : Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) ...[icon!, const SizedBox(width: 6)],
+              if (icon != null) ...[icon!, const SizedBox(width: 7)],
               Text(
                 label,
-                style: AppText.row.copyWith(fontSize: 14, color: fgColor),
+                style: AppText.row.copyWith(
+                  fontSize: 13,
+                  // Secondary is the quiet option, and carrying less weight is
+                  // most of what makes it read that way.
+                  fontWeight: variant == AppButtonVariant.secondary
+                      ? FontWeight.w600
+                      : FontWeight.w700,
+                  color: fgColor,
+                ),
               ),
             ],
           );
 
-    final isPrimary = variant == AppButtonVariant.primary;
-
     Widget button = FilledButton(
       onPressed: isLoading ? null : onPressed,
-      style: FilledButton.styleFrom(
-        // Primary buttons paint their gradient behind the button, so the
-        // button itself stays transparent — a solid fill would cover it.
-        backgroundColor: isPrimary ? Colors.transparent : bgColor,
-        foregroundColor: fgColor,
-        disabledBackgroundColor: isPrimary
-            ? Colors.transparent
-            : bgColor.withValues(alpha: 0.5),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(K.radiusCard),
+      style: ButtonStyle(
+        // Primary paints its gradient behind the button, so the button itself
+        // stays transparent — a solid fill would cover it.
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (isPrimary) return Colors.transparent;
+          if (variant == AppButtonVariant.danger) {
+            return states.contains(WidgetState.hovered)
+                ? CustomColors.errorDark
+                : CustomColors.error;
+          }
+          return states.contains(WidgetState.hovered)
+              ? themeState.bgActive
+              : themeState.bgHover;
+        }),
+        foregroundColor: WidgetStatePropertyAll(fgColor),
+        // The variants already carry their own hover fill above; Material's
+        // extra wash on top would only mud them.
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        elevation: const WidgetStatePropertyAll(0),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 18),
         ),
-        elevation: 0,
+        // Pinned top and bottom rather than via `fixedSize`, which would also
+        // stretch the width to infinity.
+        minimumSize: WidgetStatePropertyAll(Size(0, height)),
+        maximumSize: WidgetStatePropertyAll(Size(double.infinity, height)),
+        // Material otherwise pads every button out to a 48px tap target,
+        // which would quietly undo the height above.
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(K.radiusButton),
+          ),
+        ),
+        side: variant == AppButtonVariant.secondary
+            ? WidgetStatePropertyAll(
+                BorderSide(color: themeState.borderElevated),
+              )
+            : null,
       ),
       child: child,
     );
 
     if (isPrimary) {
-      final enabled = !isLoading && onPressed != null;
       button = DecoratedBox(
         decoration: BoxDecoration(
           gradient: themeState.actionGradient,
-          borderRadius: BorderRadius.circular(K.radiusCard),
+          borderRadius: BorderRadius.circular(K.radiusButton),
           boxShadow: enabled
-              ? AppShadows.accentGlow(themeState.primary, blurRadius: 20, dy: 4)
+              ? AppShadows.accentGlow(themeState.primary, blurRadius: 12, dy: 2)
               : null,
         ),
-        // Dimmed as a whole rather than by swapping the fill, so a disabled
-        // primary button keeps its shape instead of turning into a
-        // different-looking control.
-        child: Opacity(opacity: enabled ? 1 : 0.5, child: button),
+        child: button,
       );
     }
+
+    // Dimmed as a whole rather than by swapping the fill, so a disabled button
+    // keeps its shape instead of turning into a different-looking control.
+    if (!enabled) button = Opacity(opacity: 0.45, child: button);
 
     return expanded ? SizedBox(width: double.infinity, child: button) : button;
   }

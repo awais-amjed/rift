@@ -1,45 +1,66 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../theme/custom_colors.dart';
+import '../../data/constants.dart';
+import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import '../theme/custom_colors.dart';
 
-/// Coloured inline banner used to display error or success feedback.
+/// What a [MessageBanner] is saying — which sets its colour and icon.
+enum MessageBannerKind { info, success, error }
+
+/// Tinted inline banner carrying one sentence of feedback or caution.
+///
+/// Only the icon and the wash are coloured; the sentence itself stays body
+/// grey. Colouring the text too turns a one-line warning into a block of red
+/// that reads as far more alarming than what it usually says.
 class MessageBanner extends StatelessWidget {
   final String message;
-  final bool isError;
+  final MessageBannerKind kind;
 
-  const MessageBanner({
-    super.key,
-    required this.message,
-    required this.isError,
-  });
+  const MessageBanner({super.key, required this.message, required this.kind});
 
   @override
   Widget build(BuildContext context) {
-    final color = isError ? CustomColors.error : CustomColors.success;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+    final (color, icon) = switch (kind) {
+      MessageBannerKind.info => (CustomColors.warning, Icons.info_outlined),
+      MessageBannerKind.success => (
+        CustomColors.success,
+        Icons.check_circle_outlined,
       ),
-      child: Row(
-        children: [
-          Icon(
-            isError ? Icons.error_outline_rounded : Icons.check_circle_outline,
-            size: 16,
-            color: color,
+      MessageBannerKind.error => (CustomColors.error, Icons.error_outlined),
+    };
+
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(K.radiusButton),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: AppText.body.copyWith(fontSize: 13, color: color),
-            ),
+          child: Row(
+            // Top-aligned so the icon stays beside the first line rather than
+            // drifting to the middle of a message that wraps.
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 10,
+            children: [
+              Icon(icon, size: 16, color: color),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppText.body.copyWith(
+                    fontSize: 11.5,
+                    height: 1.5,
+                    color: themeState.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

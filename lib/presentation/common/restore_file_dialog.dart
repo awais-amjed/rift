@@ -117,7 +117,7 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            MessageBanner(message: _error!, isError: true),
+            MessageBanner(message: _error!, kind: MessageBannerKind.error),
           ],
         ],
       ),

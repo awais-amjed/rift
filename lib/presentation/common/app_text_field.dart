@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 
@@ -32,8 +33,11 @@ class AppTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.read<ThemeCubit>().state;
-    final borderColor = themeState.borderPrimary;
-    final focusColor = themeState.primary;
+    final borderColor = themeState.borderElevated;
+    // A focused field is ringed in a *tinted* accent, not the flat accent —
+    // full strength reads as an error state next to the quiet surfaces around
+    // it.
+    final focusColor = themeState.primary.withValues(alpha: 0.55);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,12 +46,12 @@ class AppTextField extends StatelessWidget {
           Text(
             label!.toUpperCase(),
             style: AppText.sectionLabel.copyWith(
-              fontSize: 11,
-              letterSpacing: 0.8,
+              fontSize: 10.5,
+              letterSpacing: 1.2,
               color: themeState.textTertiary,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
         ],
         TextField(
           controller: controller,
@@ -58,31 +62,31 @@ class AppTextField extends StatelessWidget {
           onEditingComplete: onEditingComplete,
           autofocus: autofocus,
           style: AppText.body.copyWith(
-            fontSize: 14,
+            fontSize: 13.5,
             color: themeState.textPrimary,
           ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: AppText.body.copyWith(
-              fontSize: 14,
+              fontSize: 13.5,
               color: themeState.textQuaternary,
             ),
             filled: true,
             fillColor: themeState.bgTertiary,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(K.radiusRow),
               borderSide: BorderSide(color: borderColor),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(K.radiusRow),
               borderSide: BorderSide(color: borderColor),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(K.radiusRow),
               borderSide: BorderSide(color: focusColor, width: 1.5),
             ),
             disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(K.radiusRow),
               borderSide: BorderSide(color: borderColor.withValues(alpha: 0.5)),
             ),
             contentPadding: const EdgeInsets.symmetric(

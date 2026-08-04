@@ -94,17 +94,16 @@ class _ConfirmDialog extends StatelessWidget {
                       color: themeState.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 7),
                   Text(
                     message,
                     textAlign: TextAlign.center,
                     style: AppText.body.copyWith(
-                      fontSize: 13,
-                      height: 1.5,
+                      fontSize: 12.5,
                       color: themeState.textTertiary,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
                   Row(
                     children: [
                       Expanded(
@@ -113,18 +112,20 @@ class _ConfirmDialog extends StatelessWidget {
                           variant: AppButtonVariant.secondary,
                           onPressed: () => Navigator.of(context).pop(false),
                           expanded: true,
+                          height: K.fieldHeight,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: AppButton(
                           label: confirmLabel,
                           variant: isDestructive
                               ? AppButtonVariant.danger
                               : AppButtonVariant.primary,
-                          icon: Icon(icon, size: 15, color: Colors.white),
+                          icon: Icon(icon, size: 14, color: Colors.white),
                           onPressed: () => Navigator.of(context).pop(true),
                           expanded: true,
+                          height: K.fieldHeight,
                         ),
                       ),
                     ],

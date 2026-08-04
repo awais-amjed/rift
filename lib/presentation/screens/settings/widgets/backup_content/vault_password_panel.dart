@@ -67,7 +67,10 @@ class VaultPasswordPanelState extends State<VaultPasswordPanel> {
         ),
         if (widget.state.error != null) ...[
           const SizedBox(height: 12),
-          MessageBanner(message: widget.state.error!, isError: true),
+          MessageBanner(
+            message: widget.state.error!,
+            kind: MessageBannerKind.error,
+          ),
         ],
         const SizedBox(height: 16),
         Row(

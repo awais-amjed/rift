@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/app_switch.dart';
 import '../../../theme/app_text.dart';
 
 /// A titled description with a trailing switch — the standard layout for a
@@ -35,10 +36,7 @@ class SettingToggleRow extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  color: themeState.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppText.row.copyWith(color: themeState.textPrimary),
               ),
               const SizedBox(height: 4),
               Text(
@@ -52,7 +50,12 @@ class SettingToggleRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Switch(value: value, onChanged: onChanged),
+        // Dimmed rather than hidden — a setting this platform can't offer
+        // still shows its state, with the description saying why.
+        Opacity(
+          opacity: onChanged == null ? 0.5 : 1,
+          child: AppSwitch(value: value, onChanged: onChanged),
+        ),
       ],
     );
   }

@@ -149,7 +149,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_error != null) ...[
-                MessageBanner(message: _error!, isError: true),
+                MessageBanner(message: _error!, kind: MessageBannerKind.error),
                 const SizedBox(height: 12),
               ],
               Center(child: _avatarPicker(themeState, user?.avatarPath)),

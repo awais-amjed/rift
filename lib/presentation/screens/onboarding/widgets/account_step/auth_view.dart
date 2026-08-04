@@ -7,7 +7,6 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/supabase_auth_form_state.dart';
-import '../../../../theme/custom_colors.dart';
 import '../onboarding_page.dart';
 import '../password_strength_indicator.dart';
 import '../../../../common/feature_header.dart';
@@ -150,43 +149,18 @@ class AuthViewState extends State<AuthView>
                   const SizedBox(height: 12),
                   MessageBanner(
                     message: _validationError ?? widget.state.error!,
-                    isError: true,
+                    kind: MessageBannerKind.error,
                   ),
                 ],
 
                 if (isSignUp) ...[
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: CustomColors.warning.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: CustomColors.warning.withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.info_outline_rounded,
-                          size: 18,
-                          color: CustomColors.warning,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Your password protects your encrypted backup. '
-                            'Resetting it later means old backups can\'t be '
-                            'restored — keep it safe.',
-                            style: AppText.secondary.copyWith(
-                              fontSize: 12,
-                              height: 1.4,
-                              color: theme.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  const MessageBanner(
+                    message:
+                        'Your password protects your encrypted backup. '
+                        'Resetting it later means old backups can\'t be '
+                        'restored — keep it safe.',
+                    kind: MessageBannerKind.info,
                   ),
                 ],
 

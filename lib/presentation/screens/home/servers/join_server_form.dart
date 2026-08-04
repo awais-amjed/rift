@@ -109,7 +109,10 @@ class _JoinServerFormState extends State<JoinServerForm> {
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: MessageBanner(message: _error!, isError: true),
+            child: MessageBanner(
+              message: _error!,
+              kind: MessageBannerKind.error,
+            ),
           ),
 
         AppTextField(

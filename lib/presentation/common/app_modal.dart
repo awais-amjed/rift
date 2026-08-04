@@ -76,7 +76,7 @@ class AppModal extends StatelessWidget {
               children: [
                 // Header
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
                   child: Row(
                     children: [
                       if (titleIcon != null) ...[
@@ -90,15 +90,16 @@ class AppModal extends StatelessWidget {
                             Text(
                               title,
                               style: AppText.sectionTitle.copyWith(
-                                fontSize: 17,
+                                fontSize: 15,
                                 color: themeState.textPrimary,
                               ),
                             ),
                             if (subtitle != null) ...[
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 1),
                               Text(
                                 subtitle!,
                                 style: AppText.secondary.copyWith(
+                                  fontSize: 11.5,
                                   color: textTertiary,
                                 ),
                               ),
@@ -122,7 +123,10 @@ class AppModal extends StatelessWidget {
                 // Content
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
                     child: content,
                   ),
                 ),
@@ -130,7 +134,7 @@ class AppModal extends StatelessWidget {
                 if (actions != null) ...[
                   Divider(height: 1, color: borderColor),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
                     child: Row(
                       children: actions!
                           .map((a) => Expanded(child: a))

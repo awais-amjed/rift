@@ -24,7 +24,11 @@ class UnreadBadge extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         count > 99 ? '99+' : '$count',
-        style: AppText.badge.copyWith(height: 1.2, color: themeState.onPrimary),
+        // The count is knocked *out* of the accent rather than written on it,
+        // so the ink is the canvas the pill floats over — near-black in dark,
+        // near-white in light. `onPrimary` is white in both, which turns the
+        // dark palette's bright accent into a low-contrast smudge.
+        style: AppText.badge.copyWith(height: 1.2, color: themeState.bgPrimary),
       ),
     );
   }

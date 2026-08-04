@@ -57,7 +57,7 @@ class ConflictPanel extends StatelessWidget {
         ),
         if (state.error != null) ...[
           const SizedBox(height: 14),
-          MessageBanner(message: state.error!, isError: true),
+          MessageBanner(message: state.error!, kind: MessageBannerKind.error),
         ],
       ],
     );

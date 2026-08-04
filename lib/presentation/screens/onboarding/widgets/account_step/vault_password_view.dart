@@ -74,7 +74,10 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
                 ),
                 if (widget.state.error != null) ...[
                   const SizedBox(height: 12),
-                  MessageBanner(message: widget.state.error!, isError: true),
+                  MessageBanner(
+                    message: widget.state.error!,
+                    kind: MessageBannerKind.error,
+                  ),
                 ],
                 const SizedBox(height: 24),
                 Row(

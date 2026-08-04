@@ -10,6 +10,10 @@ class K {
   /// List rows, icon buttons, small controls.
   static const double radiusRow = 10;
 
+  /// Buttons, segmented options and expiry chips. One step above a row, so a
+  /// button reads as pressable next to the rows it sits among.
+  static const double radiusButton = 11;
+
   /// Squircle avatars and server chips are radius ≈ size/3; the rail's 40px
   /// chips land on 13.
   static const double radiusRailChip = 13;
@@ -20,6 +24,18 @@ class K {
   /// Avatars are squircles rather than circles: radius is this fraction of
   /// the avatar's size.
   static const double avatarRadiusRatio = 1 / 3;
+
+  // ── Controls ──────────────────────────────────────────────
+  /// A standalone button.
+  static const double controlHeight = 38;
+
+  /// Text fields, dropdowns, segmented options and dialog-footer buttons —
+  /// one step taller than a standalone button, so a form's controls line up
+  /// with each other rather than with the buttons scattered around the app.
+  static const double fieldHeight = 40;
+
+  /// Square icon buttons.
+  static const double iconButtonSize = 36;
 
   // ── Panel workspace ───────────────────────────────────────
   /// Gap between the floating panels, and between them and the window edge.

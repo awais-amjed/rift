@@ -97,7 +97,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_error != null) ...[
-                MessageBanner(message: _error!, isError: true),
+                MessageBanner(message: _error!, kind: MessageBannerKind.error),
                 const SizedBox(height: 12),
               ],
               AppTextField(
