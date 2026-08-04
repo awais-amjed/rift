@@ -52,7 +52,7 @@ class ParticipantNameBadge extends StatelessWidget {
                   Text(
                     name,
                     style: AppText.row.copyWith(
-                      fontSize: 13,
+                      fontSize: 12.5,
                       color: themeState.textPrimary,
                     ),
                   ),

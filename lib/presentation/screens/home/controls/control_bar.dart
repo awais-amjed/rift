@@ -32,7 +32,7 @@ class ControlBar extends StatelessWidget {
         return BlocBuilder<ScreenshareCubit, ScreenshareState>(
           builder: (context, screenshareState) {
             return Positioned(
-              bottom: 32,
+              bottom: 28,
               left: 0,
               right: 0,
               child: Center(
@@ -125,7 +125,7 @@ class _ControlBarContent extends StatelessWidget {
       builder: (context, themeState) {
         final bgColor = themeState.bgElevated;
 
-        final radius = BorderRadius.circular(K.radiusPill);
+        final radius = BorderRadius.circular(K.radiusVoicePill);
 
         // Glass, not a slab: the pill floats over live video, so it blurs
         // what's behind it rather than hiding it. The shadow sits outside the
@@ -140,9 +140,9 @@ class _ControlBarContent extends StatelessWidget {
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
               child: Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: bgColor.withValues(alpha: 0.72),
+                  color: bgColor.withValues(alpha: 0.9),
                   borderRadius: radius,
                   border: Border.all(color: themeState.borderElevated),
                 ),
@@ -194,15 +194,18 @@ class _ControlBarContent extends StatelessWidget {
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 10),
                       width: 1,
-                      height: 32,
-                      color: themeState.borderPrimary,
+                      height: 30,
+                      color: themeState.borderElevated,
                     ),
                     // Leave
                     Material(
                       color: CustomColors.error,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(K.radiusCard),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(K.radiusCard),
+                        // Opaque, so hovering deepens the red rather than
+                        // washing it — the one control here you can't undo.
+                        hoverColor: CustomColors.errorDark,
                         onTap: () => _leave(context),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
@@ -210,17 +213,16 @@ class _ControlBarContent extends StatelessWidget {
                             vertical: 12,
                           ),
                           child: Row(
+                            spacing: 8,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.call_end,
-                                size: 20,
+                                size: 19,
                                 color: Colors.white,
                               ),
-                              SizedBox(width: 8),
                               Text(
                                 'Leave',
                                 style: AppText.row.copyWith(
-                                  fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                 ),
@@ -282,14 +284,15 @@ class _ControlButton extends StatelessWidget {
           message: tooltip,
           child: Material(
             color: bgColor,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(K.radiusCard),
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(K.radiusCard),
               hoverColor: themeState.bgHover,
               onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Icon(icon, size: 22, color: iconColor),
+              child: SizedBox(
+                width: 46,
+                height: 46,
+                child: Icon(icon, size: 21, color: iconColor),
               ),
             ),
           ),

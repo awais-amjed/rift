@@ -19,7 +19,7 @@ class AvatarPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SquircleAvatar(name: name, seed: seed, size: 112),
+      child: SquircleAvatar(name: name, seed: seed, size: 96),
     );
   }
 }

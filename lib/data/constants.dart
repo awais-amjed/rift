@@ -25,6 +25,11 @@ class K {
   /// Fully round — chips, pills, badges, presence dots.
   static const double radiusPill = 999;
 
+  /// The floating voice control bar. Softer than a panel but stopping well
+  /// short of a stadium, so the row of square buttons inside still reads as a
+  /// row rather than as something poured into a capsule.
+  static const double radiusVoicePill = 18;
+
   /// Avatars are squircles rather than circles: radius is this fraction of
   /// the avatar's size.
   static const double avatarRadiusRatio = 1 / 3;

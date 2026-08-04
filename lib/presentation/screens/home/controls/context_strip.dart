@@ -82,6 +82,11 @@ class _ContextStripState extends State<ContextStrip> {
                     return Container(
                       height: 44,
                       padding: const EdgeInsets.symmetric(horizontal: 18),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: themeState.borderPrimary),
+                        ),
+                      ),
                       child: Row(
                         children: [
                           Icon(

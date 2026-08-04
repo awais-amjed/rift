@@ -86,10 +86,18 @@ class VoiceChannelTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
       padding: const EdgeInsets.all(9),
+      // The channel you are *in* takes the accent, the same way a selected
+      // row does; a channel that merely has people in it stays neutral. Both
+      // are cards, so the difference says which call is yours.
       decoration: BoxDecoration(
-        color: themeState.bgHover,
+        color: isSelected ? null : themeState.bgHover,
+        gradient: isSelected ? themeState.activeRowGradient : null,
         borderRadius: BorderRadius.circular(K.radiusCard),
-        border: Border.all(color: themeState.borderElevated),
+        border: Border.all(
+          color: isSelected
+              ? themeState.channelActiveBorder
+              : themeState.borderElevated,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
