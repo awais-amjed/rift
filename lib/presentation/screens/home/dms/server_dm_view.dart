@@ -8,7 +8,7 @@ import '../../../common/hint_card.dart';
 import 'server_dm_chat_view.dart';
 import 'widgets/dm_list_panel.dart';
 import 'widgets/dm_surface.dart';
-import 'widgets/new_server_dm_dialog.dart';
+import 'widgets/member_search_field.dart';
 
 /// DMs with members of the selected server.
 ///
@@ -35,7 +35,7 @@ class ServerDmView extends StatelessWidget {
         subtitle: server?.name,
         conversations: state.conversations,
         openPeerId: state.openPeerId,
-        onNew: server != null ? () => NewServerDmDialog.show(context) : null,
+        search: server != null ? const MemberSearchField() : null,
         emptyState: HintCard(
           icon: server == null
               ? Icons.dns_outlined

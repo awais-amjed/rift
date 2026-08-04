@@ -26,7 +26,29 @@ class CentralDmListPanel extends StatefulWidget {
 }
 
 class _CentralDmListPanelState extends State<CentralDmListPanel> {
-  final GlobalKey<HandleSearchFieldState> _searchKey = GlobalKey();
+  // Owned here rather than by the field, so the "+" and the member context
+  // menu can both drive it.
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  /// Seeded by the cubit when you arrive from "Message on Central". Setting
+  /// the text is what runs the search — the field listens to its controller.
+  void _consumeSeededQuery(String query) {
+    _searchController.text = query;
+    _searchController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: query.length,
+    );
+    _searchFocus.requestFocus();
+    context.read<CentralDmCubit>().setHandleQuery(null);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,22 +56,32 @@ class _CentralDmListPanelState extends State<CentralDmListPanel> {
     final state = context.watch<CentralDmCubit>().state;
     final ready = state.status == CentralDmStatus.ready;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildHeader(themeState, state, ready),
-        if (ready)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
-            child: HandleSearchField(key: _searchKey),
-          ),
-        if (state.status == CentralDmStatus.needsHandle || state.claiming)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(12, 2, 12, 10),
-            child: CentralHandlePanel(),
-          ),
-        Expanded(child: _buildList(themeState, state, ready)),
-      ],
+    return BlocListener<CentralDmCubit, CentralDmState>(
+      listenWhen: (a, b) => a.handleQuery != b.handleQuery,
+      listener: (context, state) {
+        final query = state.handleQuery;
+        if (query != null) _consumeSeededQuery(query);
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(themeState, state, ready),
+          if (ready)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+              child: HandleSearchField(
+                controller: _searchController,
+                focusNode: _searchFocus,
+              ),
+            ),
+          if (state.status == CentralDmStatus.needsHandle || state.claiming)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 2, 12, 10),
+              child: CentralHandlePanel(),
+            ),
+          Expanded(child: _buildList(themeState, state, ready)),
+        ],
+      ),
     );
   }
 
@@ -128,7 +160,7 @@ class _CentralDmListPanelState extends State<CentralDmListPanel> {
         borderRadius: radius,
         child: InkWell(
           borderRadius: radius,
-          onTap: () => _searchKey.currentState?.focusWith(null),
+          onTap: _searchFocus.requestFocus,
           child: Container(
             width: 30,
             height: 30,

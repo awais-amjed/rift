@@ -6,7 +6,6 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import '../../chat/widgets/chat_header.dart';
-import '../../chat/widgets/chat_header_button.dart';
 import 'dm_conversation_tile.dart';
 
 /// The conversation list down the left of the server-DM surface.
@@ -25,9 +24,9 @@ class DmListPanel extends StatelessWidget {
   final String? openPeerId;
   final void Function(DmConversation) onOpen;
 
-  /// Starts a new conversation. Null disables the "+" — the central tier
-  /// can't start one until an account is signed in and a handle claimed.
-  final VoidCallback? onNew;
+  /// The member search that starts a new conversation, under the header.
+  /// Null until a server is selected — there is nobody to search.
+  final Widget? search;
 
   /// Shown in place of the list when there are no conversations.
   final Widget? emptyState;
@@ -39,7 +38,7 @@ class DmListPanel extends StatelessWidget {
     required this.onOpen,
     this.subtitle,
     this.openPeerId,
-    this.onNew,
+    this.search,
     this.emptyState,
   });
 
@@ -51,6 +50,11 @@ class DmListPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildHeader(themeState),
+            if (search != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+                child: search!,
+              ),
             Expanded(child: _buildList(themeState)),
           ],
         );
@@ -65,41 +69,29 @@ class DmListPanel extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
       ),
-      child: Row(
+      // No "+": the search field below is the way to start a conversation,
+      // and a button whose only job is to point at a field already on screen
+      // is one control too many.
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.row.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: themeState.textPrimary,
-                  ),
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.meta.copyWith(
-                      color: themeState.textQuaternary,
-                    ),
-                  ),
-              ],
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.row.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: themeState.textPrimary,
             ),
           ),
-          if (onNew != null)
-            ChatHeaderButton(
-              icon: Icons.add_rounded,
-              tooltip: 'New conversation',
-              isPrimary: true,
-              onTap: onNew!,
+          if (subtitle != null)
+            Text(
+              subtitle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.meta.copyWith(color: themeState.textQuaternary),
             ),
         ],
       ),
