@@ -21,6 +21,7 @@ class WelcomeStep extends StatelessWidget {
     final theme = context.read<ThemeCubit>().state;
 
     return OnboardingPage(
+      step: 0,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

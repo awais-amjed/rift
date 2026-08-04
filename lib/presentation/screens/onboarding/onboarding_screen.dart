@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../logic/cubits/theme/theme_cubit.dart';
+import '../../common/canvas_backdrop.dart';
 import 'widgets/account_step/account_step.dart';
 import 'widgets/password_step.dart';
 import 'widgets/welcome_step.dart';
@@ -28,8 +27,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.read<ThemeCubit>().state;
-
     final page = switch (_page) {
       1 => AccountStep(onBack: () => _goTo(0)),
       2 => PasswordStep(onBack: () => _goTo(0)),
@@ -40,26 +37,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     };
 
     return Scaffold(
-      backgroundColor: theme.bgPrimary,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.02),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
+      body: CanvasBackdrop(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.02),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
                 ),
+                child: KeyedSubtree(key: ValueKey(_page), child: page),
               ),
-              child: KeyedSubtree(key: ValueKey(_page), child: page),
             ),
           ),
         ),

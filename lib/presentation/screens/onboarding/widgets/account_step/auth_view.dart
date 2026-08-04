@@ -78,6 +78,7 @@ class AuthViewState extends State<AuthView>
     final isProcessing = widget.state.isProcessing;
 
     return OnboardingPage(
+      step: 1,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

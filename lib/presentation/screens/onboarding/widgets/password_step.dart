@@ -67,6 +67,7 @@ class _PasswordStepState extends State<PasswordStep> {
         final isProcessing = vaultState.isProcessing;
 
         return OnboardingPage(
+          step: 2,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

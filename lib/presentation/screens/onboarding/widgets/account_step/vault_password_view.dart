@@ -44,6 +44,7 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
     final isProcessing = widget.state.isProcessing;
 
     return OnboardingPage(
+      step: 2,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
