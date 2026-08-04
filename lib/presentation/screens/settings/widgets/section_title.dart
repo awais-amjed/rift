@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 
 /// The heading above a group of settings. Every tab uses this, so the one
 /// place to change how a settings heading looks is here.
@@ -18,7 +19,7 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: TextStyle(
+      style: AppText.row.copyWith(
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: themeState.textPrimary,

@@ -8,6 +8,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../theme/app_text.dart';
 
 /// Admin-only settings for the currently selected server: display name and the
 /// LiveKit connection (URL + API key + secret). The API key/secret are
@@ -133,7 +134,10 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                 'The API key and secret are stored only on the server and '
                 'never sent back — leave them blank to keep the current '
                 'values.',
-                style: TextStyle(fontSize: 11, color: themeState.textTertiary),
+                style: AppText.label.copyWith(
+                  fontSize: 11,
+                  color: themeState.textTertiary,
+                ),
               ),
             ],
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 
 /// Summary display of selected screen share settings
 class SettingsSummary extends StatelessWidget {
@@ -36,7 +37,10 @@ class SettingsSummary extends StatelessWidget {
           child: Center(
             child: RichText(
               text: TextSpan(
-                style: TextStyle(fontSize: 13, color: themeState.textSecondary),
+                style: AppText.rowQuiet.copyWith(
+                  fontSize: 13,
+                  color: themeState.textSecondary,
+                ),
                 children: [
                   TextSpan(
                     text: captureFullScreen ? 'Screen' : 'Window',

@@ -8,6 +8,7 @@ import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 
 import '../section_title.dart';
+import '../../../../theme/app_text.dart';
 
 class VaultPasswordPanel extends StatefulWidget {
   final ThemeState themeState;
@@ -47,7 +48,7 @@ class VaultPasswordPanelState extends State<VaultPasswordPanel> {
           'This backup is protected by a separately chosen vault password '
           '(privacy mode). Enter it once — it will be re-encrypted under '
           'your account password afterwards.',
-          style: TextStyle(
+          style: AppText.secondary.copyWith(
             fontSize: 12,
             color: theme.textTertiary,
             height: 1.5,

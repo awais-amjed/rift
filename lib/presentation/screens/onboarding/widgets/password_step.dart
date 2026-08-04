@@ -11,6 +11,7 @@ import 'onboarding_page.dart';
 import 'password_strength_indicator.dart';
 import '../../../common/restore_file_dialog.dart';
 import '../../../common/feature_header.dart';
+import '../../../theme/app_text.dart';
 
 /// Privacy-mode onboarding step — create a local-only vault.
 ///
@@ -128,7 +129,7 @@ class _PasswordStepState extends State<PasswordStep> {
                       const SizedBox(height: 12),
                       Text(
                         _validationError ?? vaultState.error!,
-                        style: const TextStyle(
+                        style: AppText.rowQuiet.copyWith(
                           fontSize: 13,
                           color: CustomColors.error,
                         ),
@@ -159,7 +160,7 @@ class _PasswordStepState extends State<PasswordStep> {
                             child: Text(
                               'Make sure you remember this password. '
                               'It cannot be reset or recovered.',
-                              style: TextStyle(
+                              style: AppText.secondary.copyWith(
                                 fontSize: 12,
                                 height: 1.4,
                                 color: theme.textSecondary,
@@ -177,7 +178,7 @@ class _PasswordStepState extends State<PasswordStep> {
                       Text(
                         'Setting up your account…',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: AppText.secondary.copyWith(
                           fontSize: 12,
                           color: theme.textQuaternary,
                         ),
@@ -219,7 +220,10 @@ class _PasswordStepState extends State<PasswordStep> {
                             ),
                       child: Text(
                         'Have a backup file? Restore it instead',
-                        style: TextStyle(fontSize: 12, color: theme.primary),
+                        style: AppText.secondary.copyWith(
+                          fontSize: 12,
+                          color: theme.primary,
+                        ),
                       ),
                     ),
                   ],

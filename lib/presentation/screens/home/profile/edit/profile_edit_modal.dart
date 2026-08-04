@@ -13,6 +13,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/user_avatar.dart';
+import '../../../../theme/app_text.dart';
 
 /// Edit your profile on the **selected server**.
 ///
@@ -155,7 +156,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
               const SizedBox(height: 18),
               Text(
                 'Display Name',
-                style: TextStyle(
+                style: AppText.secondary.copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: themeState.textTertiary,
@@ -166,7 +167,10 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
                 controller: _nameController,
                 enabled: !_saving,
                 maxLength: 32,
-                style: TextStyle(color: themeState.textPrimary, fontSize: 14),
+                style: AppText.rowQuiet.copyWith(
+                  color: themeState.textPrimary,
+                  fontSize: 14,
+                ),
                 decoration: const InputDecoration(
                   hintText: 'Your name on this server',
                   counterText: '',
@@ -176,7 +180,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
               Text(
                 'Each server is a separate identity — this name and picture '
                 'apply here only.',
-                style: TextStyle(
+                style: AppText.label.copyWith(
                   fontSize: 11,
                   color: themeState.textQuaternary,
                 ),
@@ -247,7 +251,10 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
         const SizedBox(height: 8),
         Text(
           picked != null ? 'New picture ready to save' : 'Change picture',
-          style: TextStyle(fontSize: 11, color: themeState.textQuaternary),
+          style: AppText.label.copyWith(
+            fontSize: 11,
+            color: themeState.textQuaternary,
+          ),
         ),
       ],
     );

@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 
 import '../section_title.dart';
+import '../../../../theme/app_text.dart';
 
 class ConfirmEmailPanel extends StatelessWidget {
   final ThemeState themeState;
@@ -26,7 +27,7 @@ class ConfirmEmailPanel extends StatelessWidget {
           email != null
               ? 'A confirmation link was sent to $email. Click the link, then sign in.'
               : 'A confirmation link was sent to your email. Click the link, then sign in.',
-          style: TextStyle(
+          style: AppText.secondary.copyWith(
             fontSize: 12,
             color: themeState.textTertiary,
             height: 1.5,

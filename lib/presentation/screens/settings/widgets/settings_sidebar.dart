@@ -134,7 +134,7 @@ class SidebarItem extends StatelessWidget {
                 const SizedBox(width: 10),
                 Text(
                   label,
-                  style: TextStyle(
+                  style: AppText.row.copyWith(
                     fontSize: 13,
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                     color: textColor,

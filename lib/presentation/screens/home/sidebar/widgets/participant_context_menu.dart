@@ -12,6 +12,7 @@ import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../dms/widgets/new_central_dm_dialog.dart';
+import '../../../../theme/app_text.dart';
 
 /// Dialog-based context menu for a participant — mute toggle + volume slider.
 ///
@@ -145,7 +146,7 @@ class ParticipantContextMenu extends StatelessWidget {
                               isLocal
                                   ? 'YOU'
                                   : (isLive ? 'PARTICIPANT' : 'MEMBER'),
-                              style: TextStyle(
+                              style: AppText.sectionLabel.copyWith(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1.2,
@@ -155,7 +156,7 @@ class ParticipantContextMenu extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               name,
-                              style: TextStyle(
+                              style: AppText.row.copyWith(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: textPrimary,
@@ -241,7 +242,7 @@ class ParticipantContextMenu extends StatelessWidget {
                                 children: [
                                   Text(
                                     'VOLUME',
-                                    style: TextStyle(
+                                    style: AppText.sectionLabel.copyWith(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: 1.2,
@@ -252,7 +253,7 @@ class ParticipantContextMenu extends StatelessWidget {
                                     isMuted
                                         ? '—'
                                         : '${(volume * 100).round()}%',
-                                    style: TextStyle(
+                                    style: AppText.label.copyWith(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: textSecondary,

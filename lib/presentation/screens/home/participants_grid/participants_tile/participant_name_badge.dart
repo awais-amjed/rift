@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/app_text.dart';
 
 /// Name badge showing participant name and status icons
 class ParticipantNameBadge extends StatelessWidget {
@@ -43,7 +44,7 @@ class ParticipantNameBadge extends StatelessWidget {
               ],
               Text(
                 name,
-                style: TextStyle(
+                style: AppText.row.copyWith(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: themeState.textPrimary,

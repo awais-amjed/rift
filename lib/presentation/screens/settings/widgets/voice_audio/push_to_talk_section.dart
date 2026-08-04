@@ -7,6 +7,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../section_title.dart';
 import '../setting_toggle_row.dart';
+import '../../../../theme/app_text.dart';
 
 /// Push-to-talk: the enable switch, the current keybind, and the capture
 /// button that listens for the next key pressed.
@@ -102,7 +103,10 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
         const SizedBox(height: 6),
         Text(
           appState.pushToTalkKeyLabel ?? 'Not set',
-          style: TextStyle(color: themeState.textSecondary, fontSize: 13),
+          style: AppText.rowQuiet.copyWith(
+            color: themeState.textSecondary,
+            fontSize: 13,
+          ),
         ),
         const SizedBox(height: 10),
         Focus(
@@ -136,7 +140,10 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
           const SizedBox(height: 8),
           Text(
             'Press Esc to cancel key capture.',
-            style: TextStyle(color: themeState.textTertiary, fontSize: 12),
+            style: AppText.secondary.copyWith(
+              color: themeState.textTertiary,
+              fontSize: 12,
+            ),
           ),
         ],
       ],

@@ -6,6 +6,7 @@ import '../create_server_form.dart';
 import '../join_server_form.dart';
 import 'widgets/server_list_view.dart';
 import 'widgets/server_mode_picker.dart';
+import '../../../../theme/app_text.dart';
 
 enum _SelectorMode { list, pickMode, join, create }
 
@@ -85,7 +86,7 @@ class _ServerSelectorDialogState extends State<ServerSelectorDialog> {
                           children: [
                             Text(
                               _title,
-                              style: TextStyle(
+                              style: AppText.sectionTitle.copyWith(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
                                 color: themeState.textPrimary,
@@ -94,7 +95,7 @@ class _ServerSelectorDialogState extends State<ServerSelectorDialog> {
                             const SizedBox(height: 2),
                             Text(
                               _subtitle,
-                              style: TextStyle(
+                              style: AppText.secondary.copyWith(
                                 fontSize: 12,
                                 color: themeState.textTertiary,
                               ),

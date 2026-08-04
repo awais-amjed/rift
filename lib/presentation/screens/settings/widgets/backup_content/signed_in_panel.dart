@@ -11,6 +11,7 @@ import '../../../../common/message_banner.dart';
 import '../../../../theme/custom_colors.dart';
 
 import '../section_title.dart';
+import '../../../../theme/app_text.dart';
 
 class SignedInPanel extends StatelessWidget {
   final ThemeState themeState;
@@ -82,7 +83,10 @@ class SignedInPanel extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Signed in as ${state.email ?? 'unknown'}',
-                  style: TextStyle(fontSize: 12, color: theme.textSecondary),
+                  style: AppText.secondary.copyWith(
+                    fontSize: 12,
+                    color: theme.textSecondary,
+                  ),
                 ),
               ),
               TextButton(
@@ -94,9 +98,12 @@ class SignedInPanel extends StatelessWidget {
                   minimumSize: const Size(48, 28),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
+                child: Text(
                   'Sign out',
-                  style: TextStyle(fontSize: 11, color: CustomColors.error),
+                  style: AppText.label.copyWith(
+                    fontSize: 11,
+                    color: CustomColors.error,
+                  ),
                 ),
               ),
             ],
@@ -111,7 +118,7 @@ class SignedInPanel extends StatelessWidget {
         Text(
           'Upload your current encrypted vault backup to the cloud. '
           'Your password is never sent.',
-          style: TextStyle(
+          style: AppText.secondary.copyWith(
             fontSize: 12,
             color: theme.textTertiary,
             height: 1.5,

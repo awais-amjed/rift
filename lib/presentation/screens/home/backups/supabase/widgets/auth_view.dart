@@ -8,6 +8,7 @@ import '../../../../../common/app_text_field.dart';
 import '../../../../../common/message_banner.dart';
 import '../../../../../common/supabase_auth_form_state.dart';
 import '../../../../../common/feature_header.dart';
+import '../../../../../theme/app_text.dart';
 
 /// Sign-up / sign-in form shown when the user is not yet authenticated.
 ///
@@ -93,7 +94,10 @@ class _AuthViewState extends State<AuthView>
             isSignUp
                 ? 'Already have an account? Sign in'
                 : "Don't have an account? Sign up",
-            style: TextStyle(fontSize: 13, color: theme.primary),
+            style: AppText.rowQuiet.copyWith(
+              fontSize: 13,
+              color: theme.primary,
+            ),
           ),
         ),
       ],

@@ -13,6 +13,7 @@ import '../../../common/app_modal.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/custom_colors.dart';
 import '../screenshare/screen_share_settings_dialog.dart';
+import '../../../theme/app_text.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 ///
@@ -209,7 +210,7 @@ class _ControlBarContent extends StatelessWidget {
                             vertical: 12,
                           ),
                           child: Row(
-                            children: const [
+                            children: [
                               Icon(
                                 Icons.call_end,
                                 size: 20,
@@ -218,7 +219,7 @@ class _ControlBarContent extends StatelessWidget {
                               SizedBox(width: 8),
                               Text(
                                 'Leave',
-                                style: TextStyle(
+                                style: AppText.row.copyWith(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,

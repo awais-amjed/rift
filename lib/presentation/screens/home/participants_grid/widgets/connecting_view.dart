@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 
 /// Connecting view shown while establishing LiveKit connection.
 class ConnectingView extends StatelessWidget {
@@ -28,7 +29,7 @@ class ConnectingView extends StatelessWidget {
                 const SizedBox(height: 24),
                 Text(
                   'Connecting...',
-                  style: TextStyle(
+                  style: AppText.dialogTitle.copyWith(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                     color: themeState.textPrimary,
@@ -37,7 +38,7 @@ class ConnectingView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Joining voice channel',
-                  style: TextStyle(
+                  style: AppText.rowQuiet.copyWith(
                     fontSize: 14,
                     color: themeState.textTertiary,
                   ),

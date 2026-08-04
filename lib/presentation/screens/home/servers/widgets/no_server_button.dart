@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 
 /// Placeholder shown when no server is selected.
 class NoServerButton extends StatelessWidget {
@@ -49,7 +50,7 @@ class NoServerButton extends StatelessWidget {
                       children: [
                         Text(
                           'No Server Selected',
-                          style: TextStyle(
+                          style: AppText.row.copyWith(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: themeState.textTertiary,
@@ -57,7 +58,7 @@ class NoServerButton extends StatelessWidget {
                         ),
                         Text(
                           'Click to add',
-                          style: TextStyle(
+                          style: AppText.label.copyWith(
                             fontSize: 11,
                             color: themeState.textQuaternary,
                           ),

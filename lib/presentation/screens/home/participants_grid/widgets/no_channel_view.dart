@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 
 /// View shown when no voice channel is selected.
 class NoChannelView extends StatelessWidget {
@@ -21,7 +22,7 @@ class NoChannelView extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No Channel Selected',
-                  style: TextStyle(
+                  style: AppText.dialogTitle.copyWith(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                     color: themeState.textPrimary,
@@ -30,7 +31,7 @@ class NoChannelView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Select a voice channel from the sidebar to join',
-                  style: TextStyle(
+                  style: AppText.rowQuiet.copyWith(
                     fontSize: 14,
                     color: themeState.textTertiary,
                   ),

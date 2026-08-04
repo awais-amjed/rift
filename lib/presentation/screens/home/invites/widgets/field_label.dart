@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../theme/app_text.dart';
 
 class FieldLabel extends StatelessWidget {
   final String label;
@@ -10,7 +11,7 @@ class FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label.toUpperCase(),
-      style: TextStyle(
+      style: AppText.sectionLabel.copyWith(
         fontSize: 10,
         fontWeight: FontWeight.w800,
         letterSpacing: 0.8,

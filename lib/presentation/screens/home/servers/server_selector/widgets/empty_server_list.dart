@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../theme/app_text.dart';
 
 /// Empty state widget shown when no servers exist.
 class EmptyServerList extends StatelessWidget {
@@ -32,7 +33,7 @@ class EmptyServerList extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'No Servers Yet',
-              style: TextStyle(
+              style: AppText.sectionTitle.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: themeState.textPrimary,
@@ -41,7 +42,10 @@ class EmptyServerList extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Get started by adding your first server',
-              style: TextStyle(fontSize: 13, color: themeState.textTertiary),
+              style: AppText.rowQuiet.copyWith(
+                fontSize: 13,
+                color: themeState.textTertiary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),

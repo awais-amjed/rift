@@ -7,6 +7,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/custom_colors.dart';
 import 'widgets/mic_level_meter.dart';
+import '../../../../theme/app_text.dart';
 
 /// "Mic Test" settings block: opens the microphone with the current
 /// audio-processing settings and shows a live input-level meter so the user
@@ -156,7 +157,7 @@ class _MicTestSectionState extends State<MicTestSection> {
           children: [
             Text(
               'Input Sensitivity',
-              style: TextStyle(
+              style: AppText.row.copyWith(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: themeState.textPrimary,
@@ -167,7 +168,10 @@ class _MicTestSectionState extends State<MicTestSection> {
               'How loud your mic must be to transmit. Drag the threshold, then '
               'Test Mic and speak — input left of the marker is muted. Leave at '
               '0% for an open mic.',
-              style: TextStyle(color: themeState.textTertiary, fontSize: 12),
+              style: AppText.secondary.copyWith(
+                color: themeState.textTertiary,
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 12),
             MicLevelMeter(
@@ -181,7 +185,7 @@ class _MicTestSectionState extends State<MicTestSection> {
               children: [
                 Text(
                   'Threshold',
-                  style: TextStyle(
+                  style: AppText.secondary.copyWith(
                     color: themeState.textSecondary,
                     fontSize: 12,
                   ),
@@ -200,7 +204,7 @@ class _MicTestSectionState extends State<MicTestSection> {
                   child: Text(
                     threshold <= 0 ? 'Off' : '${(threshold * 100).round()}%',
                     textAlign: TextAlign.right,
-                    style: TextStyle(
+                    style: AppText.secondary.copyWith(
                       color: themeState.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -214,7 +218,7 @@ class _MicTestSectionState extends State<MicTestSection> {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
                   'Ignored while Push-to-Talk is on.',
-                  style: TextStyle(
+                  style: AppText.label.copyWith(
                     color: themeState.textTertiary,
                     fontSize: 11,
                   ),
@@ -235,7 +239,7 @@ class _MicTestSectionState extends State<MicTestSection> {
                 if (_testing)
                   Text(
                     'Listening…',
-                    style: TextStyle(
+                    style: AppText.secondary.copyWith(
                       color: themeState.textTertiary,
                       fontSize: 12,
                     ),
@@ -246,7 +250,10 @@ class _MicTestSectionState extends State<MicTestSection> {
               const SizedBox(height: 8),
               Text(
                 _error!,
-                style: const TextStyle(color: CustomColors.error, fontSize: 12),
+                style: AppText.secondary.copyWith(
+                  color: CustomColors.error,
+                  fontSize: 12,
+                ),
               ),
             ],
           ],

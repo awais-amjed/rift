@@ -8,6 +8,7 @@ import '../../../common/app_button.dart';
 import '../../../common/app_text_field.dart';
 import 'create_user_dialog.dart';
 import '../../../common/message_banner.dart';
+import '../../../theme/app_text.dart';
 
 /// Form to create a brand new server with Supabase + LiveKit credentials.
 class CreateServerForm extends StatefulWidget {
@@ -223,7 +224,7 @@ class _SectionDivider extends StatelessWidget {
           children: [
             Text(
               label.toUpperCase(),
-              style: TextStyle(
+              style: AppText.sectionLabel.copyWith(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.8,

@@ -8,6 +8,7 @@ import '../../../../common/message_banner.dart';
 import '../../../../common/supabase_auth_form_state.dart';
 
 import '../section_title.dart';
+import '../../../../theme/app_text.dart';
 
 class AuthPanel extends StatefulWidget {
   final ThemeState themeState;
@@ -38,7 +39,7 @@ class AuthPanelState extends State<AuthPanel>
           isSignUp
               ? 'Your encrypted backup is stored securely. Only you can decrypt it.'
               : 'Authenticate to upload or restore your encrypted vault backup.',
-          style: TextStyle(
+          style: AppText.secondary.copyWith(
             fontSize: 12,
             color: theme.textTertiary,
             height: 1.5,
@@ -78,7 +79,10 @@ class AuthPanelState extends State<AuthPanel>
               onPressed: isProcessing ? null : toggleAuthMode,
               child: Text(
                 isSignUp ? 'Already have an account?' : 'Create an account',
-                style: TextStyle(fontSize: 12, color: theme.primary),
+                style: AppText.secondary.copyWith(
+                  fontSize: 12,
+                  color: theme.primary,
+                ),
               ),
             ),
           ],

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../src/rust/api/screenshare/audio_linux.dart';
 import '../widgets/settings_section.dart';
+import '../../../../theme/app_text.dart';
 
 /// Section for selecting Linux audio source for screen sharing
 class AudioSourceSection extends StatelessWidget {
@@ -67,7 +68,7 @@ class AudioSourceSection extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'No audio sources found. Make sure an application is playing audio.',
-                        style: TextStyle(
+                        style: AppText.secondary.copyWith(
                           fontSize: 12,
                           color: themeState.textTertiary,
                         ),
@@ -99,7 +100,7 @@ class AudioSourceSection extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     hint: Text(
                       'Select audio source',
-                      style: TextStyle(
+                      style: AppText.rowQuiet.copyWith(
                         fontSize: 13,
                         color: themeState.textTertiary,
                       ),
@@ -109,7 +110,7 @@ class AudioSourceSection extends StatelessWidget {
                         value: source,
                         child: Text(
                           _buildLabel(source),
-                          style: TextStyle(
+                          style: AppText.rowQuiet.copyWith(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: themeState.textPrimary,

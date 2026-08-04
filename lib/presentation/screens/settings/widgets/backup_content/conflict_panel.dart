@@ -7,6 +7,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/message_banner.dart';
 
 import '../section_title.dart';
+import '../../../../theme/app_text.dart';
 
 class ConflictPanel extends StatelessWidget {
   final ThemeState themeState;
@@ -32,7 +33,7 @@ class ConflictPanel extends StatelessWidget {
           'Your account already has a cloud backup, but this device has its '
           'own vault. Choose which identity to keep — the other one is '
           'overwritten.',
-          style: TextStyle(
+          style: AppText.secondary.copyWith(
             fontSize: 12,
             color: themeState.textTertiary,
             height: 1.5,

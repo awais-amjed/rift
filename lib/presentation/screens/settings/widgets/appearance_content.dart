@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import 'section_title.dart';
 import '../../../theme/app_palette.dart';
+import '../../../theme/app_text.dart';
 
 class AppearanceContent extends StatelessWidget {
   final ThemeState themeState;
@@ -43,7 +44,10 @@ class AppearanceContent extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           'Changes the accent and surface tones across the whole app.',
-          style: TextStyle(fontSize: 12, color: themeState.textTertiary),
+          style: AppText.secondary.copyWith(
+            fontSize: 12,
+            color: themeState.textTertiary,
+          ),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -124,7 +128,7 @@ class _PaletteCard extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 palette.name,
-                style: TextStyle(
+                style: AppText.row.copyWith(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                   color: themeState.textPrimary,
@@ -133,7 +137,7 @@ class _PaletteCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 palette.description,
-                style: TextStyle(
+                style: AppText.label.copyWith(
                   fontSize: 11,
                   height: 1.35,
                   color: themeState.textTertiary,
@@ -207,7 +211,7 @@ class ThemeCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 label,
-                style: TextStyle(
+                style: AppText.row.copyWith(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: textColor,

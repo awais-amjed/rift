@@ -11,6 +11,7 @@ import '../../../../theme/custom_colors.dart';
 import '../onboarding_page.dart';
 import '../password_strength_indicator.dart';
 import '../../../../common/feature_header.dart';
+import '../../../../theme/app_text.dart';
 
 class AuthView extends StatefulWidget {
   final SupabaseBackupState state;
@@ -177,7 +178,7 @@ class AuthViewState extends State<AuthView>
                             'Your password protects your encrypted backup. '
                             'Resetting it later means old backups can\'t be '
                             'restored — keep it safe.',
-                            style: TextStyle(
+                            style: AppText.secondary.copyWith(
                               fontSize: 12,
                               height: 1.4,
                               color: theme.textSecondary,
@@ -223,7 +224,10 @@ class AuthViewState extends State<AuthView>
                     isSignUp
                         ? 'Already have an account? Sign in'
                         : 'New here? Create an account',
-                    style: TextStyle(fontSize: 12, color: theme.primary),
+                    style: AppText.secondary.copyWith(
+                      fontSize: 12,
+                      color: theme.primary,
+                    ),
                   ),
                 ),
               ],

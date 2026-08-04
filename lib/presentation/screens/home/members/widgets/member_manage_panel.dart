@@ -5,6 +5,7 @@ import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/permission_toggle.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/app_text.dart';
 
 /// Expanded management controls under a member row: permission toggles
 /// (server admins only) and mute/deafen moderation buttons (admins and
@@ -166,7 +167,7 @@ class _ModerationButton extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: TextStyle(
+                style: AppText.secondary.copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: color,

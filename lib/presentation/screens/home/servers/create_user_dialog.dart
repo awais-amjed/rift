@@ -9,6 +9,7 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/message_banner.dart';
+import '../../../theme/app_text.dart';
 
 /// Dialog shown when user joins a server and needs to create a profile.
 class CreateUserDialog extends StatefulWidget {
@@ -152,7 +153,10 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       padding: const EdgeInsets.only(top: 4, bottom: 12),
       child: Text(
         text,
-        style: TextStyle(fontSize: 11, color: themeState.textQuaternary),
+        style: AppText.label.copyWith(
+          fontSize: 11,
+          color: themeState.textQuaternary,
+        ),
       ),
     );
   }

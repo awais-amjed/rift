@@ -7,6 +7,7 @@ import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/unread_badge.dart';
 import '../../../../../common/squircle_avatar.dart';
+import '../../../../../theme/app_text.dart';
 
 /// A single server item in the server list.
 class ServerListItem extends StatelessWidget {
@@ -69,7 +70,7 @@ class ServerListItem extends StatelessWidget {
                       children: [
                         Text(
                           server.name,
-                          style: TextStyle(
+                          style: AppText.row.copyWith(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: themeState.textPrimary,
@@ -77,7 +78,7 @@ class ServerListItem extends StatelessWidget {
                         ),
                         Text(
                           server.supabaseUrl,
-                          style: TextStyle(
+                          style: AppText.label.copyWith(
                             fontSize: 11,
                             color: themeState.textTertiary,
                             overflow: TextOverflow.ellipsis,
@@ -95,7 +96,7 @@ class ServerListItem extends StatelessWidget {
                   if (isSelected) ...[
                     Text(
                       'Active',
-                      style: TextStyle(
+                      style: AppText.label.copyWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: themeState.primary,

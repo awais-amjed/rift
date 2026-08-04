@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/app_text.dart';
 
 /// Error view shown when connection fails.
 class ErrorView extends StatelessWidget {
@@ -24,7 +25,7 @@ class ErrorView extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Connection Error',
-                  style: TextStyle(
+                  style: AppText.dialogTitle.copyWith(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                     color: themeState.textPrimary,
@@ -35,7 +36,7 @@ class ErrorView extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 48),
                   child: Text(
                     error,
-                    style: const TextStyle(
+                    style: AppText.rowQuiet.copyWith(
                       fontSize: 14,
                       color: CustomColors.error,
                     ),

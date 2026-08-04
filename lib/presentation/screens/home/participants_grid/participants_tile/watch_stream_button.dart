@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 
 /// Button to start watching a screenshare stream
 class WatchStreamButton extends StatelessWidget {
@@ -28,7 +29,7 @@ class WatchStreamButton extends StatelessWidget {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Icon(
                       Icons.play_circle_filled,
                       size: 20,
@@ -37,7 +38,7 @@ class WatchStreamButton extends StatelessWidget {
                     SizedBox(width: 8),
                     Text(
                       'Watch Stream',
-                      style: TextStyle(
+                      style: AppText.row.copyWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,

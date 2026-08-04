@@ -8,6 +8,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import 'widgets/dm_chat_header.dart';
 import 'widgets/quota_meter.dart';
+import '../../../theme/app_text.dart';
 
 /// The open central-DM conversation. Central is the discovery funnel:
 /// the composer footer shows the daily quota, and sends stop at zero.
@@ -75,7 +76,10 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
             child: Text(
               state.error ?? 'Could not open this conversation.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: themeState.textTertiary),
+              style: AppText.rowQuiet.copyWith(
+                fontSize: 13,
+                color: themeState.textTertiary,
+              ),
             ),
           ),
         );

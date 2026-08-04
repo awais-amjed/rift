@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../theme/app_text.dart';
 
 /// Member picker for starting a DM on the selected server. Members without a
 /// published chat key are listed but disabled (they must open the app once).
@@ -138,7 +139,7 @@ class _MemberRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   member.displayName,
-                  style: TextStyle(
+                  style: AppText.rowQuiet.copyWith(
                     fontSize: 14,
                     color: enabled
                         ? themeState.textPrimary
@@ -149,7 +150,7 @@ class _MemberRow extends StatelessWidget {
               if (!enabled)
                 Text(
                   'no chat keys yet',
-                  style: TextStyle(
+                  style: AppText.label.copyWith(
                     fontSize: 11,
                     color: themeState.textQuaternary,
                   ),

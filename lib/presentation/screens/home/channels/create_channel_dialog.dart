@@ -9,6 +9,7 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/message_banner.dart';
+import '../../../theme/app_text.dart';
 
 /// Dialog to create a new channel (text or voice) in the current server.
 class CreateChannelDialog extends StatefulWidget {
@@ -85,7 +86,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               const SizedBox(height: 16),
               Text(
                 'CHANNEL TYPE',
-                style: TextStyle(
+                style: AppText.sectionLabel.copyWith(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.8,
@@ -173,7 +174,7 @@ class _TypeButton extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     label,
-                    style: TextStyle(
+                    style: AppText.row.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: selected ? Colors.white : themeState.textSecondary,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 
 /// A row of equal-width tappable chips where exactly one is selected at a time.
 class ChipSelector extends StatelessWidget {
@@ -45,7 +46,7 @@ class ChipSelector extends StatelessWidget {
                 child: Center(
                   child: Text(
                     options[i],
-                    style: TextStyle(
+                    style: AppText.secondary.copyWith(
                       fontSize: 12,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: selected

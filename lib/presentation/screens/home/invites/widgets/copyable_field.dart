@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/app_text.dart';
 
 class CopyableField extends StatelessWidget {
   final String? value;
@@ -43,16 +44,20 @@ class CopyableField extends StatelessWidget {
                 child: value != null
                     ? Text(
                         value!,
-                        style: TextStyle(
+                        // An invite code is exactly what mono is for — and
+                        // 'monospace' was asking the platform for whatever it
+                        // had, which is the inconsistency bundling Geist Mono
+                        // was meant to end.
+                        style: AppText.figure.copyWith(
                           fontSize: 13,
-                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w400,
                           color: textColor,
                           overflow: TextOverflow.ellipsis,
                         ),
                       )
                     : Text(
                         placeholder ?? '',
-                        style: TextStyle(
+                        style: AppText.rowQuiet.copyWith(
                           fontSize: 13,
                           fontStyle: FontStyle.italic,
                           color: placeholderColor ?? textColor,

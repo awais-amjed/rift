@@ -7,6 +7,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import 'connection_quality_popup.dart';
+import '../../../../theme/app_text.dart';
 
 /// Compact signal-strength line rendered inside the user dock (under the
 /// display name) while in a voice channel. Tapping it opens a popup with
@@ -139,7 +140,7 @@ class _ConnectionQualityIndicatorState
                         Flexible(
                           child: Text(
                             label,
-                            style: TextStyle(
+                            style: AppText.label.copyWith(
                               fontSize: 11,
                               color: themeState.textTertiary,
                               fontWeight: FontWeight.w500,
@@ -170,11 +171,11 @@ class _ConnectionQualityIndicatorState
   /// against whichever palette is running instead of fighting it.
   Color _qualityColor(VoiceQuality quality, ThemeState themeState) =>
       switch (quality) {
-    VoiceQuality.good => CustomColors.success,
-    VoiceQuality.fair => CustomColors.warning,
-    VoiceQuality.poor => CustomColors.error,
-    VoiceQuality.unknown => themeState.textQuaternary,
-  };
+        VoiceQuality.good => CustomColors.success,
+        VoiceQuality.fair => CustomColors.warning,
+        VoiceQuality.poor => CustomColors.error,
+        VoiceQuality.unknown => themeState.textQuaternary,
+      };
 
   String _qualityLabel(VoiceQuality quality) => switch (quality) {
     VoiceQuality.good => 'Good',

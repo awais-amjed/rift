@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import 'toggle_pill.dart';
+import '../../../../theme/app_text.dart';
 
 /// Audio sharing toggle widget
 class AudioToggle extends StatelessWidget {
@@ -51,7 +52,7 @@ class AudioToggle extends StatelessWidget {
                     children: [
                       Text(
                         'Share Audio',
-                        style: TextStyle(
+                        style: AppText.row.copyWith(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: shareAudio
@@ -63,7 +64,7 @@ class AudioToggle extends StatelessWidget {
                         shareAudio
                             ? 'System audio will be captured'
                             : 'No audio will be shared',
-                        style: TextStyle(
+                        style: AppText.label.copyWith(
                           fontSize: 11,
                           color: themeState.textQuaternary,
                         ),

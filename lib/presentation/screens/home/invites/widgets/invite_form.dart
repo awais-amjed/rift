@@ -6,6 +6,7 @@ import 'chip_selector.dart';
 import 'copyable_field.dart';
 import 'field_label.dart';
 import 'invite_options.dart';
+import '../../../../theme/app_text.dart';
 
 /// The body of the invite modal: the two pickers and the generated link.
 ///
@@ -84,7 +85,10 @@ class InviteForm extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             error!,
-            style: const TextStyle(fontSize: 12, color: CustomColors.error),
+            style: AppText.secondary.copyWith(
+              fontSize: 12,
+              color: CustomColors.error,
+            ),
           ),
         ],
 
@@ -92,7 +96,10 @@ class InviteForm extends StatelessWidget {
         Text(
           'Share this link with the person you want to invite — they paste '
           'it as one field to join.',
-          style: TextStyle(fontSize: 11, color: themeState.textQuaternary),
+          style: AppText.label.copyWith(
+            fontSize: 11,
+            color: themeState.textQuaternary,
+          ),
         ),
       ],
     );

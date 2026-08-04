@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../theme/app_text.dart';
 
 /// Empty state shown when no channels exist.
 class EmptyChannelsView extends StatelessWidget {
@@ -19,7 +20,10 @@ class EmptyChannelsView extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'No channels yet',
-                style: TextStyle(fontSize: 13, color: themeState.textTertiary),
+                style: AppText.rowQuiet.copyWith(
+                  fontSize: 13,
+                  color: themeState.textTertiary,
+                ),
               ),
             ],
           ),

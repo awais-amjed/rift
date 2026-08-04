@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 
 /// View shown when waiting for other participants to join.
 class WaitingView extends StatelessWidget {
@@ -23,7 +24,7 @@ class WaitingView extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 'Waiting for others...',
-                style: TextStyle(
+                style: AppText.sectionTitle.copyWith(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: themeState.textPrimary,
@@ -32,7 +33,10 @@ class WaitingView extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'You\'re the first one here',
-                style: TextStyle(fontSize: 14, color: themeState.textTertiary),
+                style: AppText.rowQuiet.copyWith(
+                  fontSize: 14,
+                  color: themeState.textTertiary,
+                ),
               ),
             ],
           ),

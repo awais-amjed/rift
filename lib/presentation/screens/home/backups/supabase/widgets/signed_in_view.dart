@@ -7,6 +7,7 @@ import '../../../../../common/app_button.dart';
 import '../../../../../theme/custom_colors.dart';
 import 'message_banner.dart';
 import 'section_header.dart';
+import '../../../../../theme/app_text.dart';
 
 /// Actions view shown when the user is signed in to the backup server.
 ///
@@ -104,7 +105,10 @@ class _SignedInBanner extends StatelessWidget {
           Expanded(
             child: Text(
               'Signed in as ${email ?? 'unknown'}',
-              style: TextStyle(fontSize: 13, color: theme.textSecondary),
+              style: AppText.rowQuiet.copyWith(
+                fontSize: 13,
+                color: theme.textSecondary,
+              ),
             ),
           ),
           TextButton(
@@ -113,9 +117,12 @@ class _SignedInBanner extends StatelessWidget {
               padding: EdgeInsets.zero,
               minimumSize: const Size(48, 32),
             ),
-            child: const Text(
+            child: Text(
               'Sign out',
-              style: TextStyle(fontSize: 12, color: CustomColors.error),
+              style: AppText.secondary.copyWith(
+                fontSize: 12,
+                color: CustomColors.error,
+              ),
             ),
           ),
         ],

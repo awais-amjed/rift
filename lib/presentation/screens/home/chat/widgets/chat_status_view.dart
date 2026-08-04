@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
+import '../../../../theme/app_text.dart';
 
 /// Centered status panel for the non-ready chat states (waiting for the
 /// channel key, load errors), with an optional retry button.
@@ -35,7 +36,7 @@ class ChatStatusView extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               title,
-              style: TextStyle(
+              style: AppText.row.copyWith(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: themeState.textPrimary,
@@ -45,7 +46,10 @@ class ChatStatusView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: themeState.textTertiary),
+              style: AppText.rowQuiet.copyWith(
+                fontSize: 13,
+                color: themeState.textTertiary,
+              ),
             ),
             if (showRetry) ...[
               const SizedBox(height: 16),

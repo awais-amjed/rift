@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
 import 'onboarding_page.dart';
+import '../../../theme/app_text.dart';
 
 /// First step of onboarding — welcome & app overview.
 class WelcomeStep extends StatelessWidget {
@@ -45,7 +46,7 @@ class WelcomeStep extends StatelessWidget {
           // Title
           Text(
             'Welcome to Rift',
-            style: TextStyle(
+            style: AppText.sectionTitle.copyWith(
               fontSize: 28,
               fontWeight: FontWeight.w700,
               color: theme.textPrimary,
@@ -58,7 +59,7 @@ class WelcomeStep extends StatelessWidget {
           // Subtitle
           Text(
             'Your space to hang out.',
-            style: TextStyle(
+            style: AppText.sectionTitle.copyWith(
               fontSize: 16,
               fontWeight: FontWeight.w500,
               color: theme.primary,
@@ -77,7 +78,7 @@ class WelcomeStep extends StatelessWidget {
               'synced across devices — or skip the account entirely and keep '
               'everything on this device.',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: AppText.rowQuiet.copyWith(
                 fontSize: 14,
                 height: 1.6,
                 color: theme.textTertiary,
@@ -122,7 +123,10 @@ class WelcomeStep extends StatelessWidget {
             'Privacy mode: no email, no central server — your identity '
             'never leaves this device.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: theme.textQuaternary),
+            style: AppText.label.copyWith(
+              fontSize: 11,
+              color: theme.textQuaternary,
+            ),
           ),
         ],
       ),
@@ -165,7 +169,7 @@ class _FeaturePillRow extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(
+            style: AppText.secondary.copyWith(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: theme.textSecondary,

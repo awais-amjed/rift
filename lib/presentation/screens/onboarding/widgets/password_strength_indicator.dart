@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
+import '../../../theme/app_text.dart';
 
 /// Visual password strength meter.
 ///
@@ -47,7 +48,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
           child: Text(
             strength.label,
             key: ValueKey(strength.label),
-            style: TextStyle(
+            style: AppText.secondary.copyWith(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: password.isEmpty ? theme.textQuaternary : strength.color,

@@ -6,6 +6,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import 'ping_graph.dart';
+import '../../../../theme/app_text.dart';
 
 /// Popup panel shown above the connection quality indicator.
 /// Shows ping, jitter, packet loss, and a 5-minute ping history graph.
@@ -56,7 +57,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           'VOICE CONNECTION',
-                          style: TextStyle(
+                          style: AppText.sectionLabel.copyWith(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1,
@@ -70,7 +71,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                       stats.isAlone
                           ? 'Waiting for others'
                           : _qualityLabel(stats.quality),
-                      style: TextStyle(
+                      style: AppText.row.copyWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: stats.isAlone
@@ -121,7 +122,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                       const SizedBox(height: 10),
                       Text(
                         'PING HISTORY · 5 MIN',
-                        style: TextStyle(
+                        style: AppText.sectionLabel.copyWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1,
@@ -152,11 +153,11 @@ class ConnectionQualityPopup extends StatelessWidget {
   /// against whichever palette is running instead of fighting it.
   Color _qualityColor(VoiceQuality quality, ThemeState themeState) =>
       switch (quality) {
-    VoiceQuality.good => CustomColors.success,
-    VoiceQuality.fair => CustomColors.warning,
-    VoiceQuality.poor => CustomColors.error,
-    VoiceQuality.unknown => themeState.textQuaternary,
-  };
+        VoiceQuality.good => CustomColors.success,
+        VoiceQuality.fair => CustomColors.warning,
+        VoiceQuality.poor => CustomColors.error,
+        VoiceQuality.unknown => themeState.textQuaternary,
+      };
 
   String _qualityLabel(VoiceQuality quality) => switch (quality) {
     VoiceQuality.good => 'Good',
@@ -186,7 +187,7 @@ class _StatRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: AppText.secondary.copyWith(
             fontSize: 12,
             color: themeState.textTertiary,
             fontWeight: FontWeight.w500,
@@ -194,7 +195,7 @@ class _StatRow extends StatelessWidget {
         ),
         Text(
           value,
-          style: TextStyle(
+          style: AppText.secondary.copyWith(
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: isWarning ? CustomColors.warning : themeState.textPrimary,

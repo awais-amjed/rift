@@ -8,6 +8,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/typing_indicator.dart';
 import 'widgets/dm_chat_header.dart';
+import '../../../theme/app_text.dart';
 
 /// The open server-DM conversation: header + history + composer, on the
 /// shared chat kit.
@@ -77,7 +78,10 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
             child: Text(
               state.error ?? 'Could not open this conversation.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: themeState.textTertiary),
+              style: AppText.rowQuiet.copyWith(
+                fontSize: 13,
+                color: themeState.textTertiary,
+              ),
             ),
           ),
         );

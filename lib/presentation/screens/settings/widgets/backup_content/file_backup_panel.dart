@@ -13,6 +13,7 @@ import '../../../../common/app_modal.dart';
 import '../../../../common/restore_file_dialog.dart';
 
 import '../section_title.dart';
+import '../../../../theme/app_text.dart';
 
 class FileBackupPanel extends StatefulWidget {
   final ThemeState themeState;
@@ -83,7 +84,7 @@ class FileBackupPanelState extends State<FileBackupPanel> {
         Text(
           'Export your encrypted backup as a file, or restore from one. '
           'Works entirely offline — no account needed.',
-          style: TextStyle(
+          style: AppText.secondary.copyWith(
             fontSize: 12,
             color: theme.textTertiary,
             height: 1.5,

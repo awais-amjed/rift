@@ -9,6 +9,7 @@ import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../theme/app_text.dart';
 
 /// Handle search for starting a central DM.
 class NewCentralDmDialog extends StatefulWidget {
@@ -130,7 +131,7 @@ class _NewCentralDmDialogState extends State<NewCentralDmDialog> {
                                     const SizedBox(width: 10),
                                     Text(
                                       '@${result.peerName}',
-                                      style: TextStyle(
+                                      style: AppText.rowQuiet.copyWith(
                                         fontSize: 14,
                                         color: themeState.textPrimary,
                                       ),

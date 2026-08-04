@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import 'member_badge.dart';
 import 'member_manage_panel.dart';
+import '../../../../theme/app_text.dart';
 
 /// One member in the members dialog: avatar, names, permission/moderation
 /// badges — expandable into a [MemberManagePanel] when the viewer may manage
@@ -74,7 +75,7 @@ class MemberRow extends StatelessWidget {
                           member.displayName.isNotEmpty
                               ? member.displayName[0].toUpperCase()
                               : '?',
-                          style: TextStyle(
+                          style: AppText.secondary.copyWith(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: themeState.textSecondary,
@@ -91,7 +92,7 @@ class MemberRow extends StatelessWidget {
                               isSelf
                                   ? '${member.displayName} (You)'
                                   : member.displayName,
-                              style: TextStyle(
+                              style: AppText.row.copyWith(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: themeState.textPrimary,
@@ -100,7 +101,7 @@ class MemberRow extends StatelessWidget {
                             ),
                             Text(
                               '@${member.username}',
-                              style: TextStyle(
+                              style: AppText.label.copyWith(
                                 fontSize: 11,
                                 color: themeState.textQuaternary,
                               ),

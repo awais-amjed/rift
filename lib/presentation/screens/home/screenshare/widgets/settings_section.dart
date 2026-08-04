@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 
 /// A labeled section container for grouping related settings
 class SettingsSection extends StatelessWidget {
@@ -23,7 +24,7 @@ class SettingsSection extends StatelessWidget {
           children: [
             Text(
               label.toUpperCase(),
-              style: TextStyle(
+              style: AppText.sectionLabel.copyWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.8,

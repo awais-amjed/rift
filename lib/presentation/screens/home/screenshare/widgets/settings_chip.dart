@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 
 /// A chip widget for selecting options in screen share settings
 class SettingsChip extends StatelessWidget {
@@ -34,7 +35,7 @@ class SettingsChip extends StatelessWidget {
             ),
             child: Text(
               label,
-              style: TextStyle(
+              style: AppText.rowQuiet.copyWith(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: active ? Colors.white : themeState.textSecondary,

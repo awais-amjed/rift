@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 
 /// A titled description with a trailing switch — the standard layout for a
 /// boolean setting.
@@ -42,7 +43,10 @@ class SettingToggleRow extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 description,
-                style: TextStyle(color: themeState.textTertiary, fontSize: 12),
+                style: AppText.secondary.copyWith(
+                  color: themeState.textTertiary,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),

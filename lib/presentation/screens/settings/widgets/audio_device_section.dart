@@ -5,6 +5,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import 'section_title.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 
 /// Section for selecting audio input and output devices.
 class AudioDeviceSection extends StatefulWidget {
@@ -136,12 +137,18 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
         if (_devicesLoading)
           Text(
             'Loading devices...',
-            style: TextStyle(color: themeState.textTertiary, fontSize: 12),
+            style: AppText.secondary.copyWith(
+              color: themeState.textTertiary,
+              fontSize: 12,
+            ),
           )
         else if (devices.isEmpty)
           Text(
             'No devices found',
-            style: TextStyle(color: themeState.textTertiary, fontSize: 12),
+            style: AppText.secondary.copyWith(
+              color: themeState.textTertiary,
+              fontSize: 12,
+            ),
           )
         else
           Container(
@@ -156,7 +163,10 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
               isExpanded: true,
               underline: const SizedBox.shrink(),
               dropdownColor: themeState.bgSecondary,
-              style: TextStyle(color: themeState.textPrimary, fontSize: 13),
+              style: AppText.rowQuiet.copyWith(
+                color: themeState.textPrimary,
+                fontSize: 13,
+              ),
               items: devices
                   .map(
                     (device) => DropdownMenuItem<String>(

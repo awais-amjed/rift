@@ -6,6 +6,7 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import 'widgets/member_row.dart';
+import '../../../theme/app_text.dart';
 
 /// Members dialog — lists everyone on the server with their permissions and
 /// moderation state. Server admins manage permissions here (Discord-style:
@@ -147,7 +148,7 @@ class _MembersModalState extends State<MembersModal> {
                           _members == null
                               ? 'Members'
                               : 'Members — ${_members!.length}',
-                          style: TextStyle(
+                          style: AppText.row.copyWith(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: themeState.textPrimary,
@@ -173,7 +174,7 @@ class _MembersModalState extends State<MembersModal> {
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                     child: Text(
                       _error!,
-                      style: const TextStyle(
+                      style: AppText.secondary.copyWith(
                         fontSize: 12,
                         color: CustomColors.error,
                       ),

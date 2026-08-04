@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../theme/app_text.dart';
 
 /// Button to stop watching a screenshare stream
 class StopWatchingButton extends StatelessWidget {
@@ -18,12 +19,12 @@ class StopWatchingButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Icon(Icons.stop_circle, size: 18, color: Colors.white),
               SizedBox(width: 6),
               Text(
                 'Stop Watching',
-                style: TextStyle(
+                style: AppText.row.copyWith(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,

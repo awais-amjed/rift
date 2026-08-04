@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../theme/app_text.dart';
 
 /// Icon + title + description header used before each action section.
 class SectionHeader extends StatelessWidget {
@@ -39,7 +40,7 @@ class SectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: TextStyle(
+                style: AppText.row.copyWith(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: theme.textPrimary,
@@ -48,7 +49,7 @@ class SectionHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 description,
-                style: TextStyle(
+                style: AppText.secondary.copyWith(
                   fontSize: 12,
                   height: 1.5,
                   color: theme.textTertiary,
