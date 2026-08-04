@@ -42,14 +42,14 @@ class DmChatHeader extends StatelessWidget {
 
     return Container(
       height: ChatHeader.height,
-      padding: const EdgeInsets.fromLTRB(16, 0, 10, 0),
+      padding: const EdgeInsets.fromLTRB(18, 0, 10, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
       ),
       child: Row(
         spacing: 10,
         children: [
-          SquircleAvatar(name: title, seed: peerId, size: 26),
+          SquircleAvatar(name: title, seed: peerId, size: 30),
           Flexible(
             child: Text(
               title,

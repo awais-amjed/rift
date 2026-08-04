@@ -8,10 +8,14 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 /// [isActive] keeps a standing fill for toggles that are currently on, so the
 /// members panel being open is legible from the button itself rather than only
 /// from the panel's presence.
+///
+/// [isPrimary] promotes the button to an accent tile — for the one header
+/// control that *starts* something rather than toggling a view.
 class ChatHeaderButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final bool isActive;
+  final bool isPrimary;
   final VoidCallback onTap;
 
   const ChatHeaderButton({
@@ -20,6 +24,7 @@ class ChatHeaderButton extends StatelessWidget {
     required this.tooltip,
     required this.onTap,
     this.isActive = false,
+    this.isPrimary = false,
   });
 
   @override
@@ -27,27 +32,48 @@ class ChatHeaderButton extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         final radius = BorderRadius.circular(9);
+        final size = isPrimary ? 30.0 : 32.0;
+
+        final Color fill;
+        if (isPrimary) {
+          fill = themeState.primary.withValues(alpha: 0.12);
+        } else if (isActive) {
+          fill = themeState.bgHover;
+        } else {
+          fill = Colors.transparent;
+        }
+
+        final Color iconColor;
+        if (isPrimary) {
+          iconColor = themeState.accentBright;
+        } else if (isActive) {
+          iconColor = themeState.textSecondary;
+        } else {
+          iconColor = themeState.textTertiary;
+        }
 
         return Tooltip(
           message: tooltip,
           waitDuration: const Duration(milliseconds: 400),
           child: Material(
-            color: isActive ? themeState.bgHover : Colors.transparent,
+            color: fill,
             borderRadius: radius,
             child: InkWell(
               borderRadius: radius,
               hoverColor: themeState.bgActive,
               onTap: onTap,
-              child: SizedBox(
-                width: 32,
-                height: 32,
-                child: Icon(
-                  icon,
-                  size: 17,
-                  color: isActive
-                      ? themeState.textSecondary
-                      : themeState.textTertiary,
-                ),
+              child: Container(
+                width: size,
+                height: size,
+                decoration: isPrimary
+                    ? BoxDecoration(
+                        borderRadius: radius,
+                        border: Border.all(
+                          color: themeState.primary.withValues(alpha: 0.3),
+                        ),
+                      )
+                    : null,
+                child: Icon(icon, size: 17, color: iconColor),
               ),
             ),
           ),

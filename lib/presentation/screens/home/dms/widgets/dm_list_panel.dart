@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../channels/channel_list/widgets/section_header.dart';
 import '../../chat/widgets/chat_header.dart';
 import '../../chat/widgets/chat_header_button.dart';
 import 'dm_conversation_tile.dart';
@@ -34,6 +35,11 @@ class DmListPanel extends StatelessWidget {
   /// Shown in place of the list when there are no conversations.
   final Widget? emptyState;
 
+  /// A standing note under the conversations — the central tier explains what
+  /// it is for there. Scrolls with the list rather than pinning to the panel,
+  /// so it never competes with the dock below it.
+  final Widget? footer;
+
   const DmListPanel({
     super.key,
     required this.title,
@@ -44,6 +50,7 @@ class DmListPanel extends StatelessWidget {
     this.openPeerId,
     this.onNew,
     this.emptyState,
+    this.footer,
   });
 
   @override
@@ -106,6 +113,7 @@ class DmListPanel extends StatelessWidget {
             ChatHeaderButton(
               icon: Icons.add_rounded,
               tooltip: 'New conversation',
+              isPrimary: true,
               onTap: onNew!,
             ),
         ],
@@ -121,11 +129,22 @@ class DmListPanel extends StatelessWidget {
       );
     }
 
+    // The label and the note ride in the list rather than around it, so they
+    // scroll with the rows they belong to — the same way channel sections do.
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      itemCount: conversations.length,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      itemCount: conversations.length + (footer == null ? 1 : 2),
       itemBuilder: (context, index) {
-        final conversation = conversations[index];
+        if (index == 0) {
+          return const SectionHeader(label: 'Conversations');
+        }
+        if (index > conversations.length) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(2, 14, 2, 12),
+            child: footer!,
+          );
+        }
+        final conversation = conversations[index - 1];
         return DmConversationTile(
           conversation: conversation,
           isSelected: conversation.peerId == openPeerId,

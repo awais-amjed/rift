@@ -27,7 +27,9 @@ class DmConversationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(K.radiusRow);
+    // A step rounder than a channel row: this tile carries two lines and an
+    // avatar, and at the row radius it reads as a cramped version of one.
+    final radius = BorderRadius.circular(K.radiusButton);
     final preview = conversation.lastMessage?.text;
 
     return Material(
@@ -38,7 +40,7 @@ class DmConversationTile extends StatelessWidget {
         hoverColor: themeState.bgHover,
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: radius,
             gradient: isSelected ? themeState.activeRowGradient : null,
@@ -47,12 +49,12 @@ class DmConversationTile extends StatelessWidget {
                 : null,
           ),
           child: Row(
-            spacing: 9,
+            spacing: 10,
             children: [
               SquircleAvatar(
                 name: conversation.peerName,
                 seed: conversation.peerId,
-                size: 32,
+                size: 34,
               ),
               Expanded(
                 child: Column(
@@ -64,9 +66,10 @@ class DmConversationTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.row.copyWith(
+                        fontSize: 13,
                         color: isSelected
                             ? themeState.channelActiveText
-                            : themeState.textSecondary,
+                            : themeState.textPrimary,
                       ),
                     ),
                     if (preview != null && preview.isNotEmpty)
@@ -75,7 +78,8 @@ class DmConversationTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.secondary.copyWith(
-                          color: themeState.textQuaternary,
+                          fontSize: 11.5,
+                          color: themeState.textTertiary,
                         ),
                       ),
                   ],

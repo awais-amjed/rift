@@ -39,6 +39,16 @@ class CentralDmView extends StatelessWidget {
         onNew: ready ? () => NewCentralDmDialog.show(context) : null,
         slot: _buildSlot(state),
         emptyState: _buildEmptyState(state),
+        // Says what this tier is *for*, standing under the list rather than
+        // only appearing once it's empty — the rule it states applies most
+        // when there are conversations to move.
+        footer: state.status == CentralDmStatus.ready
+            ? const HintCard(
+                text:
+                    'Central DMs are for finding each other. For longer '
+                    'chats, move to a server you share.',
+              )
+            : null,
         onOpen: (c) {
           // Only one DM surface is open at a time.
           context.read<DmCubit>().closeConversation();
