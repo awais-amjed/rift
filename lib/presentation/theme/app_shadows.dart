@@ -44,17 +44,26 @@ class AppShadows {
 
   /// The ring around a speaking participant's avatar or tile. Two stops: a
   /// hard ring plus the bloom around it.
-  static List<BoxShadow> speakingRing(Color accent, {double t = 0}) {
+  static List<BoxShadow> speakingRing(
+    Color accent, {
+    double t = 0,
+
+    /// Scales the halo without touching the ring — a 22px avatar and a 16:9
+    /// tile want the same hard edge but very different glows.
+    double bloom = 1,
+  }) {
     // `t` runs 0..1 over the pulse, widening the ring as the bloom softens.
     return [
       BoxShadow(
-        color: accent.withValues(alpha: 0.9 - 0.2 * t),
-        spreadRadius: 2 + t,
+        color: accent.withValues(alpha: 0.9 - 0.25 * t),
+        spreadRadius: 2 + 0.5 * t,
       ),
       BoxShadow(
-        color: accent.withValues(alpha: 0.35 - 0.1 * t),
-        blurRadius: 12 + 6 * t,
-        spreadRadius: 2 + 2 * t,
+        // Wider glows are spread over more area, so they need less alpha to
+        // read at the same strength.
+        color: accent.withValues(alpha: (0.35 - 0.1 * t) / bloom),
+        blurRadius: (12 + 10 * t) * bloom,
+        spreadRadius: (2 + 2 * t) * bloom,
       ),
     ];
   }

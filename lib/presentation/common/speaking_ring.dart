@@ -15,11 +15,16 @@ class SpeakingRing extends StatefulWidget {
   final BorderRadius borderRadius;
   final Widget child;
 
+  /// Scales the halo for large surfaces. A voice tile's glow has to carry
+  /// across a 16:9 card; an avatar's must not swamp the row it sits in.
+  final double bloom;
+
   const SpeakingRing({
     super.key,
     required this.isSpeaking,
     required this.borderRadius,
     required this.child,
+    this.bloom = 1,
   });
 
   @override
@@ -73,6 +78,7 @@ class _SpeakingRingState extends State<SpeakingRing>
                     ? AppShadows.speakingRing(
                         themeState.primary,
                         t: _controller.value,
+                        bloom: widget.bloom,
                       )
                     : null,
               ),

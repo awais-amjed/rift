@@ -80,13 +80,13 @@ class _ContextStripState extends State<ContextStrip> {
                         .length;
 
                     return Container(
-                      height: 36,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      height: 44,
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
                       child: Row(
                         children: [
                           Icon(
                             Icons.volume_up_rounded,
-                            size: 14,
+                            size: 16,
                             color: themeState.accentBright,
                           ),
                           const SizedBox(width: 7),
@@ -95,6 +95,8 @@ class _ContextStripState extends State<ContextStrip> {
                               channelName ?? 'Voice',
                               overflow: TextOverflow.ellipsis,
                               style: AppText.row.copyWith(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
                                 color: themeState.textPrimary,
                               ),
                             ),
@@ -112,6 +114,7 @@ class _ContextStripState extends State<ContextStrip> {
                           Text(
                             _elapsed,
                             style: AppText.figure.copyWith(
+                              fontSize: 11.5,
                               color: themeState.textTertiary,
                             ),
                           ),

@@ -50,6 +50,7 @@ class CollapsedParticipantTile extends StatelessWidget {
     return SpeakingRing(
       isSpeaking: isSpeaking,
       borderRadius: radius,
+      bloom: 2.2,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
@@ -58,7 +59,9 @@ class CollapsedParticipantTile extends StatelessWidget {
               : themeState.bgTertiary,
           borderRadius: radius,
           border: Border.all(
-            color: isSpeaking ? themeState.primary : themeState.borderPrimary,
+            // At rest the tile is edged, not outlined — the speaking ring is
+            // what should read as a state change, not a thicker border.
+            color: isSpeaking ? themeState.primary : themeState.borderElevated,
             width: isSpeaking ? 2 : 1,
           ),
         ),

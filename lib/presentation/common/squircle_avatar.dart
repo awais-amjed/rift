@@ -21,17 +21,24 @@ class SquircleAvatar extends StatelessWidget {
   final String? imageUrl;
   final double size;
 
+  /// Corner radius. Defaults to size/3; the voice stage's large placeholder
+  /// takes a softer corner, since size/3 on a 96px square reads as a circle.
+  final double? radius;
+
   const SquircleAvatar({
     super.key,
     required this.name,
     this.seed,
     this.imageUrl,
     this.size = 40,
+    this.radius,
   });
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(size * K.avatarRadiusRatio);
+    final radius = BorderRadius.circular(
+      this.radius ?? size * K.avatarRadiusRatio,
+    );
 
     if (imageUrl != null && imageUrl!.isNotEmpty) {
       return ClipRRect(
