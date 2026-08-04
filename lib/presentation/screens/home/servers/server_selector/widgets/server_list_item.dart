@@ -6,7 +6,7 @@ import '../../../../../../../logic/cubits/notifications/server_notifications_cub
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/unread_badge.dart';
-import 'server_avatar.dart';
+import '../../../../../common/squircle_avatar.dart';
 
 /// A single server item in the server list.
 class ServerListItem extends StatelessWidget {
@@ -56,7 +56,11 @@ class ServerListItem extends StatelessWidget {
               child: Row(
                 children: [
                   // Avatar
-                  ServerAvatar(server: server),
+                  SquircleAvatar(
+                    name: server.name,
+                    seed: server.id,
+                    imageUrl: server.iconUrl,
+                  ),
                   const SizedBox(width: 12),
                   // Info
                   Expanded(

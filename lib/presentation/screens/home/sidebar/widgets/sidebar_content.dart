@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../profile/user_profile.dart';
-import 'home_dm_button.dart';
+import '../../servers/server_rail/server_rail.dart';
 import 'sidebar_channel_list.dart';
 import 'sidebar_header.dart';
 import 'sidebar_actions.dart';
@@ -20,15 +20,21 @@ class SidebarContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The panel's background, border and rounding belong to [AppPanel], which
-    // wraps this in both modes — this widget is only the column of contents.
-    return Column(
+    // wraps this in both modes — this widget is only the contents.
+    return Row(
       children: [
-        SizedBox(height: topPadding),
-        SidebarHeader(),
-        SidebarActions(),
-        HomeDmButton(),
-        SidebarChannelList(),
-        UserProfile(),
+        ServerRail(topPadding: topPadding),
+        Expanded(
+          child: Column(
+            children: [
+              SizedBox(height: topPadding),
+              SidebarHeader(),
+              SidebarActions(),
+              SidebarChannelList(),
+              UserProfile(),
+            ],
+          ),
+        ),
       ],
     );
   }

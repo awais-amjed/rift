@@ -5,7 +5,7 @@ import '../../../../../../data/classes/server.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/unread_badge.dart';
-import 'widgets/server_avatar.dart';
+import '../../../../common/squircle_avatar.dart';
 
 /// Displays the currently selected server in the sidebar header.
 class ServerButton extends StatelessWidget {
@@ -42,7 +42,12 @@ class ServerButton extends StatelessWidget {
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      ServerAvatar(server: server),
+                      SquircleAvatar(
+                        name: server.name,
+                        seed: server.id,
+                        imageUrl: server.iconUrl,
+                        size: 32,
+                      ),
                       if (otherUnread > 0)
                         Positioned(
                           top: -1,

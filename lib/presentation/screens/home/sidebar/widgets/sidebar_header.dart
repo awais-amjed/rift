@@ -9,7 +9,6 @@ import '../../servers/server_button/server_button.dart';
 import '../../servers/server_button/widgets/no_server_button.dart';
 import '../../servers/server_selector/server_selector_dialog.dart';
 import '../../servers/server_settings/server_settings_dialog.dart';
-import '../../servers/server_switcher/server_switcher_popover.dart';
 
 /// Header section of the sidebar with server button and pin toggle.
 class SidebarHeader extends StatelessWidget {
@@ -29,7 +28,13 @@ class SidebarHeader extends StatelessWidget {
                 server != null
                     ? ServerButton(
                         server: server,
-                        onTap: () => _openServerSwitcher(context),
+                        // Switching servers is the rail's job now. The header
+                        // row is about *this* server, so it opens its
+                        // settings — the same place the gear beside it goes.
+                        onTap: () =>
+                            (server.user?.permissions.isServerAdmin ?? false)
+                            ? _openServerSettings(context)
+                            : null,
                       )
                     : NoServerButton(
                         onTap: () => _openAddServerDialog(context),
@@ -104,14 +109,6 @@ class SidebarHeader extends StatelessWidget {
         ],
         child: const ServerSettingsDialog(),
       ),
-    );
-  }
-
-  /// Switching between joined servers: anchored popover on the server row.
-  void _openServerSwitcher(BuildContext context) {
-    ServerSwitcherPopover.show(
-      context,
-      onAddServer: () => _openAddServerDialog(context),
     );
   }
 
