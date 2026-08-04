@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_shadows.dart';
+import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
 
 enum AppButtonVariant { primary, secondary, danger }
@@ -59,27 +62,48 @@ class AppButton extends StatelessWidget {
               if (icon != null) ...[icon!, const SizedBox(width: 6)],
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: fgColor,
-                ),
+                style: AppText.row.copyWith(fontSize: 14, color: fgColor),
               ),
             ],
           );
 
-    final button = FilledButton(
+    final isPrimary = variant == AppButtonVariant.primary;
+
+    Widget button = FilledButton(
       onPressed: isLoading ? null : onPressed,
       style: FilledButton.styleFrom(
-        backgroundColor: bgColor,
+        // Primary buttons paint their gradient behind the button, so the
+        // button itself stays transparent — a solid fill would cover it.
+        backgroundColor: isPrimary ? Colors.transparent : bgColor,
         foregroundColor: fgColor,
-        disabledBackgroundColor: bgColor.withValues(alpha: 0.5),
+        disabledBackgroundColor: isPrimary
+            ? Colors.transparent
+            : bgColor.withValues(alpha: 0.5),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(K.radiusCard),
+        ),
         elevation: 0,
       ),
       child: child,
     );
+
+    if (isPrimary) {
+      final enabled = !isLoading && onPressed != null;
+      button = DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: themeState.actionGradient,
+          borderRadius: BorderRadius.circular(K.radiusCard),
+          boxShadow: enabled
+              ? AppShadows.accentGlow(themeState.primary, blurRadius: 20, dy: 4)
+              : null,
+        ),
+        // Dimmed as a whole rather than by swapping the fill, so a disabled
+        // primary button keeps its shape instead of turning into a
+        // different-looking control.
+        child: Opacity(opacity: enabled ? 1 : 0.5, child: button),
+      );
+    }
 
     return expanded ? SizedBox(width: double.infinity, child: button) : button;
   }

@@ -4,8 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/squircle_avatar.dart';
 import 'rail_unread_badge.dart';
+import 'server_chip_menu.dart';
 
 /// One server in the rail.
 ///
@@ -19,16 +21,12 @@ class RailServerChip extends StatefulWidget {
   final int unreadCount;
   final VoidCallback onTap;
 
-  /// Right-click / long-press: leave, mark read, invite, settings.
-  final VoidCallback? onContextMenu;
-
   const RailServerChip({
     super.key,
     required this.server,
     required this.isSelected,
     required this.unreadCount,
     required this.onTap,
-    this.onContextMenu,
   });
 
   @override
@@ -42,58 +40,59 @@ class _RailServerChipState extends State<RailServerChip> {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return Tooltip(
-          message: widget.server.name,
-          waitDuration: const Duration(milliseconds: 400),
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            child: GestureDetector(
-              onTap: widget.onTap,
-              onSecondaryTap: widget.onContextMenu,
-              onLongPress: widget.onContextMenu,
-              behavior: HitTestBehavior.opaque,
-              // The badge overhangs the chip's corner, so the stack can't clip.
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  AnimatedOpacity(
-                    duration: const Duration(milliseconds: 140),
-                    opacity: widget.isSelected || _hovered ? 1 : 0.85,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(K.radiusRailChip),
-                        boxShadow: widget.isSelected
-                            ? [
-                                BoxShadow(
-                                  color: themeState.bgSecondary,
-                                  spreadRadius: 2,
-                                ),
-                                BoxShadow(
-                                  color: themeState.primary.withValues(
-                                    alpha: 0.8,
+        return ContextMenuRegion(
+          contextMenu: ServerChipMenu(server: widget.server),
+          child: Tooltip(
+            message: widget.server.name,
+            waitDuration: const Duration(milliseconds: 400),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              onEnter: (_) => setState(() => _hovered = true),
+              onExit: (_) => setState(() => _hovered = false),
+              child: GestureDetector(
+                onTap: widget.onTap,
+                behavior: HitTestBehavior.opaque,
+                // The badge overhangs the chip's corner, so the stack can't clip.
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    AnimatedOpacity(
+                      duration: const Duration(milliseconds: 140),
+                      opacity: widget.isSelected || _hovered ? 1 : 0.85,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(K.radiusRailChip),
+                          boxShadow: widget.isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: themeState.bgSecondary,
+                                    spreadRadius: 2,
                                   ),
-                                  spreadRadius: 4,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: SquircleAvatar(
-                        name: widget.server.name,
-                        seed: widget.server.id,
-                        imageUrl: widget.server.iconUrl,
-                        size: K.serverRailChipSize,
+                                  BoxShadow(
+                                    color: themeState.primary.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                    spreadRadius: 4,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: SquircleAvatar(
+                          name: widget.server.name,
+                          seed: widget.server.id,
+                          imageUrl: widget.server.iconUrl,
+                          size: K.serverRailChipSize,
+                        ),
                       ),
                     ),
-                  ),
-                  if (widget.unreadCount > 0 && !widget.isSelected)
-                    Positioned(
-                      top: -3,
-                      right: -3,
-                      child: RailUnreadBadge(count: widget.unreadCount),
-                    ),
-                ],
+                    if (widget.unreadCount > 0 && !widget.isSelected)
+                      Positioned(
+                        top: -3,
+                        right: -3,
+                        child: RailUnreadBadge(count: widget.unreadCount),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

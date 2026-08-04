@@ -236,6 +236,26 @@ class ServerNotificationsCubit extends Cubit<NotificationsState> {
     }());
   }
 
+  /// Mark every unread notification on a server read and clear its badge.
+  ///
+  /// Same optimistic-then-best-effort shape as [markChannelRead], minus the
+  /// channel filter: each server has its own database, so "no channel filter"
+  /// already means "this server only".
+  void markServerRead(String serverId) {
+    emit(state.clearedServer(serverId));
+    final sub = _subs[serverId];
+    if (sub == null) return;
+    unawaited(() async {
+      try {
+        await sub.client
+            .from('notifications')
+            .update({'read_at': DateTime.now().toUtc().toIso8601String()})
+            .eq('user_id', sub.userId)
+            .isFilter('read_at', null);
+      } catch (_) {}
+    }());
+  }
+
   // ── Teardown ──────────────────────────────────────────────────
 
   Server? _serverById(String serverId) {

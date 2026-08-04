@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_text.dart';
 
 /// Shows a dialog that:
 /// - Cannot be dismissed by tapping the barrier
@@ -59,10 +61,13 @@ class AppModal extends StatelessWidget {
         final textTertiary = themeState.textTertiary;
 
         return Dialog(
-          backgroundColor: themeState.bgSecondary,
+          // Dialogs sit on the elevated surface, not the panel one: they
+          // float over content, and matching the panels beneath would make
+          // them read as part of the layout rather than above it.
+          backgroundColor: themeState.bgElevated,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: borderColor),
+            borderRadius: BorderRadius.circular(K.radiusDialog),
+            side: BorderSide(color: themeState.borderElevated),
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
@@ -84,9 +89,8 @@ class AppModal extends StatelessWidget {
                           children: [
                             Text(
                               title,
-                              style: TextStyle(
+                              style: AppText.sectionTitle.copyWith(
                                 fontSize: 17,
-                                fontWeight: FontWeight.w700,
                                 color: themeState.textPrimary,
                               ),
                             ),
@@ -94,8 +98,7 @@ class AppModal extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 subtitle!,
-                                style: TextStyle(
-                                  fontSize: 12,
+                                style: AppText.secondary.copyWith(
                                   color: textTertiary,
                                 ),
                               ),

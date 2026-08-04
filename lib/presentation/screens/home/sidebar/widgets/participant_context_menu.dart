@@ -8,8 +8,8 @@ import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
+import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu_region.dart';
-import '../../../../theme/custom_colors.dart';
 import '../../dms/widgets/new_central_dm_dialog.dart';
 
 /// Dialog-based context menu for a participant — mute toggle + volume slider.
@@ -165,12 +165,12 @@ class ParticipantContextMenu extends StatelessWidget {
                       const SizedBox(height: 4),
                       // Messaging — not offered for yourself.
                       if (!isLocal) ...[
-                        _MenuItem(
+                        ContextMenuItem(
                           icon: Icons.chat_bubble_outline_rounded,
                           label: 'Message',
                           onTap: () => _openServerDm(context),
                         ),
-                        _MenuItem(
+                        ContextMenuItem(
                           icon: Icons.public_rounded,
                           label: 'Message on Central',
                           onTap: () => _openCentralDm(context),
@@ -178,7 +178,7 @@ class ParticipantContextMenu extends StatelessWidget {
                         Divider(height: 9, color: borderColor),
                       ],
                       // Mute toggle (local only)
-                      _MenuItem(
+                      ContextMenuItem(
                         icon: isMuted ? Icons.mic_off : Icons.mic,
                         label: isMuted ? 'Unmute' : 'Mute',
                         isDangerous: isMuted,
@@ -196,7 +196,7 @@ class ParticipantContextMenu extends StatelessWidget {
                       // Server-side moderation (moderators only, remote
                       // participants only). Persists across rejoins.
                       if (!isLocal && isLive && isModerator) ...[
-                        _MenuItem(
+                        ContextMenuItem(
                           icon: isServerMuted ? Icons.mic : Icons.mic_off,
                           label: isServerMuted
                               ? 'Server unmute'
@@ -209,7 +209,7 @@ class ParticipantContextMenu extends StatelessWidget {
                             );
                           },
                         ),
-                        _MenuItem(
+                        ContextMenuItem(
                           icon: isServerDeafened
                               ? Icons.headset
                               : Icons.headset_off,
@@ -297,61 +297,6 @@ class ParticipantContextMenu extends StatelessWidget {
               ),
             );
           },
-        );
-      },
-    );
-  }
-}
-
-class _MenuItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isDangerous;
-  final VoidCallback onTap;
-
-  const _MenuItem({
-    required this.icon,
-    required this.label,
-    this.isDangerous = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final color = isDangerous
-            ? CustomColors.error
-            : themeState.textSecondary;
-        final bgColor = isDangerous
-            ? CustomColors.error.withValues(alpha: 0.1)
-            : Colors.transparent;
-
-        return Material(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(10),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            hoverColor: themeState.bgHover,
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(icon, size: 16, color: color),
-                  const SizedBox(width: 10),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         );
       },
     );

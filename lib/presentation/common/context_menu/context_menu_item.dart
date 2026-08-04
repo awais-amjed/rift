@@ -1,0 +1,68 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../data/constants.dart';
+import '../../../logic/cubits/theme/theme_cubit.dart';
+import '../../theme/app_text.dart';
+import '../../theme/custom_colors.dart';
+
+/// One row in a context menu.
+///
+/// Destructive items carry a standing red wash rather than only red text —
+/// in a list of otherwise identical rows, colour alone on a 14px label is too
+/// easy to miss on the way to clicking it.
+class ContextMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDangerous;
+  final VoidCallback onTap;
+
+  const ContextMenuItem({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isDangerous = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        final color = isDangerous
+            ? CustomColors.error
+            : themeState.textSecondary;
+        final radius = BorderRadius.circular(K.radiusRow);
+
+        return Material(
+          color: isDangerous
+              ? CustomColors.error.withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: radius,
+          child: InkWell(
+            borderRadius: radius,
+            hoverColor: themeState.bgHover,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              child: Row(
+                spacing: 10,
+                children: [
+                  Icon(icon, size: 16, color: color),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.rowQuiet.copyWith(color: color),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
