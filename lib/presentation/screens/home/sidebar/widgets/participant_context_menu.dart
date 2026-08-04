@@ -10,6 +10,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
+import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../dms/widgets/new_central_dm_dialog.dart';
 import '../../../../theme/app_text.dart';
@@ -81,9 +82,7 @@ class ParticipantContextMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final bgColor = themeState.bgElevated;
         final borderColor = themeState.borderPrimary;
-        final textPrimary = themeState.textPrimary;
         final textSecondary = themeState.textSecondary;
         final textQuaternary = themeState.textQuaternary;
 
@@ -122,30 +121,81 @@ class ParticipantContextMenu extends StatelessWidget {
               volume = setting?.volume ?? 1.0;
             }
 
-            return Container(
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: borderColor),
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 224),
-                child: Padding(
-                  padding: const EdgeInsets.all(6),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+            return ContextMenuPanel(
+              heading: isLocal ? 'You' : (isLive ? 'Participant' : 'Member'),
+              subheading: name,
+              children: [
+                Divider(height: 1, color: borderColor),
+                const SizedBox(height: 4),
+                // Messaging — not offered for yourself.
+                if (!isLocal) ...[
+                  ContextMenuItem(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    label: 'Message',
+                    onTap: () => _openServerDm(context),
+                  ),
+                  ContextMenuItem(
+                    icon: Icons.public_rounded,
+                    label: 'Message on Central',
+                    onTap: () => _openCentralDm(context),
+                  ),
+                  Divider(height: 9, color: borderColor),
+                ],
+                // Mute toggle (local only)
+                ContextMenuItem(
+                  icon: isMuted ? Icons.mic_off : Icons.mic,
+                  label: isMuted ? 'Unmute' : 'Mute',
+                  isDangerous: isMuted,
+                  onTap: () {
+                    if (isLocal) {
+                      context.read<LiveKitCubit>().toggleMicrophone();
+                    } else {
+                      context.read<LiveKitCubit>().setParticipantMute(
+                        identity,
+                        !isMuted,
+                      );
+                    }
+                  },
+                ),
+                // Server-side moderation (moderators only, remote
+                // participants only). Persists across rejoins.
+                if (!isLocal && isLive && isModerator) ...[
+                  ContextMenuItem(
+                    icon: isServerMuted ? Icons.mic : Icons.mic_off,
+                    label: isServerMuted ? 'Server unmute' : 'Server mute',
+                    isDangerous: !isServerMuted,
+                    onTap: () {
+                      context.read<LiveKitCubit>().moderateParticipant(
+                        participantIdentity: identity,
+                        muted: !isServerMuted,
+                      );
+                    },
+                  ),
+                  ContextMenuItem(
+                    icon: isServerDeafened ? Icons.headset : Icons.headset_off,
+                    label: isServerDeafened
+                        ? 'Server undeafen'
+                        : 'Server deafen',
+                    isDangerous: !isServerDeafened,
+                    onTap: () {
+                      context.read<LiveKitCubit>().moderateParticipant(
+                        participantIdentity: identity,
+                        deafened: !isServerDeafened,
+                      );
+                    },
+                  ),
+                ],
+                // Volume slider (only for remote participants)
+                if (!isLocal) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              isLocal
-                                  ? 'YOU'
-                                  : (isLive ? 'PARTICIPANT' : 'MEMBER'),
+                              'VOLUME',
                               style: AppText.sectionLabel.copyWith(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
@@ -153,153 +203,49 @@ class ParticipantContextMenu extends StatelessWidget {
                                 color: textQuaternary,
                               ),
                             ),
-                            const SizedBox(height: 2),
                             Text(
-                              name,
-                              style: AppText.row.copyWith(
-                                fontSize: 14,
+                              isMuted ? '—' : '${(volume * 100).round()}%',
+                              style: AppText.label.copyWith(
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: textPrimary,
-                                overflow: TextOverflow.ellipsis,
+                                color: textSecondary,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      Divider(height: 1, color: borderColor),
-                      const SizedBox(height: 4),
-                      // Messaging — not offered for yourself.
-                      if (!isLocal) ...[
-                        ContextMenuItem(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          label: 'Message',
-                          onTap: () => _openServerDm(context),
-                        ),
-                        ContextMenuItem(
-                          icon: Icons.public_rounded,
-                          label: 'Message on Central',
-                          onTap: () => _openCentralDm(context),
-                        ),
-                        Divider(height: 9, color: borderColor),
-                      ],
-                      // Mute toggle (local only)
-                      ContextMenuItem(
-                        icon: isMuted ? Icons.mic_off : Icons.mic,
-                        label: isMuted ? 'Unmute' : 'Mute',
-                        isDangerous: isMuted,
-                        onTap: () {
-                          if (isLocal) {
-                            context.read<LiveKitCubit>().toggleMicrophone();
-                          } else {
-                            context.read<LiveKitCubit>().setParticipantMute(
-                              identity,
-                              !isMuted,
-                            );
-                          }
-                        },
-                      ),
-                      // Server-side moderation (moderators only, remote
-                      // participants only). Persists across rejoins.
-                      if (!isLocal && isLive && isModerator) ...[
-                        ContextMenuItem(
-                          icon: isServerMuted ? Icons.mic : Icons.mic_off,
-                          label: isServerMuted
-                              ? 'Server unmute'
-                              : 'Server mute',
-                          isDangerous: !isServerMuted,
-                          onTap: () {
-                            context.read<LiveKitCubit>().moderateParticipant(
-                              participantIdentity: identity,
-                              muted: !isServerMuted,
-                            );
-                          },
-                        ),
-                        ContextMenuItem(
-                          icon: isServerDeafened
-                              ? Icons.headset
-                              : Icons.headset_off,
-                          label: isServerDeafened
-                              ? 'Server undeafen'
-                              : 'Server deafen',
-                          isDangerous: !isServerDeafened,
-                          onTap: () {
-                            context.read<LiveKitCubit>().moderateParticipant(
-                              participantIdentity: identity,
-                              deafened: !isServerDeafened,
-                            );
-                          },
-                        ),
-                      ],
-                      // Volume slider (only for remote participants)
-                      if (!isLocal) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'VOLUME',
-                                    style: AppText.sectionLabel.copyWith(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 1.2,
-                                      color: textQuaternary,
-                                    ),
-                                  ),
-                                  Text(
-                                    isMuted
-                                        ? '—'
-                                        : '${(volume * 100).round()}%',
-                                    style: AppText.label.copyWith(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3,
-                                  thumbShape: const RoundSliderThumbShape(
-                                    enabledThumbRadius: 6,
-                                  ),
-                                  overlayShape: const RoundSliderOverlayShape(
-                                    overlayRadius: 12,
-                                  ),
-                                  activeTrackColor: themeState.primary,
-                                  inactiveTrackColor: themeState.bgActive,
-                                  thumbColor: themeState.primary,
-                                ),
-                                child: Slider(
-                                  value: isMuted ? 0 : volume,
-                                  min: 0,
-                                  max: 1,
-                                  onChanged: isMuted
-                                      ? null
-                                      : (v) {
-                                          context
-                                              .read<LiveKitCubit>()
-                                              .setParticipantVolume(
-                                                identity,
-                                                v,
-                                              );
-                                        },
-                                ),
-                              ),
-                            ],
+                        const SizedBox(height: 8),
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 3,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 6,
+                            ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 12,
+                            ),
+                            activeTrackColor: themeState.primary,
+                            inactiveTrackColor: themeState.bgActive,
+                            thumbColor: themeState.primary,
+                          ),
+                          child: Slider(
+                            value: isMuted ? 0 : volume,
+                            min: 0,
+                            max: 1,
+                            onChanged: isMuted
+                                ? null
+                                : (v) {
+                                    context
+                                        .read<LiveKitCubit>()
+                                        .setParticipantVolume(identity, v);
+                                  },
                           ),
                         ),
                       ],
-                      const SizedBox(height: 2),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                ],
+                const SizedBox(height: 2),
+              ],
             );
           },
         );
