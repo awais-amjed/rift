@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart'
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 import 'central_handle_panel.dart';
 import 'dm_conversation_tile.dart';
 import 'new_central_dm_dialog.dart';
@@ -58,7 +59,6 @@ class DmSidePanel extends StatelessWidget {
           ...centralState.conversations.map(
             (c) => DmConversationTile(
               conversation: c,
-              icon: Icons.public,
               isSelected: centralState.openPeerId == c.peerId,
               themeState: themeState,
               onTap: () {
@@ -99,7 +99,6 @@ class DmSidePanel extends StatelessWidget {
           ...dmState.conversations.map(
             (c) => DmConversationTile(
               conversation: c,
-              icon: Icons.dns_outlined,
               isSelected: dmState.openPeerId == c.peerId,
               themeState: themeState,
               onTap: () {
@@ -140,10 +139,7 @@ class _SectionHeader extends StatelessWidget {
           child: Text(
             label.toUpperCase(),
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
+            style: AppText.sectionLabel.copyWith(
               color: themeState.textQuaternary,
             ),
           ),
@@ -174,7 +170,7 @@ class _HintText extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       child: Text(
         text,
-        style: TextStyle(fontSize: 12, color: themeState.textQuaternary),
+        style: AppText.secondary.copyWith(color: themeState.textQuaternary),
       ),
     );
   }

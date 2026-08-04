@@ -31,9 +31,10 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     return Column(
       children: [
         DmChatHeader(
-          icon: Icons.dns_outlined,
+          tierIcon: Icons.dns_outlined,
+          tierLabel: 'Server',
           title: state.openPeerName ?? '',
-          subtitle: 'Server DM — unlimited',
+          peerId: state.openPeerId,
           onClose: () => context.read<DmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),

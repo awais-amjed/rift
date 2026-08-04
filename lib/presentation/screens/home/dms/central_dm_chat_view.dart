@@ -32,9 +32,10 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     return Column(
       children: [
         DmChatHeader(
-          icon: Icons.public,
+          tierIcon: Icons.public,
+          tierLabel: 'Central',
           title: '@${state.openPeerHandle ?? ''}',
-          subtitle: 'Central DM — for finding each other',
+          peerId: state.openPeerId,
           onClose: () => context.read<CentralDmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),

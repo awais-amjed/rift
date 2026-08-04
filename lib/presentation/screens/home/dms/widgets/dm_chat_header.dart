@@ -2,21 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/squircle_avatar.dart';
+import '../../../../common/status_chip.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/custom_colors.dart';
+import '../../chat/widgets/chat_header.dart';
+import '../../chat/widgets/chat_header_button.dart';
 
-/// Header of an open DM conversation: tier icon, peer name, tier note,
-/// E2E badge, close.
+/// Header of an open DM conversation.
+///
+/// Carries two chips rather than one: which tier the conversation is on, and
+/// that it's encrypted. The tier matters here in a way it doesn't in a
+/// channel — a central DM is quota-limited and a server DM isn't, and that's
+/// worth saying before someone starts typing.
 class DmChatHeader extends StatelessWidget {
-  final IconData icon;
   final String title;
-  final String subtitle;
+
+  /// The peer's id, so their avatar matches the conversation list.
+  final String? peerId;
+
+  /// Which tier this conversation is on — "Central", or the server's name.
+  final String tierLabel;
+
+  final IconData tierIcon;
   final VoidCallback onClose;
 
   const DmChatHeader({
     super.key,
-    required this.icon,
     required this.title,
-    required this.subtitle,
+    required this.tierLabel,
+    required this.tierIcon,
     required this.onClose,
+    this.peerId,
   });
 
   @override
@@ -24,43 +41,38 @@ class DmChatHeader extends StatelessWidget {
     final themeState = context.watch<ThemeCubit>().state;
 
     return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: ChatHeader.height,
+      padding: const EdgeInsets.fromLTRB(16, 0, 10, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
       ),
       child: Row(
+        spacing: 10,
         children: [
-          Icon(icon, size: 18, color: themeState.textQuaternary),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: themeState.textPrimary,
+          SquircleAvatar(name: title, seed: peerId, size: 26),
+          Flexible(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.panelTitle.copyWith(color: themeState.textPrimary),
             ),
           ),
-          const SizedBox(width: 10),
-          Text(
-            subtitle,
-            style: TextStyle(fontSize: 11, color: themeState.textQuaternary),
+          StatusChip(
+            icon: tierIcon,
+            label: tierLabel,
+            color: themeState.accentBright,
           ),
-          const SizedBox(width: 10),
-          Tooltip(
-            message: 'Messages are end-to-end encrypted',
-            child: Icon(
-              Icons.lock_outline,
-              size: 13,
-              color: themeState.textQuaternary,
-            ),
+          const StatusChip(
+            icon: Icons.lock_outline,
+            label: 'Encrypted',
+            color: CustomColors.success,
           ),
           const Spacer(),
-          IconButton(
-            onPressed: onClose,
-            icon: Icon(Icons.close, size: 18, color: themeState.textTertiary),
+          ChatHeaderButton(
+            icon: Icons.close_rounded,
             tooltip: 'Close conversation',
-            visualDensity: VisualDensity.compact,
+            onTap: onClose,
           ),
         ],
       ),

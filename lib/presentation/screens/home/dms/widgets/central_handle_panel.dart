@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/custom_colors.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 
@@ -36,7 +38,7 @@ class _CentralHandlePanelState extends State<CentralHandlePanel> {
         children: [
           Text(
             'Pick a handle so people can find you:',
-            style: TextStyle(fontSize: 12, color: themeState.textTertiary),
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
           ),
           const SizedBox(height: 8),
           AppTextField(controller: _controller, hint: 'your_handle'),
@@ -44,7 +46,7 @@ class _CentralHandlePanelState extends State<CentralHandlePanel> {
             const SizedBox(height: 6),
             Text(
               state.error!,
-              style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+              style: AppText.secondary.copyWith(color: CustomColors.error),
             ),
           ],
           const SizedBox(height: 8),

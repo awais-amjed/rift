@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart' as central;
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 import 'central_dm_chat_view.dart';
 import 'server_dm_chat_view.dart';
 import 'widgets/dm_side_panel.dart';
@@ -19,16 +20,20 @@ class HomeDmView extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
 
-    return Container(
-      color: themeState.bgPrimary,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(width: 280, child: DmSidePanel()),
-          Container(width: 1, color: themeState.borderPrimary),
-          Expanded(child: _buildChatArea(context)),
-        ],
-      ),
+    // The content panel owns the background; this is only its two columns.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // The conversation list sits on the chrome surface, the open
+        // conversation on the content surface — the same split as the
+        // sidebar and chat panel outside, one level in.
+        ColoredBox(
+          color: themeState.bgSecondary,
+          child: const SizedBox(width: 280, child: DmSidePanel()),
+        ),
+        Container(width: 1, color: themeState.borderPrimary),
+        Expanded(child: _buildChatArea(context)),
+      ],
     );
   }
 
@@ -61,16 +66,12 @@ class _EmptyChatHint extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'Pick a conversation',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: themeState.textPrimary,
-            ),
+            style: AppText.sectionTitle.copyWith(color: themeState.textPrimary),
           ),
           const SizedBox(height: 4),
           Text(
             'All messages are end-to-end encrypted.',
-            style: TextStyle(fontSize: 13, color: themeState.textTertiary),
+            style: AppText.body.copyWith(color: themeState.textTertiary),
           ),
         ],
       ),
