@@ -16,12 +16,16 @@ class ContextMenuItem extends StatelessWidget {
   final bool isDangerous;
   final VoidCallback onTap;
 
+  /// Trailing widget — an unread count on "Mark as read", a shortcut hint.
+  final Widget? trailing;
+
   const ContextMenuItem({
     super.key,
     required this.icon,
     required this.label,
     required this.onTap,
     this.isDangerous = false,
+    this.trailing,
   });
 
   @override
@@ -61,6 +65,7 @@ class ContextMenuItem extends StatelessWidget {
                       ),
                     ),
                   ),
+                  ?trailing,
                 ],
               ),
             ),

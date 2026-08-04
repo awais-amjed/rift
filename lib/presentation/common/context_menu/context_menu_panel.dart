@@ -17,6 +17,13 @@ class ContextMenuPanel extends StatelessWidget {
   /// Second line under [heading], usually the subject's name.
   final String? subheading;
 
+  /// Sits beside [subheading] — the subject's avatar or server icon, so the
+  /// menu says *which* one it belongs to at a glance.
+  final Widget? leading;
+
+  /// A third, quieter line — a server's host, a member's handle.
+  final String? caption;
+
   final List<Widget> children;
   final double maxWidth;
 
@@ -29,6 +36,8 @@ class ContextMenuPanel extends StatelessWidget {
     required this.children,
     this.heading,
     this.subheading,
+    this.leading,
+    this.caption,
     this.maxWidth = 232,
   });
 
@@ -74,12 +83,38 @@ class ContextMenuPanel extends StatelessWidget {
             ),
           ),
           if (subheading != null) ...[
-            const SizedBox(height: 3),
-            Text(
-              subheading!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.row.copyWith(color: themeState.textPrimary),
+            const SizedBox(height: 5),
+            Row(
+              spacing: 8,
+              children: [
+                ?leading,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        subheading!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.row.copyWith(
+                          color: themeState.textPrimary,
+                        ),
+                      ),
+                      if (caption != null)
+                        Text(
+                          caption!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.meta.copyWith(
+                            fontSize: 9.5,
+                            color: themeState.textQuaternary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ],

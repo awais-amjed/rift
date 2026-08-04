@@ -5,9 +5,12 @@ import '../../../../../../data/classes/server.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu_region.dart';
+import '../../../../../common/squircle_avatar.dart';
+import '../../../../../common/unread_badge.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../invites/invite_modal.dart';
@@ -27,18 +30,28 @@ class ServerChipMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final permissions = server.user?.permissions;
-    final hasUnread = context.select<ServerNotificationsCubit, bool>(
-      (c) => c.state.unreadForServer(server.id) > 0,
+    final themeState = context.watch<ThemeCubit>().state;
+    final unread = context.select<ServerNotificationsCubit, int>(
+      (c) => c.state.unreadForServer(server.id),
     );
 
     return ContextMenuPanel(
+      maxWidth: 216,
       heading: 'Server',
       subheading: server.name,
+      caption: Uri.tryParse(server.supabaseUrl)?.host,
+      leading: SquircleAvatar(
+        name: server.name,
+        seed: server.id,
+        imageUrl: server.iconUrl,
+        size: 24,
+      ),
       children: [
-        if (hasUnread)
+        if (unread > 0)
           ContextMenuItem(
             icon: Icons.mark_chat_read_outlined,
             label: 'Mark as read',
+            trailing: UnreadBadge(count: unread, themeState: themeState),
             onTap: () {
               ContextMenuScope.of(context)?.call();
               context.read<ServerNotificationsCubit>().markServerRead(
