@@ -86,6 +86,22 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(voiceActivityThreshold: value.clamp(0.0, 1.0)));
   }
 
+  /// How many emoji the picker's "frequently used" row remembers. One row of
+  /// eight, which is what the design shows.
+  static const int maxRecentEmojis = 8;
+
+  /// Moves [emoji] to the front of the recents, dropping the oldest past the
+  /// cap. Re-picking something already there promotes it rather than adding a
+  /// duplicate.
+  void noteEmojiUsed(String emoji) {
+    final next = [emoji, ...state.recentEmojis.where((e) => e != emoji)];
+    emit(
+      state.copyWith(
+        recentEmojis: next.take(maxRecentEmojis).toList(growable: false),
+      ),
+    );
+  }
+
   void setStatsOverlayPinned(bool pinned) {
     emit(state.copyWith(statsOverlayPinned: pinned));
   }

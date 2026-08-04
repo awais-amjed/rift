@@ -146,7 +146,6 @@ class _ChatComposerState extends State<ChatComposer> {
     _focusNode.requestFocus();
     await showEmojiPickerPopup(
       anchorContext,
-      themeState: context.read<ThemeCubit>().state,
       controller: _controller,
       onEmojiSelected: () => setState(() {}),
     );

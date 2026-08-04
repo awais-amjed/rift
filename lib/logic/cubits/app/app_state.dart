@@ -35,6 +35,12 @@ class AppState {
   /// 0 disables the gate (open mic — the previous behaviour).
   final double voiceActivityThreshold;
 
+  /// Emoji the user reaches for, most recent first, capped at
+  /// [AppCubit.maxRecentEmojis]. Kept here rather than in the emoji package's
+  /// own store: its writer needs a handle to the widget it ships, which the
+  /// app's own picker doesn't use.
+  final List<String> recentEmojis;
+
   // ── Transient (not stored in JSON) ─────────────────────────
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool isHovered;
@@ -69,6 +75,7 @@ class AppState {
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.voiceActivityThreshold = 0.0,
+    this.recentEmojis = const [],
     this.membersSidebarOpen = true,
     this.isHovered = false,
     this.selectedChannelId,
@@ -101,6 +108,7 @@ class AppState {
     bool? echoCancellation,
     bool? autoGainControl,
     double? voiceActivityThreshold,
+    List<String>? recentEmojis,
     bool? membersSidebarOpen,
     bool? isHovered,
     String? selectedChannelId,
@@ -139,6 +147,7 @@ class AppState {
       autoGainControl: autoGainControl ?? this.autoGainControl,
       voiceActivityThreshold:
           voiceActivityThreshold ?? this.voiceActivityThreshold,
+      recentEmojis: recentEmojis ?? this.recentEmojis,
       membersSidebarOpen: membersSidebarOpen ?? this.membersSidebarOpen,
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId

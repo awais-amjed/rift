@@ -38,6 +38,11 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   autoGainControl: json['autoGainControl'] as bool? ?? true,
   voiceActivityThreshold:
       (json['voiceActivityThreshold'] as num?)?.toDouble() ?? 0.0,
+  recentEmojis:
+      (json['recentEmojis'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
   membersSidebarOpen: json['membersSidebarOpen'] as bool? ?? true,
 );
 
@@ -66,4 +71,5 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'echoCancellation': instance.echoCancellation,
   'autoGainControl': instance.autoGainControl,
   'voiceActivityThreshold': instance.voiceActivityThreshold,
+  'recentEmojis': instance.recentEmojis,
 };
