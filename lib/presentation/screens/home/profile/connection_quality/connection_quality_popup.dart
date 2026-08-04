@@ -51,7 +51,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                           size: 13,
                           color: stats.isAlone
                               ? themeState.textQuaternary
-                              : _qualityColor(stats.quality),
+                              : _qualityColor(stats.quality, themeState),
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -75,7 +75,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: stats.isAlone
                             ? themeState.textTertiary
-                            : _qualityColor(stats.quality),
+                            : _qualityColor(stats.quality, themeState),
                       ),
                     ),
 
@@ -148,11 +148,14 @@ class ConnectionQualityPopup extends StatelessWidget {
     VoiceQuality.unknown => Icons.signal_cellular_null,
   };
 
-  Color _qualityColor(VoiceQuality quality) => switch (quality) {
+  /// Unknown takes a themed neutral rather than a fixed grey, so it recedes
+  /// against whichever palette is running instead of fighting it.
+  Color _qualityColor(VoiceQuality quality, ThemeState themeState) =>
+      switch (quality) {
     VoiceQuality.good => CustomColors.success,
     VoiceQuality.fair => CustomColors.warning,
     VoiceQuality.poor => CustomColors.error,
-    VoiceQuality.unknown => Colors.grey,
+    VoiceQuality.unknown => themeState.textQuaternary,
   };
 
   String _qualityLabel(VoiceQuality quality) => switch (quality) {

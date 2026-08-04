@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../theme/app_text.dart';
 
 /// A slim "… is typing" strip shown just above the composer. Renders nothing
 /// when [names] is empty, so callers can place it unconditionally.
@@ -42,8 +43,7 @@ class TypingIndicator extends StatelessWidget {
             child: Text(
               _label,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
+              style: AppText.secondary.copyWith(
                 fontStyle: FontStyle.italic,
                 color: themeState.textTertiary,
               ),

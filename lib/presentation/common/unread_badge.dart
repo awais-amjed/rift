@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_text.dart';
 
 /// Accent pill showing an unread count (capped at "99+"). Used on channel tiles
 /// and server rows.
@@ -13,21 +15,16 @@ class UnreadBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 18),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      constraints: const BoxConstraints(minWidth: 17),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
         color: themeState.primary,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(K.radiusPill),
       ),
       alignment: Alignment.center,
       child: Text(
         count > 99 ? '99+' : '$count',
-        style: TextStyle(
-          fontSize: 11,
-          height: 1.1,
-          fontWeight: FontWeight.w700,
-          color: themeState.onPrimary,
-        ),
+        style: AppText.badge.copyWith(height: 1.2, color: themeState.onPrimary),
       ),
     );
   }

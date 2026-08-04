@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_text.dart';
 
 /// The hero block that opens a full-screen step or a first-run panel: an
 /// accent-tinted icon badge, a title, and an optional explanatory line.
@@ -52,11 +53,9 @@ class FeatureHeader extends StatelessWidget {
         Text(
           title,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: AppText.pageTitle.copyWith(
             fontSize: titleSize,
-            fontWeight: FontWeight.w700,
             color: themeState.textPrimary,
-            letterSpacing: -0.3,
           ),
         ),
         if (subtitle != null) ...[

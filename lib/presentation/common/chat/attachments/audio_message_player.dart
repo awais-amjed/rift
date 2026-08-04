@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/attachment.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'attachment_loader.dart';
+import '../../../theme/app_text.dart';
 
 /// Inline player for an audio attachment (voice note or attached audio file).
 /// Bytes are fetched + decrypted lazily on first play via [loader]; playback is
@@ -144,7 +145,8 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
                       : '${_fmt(_position)} / ${_fmt(_duration)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: theme.textTertiary),
+                  // Ticks while playing, so it must not change width.
+                  style: AppText.figure.copyWith(color: theme.textTertiary),
                 ),
               ],
             ),

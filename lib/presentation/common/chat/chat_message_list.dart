@@ -7,6 +7,7 @@ import '../../../logic/cubits/theme/theme_cubit.dart';
 import 'attachments/attachment_loader.dart';
 import 'date_divider.dart';
 import 'message_row/chat_message_row.dart';
+import '../../theme/app_text.dart';
 
 /// Scrollable message history, newest at the bottom (reversed list, so it
 /// stays pinned to the latest message). Consecutive messages from the same
@@ -133,7 +134,10 @@ class _ChatMessageListState extends State<ChatMessageList> {
           return Center(
             child: Text(
               'No messages yet — say hi!',
-              style: TextStyle(fontSize: 14, color: themeState.textTertiary),
+              style: AppText.body.copyWith(
+                fontSize: 14,
+                color: themeState.textTertiary,
+              ),
             ),
           );
         }

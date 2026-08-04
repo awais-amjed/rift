@@ -16,6 +16,7 @@ import 'message_edit_field.dart';
 import 'message_hover_toolbar.dart';
 import 'message_row_avatar.dart';
 import 'message_row_header.dart';
+import '../../../theme/app_text.dart';
 
 /// One message in the chat list — flat Discord-style row, not a bubble.
 ///
@@ -232,17 +233,12 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
               children: [
                 emojiTextSpan(
                   message.text,
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.35,
-                    color: themeState.textSecondary,
-                  ),
+                  style: AppText.body.copyWith(color: themeState.textSecondary),
                 ),
                 if (message.isEdited)
                   TextSpan(
                     text: '  (edited)',
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: AppText.meta.copyWith(
                       color: themeState.textQuaternary,
                     ),
                   ),

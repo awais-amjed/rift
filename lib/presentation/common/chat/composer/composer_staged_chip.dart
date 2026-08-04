@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/attachment.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 
 /// One picked-but-not-yet-sent attachment: an image preview, or an icon and
 /// filename for everything else, with a corner button to drop it again.
@@ -63,7 +64,7 @@ class ComposerStagedChip extends StatelessWidget {
               attachment.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: themeState.textSecondary),
+              style: AppText.label.copyWith(color: themeState.textSecondary),
             ),
           ),
         ],

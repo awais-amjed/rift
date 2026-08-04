@@ -4,6 +4,7 @@ import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import 'composer_icon_button.dart';
+import '../../../theme/app_text.dart';
 
 /// What the composer bar shows while a voice note is being recorded.
 ///
@@ -60,9 +61,10 @@ class ComposerRecordingBar extends StatelessWidget {
         const Spacer(),
         Text(
           _fmtElapsed(elapsed),
-          style: TextStyle(
+          // Already tabular via AppText.figure — a recording timer that
+          // reflows every second is the exact case that style exists for.
+          style: AppText.figure.copyWith(
             fontSize: 13,
-            fontFeatures: const [FontFeature.tabularFigures()],
             color: themeState.textTertiary,
           ),
         ),

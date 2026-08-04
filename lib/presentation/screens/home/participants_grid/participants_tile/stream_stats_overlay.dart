@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../theme/custom_colors.dart';
 import '../../../../../logic/services/video_stats_sampler.dart';
 
 /// Live receive-side statistics for one video track, drawn over the tile.
@@ -188,7 +189,7 @@ class _StatRow extends StatelessWidget {
           style: TextStyle(
             fontSize: 11,
             color: isWarning
-                ? Colors.orange.shade300
+                ? CustomColors.warning
                 : (isMuted ? Colors.white38 : Colors.white70),
             fontWeight: FontWeight.w500,
           ),
@@ -198,7 +199,7 @@ class _StatRow extends StatelessWidget {
           style: TextStyle(
             fontSize: 11,
             color: isWarning
-                ? Colors.orange
+                ? CustomColors.warning
                 : (isMuted ? Colors.white54 : Colors.white),
             fontWeight: FontWeight.w600,
           ),

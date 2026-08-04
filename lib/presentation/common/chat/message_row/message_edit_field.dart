@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 
 /// Inline editor that replaces a message's text while it is being edited —
 /// Discord-style, rather than lifting the message into a dialog.
@@ -84,7 +85,10 @@ class _MessageEditFieldState extends State<MessageEditField> {
             controller: _controller,
             focusNode: _focusNode,
             maxLines: null,
-            style: TextStyle(fontSize: 14, color: theme.textSecondary),
+            style: AppText.body.copyWith(
+              fontSize: 14,
+              color: theme.textSecondary,
+            ),
             decoration: InputDecoration(
               isDense: true,
               filled: true,
@@ -111,7 +115,10 @@ class _MessageEditFieldState extends State<MessageEditField> {
         const SizedBox(height: 4),
         Text(
           'escape to cancel • enter to save',
-          style: TextStyle(fontSize: 11, color: theme.textQuaternary),
+          style: AppText.label.copyWith(
+            fontWeight: FontWeight.w400,
+            color: theme.textQuaternary,
+          ),
         ),
       ],
     );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
+import '../../../theme/app_text.dart';
 
 /// What a message context-menu entry asked for.
 enum MessageMenuAction { copy, edit, delete }
@@ -81,7 +82,10 @@ PopupMenuItem<MessageMenuAction> _item(
       children: [
         Icon(icon, size: 16, color: color),
         const SizedBox(width: 10),
-        Text(label, style: TextStyle(fontSize: 13, color: color)),
+        Text(
+          label,
+          style: AppText.rowQuiet.copyWith(fontSize: 13, color: color),
+        ),
       ],
     ),
   );

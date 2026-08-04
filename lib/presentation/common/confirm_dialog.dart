@@ -5,6 +5,7 @@ import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/custom_colors.dart';
 import 'app_button.dart';
 import 'app_modal.dart';
+import '../theme/app_text.dart';
 
 /// Ask the user to confirm one action, and answer `true` only if they did.
 ///
@@ -85,9 +86,7 @@ class _ConfirmDialog extends StatelessWidget {
                   Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                    style: AppText.sectionTitle.copyWith(
                       color: themeState.textPrimary,
                     ),
                   ),
@@ -95,10 +94,10 @@ class _ConfirmDialog extends StatelessWidget {
                   Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: AppText.body.copyWith(
                       fontSize: 13,
-                      color: themeState.textTertiary,
                       height: 1.5,
+                      color: themeState.textTertiary,
                     ),
                   ),
                   const SizedBox(height: 24),

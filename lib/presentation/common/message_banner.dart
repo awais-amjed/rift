@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/custom_colors.dart';
+import '../theme/app_text.dart';
 
 /// Coloured inline banner used to display error or success feedback.
 class MessageBanner extends StatelessWidget {
@@ -32,7 +33,10 @@ class MessageBanner extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(message, style: TextStyle(fontSize: 13, color: color)),
+            child: Text(
+              message,
+              style: AppText.body.copyWith(fontSize: 13, color: color),
+            ),
           ),
         ],
       ),

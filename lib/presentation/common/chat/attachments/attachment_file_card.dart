@@ -5,6 +5,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import 'attachment_download.dart';
 import 'attachment_loader.dart';
+import '../../../theme/app_text.dart';
 
 /// A non-media attachment: name, size, and a tap to decrypt and save it.
 /// The card owns the in-flight state so a slow download shows a spinner in
@@ -83,16 +84,17 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
           widget.attachment.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
+          style: AppText.rowQuiet.copyWith(
             fontSize: 13,
-            fontWeight: FontWeight.w500,
             color: theme.textSecondary,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           humanSize(widget.attachment.size),
-          style: TextStyle(fontSize: 11, color: theme.textQuaternary),
+          // A file's size is a figure — mono keeps a column of cards
+          // from having their sizes wander.
+          style: AppText.meta.copyWith(color: theme.textQuaternary),
         ),
       ],
     );

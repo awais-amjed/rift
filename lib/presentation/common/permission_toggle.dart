@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_text.dart';
 
 class PermissionToggle extends StatelessWidget {
   final IconData icon;
@@ -62,16 +63,15 @@ class PermissionToggle extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: TextStyle(
+                        style: AppText.row.copyWith(
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
                           color: themeState.textPrimary,
                         ),
                       ),
                       Text(
                         description,
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: AppText.label.copyWith(
+                          fontWeight: FontWeight.w400,
                           color: themeState.textTertiary,
                         ),
                       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_text.dart';
 
 /// Themed text field used throughout the app.
 class AppTextField extends StatelessWidget {
@@ -40,9 +41,8 @@ class AppTextField extends StatelessWidget {
         if (label != null) ...[
           Text(
             label!.toUpperCase(),
-            style: TextStyle(
+            style: AppText.sectionLabel.copyWith(
               fontSize: 11,
-              fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
               color: themeState.textTertiary,
             ),
@@ -57,10 +57,13 @@ class AppTextField extends StatelessWidget {
           onChanged: onChanged,
           onEditingComplete: onEditingComplete,
           autofocus: autofocus,
-          style: TextStyle(fontSize: 14, color: themeState.textPrimary),
+          style: AppText.body.copyWith(
+            fontSize: 14,
+            color: themeState.textPrimary,
+          ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(
+            hintStyle: AppText.body.copyWith(
               fontSize: 14,
               color: themeState.textQuaternary,
             ),
