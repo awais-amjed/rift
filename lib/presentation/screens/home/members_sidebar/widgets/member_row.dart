@@ -6,7 +6,9 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/app_text.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
+import 'role_chip.dart';
 
 /// One member in the right-hand sidebar: avatar, name, role/state badges.
 ///
@@ -45,7 +47,10 @@ class MemberRow extends StatelessWidget {
 
   Widget _buildRow() {
     final locallyMuted = setting?.muted ?? false;
-    final dim = isOnline ? 1.0 : 0.45;
+    // Offline members stay on the list but recede — the roster should be a
+    // stable thing you can right-click, not a list that reshuffles as people
+    // come and go.
+    final dim = isOnline ? 1.0 : 0.4;
 
     return Opacity(
       opacity: dim,
@@ -57,20 +62,19 @@ class MemberRow extends StatelessWidget {
           hoverColor: themeState.bgHover,
           onTap: () {},
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Row(
+              spacing: 9,
               children: [
                 _avatar(),
-                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     member.displayName,
-                    style: TextStyle(
-                      // Matches the channel tiles in the left sidebar.
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.rowQuiet.copyWith(
+                      fontSize: 13,
                       color: themeState.textSecondary,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -99,14 +103,14 @@ class MemberRow extends StatelessWidget {
           right: -1,
           bottom: -1,
           child: Container(
-            width: 10,
-            height: 10,
+            width: 9,
+            height: 9,
             decoration: BoxDecoration(
               color: isOnline
                   ? CustomColors.userStatusOnline
                   : themeState.textQuaternary,
               shape: BoxShape.circle,
-              border: Border.all(color: themeState.sidebarBg, width: 2),
+              border: Border.all(color: themeState.bgSecondary, width: 2),
             ),
           ),
         ),
@@ -118,12 +122,10 @@ class MemberRow extends StatelessWidget {
     final badges = <Widget>[];
     if (member.permissions.isServerAdmin) {
       badges.add(
-        Icon(Icons.shield_rounded, size: 13, color: themeState.primary),
+        RoleChip(label: 'ADMIN', themeState: themeState, isPrimary: true),
       );
     } else if (member.permissions.isChannelManager) {
-      badges.add(
-        Icon(Icons.build_rounded, size: 12, color: themeState.textQuaternary),
-      );
+      badges.add(RoleChip(label: 'MOD', themeState: themeState));
     }
     if (member.isMuted) {
       badges.add(
@@ -139,8 +141,6 @@ class MemberRow extends StatelessWidget {
         ),
       );
     }
-    return [
-      for (final badge in badges) ...[const SizedBox(width: 4), badge],
-    ];
+    return badges;
   }
 }

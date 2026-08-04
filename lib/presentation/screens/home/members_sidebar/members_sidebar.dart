@@ -9,6 +9,7 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster.dart';
 import '../../../common/app_panel.dart';
+import '../../../theme/app_text.dart';
 import '../channels/channel_list/widgets/section_header.dart';
 import '../chat/widgets/chat_header.dart';
 import 'widgets/member_row.dart';
@@ -171,22 +172,27 @@ class _MembersSidebarState extends State<MembersSidebar> {
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
       ),
       child: Row(
+        spacing: 8,
         children: [
-          Icon(
-            Icons.people_alt_rounded,
-            size: 16,
-            color: themeState.textQuaternary,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Members',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: themeState.textPrimary,
+          Expanded(
+            child: Text(
+              'Members',
+              style: AppText.row.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: themeState.textPrimary,
+              ),
             ),
           ),
-          const Spacer(),
+          // Mono, so the tally sits still while people come and go.
+          if (_members != null)
+            Text(
+              '${_members!.length}',
+              style: AppText.figure.copyWith(
+                fontSize: 10,
+                color: themeState.textQuaternary,
+              ),
+            ),
           IconButton(
             tooltip: 'Hide members',
             visualDensity: VisualDensity.compact,
@@ -211,7 +217,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
   ) {
     final split = MemberRoster.split(members, presence.onlineUserIds);
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       children: [
         ..._group(
           themeState,
@@ -246,9 +252,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
   }) {
     if (members.isEmpty) return const [];
     return [
-      const SizedBox(height: 14),
       SectionHeader(label: '$label — ${members.length}'),
-      const SizedBox(height: 4),
       for (final member in members)
         MemberRow(
           member: member,
