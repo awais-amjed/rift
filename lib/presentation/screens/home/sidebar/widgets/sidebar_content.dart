@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../profile/user_profile.dart';
+import '../../profile/user_dock/user_dock.dart';
 import '../../servers/server_rail/server_rail.dart';
 import 'sidebar_channel_list.dart';
 import 'sidebar_header.dart';
@@ -31,7 +31,7 @@ class SidebarContent extends StatelessWidget {
               SidebarHeader(),
               SidebarActions(),
               SidebarChannelList(),
-              UserProfile(),
+              UserDock(),
             ],
           ),
         ),

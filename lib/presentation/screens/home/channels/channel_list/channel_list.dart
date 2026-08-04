@@ -11,7 +11,7 @@ import '../create_channel_dialog.dart';
 import 'widgets/empty_channels_view.dart';
 import 'widgets/section_header.dart';
 import 'widgets/text_channel_tile.dart';
-import 'widgets/voice_channel_tile.dart';
+import 'widgets/voice_channel_tile/voice_channel_tile.dart';
 
 /// Lists all channels grouped by type. Voice channels show live participants.
 class ChannelList extends StatelessWidget {
