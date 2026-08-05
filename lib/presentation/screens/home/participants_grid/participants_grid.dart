@@ -45,7 +45,14 @@ class ParticipantsGrid extends StatelessWidget {
               case LiveKitConnectionState.connecting:
                 return const ConnectingView();
               case LiveKitConnectionState.error:
-                return ErrorView(error: livekitState.error ?? 'Unknown error');
+                // Only this branch gets the actions: the two checks above are
+                // preconditions of the screen, not of the connection, so
+                // nothing about retrying them would come out differently.
+                return ErrorView(
+                  error: livekitState.error ?? 'Unknown error',
+                  onRetry: () => context.read<LiveKitCubit>().retryConnection(),
+                  onLeave: () => context.read<LiveKitCubit>().disconnect(),
+                );
               case LiveKitConnectionState.connected:
                 if (livekitState.room == null) {
                   return const ConnectingView();

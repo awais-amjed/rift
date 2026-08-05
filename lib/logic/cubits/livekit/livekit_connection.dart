@@ -145,6 +145,24 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
     }
   }
 
+  /// Runs the failed join again, against the channel that failed.
+  ///
+  /// Drops the cached channel token first. A token the server has just refused
+  /// — expired, or minted before the member's access changed — is one of the
+  /// likelier reasons a join fails, and [connectToChannel] prefers the cache,
+  /// so retrying without evicting it would fail identically forever. That is
+  /// what made leaving for another channel and coming back the only cure: it
+  /// was never the round trip that helped, only the fresh token at the end of
+  /// it. Re-minting one costs a single edge-function call when the cause was
+  /// something else, which is worth it to make the button always mean
+  /// something.
+  Future<void> retryConnection() async {
+    final channelId = state.currentChannelId;
+    if (channelId == null) return;
+    _tokenCubit.invalidateToken(channelId);
+    await connectToChannel(channelId: channelId);
+  }
+
   /// Disconnects from the current room.
   ///
   /// Runs at most once at a time. Clearing the selected channel below is the
