@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/enums/voice_quality.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
+import '../../../../common/popover_surface.dart';
 import '../../../../theme/custom_colors.dart';
 import 'ping_graph.dart';
 import '../../../../theme/app_text.dart';
@@ -17,26 +18,17 @@ class ConnectionQualityPopup extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final bgColor = themeState.bgElevated;
         final borderColor = themeState.borderPrimary;
 
         return BlocBuilder<VoiceStatsCubit, VoiceStatsState>(
           builder: (context, stats) {
-            return Container(
+            // The shared surface, not a hand-rolled copy of it: this is opened
+            // into the Overlay, so it needs the Material that carries with it,
+            // and it now picks up the popover radius and shadow everything
+            // else floating uses.
+            return SizedBox(
               width: 248,
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: borderColor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
+              child: PopoverSurface(
                 padding: const EdgeInsets.all(14),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

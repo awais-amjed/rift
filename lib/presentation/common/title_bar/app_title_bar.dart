@@ -95,33 +95,41 @@ class _AppTitleBarState extends State<AppTitleBar>
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: widget.pinned
-                ? Colors.transparent
-                : themeState.bgSecondary.withValues(alpha: 0.72),
-          ),
-          child: SizedBox(
-            height: widget.height,
-            child: Stack(
-              children: [
-                // Draggable region covering the full bar, under the controls.
-                const Positioned.fill(
-                  child: DragToMoveArea(child: SizedBox.expand()),
-                ),
-                Positioned(
-                  left: 16,
-                  top: 0,
-                  bottom: 0,
-                  child: _buildBrand(themeState),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 0,
-                  bottom: 0,
-                  child: _buildControls(themeState),
-                ),
-              ],
+        // The bar is mounted in the root Overlay, above the Navigator, so
+        // nothing here inherits a Scaffold's Material. Without one there is no
+        // `DefaultTextStyle` but the framework's error style, which is what
+        // strikes the wordmark through with a double yellow underline. Painting
+        // no surface of its own, so the fill below still shows through.
+        return Material(
+          type: MaterialType.transparency,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: widget.pinned
+                  ? Colors.transparent
+                  : themeState.bgSecondary.withValues(alpha: 0.72),
+            ),
+            child: SizedBox(
+              height: widget.height,
+              child: Stack(
+                children: [
+                  // Draggable region covering the full bar, under the controls.
+                  const Positioned.fill(
+                    child: DragToMoveArea(child: SizedBox.expand()),
+                  ),
+                  Positioned(
+                    left: 16,
+                    top: 0,
+                    bottom: 0,
+                    child: _buildBrand(themeState),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 0,
+                    bottom: 0,
+                    child: _buildControls(themeState),
+                  ),
+                ],
+              ),
             ),
           ),
         );
