@@ -28,7 +28,13 @@ class ServerDmsRow extends StatelessWidget {
             final count = dmState.conversations.length;
 
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              // Top gap because the action bar above ends in a border and this
+              // row brings none of its own: selected, NavRow paints its
+              // gradient and ring right to its edge, so with no gap the ring
+              // lands on the divider and the two read as one thick line. The
+              // channel list below sets its own distance through the section
+              // header's 16px lead-in.
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
               child: NavRow(
                 icon: Icons.forum_outlined,
                 label: 'Server DMs',
