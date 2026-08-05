@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -27,10 +26,6 @@ class ChatHeader extends StatelessWidget {
     final chatState = context.watch<ChannelChatCubit>().state;
     final channels =
         context.watch<ServerCubit>().state.selectedServer?.channels ?? [];
-    final membersOpen = context.select<AppCubit, bool>(
-      (c) => c.state.membersSidebarOpen,
-    );
-
     final name = channels
         .where((c) => c.id == chatState.channelId)
         .map((c) => c.name)
@@ -77,12 +72,11 @@ class ChatHeader extends StatelessWidget {
               ],
             ),
           ),
-          ChatHeaderButton(
-            icon: Icons.people_alt_rounded,
-            tooltip: membersOpen ? 'Hide members' : 'Show members',
-            isActive: membersOpen,
-            onTap: () => context.read<AppCubit>().toggleMembersSidebar(),
-          ),
+          // No members toggle here: the members sidebar carries its own, and
+          // shows one in either state — a chevron in its header when open, a
+          // people icon in the collapsed strip when closed. A third control for
+          // the same flag only made it ambiguous which one you were meant to
+          // reach for.
           ChatHeaderButton(
             icon: Icons.close_rounded,
             tooltip: 'Close chat',

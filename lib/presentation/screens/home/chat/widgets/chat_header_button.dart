@@ -5,16 +5,15 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 
 /// A square control in a panel header.
 ///
-/// [isActive] keeps a standing fill for toggles that are currently on, so the
-/// members panel being open is legible from the button itself rather than only
-/// from the panel's presence.
-///
 /// [isPrimary] promotes the button to an accent tile — for the one header
 /// control that *starts* something rather than toggling a view.
+///
+/// There is no "active" state any more: it existed for the members toggle,
+/// which is gone from the header, and every remaining control here acts rather
+/// than latches.
 class ChatHeaderButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
-  final bool isActive;
   final bool isPrimary;
   final VoidCallback onTap;
 
@@ -23,7 +22,6 @@ class ChatHeaderButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
-    this.isActive = false,
     this.isPrimary = false,
   });
 
@@ -34,23 +32,12 @@ class ChatHeaderButton extends StatelessWidget {
         final radius = BorderRadius.circular(9);
         final size = isPrimary ? 30.0 : 32.0;
 
-        final Color fill;
-        if (isPrimary) {
-          fill = themeState.primary.withValues(alpha: 0.12);
-        } else if (isActive) {
-          fill = themeState.bgHover;
-        } else {
-          fill = Colors.transparent;
-        }
-
-        final Color iconColor;
-        if (isPrimary) {
-          iconColor = themeState.accentBright;
-        } else if (isActive) {
-          iconColor = themeState.textSecondary;
-        } else {
-          iconColor = themeState.textTertiary;
-        }
+        final fill = isPrimary
+            ? themeState.primary.withValues(alpha: 0.12)
+            : Colors.transparent;
+        final iconColor = isPrimary
+            ? themeState.accentBright
+            : themeState.textTertiary;
 
         return Tooltip(
           message: tooltip,
