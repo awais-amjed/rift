@@ -6,6 +6,7 @@ import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/cubits/token/token_cubit.dart';
+import 'package:rift/logic/services/connection_failure.dart';
 import 'package:rift/presentation/screens/home/participants_grid/widgets/error_view.dart';
 
 /// In-memory stand-in for the HydratedCubits under test.
@@ -47,7 +48,11 @@ Future<void> _pumpErrorView(
         body: BlocProvider(
           create: (_) => ThemeCubit(),
           child: ErrorView(
-            error: 'Failed to connect: boom',
+            failure: const ConnectionFailure(
+              title: 'Cannot reach this server',
+              message: 'Nothing answered.',
+              detail: 'SocketException: connection refused',
+            ),
             onRetry: onRetry,
             onLeave: onLeave,
           ),

@@ -12,6 +12,7 @@ import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
 import '../token/token_cubit.dart';
 import '../../helper_methods.dart';
+import '../../services/connection_failure.dart';
 import '../../services/participant_roster.dart';
 import '../../services/serial_queue.dart';
 import '../../services/sound_service.dart';

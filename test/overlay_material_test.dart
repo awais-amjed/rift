@@ -68,9 +68,7 @@ void main() {
   setUpAll(() {
     // The title bar asks the platform whether the window is maximized as soon
     // as it mounts; without a handler that throws asynchronously mid-test.
-    TestDefaultBinaryMessengerBinding
-        .instance
-        .defaultBinaryMessenger
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('window_manager'),
           (call) async => call.method == 'isMaximized' ? false : null,

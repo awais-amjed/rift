@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/services/connection_failure.dart';
 import 'widgets/connecting_view.dart';
 import 'widgets/error_view.dart';
 import 'widgets/no_channel_view.dart';
@@ -29,14 +30,18 @@ class ParticipantsGrid extends StatelessWidget {
 
             if (server?.user == null) {
               return const ErrorView(
-                error: 'Please create a user account to join voice channels',
+                failure: ConnectionFailure(
+                  title: 'No account on this server',
+                  message:
+                      'Create a user account on this server before joining a '
+                      'voice channel.',
+                  canRetry: false,
+                ),
               );
             }
 
             if (server?.livekitUrl == null) {
-              return const ErrorView(
-                error: 'This server has no LiveKit URL configured',
-              );
+              return const ErrorView(failure: ConnectionFailure.noLiveKitUrl());
             }
 
             switch (livekitState.connectionState) {
@@ -45,12 +50,17 @@ class ParticipantsGrid extends StatelessWidget {
               case LiveKitConnectionState.connecting:
                 return const ConnectingView();
               case LiveKitConnectionState.error:
-                // Only this branch gets the actions: the two checks above are
-                // preconditions of the screen, not of the connection, so
-                // nothing about retrying them would come out differently.
+                final failure =
+                    livekitState.failure ?? const ConnectionFailure.unknown();
                 return ErrorView(
-                  error: livekitState.error ?? 'Unknown error',
-                  onRetry: () => context.read<LiveKitCubit>().retryConnection(),
+                  failure: failure,
+                  // Leaving is always offered; retrying only where it could
+                  // change the outcome. A misconfigured server would fail the
+                  // same way forever, and a button that cannot work is worse
+                  // than no button.
+                  onRetry: failure.canRetry
+                      ? () => context.read<LiveKitCubit>().retryConnection()
+                      : null,
                   onLeave: () => context.read<LiveKitCubit>().disconnect(),
                 );
               case LiveKitConnectionState.connected:

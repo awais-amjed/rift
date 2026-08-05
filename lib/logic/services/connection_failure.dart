@@ -1,0 +1,186 @@
+import 'dart:io';
+
+import 'package:livekit_client/livekit_client.dart' as lk;
+
+/// A failed voice join, described for the person who hit it rather than for a
+/// log line.
+///
+/// LiveKit surfaces the raw HTTP body of its validate endpoint as the exception
+/// message, so the untranslated text is things like "requested room does not
+/// exist" — accurate, and meaningless unless you know how Rift provisions
+/// rooms. Each case below says what actually went wrong and whether trying
+/// again can fix it, and keeps the original text in [detail] so a bug report is
+/// still worth something.
+class ConnectionFailure {
+  /// Short statement of what failed. Reads as a headline, no trailing period.
+  final String title;
+
+  /// One or two sentences: what it means, and what to do about it.
+  final String message;
+
+  /// The original error text, shown small and quiet under the message.
+  final String? detail;
+
+  /// Whether another attempt could plausibly succeed. A misconfigured server
+  /// will fail the same way forever, and offering a button that can't work is
+  /// worse than offering none.
+  final bool canRetry;
+
+  const ConnectionFailure({
+    required this.title,
+    required this.message,
+    this.detail,
+    this.canRetry = true,
+  });
+
+  /// The connection failed but nothing recorded why. Should not happen; if it
+  /// does, retrying is the only sensible offer.
+  const ConnectionFailure.unknown()
+    : title = 'Could not join the channel',
+      message = 'The connection failed without saying why.',
+      detail = null,
+      canRetry = true;
+
+  /// No server is selected — a UI state, not a connection problem.
+  const ConnectionFailure.noServer()
+    : title = 'No server selected',
+      message = 'Pick a server before joining a voice channel.',
+      detail = null,
+      canRetry = false;
+
+  /// The server record carries no LiveKit URL, so there is nothing to dial.
+  const ConnectionFailure.noLiveKitUrl()
+    : title = 'Voice not configured',
+      message =
+          'This server has no LiveKit URL set, so it cannot host voice '
+          'channels. That has to be fixed on the server.',
+      detail = null,
+      canRetry = false;
+
+  /// The edge function that mints channel tokens refused or failed.
+  ///
+  /// Retryable on purpose: this call is also what creates the LiveKit room, so
+  /// a transient failure here is exactly the kind another attempt clears.
+  const ConnectionFailure.tokenRequest(String? error)
+    : title = 'Could not get access to this channel',
+      message =
+          'The server would not issue a token for this channel. You may have '
+          'lost access to it, or the server may be having trouble.',
+      detail = error,
+      canRetry = true;
+
+  /// Translates whatever `room.connect` threw.
+  factory ConnectionFailure.from(Object error) {
+    final detail = _detailOf(error);
+
+    if (error is lk.ConnectException) return _fromConnect(error, detail);
+    if (error is lk.MediaConnectException) {
+      return ConnectionFailure(
+        title: 'Voice could not get through',
+        message:
+            'The server accepted the connection but no audio or video could '
+            'reach it. A firewall or router is most likely blocking the media '
+            'ports.',
+        detail: detail,
+      );
+    }
+    if (error is lk.TrackCreateException) {
+      return ConnectionFailure(
+        title: 'Microphone or camera unavailable',
+        message:
+            'Your device would not hand over the microphone or camera. Check '
+            'that nothing else is using it and that Rift has permission.',
+        detail: detail,
+      );
+    }
+    if (error is lk.TimeoutException) {
+      return ConnectionFailure(
+        title: 'The voice server did not respond',
+        message:
+            'It took too long to answer. It may be overloaded or only just '
+            'starting up.',
+        detail: detail,
+      );
+    }
+    if (error is SocketException || error is HttpException) {
+      return _unreachable(detail);
+    }
+
+    return ConnectionFailure(
+      title: 'Could not join the channel',
+      message: 'Something went wrong while connecting.',
+      detail: detail,
+    );
+  }
+
+  static ConnectionFailure _fromConnect(lk.ConnectException e, String? detail) {
+    final body = e.message.toLowerCase();
+
+    // Checked before the status code: LiveKit reports this as a 404, which
+    // `reason` then generalises to NotAllowed along with every real permission
+    // failure.
+    if (e.statusCode == 404 || body.contains('does not exist')) {
+      return ConnectionFailure(
+        title: 'This channel has no room open',
+        message:
+            'Rift creates the room when it issues a channel token, and LiveKit '
+            'closes rooms once they have been empty for a few minutes. The '
+            'saved token skipped that step. Trying again mints a fresh one and '
+            'reopens the room.',
+        detail: detail,
+      );
+    }
+
+    if (e.statusCode == 401 || e.statusCode == 403) {
+      return ConnectionFailure(
+        title: 'The voice server refused the token',
+        message:
+            'Your access to this channel may have changed, or the token may '
+            'have expired. Trying again requests a new one.',
+        detail: detail,
+      );
+    }
+
+    // 503 with no socket at all is how the SDK reports "no route out".
+    if (e.statusCode == 503 || body.contains('no internet connection')) {
+      return _unreachable(detail);
+    }
+
+    if (e.reason == lk.ConnectionErrorReason.Timeout ||
+        body.contains('timed out')) {
+      return ConnectionFailure(
+        title: 'The voice server did not respond',
+        message:
+            'It took too long to answer. It may be overloaded or only just '
+            'starting up.',
+        detail: detail,
+      );
+    }
+
+    // Status 0 means the socket never opened — the server did not answer at
+    // all, rather than answering with a refusal.
+    if (e.statusCode == 0) return _unreachable(detail);
+
+    return ConnectionFailure(
+      title: 'The voice server rejected the connection',
+      message: 'It answered, but would not let this client in.',
+      detail: detail,
+    );
+  }
+
+  static ConnectionFailure _unreachable(String? detail) => ConnectionFailure(
+    title: 'Cannot reach this server\'s voice service',
+    message:
+        'Nothing answered at the server\'s LiveKit address. It is probably '
+        'offline — otherwise check your own connection, or that the address is '
+        'still correct.',
+    detail: detail,
+  );
+
+  /// LiveKit's own `toString` prefixes the class name, which is noise next to a
+  /// message written for a person.
+  static String? _detailOf(Object error) {
+    if (error is lk.LiveKitException) return error.message;
+    return error.toString();
+  }
+}

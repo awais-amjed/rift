@@ -111,7 +111,13 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       emit(state.copyWith(isScreenSharing: next));
       _syncParticipants();
     } catch (e) {
-      emit(state.copyWith(error: 'Screen share failed: $e'));
+      // Logged rather than stored. This wrote to the state's error field
+      // without moving the connection out of `connected`, and the error screen
+      // only renders in the error state — so the message was never shown to
+      // anyone. Surfacing a failed screen share properly needs its own channel;
+      // pretending it is a connection failure would replace a live call with an
+      // error page.
+      debugPrint('✗ Screen share failed: $e');
     }
   }
 }

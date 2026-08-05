@@ -6,7 +6,7 @@ class LiveKitState {
   final LiveKitConnectionState connectionState;
   final Room? room;
   final String? currentChannelId;
-  final String? error;
+  final ConnectionFailure? failure;
   final List<Participant> participants;
   final bool isMicEnabled;
   final bool isCameraEnabled;
@@ -19,7 +19,7 @@ class LiveKitState {
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
     this.currentChannelId,
-    this.error,
+    this.failure,
     this.participants = const [],
     this.isMicEnabled = true,
     this.isCameraEnabled = false,
@@ -33,7 +33,7 @@ class LiveKitState {
     LiveKitConnectionState? connectionState,
     Room? room,
     String? currentChannelId,
-    String? error,
+    ConnectionFailure? failure,
     List<Participant>? participants,
     bool? isMicEnabled,
     bool? isCameraEnabled,
@@ -43,7 +43,7 @@ class LiveKitState {
     Set<String>? subscribedScreenshares,
     bool clearRoom = false,
     bool clearChannelId = false,
-    bool clearError = false,
+    bool clearFailure = false,
   }) {
     return LiveKitState(
       connectionState: connectionState ?? this.connectionState,
@@ -51,7 +51,7 @@ class LiveKitState {
       currentChannelId: clearChannelId
           ? null
           : (currentChannelId ?? this.currentChannelId),
-      error: clearError ? null : (error ?? this.error),
+      failure: clearFailure ? null : (failure ?? this.failure),
       participants: participants ?? this.participants,
       isMicEnabled: isMicEnabled ?? this.isMicEnabled,
       isCameraEnabled: isCameraEnabled ?? this.isCameraEnabled,

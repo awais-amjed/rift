@@ -44,7 +44,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
       state.copyWith(
         connectionState: LiveKitConnectionState.connecting,
         currentChannelId: channelId,
-        clearError: true,
+        clearFailure: true,
       ),
     );
 
@@ -57,7 +57,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
       emit(
         state.copyWith(
           connectionState: LiveKitConnectionState.error,
-          error: 'No server selected',
+          failure: const ConnectionFailure.noServer(),
         ),
       );
       return;
@@ -67,7 +67,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
       emit(
         state.copyWith(
           connectionState: LiveKitConnectionState.error,
-          error: 'No LiveKit URL configured for this server',
+          failure: const ConnectionFailure.noLiveKitUrl(),
         ),
       );
       return;
@@ -84,7 +84,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
         emit(
           state.copyWith(
             connectionState: LiveKitConnectionState.error,
-            error: response.error ?? 'Failed to get channel token',
+            failure: ConnectionFailure.tokenRequest(response.error),
           ),
         );
         return;
@@ -137,7 +137,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
       emit(
         state.copyWith(
           connectionState: LiveKitConnectionState.error,
-          error: 'Failed to connect: $e',
+          failure: ConnectionFailure.from(e),
         ),
       );
       await room.disconnect();
@@ -185,7 +185,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
         state.copyWith(
           connectionState: LiveKitConnectionState.disconnected,
           clearChannelId: true,
-          clearError: true,
+          clearFailure: true,
           participants: [],
         ),
       );
