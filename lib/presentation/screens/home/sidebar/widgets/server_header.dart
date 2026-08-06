@@ -14,6 +14,10 @@ import '../../../../theme/custom_colors.dart';
 /// It states the encryption guarantee under the name rather than hiding it in
 /// settings: end-to-end encryption is the reason Rift exists, and a claim you
 /// can see at all times is worth more than one you have to go looking for.
+///
+/// The name and that claim are a label, not a button. Only the two icons act,
+/// and each says which one it is — a whole row that silently opens settings
+/// gives no clue what it will do before you commit to it.
 class ServerHeader extends StatelessWidget {
   final Server server;
 
@@ -26,41 +30,34 @@ class ServerHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
+        // Material for the icon buttons' ink — the panel around this brings
+        // none of its own.
         return Material(
           color: Colors.transparent,
-          child: InkWell(
-            onTap: onOpenSettings,
-            hoverColor: themeState.bgHover,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 8, 12),
-              child: Row(
-                spacing: 11,
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      boxShadow: AppShadows.accentGlow(
-                        themeState.primary,
-                        blurRadius: 16,
-                        dy: 4,
-                      ),
-                    ),
-                    child: SquircleAvatar(
-                      name: server.name,
-                      seed: server.id,
-                      imageUrl: server.iconUrl,
-                      size: 38,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 8, 12),
+            child: Row(
+              spacing: 11,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    boxShadow: AppShadows.accentGlow(
+                      themeState.primary,
+                      blurRadius: 16,
+                      dy: 4,
                     ),
                   ),
-                  Expanded(child: _buildIdentity(themeState)),
-                  if (onOpenSettings != null)
-                    Icon(
-                      Icons.settings_outlined,
-                      size: 17,
-                      color: themeState.textTertiary,
-                    ),
-                  _buildPinToggle(themeState),
-                ],
-              ),
+                  child: SquircleAvatar(
+                    name: server.name,
+                    seed: server.id,
+                    imageUrl: server.iconUrl,
+                    size: 38,
+                  ),
+                ),
+                Expanded(child: _buildIdentity(themeState)),
+                if (onOpenSettings != null) _buildSettingsButton(themeState),
+                _buildPinToggle(themeState),
+              ],
             ),
           ),
         );
@@ -99,6 +96,19 @@ class ServerHeader extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildSettingsButton(ThemeState themeState) {
+    return IconButton(
+      tooltip: 'Server settings',
+      visualDensity: VisualDensity.compact,
+      onPressed: onOpenSettings,
+      icon: Icon(
+        Icons.settings_outlined,
+        size: 17,
+        color: themeState.textTertiary,
+      ),
     );
   }
 
