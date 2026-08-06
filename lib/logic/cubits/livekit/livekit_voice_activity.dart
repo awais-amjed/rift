@@ -57,9 +57,56 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   /// Whether the noise gate should be applied on top of monitoring.
   bool get _gateActive {
     if (!_monitorActive) return false;
+    if (_gateMechanismBroken) return false;
     // Push-to-talk already decides transmission; don't also gate.
     if (_appCubit.state.pushToTalkEnabled) return false;
     return _appCubit.state.voiceActivityThreshold > 0;
+  }
+
+  // ── Fail-open watchdog ──────────────────────────────────────────────────────
+  //
+  // The gate closes by disabling the capture track, which is meant to transmit
+  // silence while local sinks keep hearing the live mic — that is the only
+  // reason a closed gate can notice the speech that reopens it.
+  //
+  // On some platforms disabling the track stops capture outright instead.
+  // Then the analyser goes silent, the gate never sees anything above the
+  // threshold, and it latches shut holding the microphone down with it. Seen
+  // on Linux with a Bluetooth headset: capture stops, PipeWire drops the HFP
+  // profile, the mic disappears from the OS, and the headset hands itself back
+  // to whatever else it is paired with. Only changing a setting — which
+  // re-enables the track from outside — gets it back.
+  //
+  // A gate that can cost you your microphone is worse than no gate, so it
+  // fails open.
+
+  /// No analyser events for this long while the gate is shut means the gate
+  /// cannot hear, and so cannot reopen itself.
+  static const _vadWatchdog = Duration(seconds: 2);
+
+  Timer? _vadWatchdogTimer;
+
+  /// Set once the watchdog has had to rescue the gate. Disabling the track
+  /// evidently stops capture on this machine, so gating is abandoned for the
+  /// rest of the run rather than reopened to latch again two seconds later.
+  bool _gateMechanismBroken = false;
+
+  /// Restarts the countdown. Called on every analyser event, each of which is
+  /// proof the mic is still being heard.
+  void _armVadWatchdog() {
+    _vadWatchdogTimer?.cancel();
+    if (_vadGateOpen) return;
+    _vadWatchdogTimer = Timer(_vadWatchdog, _onVadWatchdogExpired);
+  }
+
+  void _onVadWatchdogExpired() {
+    if (_vadGateOpen) return;
+    HelperMethods.printDebug(
+      '[LiveKit] Voice-activity gate went deaf while shut — disabling the '
+      'gate and reopening the mic for the rest of this run.',
+    );
+    _gateMechanismBroken = true;
+    _setVadGate(true);
   }
 
   /// Serialises every visualizer lifecycle step.
@@ -147,6 +194,9 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     // Speaking indicator — independent of whether the gate is in use.
     if (_speechDetector.update(peak, now)) _syncParticipants();
 
+    // This event is proof the mic is still audible, whatever the gate is doing.
+    _armVadWatchdog();
+
     if (!_gateActive) return;
     final threshold = _appCubit.state.voiceActivityThreshold;
     if (peak >= threshold) {
@@ -162,6 +212,13 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     _vadGateOpen = open;
     final track = _localMicPublication()?.track;
     if (track != null) track.mediaStreamTrack.enabled = open;
+    // Shutting the gate starts the clock; opening it stops it.
+    if (open) {
+      _vadWatchdogTimer?.cancel();
+      _vadWatchdogTimer = null;
+    } else {
+      _armVadWatchdog();
+    }
   }
 
   Future<void> _teardownMonitor() async {
@@ -174,6 +231,10 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     _vadVisualizer = null;
     _vadTrackId = null;
     _vadHoldUntil = null;
+    // No analyser means no events, and a countdown with nothing to reset it
+    // would fire on a gate that is already being taken down.
+    _vadWatchdogTimer?.cancel();
+    _vadWatchdogTimer = null;
 
     await listener?.dispose();
     await visualizer?.stop();

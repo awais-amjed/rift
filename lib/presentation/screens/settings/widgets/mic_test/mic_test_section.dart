@@ -3,9 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/services/mic_level_scale.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/custom_colors.dart';
+import 'widgets/input_sensitivity_slider.dart';
 import 'widgets/mic_level_meter.dart';
 import '../../../../theme/app_text.dart';
 
@@ -16,6 +19,11 @@ import '../../../../theme/app_text.dart';
 /// It creates its own standalone [LocalAudioTrack] (separate from any call) and
 /// drives the meter from LiveKit's audio visualizer, tearing both down when the
 /// test stops or the screen is disposed.
+///
+/// While it runs, a call in progress is muted and the mic handed over
+/// explicitly — see [LiveKitCubit.setMicrophoneSuspended]. Two captures of one
+/// device only appear to work: the test wins, the call quietly publishes
+/// silence, and the mic never comes back when the test stops.
 class MicTestSection extends StatefulWidget {
   final ThemeState themeState;
 
@@ -35,6 +43,18 @@ class _MicTestSectionState extends State<MicTestSection> {
   AudioVisualizer? _visualizer;
   EventsListener<AudioVisualizerEvent>? _listener;
 
+  /// Held rather than read from `context`, because [dispose] has to give the
+  /// microphone back and the element is already gone by then. Leaving the call
+  /// muted because the user closed settings is the bug this whole change is
+  /// about.
+  LiveKitCubit? _livekit;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _livekit = context.read<LiveKitCubit>();
+  }
+
   Future<void> _toggle() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -52,6 +72,10 @@ class _MicTestSectionState extends State<MicTestSection> {
   Future<void> _start() async {
     setState(() => _error = null);
     final settings = context.read<AppCubit>().state;
+
+    // Free the device before asking for it. On a Bluetooth headset there is
+    // one capture stream, so the order matters.
+    await _livekit?.setMicrophoneSuspended(true);
 
     LocalAudioTrack? track;
     AudioVisualizer? visualizer;
@@ -83,6 +107,7 @@ class _MicTestSectionState extends State<MicTestSection> {
         await visualizer.dispose();
         await track.stop();
         await track.dispose();
+        await _livekit?.setMicrophoneSuspended(false);
         return;
       }
 
@@ -98,6 +123,8 @@ class _MicTestSectionState extends State<MicTestSection> {
       await visualizer?.dispose();
       await track?.stop();
       await track?.dispose();
+      // The test failed; the call must not keep paying for it.
+      await _livekit?.setMicrophoneSuspended(false);
       if (mounted) {
         setState(
           () => _error =
@@ -128,6 +155,9 @@ class _MicTestSectionState extends State<MicTestSection> {
     _listener = null;
     _visualizer = null;
     _track = null;
+    // Only once this capture is fully gone — handing the device back before
+    // releasing it is how you end up with neither side holding it.
+    await _livekit?.setMicrophoneSuspended(false);
     if (mounted) {
       setState(() {
         _testing = false;
@@ -174,44 +204,20 @@ class _MicTestSectionState extends State<MicTestSection> {
               ),
             ),
             const SizedBox(height: 12),
+            // Both drawn through MicLevelScale, so the bar and the marker
+            // share one ruler — a voice reaching the marker is a voice that
+            // opens the gate.
             MicLevelMeter(
-              level: _level,
+              level: MicLevelScale.toPosition(_level),
               active: _testing,
-              threshold: threshold,
+              threshold: MicLevelScale.toPosition(threshold),
               themeState: themeState,
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Text(
-                  'Threshold',
-                  style: AppText.secondary.copyWith(
-                    color: themeState.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-                Expanded(
-                  child: Slider(
-                    value: threshold.clamp(0.0, 1.0),
-                    onChanged: (v) =>
-                        context.read<AppCubit>().setVoiceActivityThreshold(v),
-                    activeColor: themeState.primary,
-                    inactiveColor: themeState.bgActive,
-                  ),
-                ),
-                SizedBox(
-                  width: 36,
-                  child: Text(
-                    threshold <= 0 ? 'Off' : '${(threshold * 100).round()}%',
-                    textAlign: TextAlign.right,
-                    style: AppText.secondary.copyWith(
-                      color: themeState.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
+            InputSensitivitySlider(
+              threshold: threshold,
+              onChanged: context.read<AppCubit>().setVoiceActivityThreshold,
+              themeState: themeState,
             ),
             if (appState.pushToTalkEnabled)
               Padding(
