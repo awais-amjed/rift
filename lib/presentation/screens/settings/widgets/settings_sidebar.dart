@@ -32,56 +32,38 @@ class SettingsSidebar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Back button + Settings heading ────────────────
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onBack,
-            hoverColor: themeState.bgHover,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                spacing: 11,
-                children: [
-                  // The arrow gets its own tile so the row reads as a control
-                  // and lines up with the server header it replaces.
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: themeState.bgHover,
-                      borderRadius: BorderRadius.circular(K.radiusRow),
+        // Only the arrow acts. The heading beside it names the panel you are
+        // already in, and a title that navigates away when you touch it is
+        // the same trap the server header used to be.
+        Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            spacing: 11,
+            children: [
+              _BackButton(themeState: themeState, onTap: onBack),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Settings',
+                      style: AppText.panelTitle.copyWith(
+                        color: themeState.textPrimary,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.arrow_back_rounded,
-                      size: 17,
-                      color: themeState.textSecondary,
+                    const SizedBox(height: 1),
+                    Text(
+                      'Back to home',
+                      style: AppText.label.copyWith(
+                        fontWeight: FontWeight.w400,
+                        color: themeState.textTertiary,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Settings',
-                          style: AppText.panelTitle.copyWith(
-                            color: themeState.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          'Back to home',
-                          style: AppText.label.copyWith(
-                            fontWeight: FontWeight.w400,
-                            color: themeState.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
         // Inset rather than edge-to-edge: it separates the two halves of the
@@ -115,6 +97,47 @@ class SettingsSidebar extends StatelessWidget {
         label: label,
         isSelected: activeTab == tab,
         onTap: () => onTabSelected(tab),
+      ),
+    );
+  }
+}
+
+/// The way out of settings: a tinted tile holding the back arrow.
+///
+/// It was a bare [Container] when the whole header row carried the tap. Now
+/// that it is the only thing that navigates, it needs its own hit area, hover
+/// and tooltip — the tile already looked like a button, so this is only making
+/// it behave like the one it was pretending to be.
+class _BackButton extends StatelessWidget {
+  final ThemeState themeState;
+  final VoidCallback onTap;
+
+  const _BackButton({required this.themeState, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(K.radiusRow);
+
+    return Tooltip(
+      message: 'Back to home',
+      waitDuration: const Duration(milliseconds: 400),
+      child: Material(
+        color: themeState.bgHover,
+        borderRadius: radius,
+        child: InkWell(
+          borderRadius: radius,
+          hoverColor: themeState.bgActive,
+          onTap: onTap,
+          child: SizedBox(
+            width: 32,
+            height: 32,
+            child: Icon(
+              Icons.arrow_back_rounded,
+              size: 17,
+              color: themeState.textSecondary,
+            ),
+          ),
+        ),
       ),
     );
   }
