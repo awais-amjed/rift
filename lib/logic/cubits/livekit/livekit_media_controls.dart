@@ -23,42 +23,6 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     await _setDeafened(!state.isDeafened);
   }
 
-  /// True while something else in the app has been handed the microphone.
-  bool _micSuspended = false;
-
-  /// Whether the mic was live when it was suspended — so resuming never turns
-  /// on a mic the user had deliberately muted.
-  bool _micWasLive = false;
-
-  /// Hands the microphone to something else in the app — today, the mic test
-  /// in settings — and gives it back afterwards.
-  ///
-  /// Two captures of one device is not something to rely on. A Bluetooth
-  /// headset has a single HFP stream, so the second capture simply takes it,
-  /// and the call is left publishing silence with nothing in the code to
-  /// notice. Muting first is honest about that, and it is what Discord's mic
-  /// test does. `stopAudioCaptureOnMute` defaults to true, so this releases
-  /// the hardware rather than only muting the stream.
-  ///
-  /// A no-op outside a call, where nothing holds the mic to begin with.
-  Future<void> setMicrophoneSuspended(bool suspended) async {
-    if (suspended == _micSuspended) return;
-    if (state.room == null) return;
-    _micSuspended = suspended;
-
-    if (suspended) {
-      _micWasLive = state.isMicEnabled && !state.isDeafened;
-      if (!_micWasLive) return;
-    } else if (!_micWasLive) {
-      return;
-    }
-
-    final live = !suspended;
-    _appCubit.setAudioEnabled(live);
-    emit(state.copyWith(isMicEnabled: live));
-    await _syncMicrophoneTransmission(syncParticipants: true);
-  }
-
   Future<void> _setDeafened(bool deafened) async {
     final room = state.room;
 

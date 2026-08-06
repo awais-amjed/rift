@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
@@ -16,14 +18,22 @@ import '../../../../theme/app_text.dart';
 /// audio-processing settings and shows a live input-level meter so the user
 /// can confirm their mic works and see the effect of the processing toggles.
 ///
-/// It creates its own standalone [LocalAudioTrack] (separate from any call) and
-/// drives the meter from LiveKit's audio visualizer, tearing both down when the
-/// test stops or the screen is disposed.
+/// Where the level comes from depends on whether a call already owns the
+/// microphone:
 ///
-/// While it runs, a call in progress is muted and the mic handed over
-/// explicitly — see [LiveKitCubit.setMicrophoneSuspended]. Two captures of one
-/// device only appear to work: the test wins, the call quietly publishes
-/// silence, and the mic never comes back when the test stops.
+/// - **In a call, mic live** — it reads [LiveKitCubit.micLevels], the analyser
+///   already running for the noise gate. No second capture, so nothing to hand
+///   back, and the meter shows the very signal being published.
+/// - **Otherwise** — no call, or muted, so nothing holds the device — it opens
+///   its own [LocalAudioTrack] and tears it down when the test stops or the
+///   screen is disposed.
+///
+/// It used to always open its own capture. On a Bluetooth headset there is a
+/// single HFP stream, so that quietly took the device off the call, which then
+/// published silence and never got it back. Taking turns instead of sharing
+/// did not work either: releasing the device drops the headset's HFP profile,
+/// and renegotiating it is slow enough that the new capture opens against a
+/// microphone that is not there yet.
 class MicTestSection extends StatefulWidget {
   final ThemeState themeState;
 
@@ -43,10 +53,11 @@ class _MicTestSectionState extends State<MicTestSection> {
   AudioVisualizer? _visualizer;
   EventsListener<AudioVisualizerEvent>? _listener;
 
-  /// Held rather than read from `context`, because [dispose] has to give the
-  /// microphone back and the element is already gone by then. Leaving the call
-  /// muted because the user closed settings is the bug this whole change is
-  /// about.
+  /// Set instead of [_track] when the call's analyser is being borrowed.
+  StreamSubscription<double>? _borrowedLevels;
+
+  /// Held rather than read from `context`: [dispose] has to release the
+  /// microphone, and the element is already gone by then.
   LiveKitCubit? _livekit;
 
   @override
@@ -73,9 +84,17 @@ class _MicTestSectionState extends State<MicTestSection> {
     setState(() => _error = null);
     final settings = context.read<AppCubit>().state;
 
-    // Free the device before asking for it. On a Bluetooth headset there is
-    // one capture stream, so the order matters.
-    await _livekit?.setMicrophoneSuspended(true);
+    // The call already has the microphone open — read its analyser rather than
+    // fighting it for the device.
+    final livekit = _livekit;
+    if (livekit != null && livekit.isMicLevelAvailable) {
+      _borrowedLevels = livekit.micLevels.listen(_onLevel);
+      setState(() {
+        _testing = true;
+        _level = 0;
+      });
+      return;
+    }
 
     LocalAudioTrack? track;
     AudioVisualizer? visualizer;
@@ -107,7 +126,6 @@ class _MicTestSectionState extends State<MicTestSection> {
         await visualizer.dispose();
         await track.stop();
         await track.dispose();
-        await _livekit?.setMicrophoneSuspended(false);
         return;
       }
 
@@ -123,8 +141,6 @@ class _MicTestSectionState extends State<MicTestSection> {
       await visualizer?.dispose();
       await track?.stop();
       await track?.dispose();
-      // The test failed; the call must not keep paying for it.
-      await _livekit?.setMicrophoneSuspended(false);
       if (mounted) {
         setState(
           () => _error =
@@ -138,15 +154,23 @@ class _MicTestSectionState extends State<MicTestSection> {
   void _onVisualizerEvent(AudioVisualizerEvent e) {
     final bands = e.event.whereType<num>().map((n) => n.toDouble());
     if (bands.isEmpty) return;
-    final peak = bands.reduce((a, b) => a > b ? a : b).clamp(0.0, 1.0);
+    _onLevel(bands.reduce((a, b) => a > b ? a : b).clamp(0.0, 1.0).toDouble());
+  }
+
+  void _onLevel(double peak) {
     if (!mounted) return;
     setState(() {
       // Fast attack, slow decay for a readable meter.
-      _level = peak > _level ? peak.toDouble() : _level * 0.8 + peak * 0.2;
+      _level = peak > _level ? peak : _level * 0.8 + peak * 0.2;
     });
   }
 
   Future<void> _stop() async {
+    // Borrowed levels own nothing — dropping the subscription is the whole
+    // teardown.
+    await _borrowedLevels?.cancel();
+    _borrowedLevels = null;
+
     await _listener?.dispose();
     await _visualizer?.stop();
     await _visualizer?.dispose();
@@ -155,9 +179,6 @@ class _MicTestSectionState extends State<MicTestSection> {
     _listener = null;
     _visualizer = null;
     _track = null;
-    // Only once this capture is fully gone — handing the device back before
-    // releasing it is how you end up with neither side holding it.
-    await _livekit?.setMicrophoneSuspended(false);
     if (mounted) {
       setState(() {
         _testing = false;

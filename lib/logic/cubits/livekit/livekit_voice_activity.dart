@@ -35,6 +35,26 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   /// Cubit-internal — `_syncParticipants` reads it for the local participant.
   bool get localIsSpeaking => _speechDetector.isSpeaking;
 
+  final StreamController<double> _micLevelController =
+      StreamController<double>.broadcast();
+
+  /// The live microphone level, 0–1, from the analyser already running for the
+  /// gate and the speaking indicator.
+  ///
+  /// Exposed so the mic test in settings can draw its meter without opening a
+  /// second capture of a device this call is already holding. On a Bluetooth
+  /// headset there is one HFP stream, and handing it back and forth is both
+  /// slow and unreliable — borrowing the levels costs nothing and cannot fail.
+  ///
+  /// A stream rather than cubit state on purpose: this fires tens of times a
+  /// second, and putting it in [LiveKitState] would rebuild every listener in
+  /// the app for a number one settings widget wants.
+  Stream<double> get micLevels => _micLevelController.stream;
+
+  /// Whether [micLevels] is currently carrying anything — i.e. the call is
+  /// capturing, so a meter can read it instead of opening its own microphone.
+  bool get isMicLevelAvailable => _monitorActive && _vadVisualizer != null;
+
   // Keep transmitting briefly after the level drops so word endings and short
   // pauses aren't clipped.
   static const _vadHold = Duration(milliseconds: 300);
@@ -193,6 +213,8 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
 
     // Speaking indicator — independent of whether the gate is in use.
     if (_speechDetector.update(peak, now)) _syncParticipants();
+
+    if (!_micLevelController.isClosed) _micLevelController.add(peak);
 
     // This event is proof the mic is still audible, whatever the gate is doing.
     _armVadWatchdog();

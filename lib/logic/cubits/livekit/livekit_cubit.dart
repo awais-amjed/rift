@@ -262,6 +262,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
   Future<void> close() async {
     await _appSubscription?.cancel();
     await _cleanupRoom();
+    await _micLevelController.close();
     return super.close();
   }
 }
