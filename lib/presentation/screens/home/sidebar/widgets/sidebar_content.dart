@@ -9,7 +9,6 @@ import '../../servers/server_rail/server_rail.dart';
 import 'server_dms_row.dart';
 import 'sidebar_channel_list.dart';
 import 'sidebar_header.dart';
-import 'sidebar_actions.dart';
 
 /// The main content of the sidebar, used both in pinned and floating modes.
 ///
@@ -58,18 +57,18 @@ class SidebarContent extends StatelessWidget {
 }
 
 /// A server's own column: who the server is, its DMs, and its channels.
+///
+/// Identity, then navigation, and nothing else — the actions that act on the
+/// server as a whole (invite, settings, manage members, leave) live on the
+/// rail chip's context menu, on the chip they act on. A toolbar here would be
+/// a second home for them that every member pays for in vertical space.
 class _ServerColumn extends StatelessWidget {
   const _ServerColumn();
 
   @override
   Widget build(BuildContext context) {
     return const Column(
-      children: [
-        SidebarHeader(),
-        SidebarActions(),
-        ServerDmsRow(),
-        SidebarChannelList(),
-      ],
+      children: [SidebarHeader(), ServerDmsRow(), SidebarChannelList()],
     );
   }
 }

@@ -14,14 +14,15 @@ import '../../../../../common/unread_badge.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../invites/invite_modal.dart';
+import '../../../members/members_modal.dart';
 import '../../server_settings/server_settings_dialog.dart';
 
 /// Right-click menu on a rail chip.
 ///
-/// This is where the actions that used to live in the server-selector list
-/// went when the rail replaced it — invite, settings, mark read, and leaving.
-/// They belong on the server they act on rather than in a dialog listing all
-/// of them.
+/// This is where every action that acts on a server as a whole lives — mark
+/// read, invite, manage members, settings, leave. They belong on the chip for
+/// the server they act on, rather than in a dialog listing all servers or in a
+/// toolbar above the channel list that costs every member vertical space.
 class ServerChipMenu extends StatelessWidget {
   final Server server;
 
@@ -71,6 +72,22 @@ class ServerChipMenu extends StatelessWidget {
                   BlocProvider.value(value: ctx.read<AppCubit>()),
                 ],
                 child: const InviteModal(),
+              ),
+            ),
+          ),
+        // Only for the people who can actually change something. Everyone
+        // else already sees the roster in the members panel, and this dialog
+        // adds nothing to it but controls they can't use.
+        if ((permissions?.isServerAdmin ?? false) ||
+            (permissions?.isChannelManager ?? false))
+          ContextMenuItem(
+            icon: Icons.manage_accounts_outlined,
+            label: 'Manage members',
+            onTap: () => _open(
+              context,
+              (ctx) => BlocProvider.value(
+                value: ctx.read<ServerCubit>(),
+                child: const MembersModal(),
               ),
             ),
           ),
