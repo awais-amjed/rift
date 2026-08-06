@@ -9,10 +9,17 @@
 /// Fast attack (speech shows on the first loud sample) and a hold on release
 /// (the indicator doesn't strobe between words).
 class SpeechDetector {
-  /// Level at or above which speech starts. The audio visualizer reports a
-  /// normalised 0–1 band peak; a quiet room sits well under this, while
-  /// conversational speech runs several times higher.
-  static const double defaultThreshold = 0.07;
+  /// Level at or above which speech starts, on `PcmLevel`'s scale — 0 at
+  /// -60 dBFS, 1 at full scale. This is about -39 dBFS: above the room tone
+  /// and fan noise a microphone picks up in a quiet room, below anything said
+  /// out loud, including a whisper close to the mic.
+  ///
+  /// It replaces a value in the audio visualizer's band-peak units, where
+  /// silence and speech were only a few hundredths apart and this number was
+  /// admittedly guessed without a microphone to hand. Decibels put real room
+  /// noise and real speech far enough apart that being somewhat off here only
+  /// makes the glow slightly eager or slightly late.
+  static const double defaultThreshold = 0.35;
 
   /// Keep reporting speech this long after the level drops.
   static const Duration defaultHold = Duration(milliseconds: 400);

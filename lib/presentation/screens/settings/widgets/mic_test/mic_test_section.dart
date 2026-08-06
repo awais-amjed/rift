@@ -7,26 +7,23 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../logic/services/mic_level_scale.dart';
-import '../../../../common/app_button.dart';
-import '../../../../theme/custom_colors.dart';
-import 'widgets/input_sensitivity_slider.dart';
-import 'widgets/mic_level_meter.dart';
-import '../../../../theme/app_text.dart';
+import '../../../../../logic/services/mic_test_capture.dart';
+import 'widgets/input_sensitivity_panel.dart';
+import 'widgets/mic_test_controls.dart';
 
-/// "Mic Test" settings block: opens the microphone with the current
-/// audio-processing settings and shows a live input-level meter so the user
-/// can confirm their mic works and see the effect of the processing toggles.
+/// "Mic Test" settings block: shows a live input-level meter so the user can
+/// confirm their mic works, see the effect of the processing toggles, and set
+/// the noise-gate threshold against something they can watch.
 ///
 /// Where the level comes from depends on whether a call already owns the
 /// microphone:
 ///
-/// - **In a call, mic live** — it reads [LiveKitCubit.micLevels], the analyser
+/// - **In a call, mic live** — it reads [LiveKitCubit.micLevels], the tap
 ///   already running for the noise gate. No second capture, so nothing to hand
 ///   back, and the meter shows the very signal being published.
 /// - **Otherwise** — no call, or muted, so nothing holds the device — it opens
-///   its own [LocalAudioTrack] and tears it down when the test stops or the
-///   screen is disposed.
+///   its own microphone through [MicTestCapture] and releases it when the test
+///   stops or the screen is disposed.
 ///
 /// It used to always open its own capture. On a Bluetooth headset there is a
 /// single HFP stream, so that quietly took the device off the call, which then
@@ -49,11 +46,9 @@ class _MicTestSectionState extends State<MicTestSection> {
   double _level = 0;
   String? _error;
 
-  LocalAudioTrack? _track;
-  AudioVisualizer? _visualizer;
-  EventsListener<AudioVisualizerEvent>? _listener;
+  final MicTestCapture _capture = MicTestCapture();
 
-  /// Set instead of [_track] when the call's analyser is being borrowed.
+  /// Set instead of using [_capture] when the call's tap is being borrowed.
   StreamSubscription<double>? _borrowedLevels;
 
   /// Held rather than read from `context`: [dispose] has to release the
@@ -82,9 +77,8 @@ class _MicTestSectionState extends State<MicTestSection> {
 
   Future<void> _start() async {
     setState(() => _error = null);
-    final settings = context.read<AppCubit>().state;
 
-    // The call already has the microphone open — read its analyser rather than
+    // The call already has the microphone open — read its tap rather than
     // fighting it for the device.
     final livekit = _livekit;
     if (livekit != null && livekit.isMicLevelAvailable) {
@@ -96,51 +90,19 @@ class _MicTestSectionState extends State<MicTestSection> {
       return;
     }
 
-    LocalAudioTrack? track;
-    AudioVisualizer? visualizer;
+    // Match the real capture path so the meter reflects the processing
+    // toggles; the input device follows the global Hardware selection.
+    final settings = context.read<AppCubit>().state;
     try {
-      // Match the real capture path so the meter reflects the processing
-      // toggles; the input device follows the global Hardware selection.
-      track = await LocalAudioTrack.create(
-        AudioCaptureOptions(
+      await _capture.start(
+        options: AudioCaptureOptions(
           noiseSuppression: settings.noiseSuppression,
           echoCancellation: settings.echoCancellation,
           autoGainControl: settings.autoGainControl,
         ),
+        onLevel: _onLevel,
       );
-      visualizer = createVisualizer(
-        track,
-        options: const AudioVisualizerOptions(
-          barCount: 7,
-          centeredBands: false,
-        ),
-      );
-      final listener = visualizer.createListener()
-        ..on<AudioVisualizerEvent>(_onVisualizerEvent);
-      await visualizer.start();
-
-      if (!mounted) {
-        // Screen went away mid-start — don't leak the mic.
-        await listener.dispose();
-        await visualizer.stop();
-        await visualizer.dispose();
-        await track.stop();
-        await track.dispose();
-        return;
-      }
-
-      setState(() {
-        _track = track;
-        _visualizer = visualizer;
-        _listener = listener;
-        _testing = true;
-        _level = 0;
-      });
-    } catch (e) {
-      await visualizer?.stop();
-      await visualizer?.dispose();
-      await track?.stop();
-      await track?.dispose();
+    } catch (_) {
       if (mounted) {
         setState(
           () => _error =
@@ -148,20 +110,25 @@ class _MicTestSectionState extends State<MicTestSection> {
               'Close any app using it and try again.',
         );
       }
+      return;
     }
+
+    if (!mounted) {
+      // Screen went away mid-start — don't leak the mic.
+      await _capture.stop();
+      return;
+    }
+    setState(() {
+      _testing = true;
+      _level = 0;
+    });
   }
 
-  void _onVisualizerEvent(AudioVisualizerEvent e) {
-    final bands = e.event.whereType<num>().map((n) => n.toDouble());
-    if (bands.isEmpty) return;
-    _onLevel(bands.reduce((a, b) => a > b ? a : b).clamp(0.0, 1.0).toDouble());
-  }
-
-  void _onLevel(double peak) {
+  void _onLevel(double level) {
     if (!mounted) return;
     setState(() {
       // Fast attack, slow decay for a readable meter.
-      _level = peak > _level ? peak : _level * 0.8 + peak * 0.2;
+      _level = level > _level ? level : _level * 0.8 + level * 0.2;
     });
   }
 
@@ -170,15 +137,8 @@ class _MicTestSectionState extends State<MicTestSection> {
     // teardown.
     await _borrowedLevels?.cancel();
     _borrowedLevels = null;
+    await _capture.stop();
 
-    await _listener?.dispose();
-    await _visualizer?.stop();
-    await _visualizer?.dispose();
-    await _track?.stop();
-    await _track?.dispose();
-    _listener = null;
-    _visualizer = null;
-    _track = null;
     if (mounted) {
       setState(() {
         _testing = false;
@@ -202,86 +162,27 @@ class _MicTestSectionState extends State<MicTestSection> {
           a.voiceActivityThreshold != b.voiceActivityThreshold ||
           a.pushToTalkEnabled != b.pushToTalkEnabled,
       builder: (context, appState) {
-        final threshold = appState.voiceActivityThreshold;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Input Sensitivity',
-              style: AppText.row.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: themeState.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'How loud your mic must be to transmit. Drag the threshold, then '
-              'Test Mic and speak — input left of the marker is muted. Leave at '
-              '0% for an open mic.',
-              style: AppText.secondary.copyWith(
-                color: themeState.textTertiary,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Bar and marker share one ruler, so a voice reaching the marker
-            // is a voice that opens the gate.
-            MicLevelMeter(
-              level: MicLevelScale.toMeter(_level),
-              active: _testing,
-              threshold: MicLevelScale.toMeter(threshold),
+            InputSensitivityPanel(
+              level: _level,
+              testing: _testing,
+              threshold: appState.voiceActivityThreshold,
+              onThresholdChanged: context
+                  .read<AppCubit>()
+                  .setVoiceActivityThreshold,
+              pushToTalkEnabled: appState.pushToTalkEnabled,
               themeState: themeState,
             ),
             const SizedBox(height: 10),
-            InputSensitivitySlider(
-              threshold: threshold,
-              onChanged: context.read<AppCubit>().setVoiceActivityThreshold,
+            MicTestControls(
+              testing: _testing,
+              busy: _busy,
+              error: _error,
+              onToggle: _toggle,
               themeState: themeState,
             ),
-            if (appState.pushToTalkEnabled)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  'Ignored while Push-to-Talk is on.',
-                  style: AppText.label.copyWith(
-                    color: themeState.textTertiary,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                AppButton(
-                  label: _testing ? 'Stop Test' : 'Test Mic',
-                  onPressed: _busy ? null : _toggle,
-                  variant: _testing
-                      ? AppButtonVariant.secondary
-                      : AppButtonVariant.primary,
-                  isLoading: _busy,
-                ),
-                const SizedBox(width: 10),
-                if (_testing)
-                  Text(
-                    'Listening…',
-                    style: AppText.secondary.copyWith(
-                      color: themeState.textTertiary,
-                      fontSize: 12,
-                    ),
-                  ),
-              ],
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                style: AppText.secondary.copyWith(
-                  color: CustomColors.error,
-                  fontSize: 12,
-                ),
-              ),
-            ],
           ],
         );
       },

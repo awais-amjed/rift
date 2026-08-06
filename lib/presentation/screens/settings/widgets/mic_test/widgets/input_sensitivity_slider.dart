@@ -1,24 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../../logic/services/mic_level_scale.dart';
 import '../../../../../theme/app_text.dart';
 
 /// The noise-gate threshold control: how loud the mic must be before Rift
 /// transmits at all.
 ///
-/// Drawn on [MicLevelScale] rather than on the raw level the gate compares
-/// against — see that class for why a straight 0–1 slider was mostly a mute
-/// switch.
-///
-/// The travel is curved, but the percentage shown is the marker's position on
-/// the meter above, so the number and the line agree. Labelling the travel
-/// instead would put "50%" next to a marker a quarter of the way along.
+/// The slider position *is* the threshold. That used to need a curve and a
+/// squeezed range, because the level it compared against was the audio
+/// visualizer's band peak, where a quiet room and a raised voice were only a
+/// fifth of the scale apart and the top three quarters of the slider meant
+/// "mute me". Levels are measured in decibels now, so the plain 0–1 travel
+/// already lands evenly across the range a microphone actually produces and
+/// the marker on the meter above sits exactly where this says it does.
 class InputSensitivitySlider extends StatelessWidget {
-  /// The stored gate threshold, in raw analyser units.
+  /// The stored gate threshold, on the same 0–1 scale as the level meter.
   final double threshold;
 
-  /// Receives the new threshold, already converted back to raw units.
   final ValueChanged<double> onChanged;
 
   final ThemeState themeState;
@@ -32,8 +30,6 @@ class InputSensitivitySlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final position = MicLevelScale.toPosition(threshold);
-
     return Row(
       children: [
         Text(
@@ -45,8 +41,8 @@ class InputSensitivitySlider extends StatelessWidget {
         ),
         Expanded(
           child: Slider(
-            value: position,
-            onChanged: (value) => onChanged(MicLevelScale.toLevel(value)),
+            value: threshold.clamp(0.0, 1.0),
+            onChanged: onChanged,
             activeColor: themeState.primary,
             inactiveColor: themeState.bgActive,
           ),
@@ -54,9 +50,7 @@ class InputSensitivitySlider extends StatelessWidget {
         SizedBox(
           width: 36,
           child: Text(
-            threshold <= 0
-                ? 'Off'
-                : '${(MicLevelScale.toMeter(threshold) * 100).round()}%',
+            threshold <= 0 ? 'Off' : '${(threshold * 100).round()}%',
             textAlign: TextAlign.right,
             style: AppText.secondary.copyWith(
               color: themeState.textSecondary,

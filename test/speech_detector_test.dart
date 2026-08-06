@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/logic/services/pcm_level.dart';
 import 'package:rift/logic/services/speech_detector.dart';
 
 void main() {
@@ -82,10 +83,12 @@ void main() {
     });
 
     test('the default threshold sits above room noise, below speech', () {
-      const noise = 0.03;
-      const speech = 0.25;
-      expect(SpeechDetector.defaultThreshold, greaterThan(noise));
-      expect(SpeechDetector.defaultThreshold, lessThan(speech));
+      // Stated in the unit the detector is actually fed — dBFS through
+      // PcmLevel — so this test moves if either end of that scale moves.
+      final roomNoise = PcmLevel.normalize(-50);
+      final quietSpeech = PcmLevel.normalize(-35);
+      expect(SpeechDetector.defaultThreshold, greaterThan(roomNoise));
+      expect(SpeechDetector.defaultThreshold, lessThan(quietSpeech));
     });
   });
 }

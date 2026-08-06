@@ -13,7 +13,9 @@ import '../server/server_cubit.dart';
 import '../token/token_cubit.dart';
 import '../../helper_methods.dart';
 import '../../services/connection_failure.dart';
+import '../../services/level_throttle.dart';
 import '../../services/participant_roster.dart';
+import '../../services/pcm_level.dart';
 import '../../services/serial_queue.dart';
 import '../../services/sound_service.dart';
 import '../../services/speech_detector.dart';
@@ -24,6 +26,7 @@ part 'livekit_media_controls.dart';
 part 'livekit_participants.dart';
 part 'livekit_screenshare.dart';
 part 'livekit_room_events.dart';
+part 'livekit_voice_gate.dart';
 part 'livekit_voice_activity.dart';
 
 /// Cubit managing LiveKit room connections, participants, and media controls.
@@ -34,6 +37,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _ParticipantMixin,
         _ScreenshareMixin,
         _RoomEventsMixin,
+        _VoiceGateMixin,
         _VoiceActivityMixin {
   @override
   final AppCubit _appCubit;
