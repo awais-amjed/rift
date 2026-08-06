@@ -225,13 +225,12 @@ class _MicTestSectionState extends State<MicTestSection> {
               ),
             ),
             const SizedBox(height: 12),
-            // Both drawn through MicLevelScale, so the bar and the marker
-            // share one ruler — a voice reaching the marker is a voice that
-            // opens the gate.
+            // Bar and marker share one ruler, so a voice reaching the marker
+            // is a voice that opens the gate.
             MicLevelMeter(
-              level: MicLevelScale.toPosition(_level),
+              level: MicLevelScale.toMeter(_level),
               active: _testing,
-              threshold: MicLevelScale.toPosition(threshold),
+              threshold: MicLevelScale.toMeter(threshold),
               themeState: themeState,
             ),
             const SizedBox(height: 10),

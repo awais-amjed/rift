@@ -35,13 +35,24 @@ class MicLevelScale {
     return math.pow(clamped, _curve).toDouble() * maxThreshold;
   }
 
-  /// Raw level → where it belongs on the slider or meter (0–1).
-  ///
-  /// Levels above [maxThreshold] clamp to the top: a shout should peg the
-  /// meter, not run off the end of it.
+  /// Raw level → where it sits on the slider's travel (0–1).
   static double toPosition(double level) {
     if (level <= 0) return 0;
     final ratio = (level / maxThreshold).clamp(0.0, 1.0);
     return math.pow(ratio, 1 / _curve).toDouble();
+  }
+
+  /// Raw level → where it is drawn on the level meter (0–1).
+  ///
+  /// Linear, unlike the slider. The curve exists to give the *slider* fine
+  /// control down at the quiet end; applying it to the meter as well pushes
+  /// room noise a third of the way along the bar and normal speech into the
+  /// amber and red segments, which is a display that lies about how loud you
+  /// are. The meter only has to share the slider's **range**, not its curve.
+  ///
+  /// Levels past [maxThreshold] peg the meter rather than running off it.
+  static double toMeter(double level) {
+    if (level <= 0) return 0;
+    return (level / maxThreshold).clamp(0.0, 1.0);
   }
 }

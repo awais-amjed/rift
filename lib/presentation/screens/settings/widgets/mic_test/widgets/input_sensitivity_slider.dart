@@ -9,9 +9,11 @@ import '../../../../../theme/app_text.dart';
 ///
 /// Drawn on [MicLevelScale] rather than on the raw level the gate compares
 /// against — see that class for why a straight 0–1 slider was mostly a mute
-/// switch. The percentage shown is slider travel, which is what the reader is
-/// actually moving; the raw level it maps to is an implementation detail and
-/// would only ever read as a confusingly small number.
+/// switch.
+///
+/// The travel is curved, but the percentage shown is the marker's position on
+/// the meter above, so the number and the line agree. Labelling the travel
+/// instead would put "50%" next to a marker a quarter of the way along.
 class InputSensitivitySlider extends StatelessWidget {
   /// The stored gate threshold, in raw analyser units.
   final double threshold;
@@ -52,7 +54,9 @@ class InputSensitivitySlider extends StatelessWidget {
         SizedBox(
           width: 36,
           child: Text(
-            threshold <= 0 ? 'Off' : '${(position * 100).round()}%',
+            threshold <= 0
+                ? 'Off'
+                : '${(MicLevelScale.toMeter(threshold) * 100).round()}%',
             textAlign: TextAlign.right,
             style: AppText.secondary.copyWith(
               color: themeState.textSecondary,
