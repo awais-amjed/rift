@@ -20,6 +20,28 @@ class ParticipantRoster {
     return byKey.values.toList();
   }
 
+  /// Whether the participant with [identity] is speaking, according to the
+  /// roster the LiveKit cubit publishes.
+  ///
+  /// That roster is the only place the two speech signals are merged: your own
+  /// mic level, measured locally, and everyone else's from the server's
+  /// active-speaker detection. Reading LiveKit's own `isSpeaking` instead gets
+  /// the local user wrong — the server never reports you promptly, so your tile
+  /// stays dark while your avatar in the sidebar glows.
+  ///
+  /// [fallback] answers for an identity the roster doesn't carry: the frames
+  /// before the first sync, and the losing device of a multi-device user.
+  static bool isSpeaking(
+    List<ParticipantInfo> roster,
+    String identity, {
+    bool fallback = false,
+  }) {
+    for (final info in roster) {
+      if (info.identity == identity) return info.isSpeaking;
+    }
+    return fallback;
+  }
+
   static int _rank(ParticipantInfo p) =>
       (p.isLocal ? 4 : 0) +
       (p.isSpeaking ? 2 : 0) +

@@ -5,8 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../data/participant_identity.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/services/participant_roster.dart';
 import '../../../../../logic/services/participant_video.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
@@ -42,7 +44,6 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   static const _hideDelay = Duration(seconds: 2);
 
   TrackPublication? _videoPub;
-  bool _isSpeaking = false;
   bool _showOverlays = true;
   bool _statsPinned = false;
   Timer? _hideTimer;
@@ -106,7 +107,6 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
       widget.participant.videoTrackPublications,
       isScreenshare: _isScreenshare,
     );
-    _isSpeaking = widget.participant.isSpeaking;
   }
 
   void _scheduleHide() {
@@ -193,23 +193,53 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                         onStopWatching: _unsubscribeFromScreenshare,
                         onStatsPinnedChanged: _onStatsPinnedChanged,
                       )
-                    : CollapsedParticipantTile(
+                    : _buildCollapsed(
                         themeState: themeState,
                         videoTrack: videoTrack,
-                        isSpeaking: _isSpeaking && !widget.isMuted,
                         name: name,
-                        identity: widget.participant.identity,
-                        isMicEnabled: widget.participant.isMicrophoneEnabled(),
-                        isMuted: widget.isMuted,
-                        isScreenshare: _isScreenshare,
-                        showWatchButton: _isScreenshare && !isSubscribed,
+                        isSubscribed: isSubscribed,
                         showStopButton: showStopButton,
-                        onWatch: _subscribeToScreenshare,
-                        onStopWatching: _unsubscribeFromScreenshare,
                       ),
               ),
             );
           },
+        );
+      },
+    );
+  }
+
+  /// The grid tile, which is the only layout that glows while its owner talks.
+  ///
+  /// Speaking comes from the published roster rather than from
+  /// `participant.isSpeaking`, so this tile and the same person's row in the
+  /// sidebar light up together. See [ParticipantRoster.isSpeaking].
+  Widget _buildCollapsed({
+    required ThemeState themeState,
+    required VideoTrack? videoTrack,
+    required String name,
+    required bool isSubscribed,
+    required bool showStopButton,
+  }) {
+    return BlocSelector<AppCubit, AppState, bool>(
+      selector: (appState) => ParticipantRoster.isSpeaking(
+        appState.participants,
+        widget.participant.identity,
+        fallback: widget.participant.isSpeaking,
+      ),
+      builder: (context, isSpeaking) {
+        return CollapsedParticipantTile(
+          themeState: themeState,
+          videoTrack: videoTrack,
+          isSpeaking: isSpeaking && !widget.isMuted,
+          name: name,
+          identity: widget.participant.identity,
+          isMicEnabled: widget.participant.isMicrophoneEnabled(),
+          isMuted: widget.isMuted,
+          isScreenshare: _isScreenshare,
+          showWatchButton: _isScreenshare && !isSubscribed,
+          showStopButton: showStopButton,
+          onWatch: _subscribeToScreenshare,
+          onStopWatching: _unsubscribeFromScreenshare,
         );
       },
     );

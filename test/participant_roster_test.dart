@@ -65,4 +65,39 @@ void main() {
       );
     });
   });
+
+  group('ParticipantRoster.isSpeaking', () {
+    final roster = [
+      p('me', userId: 'u1', local: true, speaking: true),
+      p('them', userId: 'u2'),
+    ];
+
+    test('answers from the roster, not from the caller', () {
+      // The whole point: the grid tile used to read LiveKit's own flag, which
+      // for the local user lags far behind the mic-level detection the roster
+      // carries — so the tile stayed dark while the sidebar row glowed.
+      expect(
+        ParticipantRoster.isSpeaking(roster, 'me', fallback: false),
+        isTrue,
+      );
+      expect(
+        ParticipantRoster.isSpeaking(roster, 'them', fallback: true),
+        isFalse,
+      );
+    });
+
+    test('falls back for an identity the roster does not carry', () {
+      // Before the first sync, and for the losing device of a multi-device
+      // user, there is nothing to read — the caller's own value stands.
+      expect(
+        ParticipantRoster.isSpeaking(roster, 'stranger', fallback: true),
+        isTrue,
+      );
+      expect(
+        ParticipantRoster.isSpeaking(const [], 'me', fallback: true),
+        isTrue,
+      );
+      expect(ParticipantRoster.isSpeaking(const [], 'me'), isFalse);
+    });
+  });
 }
