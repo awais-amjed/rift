@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../../data/classes/server_user.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
@@ -8,7 +7,6 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/user_avatar.dart';
-import '../../../../routing/app_routes.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../connection_quality/connection_quality_indicator.dart';
@@ -160,11 +158,10 @@ class UserDock extends StatelessWidget {
               isError: deafened,
               onTap: () => context.read<LiveKitCubit>().toggleDeafen(),
             ),
-            DockIconButton(
-              icon: Icons.settings_outlined,
-              tooltip: 'Settings',
-              onTap: () => context.push(AppRoutes.settings),
-            ),
+            // Settings is not here: the rail carries it, opening the same
+            // screen. Two doors to one room only make you wonder whether they
+            // lead somewhere different. What is left is what the dock is for
+            // — the two things you reach for without leaving the call.
           ],
         );
       },
