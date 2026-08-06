@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/user_avatar.dart';
 import '../../../../theme/custom_colors.dart';
 import 'member_badge.dart';
 import 'member_manage_panel.dart';
@@ -62,25 +63,17 @@ class MemberRow extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      // Avatar
-                      Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: themeState.bgTertiary,
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          member.displayName.isNotEmpty
-                              ? member.displayName[0].toUpperCase()
-                              : '?',
-                          style: AppText.secondary.copyWith(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: themeState.textSecondary,
-                          ),
-                        ),
+                      // The shared avatar, not a hand-rolled circle: this was
+                      // the last place drawing an initial on flat grey, which
+                      // made the same person unrecognisable between here and
+                      // the members panel — and it ignored uploaded pictures
+                      // entirely.
+                      UserAvatar(
+                        avatarPath: member.avatarPath,
+                        name: member.displayName,
+                        seed: member.id,
+                        size: 30,
+                        themeState: themeState,
                       ),
                       const SizedBox(width: 10),
                       // Names
