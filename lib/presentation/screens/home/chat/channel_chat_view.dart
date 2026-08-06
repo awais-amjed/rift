@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/services/chat_failure.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
@@ -100,10 +101,14 @@ class _ChannelChatViewState extends State<ChannelChatView>
           showRetry: true,
         );
       case ChannelChatStatus.error:
+        final failure = chatState.failure ?? const ChatFailure.unknown();
         return ChatStatusView(
-          icon: Icons.error_outline,
-          title: 'Could not open this channel',
-          message: chatState.error ?? 'Something went wrong.',
+          // An unreachable server is worth its own icon: the error glyph reads
+          // as "Rift broke", and this one is almost always the server being
+          // down rather than anything wrong with the channel.
+          icon: failure.offline ? Icons.cloud_off_rounded : Icons.error_outline,
+          title: failure.title,
+          message: failure.message,
           showRetry: true,
         );
       case ChannelChatStatus.closed:

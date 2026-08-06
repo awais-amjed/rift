@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 
 import '../classes/api_response.dart';
+import '../enums/error_code.dart';
 
 part 'server_repository_chat.dart';
 
@@ -54,7 +55,7 @@ class ServerRepository with _ChatApiMixin {
     } on TimeoutException {
       return APIResponse.error(
         "This server isn't responding — it may be offline. Try again later.",
-        errorCode: 'server_unreachable',
+        errorCode: ErrorCode.serverUnreachable,
       );
     } catch (e) {
       // Distinguish "can't reach the server" from other failures so the UI can
@@ -70,7 +71,7 @@ class ServerRepository with _ChatApiMixin {
       if (isConnectionError) {
         return APIResponse.error(
           "Can't reach this server. It may be offline, or check your connection.",
-          errorCode: 'server_unreachable',
+          errorCode: ErrorCode.serverUnreachable,
         );
       }
       return APIResponse.error(e);

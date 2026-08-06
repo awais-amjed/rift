@@ -35,7 +35,9 @@ class ChannelChatState {
   /// (excludes us). Backed by short-lived expiry timers in the cubit.
   final Map<String, String> typingUsers;
 
-  final String? error;
+  /// Why the channel would not open, when [status] is
+  /// [ChannelChatStatus.error].
+  final ChatFailure? failure;
 
   const ChannelChatState({
     this.status = ChannelChatStatus.closed,
@@ -44,7 +46,7 @@ class ChannelChatState {
     this.hasMoreHistory = false,
     this.isLoadingMore = false,
     this.typingUsers = const {},
-    this.error,
+    this.failure,
   });
 
   ChannelChatState copyWith({
@@ -54,8 +56,8 @@ class ChannelChatState {
     bool? hasMoreHistory,
     bool? isLoadingMore,
     Map<String, String>? typingUsers,
-    String? error,
-    bool clearError = false,
+    ChatFailure? failure,
+    bool clearFailure = false,
   }) {
     return ChannelChatState(
       status: status ?? this.status,
@@ -64,7 +66,7 @@ class ChannelChatState {
       hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       typingUsers: typingUsers ?? this.typingUsers,
-      error: clearError ? null : (error ?? this.error),
+      failure: clearFailure ? null : (failure ?? this.failure),
     );
   }
 }

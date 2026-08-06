@@ -68,6 +68,12 @@ class ErrorCode {
   // ── Permissions ───────────────────────────────────────────────────────────────
   static const String permissionDenied = 'permission_denied';
 
+  // ── Client-side ───────────────────────────────────────────────────────────────
+  /// The request never got an answer — the socket was refused, the host did not
+  /// resolve, or the call timed out. Minted by the client, not the server: when
+  /// the server is down there is nobody to send a code.
+  static const String serverUnreachable = 'server_unreachable';
+
   // ── Generic ───────────────────────────────────────────────────────────────────
   static const String missingFields = 'missing_fields';
   static const String dbError = 'db_error';

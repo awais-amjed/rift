@@ -12,6 +12,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/chat_attachment_uploader.dart';
+import '../../services/chat_failure.dart';
 import '../../services/chat_message_ops.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
@@ -128,7 +129,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       emit(
         state.copyWith(
           status: ChannelChatStatus.error,
-          error: 'No server selected',
+          failure: const ChatFailure.noServer(),
         ),
       );
       return;
@@ -137,14 +138,14 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     await _ensureChatKeyPublished(server);
     if (_isStale(generation)) return;
 
-    final keyStatus = await _loadOrBootstrapKeyring(channelId);
+    final keyring = await _loadOrBootstrapKeyring(channelId);
     if (_isStale(generation)) return;
 
-    if (keyStatus == _KeyringStatus.error) {
+    if (keyring.isFailed) {
       emit(
         state.copyWith(
           status: ChannelChatStatus.error,
-          error: 'Could not load the channel key',
+          failure: keyring.failure ?? const ChatFailure.unknown(),
         ),
       );
       return;
@@ -152,7 +153,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
     _setupRealtime(server, channelId);
 
-    if (keyStatus == _KeyringStatus.waiting) {
+    if (keyring.isWaiting) {
       // No entry sealed to us yet — another member's client will heal us.
       // Ring the sweep doorbell so online members re-check right away, even
       // if the original "newly published" ring was lost.
