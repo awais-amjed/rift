@@ -14,25 +14,23 @@ void main() {
         ),
       );
 
-      expect(failure.title, contains('Cannot reach this server'));
+      expect(failure.title, contains("reach this server"));
       expect(failure.message, contains('offline'));
       expect(failure.offline, isTrue);
       // The channel key is a red herring here — nothing is wrong with the
       // encryption, the server simply did not answer.
       expect(failure.message, isNot(contains('key')));
+      // The heading and the body say different things.
+      expect(failure.message, isNot(contains(failure.title)));
     });
 
-    test('passes the repository wording through rather than rewriting it', () {
-      // The repository distinguishes a refused socket from a call that timed
-      // out, and only its message carries that; the error code does not.
+    test('separates a slow server from an absent one', () {
       final failure = ChatFailure.fromResponse(
-        APIResponse.error(
-          "This server isn't responding — it may be offline. Try again later.",
-          errorCode: ErrorCode.serverUnreachable,
-        ),
+        APIResponse.error('slow', errorCode: ErrorCode.serverTimeout),
       );
 
-      expect(failure.message, startsWith("This server isn't responding"));
+      expect(failure.title, contains("isn't responding"));
+      expect(failure.message, contains('too long'));
       expect(failure.offline, isTrue);
     });
 

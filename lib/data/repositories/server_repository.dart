@@ -55,7 +55,7 @@ class ServerRepository with _ChatApiMixin {
     } on TimeoutException {
       return APIResponse.error(
         "This server isn't responding — it may be offline. Try again later.",
-        errorCode: ErrorCode.serverUnreachable,
+        errorCode: ErrorCode.serverTimeout,
       );
     } catch (e) {
       // Distinguish "can't reach the server" from other failures so the UI can

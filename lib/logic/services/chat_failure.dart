@@ -69,24 +69,37 @@ class ChatFailure {
           'Trying again picks up theirs.',
       offline = false;
 
+  /// Nothing answered at the server's address.
+  const ChatFailure.serverUnreachable()
+    : title = 'Can\'t reach this server',
+      message =
+          'It may be offline, or your own connection may be down. The '
+          'channel opens as soon as it answers.',
+      offline = true;
+
+  /// The server is reachable but took too long to answer.
+  const ChatFailure.serverTimeout()
+    : title = 'This server isn\'t responding',
+      message =
+          'It took too long to answer. It may be overloaded, or only just '
+          'starting up.',
+      offline = true;
+
   /// Translates a failed server call.
   ///
-  /// The unreachable message is passed through rather than rewritten: the
-  /// repository already phrases it for a person, and it says whether the server
-  /// refused the socket or just never answered — a distinction the error code
-  /// alone loses.
+  /// The reachability cases get copy written here rather than the
+  /// repository's: that message is one sentence meant to stand alone in a
+  /// toast, and repeating it under a heading that says the same thing reads
+  /// like a stutter.
   factory ChatFailure.fromResponse(APIResponse response) {
     final message = response.error;
 
     if (response.errorCode == ErrorCode.serverUnreachable) {
-      return ChatFailure(
-        title: 'Cannot reach this server',
-        message:
-            message ??
-            "Can't reach this server. It may be offline, or check your "
-                'connection.',
-        offline: true,
-      );
+      return const ChatFailure.serverUnreachable();
+    }
+
+    if (response.errorCode == ErrorCode.serverTimeout) {
+      return const ChatFailure.serverTimeout();
     }
 
     if (response.errorCode == ErrorCode.permissionDenied) {

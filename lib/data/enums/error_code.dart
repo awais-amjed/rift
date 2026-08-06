@@ -69,10 +69,15 @@ class ErrorCode {
   static const String permissionDenied = 'permission_denied';
 
   // ── Client-side ───────────────────────────────────────────────────────────────
-  /// The request never got an answer — the socket was refused, the host did not
-  /// resolve, or the call timed out. Minted by the client, not the server: when
-  /// the server is down there is nobody to send a code.
+  /// No socket: the connection was refused, or the host did not resolve.
+  /// Minted by the client, not the server — when the server is down there is
+  /// nobody to send a code.
   static const String serverUnreachable = 'server_unreachable';
+
+  /// A socket opened but the call ran out of time. Kept apart from
+  /// [serverUnreachable] because it means something different to the reader:
+  /// the server is there, it is just too slow or too busy to answer.
+  static const String serverTimeout = 'server_timeout';
 
   // ── Generic ───────────────────────────────────────────────────────────────────
   static const String missingFields = 'missing_fields';
