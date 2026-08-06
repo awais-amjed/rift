@@ -15,10 +15,9 @@ part of 'livekit_cubit.dart';
 ///
 /// **Gating**: while in voice-activity mode (push-to-talk off) with a non-zero
 /// threshold, the mic only transmits at or above the user's threshold. The
-/// gate toggles the track's underlying media-stream `enabled` flag: for audio
-/// tracks that transmits silence to peers while local sinks (including this
-/// visualizer) still receive the live mic, so the gate can always hear speech
-/// and re-open — no deadlock, and no re-acquiring the mic.
+/// gate marks the RTP sender's encodings inactive rather than touching the
+/// capture track, so the microphone is never released — see
+/// [_applyGateToSender] for what the previous approach cost.
 mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   AppCubit get _appCubit;
   void _syncParticipants();
@@ -85,20 +84,18 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
 
   // ── Fail-open watchdog ──────────────────────────────────────────────────────
   //
-  // The gate closes by disabling the capture track, which is meant to transmit
-  // silence while local sinks keep hearing the live mic — that is the only
-  // reason a closed gate can notice the speech that reopens it.
+  // A shut gate can only reopen itself if the analyser still hears the mic.
+  // Gating at the sender is meant to guarantee that, since the capture track
+  // is never touched — but that is a claim about what libwebrtc does with an
+  // inactive encoding, and the previous such claim (that disabling a track
+  // leaves local sinks fed) turned out to be false on Linux. It stopped
+  // capture, PipeWire dropped the headset's HFP profile, the mic left the OS
+  // entirely, and only changing a setting brought it back.
   //
-  // On some platforms disabling the track stops capture outright instead.
-  // Then the analyser goes silent, the gate never sees anything above the
-  // threshold, and it latches shut holding the microphone down with it. Seen
-  // on Linux with a Bluetooth headset: capture stops, PipeWire drops the HFP
-  // profile, the mic disappears from the OS, and the headset hands itself back
-  // to whatever else it is paired with. Only changing a setting — which
-  // re-enables the track from outside — gets it back.
-  //
-  // A gate that can cost you your microphone is worse than no gate, so it
-  // fails open.
+  // So this is both the safety net and the experiment. If the analyser goes
+  // quiet while the gate is shut, gating cannot work on this machine and is
+  // abandoned for the rest of the run. A gate that can cost you your
+  // microphone is worse than no gate.
 
   /// No analyser events for this long while the gate is shut means the gate
   /// cannot hear, and so cannot reopen itself.
@@ -167,9 +164,10 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
       // The private form, not the queued one — this is already running as a
       // queue step, and waiting on the queue from inside it would deadlock.
       await _teardownMonitor();
-      // Never leave the mic muted by a closed gate once gating is off.
+      // Never leave the mic silenced by a closed gate once gating is off.
       if (track != null) track.mediaStreamTrack.enabled = true;
       _vadGateOpen = true;
+      await _applyGateToSender(true);
       return;
     }
 
@@ -180,6 +178,7 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
       if (!_gateActive) {
         _vadGateOpen = true;
         track.mediaStreamTrack.enabled = true;
+        await _applyGateToSender(true);
       }
       return;
     }
@@ -200,8 +199,12 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     // threshold; when only watching levels, the mic transmits as usual.
     _vadGateOpen = !_gateActive;
     _vadHoldUntil = null;
-    track.mediaStreamTrack.enabled = _vadGateOpen;
+    // The capture track is always left enabled now — the gate lives on the
+    // sender. Anything that disabled it earlier in this run must be undone,
+    // or the analyser stays deaf.
+    track.mediaStreamTrack.enabled = true;
     await visualizer.start();
+    await _applyGateToSender(_vadGateOpen);
   }
 
   void _onVadEvent(AudioVisualizerEvent e) {
@@ -232,14 +235,48 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   void _setVadGate(bool open) {
     if (_vadGateOpen == open) return;
     _vadGateOpen = open;
-    final track = _localMicPublication()?.track;
-    if (track != null) track.mediaStreamTrack.enabled = open;
+    unawaited(_applyGateToSender(open));
     // Shutting the gate starts the clock; opening it stops it.
     if (open) {
       _vadWatchdogTimer?.cancel();
       _vadWatchdogTimer = null;
     } else {
       _armVadWatchdog();
+    }
+  }
+
+  /// Stops and starts transmission at the RTP sender, leaving the capture
+  /// track alone.
+  ///
+  /// The gate used to flip `mediaStreamTrack.enabled`, which is supposed to be
+  /// a cheap mute. It is not: on Linux it stops capture, which releases the
+  /// microphone — the analyser goes deaf so the gate can never reopen itself,
+  /// and on a Bluetooth headset every open and close renegotiates the HFP
+  /// profile, which was audible as a second or two of lag on speech.
+  ///
+  /// Marking the encoding inactive stops the RTP instead. The device stays
+  /// captured, the analyser keeps hearing, and nothing renegotiates.
+  ///
+  /// Failure is not fatal — it leaves the mic transmitting, which is the safe
+  /// direction, and the watchdog is still watching.
+  Future<void> _applyGateToSender(bool open) async {
+    final sender = _localMicPublication()?.track?.sender;
+    if (sender == null) return;
+    try {
+      final parameters = sender.parameters;
+      final encodings = parameters.encodings;
+      if (encodings == null || encodings.isEmpty) {
+        HelperMethods.printDebug(
+          '[LiveKit] Mic sender exposes no encodings — cannot gate.',
+        );
+        return;
+      }
+      for (final encoding in encodings) {
+        encoding.active = open;
+      }
+      await sender.setParameters(parameters);
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] Could not gate the mic sender: $e');
     }
   }
 
