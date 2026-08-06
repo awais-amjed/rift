@@ -14,6 +14,7 @@ import '../token/token_cubit.dart';
 import '../../helper_methods.dart';
 import '../../services/connection_failure.dart';
 import '../../services/level_throttle.dart';
+import '../../services/mic_tap_format.dart';
 import '../../services/participant_roster.dart';
 import '../../services/pcm_level.dart';
 import '../../services/serial_queue.dart';

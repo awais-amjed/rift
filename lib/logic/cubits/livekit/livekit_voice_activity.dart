@@ -35,18 +35,6 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   void _noteMicFrame(DateTime now);
   void _cancelVadWatchdog();
 
-  /// What the PCM tap asks the native side for.
-  ///
-  /// Mono, because this is a level and not a mix. 16 kHz because a level needs
-  /// energy rather than bandwidth, and the frames cross a platform channel a
-  /// hundred times a second — asking for the mic's full 48 kHz would triple
-  /// that traffic to compute the same number.
-  static const _rendererOptions = AudioRendererOptions(
-    sampleRate: 16000,
-    channels: 1,
-    format: AudioFormat.Int16,
-  );
-
   CancelListenFunc? _vadRendererCancel;
   String? _vadTrackId; // media-stream track id the renderer is bound to
 
@@ -135,7 +123,7 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     _vadTrackId = trackId;
     _vadRendererCancel = (track as AudioTrack).addAudioRenderer(
       onFrame: _onAudioFrame,
-      options: _rendererOptions,
+      options: micTapFormat,
     );
     await _primeGate();
   }

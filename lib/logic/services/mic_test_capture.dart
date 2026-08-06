@@ -1,6 +1,7 @@
 import 'package:livekit_client/livekit_client.dart';
 
 import 'level_throttle.dart';
+import 'mic_tap_format.dart';
 import 'pcm_level.dart';
 
 /// Opens a microphone of its own and reports its level, for the mic test in
@@ -11,14 +12,6 @@ import 'pcm_level.dart';
 /// its own capture or borrowing the call's. Two different units behind one bar
 /// is how the threshold marker came to mean nothing.
 class MicTestCapture {
-  /// Matches the tap the call uses: mono and 16 kHz, which is ample for a
-  /// level and a third of the platform-channel traffic of the mic's own rate.
-  static const _rendererOptions = AudioRendererOptions(
-    sampleRate: 16000,
-    channels: 1,
-    format: AudioFormat.Int16,
-  );
-
   final LevelThrottle _throttle = LevelThrottle();
 
   LocalAudioTrack? _track;
@@ -48,7 +41,7 @@ class MicTestCapture {
           );
           if (level != null) onLevel(level);
         },
-        options: _rendererOptions,
+        options: micTapFormat,
       );
       _track = track;
     } catch (_) {
