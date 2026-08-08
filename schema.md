@@ -239,6 +239,13 @@ Same columns as their self-hosted counterparts. Differences that matter:
   per conversation, both hard deletes. A self-hosted server keeps everything, because it is
   somebody's own disk.
 - `read_state` uses the same `scope`/`scope_id` shape with only `dm` in use.
+- **Claiming a handle goes through `claim_handle()`**, and moving a read cursor through
+  `mark_read()`, rather than PostgREST upserts. Both tables grant UPDATE on named columns only,
+  and a PostgREST upsert writes *every* payload column into its `ON CONFLICT DO UPDATE` clause —
+  the conflict key included. That is checked when the statement is planned, so it failed even
+  when no row existed: "permission denied for table users" on a first claim. The RPCs spell the
+  same upsert without touching the key. **Any future upsert against a column-granted table has
+  this problem**; write it as an RPC.
 
 ## Enums
 

@@ -96,6 +96,13 @@ project has its own set in `central_server_migrations/`.
 6. **006_jobs.sql** — one cron job, expiring invites. The old notification-retention job went
    with the table it existed to prune.
 
+Central's set is smaller and has no edge functions behind it at all. Its RPCs are `claim_handle`,
+`send_dm`, `dm_quota`, `unread_counts`, `mark_read` and `dm_conversations`. Two of those exist
+purely because **a PostgREST upsert cannot be used against a column-granted table**: the generated
+`ON CONFLICT DO UPDATE` writes every payload column, conflict key included, and the privilege
+check happens at plan time — so it is refused whether or not the row exists. `claim_handle` and
+`mark_read` do the same upserts without touching the key.
+
 ## Deployment
 
 ### Hosted Supabase project

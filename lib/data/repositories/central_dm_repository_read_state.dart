@@ -34,20 +34,26 @@ mixin _CentralDmReadStateMixin {
   }
 
   /// Move one conversation's cursor to [lastReadId].
+  ///
+  /// Through `mark_read` rather than a table upsert, for two reasons. A
+  /// PostgREST upsert writes every payload column into the `DO UPDATE` clause,
+  /// including the conflict key, which the column-level UPDATE grant does not
+  /// cover — it failed with "permission denied for table read_state". And the
+  /// RPC takes the `GREATEST` of the old and new cursor, so a late-arriving
+  /// call can't walk a conversation back to unread.
   Future<APIResponse> setReadCursor({
     required String peerId,
     required int lastReadId,
   }) async {
     try {
-      await _client.from('read_state').upsert({
-        'user_id': _client.auth.currentUser!.id,
-        'scope': 'dm',
-        'scope_id': peerId,
-        'last_read_id': lastReadId,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-        // No space: this goes on the query string as a column list, and a
-        // stray one is looked up as part of the second column's name.
-      }, onConflict: 'user_id,scope,scope_id');
+      await _client.rpc(
+        'mark_read',
+        params: {
+          'p_scope': 'dm',
+          'p_scope_id': peerId,
+          'p_last_read_id': lastReadId,
+        },
+      );
       return APIResponse.success(null);
     } catch (e) {
       return APIResponse.error(e);

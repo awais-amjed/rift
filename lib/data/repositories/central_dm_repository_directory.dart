@@ -30,18 +30,25 @@ mixin _CentralDmDirectoryMixin {
 
   /// Create or refresh the caller's directory row. Fails with a unique
   /// violation when the handle is taken by someone else.
+  ///
+  /// Through `claim_handle` rather than a table upsert: PostgREST puts every
+  /// column of the payload into the `DO UPDATE` clause, `id` among them, and
+  /// `id` is not in the table's UPDATE grant — so the upsert was refused with
+  /// "permission denied for table users" on the very first claim.
   Future<APIResponse> upsertProfile({
     required String handle,
     required String chatPublicKey,
     required String signingPublicKey,
   }) async {
     try {
-      await _client.from('users').upsert({
-        'id': _client.auth.currentUser!.id,
-        'handle': handle,
-        'chat_public_key': chatPublicKey,
-        'signing_public_key': signingPublicKey,
-      }, onConflict: 'id');
+      await _client.rpc(
+        'claim_handle',
+        params: {
+          'p_handle': handle,
+          'p_chat_public_key': chatPublicKey,
+          'p_signing_public_key': signingPublicKey,
+        },
+      );
       return APIResponse.success(null);
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
