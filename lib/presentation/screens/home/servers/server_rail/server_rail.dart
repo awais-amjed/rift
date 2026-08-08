@@ -11,7 +11,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../routing/app_routes.dart';
-import '../server_selector/server_selector_dialog.dart';
+import '../add_server/add_server_dialog.dart';
 import 'widgets/rail_chip_button.dart';
 import 'widgets/rail_server_chip.dart';
 
@@ -147,7 +147,7 @@ class ServerRail extends StatelessWidget {
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<AppCubit>()),
         ],
-        child: const ServerSelectorDialog(startAtAddFlow: true),
+        child: const AddServerDialog(),
       ),
     );
   }

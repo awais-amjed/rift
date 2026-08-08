@@ -7,7 +7,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../servers/widgets/no_server_button.dart';
-import '../../servers/server_selector/server_selector_dialog.dart';
+import '../../servers/add_server/add_server_dialog.dart';
 import '../../servers/server_settings/server_settings_dialog.dart';
 import '../quick_switcher/quick_switcher_dialog.dart';
 import 'jump_field.dart';
@@ -58,8 +58,7 @@ class SidebarHeader extends StatelessWidget {
     );
   }
 
-  /// Adding / joining / creating a server: the full dialog, opened on its
-  /// "Add Server" step.
+  /// Joining or creating a server.
   void _openAddServerDialog(BuildContext context) {
     showCustomDialog(
       context: context,
@@ -68,7 +67,7 @@ class SidebarHeader extends StatelessWidget {
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<AppCubit>()),
         ],
-        child: const ServerSelectorDialog(startAtAddFlow: true),
+        child: const AddServerDialog(),
       ),
     );
   }

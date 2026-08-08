@@ -11,7 +11,7 @@ import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../common/app_modal.dart';
 import '../../common/canvas_backdrop.dart';
 import 'main_content/main_content.dart';
-import 'servers/server_selector/server_selector_dialog.dart';
+import 'servers/add_server/add_server_dialog.dart';
 import 'sidebar/floating_sidebar.dart';
 import 'sidebar/sidebar.dart';
 import 'sidebar/widgets/sidebar_header.dart';
@@ -53,14 +53,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final serverState = context.read<ServerCubit>().state;
 
     if (serverState.servers.isEmpty) {
-      _openServerSelector();
+      _openAddServer();
     } else {
       // Re-authenticate the active server; other servers authenticate lazily.
       await context.read<ServerCubit>().loginSelectedServer();
     }
   }
 
-  void _openServerSelector() {
+  /// No servers — on a first run, or after leaving the last one. Straight to
+  /// join-or-create: there is nothing to select from.
+  void _openAddServer() {
     showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
@@ -68,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<VaultCubit>()),
         ],
-        child: const ServerSelectorDialog(),
+        child: const AddServerDialog(),
       ),
     );
   }
@@ -78,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return BlocListener<ServerCubit, ServerState>(
       listener: (context, state) {
         if (state.servers.isEmpty) {
-          _openServerSelector();
+          _openAddServer();
         }
       },
       listenWhen: (prev, curr) => prev.servers.length != curr.servers.length,
