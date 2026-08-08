@@ -79,10 +79,13 @@ seed-derived secret ever reaches the server (auth is a signature). Full design i
    notifications cubit keeps every *joined* server's JWT fresh); a session near expiry (or a rejected
    JWT) triggers a silent re-login — the key is derived from the seed, so it never prompts.
    `server.token` holds the JWT.
-4. **Authorization**: Edge Functions verify the JWT locally against the stack's JWKS (ES256, no
-   GoTrue round-trip — `_shared/jwt.ts`) and load the `users` row for permissions + ban state on
-   every call (ban / deleted-user is enforced instantly on the edge path). Simple per-user surfaces
-   (the `notifications` table) are read directly via RLS `auth.uid() = user_id`.
+4. **Authorization** is RLS, for almost everything. The client talks to PostgREST directly under
+   the policies in `002_security.sql`; `anon` is revoked from every table, members get
+   column-level grants, and the `app.*` helpers each re-check ban state, so a ban bites on the
+   next statement rather than at token expiry. Edge Functions remain only where a call holds a
+   secret (LiveKit credentials, the GoTrue admin grant) or runs before the caller is a member
+   (`resolve_invite`, `register`); those verify the JWT locally against the stack's JWKS (ES256,
+   no GoTrue round-trip — `_shared/jwt.ts`) and load the `users` row on every call.
 
 **Permissions** are three user flags — `is_server_admin`, `is_channel_manager`,
 `can_create_tokens` — with the delegation rule: *you can only grant what you hold*.
@@ -90,7 +93,7 @@ seed-derived secret ever reaches the server (auth is a signature). Full design i
 **Multiple servers per project:** identity is derived per `(host, server_id)` —
 `childSeed = HMAC(seed, "<host>:<serverId>:<version>")` — so two servers sharing one Supabase
 project yield **distinct** SIWS identities (distinct `auth.uid()`), and the same person can join
-both. Username uniqueness is per-server (migration 010); `public_key` / `stable_id` already were.
+both. Username uniqueness is per-server, as are `public_key` and `stable_id`.
 The central host derives per-host (no `server_id`), unchanged.
 
 **Removed:** key rotation and the whole opaque-token + challenge machinery (`tokens` /
@@ -160,7 +163,7 @@ conversations to a self-hosted server they share (or any messenger they like).
 | Delivery      | GoTrue RLS + native Realtime           | Edge Functions + Realtime Broadcast            |
 | Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) | none imposed by Rift — operator's hardware, operator's call |
 | Media         | allowed; counts against quota, per-file size cap | allowed (operator's storage)         |
-| Unread badges | derived client-side against a `dm_read_state` cursor | `notifications` rows, same as channels (mig. 015) |
+| Unread badges | `read_state` cursors + `unread_counts()` | the same, for channels and DMs alike |
 
 - Central limits are enforced **server-side** (the send path checks a daily counter; a
   scheduled job sweeps expired and over-cap rows) — a modified client can't bypass them.
@@ -204,33 +207,32 @@ Attachments (images, voice notes, files) are E2E-encrypted just like text:
   by a per-file size cap (bucket `file_size_limit`).
 
 **Emoji reactions are deliberately NOT E2E.** Unlike message content, an emoji
-tally is stored in the clear (`message_reactions` / `dm_message_reactions`, or
-`dm_reactions` on central) — the server sees who reacted with which emoji. This
+tally is stored in the clear (`message_reactions` / `dm_message_reactions`,
+both tiers) — the server sees who reacted with which emoji. This
 is the accepted metadata cost of a Discord-like reaction UX; message *content*
 stays encrypted. Toggling is one call (add if absent, else remove); clients
-fetch aggregated counts via `list_reactions` and refresh live off the same
-Realtime doorbell used for messages (self-hosted) or on the next fetch (central).
+tally them from the reaction rows they can already read, and refresh live off
+Realtime.
 
-**Unread state is server-side, and only ever ids.** A self-hosted server fans
-out one `notifications` row per recipient per message — `send_message` for
-channels, `send_dm` for DMs — and the client counts the rows whose `read_at` is
-null (RLS `auth.uid() = user_id`; one authenticated subscription per joined
-server, so badges work for servers you aren't looking at). The rows carry no
-plaintext: a recipient, a channel or a peer, and a message id the server already
-stored. Keeping read state there rather than in local storage is what makes a
-conversation you've read on one device read on the others. What the client
-contributes is knowing when to clear it — a badge is cleared when the surface
-holding it is *on screen* and the window is focused, not merely when a cubit
+**Unread state is server-side, and it is a bookmark.** Each conversation has one
+row in `read_state` holding the newest message that member has read — per
+channel and per DM peer, in both tiers. `unread_counts()` returns every badge in
+one round trip by counting messages above those cursors, and `mark_read()` moves
+one forward (never backward, so two devices can't un-read each other's
+progress). Keeping the cursor on the server rather than in local storage is what
+makes a conversation read on one device read on the others; own-row RLS is what
+keeps it from becoming a read receipt, since a sender can never see it.
+
+It used to be a fanned-out `notifications` row per recipient per message, which
+cost a write per member per send and a retention job to bound it. That existed
+only because a client wasn't allowed to read the message tables, so it needed
+something else to subscribe to. With policies on `messages` and `dm_messages`,
+Realtime re-checks them per subscriber and delivers the messages themselves —
+so badges come from the rows they are about, and the fanout is gone.
+
+What the client still has to decide is *when* a badge clears: when the surface
+holding it is on screen **and** the window is focused, not merely when a cubit
 still has the conversation open behind another view.
-
-Central DMs reach the same place from the other direction. There is no fanout
-table there and no need for one: a central client reads `dm_messages` directly
-over RLS, so it already holds every message addressed to it, and the
-conversation refresh already fetches them. What was missing was only read
-state, which is one cursor per conversation in `dm_read_state` (own-row RLS,
-so a sender never learns whether their message was read). Unread is then
-whatever is inbound and above the cursor — same badges, same clearing rules,
-no extra round trip.
 
 ### Decisions locked in for day one
 1. **Every message is Ed25519-signed by the sender** — a shared channel key must not allow
