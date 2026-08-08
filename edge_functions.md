@@ -89,7 +89,7 @@ Every function returns HTTP 200 with a JSON envelope:
 | 17 | `get_channel_key` | Bearer | `channel_id` | `current_version` (0 = bootstrap needed), `my_keys` (caller's sealed entries, all versions), `members_missing` (`{user_id, chat_public_key}` of keyed members lacking a current-version entry — any client may heal them) |
 | 18 | `post_channel_keys` | Bearer | `channel_id`, `key_version` (≤ current+1), `entries`: `[{user_id, ephemeral_public_key, ciphertext, nonce}]` | `entries_stored`. One INSERT, no ON CONFLICT: on 23505 returns `keyring_conflict` — first writer wins, losers refetch and re-wrap |
 | 19 | `sweep_channel_keys` | Bearer | — | `work`: per text channel the caller can help — `key_version: 0` + all keyed members (bootstrap), or the current version + caller's sealed `my_key` + `members_missing` (healing). Clients run it on launch/server-select and on the `keysweep:<server_id>` Broadcast doorbell |
-| 20 | `send_dm` | Bearer | `recipient_id`, envelope (`ciphertext`, `nonce`, `signature`, `key_version`) | `id`, `created_at`. Design-1 DM envelope; recipient must be a keyed, non-banned member. Signature context is `"dm:<lowerUserId>:<higherUserId>"`. Sender rings the recipient's `dm:<server_id>:<user_id>` Broadcast topic after the ack |
+| 20 | `send_dm` | Bearer | `recipient_id`, envelope (`ciphertext`, `nonce`, `signature`, `key_version`) | `id`, `created_at`. Design-1 DM envelope; recipient must be a keyed, non-banned member. Signature context is `"dm:<lowerUserId>:<higherUserId>"`. Fans out one `notifications` row to the recipient (`dm_peer_id` = sender) for the unread badge — best-effort, so a pre-015 server still delivers the DM. Sender rings the recipient's `dm:<server_id>:<user_id>` Broadcast topic after the ack |
 | 21 | `list_dms` | Bearer | `peer_id`, `before_id?` \| `after_id?`, `limit?` | `messages` (both directions of the pair, sender name + Ed25519 key attested), `has_more` |
 | 22 | `list_dm_conversations` | Bearer | — | `conversations`: one per peer — peer identity material (display name, Ed25519 + X25519 keys) and the latest envelope for the client-decrypted preview |
 | 23 | `resolve_invite` | none | `invite_code` | `server_id`, `server_name`. Maps an invite to its server **without consuming it**, so the client can derive its per-`(host, server_id)` SIWS identity before login/register (needed when several servers share one project). Registration still validates + atomically claims the invite |
@@ -160,6 +160,15 @@ Defined by `self_hosted_server_migrations/` (run in order on a fresh instance):
     every member renders gains nothing from per-member wrapping. The bucket is private rather
     than public-read so avatars aren't fetchable by the unauthenticated internet.
     `list_users`, `list_messages` and `list_dms` now return `avatar_path` / `sender_avatar_path`.
+15. **015_dm_notifications.sql** — unread badges for server DMs. A `notifications` row now
+    targets *either* a channel message or a DM: `channel_id`/`message_id` become nullable,
+    `dm_peer_id`/`dm_message_id` are added, and `notifications_one_target` CHECKs that exactly
+    one pair is set. **`send_dm`** fans out one row to the recipient. Nothing else changes —
+    the client's existing per-server subscription, RLS (`auth.uid() = user_id`), the Realtime
+    publication and the 008 retention job all apply as they stand. Reusing the table rather
+    than inventing a second mechanism is the point: DM read state is server-side, so it agrees
+    across a user's devices, and a DM badges on a server the user isn't looking at. The fanout
+    is best-effort, so a server still on 014 delivers DMs that simply don't badge.
 
 ## Deployment
 

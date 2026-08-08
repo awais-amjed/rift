@@ -157,23 +157,37 @@ Unique: `(channel_id, key_version, user_id)`.
 
 ### notifications
 
-Per-recipient channel-message notifications (migration 007). Fanned out by `send_message`, read
-directly by clients over authenticated Realtime (Postgres Changes) — RLS scopes each subscription
-to `auth.uid()`. Added to the `supabase_realtime` publication.
+Per-recipient message notifications (migration 007). Fanned out by `send_message` and — since
+migration 015 — by `send_dm`, read directly by clients over authenticated Realtime (Postgres
+Changes) — RLS scopes each subscription to `auth.uid()`. Added to the `supabase_realtime`
+publication.
+
+A row targets **either** a channel message (`channel_id` + `message_id`) **or** a DM
+(`dm_peer_id` + `dm_message_id`), enforced by the `notifications_one_target` CHECK. The DM half
+names the *peer* rather than a conversation because only inbound DMs are ever unread, and the
+client badges one count per person. One table for both means DM badges inherit everything the
+channel path already had: server-side read state that agrees across a user's devices, delivery
+for servers the user isn't currently looking at, and the retention prune below.
 
 Transient signal, not a source of truth (the message lives in `messages`), so it's pruned to bound
 growth (migration 008): an hourly `cleanup-notifications` pg_cron job deletes rows read more than a
 day ago or older than 7 days. `idx_notifications_created_at` backs the age prune.
 
-| Column     | Type        | Constraints                          | Description                             |
-|------------|-------------|--------------------------------------|-----------------------------------------|
-| id         | bigserial   | Primary Key                          | Monotonic notification id               |
-| created_at | timestamptz | Auto-created                         | Server-assigned time                    |
-| user_id    | uuid        | Required, FK → users.id (cascade)    | Recipient (RLS: `auth.uid() = user_id`) |
-| channel_id | uuid        | Required, FK → channels.id (cascade) | Channel the message was sent to         |
-| message_id | bigint      | Required, FK → messages.id (cascade) | The message that triggered this         |
-| sender_id  | uuid        | Required, FK → users.id (cascade)    | Message author                          |
-| read_at    | timestamptz | Nullable                             | Set when the client marks it read       |
+| Column        | Type        | Constraints                             | Description                                |
+|---------------|-------------|-----------------------------------------|--------------------------------------------|
+| id            | bigserial   | Primary Key                             | Monotonic notification id                  |
+| created_at    | timestamptz | Auto-created                            | Server-assigned time                       |
+| user_id       | uuid        | Required, FK → users.id (cascade)       | Recipient (RLS: `auth.uid() = user_id`)    |
+| channel_id    | uuid        | FK → channels.id (cascade)              | Channel the message was sent to (channel rows) |
+| message_id    | bigint      | FK → messages.id (cascade)              | The channel message that triggered this    |
+| dm_peer_id    | uuid        | FK → users.id (cascade), migration 015  | The sender, for DM rows — what's badged    |
+| dm_message_id | bigint      | FK → dm_messages.id (cascade), mig. 015 | The DM that triggered this                 |
+| sender_id     | uuid        | Required, FK → users.id (cascade)       | Message author                             |
+| read_at       | timestamptz | Nullable                                | Set when the client marks it read          |
+
+Indexes: `idx_notifications_user_unread` `(user_id, id DESC) WHERE read_at IS NULL`,
+`idx_notifications_user_dm_unread` `(user_id, dm_peer_id) WHERE read_at IS NULL` (the
+per-conversation count and clear).
 
 ## Enums
 

@@ -160,6 +160,7 @@ conversations to a self-hosted server they share (or any messenger they like).
 | Delivery      | GoTrue RLS + native Realtime           | Edge Functions + Realtime Broadcast            |
 | Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) | none imposed by Rift — operator's hardware, operator's call |
 | Media         | allowed; counts against quota, per-file size cap | allowed (operator's storage)         |
+| Unread badges | none yet                               | `notifications` rows, same as channels (mig. 015) |
 
 - Central limits are enforced **server-side** (the send path checks a daily counter; a
   scheduled job sweeps expired and over-cap rows) — a modified client can't bypass them.
@@ -209,6 +210,18 @@ is the accepted metadata cost of a Discord-like reaction UX; message *content*
 stays encrypted. Toggling is one call (add if absent, else remove); clients
 fetch aggregated counts via `list_reactions` and refresh live off the same
 Realtime doorbell used for messages (self-hosted) or on the next fetch (central).
+
+**Unread state is server-side, and only ever ids.** A self-hosted server fans
+out one `notifications` row per recipient per message — `send_message` for
+channels, `send_dm` for DMs — and the client counts the rows whose `read_at` is
+null (RLS `auth.uid() = user_id`; one authenticated subscription per joined
+server, so badges work for servers you aren't looking at). The rows carry no
+plaintext: a recipient, a channel or a peer, and a message id the server already
+stored. Keeping read state there rather than in local storage is what makes a
+conversation you've read on one device read on the others. What the client
+contributes is knowing when to clear it — a badge is cleared when the surface
+holding it is *on screen* and the window is focused, not merely when a cubit
+still has the conversation open behind another view.
 
 ### Decisions locked in for day one
 1. **Every message is Ed25519-signed by the sender** — a shared channel key must not allow

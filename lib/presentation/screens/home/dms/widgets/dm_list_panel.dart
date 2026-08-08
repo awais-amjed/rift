@@ -31,6 +31,10 @@ class DmListPanel extends StatelessWidget {
   /// Shown in place of the list when there are no conversations.
   final Widget? emptyState;
 
+  /// Unread messages from a peer, for the per-row badge. Null means the caller
+  /// has no unread information — every row then shows none.
+  final int Function(String peerId)? unreadFor;
+
   const DmListPanel({
     super.key,
     required this.title,
@@ -40,6 +44,7 @@ class DmListPanel extends StatelessWidget {
     this.openPeerId,
     this.search,
     this.emptyState,
+    this.unreadFor,
   });
 
   @override
@@ -120,6 +125,7 @@ class DmListPanel extends StatelessWidget {
           conversation: conversation,
           isSelected: conversation.peerId == openPeerId,
           themeState: themeState,
+          unreadCount: unreadFor?.call(conversation.peerId) ?? 0,
           onTap: () => onOpen(conversation),
         );
       },

@@ -4,22 +4,20 @@ import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 
-/// Accent pill showing an unread count (capped at "99+"). Used on channel tiles
-/// and server rows.
+/// Accent pill showing an unread count (capped at "99+"). Used on channel
+/// tiles, DM rows and server rows.
+///
+/// There is one style on purpose. A solid accent pill is the sidebar's loudest
+/// mark and it always means the same thing — messages you haven't read — so
+/// nothing else in the app is allowed to borrow the shape for a plain tally.
 class UnreadBadge extends StatelessWidget {
   final int count;
   final ThemeState themeState;
-
-  /// Tints the pill instead of filling it. For counts that are merely a tally
-  /// — how many DM threads exist — rather than news: a solid accent pill is
-  /// the sidebar's loudest mark and should mean something happened.
-  final bool quiet;
 
   const UnreadBadge({
     super.key,
     required this.count,
     required this.themeState,
-    this.quiet = false,
   });
 
   @override
@@ -28,21 +26,19 @@ class UnreadBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 17),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: quiet
-            ? themeState.primary.withValues(alpha: 0.16)
-            : themeState.primary,
+        color: themeState.primary,
         borderRadius: BorderRadius.circular(K.radiusPill),
       ),
       alignment: Alignment.center,
       child: Text(
         count > 99 ? '99+' : '$count',
-        // Filled, the count is knocked *out* of the accent rather than written
-        // on it, so the ink is the canvas the pill floats over — near-black in
-        // dark, near-white in light. `onPrimary` is white in both, which turns
-        // the dark palette's bright accent into a low-contrast smudge.
+        // The count is knocked *out* of the accent rather than written on it, so
+        // the ink is the canvas the pill floats over — near-black in dark,
+        // near-white in light. `onPrimary` is white in both, which turns the
+        // dark palette's bright accent into a low-contrast smudge.
         style: AppText.badge.copyWith(
           height: 1.2,
-          color: quiet ? themeState.accentBright : themeState.bgPrimary,
+          color: themeState.bgPrimary,
         ),
       ),
     );

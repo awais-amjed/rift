@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
+import '../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/hint_card.dart';
 import 'server_dm_chat_view.dart';
@@ -22,6 +23,9 @@ class ServerDmView extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<DmCubit>().state;
     final server = context.watch<ServerCubit>().state.selectedServer;
+    // Watched, not read: a DM arriving on this server has to move the badges
+    // while the list is on screen.
+    final notifications = context.watch<ServerNotificationsCubit>().state;
 
     return DmSurface(
       emptyIcon: Icons.dns_outlined,
@@ -35,6 +39,9 @@ class ServerDmView extends StatelessWidget {
         subtitle: server?.name,
         conversations: state.conversations,
         openPeerId: state.openPeerId,
+        unreadFor: server == null
+            ? null
+            : (peerId) => notifications.unreadForDm(server.id, peerId),
         search: server != null ? const MemberSearchField() : null,
         emptyState: HintCard(
           icon: server == null

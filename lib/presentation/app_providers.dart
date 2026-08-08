@@ -86,6 +86,10 @@ class AppProviders extends StatelessWidget {
           create: (context) => ServerNotificationsCubit(
             serverCubit: context.read<ServerCubit>(),
             chatCubit: context.read<ChannelChatCubit>(),
+            // Which conversation is open decides which DM rows count as read...
+            dmCubit: context.read<DmCubit>(),
+            // ...and the surface decides whether it's on screen at all.
+            appCubit: appCubit,
           ),
         ),
         BlocProvider(
