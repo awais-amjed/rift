@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -93,8 +92,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
         return AppModal(
           title: 'Server Settings',
           subtitle: 'Name and LiveKit connection for this server',
-          fullPage: true,
-          maxWidth: K.dialogContentWidth,
+          maxWidth: 460,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

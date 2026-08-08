@@ -6,21 +6,16 @@ import '../theme/app_text.dart';
 
 /// The title strip at the top of an [AppModal]: name, optional one-line
 /// explanation, optional leading icon, and the close button.
-///
-/// [large] is for full-page modals, where the header runs the width of the
-/// window — 15pt over that much space reads as a caption rather than a title.
 class AppModalHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? titleIcon;
-  final bool large;
 
   const AppModalHeader({
     super.key,
     required this.title,
     this.subtitle,
     this.titleIcon,
-    this.large = false,
   });
 
   @override
@@ -30,9 +25,7 @@ class AppModalHeader extends StatelessWidget {
         final textTertiary = themeState.textTertiary;
 
         return Padding(
-          padding: large
-              ? const EdgeInsets.fromLTRB(26, 22, 20, 18)
-              : const EdgeInsets.fromLTRB(20, 18, 16, 14),
+          padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
           child: Row(
             children: [
               if (titleIcon != null) ...[titleIcon!, const SizedBox(width: 12)],
@@ -43,17 +36,16 @@ class AppModalHeader extends StatelessWidget {
                     Text(
                       title,
                       style: AppText.sectionTitle.copyWith(
-                        fontSize: large ? 17 : 15,
-                        fontWeight: large ? FontWeight.w700 : null,
+                        fontSize: 15,
                         color: themeState.textPrimary,
                       ),
                     ),
                     if (subtitle != null) ...[
-                      SizedBox(height: large ? 3 : 1),
+                      const SizedBox(height: 1),
                       Text(
                         subtitle!,
                         style: AppText.secondary.copyWith(
-                          fontSize: large ? 12.5 : 11.5,
+                          fontSize: 11.5,
                           color: textTertiary,
                         ),
                       ),

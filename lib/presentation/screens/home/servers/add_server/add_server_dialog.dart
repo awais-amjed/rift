@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../data/constants.dart';
 import '../../../../common/app_modal.dart';
 import '../create_server_form.dart';
 import '../join_server_form.dart';
@@ -8,9 +7,9 @@ import 'widgets/server_mode_picker.dart';
 
 enum _Step { pick, join, create }
 
-/// The choice step is two cards side by side, so it wants more room than a
-/// column of fields does.
-const _pickWidth = 660.0;
+/// A touch wider than the app's default modal: the create step is six fields
+/// and two section headers, and cramping those doesn't make them shorter.
+const _width = 480.0;
 
 /// Getting onto a server: pick join or create, then fill in the one you picked.
 ///
@@ -44,14 +43,10 @@ class _AddServerDialogState extends State<AddServerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Full-page: the create form alone is six fields and two section headers,
-    // and the join flow follows it with more. A box sized to its content spent
-    // the whole flow scrolling inside a window with room to spare.
     return AppModal(
       title: _title,
       subtitle: _subtitle,
-      fullPage: true,
-      maxWidth: _step == _Step.pick ? _pickWidth : K.dialogContentWidth,
+      maxWidth: _width,
       content: _buildContent(),
     );
   }

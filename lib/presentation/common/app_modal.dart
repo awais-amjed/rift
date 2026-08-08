@@ -43,13 +43,10 @@ class AppModal extends StatelessWidget {
   final List<Widget>? actions;
   final double maxWidth;
 
-  /// Fill the window rather than hugging the content, leaving [K.dialogInset]
-  /// of the app showing around the edge. For the long setup forms — creating a
-  /// server, joining one — where a box sized to its content spends the whole
-  /// flow scrolling inside a window that has room to spare.
-  ///
-  /// The frame grows; the column inside it stays [maxWidth] and centres.
-  final bool fullPage;
+  /// Where a long form stops growing and starts scrolling. Without it a
+  /// six-field form opens nearly as tall as the window, which is a lot of
+  /// dialog for a form.
+  final double maxHeight;
 
   const AppModal({
     super.key,
@@ -59,7 +56,7 @@ class AppModal extends StatelessWidget {
     required this.content,
     this.actions,
     this.maxWidth = 448,
-    this.fullPage = false,
+    this.maxHeight = 560,
   });
 
   @override
@@ -77,45 +74,46 @@ class AppModal extends StatelessWidget {
             borderRadius: BorderRadius.circular(K.radiusDialog),
             side: BorderSide(color: themeState.borderElevated),
           ),
-          insetPadding: fullPage
-              ? const EdgeInsets.all(K.dialogInset)
-              : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
           child: ConstrainedBox(
-            constraints: fullPage
-                ? const BoxConstraints.expand()
-                : BoxConstraints(maxWidth: maxWidth),
+            constraints: BoxConstraints(
+              maxWidth: maxWidth,
+              maxHeight: maxHeight,
+            ),
             child: Column(
-              mainAxisSize: fullPage ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Header — full width even on a full-page modal, so the title
-                // sits in the corner of the frame and the close button stays
-                // where a close button belongs.
                 AppModalHeader(
                   title: title,
                   subtitle: subtitle,
                   titleIcon: titleIcon,
-                  large: fullPage,
                 ),
                 Divider(height: 1, color: borderColor),
-                Flexible(child: _body()),
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
+                    child: content,
+                  ),
+                ),
                 // Actions
                 if (actions != null) ...[
                   Divider(height: 1, color: borderColor),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                    child: _column(
-                      Row(
-                        children: actions!
-                            .map((a) => Expanded(child: a))
-                            .toList()
-                            .fold<List<Widget>>([], (acc, widget) {
-                              if (acc.isNotEmpty) {
-                                acc.add(const SizedBox(width: 10));
-                              }
-                              acc.add(widget);
-                              return acc;
-                            }),
-                      ),
+                    child: Row(
+                      children: actions!
+                          .map((a) => Expanded(child: a))
+                          .toList()
+                          .fold<List<Widget>>([], (acc, widget) {
+                            if (acc.isNotEmpty) {
+                              acc.add(const SizedBox(width: 10));
+                            }
+                            acc.add(widget);
+                            return acc;
+                          }),
                     ),
                   ),
                 ],
@@ -126,43 +124,4 @@ class AppModal extends StatelessWidget {
       },
     );
   }
-
-  /// The scrolling middle of the modal.
-  ///
-  /// Full-page, the form is also centred *vertically*: a three-field form
-  /// pinned to the top of a window-tall frame reads as an accident. The
-  /// minimum height is what does it — the form sits in the middle while it
-  /// fits and scrolls from the top once it doesn't.
-  Widget _body() {
-    const padding = EdgeInsets.symmetric(horizontal: 20, vertical: 18);
-
-    if (!fullPage) {
-      return SingleChildScrollView(padding: padding, child: content);
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        padding: padding,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: constraints.maxHeight - padding.vertical,
-          ),
-          child: Center(child: _column(content)),
-        ),
-      ),
-    );
-  }
-
-  /// The readable column a full-page modal's form lives in: the frame grows
-  /// with the window, the fields and their buttons stay [maxWidth] and centred
-  /// under the header. Content-sized modals are already that narrow, so they
-  /// pass straight through.
-  Widget _column(Widget child) => fullPage
-      ? Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: child,
-          ),
-        )
-      : child;
 }

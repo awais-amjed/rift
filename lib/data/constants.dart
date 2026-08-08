@@ -50,17 +50,6 @@ class K {
   /// Gap between the floating panels, and between them and the window edge.
   static const double panelGutter = 10;
 
-  // ── Dialogs ───────────────────────────────────────────────
-  /// How far a full-page dialog stops short of the window edge. Enough to keep
-  /// the app visible behind it, so the dialog still reads as a layer rather
-  /// than a screen.
-  static const double dialogInset = 44;
-
-  /// A full-page dialog fills the window, but its column of fields does not —
-  /// a text field two thousand pixels wide is not easier to fill in. The frame
-  /// grows; the form stays this wide and centred.
-  static const double dialogContentWidth = 560;
-
   // ── Title bar ─────────────────────────────────────────────
   static const double titleBarHeight = 38;
   static const double titleBarHotZoneHeight = 40;
