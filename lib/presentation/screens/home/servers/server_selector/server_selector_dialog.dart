@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../data/constants.dart';
+import '../../../../common/app_modal.dart';
 import '../create_server_form.dart';
 import '../join_server_form.dart';
 import 'widgets/server_list_view.dart';
 import 'widgets/server_mode_picker.dart';
-import '../../../../theme/app_text.dart';
 
 enum _SelectorMode { list, pickMode, join, create }
 
@@ -62,71 +61,15 @@ class _ServerSelectorDialogState extends State<ServerSelectorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Dialog(
-          backgroundColor: themeState.bgSecondary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: themeState.borderPrimary),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 448, maxHeight: 600),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 16, 14),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _title,
-                              style: AppText.sectionTitle.copyWith(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                color: themeState.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _subtitle,
-                              style: AppText.secondary.copyWith(
-                                fontSize: 12,
-                                color: themeState.textTertiary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: Icon(
-                          Icons.close,
-                          size: 18,
-                          color: themeState.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Divider(height: 1, color: themeState.borderPrimary),
-                // Content
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: _buildContent(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    // Full-page: the create form alone is six fields and two section headers,
+    // and the join flow follows it with more. A box sized to its content spent
+    // the whole flow scrolling inside a window with room to spare.
+    return AppModal(
+      title: _title,
+      subtitle: _subtitle,
+      fullPage: true,
+      maxWidth: K.dialogContentWidth,
+      content: _buildContent(),
     );
   }
 

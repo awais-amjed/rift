@@ -67,10 +67,9 @@ class NotificationsState {
   );
 
   /// One more unread message in a channel.
-  NotificationsState incremented(String serverId, String channelId) =>
-      copyWith(
-        unreadByServer: _incremented(unreadByServer, serverId, channelId),
-      );
+  NotificationsState incremented(String serverId, String channelId) => copyWith(
+    unreadByServer: _incremented(unreadByServer, serverId, channelId),
+  );
 
   /// One more unread DM from a peer.
   NotificationsState incrementedDm(String serverId, String peerId) => copyWith(

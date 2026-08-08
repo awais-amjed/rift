@@ -147,11 +147,7 @@ void main() {
       final state = const NotificationsState()
           .incremented('s1', 'stale')
           .incrementedDm('s1', 'stalePeer')
-          .withServerCounts(
-            's1',
-            channels: {'c1': 7},
-            dms: {'peer1': 2},
-          );
+          .withServerCounts('s1', channels: {'c1': 7}, dms: {'peer1': 2});
       expect(state.unreadForChannel('s1', 'stale'), 0);
       expect(state.unreadForDm('s1', 'stalePeer'), 0);
       expect(state.unreadForChannel('s1', 'c1'), 7);

@@ -49,11 +49,7 @@ class InputLevelPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        MicLevelMeter(
-          level: level,
-          active: testing,
-          themeState: themeState,
-        ),
+        MicLevelMeter(level: level, active: testing, themeState: themeState),
       ],
     );
   }

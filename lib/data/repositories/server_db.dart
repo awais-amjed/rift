@@ -56,7 +56,11 @@ class ServerDb {
       // said no. It reaches the user as a plain refusal, not a retry.
       return APIResponse(success: false, error: message, errorCode: e.code);
     } on StorageException catch (e) {
-      return APIResponse(success: false, error: e.message, errorCode: e.statusCode);
+      return APIResponse(
+        success: false,
+        error: e.message,
+        errorCode: e.statusCode,
+      );
     } on TimeoutException {
       return APIResponse.error(
         "This server isn't responding — it may be offline. Try again later.",

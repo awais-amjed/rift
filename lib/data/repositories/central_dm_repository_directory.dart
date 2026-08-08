@@ -76,10 +76,7 @@ mixin _CentralDmDirectoryMixin {
   /// Fetch directory rows for a set of user ids.
   Future<APIResponse> getProfiles(List<String> userIds) async {
     try {
-      final rows = await _client
-          .from('users')
-          .select()
-          .inFilter('id', userIds);
+      final rows = await _client.from('users').select().inFilter('id', userIds);
       return APIResponse.success(rows);
     } catch (e) {
       return APIResponse.error(e);

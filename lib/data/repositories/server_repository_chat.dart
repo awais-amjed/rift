@@ -265,7 +265,11 @@ mixin _ChatApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final rows = await db.from(table).delete().eq('id', messageId).select('id');
+      final rows = await db
+          .from(table)
+          .delete()
+          .eq('id', messageId)
+          .select('id');
       if ((rows as List).isEmpty) {
         throw const PostgrestException(
           message: 'Message not found, or not yours to delete',

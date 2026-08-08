@@ -55,7 +55,8 @@ void main() {
       // asInt16List cannot view an odd byte offset; the level must still be
       // right rather than throwing.
       final frame = squareFrame(0.5);
-      final shifted = Uint8List(frame.length + 1)..setRange(1, frame.length + 1, frame);
+      final shifted = Uint8List(frame.length + 1)
+        ..setRange(1, frame.length + 1, frame);
       final misaligned = Uint8List.view(shifted.buffer, 1, frame.length);
 
       expect(misaligned.offsetInBytes.isOdd, isTrue);

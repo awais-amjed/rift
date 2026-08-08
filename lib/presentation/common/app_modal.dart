@@ -43,6 +43,14 @@ class AppModal extends StatelessWidget {
   final List<Widget>? actions;
   final double maxWidth;
 
+  /// Fill the window rather than hugging the content, leaving [K.dialogInset]
+  /// of the app showing around the edge. For the long setup forms — creating a
+  /// server, joining one — where a box sized to its content spends the whole
+  /// flow scrolling inside a window that has room to spare.
+  ///
+  /// The frame grows; the column inside it stays [maxWidth] and centres.
+  final bool fullPage;
+
   const AppModal({
     super.key,
     required this.title,
@@ -51,6 +59,7 @@ class AppModal extends StatelessWidget {
     required this.content,
     this.actions,
     this.maxWidth = 448,
+    this.fullPage = false,
   });
 
   @override
@@ -69,12 +78,19 @@ class AppModal extends StatelessWidget {
             borderRadius: BorderRadius.circular(K.radiusDialog),
             side: BorderSide(color: themeState.borderElevated),
           ),
+          insetPadding: fullPage
+              ? const EdgeInsets.all(K.dialogInset)
+              : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
+            constraints: fullPage
+                ? const BoxConstraints.expand()
+                : BoxConstraints(maxWidth: maxWidth),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: fullPage ? MainAxisSize.max : MainAxisSize.min,
               children: [
-                // Header
+                // Header — full width even on a full-page modal, so the title
+                // sits in the corner of the frame and the close button stays
+                // where a close button belongs.
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
                   child: Row(
@@ -127,7 +143,7 @@ class AppModal extends StatelessWidget {
                       horizontal: 20,
                       vertical: 18,
                     ),
-                    child: content,
+                    child: _column(content),
                   ),
                 ),
                 // Actions
@@ -135,17 +151,19 @@ class AppModal extends StatelessWidget {
                   Divider(height: 1, color: borderColor),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                    child: Row(
-                      children: actions!
-                          .map((a) => Expanded(child: a))
-                          .toList()
-                          .fold<List<Widget>>([], (acc, widget) {
-                            if (acc.isNotEmpty) {
-                              acc.add(const SizedBox(width: 10));
-                            }
-                            acc.add(widget);
-                            return acc;
-                          }),
+                    child: _column(
+                      Row(
+                        children: actions!
+                            .map((a) => Expanded(child: a))
+                            .toList()
+                            .fold<List<Widget>>([], (acc, widget) {
+                              if (acc.isNotEmpty) {
+                                acc.add(const SizedBox(width: 10));
+                              }
+                              acc.add(widget);
+                              return acc;
+                            }),
+                      ),
                     ),
                   ),
                 ],
@@ -156,4 +174,17 @@ class AppModal extends StatelessWidget {
       },
     );
   }
+
+  /// The readable column a full-page modal's form lives in: the frame grows
+  /// with the window, the fields and their buttons stay [maxWidth] and centred
+  /// under the header. Content-sized modals are already that narrow, so they
+  /// pass straight through.
+  Widget _column(Widget child) => fullPage
+      ? Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: child,
+          ),
+        )
+      : child;
 }

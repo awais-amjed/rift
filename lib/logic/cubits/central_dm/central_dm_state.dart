@@ -113,6 +113,5 @@ class CentralDmState {
   }
 
   /// Every unread central DM — the badge on the rail's Home chip.
-  int get totalUnread =>
-      unreadByPeer.values.fold<int>(0, (sum, n) => sum + n);
+  int get totalUnread => unreadByPeer.values.fold<int>(0, (sum, n) => sum + n);
 }

@@ -14,11 +14,7 @@ class UnreadBadge extends StatelessWidget {
   final int count;
   final ThemeState themeState;
 
-  const UnreadBadge({
-    super.key,
-    required this.count,
-    required this.themeState,
-  });
+  const UnreadBadge({super.key, required this.count, required this.themeState});
 
   @override
   Widget build(BuildContext context) {
@@ -36,10 +32,7 @@ class UnreadBadge extends StatelessWidget {
         // the ink is the canvas the pill floats over — near-black in dark,
         // near-white in light. `onPrimary` is white in both, which turns the
         // dark palette's bright accent into a low-contrast smudge.
-        style: AppText.badge.copyWith(
-          height: 1.2,
-          color: themeState.bgPrimary,
-        ),
+        style: AppText.badge.copyWith(height: 1.2, color: themeState.bgPrimary),
       ),
     );
   }
