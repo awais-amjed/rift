@@ -874,10 +874,11 @@ packages:
   livekit_client:
     dependency: "direct main"
     description:
-      name: livekit_client
-      sha256: "9160950ff87d1946959e4911c16236ea7a3e74ac1987990b258132fd4ed0fca9"
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: rift
+      resolved-ref: "22f960a21849c320caaec52c7896d309b10adafc"
+      url: "https://github.com/awais-amjed/livekit-client-sdk-flutter.git"
+    source: git
     version: "2.10.0"
   loading_animation_widget:
     dependency: "direct main"
