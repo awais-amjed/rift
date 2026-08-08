@@ -36,10 +36,6 @@ class ChannelList extends StatelessWidget {
         .where((c) => c.channelType == ChannelType.voice)
         .toList();
 
-    if (channels.isEmpty) {
-      return const Expanded(child: EmptyChannelsView());
-    }
-
     // Only channel managers get the "+" on a section header.
     final canCreate =
         context
@@ -60,6 +56,16 @@ class ChannelList extends StatelessWidget {
         child: const CreateChannelDialog(),
       ),
     );
+
+    // Computed before this branch, not after it: the empty state needs the
+    // same button the headers carry, and a new server starts here.
+    if (channels.isEmpty) {
+      return Expanded(
+        child: EmptyChannelsView(
+          onCreate: canCreate ? openCreateChannel : null,
+        ),
+      );
+    }
 
     return Expanded(
       child: ListView(
