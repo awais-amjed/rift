@@ -11,6 +11,10 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
   /// Fire OS notifications for newly-arrived messages across all conversations.
   void _notifyFromConversations(List<DmConversation> conversations);
 
+  /// Implemented by the unread mixin.
+  Map<String, int> _countUnread(List<Map<String, dynamic>> rows, String myId);
+  void _readOpenConversation(Map<String, int> counts);
+
   /// Implemented by the history mixin.
   Future<ChatMessage?> _decryptRow(
     Map<String, dynamic> row, {
@@ -40,9 +44,18 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
       latestByPeer.putIfAbsent(peerId, () => row);
     }
 
+    // The same rows carry the unread counts — central has no notification
+    // table, so this fetch is where a badge comes from.
+    final unread = _countUnread(rows, myId);
+    _readOpenConversation(unread);
+
     if (latestByPeer.isEmpty) {
       emit(
-        state.copyWith(conversations: const [], conversationsLoading: false),
+        state.copyWith(
+          conversations: const [],
+          conversationsLoading: false,
+          unreadByPeer: const {},
+        ),
       );
       return;
     }
@@ -76,7 +89,11 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
     });
 
     emit(
-      state.copyWith(conversations: conversations, conversationsLoading: false),
+      state.copyWith(
+        conversations: conversations,
+        conversationsLoading: false,
+        unreadByPeer: unread,
+      ),
     );
     _notifyFromConversations(conversations);
   }

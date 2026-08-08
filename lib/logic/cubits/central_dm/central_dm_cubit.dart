@@ -14,14 +14,19 @@ import '../../../data/classes/pending_attachment.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../../supabase_config.dart';
+import '../../../data/enums/home_surface.dart';
 import '../../helper_methods.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/dm_unread_scan.dart';
 import '../../services/notification_service.dart';
+import '../../services/window_focus_service.dart';
+import '../app/app_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'central_dm_state.dart';
 part 'central_dm_conversations.dart';
+part 'central_dm_unread.dart';
 part 'central_dm_history.dart';
 part 'central_dm_send.dart';
 part 'central_dm_edit.dart';
@@ -40,16 +45,24 @@ class CentralDmCubit extends Cubit<CentralDmState>
         _CentralDmHistoryMixin,
         _CentralDmSendMixin,
         _CentralDmEditMixin,
-        _CentralDmReactionsMixin {
+        _CentralDmReactionsMixin,
+        _CentralDmUnreadMixin {
   @override
   final CentralDmRepository _repo;
   final VaultCubit _vaultCubit;
+  @override
+  final AppCubit _appCubit;
   @override
   final CryptoRepository _crypto;
 
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<VaultState>? _vaultSub;
+  StreamSubscription<AppState>? _appSub;
   RealtimeChannel? _incoming;
+
+  /// The last surface seen, so an [AppState] change that isn't a navigation
+  /// doesn't re-run the read sweep.
+  HomeSurface _lastSurface;
 
   @override
   final Map<String, Uint8List> _dmKeys = {};
@@ -67,16 +80,31 @@ class CentralDmCubit extends Cubit<CentralDmState>
 
   CentralDmCubit({
     required VaultCubit vaultCubit,
+    required AppCubit appCubit,
     CentralDmRepository? repo,
     CryptoRepository? crypto,
   }) : _vaultCubit = vaultCubit,
+       _appCubit = appCubit,
+       _lastSurface = appCubit.state.surface,
        _repo = repo ?? CentralDmRepository(),
        _crypto = crypto ?? CryptoRepository(),
        super(const CentralDmState()) {
     _authSub = _repo.authChanges.listen((_) => _ensureReady());
     _vaultSub = vaultCubit.stream.listen((_) => _ensureReady());
+    _appSub = appCubit.stream.listen(_onAppStateChanged);
+    WindowFocusService.instance.focused.addListener(_onFocusChanged);
     _ensureReady();
   }
+
+  /// Arriving at Home, or coming back to the window, reads whatever
+  /// conversation is open there.
+  void _onAppStateChanged(AppState appState) {
+    if (appState.surface == _lastSurface) return;
+    _lastSurface = appState.surface;
+    markOpenConversationRead();
+  }
+
+  void _onFocusChanged() => markOpenConversationRead();
 
   static String get _centralHost => Uri.parse(SupabaseConfig.supabaseUrl).host;
 
@@ -166,6 +194,9 @@ class CentralDmCubit extends Cubit<CentralDmState>
 
     _incoming ??= _repo.subscribeIncoming(_onIncoming);
     emit(state.copyWith(status: CentralDmStatus.ready, myHandle: handle));
+    // Cursors first: without them every message reads as unread, so the badge
+    // would flash the whole history before settling.
+    await _loadReadCursors();
     unawaited(refreshConversations());
     unawaited(refreshQuota());
   }
@@ -183,6 +214,8 @@ class CentralDmCubit extends Cubit<CentralDmState>
     _incoming = null;
     _dmKeys.clear();
     _notifier.reset();
+    // Cursors belong to the signed-in account, not the app.
+    _resetUnread();
     if (channel != null) await _repo.unsubscribe(channel);
   }
 
@@ -255,8 +288,10 @@ class CentralDmCubit extends Cubit<CentralDmState>
 
   @override
   Future<void> close() async {
+    WindowFocusService.instance.focused.removeListener(_onFocusChanged);
     await _authSub?.cancel();
     await _vaultSub?.cancel();
+    await _appSub?.cancel();
     await _teardown();
     return super.close();
   }

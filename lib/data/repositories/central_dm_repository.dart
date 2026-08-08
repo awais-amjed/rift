@@ -8,6 +8,7 @@ import 'attachment_repository.dart';
 part 'central_dm_repository_attachments.dart';
 part 'central_dm_repository_directory.dart';
 part 'central_dm_repository_reactions.dart';
+part 'central_dm_repository_read_state.dart';
 
 /// Central-server DM I/O (Stage 3 — the discovery/first-contact tier,
 /// ARCHITECTURE.md §4). Everything runs over the central Supabase client with
@@ -18,7 +19,8 @@ class CentralDmRepository
     with
         _CentralDmReactionsMixin,
         _CentralDmAttachmentsMixin,
-        _CentralDmDirectoryMixin {
+        _CentralDmDirectoryMixin,
+        _CentralDmReadStateMixin {
   @override
   SupabaseClient get _client => Supabase.instance.client;
 

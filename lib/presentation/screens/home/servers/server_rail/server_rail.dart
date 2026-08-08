@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -58,13 +59,19 @@ class ServerRail extends StatelessWidget {
   }
 
   Widget _buildHomeButton(BuildContext context) {
+    final unread = context.select<CentralDmCubit, int>(
+      (c) => c.state.totalUnread,
+    );
     return BlocBuilder<AppCubit, AppState>(
       buildWhen: (a, b) => a.surface != b.surface,
       builder: (context, appState) {
         return RailChipButton(
           icon: Icons.forum_rounded,
-          tooltip: 'Home — your central DMs',
+          tooltip: unread > 0
+              ? 'Home — $unread unread central DM${unread == 1 ? '' : 's'}'
+              : 'Home — your central DMs',
           isSelected: appState.surface == HomeSurface.centralDms,
+          unreadCount: unread,
           onTap: () =>
               context.read<AppCubit>().setSurface(HomeSurface.centralDms),
         );

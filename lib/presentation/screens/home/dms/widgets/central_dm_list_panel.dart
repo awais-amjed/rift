@@ -218,6 +218,7 @@ class _CentralDmListPanelState extends State<CentralDmListPanel> {
           conversation: conversation,
           isSelected: conversation.peerId == state.openPeerId,
           themeState: themeState,
+          unreadCount: state.unreadByPeer[conversation.peerId] ?? 0,
           onTap: () {
             // Only one DM surface is open at a time.
             context.read<DmCubit>().closeConversation();

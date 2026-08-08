@@ -189,6 +189,28 @@ Indexes: `idx_notifications_user_unread` `(user_id, id DESC) WHERE read_at IS NU
 `idx_notifications_user_dm_unread` `(user_id, dm_peer_id) WHERE read_at IS NULL` (the
 per-conversation count and clear).
 
+The **central** project has no equivalent and doesn't need one: its clients read `dm_messages`
+directly over RLS, so unread is derived client-side from the rows already fetched, against a
+per-conversation cursor in `dm_read_state` (below).
+
+### dm_read_state (central project only)
+
+One row per conversation holding the newest central DM the caller has read. Written directly by
+the client (RLS `user_id = auth.uid()` for all operations), so it is private to its owner — a
+sender never learns whether their message was read.
+
+Central DMs get their badge from this rather than from fanned-out rows because the client is
+already allowed to see every message addressed to it; only the *read* half was missing. It lives
+on the server rather than in local storage so a conversation read on one device is read on the
+others.
+
+| Column       | Type        | Constraints                            | Description                            |
+|--------------|-------------|----------------------------------------|----------------------------------------|
+| user_id      | uuid        | PK (with peer_id), FK → auth.users     | Whose read state this is               |
+| peer_id      | uuid        | PK (with user_id), FK → auth.users     | The other side of the conversation     |
+| last_read_id | bigint      | Required, default 0                    | Newest `dm_messages.id` read from them |
+| updated_at   | timestamptz | Required, default now()                | Last time it moved                     |
+
 ## Enums
 
 ### channel_type

@@ -16,6 +16,9 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
   Future<void> refreshReactions();
   Future<void> refreshQuota();
 
+  /// Implemented by the unread mixin.
+  void markOpenConversationRead();
+
   /// The DM context both sides derive independently — order-independent so
   /// each peer computes the same string.
   static String _context(String a, String b) {
@@ -61,6 +64,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
     await _fetchLatest(peerId);
     if (state.openPeerId != peerId) return;
     emit(state.copyWith(chatStatus: DmChatStatus.ready));
+    markOpenConversationRead();
     unawaited(refreshQuota());
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import 'rail_unread_badge.dart';
 
 /// A rail slot holding an icon rather than an identity — Home, add-server,
 /// settings.
@@ -20,6 +21,10 @@ class RailChipButton extends StatefulWidget {
   /// add-server, which has to be findable on an empty rail.
   final bool ghostRing;
 
+  /// Unread count riding on the corner, as on a server chip. Home uses it for
+  /// central DMs; the control slots leave it at zero.
+  final int unreadCount;
+
   const RailChipButton({
     super.key,
     required this.icon,
@@ -27,6 +32,7 @@ class RailChipButton extends StatefulWidget {
     required this.onTap,
     this.isSelected = false,
     this.ghostRing = false,
+    this.unreadCount = 0,
   });
 
   @override
@@ -63,24 +69,39 @@ class _RailChipButtonState extends State<RailChipButton> {
             child: GestureDetector(
               onTap: widget.onTap,
               behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                width: K.serverRailChipSize,
-                height: K.serverRailChipSize,
-                decoration: BoxDecoration(
-                  color: background,
-                  borderRadius: BorderRadius.circular(K.radiusRailChip),
-                  border: ringColor == null
-                      ? null
-                      : Border.all(color: ringColor),
-                ),
-                child: Icon(
-                  widget.icon,
-                  size: 19,
-                  color: widget.isSelected
-                      ? themeState.accentBright
-                      : themeState.textTertiary,
-                ),
+              // The badge overhangs the chip and must not size it, or unread
+              // news would shift the rail — same rule as a server chip.
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    width: K.serverRailChipSize,
+                    height: K.serverRailChipSize,
+                    decoration: BoxDecoration(
+                      color: background,
+                      borderRadius: BorderRadius.circular(K.radiusRailChip),
+                      border: ringColor == null
+                          ? null
+                          : Border.all(color: ringColor),
+                    ),
+                    child: Icon(
+                      widget.icon,
+                      size: 19,
+                      color: widget.isSelected
+                          ? themeState.accentBright
+                          : themeState.textTertiary,
+                    ),
+                  ),
+                  // Not while selected: you're looking at the list, which
+                  // badges each conversation itself.
+                  if (widget.unreadCount > 0 && !widget.isSelected)
+                    Positioned(
+                      top: -3,
+                      right: -3,
+                      child: RailUnreadBadge(count: widget.unreadCount),
+                    ),
+                ],
               ),
             ),
           ),

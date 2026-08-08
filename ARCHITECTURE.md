@@ -160,7 +160,7 @@ conversations to a self-hosted server they share (or any messenger they like).
 | Delivery      | GoTrue RLS + native Realtime           | Edge Functions + Realtime Broadcast            |
 | Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) | none imposed by Rift — operator's hardware, operator's call |
 | Media         | allowed; counts against quota, per-file size cap | allowed (operator's storage)         |
-| Unread badges | none yet                               | `notifications` rows, same as channels (mig. 015) |
+| Unread badges | derived client-side against a `dm_read_state` cursor | `notifications` rows, same as channels (mig. 015) |
 
 - Central limits are enforced **server-side** (the send path checks a daily counter; a
   scheduled job sweeps expired and over-cap rows) — a modified client can't bypass them.
@@ -222,6 +222,15 @@ conversation you've read on one device read on the others. What the client
 contributes is knowing when to clear it — a badge is cleared when the surface
 holding it is *on screen* and the window is focused, not merely when a cubit
 still has the conversation open behind another view.
+
+Central DMs reach the same place from the other direction. There is no fanout
+table there and no need for one: a central client reads `dm_messages` directly
+over RLS, so it already holds every message addressed to it, and the
+conversation refresh already fetches them. What was missing was only read
+state, which is one cursor per conversation in `dm_read_state` (own-row RLS,
+so a sender never learns whether their message was read). Unread is then
+whatever is inbound and above the cursor — same badges, same clearing rules,
+no extra round trip.
 
 ### Decisions locked in for day one
 1. **Every message is Ed25519-signed by the sender** — a shared channel key must not allow

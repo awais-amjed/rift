@@ -77,7 +77,11 @@ class AppProviders extends StatelessWidget {
           ),
         ),
         BlocProvider(
-          create: (context) => CentralDmCubit(vaultCubit: vaultCubit),
+          // Not lazy: the incoming-DM subscription and its unread badge must
+          // run wherever you are in the app, not only once Home is opened.
+          lazy: false,
+          create: (context) =>
+              CentralDmCubit(vaultCubit: vaultCubit, appCubit: appCubit),
         ),
         BlocProvider(
           // Not lazy: the per-server notifications subscription must run

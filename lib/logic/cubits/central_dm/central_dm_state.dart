@@ -24,6 +24,10 @@ class CentralDmState {
   final List<DmConversation> conversations;
   final bool conversationsLoading;
 
+  /// peer id → unread messages from them. A zero count is an absent key, so
+  /// `unreadByPeer[id] ?? 0` is the only correct way to read it.
+  final Map<String, int> unreadByPeer;
+
   /// Daily-quota meter (null until first fetched).
   final int? quota;
   final int? remaining;
@@ -48,6 +52,7 @@ class CentralDmState {
     this.claiming = false,
     this.conversations = const [],
     this.conversationsLoading = false,
+    this.unreadByPeer = const {},
     this.quota,
     this.remaining,
     this.openPeerId,
@@ -66,6 +71,7 @@ class CentralDmState {
     bool? claiming,
     List<DmConversation>? conversations,
     bool? conversationsLoading,
+    Map<String, int>? unreadByPeer,
     int? quota,
     int? remaining,
     String? openPeerId,
@@ -86,6 +92,7 @@ class CentralDmState {
       claiming: claiming ?? this.claiming,
       conversations: conversations ?? this.conversations,
       conversationsLoading: conversationsLoading ?? this.conversationsLoading,
+      unreadByPeer: unreadByPeer ?? this.unreadByPeer,
       quota: quota ?? this.quota,
       remaining: remaining ?? this.remaining,
       openPeerId: closeConversation ? null : (openPeerId ?? this.openPeerId),
@@ -104,4 +111,8 @@ class CentralDmState {
       handleQuery: clearHandleQuery ? null : (handleQuery ?? this.handleQuery),
     );
   }
+
+  /// Every unread central DM — the badge on the rail's Home chip.
+  int get totalUnread =>
+      unreadByPeer.values.fold<int>(0, (sum, n) => sum + n);
 }
