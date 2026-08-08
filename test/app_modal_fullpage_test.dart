@@ -92,6 +92,18 @@ void main() {
     expect(form.center.dx, window.width / 2);
   });
 
+  testWidgets('a short form sits in the middle, not pinned to the top', (
+    tester,
+  ) async {
+    await pump(tester, fullPage: true);
+
+    // Roughly the middle of the frame — the header pushes it a little below
+    // the window's own centre line.
+    final form = tester.getRect(find.byKey(_contentKey));
+    expect(form.center.dy, greaterThan(window.height / 2));
+    expect(form.center.dy, lessThan(window.height / 2 + 80));
+  });
+
   testWidgets('a content-sized modal still hugs its content', (tester) async {
     await pump(tester, fullPage: false);
 

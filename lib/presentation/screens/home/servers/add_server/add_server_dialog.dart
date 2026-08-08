@@ -8,6 +8,10 @@ import 'widgets/server_mode_picker.dart';
 
 enum _Step { pick, join, create }
 
+/// The choice step is two cards side by side, so it wants more room than a
+/// column of fields does.
+const _pickWidth = 660.0;
+
 /// Getting onto a server: pick join or create, then fill in the one you picked.
 ///
 /// There used to be a server *list* in front of this, but switching servers
@@ -47,7 +51,7 @@ class _AddServerDialogState extends State<AddServerDialog> {
       title: _title,
       subtitle: _subtitle,
       fullPage: true,
-      maxWidth: K.dialogContentWidth,
+      maxWidth: _step == _Step.pick ? _pickWidth : K.dialogContentWidth,
       content: _buildContent(),
     );
   }

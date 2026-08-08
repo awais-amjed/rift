@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
-import '../theme/app_text.dart';
+import 'app_modal_header.dart';
 
 /// Shows a dialog that:
 /// - Cannot be dismissed by tapping the barrier
@@ -67,7 +67,6 @@ class AppModal extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         final borderColor = themeState.borderPrimary;
-        final textTertiary = themeState.textTertiary;
 
         return Dialog(
           // The design puts dialogs on the *panel* surface, with the shadow
@@ -91,61 +90,14 @@ class AppModal extends StatelessWidget {
                 // Header — full width even on a full-page modal, so the title
                 // sits in the corner of the frame and the close button stays
                 // where a close button belongs.
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
-                  child: Row(
-                    children: [
-                      if (titleIcon != null) ...[
-                        titleIcon!,
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: AppText.sectionTitle.copyWith(
-                                fontSize: 15,
-                                color: themeState.textPrimary,
-                              ),
-                            ),
-                            if (subtitle != null) ...[
-                              const SizedBox(height: 1),
-                              Text(
-                                subtitle!,
-                                style: AppText.secondary.copyWith(
-                                  fontSize: 11.5,
-                                  color: textTertiary,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: Icon(Icons.close, color: textTertiary, size: 20),
-                        style: IconButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                AppModalHeader(
+                  title: title,
+                  subtitle: subtitle,
+                  titleIcon: titleIcon,
+                  large: fullPage,
                 ),
                 Divider(height: 1, color: borderColor),
-                // Content
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 18,
-                    ),
-                    child: _column(content),
-                  ),
-                ),
+                Flexible(child: _body()),
                 // Actions
                 if (actions != null) ...[
                   Divider(height: 1, color: borderColor),
@@ -172,6 +124,32 @@ class AppModal extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  /// The scrolling middle of the modal.
+  ///
+  /// Full-page, the form is also centred *vertically*: a three-field form
+  /// pinned to the top of a window-tall frame reads as an accident. The
+  /// minimum height is what does it — the form sits in the middle while it
+  /// fits and scrolls from the top once it doesn't.
+  Widget _body() {
+    const padding = EdgeInsets.symmetric(horizontal: 20, vertical: 18);
+
+    if (!fullPage) {
+      return SingleChildScrollView(padding: padding, child: content);
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: padding,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: constraints.maxHeight - padding.vertical,
+          ),
+          child: Center(child: _column(content)),
+        ),
+      ),
     );
   }
 
