@@ -3,6 +3,12 @@ part of 'server_cubit.dart';
 mixin _ServerApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
 
+  /// The selected server's anon key, id, and the caller's own user id — what a
+  /// direct PostgREST call needs on top of a bearer token.
+  String get _anonKey;
+  String get _serverId;
+  String get _userId;
+
   /// Ping the `server_events` doorbell after a structural change (channel
   /// create/delete, …) so other members refresh in realtime.
   void Function()? get _onServerEvent;
@@ -67,7 +73,11 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     }
 
     final response = await _callWithAutoRefresh(
-      (token) => _repository.listUsers(server.supabaseUrl, bearerToken: token),
+      (token) => _repository.listUsers(
+        server.supabaseUrl,
+        anonKey: _anonKey,
+        bearerToken: token,
+      ),
     );
 
     if (!response.success) {
@@ -96,6 +106,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   }) => _callWithAutoRefresh(
     (token) => _repository.setUserPermissions(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
       bearerToken: token,
       userId: userId,
       isServerAdmin: isServerAdmin,
@@ -113,6 +124,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   }) => _callWithAutoRefresh(
     (token) => _repository.moderateUser(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
       bearerToken: token,
       userId: userId,
       isMuted: isMuted,
@@ -162,6 +174,9 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     final response = await _callWithAutoRefresh(
       (token) => _repository.createInvite(
         server.supabaseUrl,
+        anonKey: _anonKey,
+        serverId: _serverId,
+        userId: _userId,
         bearerToken: token,
         maxUses: maxUses,
         expiresInSeconds: expiresInSeconds,
@@ -199,6 +214,8 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     final response = await _callWithAutoRefresh(
       (token) => _repository.createChannel(
         server.supabaseUrl,
+        anonKey: _anonKey,
+        serverId: _serverId,
         bearerToken: token,
         name: name,
         channelType: channelType,
@@ -274,8 +291,11 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     }
 
     final response = await _callWithAutoRefresh(
-      (token) =>
-          _repository.getServerDetails(server.supabaseUrl, bearerToken: token),
+      (token) => _repository.getServerDetails(
+        server.supabaseUrl,
+        anonKey: _anonKey,
+        bearerToken: token,
+      ),
     );
 
     if (response.success) {

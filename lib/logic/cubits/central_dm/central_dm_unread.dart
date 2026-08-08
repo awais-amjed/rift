@@ -3,15 +3,17 @@ part of 'central_dm_cubit.dart';
 /// Unread counts for central DMs — the badge on the rail's Home chip and on
 /// each conversation row.
 ///
-/// Derived rather than delivered. A self-hosted server fans out a
-/// `notifications` row per recipient and the client counts rows; central has no
-/// such table and doesn't need one, because the client already sees every
-/// message addressed to it (RLS + Realtime on `dm_messages`) and the
-/// conversation refresh already pulls them. What's missing is only *read
-/// state*, and that is one cursor per conversation in `dm_read_state`.
+/// Derived rather than delivered: the client already sees every message
+/// addressed to it (RLS + Realtime on `dm_messages`) and the conversation
+/// refresh already pulls them, so all that was ever missing is *read state* —
+/// one cursor per conversation in `read_state`.
 ///
-/// Cursors live on the server for the same reason the self-hosted counts do:
-/// a conversation read on one device should be read on the others.
+/// Both tiers work this way now. A self-hosted server used to fan out a
+/// `notifications` row per recipient per message so its client had something it
+/// was allowed to subscribe to; with policies on the message tables that row
+/// bought nothing, and it counts cursors too. Same table shape, same RPCs
+/// (`unread_counts`, `mark_read`) — the difference between the tiers is the
+/// transport, not the idea.
 mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
   CentralDmRepository get _repo;
   AppCubit get _appCubit;

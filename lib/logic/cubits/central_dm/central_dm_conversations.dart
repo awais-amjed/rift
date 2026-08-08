@@ -108,7 +108,7 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
     if (!response.success) return profiles;
 
     for (final p in (response.data as List).cast<Map<String, dynamic>>()) {
-      final id = p['user_id'] as String;
+      final id = p['id'] as String;
       profiles[id] = p;
       _peerSigningKeys[id] = p['signing_public_key'] as String;
       _peerChatKeys[id] = p['chat_public_key'] as String;

@@ -7,6 +7,11 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
   AttachmentRepository get _attachments;
 
+  /// See [_ServerApiMixin] — what a direct PostgREST call needs alongside the
+  /// bearer token.
+  String get _anonKey;
+  String get _userId;
+
   Future<APIResponse> _callWithAutoRefresh(
     Future<APIResponse> Function(String token) call,
   );
@@ -67,6 +72,8 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
       _callWithAutoRefresh(
         (token) => _repository.publishChatKey(
           state.selectedServer!.supabaseUrl,
+          anonKey: _anonKey,
+          userId: _userId,
           chatPublicKey: chatPublicKey,
           bearerToken: token,
         ),
@@ -79,6 +86,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   }) => _callWithAutoRefresh(
     (token) => _repository.sendMessage(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
       channelId: channelId,
       envelope: envelope,
       bearerToken: token,
@@ -93,7 +101,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   }) => _callWithAutoRefresh(
     (token) => _repository.editMessage(
       state.selectedServer!.supabaseUrl,
-      channelId: channelId,
+      anonKey: _anonKey,
       messageId: messageId,
       envelope: envelope,
       bearerToken: token,
@@ -107,7 +115,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   }) => _callWithAutoRefresh(
     (token) => _repository.deleteMessage(
       state.selectedServer!.supabaseUrl,
-      channelId: channelId,
+      anonKey: _anonKey,
       messageId: messageId,
       bearerToken: token,
     ),
@@ -120,6 +128,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   }) => _callWithAutoRefresh(
     (token) => _repository.editDm(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
       messageId: messageId,
       envelope: envelope,
       bearerToken: token,
@@ -131,6 +140,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
       _callWithAutoRefresh(
         (token) => _repository.deleteDm(
           state.selectedServer!.supabaseUrl,
+          anonKey: _anonKey,
           messageId: messageId,
           bearerToken: token,
         ),
@@ -145,6 +155,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   }) => _callWithAutoRefresh(
     (token) => _repository.listMessages(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
       channelId: channelId,
       beforeId: beforeId,
       afterId: afterId,
@@ -153,20 +164,18 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     ),
   );
 
-  /// Toggle the caller's [emoji] reaction on a message ([scope] `channel` or
-  /// `dm`; pass [channelId] or [peerId]).
+  /// Toggle the caller's [emoji] reaction on a message ([scope] is `channel`
+  /// or `dm`, which picks the table; who may react is a policy).
   Future<APIResponse> toggleReaction({
     required String scope,
-    String? channelId,
-    String? peerId,
     required int messageId,
     required String emoji,
   }) => _callWithAutoRefresh(
     (token) => _repository.toggleReaction(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
+      userId: _userId,
       scope: scope,
-      channelId: channelId,
-      peerId: peerId,
       messageId: messageId,
       emoji: emoji,
       bearerToken: token,
@@ -176,15 +185,13 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   /// Aggregated reactions for a set of loaded messages.
   Future<APIResponse> listReactions({
     required String scope,
-    String? channelId,
-    String? peerId,
     required List<int> messageIds,
   }) => _callWithAutoRefresh(
     (token) => _repository.listReactions(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
+      userId: _userId,
       scope: scope,
-      channelId: channelId,
-      peerId: peerId,
       messageIds: messageIds,
       bearerToken: token,
     ),
@@ -214,6 +221,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   }) => _callWithAutoRefresh(
     (token) => _repository.sendDm(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
       recipientId: recipientId,
       envelope: envelope,
       bearerToken: token,
@@ -229,6 +237,8 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   }) => _callWithAutoRefresh(
     (token) => _repository.listDms(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
+      userId: _userId,
       peerId: peerId,
       beforeId: beforeId,
       afterId: afterId,
@@ -241,6 +251,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   Future<APIResponse> listDmConversations() => _callWithAutoRefresh(
     (token) => _repository.listDmConversations(
       state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
       bearerToken: token,
     ),
   );

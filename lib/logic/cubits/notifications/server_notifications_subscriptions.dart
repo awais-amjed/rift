@@ -9,7 +9,8 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState> {
   Map<String, _ServerSub> get _subs;
 
   Future<void> _seed(String serverId);
-  void _onInsert(String serverId, PostgresChangePayload payload);
+  void _onChannelMessage(String serverId, Map<String, dynamic> row);
+  void _onDmMessage(String serverId, Map<String, dynamic> row);
 
   void _sync() {
     final servers = _serverCubit.state.servers;
@@ -49,20 +50,37 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState> {
     }
   }
 
+  /// Watch the message tables themselves.
+  ///
+  /// There used to be a `notifications` table here — one row fanned out per
+  /// recipient per message, existing only so a client had something it was
+  /// allowed to subscribe to. With policies on `messages` and `dm_messages`,
+  /// Realtime re-checks them per subscriber and delivers only rows this member
+  /// could have selected, so the fanout (and its retention job) is gone.
+  ///
+  /// DMs are filtered to those addressed to us; channel messages can't be
+  /// filtered that way and don't need to be — RLS already limits them to this
+  /// server, and our own messages are skipped on arrival.
   void _subscribe(Server server) {
     final client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
     _authClient(client, server.supabaseKey!, server.token);
-    final channel = client.channel('notifications:${server.id}')
+    final channel = client.channel('unread:${server.id}')
       ..onPostgresChanges(
         event: PostgresChangeEvent.insert,
         schema: 'public',
-        table: 'notifications',
+        table: 'messages',
+        callback: (payload) => _onChannelMessage(server.id, payload.newRecord),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'dm_messages',
         filter: PostgresChangeFilter(
           type: PostgresChangeFilterType.eq,
-          column: 'user_id',
+          column: 'recipient_id',
           value: server.user!.id,
         ),
-        callback: (payload) => _onInsert(server.id, payload),
+        callback: (payload) => _onDmMessage(server.id, payload.newRecord),
       )
       ..subscribe();
     _subs[server.id] = _ServerSub(
@@ -94,7 +112,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState> {
   }
 }
 
-/// A single server's authenticated notifications connection.
+/// A single server's authenticated connection.
 class _ServerSub {
   final SupabaseClient client;
   final RealtimeChannel channel;

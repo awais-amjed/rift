@@ -25,7 +25,6 @@ mixin _DmReactionsMixin on Cubit<DmState> {
 
     final response = await _serverCubit.toggleReaction(
       scope: 'dm',
-      peerId: peerId,
       messageId: idNum,
       emoji: emoji,
     );
@@ -46,7 +45,6 @@ mixin _DmReactionsMixin on Cubit<DmState> {
 
     final response = await _serverCubit.listReactions(
       scope: 'dm',
-      peerId: peerId,
       messageIds: ids,
     );
     if (!response.success || state.openPeerId != peerId) return;

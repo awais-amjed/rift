@@ -5,6 +5,10 @@ part of 'server_cubit.dart';
 /// Per-server by design — each server is its own identity, so changing your
 /// name here doesn't touch any other server or your central account.
 mixin _ServerProfileApiMixin on Cubit<ServerState> {
+  /// See [_ServerApiMixin].
+  String get _anonKey;
+  String get _userId;
+
   ServerRepository get _repository;
   AvatarRepository get _avatars;
   Future<APIResponse> _callWithAutoRefresh(
@@ -81,6 +85,8 @@ mixin _ServerProfileApiMixin on Cubit<ServerState> {
     final response = await _callWithAutoRefresh(
       (token) => _repository.updateProfile(
         server.supabaseUrl,
+        anonKey: _anonKey,
+        userId: _userId,
         bearerToken: token,
         displayName: displayName,
         avatarPath: avatarPath,

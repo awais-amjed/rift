@@ -1,13 +1,15 @@
 part of 'central_dm_repository.dart';
 
-/// The `dm_read_state` table: one row per conversation holding the newest
+/// The `read_state` table: one row per conversation holding the newest
 /// message id the caller has read.
 ///
 /// It lives on the server rather than in local storage so that reading a
-/// conversation on one device leaves it read on the others — the same reason
-/// self-hosted badges are `notifications` rows and not a local cursor. RLS is
-/// own-row (`user_id = auth.uid()`), so a cursor is private to the person it
-/// belongs to; nobody learns whether their message was read.
+/// conversation on one device leaves it read on the others. RLS is own-row
+/// (`user_id = auth.uid()`), so a cursor is private to the person it belongs
+/// to; nobody learns whether their message was read.
+///
+/// The same table, with the same `scope`/`scope_id` shape, is what a
+/// self-hosted server uses for both channels and DMs.
 mixin _CentralDmReadStateMixin {
   SupabaseClient get _client;
 
@@ -15,12 +17,13 @@ mixin _CentralDmReadStateMixin {
   Future<APIResponse> listReadCursors() async {
     try {
       final rows = await _client
-          .from('dm_read_state')
-          .select('peer_id, last_read_id')
-          .eq('user_id', _client.auth.currentUser!.id);
+          .from('read_state')
+          .select('scope_id, last_read_id')
+          .eq('user_id', _client.auth.currentUser!.id)
+          .eq('scope', 'dm');
       final cursors = <String, int>{};
       for (final row in (rows as List).cast<Map<String, dynamic>>()) {
-        final peerId = row['peer_id'] as String?;
+        final peerId = row['scope_id'] as String?;
         final lastRead = row['last_read_id'];
         if (peerId != null && lastRead is int) cursors[peerId] = lastRead;
       }
@@ -36,14 +39,15 @@ mixin _CentralDmReadStateMixin {
     required int lastReadId,
   }) async {
     try {
-      await _client.from('dm_read_state').upsert({
+      await _client.from('read_state').upsert({
         'user_id': _client.auth.currentUser!.id,
-        'peer_id': peerId,
+        'scope': 'dm',
+        'scope_id': peerId,
         'last_read_id': lastReadId,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
         // No space: this goes on the query string as a column list, and a
         // stray one is looked up as part of the second column's name.
-      }, onConflict: 'user_id,peer_id');
+      }, onConflict: 'user_id,scope,scope_id');
       return APIResponse.success(null);
     } catch (e) {
       return APIResponse.error(e);

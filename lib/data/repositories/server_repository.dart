@@ -3,14 +3,36 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:http/http.dart' as http;
+import 'package:supabase/supabase.dart' hide ErrorCode;
 
 import '../classes/api_response.dart';
 import '../enums/error_code.dart';
+import 'server_db.dart';
 
 part 'server_repository_chat.dart';
 
-/// Repository for all Supabase Edge Function API calls.
+/// All I/O against a self-hosted server.
+///
+/// Two transports, and which one a call uses is not arbitrary. Almost
+/// everything is a **direct PostgREST call** under the policies in migration
+/// 002 — reading messages, sending one, editing your own, member lists,
+/// channels, invites, read cursors. What remains an **edge function** is only
+/// what genuinely can't be a table call:
+///
+///   * it needs a secret the client must never hold — `get_channel_token`
+///     (LiveKit API secret), `create_server`, `login` (GoTrue admin grant);
+///   * it runs before the caller is a member, or before they have a key at all
+///     — `resolve_invite`, `register`, `is_username_available`;
+///   * key distribution (`get_channel_key`, `post_channel_keys`,
+///     `sweep_channel_keys`), which enforces the channel-key version race and
+///     is deliberately left alone until it can be moved with care.
+///
+/// Everything else was an endpoint that existed only because clients weren't
+/// trusted with the database — which was never a decision, just a consequence
+/// of tables without policies.
 class ServerRepository with _ChatApiMixin {
+  @override
+  final ServerDb _db = ServerDb();
   /// A stable per-run device id, mixed into LiveKit participant identities so
   /// the same user can be connected from multiple devices without the later
   /// connection kicking the earlier one. It only has to be consistent within a
@@ -114,20 +136,59 @@ class ServerRepository with _ChatApiMixin {
     });
   }
 
-  /// Get full server details (name, icon, channels, current user).
+  /// Server metadata, its channels, and the caller's own profile row.
+  ///
+  /// Three selects rather than an endpoint that assembled them. `supabase_key`
+  /// is echoed back from what the caller already had: it used to come from the
+  /// server's environment, but by the time anyone can ask this question they
+  /// are holding the key that let them ask.
   Future<APIResponse> getServerDetails(
     String supabaseUrl, {
+    required String anonKey,
     String? bearerToken,
   }) {
-    return _post(
-      supabaseUrl,
-      'get_server_details',
-      {},
-      bearerToken: bearerToken,
-    );
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final server = await db
+          .from('servers')
+          .select('id, name, icon_url, livekit_url')
+          .limit(1)
+          .maybeSingle();
+      if (server == null) {
+        throw const PostgrestException(message: 'Server not found');
+      }
+      final channels = await db
+          .from('channels')
+          .select('id, name, channel_type')
+          .order('name');
+      final user = await db
+          .from('users')
+          .select(
+            'id, username, display_name, avatar_path, is_muted, is_deafened, '
+            'is_server_admin, is_channel_manager, can_create_tokens',
+          )
+          .eq('id', _uidOf(bearerToken) ?? '')
+          .maybeSingle();
+
+      return {
+        'server_id': server['id'],
+        'name': server['name'],
+        'icon_url': server['icon_url'],
+        'livekit_url': server['livekit_url'],
+        'supabase_key': anonKey,
+        'channels': channels,
+        'user': user == null ? null : _userRow(user),
+      };
+    });
   }
 
-  /// Update server details (admin only).
+  /// Update server settings (admin only).
+  ///
+  /// One of the few things still on an edge function, and for the usual
+  /// reason: it writes the LiveKit API key and secret. Those live in
+  /// `server_secrets`, which has no client-reachable path at all, so the write
+  /// has to happen somewhere holding the service role. Name and icon ride along
+  /// rather than splitting one dialog across two transports.
   Future<APIResponse> updateServer(
     String supabaseUrl, {
     String? bearerToken,
@@ -145,6 +206,40 @@ class ServerRepository with _ChatApiMixin {
       'livekit_secret_key': ?livekitSecretKey,
     }, bearerToken: bearerToken);
   }
+
+  /// The `sub` claim of a JWT, without verifying it — the client is reading its
+  /// own token to know which row is "mine", and the server re-checks anyway.
+  static String? _uidOf(String? jwt) {
+    if (jwt == null) return null;
+    final parts = jwt.split('.');
+    if (parts.length != 3) return null;
+    try {
+      final payload = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      return (jsonDecode(payload) as Map<String, dynamic>)['sub'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Flattens a `users` row into the shape the client models expect, with
+  /// permissions nested.
+  static Map<String, dynamic> _userRow(Map<String, dynamic> u) => {
+    'id': u['id'],
+    'username': u['username'],
+    'display_name': u['display_name'],
+    'avatar_path': u['avatar_path'],
+    'chat_public_key': u['chat_public_key'],
+    'is_muted': u['is_muted'],
+    'is_deafened': u['is_deafened'],
+    'is_banned': u['is_banned'],
+    'permissions': {
+      'is_server_admin': u['is_server_admin'],
+      'is_channel_manager': u['is_channel_manager'],
+      'can_create_tokens': u['can_create_tokens'],
+    },
+  };
 
   // ──────────────────────────────────────────────────────────
   // Registration & Auth
@@ -220,70 +315,145 @@ class ServerRepository with _ChatApiMixin {
   /// [setUserPermissions].
   /// [maxUses] null = unlimited, 1 = single-use (default).
   /// [expiresInSeconds] null = never expires.
+  /// The code is generated by the column default, and the policy refuses any
+  /// permission the caller doesn't hold themselves.
   Future<APIResponse> createInvite(
     String supabaseUrl, {
+    required String anonKey,
+    required String serverId,
+    required String userId,
     String? bearerToken,
     int? maxUses = 1,
     int? expiresInSeconds,
   }) {
-    return _post(supabaseUrl, 'create_invite', {
-      'max_uses': maxUses,
-      'expires_in_seconds': ?expiresInSeconds,
-    }, bearerToken: bearerToken);
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final row = await db
+          .from('invites')
+          .insert({
+            'server_id': serverId,
+            'created_by': userId,
+            'max_uses': maxUses,
+            if (expiresInSeconds != null)
+              'expires_at': DateTime.now()
+                  .toUtc()
+                  .add(Duration(seconds: expiresInSeconds))
+                  .toIso8601String(),
+          })
+          .select('code')
+          .single();
+      return {'invite_code': row['code']};
+    });
   }
 
-  /// List all members of the server with permissions and moderation state.
   /// Update the caller's own display name and/or avatar path.
   /// [clearAvatar] sends an explicit null, which removes the picture.
+  ///
+  /// There is no target parameter and there cannot be one: the column grant
+  /// covers only these fields, and the policy only ever matches your own row.
   Future<APIResponse> updateProfile(
     String supabaseUrl, {
+    required String anonKey,
+    required String userId,
     String? bearerToken,
     String? displayName,
     String? avatarPath,
     bool clearAvatar = false,
   }) {
-    return _post(supabaseUrl, 'update_profile', {
-      'display_name': ?displayName,
-      if (clearAvatar) 'avatar_path': null else 'avatar_path': ?avatarPath,
-    }, bearerToken: bearerToken);
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final row = await db
+          .from('users')
+          .update({
+            'display_name': ?displayName,
+            if (clearAvatar)
+              'avatar_path': null
+            else
+              'avatar_path': ?avatarPath,
+          })
+          .eq('id', userId)
+          .select('id, username, display_name, avatar_path')
+          .single();
+      return row;
+    });
   }
 
-  Future<APIResponse> listUsers(String supabaseUrl, {String? bearerToken}) {
-    return _post(supabaseUrl, 'list_users', {}, bearerToken: bearerToken);
+  /// Every member of the server, with permissions and moderation state.
+  /// Members can see each other; changing any of it goes through the RPCs.
+  Future<APIResponse> listUsers(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final rows = await db
+          .from('users')
+          .select(
+            'id, username, display_name, avatar_path, chat_public_key, '
+            'is_muted, is_deafened, is_banned, '
+            'is_server_admin, is_channel_manager, can_create_tokens',
+          )
+          .order('username');
+      return {
+        'users': [
+          for (final u in (rows as List).cast<Map<String, dynamic>>())
+            _userRow(u),
+        ],
+      };
+    });
   }
 
   /// Set a user's permission flags (server admin only; not your own).
   Future<APIResponse> setUserPermissions(
     String supabaseUrl, {
+    required String anonKey,
     String? bearerToken,
     required String userId,
     bool? isServerAdmin,
     bool? isChannelManager,
     bool? canCreateTokens,
   }) {
-    return _post(supabaseUrl, 'set_user_permissions', {
-      'user_id': userId,
-      'is_server_admin': ?isServerAdmin,
-      'is_channel_manager': ?isChannelManager,
-      'can_create_tokens': ?canCreateTokens,
-    }, bearerToken: bearerToken);
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc(
+        'set_user_permissions',
+        params: {
+          'p_target': userId,
+          'p_is_server_admin': isServerAdmin,
+          'p_is_channel_manager': isChannelManager,
+          'p_can_create_tokens': canCreateTokens,
+        },
+      );
+    });
   }
 
   // ──────────────────────────────────────────────────────────
   // Channels
   // ──────────────────────────────────────────────────────────
 
-  /// Create a new channel.
+  /// Create a new channel (channel manager or admin — enforced by policy).
   Future<APIResponse> createChannel(
     String supabaseUrl, {
+    required String anonKey,
+    required String serverId,
     String? bearerToken,
     required String name,
     required String channelType,
   }) {
-    return _post(supabaseUrl, 'create_channel', {
-      'name': name,
-      'channel_type': channelType,
-    }, bearerToken: bearerToken);
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final row = await db
+          .from('channels')
+          .insert({
+            'server_id': serverId,
+            'name': name,
+            'channel_type': channelType,
+          })
+          .select('id, name, channel_type')
+          .single();
+      return row;
+    });
   }
 
   /// Get a LiveKit JWT for joining a channel.
@@ -300,31 +470,94 @@ class ServerRepository with _ChatApiMixin {
     }, bearerToken: bearerToken);
   }
 
-  /// Delete a channel (requires channel manager).
+  /// Delete a channel (requires channel manager). Its messages and keyring go
+  /// with it by cascade.
   Future<APIResponse> deleteChannel(
     String supabaseUrl,
     String channelId, {
+    required String anonKey,
     String? bearerToken,
   }) {
-    return _post(supabaseUrl, 'delete_channel', {
-      'channel_id': channelId,
-    }, bearerToken: bearerToken);
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final rows = await db
+          .from('channels')
+          .delete()
+          .eq('id', channelId)
+          .select('id');
+      if ((rows as List).isEmpty) {
+        throw const PostgrestException(
+          message: 'Channel not found, or not yours to delete',
+        );
+      }
+      return rows.first;
+    });
   }
 
-  /// Persistently mute/unmute/deafen/undeafen a user (requires channel
-  /// manager or server admin). State is stored server-side and enforced in
-  /// LiveKit token grants, so it survives rejoins and can't be self-reverted.
+  /// Persistently mute/unmute/deafen/undeafen a user (server admin). State is
+  /// stored server-side and enforced in LiveKit token grants, so it survives
+  /// rejoins and can't be self-reverted.
+  ///
+  /// An RPC rather than an update: RLS is row-level, so a policy that let an
+  /// admin write another member's moderation flags would let them write that
+  /// member's identity too.
   Future<APIResponse> moderateUser(
     String supabaseUrl, {
+    required String anonKey,
     String? bearerToken,
     required String userId,
     bool? isMuted,
     bool? isDeafened,
+    bool? isBanned,
   }) {
-    return _post(supabaseUrl, 'moderate_user', {
-      'user_id': userId,
-      'is_muted': ?isMuted,
-      'is_deafened': ?isDeafened,
-    }, bearerToken: bearerToken);
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc(
+        'moderate_user',
+        params: {
+          'p_target': userId,
+          'p_muted': isMuted,
+          'p_deafened': isDeafened,
+          'p_banned': isBanned,
+        },
+      );
+    });
+  }
+
+  /// Unread counts for every channel and conversation on this server, in one
+  /// call: `{channels: {id: n}, dms: {peerId: n}}`.
+  Future<APIResponse> unreadCounts(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc('unread_counts');
+    });
+  }
+
+  /// Move a read cursor forward. Omit [lastReadId] to mean "everything there
+  /// is right now". Never moves backwards, so two devices can't un-read each
+  /// other's progress.
+  Future<APIResponse> markRead(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String scope,
+    required String scopeId,
+    int lastReadId = 0,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc(
+        'mark_read',
+        params: {
+          'p_scope': scope,
+          'p_scope_id': scopeId,
+          'p_last_read_id': lastReadId,
+        },
+      );
+    });
   }
 }

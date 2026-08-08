@@ -94,64 +94,60 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     _sync();
   }
 
-  /// Fetch a server's current unread rows and fold them into per-channel and
-  /// per-peer counts. Whatever is open is treated as already read.
+  /// Ask a server what is unread and fold the answer into state.
+  ///
+  /// One RPC per server — `unread_counts()` counts messages above each read
+  /// cursor and returns `{channels: {...}, dms: {...}}` — where this used to
+  /// fetch every unread notification row and tally them here. Whatever the user
+  /// is looking at is then marked read, which is what stops a badge appearing
+  /// for the channel already on screen.
   @override
   Future<void> _seed(String serverId) async {
     final sub = _subs[serverId];
     if (sub == null) return;
     try {
-      // Whole rows rather than named columns: a server that hasn't applied
-      // migration 015 has no `dm_peer_id`, and naming it would fail the fetch
-      // and take the channel badges down with it. Unread rows are few and
-      // carry no payload, so this costs nothing.
-      final rows = await sub.client
-          .from('notifications')
-          .select()
-          .eq('user_id', sub.userId)
-          .isFilter('read_at', null);
-
-      final channels = <String, int>{};
-      final dms = <String, int>{};
-      for (final row in rows) {
-        final channelId = row['channel_id'] as String?;
-        final peerId = row['dm_peer_id'] as String?;
-        if (channelId != null) {
-          if (_channelOnScreen &&
-              serverId == _openServerId &&
-              channelId == _openChannelId) {
-            continue;
-          }
-          channels[channelId] = (channels[channelId] ?? 0) + 1;
-        } else if (peerId != null) {
-          if (_dmOnScreen &&
-              serverId == _openDmServerId &&
-              peerId == _openPeerId) {
-            continue;
-          }
-          dms[peerId] = (dms[peerId] ?? 0) + 1;
-        }
-      }
+      final data = await sub.client.rpc('unread_counts');
       if (isClosed || !_subs.containsKey(serverId)) return;
-      emit(state.withServerCounts(serverId, channels: channels, dms: dms));
+      if (data is! Map) return;
+
+      emit(
+        state.withServerCounts(
+          serverId,
+          channels: _countsOf(data['channels']),
+          dms: _countsOf(data['dms']),
+        ),
+      );
       _markOnScreenRead(onlyServerId: serverId);
     } catch (_) {
       // Best-effort — a failed seed just means no badges until the next event.
     }
   }
 
+  /// `{id: n}` out of the RPC's json, ignoring anything malformed rather than
+  /// letting one bad entry cost every badge on the server.
+  static Map<String, int> _countsOf(dynamic raw) {
+    if (raw is! Map) return const {};
+    final counts = <String, int>{};
+    raw.forEach((key, value) {
+      final n = value is int ? value : int.tryParse('$value');
+      if (key is String && n != null && n > 0) counts[key] = n;
+    });
+    return counts;
+  }
+
   // ── Live delivery ─────────────────────────────────────────────
 
+  /// A message landed in a channel on this server. Realtime only delivers rows
+  /// this member could have selected, so arriving here already means "you can
+  /// see this".
   @override
-  void _onInsert(String serverId, PostgresChangePayload payload) {
+  void _onChannelMessage(String serverId, Map<String, dynamic> row) {
     if (isClosed) return;
-    final peerId = payload.newRecord['dm_peer_id'] as String?;
-    if (peerId != null) {
-      _onDmInsert(serverId, peerId);
-      return;
-    }
-    final channelId = payload.newRecord['channel_id'] as String?;
+    final channelId = row['channel_id'] as String?;
     if (channelId == null) return;
+    // Our own messages come back over the same subscription.
+    if (row['sender_id'] == _subs[serverId]?.userId) return;
+
     final focused = WindowFocusService.instance.isFocused;
 
     // Looking at this exact channel → it's read; don't badge or notify.
@@ -185,9 +181,14 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
 
   /// Badge an incoming DM. No OS notification here: [DmCubit] raises those off
   /// the conversation list, where it can decrypt a preview and name the sender
-  /// — this row only carries ids. (It only does so for the selected server, so
-  /// a DM on a background server badges without notifying.)
-  void _onDmInsert(String serverId, String peerId) {
+  /// — this row is ciphertext without the key. (It only does so for the
+  /// selected server, so a DM on a background server badges without notifying.)
+  @override
+  void _onDmMessage(String serverId, Map<String, dynamic> row) {
+    if (isClosed) return;
+    final peerId = row['sender_id'] as String?;
+    if (peerId == null) return;
+
     if (WindowFocusService.instance.isFocused &&
         _dmOnScreen &&
         serverId == _openDmServerId &&

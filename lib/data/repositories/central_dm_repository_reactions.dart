@@ -23,7 +23,7 @@ mixin _CentralDmReactionsMixin {
       if (uid == null) return APIResponse.error('Not signed in');
 
       final existing = await _client
-          .from('dm_reactions')
+          .from('dm_message_reactions')
           .select('message_id')
           .eq('message_id', messageId)
           .eq('user_id', uid)
@@ -32,14 +32,14 @@ mixin _CentralDmReactionsMixin {
 
       if (existing != null) {
         await _client
-            .from('dm_reactions')
+            .from('dm_message_reactions')
             .delete()
             .eq('message_id', messageId)
             .eq('user_id', uid)
             .eq('emoji', emoji);
         return APIResponse.success({'reacted': false});
       }
-      await _client.from('dm_reactions').insert({
+      await _client.from('dm_message_reactions').insert({
         'message_id': messageId,
         'user_id': uid,
         'emoji': emoji,
@@ -59,7 +59,7 @@ mixin _CentralDmReactionsMixin {
         return APIResponse.success({'reactions': {}});
       }
       final rows = await _client
-          .from('dm_reactions')
+          .from('dm_message_reactions')
           .select('message_id, user_id, emoji')
           .inFilter('message_id', messageIds);
 

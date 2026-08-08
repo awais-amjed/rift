@@ -47,6 +47,17 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   VaultCubit? _vaultCubit;
 
+  // What a direct database call needs beyond the bearer token: which project
+  // to talk to, which server's rows, and which row is mine. Empty strings
+  // rather than nulls so a call made with no server selected fails as a clean
+  // "no rows" instead of a null assertion.
+  @override
+  String get _anonKey => state.selectedServer?.supabaseKey ?? '';
+  @override
+  String get _serverId => state.selectedServer?.id ?? '';
+  @override
+  String get _userId => state.selectedServer?.user?.id ?? '';
+
   /// Called after the server list changes — wired to cloud auto-backup.
   @override
   void Function()? _onServersChanged;
@@ -143,6 +154,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     final result = await _vaultCubit!.loginToServer(
       supabaseUrl: server.supabaseUrl,
       serverId: serverId,
+      anonKey: server.supabaseKey ?? '',
     );
     if (!result.success || result.data == null) return null;
 

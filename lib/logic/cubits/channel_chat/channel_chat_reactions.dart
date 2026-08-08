@@ -25,7 +25,6 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
 
     final response = await _serverCubit.toggleReaction(
       scope: 'channel',
-      channelId: channelId,
       messageId: idNum,
       emoji: emoji,
     );
@@ -49,7 +48,6 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
 
     final response = await _serverCubit.listReactions(
       scope: 'channel',
-      channelId: channelId,
       messageIds: ids,
     );
     if (!response.success || state.channelId != channelId) return;

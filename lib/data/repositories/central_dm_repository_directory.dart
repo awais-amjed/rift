@@ -1,23 +1,26 @@
 part of 'central_dm_repository.dart';
 
-/// The `dm_profiles` directory — how a user is found before any contact
-/// exists. Rows are public by design (a handle, a display name, and the chat
-/// public key needed to seal a first message), which is the whole point of
-/// the discovery tier.
+/// The central `users` table, used here as the directory — how someone is
+/// found before any contact exists. Rows are readable by every signed-in
+/// account by design (a handle and the two public keys needed to seal and
+/// verify a first message), which is the whole point of the discovery tier.
+///
+/// It was `dm_profiles` until the schema was written down as migrations: it is
+/// the account row, and it will hold more than a directory profile.
 mixin _CentralDmDirectoryMixin {
   SupabaseClient get _client;
 
   // ──────────────────────────────────────────────────────────
-  // Directory (dm_profiles)
+  // Directory (users)
   // ──────────────────────────────────────────────────────────
 
   /// The caller's own directory row, or success(null) when not created yet.
   Future<APIResponse> getMyProfile() async {
     try {
       final row = await _client
-          .from('dm_profiles')
+          .from('users')
           .select()
-          .eq('user_id', _client.auth.currentUser!.id)
+          .eq('id', _client.auth.currentUser!.id)
           .maybeSingle();
       return APIResponse.success(row);
     } catch (e) {
@@ -33,12 +36,12 @@ mixin _CentralDmDirectoryMixin {
     required String signingPublicKey,
   }) async {
     try {
-      await _client.from('dm_profiles').upsert({
-        'user_id': _client.auth.currentUser!.id,
+      await _client.from('users').upsert({
+        'id': _client.auth.currentUser!.id,
         'handle': handle,
         'chat_public_key': chatPublicKey,
         'signing_public_key': signingPublicKey,
-      }, onConflict: 'user_id');
+      }, onConflict: 'id');
       return APIResponse.success(null);
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
@@ -58,10 +61,10 @@ mixin _CentralDmDirectoryMixin {
   Future<APIResponse> searchHandles(String prefix) async {
     try {
       final rows = await _client
-          .from('dm_profiles')
+          .from('users')
           .select()
           .ilike('handle', '$prefix%')
-          .neq('user_id', _client.auth.currentUser!.id)
+          .neq('id', _client.auth.currentUser!.id)
           .order('handle', ascending: true)
           .limit(10);
       return APIResponse.success(rows);
@@ -74,9 +77,9 @@ mixin _CentralDmDirectoryMixin {
   Future<APIResponse> getProfiles(List<String> userIds) async {
     try {
       final rows = await _client
-          .from('dm_profiles')
+          .from('users')
           .select()
-          .inFilter('user_id', userIds);
+          .inFilter('id', userIds);
       return APIResponse.success(rows);
     } catch (e) {
       return APIResponse.error(e);
