@@ -141,7 +141,6 @@ class _ServerSelectorDialogState extends State<ServerSelectorDialog> {
         return ServerModePicker(
           onJoin: () => setState(() => _mode = _SelectorMode.join),
           onCreate: () => setState(() => _mode = _SelectorMode.create),
-          onBack: () => setState(() => _mode = _SelectorMode.list),
         );
       case _SelectorMode.join:
         return JoinServerForm(

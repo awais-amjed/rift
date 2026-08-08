@@ -7,16 +7,17 @@ import '../../../../../common/icon_tile.dart';
 import '../../../../../theme/app_text.dart';
 
 /// Widget for choosing between joining or creating a server.
+///
+/// Two cards and nothing else: the server rail on the left is already the way
+/// back to the servers, so this step doesn't carry its own.
 class ServerModePicker extends StatelessWidget {
   final VoidCallback onJoin;
   final VoidCallback onCreate;
-  final VoidCallback onBack;
 
   const ServerModePicker({
     super.key,
     required this.onJoin,
     required this.onCreate,
-    required this.onBack,
   });
 
   @override
@@ -36,8 +37,6 @@ class ServerModePicker extends StatelessWidget {
           subtitle: 'Set up your own server with Supabase and LiveKit',
           onTap: onCreate,
         ),
-        const SizedBox(height: 16),
-        TextButton(onPressed: onBack, child: const Text('Back to Servers')),
       ],
     );
   }
