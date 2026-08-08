@@ -29,7 +29,7 @@ An endpoint earns its place only if it holds a secret, or runs before the caller
 | `register` | Bearer (SIWS JWT) | Claims an invite and creates the profile row **before** the caller is a member of anything. One atomic `register_user` RPC, so a failed register never burns an invite use |
 | `resolve_invite` | none | Runs before the client has the server's anon key — it is what hands the key out. Maps an invite to `server_id` + `server_name` **without consuming it**, so the per-`(host, server_id)` SIWS identity can be derived before login |
 | `is_username_available` | none | Same bootstrap window: asked while registering, before membership |
-| `create_server` | `service_key` in body | Writes the LiveKit API secret. Returns `server_id`, `name`, `supabase_url`, `supabase_key`, `invite_code` (single-use admin invite) |
+| `create_server` | `service_key` in body | Writes the LiveKit API secret. Also seeds a `general` text channel and a `voice` voice channel — they differ in name because `(server_id, name)` is unique. Returns `server_id`, `name`, `supabase_url`, `supabase_key`, `invite_code` (single-use admin invite) |
 | `update_server` | Bearer + `is_server_admin` | Writes the LiveKit API key/secret into `server_secrets`, which has no grant and no policy. Name and icon ride along rather than splitting one dialog across two transports |
 | `get_channel_token` | Bearer | Mints a LiveKit JWT with the API secret. Identity is `<userId>~<deviceId>`; `roomAdmin` for channel managers, 1 h TTL. **Moderation is enforced here** — muted users get no `microphone` in `canPublishSources`, deafened users get `canSubscribe: false` |
 | `get_channel_key` | Bearer | Channel-key distribution (below) |
