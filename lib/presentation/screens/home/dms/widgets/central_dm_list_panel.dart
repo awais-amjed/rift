@@ -26,8 +26,8 @@ class CentralDmListPanel extends StatefulWidget {
 }
 
 class _CentralDmListPanelState extends State<CentralDmListPanel> {
-  // Owned here rather than by the field, so the "+" and the member context
-  // menu can both drive it.
+  // Owned here rather than by the field, so "Message on Central" from a member
+  // menu can seed and focus it.
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
 
@@ -65,7 +65,7 @@ class _CentralDmListPanelState extends State<CentralDmListPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeader(themeState, state, ready),
+          _buildHeader(themeState, state),
           if (ready)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
@@ -85,34 +85,26 @@ class _CentralDmListPanelState extends State<CentralDmListPanel> {
     );
   }
 
-  /// Who you are on central, and the way to start a conversation. No bottom
-  /// border — it opens the column the way a server header does, rather than
-  /// being a bar bolted across the top of it.
-  Widget _buildHeader(ThemeState themeState, CentralDmState state, bool ready) {
+  /// Who you are on central. No bottom border — it opens the column the way a
+  /// server header does, rather than being a bar bolted across the top of it.
+  ///
+  /// Nothing to press here: starting a conversation *is* finding someone, and
+  /// the field for that is the next thing down the column.
+  Widget _buildHeader(ThemeState themeState, CentralDmState state) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
-      child: Row(
-        spacing: 10,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Direct messages',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.panelTitle.copyWith(
-                    color: themeState.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                _buildIdentity(themeState, state),
-              ],
-            ),
+          Text(
+            'Direct messages',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.panelTitle.copyWith(color: themeState.textPrimary),
           ),
-          if (ready) _buildNewButton(themeState),
+          const SizedBox(height: 1),
+          _buildIdentity(themeState, state),
         ],
       ),
     );
@@ -145,39 +137,6 @@ class _CentralDmListPanelState extends State<CentralDmListPanel> {
           ),
         ),
       ],
-    );
-  }
-
-  /// Focuses the search field rather than opening anything: starting a
-  /// conversation *is* finding someone, and the field for that is right below.
-  Widget _buildNewButton(ThemeState themeState) {
-    final radius = BorderRadius.circular(9);
-    return Tooltip(
-      message: 'Find someone',
-      waitDuration: const Duration(milliseconds: 400),
-      child: Material(
-        color: themeState.primary.withValues(alpha: 0.12),
-        borderRadius: radius,
-        child: InkWell(
-          borderRadius: radius,
-          onTap: _searchFocus.requestFocus,
-          child: Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              border: Border.all(
-                color: themeState.primary.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Icon(
-              Icons.add_rounded,
-              size: 17,
-              color: themeState.accentBright,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
