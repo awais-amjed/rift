@@ -43,10 +43,17 @@ class AppModal extends StatelessWidget {
   final List<Widget>? actions;
   final double maxWidth;
 
-  /// Where a long form stops growing and starts scrolling. Without it a
-  /// six-field form opens nearly as tall as the window, which is a lot of
-  /// dialog for a form.
-  final double maxHeight;
+  /// Where a long form stops growing and starts scrolling.
+  ///
+  /// Defaults to [_maxHeightFraction] of the window rather than a fixed number
+  /// of pixels: the point of the cap is to leave the app visible around the
+  /// dialog, and how much room there is to leave is a property of the window,
+  /// not of the form. A fixed cap made the create-server form scroll on a
+  /// screen with several hundred pixels to spare.
+  final double? maxHeight;
+
+  /// How much of the window a modal may fill before it starts scrolling.
+  static const _maxHeightFraction = 0.85;
 
   const AppModal({
     super.key,
@@ -56,7 +63,7 @@ class AppModal extends StatelessWidget {
     required this.content,
     this.actions,
     this.maxWidth = 448,
-    this.maxHeight = 560,
+    this.maxHeight,
   });
 
   @override
@@ -77,7 +84,9 @@ class AppModal extends StatelessWidget {
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: maxWidth,
-              maxHeight: maxHeight,
+              maxHeight:
+                  maxHeight ??
+                  MediaQuery.sizeOf(context).height * _maxHeightFraction,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

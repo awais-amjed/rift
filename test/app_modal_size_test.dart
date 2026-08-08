@@ -32,19 +32,19 @@ final _surface = find
     .first;
 
 /// A modal is sized by what is in it, and the window it opens over is much
-/// bigger than that. Both halves of that need holding: it must not stretch to
-/// the window, and it must not grow past [AppModal.maxHeight] when the content
-/// is long — a form that opens window-tall is a lot of dialog for a form.
+/// bigger than that. Three things need holding: it must not stretch to the
+/// window, it must not scroll while the window has room for it — which a fixed
+/// pixel cap got wrong for the create-server form — and it must stop somewhere
+/// short of the window on content that has no natural end.
 void main() {
   setUpAll(() => HydratedBloc.storage = _MemoryStorage());
 
-  const window = Size(1600, 900);
   const maxWidth = 480.0;
-  const maxHeight = 560.0;
 
   Future<void> pump(
     WidgetTester tester, {
     required double contentHeight,
+    Size window = const Size(1600, 900),
   }) async {
     tester.view.physicalSize = window;
     tester.view.devicePixelRatio = 1.0;
@@ -57,7 +57,6 @@ void main() {
           home: AppModal(
             title: 'Add Server',
             maxWidth: maxWidth,
-            maxHeight: maxHeight,
             content: SizedBox(height: contentHeight, width: double.infinity),
           ),
         ),
@@ -75,10 +74,52 @@ void main() {
     expect(size.height, lessThan(260));
   });
 
-  testWidgets('a long one stops growing and scrolls instead', (tester) async {
+  testWidgets('a tall form does not scroll while the window has room', (
+    tester,
+  ) async {
+    // Roughly the create-server form: six fields, two section headers and a
+    // button row. It used to scroll here against a 560px cap.
+    await pump(tester, contentHeight: 560);
+
+    final scroll = tester.widget<SingleChildScrollView>(
+      find.byType(SingleChildScrollView),
+    );
+    final position = tester
+        .state<ScrollableState>(find.byType(Scrollable))
+        .position;
+
+    expect(scroll, isNotNull);
+    expect(position.maxScrollExtent, 0, reason: 'nothing to scroll to');
+  });
+
+  testWidgets('it still stops short of filling the window', (tester) async {
     await pump(tester, contentHeight: 2000);
 
-    expect(tester.getSize(_surface).height, maxHeight);
-    expect(find.byType(Scrollable), findsOneWidget);
+    final height = tester.getSize(_surface).height;
+    expect(height, lessThan(900 * 0.9));
+    expect(
+      tester.state<ScrollableState>(find.byType(Scrollable)).position,
+      isA<ScrollPosition>().having(
+        (p) => p.maxScrollExtent,
+        'maxScrollExtent',
+        greaterThan(0),
+      ),
+    );
+  });
+
+  testWidgets('a small window makes it scroll rather than overflow', (
+    tester,
+  ) async {
+    await pump(tester, contentHeight: 560, window: const Size(1000, 600));
+
+    expect(tester.getSize(_surface).height, lessThanOrEqualTo(600 * 0.85));
+    expect(
+      tester.state<ScrollableState>(find.byType(Scrollable)).position,
+      isA<ScrollPosition>().having(
+        (p) => p.maxScrollExtent,
+        'maxScrollExtent',
+        greaterThan(0),
+      ),
+    );
   });
 }
