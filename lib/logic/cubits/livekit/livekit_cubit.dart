@@ -27,7 +27,6 @@ part 'livekit_media_controls.dart';
 part 'livekit_participants.dart';
 part 'livekit_screenshare.dart';
 part 'livekit_room_events.dart';
-part 'livekit_voice_gate.dart';
 part 'livekit_voice_activity.dart';
 
 /// Cubit managing LiveKit room connections, participants, and media controls.
@@ -38,7 +37,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _ParticipantMixin,
         _ScreenshareMixin,
         _RoomEventsMixin,
-        _VoiceGateMixin,
         _VoiceActivityMixin {
   @override
   final AppCubit _appCubit;
@@ -110,9 +108,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
         // comes from LiveKit's active-speaker detection, tuned server-side via
         // `audio.active_level` / `update_interval` (see docs/livekit_tuning).
         //
-        // The local user stays client-side: that analyser already runs for the
-        // noise gate, so it costs nothing extra, and `update_interval` is a
-        // latency floor you'd feel on your own indicator.
+        // The local user stays client-side: one analyser on our own mic, and
+        // `update_interval` is a latency floor you'd feel on your own
+        // indicator.
         isSpeaking: p is LocalParticipant ? localIsSpeaking : p.isSpeaking,
         isMicrophoneEnabled: p.isMicrophoneEnabled(),
         isCameraEnabled: p.isCameraEnabled(),
@@ -142,11 +140,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
         previous.autoGainControl != appState.autoGainControl;
     if (audioProcessingChanged) {
       unawaited(_refreshMicrophoneCapture());
-    }
-
-    // Voice-activity threshold change: attach/detach or retune the gate.
-    if (previous.voiceActivityThreshold != appState.voiceActivityThreshold) {
-      unawaited(_updateVoiceActivityMonitor());
     }
 
     final pttChanged =
@@ -189,7 +182,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
       shouldTransmit,
       audioCaptureOptions: _buildAudioCaptureOptions(),
     );
-    // Re-bind the voice-activity gate to the (possibly new) mic track.
+    // Re-bind the level monitor to the (possibly new) mic track.
     await _updateVoiceActivityMonitor();
     if (syncParticipants) _syncParticipants();
   }

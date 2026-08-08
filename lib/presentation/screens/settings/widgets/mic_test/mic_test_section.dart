@@ -8,19 +8,18 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/mic_test_capture.dart';
-import 'widgets/input_sensitivity_panel.dart';
+import 'widgets/input_level_panel.dart';
 import 'widgets/mic_test_controls.dart';
 
 /// "Mic Test" settings block: shows a live input-level meter so the user can
-/// confirm their mic works, see the effect of the processing toggles, and set
-/// the noise-gate threshold against something they can watch.
+/// confirm their mic works and see the effect of the processing toggles.
 ///
 /// Where the level comes from depends on whether a call already owns the
 /// microphone:
 ///
 /// - **In a call, mic live** — it reads [LiveKitCubit.micLevels], the tap
-///   already running for the noise gate. No second capture, so nothing to hand
-///   back, and the meter shows the very signal being published.
+///   already running for the speaking indicator. No second capture, so nothing
+///   to hand back, and the meter shows the very signal being published.
 /// - **Otherwise** — no call, or muted, so nothing holds the device — it opens
 ///   its own microphone through [MicTestCapture] and releases it when the test
 ///   stops or the screen is disposed.
@@ -157,35 +156,23 @@ class _MicTestSectionState extends State<MicTestSection> {
   @override
   Widget build(BuildContext context) {
     final themeState = widget.themeState;
-    return BlocBuilder<AppCubit, AppState>(
-      buildWhen: (a, b) =>
-          a.voiceActivityThreshold != b.voiceActivityThreshold ||
-          a.pushToTalkEnabled != b.pushToTalkEnabled,
-      builder: (context, appState) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InputSensitivityPanel(
-              level: _level,
-              testing: _testing,
-              threshold: appState.voiceActivityThreshold,
-              onThresholdChanged: context
-                  .read<AppCubit>()
-                  .setVoiceActivityThreshold,
-              pushToTalkEnabled: appState.pushToTalkEnabled,
-              themeState: themeState,
-            ),
-            const SizedBox(height: 10),
-            MicTestControls(
-              testing: _testing,
-              busy: _busy,
-              error: _error,
-              onToggle: _toggle,
-              themeState: themeState,
-            ),
-          ],
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InputLevelPanel(
+          level: _level,
+          testing: _testing,
+          themeState: themeState,
+        ),
+        const SizedBox(height: 10),
+        MicTestControls(
+          testing: _testing,
+          busy: _busy,
+          error: _error,
+          onToggle: _toggle,
+          themeState: themeState,
+        ),
+      ],
     );
   }
 }

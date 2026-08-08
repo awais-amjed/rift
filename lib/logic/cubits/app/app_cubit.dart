@@ -80,12 +80,6 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(autoGainControl: value));
   }
 
-  /// Voice-activity gate threshold (0..1). The LiveKitCubit watches this and
-  /// gates mic transmission accordingly during a call.
-  void setVoiceActivityThreshold(double value) {
-    emit(state.copyWith(voiceActivityThreshold: value.clamp(0.0, 1.0)));
-  }
-
   /// How many emoji the picker's "frequently used" row remembers. One row of
   /// eight, which is what the design shows.
   static const int maxRecentEmojis = 8;

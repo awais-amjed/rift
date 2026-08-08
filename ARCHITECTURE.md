@@ -270,9 +270,8 @@ purpose:
   under-triggering indicator — that is a configuration problem, not a bug.
 - **The local user** — measured on-device by `SpeechDetector` from the mic
   level. `update_interval` is a floor on how fast the server view can react and
-  a few hundred ms of lag on your *own* indicator is very noticeable. The
-  analyser this needs already runs for the voice-activity gate, so it is one
-  analyser regardless of channel size.
+  a few hundred ms of lag on your *own* indicator is very noticeable. It is one
+  analyser on the local mic, regardless of channel size.
 
 An earlier version ran an analyser per *remote* track too. It gave identical
 behaviour everywhere with no server config, but the CPU scaled with the number

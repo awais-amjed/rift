@@ -1,8 +1,8 @@
 /// Thins a fast stream of audio levels down to a rate a meter can paint,
 /// without losing the peaks.
 ///
-/// WebRTC delivers a frame every 10 ms. The noise gate and the speaking
-/// indicator want all of them; a widget repainting a hundred times a second
+/// WebRTC delivers a frame every 10 ms. The speaking indicator wants all of
+/// them; a widget repainting a hundred times a second
 /// does not. Sampling whichever frame happens to land on the tick would drop
 /// short, loud sounds — a clap, the start of a word — so the loudest level
 /// since the last emission is carried forward and published instead.

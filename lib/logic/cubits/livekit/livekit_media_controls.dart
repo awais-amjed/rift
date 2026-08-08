@@ -40,7 +40,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
       }
       _appCubit.setAudioEnabled(false);
       emit(state.copyWith(isDeafened: true, isMicEnabled: false));
-      // The mic track is gone — detach the voice-activity gate from it.
+      // The mic track is gone — detach the level monitor from it.
       await _updateVoiceActivityMonitor();
     } else {
       if (room != null) {

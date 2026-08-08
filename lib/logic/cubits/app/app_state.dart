@@ -30,11 +30,6 @@ class AppState {
   final bool echoCancellation;
   final bool autoGainControl;
 
-  /// Voice-activity gate threshold, 0..1. In voice-activity mode (push-to-talk
-  /// off) the mic only transmits when its input level is at or above this.
-  /// 0 disables the gate (open mic — the previous behaviour).
-  final double voiceActivityThreshold;
-
   /// Emoji the user reaches for, most recent first, capped at
   /// [AppCubit.maxRecentEmojis]. Kept here rather than in the emoji package's
   /// own store: its writer needs a handle to the widget it ships, which the
@@ -74,7 +69,6 @@ class AppState {
     this.noiseSuppression = true,
     this.echoCancellation = true,
     this.autoGainControl = true,
-    this.voiceActivityThreshold = 0.0,
     this.recentEmojis = const [],
     this.membersSidebarOpen = true,
     this.isHovered = false,
@@ -107,7 +101,6 @@ class AppState {
     bool? noiseSuppression,
     bool? echoCancellation,
     bool? autoGainControl,
-    double? voiceActivityThreshold,
     List<String>? recentEmojis,
     bool? membersSidebarOpen,
     bool? isHovered,
@@ -145,8 +138,6 @@ class AppState {
       noiseSuppression: noiseSuppression ?? this.noiseSuppression,
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,
-      voiceActivityThreshold:
-          voiceActivityThreshold ?? this.voiceActivityThreshold,
       recentEmojis: recentEmojis ?? this.recentEmojis,
       membersSidebarOpen: membersSidebarOpen ?? this.membersSidebarOpen,
       isHovered: isHovered ?? this.isHovered,

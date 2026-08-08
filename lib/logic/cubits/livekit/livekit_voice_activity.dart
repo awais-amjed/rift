@@ -1,21 +1,17 @@
 part of 'livekit_cubit.dart';
 
 /// Local microphone monitor: measures the mic level and drives the speaking
-/// indicator, the settings meter and the noise gate from it.
+/// indicator and the settings meter from it.
 ///
 /// The level comes from the microphone's raw PCM, tapped with
 /// [AudioTrack.addAudioRenderer] and reduced to one number per frame by
-/// [PcmLevel]. It runs whenever the mic is live — not only when gating is on —
-/// because the speaking glow needs it either way.
+/// [PcmLevel]. It runs whenever the mic is live.
 ///
 /// It used to come from an [AudioVisualizer] instead, whose normalised band
 /// peak is a display value with no defined relationship to loudness: a quiet
-/// room read about 0.03 and a raised voice about 0.25, so everything the user
-/// might want to threshold between was crowded into the bottom tenth of the
-/// range. Every attempt at a usable slider was really an attempt to compensate
-/// for that. [PcmLevel] measures dBFS instead, which spreads silence and speech
-/// across the whole scale, and lets the threshold be an ordinary linear
-/// fraction of it.
+/// room read about 0.03 and a raised voice about 0.25, so speech and silence
+/// were crowded into the bottom tenth of the range. [PcmLevel] measures dBFS
+/// instead, which spreads them across the whole scale.
 ///
 /// **Speaking**: LiveKit's `isSpeaking` comes from the server's active-speaker
 /// detection, which reports only the loudest few participants on a fixed
@@ -23,17 +19,14 @@ part of 'livekit_cubit.dart';
 /// local user the mic level is right here, so [SpeechDetector] decides it
 /// locally and immediately. Remote participants still use the server's view.
 ///
-/// **Gating** lives in [_VoiceGateMixin]; this mixin only feeds it levels.
+/// There used to be a noise gate here too — a user-set threshold below which
+/// the mic stopped transmitting. It never worked. Gating the capture track
+/// released the microphone on Linux, so the monitor went deaf and the gate
+/// could never reopen itself; gating the RTP sender instead left the device
+/// alone but libwebrtc ignored the inactive encoding and kept transmitting. It
+/// was removed rather than carried as a setting that does nothing.
 mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   void _syncParticipants();
-  bool get _monitorActive;
-  LocalTrackPublication? _localMicPublication();
-  bool get _gateActive;
-  void _feedGate(double level, DateTime now);
-  Future<void> _primeGate();
-  Future<void> _releaseGate();
-  void _noteMicFrame(DateTime now);
-  void _cancelVadWatchdog();
 
   CancelListenFunc? _vadRendererCancel;
   String? _vadTrackId; // media-stream track id the renderer is bound to
@@ -47,8 +40,7 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   final StreamController<double> _micLevelController =
       StreamController<double>.broadcast();
 
-  /// The live microphone level, 0–1 on [PcmLevel]'s scale, from the tap
-  /// already running for the gate and the speaking indicator.
+  /// The live microphone level, 0–1 on [PcmLevel]'s scale.
   ///
   /// Exposed so the mic test in settings can draw its meter without opening a
   /// second capture of a device this call is already holding. On a Bluetooth
@@ -64,18 +56,33 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   /// capturing, so a meter can read it instead of opening its own microphone.
   bool get isMicLevelAvailable => _monitorActive && _vadRendererCancel != null;
 
-  /// Thins [micLevels] down to a paintable rate. The gate and the speaking
-  /// detector still see every frame.
+  /// Thins [micLevels] down to a paintable rate. The speaking detector still
+  /// sees every frame.
   final LevelThrottle _micLevelThrottle = LevelThrottle();
+
+  /// Whether the mic level is worth measuring at all.
+  bool get _monitorActive {
+    if (state.connectionState != LiveKitConnectionState.connected) return false;
+    return state.isMicEnabled && !state.isDeafened;
+  }
+
+  LocalTrackPublication? _localMicPublication() {
+    final pubs = state.room?.localParticipant?.audioTrackPublications;
+    if (pubs == null) return null;
+    for (final pub in pubs) {
+      if (pub.source == TrackSource.microphone) return pub;
+    }
+    return null;
+  }
 
   /// Serialises every monitor lifecycle step.
   ///
   /// [_updateVoiceActivityMonitor] is fired from a dozen places — every mute,
-  /// unmute, deafen, push-to-talk change, threshold change and connect —
-  /// several of them unawaited, and it awaits while tearing the old tap down.
-  /// Two overlapping runs would both reach the attach below, and only the last
-  /// one's cancel function would be stored. The other is left attached to the
-  /// mic track with nothing holding a reference to remove it.
+  /// unmute, deafen, push-to-talk change and connect — several of them
+  /// unawaited, and it awaits while tearing the old tap down. Two overlapping
+  /// runs would both reach the attach below, and only the last one's cancel
+  /// function would be stored. The other is left attached to the mic track
+  /// with nothing holding a reference to remove it.
   ///
   /// That orphan is the leave-hang. It outlives the track it is sinking, so
   /// disposing the room tears the track out from under a live native sink,
@@ -84,9 +91,8 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   /// that runs two of these close enough together.
   final SerialQueue _vadQueue = SerialQueue(label: '[LiveKit] voice activity');
 
-  /// Attaches or detaches the monitor to match the current settings and mic
-  /// track. Safe to call repeatedly — after any mic transmission change or
-  /// relevant setting change.
+  /// Attaches or detaches the monitor to match the current mic track. Safe to
+  /// call repeatedly — after any mic transmission change.
   Future<void> _updateVoiceActivityMonitor() => _vadQueue.add(_applyMonitor);
 
   /// Detaches the monitor. Queued behind any in-flight attach, so teardown
@@ -105,17 +111,11 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
       // The private form, not the queued one — this is already running as a
       // queue step, and waiting on the queue from inside it would deadlock.
       await _teardownMonitor();
-      await _releaseGate();
       return;
     }
 
     final trackId = track.mediaStreamTrack.id;
-    if (_vadRendererCancel != null && _vadTrackId == trackId) {
-      // Already watching this track — just reconcile the gate, since the
-      // threshold or push-to-talk may have changed under us.
-      if (!_gateActive) await _releaseGate();
-      return;
-    }
+    if (_vadRendererCancel != null && _vadTrackId == trackId) return;
 
     // A different (or first) mic track — rebind the tap to it. The mic
     // publication's track is always a LocalAudioTrack (an AudioTrack).
@@ -125,7 +125,6 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
       onFrame: _onAudioFrame,
       options: micTapFormat,
     );
-    await _primeGate();
   }
 
   void _onAudioFrame(AudioFrame frame) {
@@ -133,15 +132,9 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     final level = PcmLevel.fromInt16(frame.data);
     final now = DateTime.now();
 
-    // Speaking indicator — independent of whether the gate is in use.
     if (_speechDetector.update(level, now)) _syncParticipants();
 
     _emitMicLevel(level, now);
-
-    // This frame is proof the mic is still audible, whatever the gate is doing.
-    _noteMicFrame(now);
-
-    _feedGate(level, now);
   }
 
   void _emitMicLevel(double level, DateTime now) {
@@ -158,9 +151,6 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     _vadRendererCancel = null;
     _vadTrackId = null;
     _micLevelThrottle.reset();
-    // No tap means no frames, and a countdown with nothing to reset it would
-    // fire on a gate that is already being taken down.
-    _cancelVadWatchdog();
 
     await cancel?.call();
     // A muted mic must not leave the glow stuck on.

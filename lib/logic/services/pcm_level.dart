@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 /// Turns a frame of raw microphone PCM into the single 0–1 number that the
-/// level meter, the speaking indicator and the noise gate all share.
+/// level meter and the speaking indicator share.
 ///
 /// This replaces the audio visualizer's normalised band peak, which was a
 /// display value with no defined relationship to loudness. Real audio occupied
