@@ -62,8 +62,25 @@ class K {
   static const double serverRailChipSize = 40;
 
   // ── Sidebar ───────────────────────────────────────────────
-  /// Rail + channel column, as one floating panel.
+  /// Rail + channel column, as one floating panel. Draggable — this is where
+  /// it starts, and what it returns to on a double-click.
   static const double sidebarWidth = 346;
+
+  /// How narrow the sidebar may be dragged. The rail takes
+  /// [serverRailWidth] of it whatever happens, so this floor is really about
+  /// what is left for the channel column: at 260 that is ~200px, still enough
+  /// for a channel name and its unread badge.
+  static const double sidebarMinWidth = 260;
+
+  /// How wide it may be dragged. Also capped against the window at
+  /// [sidebarMaxWindowFraction], so it can never crowd out the content.
+  static const double sidebarMaxWidth = 560;
+  static const double sidebarMaxWindowFraction = 0.5;
+
+  /// The grab strip between the sidebar and the content. It occupies the
+  /// gutter that used to be an empty [panelGutter] gap, so making the sidebar
+  /// resizable cost no layout width.
+  static const double sidebarResizeHandleWidth = panelGutter;
 
   /// Right-hand member list. Narrower than the left sidebar — it holds one
   /// short name per row, not channel trees.

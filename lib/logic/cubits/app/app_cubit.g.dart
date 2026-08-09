@@ -42,6 +42,7 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
           .toList() ??
       const [],
   membersSidebarOpen: json['membersSidebarOpen'] as bool? ?? true,
+  sidebarWidth: (json['sidebarWidth'] as num?)?.toDouble() ?? K.sidebarWidth,
 );
 
 Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
@@ -63,6 +64,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'disableAudioDucking': instance.disableAudioDucking,
   'statsOverlayPinned': instance.statsOverlayPinned,
   'membersSidebarOpen': instance.membersSidebarOpen,
+  'sidebarWidth': instance.sidebarWidth,
   'outputDeviceId': instance.outputDeviceId,
   'inputDeviceId': instance.inputDeviceId,
   'noiseSuppression': instance.noiseSuppression,

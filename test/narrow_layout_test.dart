@@ -119,12 +119,17 @@ void main() {
 
   // 120px is the bar because it is just under the narrowest width the app
   // actually hands one of these: a dialog's action row splits into ~113px
-  // buttons, and the members sidebar is 232. Nothing here is user-resizable.
+  // buttons, and the members sidebar is 232.
   //
-  // It is deliberately not lower. At 40px there is no room for one character
-  // beside an icon, so the only way to pass would be to wrap everything in a
-  // ClipRect — which hides content rather than fitting it, and would be
-  // chasing a width no layout produces.
+  // The left sidebar *is* user-resizable, which is why K.sidebarMinWidth
+  // exists — dragged to its floor it still leaves ~200px beside the rail, well
+  // clear of this. `sidebar_sizing_test.dart` guards that relationship, so
+  // lowering the floor there fails rather than quietly invalidating this.
+  //
+  // Deliberately not lower than 120. At 40px there is no room for one
+  // character beside an icon, so the only way to pass would be to wrap
+  // everything in a ClipRect — which hides content rather than fitting it, and
+  // would be chasing a width no layout produces.
   const narrowest = 120.0;
 
   group('at ${narrowest.toInt()}px', () {

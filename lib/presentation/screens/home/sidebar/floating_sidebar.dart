@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/services/sidebar_sizing.dart';
 import '../../../common/app_panel.dart';
 import '../../../theme/app_shadows.dart';
 import 'widgets/sidebar_content.dart';
@@ -28,16 +29,24 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    // The overlay isn't draggable — there is no gutter to grab beside it — but
+    // it uses the width chosen while pinned, so unpinning doesn't resize the
+    // thing you just sized.
+    final width = SidebarSizing.clamp(
+      context.watch<AppCubit>().state.sidebarWidth,
+      windowWidth: MediaQuery.sizeOf(context).width,
+    );
+
     return Stack(
       children: [
         // ── Sliding sidebar overlay ───────────────────────────
         AnimatedPositioned(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          left: _hovered ? 0 : -K.sidebarWidth,
+          left: _hovered ? 0 : -width,
           top: 0,
           bottom: 0,
-          width: K.sidebarWidth,
+          width: width,
           child: MouseRegion(
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),

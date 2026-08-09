@@ -22,6 +22,11 @@ class AppState {
   /// Whether the right-hand member sidebar is expanded. Persisted so the
   /// layout survives a restart.
   final bool membersSidebarOpen;
+
+  /// How wide the user has dragged the left sidebar. Stored raw and clamped
+  /// on read by [SidebarSizing], because the window it was chosen in is not
+  /// necessarily the window it will next be shown in.
+  final double sidebarWidth;
   final String? outputDeviceId;
   final String? inputDeviceId;
 
@@ -71,6 +76,7 @@ class AppState {
     this.autoGainControl = true,
     this.recentEmojis = const [],
     this.membersSidebarOpen = true,
+    this.sidebarWidth = K.sidebarWidth,
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
@@ -103,6 +109,7 @@ class AppState {
     bool? autoGainControl,
     List<String>? recentEmojis,
     bool? membersSidebarOpen,
+    double? sidebarWidth,
     bool? isHovered,
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
@@ -140,6 +147,7 @@ class AppState {
       autoGainControl: autoGainControl ?? this.autoGainControl,
       recentEmojis: recentEmojis ?? this.recentEmojis,
       membersSidebarOpen: membersSidebarOpen ?? this.membersSidebarOpen,
+      sidebarWidth: sidebarWidth ?? this.sidebarWidth,
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId
           ? null

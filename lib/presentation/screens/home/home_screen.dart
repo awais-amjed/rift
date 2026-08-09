@@ -112,10 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Row(
                         children: [
+                          // The gutter is inside Sidebar now — it is the strip
+                          // you drag to resize, so it can't be a plain gap.
                           if (appState.isPinned)
                             Sidebar(topPadding: topPadding),
-                          if (appState.isPinned)
-                            const SizedBox(width: K.panelGutter),
                           const Expanded(child: MainContent()),
                         ],
                       ),

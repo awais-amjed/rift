@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../data/constants.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
@@ -98,6 +99,15 @@ class AppCubit extends HydratedCubit<AppState> {
 
   void setStatsOverlayPinned(bool pinned) {
     emit(state.copyWith(statsOverlayPinned: pinned));
+  }
+
+  /// Stores the dragged sidebar width. Deliberately unclamped here: the bounds
+  /// depend on the window, and [SidebarSizing.clamp] applies them on the way
+  /// out. Storing a clamped value would make a width chosen on a small window
+  /// permanent once the window grew again.
+  void setSidebarWidth(double width) {
+    if (!width.isFinite || width == state.sidebarWidth) return;
+    emit(state.copyWith(sidebarWidth: width));
   }
 
   void toggleMembersSidebar() {
