@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/participant_identity.dart';
 import 'package:rift/presentation/theme/identity_gradients.dart';
 
 /// An avatar's colour is an identity cue: it has to be the same every run, and
@@ -38,5 +39,36 @@ void main() {
     for (final seed in ['🙂', 'Ünïcødé', '日本語', ' ']) {
       expect(IdentityGradients.all, contains(IdentityGradients.forSeed(seed)));
     }
+  });
+
+  // The gradient is a per-user concern, so it seeds from the user id — never
+  // from a LiveKit identity, which carries a device segment and a screenshare
+  // suffix. The voice grid used to seed from the raw identity, which is why a
+  // participant's colour there disagreed with their own sidebar row.
+  group('avatar seeds', () {
+    const userId = 'd290f1ee-6c54-4b01-90e6-d701748f0851';
+    const identities = [
+      '$userId~a1b2c3d4',
+      '$userId~e5f6a7b8',
+      '$userId~a1b2c3d4_screenshare',
+    ];
+
+    test('one user has one colour across devices and their screenshare', () {
+      final expected = IdentityGradients.forSeed(userId);
+      for (final identity in identities) {
+        expect(
+          IdentityGradients.forSeed(ParticipantIdentity.userIdOf(identity)),
+          same(expected),
+          reason: '$identity should carry its owner\'s colour',
+        );
+      }
+    });
+
+    test('seeding from the raw identity would split one person up', () {
+      // What the bug looked like: three connections belonging to one member,
+      // wearing more than one colour between them.
+      final seen = identities.map(IdentityGradients.forSeed).toSet();
+      expect(seen.length, greaterThan(1));
+    });
   });
 }

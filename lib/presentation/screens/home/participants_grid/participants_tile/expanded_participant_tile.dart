@@ -19,9 +19,11 @@ class ExpandedParticipantTile extends StatelessWidget {
   final VideoTrack? videoTrack;
   final String name;
 
-  /// LiveKit identity, used to pick the avatar's gradient so a
-  /// participant looks the same here as in the sidebar.
-  final String? identity;
+  /// The *user* id, which picks the avatar's gradient so a participant looks
+  /// the same here as in the sidebar. Not the LiveKit identity: that carries a
+  /// device segment, so seeding with it gave the same person a different
+  /// colour here, and a third one again for their screenshare.
+  final String? userId;
   final bool isMicEnabled;
   final bool isMuted;
   final bool isScreenshare;
@@ -39,7 +41,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     required this.themeState,
     required this.videoTrack,
     required this.name,
-    this.identity,
+    this.userId,
     required this.isMicEnabled,
     required this.isMuted,
     required this.isScreenshare,
@@ -74,7 +76,7 @@ class ExpandedParticipantTile extends StatelessWidget {
           if (videoTrack != null)
             VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain)
           else if (!showWatchButton)
-            AvatarPlaceholder(name: name, seed: identity),
+            AvatarPlaceholder(name: name, seed: userId),
           if (showStopButton && videoTrack != null)
             Positioned(
               top: 12,

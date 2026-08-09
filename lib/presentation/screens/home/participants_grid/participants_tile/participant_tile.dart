@@ -165,12 +165,18 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
             final videoTrack = track is VideoTrack ? track : null;
             final showStopButton =
                 _isScreenshare && isSubscribed && videoTrack != null;
+            // The identity carries a device segment (and a screenshare
+            // suffix), so everything about the *person* — their name, their
+            // gradient — keys off the user id inside it instead.
+            final userId = ParticipantIdentity.userIdOf(
+              widget.participant.identity,
+            );
             // `participant.name` is the display name frozen into the LiveKit
             // token at mint time, and tokens are cached for their full hour —
             // so a rename mid-call left the old name on the tile even after a
             // reconnect. The roster is the live copy.
             final name = context.watch<ServerMembersCubit>().state.nameFor(
-              ParticipantIdentity.userIdOf(widget.participant.identity),
+              userId,
               widget.participant.name,
             );
 
@@ -188,7 +194,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                         themeState: themeState,
                         videoTrack: videoTrack,
                         name: name,
-                        identity: widget.participant.identity,
+                        userId: userId,
                         isMicEnabled: widget.participant.isMicrophoneEnabled(),
                         isMuted: widget.isMuted,
                         isScreenshare: _isScreenshare,
@@ -205,6 +211,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                         themeState: themeState,
                         videoTrack: videoTrack,
                         name: name,
+                        userId: userId,
                         isSubscribed: isSubscribed,
                         showStopButton: showStopButton,
                       ),
@@ -225,6 +232,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     required ThemeState themeState,
     required VideoTrack? videoTrack,
     required String name,
+    required String userId,
     required bool isSubscribed,
     required bool showStopButton,
   }) {
@@ -240,7 +248,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           videoTrack: videoTrack,
           isSpeaking: isSpeaking && !widget.isMuted,
           name: name,
-          identity: widget.participant.identity,
+          userId: userId,
           isMicEnabled: widget.participant.isMicrophoneEnabled(),
           isMuted: widget.isMuted,
           isScreenshare: _isScreenshare,
