@@ -42,8 +42,9 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
   /// that a panel you've left doesn't linger.
   static const _closeGrace = Duration(milliseconds: 180);
 
-  /// Horizontal gap from the parent panel, and the lift that lines the
-  /// submenu's first row up with this one — [ContextMenuPanel] pads by 6.
+  /// Horizontal gap from the parent panel, on whichever side it opens, and the
+  /// lift that lines the submenu's first row up with this one —
+  /// `ContextMenuPanel` pads by 6.
   static const _gap = 4.0;
   static const _panelPadding = 6.0;
 
@@ -62,20 +63,24 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
     final overlayBox = overlayState.context.findRenderObject() as RenderBox?;
     if (box == null || overlayBox == null) return;
 
-    // Anchor on the row's top-right corner, in overlay coordinates.
-    final anchor =
-        box.localToGlobal(
-          box.size.topRight(Offset.zero),
-          ancestor: overlayBox,
-        ) +
-        const Offset(_gap, -_panelPadding);
+    // The whole row, in overlay coordinates, grown by the gap and by the
+    // panel's own padding. Both edges matter: the submenu opens past the right
+    // one, and when there isn't room it opens before the *left* one — clear of
+    // the parent panel rather than across it.
+    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+    final anchor = Rect.fromLTRB(
+      topLeft.dx - _gap,
+      topLeft.dy - _panelPadding,
+      topLeft.dx + box.size.width + _gap,
+      topLeft.dy + box.size.height + _panelPadding,
+    );
 
     final dismissAll = ContextMenuScope.of(context);
 
     _entry = OverlayEntry(
       builder: (_) => Positioned.fill(
         child: CustomSingleChildLayout(
-          delegate: ContextMenuLayout(target: anchor),
+          delegate: ContextMenuLayout(anchor: anchor),
           child: MouseRegion(
             onEnter: (_) => _closeTimer?.cancel(),
             onExit: (_) => _scheduleClose(),

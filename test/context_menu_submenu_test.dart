@@ -38,7 +38,10 @@ void main() {
 
   var siblingTaps = 0;
 
-  Future<void> pump(WidgetTester tester) {
+  Future<void> pump(
+    WidgetTester tester, {
+    Alignment alignment = Alignment.topLeft,
+  }) {
     siblingTaps = 0;
     return tester.pumpWidget(
       MaterialApp(
@@ -46,7 +49,7 @@ void main() {
           body: BlocProvider<ThemeCubit>(
             create: (_) => ThemeCubit(),
             child: Align(
-              alignment: Alignment.topLeft,
+              alignment: alignment,
               child: SizedBox(
                 width: 240,
                 child: Column(
@@ -104,6 +107,24 @@ void main() {
       greaterThanOrEqualTo(row.right),
       reason: 'the panel opens to the side, not over the row',
     );
+  });
+
+  // With the menu against the right edge there is nowhere to open into. It has
+  // to go out the other side: pivoting about the row's right edge put the panel
+  // straight over the menu it belongs to.
+  testWidgets('opens to the left when the right is full', (tester) async {
+    await pump(tester, alignment: Alignment.topRight);
+    await hoverOver(tester, find.byKey(rowKey));
+
+    final row = tester.getRect(find.byKey(rowKey));
+    final panel = tester.getRect(find.byKey(panelKey));
+
+    expect(
+      panel.right,
+      lessThanOrEqualTo(row.left),
+      reason: 'the panel must clear the menu, not cover it',
+    );
+    expect(panel.left, greaterThanOrEqualTo(0));
   });
 
   testWidgets('moving onto the panel keeps it open', (tester) async {

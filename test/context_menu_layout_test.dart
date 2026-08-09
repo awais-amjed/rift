@@ -15,7 +15,7 @@ void main() {
   const margin = 8.0;
 
   Offset place(Offset target, {Size child = menu, Size within = screen}) =>
-      ContextMenuLayout(target: target).getPositionForChild(within, child);
+      ContextMenuLayout.atPoint(target).getPositionForChild(within, child);
 
   group('opening downward', () {
     test('pins the top edge to the cursor', () {
@@ -94,8 +94,53 @@ void main() {
     }
   });
 
+  // A submenu hangs off the row that opened it, not off a point. Both edges of
+  // that row matter: it opens past the right one, and when it can't fit there
+  // it has to open before the *left* one. Pivoting about a single point put the
+  // submenu's right edge on the parent panel's right edge — straight on top of
+  // the menu it belongs to.
+  group('anchored to a row', () {
+    // A 232-wide parent panel sitting hard against the right of the screen.
+    const panelLeft = 1030.0;
+    const panelRight = 1262.0;
+    const row = Rect.fromLTRB(panelLeft, 300, panelRight, 336);
+    const submenu = Size(240, 160);
+
+    Offset place(Rect anchor, {Size child = submenu}) =>
+        ContextMenuLayout(anchor: anchor).getPositionForChild(screen, child);
+
+    test('opens past the row when there is room to the right', () {
+      const roomy = Rect.fromLTRB(200, 300, 432, 336);
+      expect(place(roomy).dx, roomy.right);
+    });
+
+    test('flips clear of the panel, not across it', () {
+      final position = place(row);
+
+      expect(
+        position.dx + submenu.width,
+        row.left,
+        reason: 'its right edge should meet the panel’s left edge',
+      );
+      expect(
+        position.dx + submenu.width,
+        lessThanOrEqualTo(panelLeft),
+        reason: 'and so never overlap the menu it opened from',
+      );
+    });
+
+    test('lines its top up with the row', () {
+      expect(place(row).dy, row.top);
+    });
+
+    test('flips upward from the row’s bottom edge', () {
+      const low = Rect.fromLTRB(200, 674, 432, 700);
+      expect(place(low).dy + submenu.height, low.bottom);
+    });
+  });
+
   test('the child is never asked to be bigger than the screen', () {
-    const delegate = ContextMenuLayout(target: Offset.zero);
+    final delegate = ContextMenuLayout.atPoint(Offset.zero);
     final constraints = delegate.getConstraintsForChild(
       BoxConstraints.tight(screen),
     );
