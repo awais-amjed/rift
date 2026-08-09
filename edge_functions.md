@@ -58,6 +58,20 @@ the old grant. In practice the mute landed somewhere up to an hour later.
    their track — it restores the permission and leaves the mic to them.
 3. `removeParticipant` instead of the above, when the action is a ban.
 
+**A server deafen takes the microphone as well as the ears** — you can't hold up
+your end of a conversation you can't hear, and every client already drew it that
+way. `micDenied(muted, deafened)` is where that lives, so the grant and the live
+permission agree on it.
+
+**Moderation never overwrites what the member chose.** `LiveKitState` keeps
+`isMicEnabled`/`isDeafened` as the member's own toggles and `isServerMuted`/
+`isServerDeafened` as what was imposed; `isMicOn` is the conjunction. Lifting a
+mute therefore needs no guesswork — the member's own choice was still recorded,
+so someone who had muted themselves stays muted and someone who hadn't comes
+back on. The client reacts to its own metadata changing by republishing the mic
+(a revoked source makes LiveKit unpublish the track, so releasing it has to
+publish again) and by resubscribing to remote audio when a deafen lifts.
+
 The permission encoding is a trap worth knowing: `canPublishSources` on an
 **AccessToken grant** uses `undefined` for "all sources", while the same field on
 a live **ParticipantPermission** uses an **empty list**. `_shared/moderation.ts`

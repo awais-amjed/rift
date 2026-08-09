@@ -46,10 +46,14 @@ class ControlBar extends StatelessWidget {
                     child: IgnorePointer(
                       ignoring: !visible,
                       child: _ControlBarContent(
-                        isMicEnabled: livekitState.isMicEnabled,
+                        // The effective state, not the raw toggles: a
+                        // moderator holding the mic has to read as muted here.
+                        isMicOn: livekitState.isMicOn,
                         isCameraEnabled: livekitState.isCameraEnabled,
                         isScreenSharing: screenshareState.isSharing,
-                        isDeafened: livekitState.isDeafened,
+                        isDeafened: livekitState.isDeafenedEffective,
+                        isServerMuted: livekitState.isServerMuted,
+                        isServerDeafened: livekitState.isServerDeafened,
                       ),
                     ),
                   ),
@@ -64,13 +68,19 @@ class ControlBar extends StatelessWidget {
 }
 
 class _ControlBarContent extends StatelessWidget {
-  final bool isMicEnabled;
+  final bool isMicOn;
   final bool isCameraEnabled;
   final bool isScreenSharing;
   final bool isDeafened;
 
+  /// Moderation, so the tooltip can say why the button won't move.
+  final bool isServerMuted;
+  final bool isServerDeafened;
+
   const _ControlBarContent({
-    required this.isMicEnabled,
+    required this.isMicOn,
+    required this.isServerMuted,
+    required this.isServerDeafened,
     required this.isCameraEnabled,
     required this.isScreenSharing,
     required this.isDeafened,
@@ -175,11 +185,11 @@ class _ControlBarContent extends StatelessWidget {
                     const SizedBox(width: 4),
                     // Mic
                     _ControlButton(
-                      icon: isMicEnabled && !isDeafened
-                          ? Icons.mic
-                          : Icons.mic_off,
-                      isError: !isMicEnabled || isDeafened,
-                      tooltip: isMicEnabled && !isDeafened ? 'Mute' : 'Unmute',
+                      icon: isMicOn ? Icons.mic : Icons.mic_off,
+                      isError: !isMicOn,
+                      tooltip: isServerMuted || isServerDeafened
+                          ? 'Muted by a moderator'
+                          : (isMicOn ? 'Mute' : 'Unmute'),
                       onTap: () => _toggleMic(context),
                     ),
                     const SizedBox(width: 4),
@@ -187,7 +197,9 @@ class _ControlBarContent extends StatelessWidget {
                     _ControlButton(
                       icon: isDeafened ? Icons.headset_off : Icons.headset,
                       isError: isDeafened,
-                      tooltip: isDeafened ? 'Undeafen' : 'Deafen',
+                      tooltip: isServerDeafened
+                          ? 'Deafened by a moderator'
+                          : (isDeafened ? 'Undeafen' : 'Deafen'),
                       onTap: () => _toggleDeafen(context),
                     ),
                     // Divider

@@ -122,6 +122,51 @@ class LiveKitCubit extends Cubit<LiveKitState>
     }).toList();
 
     _appCubit.setParticipants(ParticipantRoster.dedupeByUser(infos));
+    _syncSelfModeration(infos);
+  }
+
+  /// Picks our own moderation state out of the roster and acts on a change.
+  ///
+  /// It has to be acted on, not merely displayed. Revoking the microphone makes
+  /// LiveKit unpublish the track, so lifting the mute has to republish it —
+  /// otherwise the member stays silent until they happen to toggle their mic,
+  /// which is what "the admin unmuted me and nothing happened" looked like.
+  /// Lifting a server deafen likewise has to hand the remote audio back.
+  void _syncSelfModeration(List<ParticipantInfo> infos) {
+    ParticipantInfo? me;
+    for (final info in infos) {
+      if (info.isLocal && !info.isScreenshare) {
+        me = info;
+        break;
+      }
+    }
+    if (me == null) return;
+
+    if (me.isServerMuted == state.isServerMuted &&
+        me.isServerDeafened == state.isServerDeafened) {
+      return;
+    }
+
+    final wasDeafened = state.isDeafenedEffective;
+    emit(
+      state.copyWith(
+        isServerMuted: me.isServerMuted,
+        isServerDeafened: me.isServerDeafened,
+      ),
+    );
+    unawaited(_reactToSelfModeration(wasDeafened: wasDeafened));
+  }
+
+  /// Brings the local media back in line after our moderation state moved. The
+  /// user's own toggles are untouched, so what they get back is what they
+  /// themselves last chose — a mic they had muted stays muted.
+  Future<void> _reactToSelfModeration({required bool wasDeafened}) async {
+    if (wasDeafened && !state.isDeafenedEffective) {
+      await _restoreRemoteAudio();
+    } else if (!wasDeafened && state.isDeafenedEffective) {
+      await _silenceRemoteAudio();
+    }
+    await _syncMicrophoneTransmission(syncParticipants: true);
   }
 
   /// Collapses a user who is present from multiple devices into a single
@@ -156,8 +201,12 @@ class LiveKitCubit extends Cubit<LiveKitState>
   }
 
   @override
-  bool _shouldTransmitMic({required bool micEnabled, required bool deafened}) {
-    if (!micEnabled || deafened) return false;
+  bool _shouldTransmitMic({bool? micEnabled}) {
+    // `micEnabled` overrides only the user's own toggle, for the connect path
+    // where the stored preference is passed in before it reaches state. Their
+    // own deafen and any moderation always come from state.
+    if (!(micEnabled ?? state.isMicEnabled)) return false;
+    if (state.isDeafenedEffective || state.isServerMuted) return false;
     final pttEnabled = _appCubit.state.pushToTalkEnabled;
     final hasKeybind = _appCubit.state.pushToTalkKeyId != null;
     if (!pttEnabled) return true;
@@ -171,10 +220,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
   }) async {
     final room = state.room;
     if (room == null) return;
-    final shouldTransmit = _shouldTransmitMic(
-      micEnabled: state.isMicEnabled,
-      deafened: state.isDeafened,
-    );
+    final shouldTransmit = _shouldTransmitMic();
     // Pass the current capture options so a fresh mic track (created on
     // unmute) always picks up the latest noise-suppression / echo / AGC
     // settings, not the ones frozen into RoomOptions at connect time.

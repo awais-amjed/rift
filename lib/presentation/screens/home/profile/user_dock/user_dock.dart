@@ -137,8 +137,11 @@ class UserDock extends StatelessWidget {
   Widget _buildControls(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
       builder: (context, lkState) {
-        final micOn = lkState.isMicEnabled && !lkState.isDeafened;
-        final deafened = lkState.isDeafened;
+        // Effective state: a moderator holding the mic reads as muted here,
+        // and the tooltip says so rather than offering an "Unmute" that the
+        // cubit will refuse.
+        final micOn = lkState.isMicOn;
+        final deafened = lkState.isDeafenedEffective;
 
         return Row(
           mainAxisSize: MainAxisSize.min,
@@ -146,7 +149,9 @@ class UserDock extends StatelessWidget {
           children: [
             DockIconButton(
               icon: micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
-              tooltip: micOn ? 'Mute' : 'Unmute',
+              tooltip: lkState.isModerated
+                  ? 'Muted by a moderator'
+                  : (micOn ? 'Mute' : 'Unmute'),
               isError: !micOn,
               onTap: () => context.read<LiveKitCubit>().toggleMicrophone(),
             ),
@@ -154,7 +159,9 @@ class UserDock extends StatelessWidget {
               icon: deafened
                   ? Icons.headset_off_rounded
                   : Icons.headset_rounded,
-              tooltip: deafened ? 'Undeafen' : 'Deafen',
+              tooltip: lkState.isServerDeafened
+                  ? 'Deafened by a moderator'
+                  : (deafened ? 'Undeafen' : 'Deafen'),
               isError: deafened,
               onTap: () => context.read<LiveKitCubit>().toggleDeafen(),
             ),

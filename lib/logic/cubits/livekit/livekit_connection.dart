@@ -23,7 +23,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
   Future<void> _stopVoiceActivityMonitor();
 
   Future<void> _syncMicrophoneTransmission();
-  bool _shouldTransmitMic({required bool micEnabled, required bool deafened});
+  bool _shouldTransmitMic({bool? micEnabled});
   AudioCaptureOptions _buildAudioCaptureOptions();
 
   /// Connects to a LiveKit channel. Server context is resolved internally via
@@ -105,10 +105,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
     try {
       final useMicEnabled = micEnabled ?? state.isMicEnabled;
       final useCameraEnabled = cameraEnabled ?? state.isCameraEnabled;
-      final joinMicEnabled = _shouldTransmitMic(
-        micEnabled: useMicEnabled,
-        deafened: state.isDeafened,
-      );
+      final joinMicEnabled = _shouldTransmitMic(micEnabled: useMicEnabled);
 
       await room.connect(
         livekitUrl,

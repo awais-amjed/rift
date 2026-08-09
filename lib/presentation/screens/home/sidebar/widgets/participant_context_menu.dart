@@ -114,7 +114,7 @@ class ParticipantContextMenu extends StatelessWidget {
             final double volume;
 
             if (isLocal) {
-              isMuted = !liveKitState.isMicEnabled;
+              isMuted = !liveKitState.isMicOn;
               volume = 1.0; // Volume slider not applicable for self
             } else {
               final setting = appState.participantSettings[targetUserId];
