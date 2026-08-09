@@ -9,13 +9,13 @@ import '../../../theme/app_motion.dart';
 import 'widgets/sidebar_content.dart';
 import 'widgets/sidebar_resize_handle.dart';
 
-/// The pinned sidebar, and the strip you drag to resize it.
+/// The left sidebar, and the strip you drag to resize it.
 ///
-/// Stays mounted while unpinned and animates its width to nothing, because a
-/// widget that has been removed from the tree can't animate away — pinning used
+/// Stays mounted while hidden and animates its width to nothing, because a
+/// widget that has been removed from the tree can't animate away — hiding used
 /// to be a hard cut for exactly that reason. Once the close has finished the
-/// contents are dropped, so an unpinned sidebar isn't a second invisible copy
-/// of itself rebuilding beside [FloatingSidebar].
+/// contents are dropped, so a hidden sidebar isn't an invisible copy of itself
+/// rebuilding for nobody. [SidebarTab] is what brings it back.
 ///
 /// The width is held locally while the pointer is down and only written to
 /// [AppCubit] when the drag ends. Emitting per frame would be a persisted write
@@ -42,7 +42,7 @@ class _SidebarState extends State<Sidebar> {
   @override
   void initState() {
     super.initState();
-    _showContent = context.read<AppCubit>().state.isPinned;
+    _showContent = context.read<AppCubit>().state.sidebarOpen;
   }
 
   void _onDrag(double delta, double stored, double windowWidth) {
@@ -70,16 +70,16 @@ class _SidebarState extends State<Sidebar> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<AppCubit, AppState>(
-      listenWhen: (prev, curr) => prev.isPinned != curr.isPinned,
+      listenWhen: (prev, curr) => prev.sidebarOpen != curr.sidebarOpen,
       listener: (context, appState) {
         // Back in the tree before the opening animation runs, or there would be
         // nothing inside the panel while it widens.
-        if (appState.isPinned && !_showContent) {
+        if (appState.sidebarOpen && !_showContent) {
           setState(() => _showContent = true);
         }
       },
       buildWhen: (prev, curr) =>
-          prev.isPinned != curr.isPinned ||
+          prev.sidebarOpen != curr.sidebarOpen ||
           prev.sidebarWidth != curr.sidebarWidth,
       builder: (context, appState) {
         final windowWidth = MediaQuery.sizeOf(context).width;
@@ -95,9 +95,9 @@ class _SidebarState extends State<Sidebar> {
           // polish — so while the pointer is down, the width tracks it exactly.
           duration: _dragWidth != null ? Duration.zero : K.sidebarMotion,
           curve: AppMotion.panel,
-          width: appState.isPinned ? full : 0,
+          width: appState.sidebarOpen ? full : 0,
           onEnd: () {
-            if (!appState.isPinned && _showContent) {
+            if (!appState.sidebarOpen && _showContent) {
               setState(() => _showContent = false);
             }
           },
@@ -118,7 +118,6 @@ class _SidebarState extends State<Sidebar> {
                         AppPanel(
                           width: width,
                           child: SidebarContent(
-                            isPinned: true,
                             topPadding: widget.topPadding,
                           ),
                         ),

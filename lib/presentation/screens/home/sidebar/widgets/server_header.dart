@@ -56,7 +56,7 @@ class ServerHeader extends StatelessWidget {
                 ),
                 Expanded(child: _buildIdentity(themeState)),
                 if (onOpenSettings != null) _buildSettingsButton(themeState),
-                _buildPinToggle(themeState),
+                _buildHideButton(context, themeState),
               ],
             ),
           ),
@@ -112,24 +112,20 @@ class ServerHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildPinToggle(ThemeState themeState) {
-    return BlocBuilder<AppCubit, AppState>(
-      buildWhen: (p, c) => p.isPinned != c.isPinned,
-      builder: (context, appState) {
-        return IconButton(
-          tooltip: appState.isPinned ? 'Unpin sidebar' : 'Pin sidebar',
-          visualDensity: VisualDensity.compact,
-          onPressed: () =>
-              context.read<AppCubit>().setIsPinned(!appState.isPinned),
-          icon: Icon(
-            appState.isPinned
-                ? Icons.chevron_left_rounded
-                : Icons.push_pin_outlined,
-            size: 18,
-            color: themeState.textTertiary,
-          ),
-        );
-      },
+  /// Hides the sidebar. Only ever points one way now — there is no pinned and
+  /// unpinned any more, just shown and hidden, and [SidebarTab] is what brings
+  /// it back. A button that changed into a pin depending on a mode you couldn't
+  /// see was describing a distinction that no longer exists.
+  Widget _buildHideButton(BuildContext context, ThemeState themeState) {
+    return IconButton(
+      tooltip: 'Hide sidebar',
+      visualDensity: VisualDensity.compact,
+      onPressed: () => context.read<AppCubit>().toggleSidebar(),
+      icon: Icon(
+        Icons.chevron_left_rounded,
+        size: 18,
+        color: themeState.textTertiary,
+      ),
     );
   }
 }

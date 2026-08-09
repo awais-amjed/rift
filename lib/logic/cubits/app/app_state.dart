@@ -3,7 +3,11 @@ part of 'app_cubit.dart';
 @JsonSerializable(explicitToJson: true)
 class AppState {
   // ── Persisted ──────────────────────────────────────────────
-  final bool isPinned;
+  /// Whether the left sidebar is shown. Hidden it takes no width at all and an
+  /// [EdgeTab] brings it back — the same as the member list on the other side.
+  /// It used to be `isPinned`, when hiding it meant swapping the panel for an
+  /// overlay that slid out on hover.
+  final bool sidebarOpen;
   final bool audioEnabled;
   final bool videoEnabled;
   final bool pushToTalkEnabled;
@@ -54,7 +58,7 @@ class AppState {
   final HomeSurface surface;
 
   const AppState({
-    this.isPinned = true,
+    this.sidebarOpen = true,
     this.audioEnabled = true,
     this.videoEnabled = false,
     this.pushToTalkEnabled = false,
@@ -84,7 +88,7 @@ class AppState {
   });
 
   AppState copyWith({
-    bool? isPinned,
+    bool? sidebarOpen,
     bool? audioEnabled,
     bool? videoEnabled,
     bool? pushToTalkEnabled,
@@ -117,7 +121,7 @@ class AppState {
     HomeSurface? surface,
   }) {
     return AppState(
-      isPinned: isPinned ?? this.isPinned,
+      sidebarOpen: sidebarOpen ?? this.sidebarOpen,
       audioEnabled: audioEnabled ?? this.audioEnabled,
       videoEnabled: videoEnabled ?? this.videoEnabled,
       pushToTalkEnabled: pushToTalkEnabled ?? this.pushToTalkEnabled,

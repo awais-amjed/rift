@@ -96,15 +96,18 @@ void main() {
       expect(opened(), 1);
     });
 
-    testWidgets('the pin toggle stays its own control', (tester) async {
+    testWidgets('the hide button stays its own control', (tester) async {
       final opened = await _pumpHeader(tester);
 
       await tester.tap(find.byIcon(Icons.chevron_left_rounded));
       await tester.pump();
 
-      // Unpinning must not also open settings.
+      // Hiding the sidebar must not also open settings.
       expect(opened(), 0);
-      expect(find.byIcon(Icons.push_pin_outlined), findsOneWidget);
+      // And it only ever points one way: there is no pinned/unpinned mode for
+      // it to describe any more, so it never becomes a pin.
+      expect(find.byIcon(Icons.chevron_left_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
     });
   });
 

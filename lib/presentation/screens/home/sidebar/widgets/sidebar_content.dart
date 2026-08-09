@@ -10,19 +10,17 @@ import 'server_dms_row.dart';
 import 'sidebar_channel_list.dart';
 import 'sidebar_header.dart';
 
-/// The main content of the sidebar, used both in pinned and floating modes.
+/// The main content of the sidebar.
 ///
 /// The column beside the rail is a list of *whatever tier the rail has
 /// selected*: a server's channels, or — with Home picked — your central
 /// conversations. The rail and the user dock frame both, because those two
 /// belong to you rather than to either tier.
 class SidebarContent extends StatelessWidget {
-  final bool isPinned;
   final double topPadding;
 
   const SidebarContent({
     super.key,
-    required this.isPinned,
     this.topPadding = 0,
   });
 

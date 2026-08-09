@@ -7,7 +7,7 @@ part of 'app_cubit.dart';
 // **************************************************************************
 
 AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
-  isPinned: json['isPinned'] as bool? ?? true,
+  sidebarOpen: json['sidebarOpen'] as bool? ?? true,
   audioEnabled: json['audioEnabled'] as bool? ?? true,
   videoEnabled: json['videoEnabled'] as bool? ?? false,
   pushToTalkEnabled: json['pushToTalkEnabled'] as bool? ?? false,
@@ -46,7 +46,7 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
 );
 
 Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
-  'isPinned': instance.isPinned,
+  'sidebarOpen': instance.sidebarOpen,
   'audioEnabled': instance.audioEnabled,
   'videoEnabled': instance.videoEnabled,
   'pushToTalkEnabled': instance.pushToTalkEnabled,

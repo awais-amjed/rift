@@ -18,8 +18,8 @@ class AppCubit extends HydratedCubit<AppState> {
 
   // ── Persisted: sidebar ───────────────────────────────────
 
-  void setIsPinned(bool isPinned) {
-    emit(state.copyWith(isPinned: isPinned));
+  void toggleSidebar() {
+    emit(state.copyWith(sidebarOpen: !state.sidebarOpen));
   }
 
   /// Switch the centre pane. Mutually exclusive by construction — there is

@@ -12,8 +12,8 @@ import '../../common/app_modal.dart';
 import '../../common/canvas_backdrop.dart';
 import 'main_content/main_content.dart';
 import 'servers/add_server/add_server_dialog.dart';
-import 'sidebar/floating_sidebar.dart';
 import 'sidebar/sidebar.dart';
+import 'sidebar/widgets/sidebar_tab.dart';
 import 'sidebar/widgets/sidebar_header.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -86,8 +86,10 @@ class _HomeScreenState extends State<HomeScreen> {
       listenWhen: (prev, curr) => prev.servers.length != curr.servers.length,
       child: Scaffold(
         body: BlocBuilder<AppCubit, AppState>(
+          // Showing and hiding the sidebar no longer restructures this screen
+          // — the sidebar and its tab each animate themselves — so the only
+          // thing left that moves the workspace is the title bar.
           buildWhen: (prev, curr) =>
-              prev.isPinned != curr.isPinned ||
               prev.titleBarVisible != curr.titleBarVisible,
           builder: (context, appState) {
             final titleBarVisible = appState.titleBarVisible;
@@ -112,18 +114,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Row(
                         children: [
-                          // Both are always mounted. Pinning used to add and
-                          // remove them, which is why it was a hard cut —
-                          // a widget that isn't there can't animate away.
-                          // Each hides itself instead, and takes 220ms doing it.
-                          //
-                          // The gutter lives inside Sidebar: it is the strip
-                          // you drag to resize, so it can't be a plain gap.
+                          // Always mounted, and hides itself by animating to no
+                          // width — adding and removing it is what made it a
+                          // hard cut before. The gutter lives inside it, being
+                          // the strip you drag to resize.
                           Sidebar(topPadding: topPadding),
                           const Expanded(child: MainContent()),
                         ],
                       ),
-                      FloatingSidebar(topPadding: topPadding),
+                      const Positioned(top: 12, left: 0, child: SidebarTab()),
                     ],
                   ),
                 ),
