@@ -5,16 +5,22 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/sidebar_sizing.dart';
 import '../../../common/app_panel.dart';
+import '../../../theme/app_motion.dart';
 import 'widgets/sidebar_content.dart';
 import 'widgets/sidebar_resize_handle.dart';
 
-/// The pinned sidebar, and the strip you drag to resize it. Renders nothing
-/// when unpinned — [FloatingSidebar] takes over there.
+/// The pinned sidebar, and the strip you drag to resize it.
+///
+/// Stays mounted while unpinned and animates its width to nothing, because a
+/// widget that has been removed from the tree can't animate away — pinning used
+/// to be a hard cut for exactly that reason. Once the close has finished the
+/// contents are dropped, so an unpinned sidebar isn't a second invisible copy
+/// of itself rebuilding beside [FloatingSidebar].
 ///
 /// The width is held locally while the pointer is down and only written to
-/// [AppCubit] when the drag ends. Emitting per frame would be a persisted
-/// write per frame, since AppCubit is hydrated, to store a value that is about
-/// to change again anyway.
+/// [AppCubit] when the drag ends. Emitting per frame would be a persisted write
+/// per frame, since AppCubit is hydrated, to store a value that is about to
+/// change again anyway.
 class Sidebar extends StatefulWidget {
   final double topPadding;
 
@@ -27,6 +33,17 @@ class Sidebar extends StatefulWidget {
 class _SidebarState extends State<Sidebar> {
   /// Non-null only mid-drag; otherwise the stored width is the truth.
   double? _dragWidth;
+
+  /// Whether the contents are built. Dropped once a close has finished — and
+  /// seeded from the launch state, because starting unpinned runs no animation
+  /// at all, so there would be no `onEnd` to drop them on.
+  late bool _showContent;
+
+  @override
+  void initState() {
+    super.initState();
+    _showContent = context.read<AppCubit>().state.isPinned;
+  }
 
   void _onDrag(double delta, double stored, double windowWidth) {
     setState(() {
@@ -52,35 +69,69 @@ class _SidebarState extends State<Sidebar> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AppCubit, AppState>(
+    return BlocConsumer<AppCubit, AppState>(
+      listenWhen: (prev, curr) => prev.isPinned != curr.isPinned,
+      listener: (context, appState) {
+        // Back in the tree before the opening animation runs, or there would be
+        // nothing inside the panel while it widens.
+        if (appState.isPinned && !_showContent) {
+          setState(() => _showContent = true);
+        }
+      },
       buildWhen: (prev, curr) =>
           prev.isPinned != curr.isPinned ||
           prev.sidebarWidth != curr.sidebarWidth,
       builder: (context, appState) {
-        if (!appState.isPinned) return const SizedBox.shrink();
-
         final windowWidth = MediaQuery.sizeOf(context).width;
         final width = SidebarSizing.clamp(
           _dragWidth ?? appState.sidebarWidth,
           windowWidth: windowWidth,
         );
+        final full = width + K.sidebarResizeHandleWidth;
 
-        return Row(
-          children: [
-            AppPanel(
-              width: width,
-              child: SidebarContent(
-                isPinned: true,
-                topPadding: widget.topPadding,
-              ),
-            ),
-            SidebarResizeHandle(
-              onDrag: (delta) =>
-                  _onDrag(delta, appState.sidebarWidth, windowWidth),
-              onDragEnd: _onDragEnd,
-              onReset: _reset,
-            ),
-          ],
+        return AnimatedContainer(
+          // A drag is not a transition. Animating it would leave the panel a
+          // frame or two behind the pointer, which reads as lag rather than
+          // polish — so while the pointer is down, the width tracks it exactly.
+          duration: _dragWidth != null ? Duration.zero : K.sidebarMotion,
+          curve: AppMotion.panel,
+          width: appState.isPinned ? full : 0,
+          onEnd: () {
+            if (!appState.isPinned && _showContent) {
+              setState(() => _showContent = false);
+            }
+          },
+          child: !_showContent
+              ? const SizedBox.shrink()
+              : ClipRect(
+                  child: OverflowBox(
+                    // Pinned to the right edge, so a closing sidebar slides out
+                    // to the left behind the content rather than being squeezed
+                    // to nothing — and its rows keep their real width the whole
+                    // way, instead of laying out at 3px and overflowing on the
+                    // way past.
+                    alignment: Alignment.centerRight,
+                    minWidth: full,
+                    maxWidth: full,
+                    child: Row(
+                      children: [
+                        AppPanel(
+                          width: width,
+                          child: SidebarContent(
+                            isPinned: true,
+                            topPadding: widget.topPadding,
+                          ),
+                        ),
+                        SidebarResizeHandle(
+                          onDrag: (delta) =>
+                              _onDrag(delta, appState.sidebarWidth, windowWidth),
+                          onDragEnd: _onDragEnd,
+                          onReset: _reset,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
         );
       },
     );

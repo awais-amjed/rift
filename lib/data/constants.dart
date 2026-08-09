@@ -82,6 +82,13 @@ class K {
   /// resizable cost no layout width.
   static const double sidebarResizeHandleWidth = panelGutter;
 
+  /// How long the sidebar takes to open or close. Shared by all three moving
+  /// parts — the pinned panel's width, the unpinned panel's slide, and the edge
+  /// tab — so they arrive together instead of at three different times. The
+  /// curve that goes with it is `AppMotion.panel`; curves are Flutter's, and
+  /// this file is meant to stay free of it.
+  static const Duration sidebarMotion = Duration(milliseconds: 220);
+
   /// Right-hand member list. Narrower than the left sidebar — it holds one
   /// short name per row, not channel trees.
   static const double membersSidebarWidth = 232;

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/services/sidebar_sizing.dart';
 import '../../../common/app_panel.dart';
+import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
 import 'widgets/sidebar_content.dart';
 import 'widgets/sidebar_tab.dart';
@@ -66,10 +68,16 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppCubit>().state;
     final width = SidebarSizing.clamp(
-      context.watch<AppCubit>().state.sidebarWidth,
+      appState.sidebarWidth,
       windowWidth: MediaQuery.sizeOf(context).width,
     );
+    // Mounted even while pinned, so pinning and unpinning can be a transition
+    // rather than a widget appearing and disappearing. The tab animates itself
+    // out; the panel isn't built at all, since two live copies of the sidebar
+    // would be two of every rebuild for something nobody can see.
+    final tabVisible = !appState.isPinned && !_open;
 
     return MultiBlocListener(
       listeners: [
@@ -84,6 +92,14 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
         BlocListener<ChannelChatCubit, ChannelChatState>(
           listenWhen: (a, b) => a.channelId != b.channelId,
           listener: (_, _) => _close(),
+        ),
+        // Pinning while peeking: the pinned panel is taking over, so this one
+        // has nothing left to show.
+        BlocListener<AppCubit, AppState>(
+          listenWhen: (a, b) => a.isPinned != b.isPinned,
+          listener: (_, state) {
+            if (state.isPinned) _close();
+          },
         ),
       ],
       child: CallbackShortcuts(
@@ -104,28 +120,43 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
                   ),
                 ),
 
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOut,
-                left: _open ? 0 : -(width + _parkedClearance),
-                top: 0,
-                bottom: 0,
-                width: width,
-                child: AppPanel(
-                  shadow: AppShadows.popover,
-                  child: SidebarContent(
-                    isPinned: false,
-                    topPadding: widget.topPadding,
+              if (!appState.isPinned)
+                AnimatedPositioned(
+                  duration: K.sidebarMotion,
+                  curve: AppMotion.panel,
+                  left: _open ? 0 : -(width + _parkedClearance),
+                  top: 0,
+                  bottom: 0,
+                  width: width,
+                  child: AppPanel(
+                    shadow: AppShadows.popover,
+                    child: SidebarContent(
+                      isPinned: false,
+                      topPadding: widget.topPadding,
+                    ),
+                  ),
+                ),
+
+              // Slides out through the window edge rather than blinking away,
+              // and stays in the tree so it has something to animate from.
+              Positioned(
+                left: 0,
+                top: 12,
+                child: IgnorePointer(
+                  ignoring: !tabVisible,
+                  child: AnimatedSlide(
+                    duration: K.sidebarMotion,
+                    curve: AppMotion.panel,
+                    offset: tabVisible ? Offset.zero : const Offset(-1, 0),
+                    child: AnimatedOpacity(
+                      duration: K.sidebarMotion,
+                      curve: AppMotion.panel,
+                      opacity: tabVisible ? 1 : 0,
+                      child: SidebarTab(onTap: _openPeek),
+                    ),
                   ),
                 ),
               ),
-
-              if (!_open)
-                Positioned(
-                  left: 0,
-                  top: 12,
-                  child: SidebarTab(onTap: _openPeek),
-                ),
             ],
           ),
         ),

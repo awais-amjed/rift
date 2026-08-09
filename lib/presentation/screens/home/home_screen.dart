@@ -112,15 +112,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Row(
                         children: [
-                          // The gutter is inside Sidebar now — it is the strip
+                          // Both are always mounted. Pinning used to add and
+                          // remove them, which is why it was a hard cut —
+                          // a widget that isn't there can't animate away.
+                          // Each hides itself instead, and takes 220ms doing it.
+                          //
+                          // The gutter lives inside Sidebar: it is the strip
                           // you drag to resize, so it can't be a plain gap.
-                          if (appState.isPinned)
-                            Sidebar(topPadding: topPadding),
+                          Sidebar(topPadding: topPadding),
                           const Expanded(child: MainContent()),
                         ],
                       ),
-                      if (!appState.isPinned)
-                        FloatingSidebar(topPadding: topPadding),
+                      FloatingSidebar(topPadding: topPadding),
                     ],
                   ),
                 ),
