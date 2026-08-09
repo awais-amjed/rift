@@ -13,7 +13,8 @@ import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/squircle_avatar.dart';
-import '../../../../theme/app_text.dart';
+import 'participant_admin_section.dart';
+import 'participant_volume_control.dart';
 
 /// Dialog-based context menu for a participant — mute toggle + volume slider.
 ///
@@ -84,8 +85,6 @@ class ParticipantContextMenu extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         final borderColor = themeState.borderPrimary;
-        final textSecondary = themeState.textSecondary;
-        final textQuaternary = themeState.textQuaternary;
 
         return BlocBuilder<AppCubit, AppState>(
           builder: (context, appState) {
@@ -93,9 +92,9 @@ class ParticipantContextMenu extends StatelessWidget {
             final liveKitState = context.watch<LiveKitCubit>().state;
             final serverState = context.watch<ServerCubit>().state;
             final permissions = serverState.selectedServer?.user?.permissions;
+            final isServerAdmin = permissions?.isServerAdmin ?? false;
             final isModerator =
-                (permissions?.isChannelManager ?? false) ||
-                (permissions?.isServerAdmin ?? false);
+                (permissions?.isChannelManager ?? false) || isServerAdmin;
 
             // Server-side moderation state of the target (from LiveKit
             // participant metadata), matched by user id so a screenshare or
@@ -159,93 +158,24 @@ class ParticipantContextMenu extends StatelessWidget {
                     }
                   },
                 ),
-                // Server-side moderation (moderators only, remote
-                // participants only). Persists across rejoins.
-                if (!isLocal && isLive && isModerator) ...[
-                  ContextMenuItem(
-                    icon: isServerMuted ? Icons.mic : Icons.mic_off,
-                    label: isServerMuted ? 'Server unmute' : 'Server mute',
-                    isDangerous: !isServerMuted,
-                    onTap: () {
-                      context.read<LiveKitCubit>().moderateParticipant(
-                        participantIdentity: identity,
-                        muted: !isServerMuted,
-                      );
-                    },
+                // Moderation and roles, each behind its own permission.
+                if (!isLocal)
+                  ParticipantAdminSection(
+                    target: identity,
+                    targetUserId: targetUserId,
+                    isModerator: isModerator,
+                    isServerAdmin: isServerAdmin,
+                    isLive: isLive,
+                    isServerMuted: isServerMuted,
+                    isServerDeafened: isServerDeafened,
                   ),
-                  ContextMenuItem(
-                    icon: isServerDeafened ? Icons.headset : Icons.headset_off,
-                    label: isServerDeafened
-                        ? 'Server undeafen'
-                        : 'Server deafen',
-                    isDangerous: !isServerDeafened,
-                    onTap: () {
-                      context.read<LiveKitCubit>().moderateParticipant(
-                        participantIdentity: identity,
-                        deafened: !isServerDeafened,
-                      );
-                    },
-                  ),
-                ],
                 // Volume slider (only for remote participants)
-                if (!isLocal) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'VOLUME',
-                              style: AppText.sectionLabel.copyWith(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                                color: textQuaternary,
-                              ),
-                            ),
-                            Text(
-                              isMuted ? '—' : '${(volume * 100).round()}%',
-                              style: AppText.label.copyWith(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 3,
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 6,
-                            ),
-                            overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 12,
-                            ),
-                            activeTrackColor: themeState.primary,
-                            inactiveTrackColor: themeState.bgActive,
-                            thumbColor: themeState.primary,
-                          ),
-                          child: Slider(
-                            value: isMuted ? 0 : volume,
-                            min: 0,
-                            max: 1,
-                            onChanged: isMuted
-                                ? null
-                                : (v) {
-                                    context
-                                        .read<LiveKitCubit>()
-                                        .setParticipantVolume(identity, v);
-                                  },
-                          ),
-                        ),
-                      ],
-                    ),
+                if (!isLocal)
+                  ParticipantVolumeControl(
+                    target: identity,
+                    isMuted: isMuted,
+                    volume: volume,
                   ),
-                ],
                 const SizedBox(height: 2),
               ],
             );

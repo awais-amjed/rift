@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/permission_toggle.dart';
+import '../../../../common/server_role.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/app_text.dart';
 
@@ -33,6 +34,19 @@ class MemberManagePanel extends StatelessWidget {
     required this.onModerate,
   });
 
+  /// `set_user_permissions` takes the three as separate nullable booleans, so
+  /// the role picks which one to fill and the compiler checks the rest.
+  void _grant(ServerRole role, bool value) {
+    switch (role) {
+      case ServerRole.admin:
+        onPermissionChanged(isServerAdmin: value);
+      case ServerRole.channelManager:
+        onPermissionChanged(isChannelManager: value);
+      case ServerRole.invites:
+        onPermissionChanged(canCreateTokens: value);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
@@ -46,41 +60,17 @@ class MemberManagePanel extends StatelessWidget {
           ),
           child: Column(
             children: [
-              if (canManagePermissions) ...[
-                PermissionToggle(
-                  icon: Icons.shield_outlined,
-                  label: 'Server Admin',
-                  description: 'Full server management access',
-                  value: member.permissions.isServerAdmin,
-                  onChanged: isBusy
-                      ? null
-                      : (v) => onPermissionChanged(isServerAdmin: v),
-                  themeState: themeState,
-                  isFirst: true,
-                ),
-                PermissionToggle(
-                  icon: Icons.tune_outlined,
-                  label: 'Channel Manager',
-                  description: 'Create channels and moderate members',
-                  value: member.permissions.isChannelManager,
-                  onChanged: isBusy
-                      ? null
-                      : (v) => onPermissionChanged(isChannelManager: v),
-                  themeState: themeState,
-                  isFirst: false,
-                ),
-                PermissionToggle(
-                  icon: Icons.link_outlined,
-                  label: 'Can Invite',
-                  description: 'Allowed to generate invite codes',
-                  value: member.permissions.canCreateTokens,
-                  onChanged: isBusy
-                      ? null
-                      : (v) => onPermissionChanged(canCreateTokens: v),
-                  themeState: themeState,
-                  isFirst: false,
-                ),
-              ],
+              if (canManagePermissions)
+                for (final role in ServerRole.values)
+                  PermissionToggle(
+                    icon: role.icon,
+                    label: role.label,
+                    description: role.description,
+                    value: role.isHeldBy(member.permissions),
+                    onChanged: isBusy ? null : (v) => _grant(role, v),
+                    themeState: themeState,
+                    isFirst: role == ServerRole.values.first,
+                  ),
               if (canModerate) ...[
                 if (canManagePermissions)
                   Divider(height: 1, color: themeState.borderPrimary),
