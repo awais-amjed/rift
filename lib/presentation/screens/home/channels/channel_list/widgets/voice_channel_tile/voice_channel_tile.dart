@@ -6,6 +6,7 @@ import '../../../../../../../data/classes/participant_info.dart';
 import '../../../../../../../data/constants.dart';
 import '../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
+import '../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../common/nav_row.dart';
 import '../../../../../../theme/app_text.dart';
@@ -116,7 +117,10 @@ class VoiceChannelTile extends StatelessWidget {
                     setting: appState.participantSettings[p.userId],
                     contextMenu: ParticipantContextMenu(
                       identity: p.identity,
-                      name: p.name,
+                      name: context
+                          .watch<ServerMembersCubit>()
+                          .state
+                          .nameFor(p.userId, p.name),
                       isLocal: p.isLocal,
                     ),
                   ),

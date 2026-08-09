@@ -7,6 +7,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../data/participant_identity.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/participant_roster.dart';
 import '../../../../../logic/services/participant_video.dart';
@@ -164,7 +165,14 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
             final videoTrack = track is VideoTrack ? track : null;
             final showStopButton =
                 _isScreenshare && isSubscribed && videoTrack != null;
-            final name = widget.participant.name;
+            // `participant.name` is the display name frozen into the LiveKit
+            // token at mint time, and tokens are cached for their full hour —
+            // so a rename mid-call left the old name on the tile even after a
+            // reconnect. The roster is the live copy.
+            final name = context.watch<ServerMembersCubit>().state.nameFor(
+              ParticipantIdentity.userIdOf(widget.participant.identity),
+              widget.participant.name,
+            );
 
             return ContextMenuRegion(
               contextMenu: ParticipantContextMenu(

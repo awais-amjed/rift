@@ -60,7 +60,7 @@ class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
 class _StubMembersCubit extends Cubit<ServerMembersState>
     implements ServerMembersCubit {
   _StubMembersCubit()
-    : super(const ServerMembersState(members: <ServerMember>[]));
+    : super(ServerMembersState(members: const <ServerMember>[]));
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

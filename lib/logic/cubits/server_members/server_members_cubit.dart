@@ -21,12 +21,26 @@ class ServerMembersState {
   final bool loading;
   final String? error;
 
-  const ServerMembersState({
+  ServerMembersState({
     this.serverId,
     this.members,
     this.loading = false,
     this.error,
   });
+
+  /// Members by user id, built once per state.
+  late final Map<String, ServerMember> byId = {
+    for (final member in members ?? const <ServerMember>[]) member.id: member,
+  };
+
+  /// The current display name for [userId].
+  ///
+  /// [fallback] is the copy frozen into a LiveKit token or a presence payload,
+  /// used only for somebody this roster hasn't got — the seconds between them
+  /// joining a call and our refetch landing. Everything that renders a name
+  /// goes through here, so a rename shows up in one place rather than three.
+  String nameFor(String userId, String fallback) =>
+      byId[userId]?.displayName ?? fallback;
 }
 
 // ── Cubit ────────────────────────────────────────────────────────────────────
@@ -64,7 +78,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
 
   ServerMembersCubit({required ServerCubit serverCubit})
     : _serverCubit = serverCubit,
-      super(const ServerMembersState()) {
+      super(ServerMembersState()) {
     _serverSub = serverCubit.stream.listen(_sync);
     _sync(serverCubit.state);
   }
@@ -74,7 +88,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     if (server == null || server.supabaseKey == null || server.user == null) {
       if (_serverId == null) return;
       _teardown();
-      if (!isClosed) emit(const ServerMembersState());
+      if (!isClosed) emit(ServerMembersState());
       return;
     }
 

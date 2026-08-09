@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
+import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/squircle_avatar.dart';
@@ -31,16 +33,20 @@ class PresenceMemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The presence payload's name was captured when they tracked themselves;
+    // the roster is the live one. Their own copy only stands in for someone we
+    // haven't loaded yet.
+    final name = context.watch<ServerMembersCubit>().state.nameFor(
+      user.userId,
+      user.displayName,
+    );
     return ContextMenuRegion(
-      contextMenu: ParticipantContextMenu(
-        identity: user.userId,
-        name: user.displayName,
-      ),
-      child: _buildRow(),
+      contextMenu: ParticipantContextMenu(identity: user.userId, name: name),
+      child: _buildRow(name),
     );
   }
 
-  Widget _buildRow() {
+  Widget _buildRow(String name) {
     final isMuted = setting?.muted ?? false;
 
     return Padding(
@@ -48,10 +54,10 @@ class PresenceMemberRow extends StatelessWidget {
       child: Row(
         spacing: 8,
         children: [
-          SquircleAvatar(name: user.displayName, seed: user.userId, size: 22),
+          SquircleAvatar(name: name, seed: user.userId, size: 22),
           Expanded(
             child: Text(
-              user.displayName,
+              name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppText.secondary.copyWith(

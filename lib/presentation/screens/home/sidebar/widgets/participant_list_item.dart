@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/participant_info.dart';
 import '../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/speaking_ring.dart';
@@ -31,6 +32,15 @@ class ParticipantListItem extends StatelessWidget {
         final isMuted = setting?.muted ?? false;
         final isSpeaking = participant.isSpeaking && !isMuted;
 
+        // The roster, not `participant.name` — that one is a copy of the
+        // display name frozen into the LiveKit token when it was minted, so a
+        // rename mid-call would leave the old name on screen until the token
+        // expired an hour later.
+        final name = context.watch<ServerMembersCubit>().state.nameFor(
+          participant.userId,
+          participant.name,
+        );
+
         final textSecondary = themeState.textSecondary;
         final textQuaternary = themeState.textQuaternary;
         final hoverColor = themeState.bgHover;
@@ -53,7 +63,7 @@ class ParticipantListItem extends StatelessWidget {
                       22 * K.avatarRadiusRatio,
                     ),
                     child: SquircleAvatar(
-                      name: participant.name,
+                      name: name,
                       seed: participant.userId,
                       size: 22,
                     ),
@@ -62,9 +72,7 @@ class ParticipantListItem extends StatelessWidget {
                   // Name
                   Expanded(
                     child: Text(
-                      participant.isLocal
-                          ? '${participant.name} (You)'
-                          : participant.name,
+                      participant.isLocal ? '$name (You)' : name,
                       style: AppText.secondary.copyWith(
                         fontWeight: isSpeaking
                             ? FontWeight.w600
