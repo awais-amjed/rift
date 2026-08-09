@@ -38,6 +38,14 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
 
   final FocusNode _focusNode = FocusNode(debugLabel: 'FloatingSidebar');
 
+  /// How much further than its own width the panel is parked off-screen.
+  ///
+  /// Sliding it to exactly `-width` puts its right edge on x = 0 and hides the
+  /// panel — but not its shadow, which is cast with a 50px blur and no
+  /// horizontal offset, so it spills back over the content as a smudge down the
+  /// left side. Taking the blur off too is what actually hides it.
+  static final double _parkedClearance = AppShadows.popover.first.blurRadius;
+
   @override
   void dispose() {
     _focusNode.dispose();
@@ -99,7 +107,7 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeOut,
-                left: _open ? 0 : -width,
+                left: _open ? 0 : -(width + _parkedClearance),
                 top: 0,
                 bottom: 0,
                 width: width,
