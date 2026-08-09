@@ -34,6 +34,7 @@ An endpoint earns its place only if it holds a secret, or runs before the caller
 | `get_channel_token` | Bearer | Mints a LiveKit JWT with the API secret. Identity is `<userId>~<deviceId>`; `roomAdmin` for channel managers, 1 h TTL. **Moderation is enforced here at join time** — muted users get no `microphone` in `canPublishSources`, deafened users get `canSubscribe: false` |
 | `moderate_user` | Bearer + `is_admin` (checked by the RPC) | Mute/deafen/ban. Calls the `moderate_user` RPC with the caller's JWT — the rules stay in the database — then uses the LiveKit API secret to push the new permissions and metadata onto every live connection the target holds. See below |
 | `delete_channel` | Bearer + `channels_delete_managers` (checked by the policy) | Deletes the row with the caller's JWT, and the LiveKit room with the API secret. Rooms are named by channel id, so without the second half everyone carries on talking in a room whose channel is gone. Deleting a room disconnects its participants — that **is** the kick |
+| `move_user` | Bearer + `is_server_admin` / `is_channel_manager` (checked here — nothing is written down, so there is no RPC to defer to) | Pulls a member from the call they're in into another voice channel, by sending their connections a "join this channel" packet with the API secret. See below |
 | `get_channel_key` | Bearer | Channel-key distribution (below) |
 | `post_channel_keys` | Bearer | Channel-key distribution (below) |
 | `sweep_channel_keys` | Bearer | Channel-key distribution (below) |
@@ -82,6 +83,31 @@ drift, and neither can be passed the other's encoding.
 The client half is `TokenCubit.invalidateServerTokens`, called when
 `ServerMembersCubit` sees the local user's own `is_muted`/`is_deafened` change —
 otherwise the cached token would outlive the moderation that revoked it.
+
+### Moving someone is a signal, not a server-side move
+
+LiveKit can relocate a participant between rooms itself, and `move_user`
+deliberately doesn't. Rift's channels are end-to-end encrypted and the **client**
+is what holds the keys: a connection dragged sideways underneath it would land in
+a room whose key it never fetched — deaf in the call, with the sidebar, presence
+and chat all still pointing at the old channel, and a token minted for somewhere
+else. So the target is *told* to join, and takes the ordinary path: fetch a
+token, fetch the channel key, connect, publish. Everything that makes a normal
+join correct stays in one place.
+
+The instruction goes out over the LiveKit data channel, addressed to the target's
+own identities, topic `rift.move`. **A packet sent through the API arrives with no
+sender**, and no peer in the room can imitate that — which is the client's
+authenticity check, and the reason a member can't move anyone. `VoiceSignal` on
+the Flutter side refuses anything with a sender, a different topic, or a version
+it doesn't know, and returns null rather than throwing on the arbitrary bytes a
+public data channel carries.
+
+Every device they're joined from is moved, the same rule moderation uses. Their
+screen share is not: switching channels stops it client-side, which is the honest
+outcome — a share belongs to the call it was started in. Someone who isn't in
+voice at all gets `user_not_in_voice`; there is no connection to tell, and no way
+to make a client join from nothing.
 
 ### How a structural change reaches everyone
 

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/participant_identity.dart';
 import '../../../../../../data/enums/home_surface.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -109,6 +110,15 @@ class ParticipantContextMenu extends StatelessWidget {
             // their moderation state is unknown here.
             final isLive = targetInfo != null;
 
+            // Which call they're in, if any: ours when they're on the roster,
+            // otherwise whatever presence says. Only "Move to" needs it — and
+            // only to leave out the channel they're already in.
+            final voiceChannelId = isLive
+                ? liveKitState.currentChannelId
+                : context.watch<ChannelPresenceCubit>().state.channelOf(
+                    targetUserId,
+                  );
+
             final bool isMuted;
             final double volume;
 
@@ -166,6 +176,7 @@ class ParticipantContextMenu extends StatelessWidget {
                     isModerator: isModerator,
                     isServerAdmin: isServerAdmin,
                     isLive: isLive,
+                    voiceChannelId: voiceChannelId,
                     isServerMuted: isServerMuted,
                     isServerDeafened: isServerDeafened,
                   ),

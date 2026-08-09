@@ -132,6 +132,20 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     ),
   );
 
+  /// Moves a member into another voice channel (requires channel manager or
+  /// server admin). They have to be in a call for there to be anything to move.
+  Future<APIResponse> moveUser({
+    required String userId,
+    required String channelId,
+  }) => _callWithAutoRefresh(
+    (token) => _repository.moveUser(
+      state.selectedServer!.supabaseUrl,
+      bearerToken: token,
+      userId: userId,
+      channelId: channelId,
+    ),
+  );
+
   /// Creates a new server. On success returns the single-use admin invite code.
   Future<({bool success, String? inviteCode, String? error})> createServer({
     required String supabaseUrl,
@@ -274,9 +288,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     final server = state.selectedServer;
     if (server == null) return (success: false, error: 'No server selected');
 
-    final response = await _callWithAutoRefresh(
-      (token) => call(server, token),
-    );
+    final response = await _callWithAutoRefresh((token) => call(server, token));
     if (!response.success) {
       return (success: false, error: response.error ?? failure);
     }

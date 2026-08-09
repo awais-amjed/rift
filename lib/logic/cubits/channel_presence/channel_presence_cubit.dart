@@ -35,6 +35,18 @@ class ChannelPresenceState {
   List<PresenceUser> usersIn(String channelId) =>
       channelPresence[channelId] ?? const [];
 
+  /// The voice channel [userId] is in, or null if they're in none.
+  ///
+  /// Never answers for the local user — we're deliberately left out of the
+  /// per-channel roster (see [_syncPresence]), so ask [LiveKitState] for
+  /// yourself.
+  String? channelOf(String userId) {
+    for (final entry in channelPresence.entries) {
+      if (entry.value.any((user) => user.userId == userId)) return entry.key;
+    }
+    return null;
+  }
+
   bool isOnline(String userId) => onlineUserIds.contains(userId);
 }
 

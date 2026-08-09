@@ -37,6 +37,10 @@ class ErrorCode {
   static const String userNotFound = 'user_not_found';
   static const String userBanned = 'user_banned';
 
+  /// Asked to move a member who isn't in a voice channel — there is no
+  /// connection to tell, so there is nothing to move.
+  static const String userNotInVoice = 'user_not_in_voice';
+
   // ── Server ───────────────────────────────────────────────────────────────────
   static const String serverNotFound = 'server_not_found';
   static const String serverKeyInvalid = 'server_key_invalid';

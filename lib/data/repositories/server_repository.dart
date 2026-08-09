@@ -549,6 +549,25 @@ class ServerRepository with _ChatApiMixin {
     }, bearerToken: bearerToken);
   }
 
+  /// Pull a member from the voice channel they're in into [channelId]
+  /// (channel manager or admin).
+  ///
+  /// Nothing is written down — a move only exists as a live connection — so
+  /// there is no table call to make. The function holds the LiveKit API secret
+  /// and uses it to send the target's own connections a "join this channel"
+  /// packet, which their client then does the ordinary way.
+  Future<APIResponse> moveUser(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String userId,
+    required String channelId,
+  }) {
+    return _post(supabaseUrl, 'move_user', {
+      'target_user_id': userId,
+      'channel_id': channelId,
+    }, bearerToken: bearerToken);
+  }
+
   /// Unread counts for every channel and conversation on this server, in one
   /// call: `{channels: {id: n}, dms: {peerId: n}}`.
   Future<APIResponse> unreadCounts(

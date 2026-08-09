@@ -20,6 +20,7 @@ import '../../services/pcm_level.dart';
 import '../../services/serial_queue.dart';
 import '../../services/sound_service.dart';
 import '../../services/speech_detector.dart';
+import '../../services/voice_signal.dart';
 
 part 'livekit_state.dart';
 part 'livekit_connection.dart';

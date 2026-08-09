@@ -7,6 +7,7 @@ import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_submenu_item.dart';
+import 'participant_move_menu.dart';
 import 'participant_roles_menu.dart';
 
 /// The part of a participant's context menu that only staff see.
@@ -16,6 +17,9 @@ import 'participant_roles_menu.dart';
 /// * **Moderation** (mute, deafen) is for moderators, and only for someone in
 ///   a call with us — its current state arrives through LiveKit participant
 ///   metadata, so for anyone else the menu would be showing a guess.
+/// * **Move to** is for moderators as well, and reaches further: it needs the
+///   target to be in *a* call, not in ours, because pulling someone out of
+///   another channel is most of the point.
 /// * **Roles** is for server admins, and works whether or not they're in a
 ///   call, because the roster carries permissions either way.
 class ParticipantAdminSection extends StatelessWidget {
@@ -31,6 +35,10 @@ class ParticipantAdminSection extends StatelessWidget {
   /// live moderation state can be read from.
   final bool isLive;
 
+  /// The voice channel they're in — ours or another one — or null if they're
+  /// not in a call, in which case there is nothing to move.
+  final String? voiceChannelId;
+
   final bool isServerMuted;
   final bool isServerDeafened;
 
@@ -41,11 +49,15 @@ class ParticipantAdminSection extends StatelessWidget {
     required this.isModerator,
     required this.isServerAdmin,
     required this.isLive,
+    required this.voiceChannelId,
     required this.isServerMuted,
     required this.isServerDeafened,
   });
 
-  bool get _showsAnything => (isModerator && isLive) || isServerAdmin;
+  bool get _canMove => isModerator && voiceChannelId != null;
+
+  bool get _showsAnything =>
+      (isModerator && isLive) || _canMove || isServerAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +89,21 @@ class ParticipantAdminSection extends StatelessWidget {
                 ),
               ),
             ],
+            if (_canMove)
+              ContextMenuSubmenuItem(
+                icon: Icons.moving_rounded,
+                label: 'Move to',
+                submenuBuilder: (_) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider.value(value: context.read<ServerCubit>()),
+                    BlocProvider.value(value: context.read<ThemeCubit>()),
+                  ],
+                  child: ParticipantMoveMenu(
+                    userId: targetUserId,
+                    fromChannelId: voiceChannelId,
+                  ),
+                ),
+              ),
             if (isServerAdmin)
               ContextMenuSubmenuItem(
                 icon: Icons.badge_outlined,

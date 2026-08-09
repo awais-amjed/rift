@@ -82,6 +82,18 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
       // permission updates (moderate_user edge function).
       ..on<ParticipantMetadataUpdatedEvent>((e) => _syncParticipants())
       ..on<ParticipantPermissionsUpdatedEvent>((e) => _syncParticipants())
+      // Staff pulling us into another channel, sent by the `move_user` edge
+      // function. Everything else on the data channel is somebody else's.
+      ..on<DataReceivedEvent>((e) {
+        final destination = VoiceSignal.moveDestination(
+          data: e.data,
+          topic: e.topic,
+          // A packet from the LiveKit API has no sender; a member can't fake
+          // that, and a member can't move anyone.
+          fromServer: e.participant == null,
+        );
+        if (destination != null) _onMovedTo(destination);
+      })
       ..on<RoomDisconnectedEvent>((e) {
         // Only handle unexpected disconnects; intentional disconnects set state beforehand.
         if (state.connectionState == LiveKitConnectionState.connected) {
@@ -95,5 +107,18 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
           );
         }
       });
+  }
+
+  /// Joins [channelId] because a moderator said so.
+  ///
+  /// Goes through the selected channel rather than connecting here, so a move
+  /// is the same journey as clicking the channel — token, key, connect, and the
+  /// sidebar following along. The join sound is the only cue that it wasn't us:
+  /// the pane changes underneath you either way, and silence would read as a
+  /// glitch.
+  void _onMovedTo(String channelId) {
+    if (channelId == state.currentChannelId) return;
+    SoundService.instance.playJoin();
+    _appCubit.setSelectedChannelId(channelId);
   }
 }
