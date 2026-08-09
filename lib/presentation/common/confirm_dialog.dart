@@ -71,7 +71,10 @@ class _ConfirmDialog extends StatelessWidget {
             side: BorderSide(color: themeState.borderElevated),
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
+            // Wide enough that a two-word confirm ("Delete channel", "Sign
+            // out") fits beside Cancel at half the width, rather than being
+            // ellipsised down to something the button no longer explains.
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Padding(
               padding: const EdgeInsets.all(26),
               child: Column(

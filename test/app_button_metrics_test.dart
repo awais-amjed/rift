@@ -90,4 +90,64 @@ void main() {
       expect(tester.getRect(find.byType(AppButton)).height, K.controlHeight);
     });
   });
+
+  // A dialog's action row divides its width evenly between the buttons in it,
+  // so a button is routinely handed a width it had no say in. Its label used to
+  // be laid out at its natural size regardless, which put a striped overflow
+  // bar down the side of the delete-channel confirmation.
+  group('AppButton in a width it did not choose', () {
+    testWidgets('a label too long for the space ellipsises, never overflows', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const SizedBox(
+          width: 90,
+          child: AppButton(label: 'Delete channel', expanded: true),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AppButton), findsOneWidget);
+    });
+
+    testWidgets('survives a width narrower than its own padding', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const SizedBox(
+          width: 24,
+          child: AppButton(label: 'Delete channel', expanded: true),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an icon button is no different', (tester) async {
+      await _pump(
+        tester,
+        const SizedBox(
+          width: 80,
+          child: AppButton(
+            label: 'Create channel',
+            icon: Icon(Icons.add_rounded, size: 16),
+            expanded: true,
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('given room, the label is still shown in full', (tester) async {
+      await _pump(tester, const AppButton(label: 'Delete channel'));
+
+      final text = tester.widget<Text>(find.text('Delete channel'));
+      expect(text.overflow, TextOverflow.ellipsis);
+      // Wide enough for the whole label — ellipsis is a fallback, not the norm.
+      expect(tester.getRect(find.byType(AppButton)).width, greaterThan(120));
+    });
+  });
 }

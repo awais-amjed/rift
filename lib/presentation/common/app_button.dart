@@ -59,16 +59,27 @@ class AppButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[icon!, const SizedBox(width: 7)],
-              Text(
-                label,
-                style: AppText.row.copyWith(
-                  fontSize: 13,
-                  // Secondary is the quiet option, and carrying less weight is
-                  // most of what makes it read that way.
-                  fontWeight: variant == AppButtonVariant.secondary
-                      ? FontWeight.w600
-                      : FontWeight.w700,
-                  color: fgColor,
+              // Flexible, so a label longer than the width it was given
+              // ellipsises instead of overflowing. Callers hand these buttons
+              // a hard width all the time — a dialog's action row divides its
+              // width evenly — and a button has no say in that, so it must not
+              // be able to break the layout it's put in.
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AppText.row.copyWith(
+                    fontSize: 13,
+                    // Secondary is the quiet option, and carrying less weight
+                    // is most of what makes it read that way.
+                    fontWeight: variant == AppButtonVariant.secondary
+                        ? FontWeight.w600
+                        : FontWeight.w700,
+                    color: fgColor,
+                  ),
                 ),
               ),
             ],
