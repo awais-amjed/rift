@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
@@ -75,9 +76,15 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
   /// entry (null while not in a voice channel). Both are needed: "tracked with
   /// no channel" and "not tracked" are different states, and collapsing them
   /// would re-track on every LiveKit event. Reconciled against LiveKit state so
-  /// we never leak a stale entry.
+  /// we never leak a stale entry — and against the presence state itself, since
+  /// this pair is only ever our *belief* about what the server holds.
   bool _tracked = false;
   String? _trackedChannelId;
+
+  /// Pending re-track after one didn't land. Long enough for a reconnecting
+  /// socket to come back, short enough that nobody stays invisible.
+  static const _retrackDelay = Duration(seconds: 2);
+  Timer? _retrack;
 
   ChannelPresenceCubit({
     required ServerCubit serverCubit,
@@ -137,6 +144,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     _tracked = false;
     _trackedChannelId = null;
     _subscribed = false;
+    _retrack?.cancel();
+    _retrack = null;
     try {
       await channel?.untrack();
       await channel?.unsubscribe();
@@ -177,20 +186,60 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     );
   }
 
+  /// Publishes our presence entry, and **checks that it landed**.
+  ///
+  /// A track made while the socket is reconnecting isn't sent — it goes into
+  /// the channel's push buffer and quietly times out. This used to be ignored
+  /// while `_tracked` had already been set to true, so the entry never existed
+  /// and nothing ever tried again: the member vanished from everyone else's
+  /// sidebar and channel list, permanently, while their own app carried on
+  /// showing them in the call (that comes from LiveKit, not presence). Moving
+  /// someone is exactly the moment to hit it — their client is tearing a
+  /// WebRTC connection down and building another.
   Future<void> _track({
     required String? channelId,
     required String userId,
     required String displayName,
   }) async {
+    ChannelResponse? result;
     try {
-      await _channel?.track({
+      result = await _channel?.track({
         // Absent while not in a voice channel — the entry still means online.
         'channelId': ?channelId,
         'userId': userId,
         'displayName': displayName,
       });
     } catch (_) {}
+    if (result != ChannelResponse.ok) _retrackSoon();
   }
+
+  /// Drops our belief that we're tracked and tries again shortly.
+  ///
+  /// The belief is the thing that has to go: [_reconcileTracking] returns early
+  /// while it holds, so leaving it set is what turns one lost push into being
+  /// invisible for the rest of the session.
+  void _retrackSoon() {
+    if (isClosed || _channel == null) return;
+    _tracked = false;
+    _trackedChannelId = null;
+    _retrack?.cancel();
+    _retrack = Timer(_retrackDelay, () {
+      if (!isClosed) _reconcileTracking();
+    });
+  }
+
+  /// Whether our own entry has gone missing from what the server is telling
+  /// everyone, while we still think we published one.
+  ///
+  /// The sync is the truth and this pair of fields is only a guess, so any
+  /// disagreement is ours to fix — whatever dropped the entry, and whether or
+  /// not we were the ones who dropped it.
+  @visibleForTesting
+  static bool shouldRetrack({
+    required bool tracked,
+    required String? localUserId,
+    required Set<String> onlineUserIds,
+  }) => tracked && localUserId != null && !onlineUserIds.contains(localUserId);
 
   void _syncPresence() {
     if (isClosed) return;
@@ -226,6 +275,14 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
     }
 
     emit(ChannelPresenceState(channelPresence: result, onlineUserIds: online));
+
+    if (shouldRetrack(
+      tracked: _tracked,
+      localUserId: localUserId,
+      onlineUserIds: online,
+    )) {
+      _retrackSoon();
+    }
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
