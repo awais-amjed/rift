@@ -34,7 +34,18 @@ class StatusChip extends StatelessWidget {
         spacing: 5,
         children: [
           Icon(icon, size: 11, color: color),
-          Text(label, style: AppText.chip.copyWith(color: color)),
+          // Flexible: a chip states a fact about the surface it sits on, and
+          // that surface can be narrow. Better a clipped word than a pill with
+          // a striped bar out of its side.
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.chip.copyWith(color: color),
+            ),
+          ),
         ],
       ),
     );

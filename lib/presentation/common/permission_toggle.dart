@@ -62,8 +62,14 @@ class PermissionToggle extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Expanded gives the column its width, but a single long
+                      // word still can't wrap out of it — a role name or a
+                      // handle with no spaces would overflow. Ellipsis is what
+                      // actually bounds these.
                       Text(
                         label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppText.row.copyWith(
                           fontSize: 13,
                           color: themeState.textPrimary,
@@ -71,6 +77,8 @@ class PermissionToggle extends StatelessWidget {
                       ),
                       Text(
                         description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: AppText.label.copyWith(
                           fontWeight: FontWeight.w400,
                           color: themeState.textTertiary,

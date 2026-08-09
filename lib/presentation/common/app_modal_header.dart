@@ -33,8 +33,13 @@ class AppModalHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // A title can wrap to a second line; a channel name with no
+                    // spaces in it can't, and would overflow the Expanded
+                    // that's meant to be holding it. Ellipsis is the bound.
                     Text(
                       title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: AppText.sectionTitle.copyWith(
                         fontSize: 15,
                         color: themeState.textPrimary,
@@ -44,6 +49,8 @@ class AppModalHeader extends StatelessWidget {
                       const SizedBox(height: 1),
                       Text(
                         subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppText.secondary.copyWith(
                           fontSize: 11.5,
                           color: textTertiary,
