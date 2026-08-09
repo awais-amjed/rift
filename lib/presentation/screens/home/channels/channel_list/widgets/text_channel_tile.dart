@@ -10,6 +10,7 @@ import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/nav_row.dart';
 import '../../../../../common/unread_badge.dart';
+import 'channel_context_menu.dart';
 
 /// Tile for a text channel. Tapping opens its E2E chat in the center pane
 /// (and tapping the open one closes it).
@@ -34,27 +35,31 @@ class TextChannelTile extends StatelessWidget {
                 (c) => c.state.unreadForChannel(serverId, channel.id),
               );
 
-        return NavRow(
-          icon: Icons.tag_rounded,
-          label: channel.name,
-          isSelected: isSelected,
-          isUnread: unread > 0,
-          trailing: unread > 0
-              ? UnreadBadge(
-                  count: unread,
-                  themeState: context.watch<ThemeCubit>().state,
-                )
-              : null,
-          onTap: () {
-            // Opening a channel chat leaves the Home (DMs) surface.
-            context.read<AppCubit>().setSurface(HomeSurface.server);
-            final cubit = context.read<ChannelChatCubit>();
-            if (isSelected) {
-              cubit.closeChannel();
-            } else {
-              cubit.openChannel(channel.id);
-            }
-          },
+        return ChannelContextMenu.wrap(
+          context: context,
+          channel: channel,
+          child: NavRow(
+            icon: Icons.tag_rounded,
+            label: channel.name,
+            isSelected: isSelected,
+            isUnread: unread > 0,
+            trailing: unread > 0
+                ? UnreadBadge(
+                    count: unread,
+                    themeState: context.watch<ThemeCubit>().state,
+                  )
+                : null,
+            onTap: () {
+              // Opening a channel chat leaves the Home (DMs) surface.
+              context.read<AppCubit>().setSurface(HomeSurface.server);
+              final cubit = context.read<ChannelChatCubit>();
+              if (isSelected) {
+                cubit.closeChannel();
+              } else {
+                cubit.openChannel(channel.id);
+              }
+            },
+          ),
         );
       },
     );

@@ -7,7 +7,7 @@ uses is a deliberate line rather than an accident of history:
   This is almost everything: reading and sending messages, editing your own, member lists,
   channels, invites, reactions, read cursors.
 - **Edge functions**, in [`edge_functions/supabase/functions/`](edge_functions/supabase/functions/),
-  for the eleven things that genuinely can't be a table call.
+  for the twelve things that genuinely can't be a table call.
 
 The client mirror is `lib/data/repositories/server_repository.dart` (+ `server_db.dart`); keep
 them in sync.
@@ -33,6 +33,7 @@ An endpoint earns its place only if it holds a secret, or runs before the caller
 | `update_server` | Bearer + `is_server_admin` | Writes the LiveKit API key/secret into `server_secrets`, which has no grant and no policy. Name and icon ride along rather than splitting one dialog across two transports |
 | `get_channel_token` | Bearer | Mints a LiveKit JWT with the API secret. Identity is `<userId>~<deviceId>`; `roomAdmin` for channel managers, 1 h TTL. **Moderation is enforced here at join time** — muted users get no `microphone` in `canPublishSources`, deafened users get `canSubscribe: false` |
 | `moderate_user` | Bearer + `is_admin` (checked by the RPC) | Mute/deafen/ban. Calls the `moderate_user` RPC with the caller's JWT — the rules stay in the database — then uses the LiveKit API secret to push the new permissions and metadata onto every live connection the target holds. See below |
+| `delete_channel` | Bearer + `channels_delete_managers` (checked by the policy) | Deletes the row with the caller's JWT, and the LiveKit room with the API secret. Rooms are named by channel id, so without the second half everyone carries on talking in a room whose channel is gone. Deleting a room disconnects its participants — that **is** the kick |
 | `get_channel_key` | Bearer | Channel-key distribution (below) |
 | `post_channel_keys` | Bearer | Channel-key distribution (below) |
 | `sweep_channel_keys` | Bearer | Channel-key distribution (below) |
@@ -82,6 +83,30 @@ The client half is `TokenCubit.invalidateServerTokens`, called when
 `ServerMembersCubit` sees the local user's own `is_muted`/`is_deafened` change —
 otherwise the cached token would outlive the moderation that revoked it.
 
+### How a structural change reaches everyone
+
+There are two paths, and the second is the one that has to be right.
+
+`server_events` is a **Broadcast doorbell**: whoever makes a change pings
+`server_events:<serverId>` and every subscriber re-reads `get_server_details`.
+It is a courtesy — it only rings if the actor remembered to ring it, and it
+reaches nobody who was offline at the time.
+
+`channels` and `users` are in the **realtime publication**, and `ServerTableWatcher`
+subscribes to each on the selected server. That is the authoritative half: a
+rename, a deletion, a join or a ban lands whatever the actor did. The row event
+is used as a doorbell rather than a delta — Realtime re-checks the migration-002
+policies per subscriber, so what arrives is only what that member could have
+selected anyway, and the real read is the refetch it triggers.
+
+**Deleting a channel evicts whoever is in it, twice over.** LiveKit does the
+real work: `delete_channel` drops the room, which disconnects every device in
+it. The client then tidies up locally — `ChannelEviction` compares what we are
+still pointed at against the refreshed list, so a call we're no longer allowed
+to be in is left properly and a chat whose channel is gone is closed. It never
+acts on a *failed* refresh, or the first network blip would evict everyone from
+everything.
+
 **The key-distribution trio is a deliberate deferral, not a rule.** `post_channel_keys` enforces
 the `key_version ≤ current+1` race (first writer wins, losers refetch and re-wrap) and
 `sweep_channel_keys` computes healing sets across channels. Both are expressible as RPCs, but
@@ -108,7 +133,9 @@ silent re-login still triggers.
 | `send_message`, `send_dm` | `insert`; a BEFORE trigger stamps `sender_id = auth.uid()` and `created_at`, so a client can't post as someone else or backdate |
 | `edit_message`, `edit_dm`, `delete_message`, `delete_dm` | `update`/`delete` scoped by policy; the column grant limits an edit to the envelope |
 | `list_users`, `get_server_details` | `select` on `users` / `servers` / `channels`, all scoped to your server |
-| `create_channel`, `delete_channel` | `insert`/`delete` gated on `app.can_manage_channels()` |
+| `create_channel` | `insert` gated on `app.can_manage_channels()` |
+| `rename_channel` | `update`; the column grant covers only `name`. A LiveKit room is named by the channel's **id**, so renaming a voice channel doesn't touch the call inside it |
+| `delete_channel` | still policy-gated, but back behind an edge function — it is the only thing that can drop the LiveKit room (above) |
 | `create_invite` | `insert`; the code comes from a column default, and the policy refuses any permission the caller doesn't hold |
 | `update_profile`, `publish_chat_key` | `update` on your own row — the column grant covers only `display_name`, `chat_public_key`, `avatar_path` |
 | `toggle_reaction`, `list_reactions` | `insert`/`delete` keyed by `(message, user, emoji)`; a duplicate-key error *is* the "already reacted" answer |

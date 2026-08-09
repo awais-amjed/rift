@@ -473,26 +473,49 @@ class ServerRepository with _ChatApiMixin {
 
   /// Delete a channel (requires channel manager). Its messages and keyring go
   /// with it by cascade.
-  Future<APIResponse> deleteChannel(
+  /// Rename a channel (requires channel manager).
+  ///
+  /// A plain update — the column grant covers only `name`, and
+  /// `channels_update_managers` decides who may. Nothing else has to happen:
+  /// a LiveKit room is named by the channel's **id**, so renaming a voice
+  /// channel doesn't touch the call going on inside it.
+  Future<APIResponse> renameChannel(
     String supabaseUrl,
     String channelId, {
     required String anonKey,
     String? bearerToken,
+    required String name,
   }) {
     return ServerDb.run(() async {
-      final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final rows = await db
+      final rows = await _db
+          .client(supabaseUrl, anonKey, bearerToken)
           .from('channels')
-          .delete()
+          .update({'name': name})
           .eq('id', channelId)
-          .select('id');
+          .select('id, name, channel_type');
       if ((rows as List).isEmpty) {
         throw const PostgrestException(
-          message: 'Channel not found, or not yours to delete',
+          message: 'Channel not found, or not yours to rename',
         );
       }
       return rows.first;
     });
+  }
+
+  /// Delete a channel (requires channel manager), and the call inside it.
+  ///
+  /// An edge function rather than a table delete, because the row is only half
+  /// of it: the LiveKit room is named by the channel id, and dropping that room
+  /// is what disconnects everyone still talking in it. The function does the
+  /// delete with this same JWT, so the policy is still what decides.
+  Future<APIResponse> deleteChannel(
+    String supabaseUrl,
+    String channelId, {
+    String? bearerToken,
+  }) {
+    return _post(supabaseUrl, 'delete_channel', {
+      'channel_id': channelId,
+    }, bearerToken: bearerToken);
   }
 
   /// Persistently mute/unmute/deafen/undeafen a user (server admin). State is

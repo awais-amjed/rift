@@ -11,6 +11,7 @@ import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../common/nav_row.dart';
 import '../../../../../../theme/app_text.dart';
 import '../../../../sidebar/widgets/participant_context_menu.dart';
+import '../channel_context_menu.dart';
 import '../../../../sidebar/widgets/participant_list_item.dart';
 import 'widgets/live_badge.dart';
 import 'widgets/presence_member_row.dart';
@@ -55,10 +56,14 @@ class VoiceChannelTile extends StatelessWidget {
                     presenceUsers.isNotEmpty;
 
                 if (!isOccupied) {
-                  return NavRow(
-                    icon: Icons.volume_up_rounded,
-                    label: channel.name,
-                    onTap: onTap,
+                  return ChannelContextMenu.wrap(
+                    context: context,
+                    channel: channel,
+                    child: NavRow(
+                      icon: Icons.volume_up_rounded,
+                      label: channel.name,
+                      onTap: onTap,
+                    ),
                   );
                 }
 
@@ -104,7 +109,14 @@ class VoiceChannelTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 7,
         children: [
-          _buildHeader(context, themeState),
+          // Only the header carries the channel menu: the participant rows
+          // below have their own, and nesting the two would make which one you
+          // got depend on the pixel you happened to right-click.
+          ChannelContextMenu.wrap(
+            context: context,
+            channel: channel,
+            child: _buildHeader(context, themeState),
+          ),
           if (participants.isNotEmpty || presenceUsers.isNotEmpty)
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

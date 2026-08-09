@@ -236,6 +236,56 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     return (success: true, error: null);
   }
 
+  /// Rename a channel in the selected server (channel manager only).
+  Future<({bool success, String? error})> renameChannel({
+    required String channelId,
+    required String name,
+  }) => _changeChannel(
+    (server, token) => _repository.renameChannel(
+      server.supabaseUrl,
+      channelId,
+      anonKey: _anonKey,
+      bearerToken: token,
+      name: name,
+    ),
+    failure: 'Failed to rename channel',
+  );
+
+  /// Delete a channel in the selected server (channel manager only). Anyone in
+  /// its call is dropped — see [ServerRepository.deleteChannel].
+  Future<({bool success, String? error})> deleteChannel(String channelId) =>
+      _changeChannel(
+        (server, token) => _repository.deleteChannel(
+          server.supabaseUrl,
+          channelId,
+          bearerToken: token,
+        ),
+        failure: 'Failed to delete channel',
+      );
+
+  /// Runs a channel mutation, then brings everyone's sidebar in line: our own
+  /// list directly, and other members' through the `server_events` doorbell.
+  /// They also hear it from Realtime on `channels`; the ping is what makes it
+  /// immediate rather than a beat later.
+  Future<({bool success, String? error})> _changeChannel(
+    Future<APIResponse> Function(Server server, String token) call, {
+    required String failure,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) return (success: false, error: 'No server selected');
+
+    final response = await _callWithAutoRefresh(
+      (token) => call(server, token),
+    );
+    if (!response.success) {
+      return (success: false, error: response.error ?? failure);
+    }
+
+    await refreshServerDetails();
+    _onServerEvent?.call();
+    return (success: true, error: null);
+  }
+
   /// Update the selected server's settings (admin only). Only non-null fields
   /// are sent; the LiveKit API key / secret are write-only (never stored client
   /// side — the client only keeps [Server.livekitUrl]). On success the local

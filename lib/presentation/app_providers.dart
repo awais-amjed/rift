@@ -158,7 +158,12 @@ class AppProviders extends StatelessWidget {
 
   ServerEventsCubit _createServerEventsCubit(BuildContext context) {
     final serverCubit = context.read<ServerCubit>();
-    final events = ServerEventsCubit(serverCubit: serverCubit);
+    final events = ServerEventsCubit(
+      serverCubit: serverCubit,
+      // A deleted channel has to put you out of its call and close its chat.
+      livekitCubit: context.read<LiveKitCubit>(),
+      chatCubit: context.read<ChannelChatCubit>(),
+    );
     serverCubit.setOnServerEvent(events.notifyServerChanged);
     return events;
   }

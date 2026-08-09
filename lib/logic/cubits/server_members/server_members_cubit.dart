@@ -1,10 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase/supabase.dart';
-
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_member.dart';
+import '../../services/server_table_watcher.dart';
 import '../server/server_cubit.dart';
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -53,25 +52,12 @@ class ServerMembersState {
 /// [MemberRoster.split] has no row to attach their presence to, and drops them.
 ///
 /// `users` is in the realtime publication for exactly this reason
-/// (`004_realtime.sql`), and Realtime re-checks 002's policies per subscriber,
-/// so a change only reaches members of that user's own server. The event is
-/// used as a doorbell rather than a delta: the roster is refetched through
-/// [ServerCubit.listMembers] so it arrives shaped like the first load and gets
-/// the token refresh that call already handles. That also covers renames, new
-/// avatars, permission changes and bans, not just joins.
+/// (`004_realtime.sql`), and [ServerTableWatcher] turns a row event into a
+/// refetch through [ServerCubit.listMembers]. That covers renames, new avatars,
+/// permission changes and bans as well as joins.
 class ServerMembersCubit extends Cubit<ServerMembersState> {
-  /// One join writes a row and then updates it (chat key, avatar); coalesce the
-  /// burst into a single refetch.
-  static const _coalesce = Duration(milliseconds: 250);
-
   final ServerCubit _serverCubit;
-  StreamSubscription<ServerState>? _serverSub;
-
-  SupabaseClient? _client;
-  RealtimeChannel? _channel;
-  String? _serverId;
-  String? _token;
-  Timer? _debounce;
+  late final ServerTableWatcher _watcher;
 
   /// Guards against a slow fetch landing after a newer one, or after a switch.
   int _loadId = 0;
@@ -86,73 +72,34 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   ServerMembersCubit({required ServerCubit serverCubit})
     : _serverCubit = serverCubit,
       super(ServerMembersState()) {
-    _serverSub = serverCubit.stream.listen(_sync);
-    _sync(serverCubit.state);
+    _watcher = ServerTableWatcher(
+      serverCubit: serverCubit,
+      table: 'users',
+      onChanged: () => unawaited(refresh()),
+      onServerChanged: _onServerChanged,
+    );
   }
 
-  void _sync(ServerState serverState) {
-    final server = serverState.selectedServer;
-    if (server == null || server.supabaseKey == null || server.user == null) {
-      if (_serverId == null) return;
-      _teardown();
-      if (!isClosed) emit(ServerMembersState());
+  void _onServerChanged(Server? server) {
+    if (isClosed) return;
+    _loadId++;
+    if (server == null) {
+      emit(ServerMembersState());
       return;
     }
-
-    if (server.id != _serverId) {
-      _teardown();
-      _serverId = server.id;
-      _token = server.token;
-      if (!isClosed) {
-        emit(ServerMembersState(serverId: server.id, loading: true));
-      }
-      unawaited(refresh());
-    } else if (server.token != _token) {
-      // Silent re-auth rotated the JWT. Realtime has to be re-pointed at it or
-      // the subscription dies with the token it was opened on.
-      _token = server.token;
-      _client?.realtime.setAuth(server.token);
-    }
-
-    // Hydrated tokens read as near-expiry at startup, and subscribing with one
-    // opens a connection that is already dead. The refresh that `listMembers`
-    // triggers comes back through here as a token change, and we subscribe then.
-    if (_channel == null && !server.isTokenNearExpiry) _subscribe(server);
-  }
-
-  void _subscribe(Server server) {
-    final client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    // RLS has to see `auth.uid()`, so both transports carry the member's JWT.
-    client.headers = {
-      'apikey': server.supabaseKey!,
-      'Authorization': 'Bearer ${server.token}',
-    };
-    client.realtime.setAuth(server.token);
-    _client = client;
-    _channel = client.channel('members:${server.id}')
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'users',
-        callback: (_) => _scheduleRefresh(),
-      )
-      ..subscribe();
-  }
-
-  void _scheduleRefresh() {
-    _debounce?.cancel();
-    _debounce = Timer(_coalesce, () => unawaited(refresh()));
+    emit(ServerMembersState(serverId: server.id, loading: true));
+    unawaited(refresh());
   }
 
   /// Refetch the roster for the selected server. A failure keeps the members we
   /// already have — a dropped connection shouldn't blank the sidebar.
   Future<void> refresh() async {
-    final serverId = _serverId;
+    final serverId = _watcher.serverId;
     if (serverId == null) return;
     final loadId = ++_loadId;
 
     final result = await _serverCubit.listMembers();
-    if (isClosed || loadId != _loadId || serverId != _serverId) return;
+    if (isClosed || loadId != _loadId || serverId != _watcher.serverId) return;
 
     final previous = state;
     final next = ServerMembersState(
@@ -167,7 +114,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// A member's own mute/deafen state is baked into the LiveKit token they
   /// hold, which outlives the change by the best part of an hour. When ours
   /// moves, whoever is listening has to drop that token — otherwise a muted
-  /// member gets their old permissions back just by rejoining the channel.
+  /// member gets their old permissions back just by rejoining.
   void _notifySelfModeration(
     ServerMembersState previous,
     ServerMembersState next,
@@ -186,30 +133,9 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     }
   }
 
-  void _teardown() {
-    _debounce?.cancel();
-    _debounce = null;
-    _serverId = null;
-    _token = null;
-    _loadId++;
-
-    final channel = _channel;
-    final client = _client;
-    _channel = null;
-    _client = null;
-    unawaited(() async {
-      try {
-        await channel?.unsubscribe();
-        client?.removeAllChannels();
-        await client?.dispose();
-      } catch (_) {}
-    }());
-  }
-
   @override
   Future<void> close() async {
-    await _serverSub?.cancel();
-    _teardown();
+    await _watcher.dispose();
     return super.close();
   }
 }
