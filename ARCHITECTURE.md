@@ -268,6 +268,34 @@ still has the conversation open behind another view.
 - Screenshare capture (video + per-platform system audio) runs in Rust for performance and
   publishes directly to the LiveKit room.
 
+### Presence is a scarce resource
+
+Who is online, and who is in which voice channel, comes from **Supabase Realtime Presence** on
+`presence:<serverId>` — not from LiveKit, which only knows about the room you are in yourself.
+
+Realtime rations how often one client may publish presence: **5 events per 30 seconds**
+(`CLIENT_PRESENCE_MAX_CALLS` / `CLIENT_PRESENCE_WINDOW_MS`, realtime v2.102 defaults; the tenant
+columns `max_client_presence_events_per_window` / `client_presence_window_ms` override them). The
+sixth is not refused — realtime logs `ClientPresenceRateLimitReached` and **terminates the
+channel** (`shutdown_response` → `{:stop, :normal}`).
+
+That failure is close to silent. The client's own copy of the presence state still lists it, so it
+looks online to itself while for everyone else it has left; every later track goes to a channel
+process that no longer exists and times out. Nothing rejoins on its own. **Only building a new
+channel recovers** — the ration and the channel both belong to the connection.
+
+Three rules follow, and `ChannelPresenceCubit` exists to keep them:
+
+1. **Stay inside the ration.** Updates wait for room in the 30-second window (we spend 4 of the 5,
+   keeping one in reserve), and bursts coalesce into the last value.
+2. **Don't spend two events on one move.** The half-second of "nowhere" between leaving one voice
+   channel and joining the next is never published. This is what made the limit reachable in
+   normal use — moving a member three times in half a minute used to be enough to make them
+   disappear until they restarted the app.
+3. **A channel that stops working is rebuilt, not retried** — on a refused track or any
+   non-subscribed status, with a doubling backoff so a broken server can't become a reconnect
+   storm.
+
 ---
 
 ## 6. Threat model summary
