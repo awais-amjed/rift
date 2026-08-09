@@ -98,10 +98,11 @@ void main() {
   setUpAll(() => HydratedBloc.storage = _MemoryStorage());
 
   // The panel's width animates while `membersSidebarOpen` flips at once, so a
-  // naive implementation lays the full-width content out at the collapsed
-  // width for the whole animation — a burst of RenderFlex overflows on every
-  // toggle. Pumping mid-animation is the only way to catch that.
-  testWidgets('collapsing and expanding never overflows mid-animation', (
+  // naive implementation lays the full-width content out at a few pixels for
+  // the whole animation — a burst of RenderFlex overflows on every toggle.
+  // Pumping mid-animation is the only way to catch that, and hiding it fully
+  // makes it worse than collapsing did: the width now passes through zero.
+  testWidgets('hiding and showing never overflows mid-animation', (
     tester,
   ) async {
     final appCubit = AppCubit();
@@ -112,15 +113,15 @@ void main() {
     for (var round = 0; round < 2; round++) {
       for (final _ in [0, 1]) {
         appCubit.toggleMembersSidebar();
-        // Step through the 160ms animation rather than settling past it.
-        for (var ms = 0; ms <= 180; ms += 20) {
+        // Step through the animation rather than settling past it.
+        for (var ms = 0; ms <= K.sidebarMotion.inMilliseconds + 40; ms += 20) {
           await tester.pump(const Duration(milliseconds: 20));
           expect(
             tester.takeException(),
             isNull,
             reason:
                 'overflow while animating to '
-                '${appCubit.state.membersSidebarOpen ? "open" : "collapsed"}',
+                '${appCubit.state.membersSidebarOpen ? "open" : "hidden"}',
           );
         }
         await tester.pumpAndSettle();
@@ -129,7 +130,11 @@ void main() {
     }
   });
 
-  testWidgets('settles at the documented widths', (tester) async {
+  // Hidden means gone, not narrow. It used to leave a 42px strip behind for a
+  // reopen button; that button is an EdgeTab over the content now, so the panel
+  // owes the layout nothing at all — including the gutter beside it, which
+  // would otherwise hang off the right of the window.
+  testWidgets('settles at full width, then at nothing', (tester) async {
     final appCubit = AppCubit();
     addTearDown(appCubit.close);
     await _pump(tester, appCubit);
@@ -138,14 +143,14 @@ void main() {
     double panelWidth() => tester.getSize(find.byType(MembersSidebar)).width;
 
     expect(appCubit.state.membersSidebarOpen, isTrue);
-    expect(panelWidth(), K.membersSidebarWidth);
+    expect(panelWidth(), K.membersSidebarWidth + K.panelGutter);
 
     appCubit.toggleMembersSidebar();
     await tester.pumpAndSettle();
-    expect(panelWidth(), K.membersSidebarCollapsedWidth);
+    expect(panelWidth(), 0);
 
     appCubit.toggleMembersSidebar();
     await tester.pumpAndSettle();
-    expect(panelWidth(), K.membersSidebarWidth);
+    expect(panelWidth(), K.membersSidebarWidth + K.panelGutter);
   });
 }

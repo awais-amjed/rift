@@ -10,6 +10,7 @@ import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster.dart';
 import '../../../common/app_panel.dart';
+import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 import '../channels/channel_list/widgets/section_header.dart';
 import '../chat/widgets/chat_header.dart';
@@ -22,78 +23,92 @@ import 'widgets/member_row.dart';
 /// refetches whenever a `users` row changes, so someone joining on an invite
 /// appears without a reselect; *presence* comes from the Realtime presence
 /// channel and decides which group they land in.
-class MembersSidebar extends StatelessWidget {
+class MembersSidebar extends StatefulWidget {
+  const MembersSidebar({super.key});
+
+  @override
+  State<MembersSidebar> createState() => _MembersSidebarState();
+}
+
+class _MembersSidebarState extends State<MembersSidebar> {
   /// Matches ChatHeader's bar height so the two align across the top.
   static const double _headerHeight = ChatHeader.height;
 
-  const MembersSidebar({super.key});
+  /// The panel and the gutter that separates it from the content, which has to
+  /// go with it — a 10px gap left hanging off the right of the window is the
+  /// tell that something used to be there.
+  static const double _fullWidth = K.membersSidebarWidth + K.panelGutter;
+
+  /// Whether the contents are built. Dropped once a close has finished, and
+  /// seeded from the launch state, because starting closed runs no animation
+  /// and so would never reach the `onEnd` that drops them.
+  late bool _showContent;
+
+  @override
+  void initState() {
+    super.initState();
+    _showContent = context.read<AppCubit>().state.membersSidebarOpen;
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return BlocBuilder<AppCubit, AppState>(
+        return BlocConsumer<AppCubit, AppState>(
+          listenWhen: (a, b) => a.membersSidebarOpen != b.membersSidebarOpen,
+          listener: (context, appState) {
+            // Back before the opening animation runs, or the panel would widen
+            // around nothing.
+            if (appState.membersSidebarOpen && !_showContent) {
+              setState(() => _showContent = true);
+            }
+          },
           buildWhen: (a, b) =>
               a.membersSidebarOpen != b.membersSidebarOpen ||
               a.participantSettings != b.participantSettings,
           builder: (context, appState) {
             final open = appState.membersSidebarOpen;
-            final targetWidth = open
-                ? K.membersSidebarWidth
-                : K.membersSidebarCollapsedWidth;
             return AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOutCubic,
-              width: targetWidth,
-              // A panel in its own right — same chrome surface as the left
-              // sidebar, floating beside the content rather than bordering it.
-              child: AppPanel(
-                // The width animates but `open` flips at once, so without this
-                // the full-width content spends the whole animation being laid
-                // out at 42px — a row of overflow errors every toggle. Pin the
-                // child to its destination width and clip instead: it slides
-                // behind the edge rather than being squeezed.
-                child: ClipRect(
-                  child: OverflowBox(
-                    alignment: Alignment.centerLeft,
-                    minWidth: targetWidth,
-                    maxWidth: targetWidth,
-                    child: open
-                        ? _buildList(context, themeState, appState)
-                        : _buildCollapsed(context, themeState),
-                  ),
-                ),
-              ),
+              duration: K.sidebarMotion,
+              curve: AppMotion.panel,
+              width: open ? _fullWidth : 0,
+              onEnd: () {
+                if (!appState.membersSidebarOpen && _showContent) {
+                  setState(() => _showContent = false);
+                }
+              },
+              // The width animates but `open` flips at once, so without the
+              // clip the full-width content spends the whole animation being
+              // laid out at a few pixels — a row of overflow errors every
+              // toggle. Pin the child to its real width and clip instead: it
+              // slides out through the right edge rather than being squeezed.
+              child: !_showContent
+                  ? const SizedBox.shrink()
+                  : ClipRect(
+                      child: OverflowBox(
+                        alignment: Alignment.centerLeft,
+                        minWidth: _fullWidth,
+                        maxWidth: _fullWidth,
+                        child: Row(
+                          children: [
+                            const SizedBox(width: K.panelGutter),
+                            SizedBox(
+                              width: K.membersSidebarWidth,
+                              // A panel in its own right — the same chrome as
+                              // the left sidebar, floating beside the content
+                              // rather than bordering it.
+                              child: AppPanel(
+                                child: _buildList(context, themeState, appState),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
             );
           },
         );
       },
-    );
-  }
-
-  /// Collapsed: a narrow strip whose only job is to get the panel back.
-  Widget _buildCollapsed(BuildContext context, ThemeState themeState) {
-    return Column(
-      children: [
-        // Same height as the header bar, so the button lines up with the chat
-        // header across the top instead of floating.
-        SizedBox(
-          height: _headerHeight,
-          child: Center(
-            child: IconButton(
-              tooltip: 'Show members',
-              visualDensity: VisualDensity.compact,
-              icon: Icon(
-                Icons.people_alt_rounded,
-                size: 18,
-                color: themeState.textTertiary,
-              ),
-              onPressed: () => context.read<AppCubit>().toggleMembersSidebar(),
-            ),
-          ),
-        ),
-        Divider(height: 1, color: themeState.borderPrimary),
-      ],
     );
   }
 

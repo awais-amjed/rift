@@ -90,11 +90,10 @@ class K {
   static const Duration sidebarMotion = Duration(milliseconds: 220);
 
   /// Right-hand member list. Narrower than the left sidebar — it holds one
-  /// short name per row, not channel trees.
+  /// short name per row, not channel trees. Hidden it takes no width at all;
+  /// it used to leave a 42px strip behind for its reopen button, which is a lot
+  /// of window to keep for one icon. An [EdgeTab] brings it back instead.
   static const double membersSidebarWidth = 232;
-
-  /// Collapsed member list: just wide enough for the reopen button.
-  static const double membersSidebarCollapsedWidth = 42;
 
   /// Settings' nav panel. Narrower than the home sidebar — it holds three
   /// labels, not a channel tree.

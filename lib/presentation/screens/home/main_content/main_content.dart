@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/constants.dart';
 import '../../../../data/enums/home_surface.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
@@ -13,6 +12,7 @@ import '../chat/channel_chat_view.dart';
 import '../dms/central_dm_view.dart';
 import '../dms/server_dm_view.dart';
 import '../members_sidebar/members_sidebar.dart';
+import '../members_sidebar/widgets/members_sidebar_tab.dart';
 import '../participants_grid/participants_grid.dart';
 
 /// The centre pane's panel. Content panels sit one rung above the canvas on
@@ -79,24 +79,34 @@ class MainContent extends StatelessWidget {
                   : const ServerDmView(),
             );
           }
-          return Row(
+          return Stack(
             children: [
-              Expanded(
-                child: _ContentPanel(
-                  child: BlocBuilder<ChannelChatCubit, ChannelChatState>(
-                    buildWhen: (prev, curr) =>
-                        (prev.channelId == null) != (curr.channelId == null),
-                    builder: (context, chatState) {
-                      if (chatState.channelId != null) {
-                        return const ChannelChatView();
-                      }
-                      return const ParticipantsGrid();
-                    },
+              Row(
+                children: [
+                  Expanded(
+                    child: _ContentPanel(
+                      child: BlocBuilder<ChannelChatCubit, ChannelChatState>(
+                        buildWhen: (prev, curr) =>
+                            (prev.channelId == null) !=
+                            (curr.channelId == null),
+                        builder: (context, chatState) {
+                          if (chatState.channelId != null) {
+                            return const ChannelChatView();
+                          }
+                          return const ParticipantsGrid();
+                        },
+                      ),
+                    ),
                   ),
-                ),
+                  // The gutter beside it belongs to the member list now, so it
+                  // goes away when the list does.
+                  const MembersSidebar(),
+                ],
               ),
-              const SizedBox(width: K.panelGutter),
-              const MembersSidebar(),
+              // Sits over the content's right edge, mirroring the left
+              // sidebar's tab. Above the Row so it isn't clipped by the panel
+              // that just slid out from under it.
+              const Positioned(top: 12, right: 0, child: MembersSidebarTab()),
             ],
           );
         },

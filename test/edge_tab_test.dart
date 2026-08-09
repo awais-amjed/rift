@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
-import 'package:rift/presentation/screens/home/sidebar/widgets/sidebar_tab.dart';
+import 'package:rift/presentation/common/edge_tab.dart';
 
 class _MemoryStorage implements Storage {
   final Map<String, dynamic> _data = {};
@@ -25,14 +25,14 @@ class _MemoryStorage implements Storage {
   Future<void> close() async {}
 }
 
-/// The unpinned sidebar opens on a click and nothing else.
+/// The tab that brings a hidden side panel back — used on both edges now.
 ///
-/// It used to open on hover, which meant a pointer crossing the left edge on
-/// its way somewhere threw a 346px panel over the content. The tab is the whole
-/// affordance now, and hovering it must do no more than light it up.
+/// The left sidebar used to open on hover, which meant a pointer crossing the
+/// window edge on its way somewhere threw a panel over the content. The tab is
+/// the whole affordance, and hovering it must do no more than light it up.
 ///
-/// The panel itself needs most of the app's cubits to build, so these drive the
-/// tab — the piece that decides whether anything opens at all.
+/// The panels themselves need most of the app's cubits to build, so these
+/// drive the tab: the piece that decides whether anything opens at all.
 void main() {
   setUpAll(() => HydratedBloc.storage = _MemoryStorage());
 
@@ -47,7 +47,11 @@ void main() {
             create: (_) => ThemeCubit(),
             child: Align(
               alignment: Alignment.topLeft,
-              child: SidebarTab(onTap: () => taps++),
+              child: EdgeTab(
+                side: EdgeTabSide.left,
+                tooltip: 'Show sidebar',
+                onTap: () => taps++,
+              ),
             ),
           ),
         ),
@@ -62,7 +66,7 @@ void main() {
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.addPointer(location: Offset.zero);
     addTearDown(gesture.removePointer);
-    await gesture.moveTo(tester.getCenter(find.byType(SidebarTab)));
+    await gesture.moveTo(tester.getCenter(find.byType(EdgeTab)));
     await tester.pumpAndSettle();
 
     expect(taps, 0, reason: 'hover is not a request to open');
@@ -72,25 +76,25 @@ void main() {
     tester,
   ) async {
     await pump(tester);
-    final resting = tester.getSize(find.byType(SidebarTab)).width;
+    final resting = tester.getSize(find.byType(EdgeTab)).width;
 
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.addPointer(location: Offset.zero);
     addTearDown(gesture.removePointer);
-    await gesture.moveTo(tester.getCenter(find.byType(SidebarTab)));
+    await gesture.moveTo(tester.getCenter(find.byType(EdgeTab)));
     await tester.pumpAndSettle();
 
-    expect(tester.getSize(find.byType(SidebarTab)).width, greaterThan(resting));
+    expect(tester.getSize(find.byType(EdgeTab)).width, greaterThan(resting));
   });
 
   testWidgets('clicking it asks to open, once per click', (tester) async {
     await pump(tester);
 
-    await tester.tap(find.byType(SidebarTab));
+    await tester.tap(find.byType(EdgeTab));
     await tester.pumpAndSettle();
     expect(taps, 1);
 
-    await tester.tap(find.byType(SidebarTab));
+    await tester.tap(find.byType(EdgeTab));
     await tester.pumpAndSettle();
     expect(taps, 2);
   });
@@ -98,7 +102,7 @@ void main() {
   testWidgets('it is big enough to hit without aiming', (tester) async {
     await pump(tester);
 
-    final size = tester.getSize(find.byType(SidebarTab));
+    final size = tester.getSize(find.byType(EdgeTab));
     // The old affordance was a 4px-wide nub. A pointer target that thin is one
     // you have to aim at.
     expect(size.width, greaterThanOrEqualTo(16));

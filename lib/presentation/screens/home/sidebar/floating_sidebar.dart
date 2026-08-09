@@ -7,10 +7,10 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/services/sidebar_sizing.dart';
 import '../../../common/app_panel.dart';
+import '../../../common/edge_tab.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
 import 'widgets/sidebar_content.dart';
-import 'widgets/sidebar_tab.dart';
 
 /// The sidebar while it is unpinned: a tab on the left edge that slides the
 /// panel out over the content when you click it.
@@ -152,7 +152,11 @@ class _FloatingSidebarState extends State<FloatingSidebar> {
                       duration: K.sidebarMotion,
                       curve: AppMotion.panel,
                       opacity: tabVisible ? 1 : 0,
-                      child: SidebarTab(onTap: _openPeek),
+                      child: EdgeTab(
+                        side: EdgeTabSide.left,
+                        tooltip: 'Show sidebar',
+                        onTap: _openPeek,
+                      ),
                     ),
                   ),
                 ),
