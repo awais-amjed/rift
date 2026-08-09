@@ -32,4 +32,14 @@ class ParticipantIdentity {
     final sep = base.indexOf('~');
     return sep < 0 ? base : base.substring(0, sep);
   }
+
+  /// Whether [identity] is one of [userId]'s voice connections — any device
+  /// they've joined from, but not their screenshare, whose audio is handled
+  /// separately.
+  ///
+  /// This is the rule for anything that should reach *the person*: applying a
+  /// local mute has to hit every device they're on, not the one connection
+  /// whose identity happened to be at hand.
+  static bool isVoiceConnectionOf(String identity, String userId) =>
+      !isScreenshare(identity) && userIdOf(identity) == userId;
 }

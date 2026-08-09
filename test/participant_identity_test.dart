@@ -49,4 +49,36 @@ void main() {
       expect(ParticipantIdentity.baseOf(identity), identity);
     });
   });
+
+  // Local mute/volume used to find its target with an exact room-key match on
+  // the identity it was handed. That silenced one connection: a member on two
+  // devices stayed audible on the other, and muting from the members sidebar
+  // (which only has a user id) did nothing at all until they rejoined.
+  group('ParticipantIdentity.isVoiceConnectionOf', () {
+    const otherDevice = 'e5f6a7b8';
+    const share = '$userId~$device${ParticipantIdentity.screenshareSuffix}';
+
+    test('matches every device that user has joined from', () {
+      expect(
+        ParticipantIdentity.isVoiceConnectionOf('$userId~$device', userId),
+        isTrue,
+      );
+      expect(
+        ParticipantIdentity.isVoiceConnectionOf('$userId~$otherDevice', userId),
+        isTrue,
+      );
+    });
+
+    test('leaves their screenshare out', () {
+      expect(ParticipantIdentity.isVoiceConnectionOf(share, userId), isFalse);
+    });
+
+    test('does not match somebody else', () {
+      const other = '9f8e7d6c-0000-4000-8000-000000000000';
+      expect(
+        ParticipantIdentity.isVoiceConnectionOf('$other~$device', userId),
+        isFalse,
+      );
+    });
+  });
 }
