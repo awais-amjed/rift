@@ -6,6 +6,7 @@ import '../../../../data/constants.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster.dart';
 import '../../../common/app_panel.dart';
@@ -17,97 +18,61 @@ import 'widgets/member_row.dart';
 /// The right-hand member list for the selected server — everyone who has
 /// joined, split into online and offline.
 ///
-/// Membership comes from `list_users` (fetched once per server, and again when
-/// the server changes); *presence* comes from the Realtime presence channel, so
-/// the online split updates live without refetching the roster.
-class MembersSidebar extends StatefulWidget {
-  const MembersSidebar({super.key});
-
-  @override
-  State<MembersSidebar> createState() => _MembersSidebarState();
-}
-
-class _MembersSidebarState extends State<MembersSidebar> {
+/// Both halves are live. Membership comes from [ServerMembersCubit], which
+/// refetches whenever a `users` row changes, so someone joining on an invite
+/// appears without a reselect; *presence* comes from the Realtime presence
+/// channel and decides which group they land in.
+class MembersSidebar extends StatelessWidget {
   /// Matches ChatHeader's bar height so the two align across the top.
   static const double _headerHeight = ChatHeader.height;
 
-  List<ServerMember>? _members;
-  String? _loadedServerId;
-  bool _loading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadIfNeeded();
-  }
-
-  Future<void> _loadIfNeeded() async {
-    final serverId = context.read<ServerCubit>().state.selectedServer?.id;
-    if (serverId == null || serverId == _loadedServerId || _loading) return;
-    setState(() => _loading = true);
-    final result = await context.read<ServerCubit>().listMembers();
-    if (!mounted) return;
-    setState(() {
-      _loading = false;
-      if (result.success) {
-        _members = result.members;
-        _loadedServerId = serverId;
-      }
-    });
-  }
+  const MembersSidebar({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // A server switch happens under us without initState running again, so the
-    // reload is driven from a listener. Doing it from build() called setState()
-    // mid-build and threw whenever the switch arrived during layout.
-    return BlocListener<ServerCubit, ServerState>(
-      listenWhen: (a, b) => a.selectedServer?.id != b.selectedServer?.id,
-      listener: (context, state) => _loadIfNeeded(),
-      child: BlocBuilder<ThemeCubit, ThemeState>(
-        builder: (context, themeState) {
-          return BlocBuilder<AppCubit, AppState>(
-            buildWhen: (a, b) =>
-                a.membersSidebarOpen != b.membersSidebarOpen ||
-                a.participantSettings != b.participantSettings,
-            builder: (context, appState) {
-              final open = appState.membersSidebarOpen;
-              final targetWidth = open
-                  ? K.membersSidebarWidth
-                  : K.membersSidebarCollapsedWidth;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOutCubic,
-                width: targetWidth,
-                // A panel in its own right — same chrome surface as the left
-                // sidebar, floating beside the content rather than bordering it.
-                child: AppPanel(
-                  // The width animates but `open` flips at once, so without this
-                  // the full-width content spends the whole animation being laid
-                  // out at 42px — a row of overflow errors every toggle. Pin the
-                  // child to its destination width and clip instead: it slides
-                  // behind the edge rather than being squeezed.
-                  child: ClipRect(
-                    child: OverflowBox(
-                      alignment: Alignment.centerLeft,
-                      minWidth: targetWidth,
-                      maxWidth: targetWidth,
-                      child: open
-                          ? _buildList(themeState, appState)
-                          : _buildCollapsed(themeState),
-                    ),
+    return BlocBuilder<ThemeCubit, ThemeState>(
+      builder: (context, themeState) {
+        return BlocBuilder<AppCubit, AppState>(
+          buildWhen: (a, b) =>
+              a.membersSidebarOpen != b.membersSidebarOpen ||
+              a.participantSettings != b.participantSettings,
+          builder: (context, appState) {
+            final open = appState.membersSidebarOpen;
+            final targetWidth = open
+                ? K.membersSidebarWidth
+                : K.membersSidebarCollapsedWidth;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOutCubic,
+              width: targetWidth,
+              // A panel in its own right — same chrome surface as the left
+              // sidebar, floating beside the content rather than bordering it.
+              child: AppPanel(
+                // The width animates but `open` flips at once, so without this
+                // the full-width content spends the whole animation being laid
+                // out at 42px — a row of overflow errors every toggle. Pin the
+                // child to its destination width and clip instead: it slides
+                // behind the edge rather than being squeezed.
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.centerLeft,
+                    minWidth: targetWidth,
+                    maxWidth: targetWidth,
+                    child: open
+                        ? _buildList(context, themeState, appState)
+                        : _buildCollapsed(context, themeState),
                   ),
                 ),
-              );
-            },
-          );
-        },
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
   /// Collapsed: a narrow strip whose only job is to get the panel back.
-  Widget _buildCollapsed(ThemeState themeState) {
+  Widget _buildCollapsed(BuildContext context, ThemeState themeState) {
     return Column(
       children: [
         // Same height as the header bar, so the button lines up with the chat
@@ -132,42 +97,43 @@ class _MembersSidebarState extends State<MembersSidebar> {
     );
   }
 
-  Widget _buildList(ThemeState themeState, AppState appState) {
-    return BlocBuilder<ServerCubit, ServerState>(
-      buildWhen: (a, b) => a.selectedServer?.id != b.selectedServer?.id,
-      builder: (context, serverState) {
-        final myId = serverState.selectedServer?.user?.id;
-        return BlocBuilder<ChannelPresenceCubit, ChannelPresenceState>(
-          builder: (context, presence) {
-            final members = _members;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(themeState),
-                Expanded(
-                  child: members == null
-                      ? Center(
-                          child: _loading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
+  Widget _buildList(
+    BuildContext context,
+    ThemeState themeState,
+    AppState appState,
+  ) {
+    final myId = context
+        .watch<ServerCubit>()
+        .state
+        .selectedServer
+        ?.user
+        ?.id;
+    final presence = context.watch<ChannelPresenceCubit>().state;
+    final roster = context.watch<ServerMembersCubit>().state;
+    final members = roster.members;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _header(context, themeState, members?.length),
+        Expanded(
+          child: members == null
+              ? Center(
+                  child: roster.loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : _roster(themeState, appState, members, presence, myId),
-                ),
-              ],
-            );
-          },
-        );
-      },
+                      : const SizedBox.shrink(),
+                )
+              : _roster(themeState, appState, members, presence, myId),
+        ),
+      ],
     );
   }
 
-  Widget _header(ThemeState themeState) {
+  Widget _header(BuildContext context, ThemeState themeState, int? count) {
     // Mirrors ChatHeader's bar so the two line up across the top.
     return Container(
       height: _headerHeight,
@@ -189,9 +155,9 @@ class _MembersSidebarState extends State<MembersSidebar> {
             ),
           ),
           // Mono, so the tally sits still while people come and go.
-          if (_members != null)
+          if (count != null)
             Text(
-              '${_members!.length}',
+              '$count',
               style: AppText.figure.copyWith(
                 fontSize: 10,
                 color: themeState.textQuaternary,

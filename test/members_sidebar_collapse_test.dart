@@ -7,6 +7,7 @@ import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/data/classes/server_member.dart';
 import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
+import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/members_sidebar/members_sidebar.dart';
 
@@ -40,8 +41,8 @@ class _StubPresenceCubit extends Cubit<ChannelPresenceState>
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// No server selected and an empty member list — the panel then renders its
-/// chrome and an empty roster, which is exactly the layout the animation moves.
+/// No server selected — the panel then renders its chrome and an empty roster,
+/// which is exactly the layout the animation moves.
 class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
   _StubServerCubit() : super(const ServerState());
 
@@ -49,6 +50,17 @@ class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
   Future<({bool success, List<ServerMember>? members, String? error})>
   listMembers() async =>
       (success: true, members: <ServerMember>[], error: null);
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// A roster that has already loaded and is empty — no realtime connection, so
+/// the layout test doesn't need a server to talk to.
+class _StubMembersCubit extends Cubit<ServerMembersState>
+    implements ServerMembersCubit {
+  _StubMembersCubit()
+    : super(const ServerMembersState(members: <ServerMember>[]));
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -66,6 +78,9 @@ Future<void> _pump(WidgetTester tester, AppCubit appCubit) async {
               create: (_) => _StubPresenceCubit(),
             ),
             BlocProvider<ServerCubit>(create: (_) => _StubServerCubit()),
+            BlocProvider<ServerMembersCubit>(
+              create: (_) => _StubMembersCubit(),
+            ),
           ],
           child: const Row(
             children: [
