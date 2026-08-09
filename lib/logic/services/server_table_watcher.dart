@@ -38,6 +38,7 @@ class ServerTableWatcher {
   String? _serverId;
   String? _token;
   Timer? _debounce;
+  bool _disposed = false;
 
   ServerTableWatcher({
     required this.serverCubit,
@@ -46,7 +47,18 @@ class ServerTableWatcher {
     required this.onServerChanged,
   }) {
     _serverSub = serverCubit.stream.listen(_sync);
-    _sync(serverCubit.state);
+    // Deferred a microtask, never called straight from here. Consumers hold
+    // the watcher in a `late final` field that this very expression is
+    // initialising, so a callback fired from the constructor reaches an object
+    // whose own field isn't assigned yet — `onServerChanged` refreshes, the
+    // refresh reads `watcher.serverId`, and the app dies on launch with a
+    // LateInitializationError. A microtask still lands before anything from
+    // the stream, which is delivered asynchronously, so the promise that
+    // [onServerChanged] fires first is kept.
+    scheduleMicrotask(() {
+      if (_disposed) return;
+      _sync(serverCubit.state);
+    });
   }
 
   /// The server currently being watched, or null.
@@ -123,6 +135,7 @@ class ServerTableWatcher {
   }
 
   Future<void> dispose() async {
+    _disposed = true;
     await _serverSub?.cancel();
     _serverSub = null;
     _teardown();
