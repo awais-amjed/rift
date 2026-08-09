@@ -66,8 +66,11 @@ class AppProviders extends StatelessWidget {
           ),
         ),
         BlocProvider(
-          create: (context) =>
-              ServerMembersCubit(serverCubit: context.read<ServerCubit>()),
+          // Not lazy: the roster subscription is also how a member learns that
+          // their own moderation state changed, and that has to invalidate
+          // their cached LiveKit token whether or not a sidebar is watching.
+          lazy: false,
+          create: _createServerMembersCubit,
         ),
         BlocProvider(
           create: (context) => ChannelChatCubit(
@@ -137,6 +140,20 @@ class AppProviders extends StatelessWidget {
     // So a LiveKit disconnect tears down an active share.
     context.read<LiveKitCubit>().setScreenshareCubit(screenshareCubit);
     return screenshareCubit;
+  }
+
+  ServerMembersCubit _createServerMembersCubit(BuildContext context) {
+    final serverCubit = context.read<ServerCubit>();
+    final tokenCubit = context.read<TokenCubit>();
+    final members = ServerMembersCubit(serverCubit: serverCubit);
+    // A cached LiveKit token still grants what it was minted with, so being
+    // muted has to throw it away — otherwise rejoining restores the old
+    // permissions until it expires.
+    members.setOnSelfModerationChanged(() {
+      final url = serverCubit.state.selectedServer?.supabaseUrl;
+      if (url != null) tokenCubit.invalidateServerTokens(url);
+    });
+    return members;
   }
 
   ServerEventsCubit _createServerEventsCubit(BuildContext context) {

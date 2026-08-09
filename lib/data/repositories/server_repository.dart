@@ -502,6 +502,13 @@ class ServerRepository with _ChatApiMixin {
   /// An RPC rather than an update: RLS is row-level, so a policy that let an
   /// admin write another member's moderation flags would let them write that
   /// member's identity too.
+  /// Mute / deafen / ban a member (admin only).
+  ///
+  /// An edge function rather than the `moderate_user` RPC directly, because the
+  /// row write is only half the job: the other half is pushing the new state
+  /// onto the target's live LiveKit connections, which needs the API secret.
+  /// The function still calls that same RPC with the caller's JWT, so the
+  /// permission rules stay in the database.
   Future<APIResponse> moderateUser(
     String supabaseUrl, {
     required String anonKey,
@@ -511,18 +518,12 @@ class ServerRepository with _ChatApiMixin {
     bool? isDeafened,
     bool? isBanned,
   }) {
-    return ServerDb.run(() async {
-      final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      return db.rpc(
-        'moderate_user',
-        params: {
-          'p_target': userId,
-          'p_muted': isMuted,
-          'p_deafened': isDeafened,
-          'p_banned': isBanned,
-        },
-      );
-    });
+    return _post(supabaseUrl, 'moderate_user', {
+      'target_user_id': userId,
+      'muted': isMuted,
+      'deafened': isDeafened,
+      'banned': isBanned,
+    }, bearerToken: bearerToken);
   }
 
   /// Unread counts for every channel and conversation on this server, in one

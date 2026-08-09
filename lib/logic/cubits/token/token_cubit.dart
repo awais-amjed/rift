@@ -42,6 +42,19 @@ class TokenCubit extends HydratedCubit<TokenState> {
   /// Removes the cached token for [channelId] (e.g. on auth error).
   void invalidateToken(String channelId) => _evict(channelId);
 
+  /// Drops every cached token issued by [supabaseUrl].
+  ///
+  /// A LiveKit token carries the moderation grant it was minted with, and stays
+  /// usable for 55 minutes — so a member muted mid-session would get their old
+  /// permissions straight back by leaving and rejoining. Called when the local
+  /// user's own mute/deafen state changes.
+  void invalidateServerTokens(String supabaseUrl) {
+    final updated = Map<String, CachedToken>.from(state.tokens)
+      ..removeWhere((_, token) => token.supabaseUrl == supabaseUrl);
+    if (updated.length == state.tokens.length) return;
+    emit(state.copyWith(tokens: updated));
+  }
+
   // ──────────────────────────────────────────────────────────
   // HydratedCubit persistence
   // ──────────────────────────────────────────────────────────

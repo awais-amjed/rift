@@ -7,7 +7,7 @@ uses is a deliberate line rather than an accident of history:
   This is almost everything: reading and sending messages, editing your own, member lists,
   channels, invites, reactions, read cursors.
 - **Edge functions**, in [`edge_functions/supabase/functions/`](edge_functions/supabase/functions/),
-  for the nine things that genuinely can't be a table call.
+  for the eleven things that genuinely can't be a table call.
 
 The client mirror is `lib/data/repositories/server_repository.dart` (+ `server_db.dart`); keep
 them in sync.
@@ -31,10 +31,42 @@ An endpoint earns its place only if it holds a secret, or runs before the caller
 | `is_username_available` | none | Same bootstrap window: asked while registering, before membership |
 | `create_server` | `service_key` in body | Writes the LiveKit API secret. Also seeds a `general` text channel and a `voice` voice channel — they differ in name because `(server_id, name)` is unique. Returns `server_id`, `name`, `supabase_url`, `supabase_key`, `invite_code` (single-use admin invite) |
 | `update_server` | Bearer + `is_server_admin` | Writes the LiveKit API key/secret into `server_secrets`, which has no grant and no policy. Name and icon ride along rather than splitting one dialog across two transports |
-| `get_channel_token` | Bearer | Mints a LiveKit JWT with the API secret. Identity is `<userId>~<deviceId>`; `roomAdmin` for channel managers, 1 h TTL. **Moderation is enforced here** — muted users get no `microphone` in `canPublishSources`, deafened users get `canSubscribe: false` |
+| `get_channel_token` | Bearer | Mints a LiveKit JWT with the API secret. Identity is `<userId>~<deviceId>`; `roomAdmin` for channel managers, 1 h TTL. **Moderation is enforced here at join time** — muted users get no `microphone` in `canPublishSources`, deafened users get `canSubscribe: false` |
+| `moderate_user` | Bearer + `is_admin` (checked by the RPC) | Mute/deafen/ban. Calls the `moderate_user` RPC with the caller's JWT — the rules stay in the database — then uses the LiveKit API secret to push the new permissions and metadata onto every live connection the target holds. See below |
 | `get_channel_key` | Bearer | Channel-key distribution (below) |
 | `post_channel_keys` | Bearer | Channel-key distribution (below) |
 | `sweep_channel_keys` | Bearer | Channel-key distribution (below) |
+
+### Moderation has to reach the live room
+
+A mute is two writes, and for a long time only the first one happened. The flag
+went into `users`, and `get_channel_token` refused the `microphone` source *the
+next time a token was minted*. Nothing touched the call that was already in
+progress, so a moderator watched a muted member keep talking — and the client
+caches LiveKit tokens for 55 minutes, so even leaving and rejoining handed back
+the old grant. In practice the mute landed somewhere up to an hour later.
+
+`moderate_user` therefore does three things after the row is written:
+
+1. `updateParticipant` on **every** connection the target holds — each device,
+   plus their screenshare — replacing permissions and metadata. Rooms are named
+   by channel id, so the search is scoped to this server's channels rather than
+   every room on a shared LiveKit deployment. Revoking the microphone source
+   makes LiveKit unpublish the track outright.
+2. `mutePublishedTrack` on a live microphone, so audio already flowing stops now
+   rather than at their next publish. Un-muting deliberately does *not* unmute
+   their track — it restores the permission and leaves the mic to them.
+3. `removeParticipant` instead of the above, when the action is a ban.
+
+The permission encoding is a trap worth knowing: `canPublishSources` on an
+**AccessToken grant** uses `undefined` for "all sources", while the same field on
+a live **ParticipantPermission** uses an **empty list**. `_shared/moderation.ts`
+holds both forms as separate functions so the two enforcement points cannot
+drift, and neither can be passed the other's encoding.
+
+The client half is `TokenCubit.invalidateServerTokens`, called when
+`ServerMembersCubit` sees the local user's own `is_muted`/`is_deafened` change —
+otherwise the cached token would outlive the moderation that revoked it.
 
 **The key-distribution trio is a deliberate deferral, not a rule.** `post_channel_keys` enforces
 the `key_version ≤ current+1` race (first writer wins, losers refetch and re-wrap) and
@@ -66,7 +98,7 @@ silent re-login still triggers.
 | `create_invite` | `insert`; the code comes from a column default, and the policy refuses any permission the caller doesn't hold |
 | `update_profile`, `publish_chat_key` | `update` on your own row — the column grant covers only `display_name`, `chat_public_key`, `avatar_path` |
 | `toggle_reaction`, `list_reactions` | `insert`/`delete` keyed by `(message, user, emoji)`; a duplicate-key error *is* the "already reacted" answer |
-| `moderate_user`, `set_user_permissions` | RPCs — RLS is row-level, so a policy allowing an admin to write another member's flags would also let them rewrite that member's identity |
+| `moderate_user`, `set_user_permissions` | RPCs — RLS is row-level, so a policy allowing an admin to write another member's flags would also let them rewrite that member's identity. `moderate_user` kept the RPC but regained an edge function in front of it, which is the only thing that can reach LiveKit (above) |
 | `list_dm_conversations` | `dm_conversations()` — `DISTINCT ON` instead of a thousand rows grouped in TypeScript |
 | the `notifications` table | `unread_counts()` + `mark_read()` over `read_state` |
 

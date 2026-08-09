@@ -76,6 +76,13 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// Guards against a slow fetch landing after a newer one, or after a switch.
   int _loadId = 0;
 
+  void Function()? _onSelfModerationChanged;
+
+  /// Called when the local user's own mute/deafen state changes — see
+  /// [_notifySelfModeration].
+  void setOnSelfModerationChanged(void Function() callback) =>
+      _onSelfModerationChanged = callback;
+
   ServerMembersCubit({required ServerCubit serverCubit})
     : _serverCubit = serverCubit,
       super(ServerMembersState()) {
@@ -147,13 +154,36 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     final result = await _serverCubit.listMembers();
     if (isClosed || loadId != _loadId || serverId != _serverId) return;
 
-    emit(
-      ServerMembersState(
-        serverId: serverId,
-        members: result.success ? result.members : state.members,
-        error: result.success ? null : result.error,
-      ),
+    final previous = state;
+    final next = ServerMembersState(
+      serverId: serverId,
+      members: result.success ? result.members : state.members,
+      error: result.success ? null : result.error,
     );
+    emit(next);
+    _notifySelfModeration(previous, next);
+  }
+
+  /// A member's own mute/deafen state is baked into the LiveKit token they
+  /// hold, which outlives the change by the best part of an hour. When ours
+  /// moves, whoever is listening has to drop that token — otherwise a muted
+  /// member gets their old permissions back just by rejoining the channel.
+  void _notifySelfModeration(
+    ServerMembersState previous,
+    ServerMembersState next,
+  ) {
+    final myId = _serverCubit.state.selectedServer?.user?.id;
+    if (myId == null) return;
+
+    // No prior row means this is the first load for the server, not a change.
+    final before = previous.byId[myId];
+    final after = next.byId[myId];
+    if (before == null || after == null) return;
+
+    if (before.isMuted != after.isMuted ||
+        before.isDeafened != after.isDeafened) {
+      _onSelfModerationChanged?.call();
+    }
   }
 
   void _teardown() {
