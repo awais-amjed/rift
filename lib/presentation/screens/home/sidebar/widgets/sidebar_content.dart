@@ -19,10 +19,7 @@ import 'sidebar_header.dart';
 class SidebarContent extends StatelessWidget {
   final double topPadding;
 
-  const SidebarContent({
-    super.key,
-    this.topPadding = 0,
-  });
+  const SidebarContent({super.key, this.topPadding = 0});
 
   @override
   Widget build(BuildContext context) {

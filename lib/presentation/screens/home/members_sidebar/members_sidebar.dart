@@ -98,7 +98,11 @@ class _MembersSidebarState extends State<MembersSidebar> {
                               // the left sidebar, floating beside the content
                               // rather than bordering it.
                               child: AppPanel(
-                                child: _buildList(context, themeState, appState),
+                                child: _buildList(
+                                  context,
+                                  themeState,
+                                  appState,
+                                ),
                               ),
                             ),
                           ],
@@ -117,12 +121,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
     ThemeState themeState,
     AppState appState,
   ) {
-    final myId = context
-        .watch<ServerCubit>()
-        .state
-        .selectedServer
-        ?.user
-        ?.id;
+    final myId = context.watch<ServerCubit>().state.selectedServer?.user?.id;
     final presence = context.watch<ChannelPresenceCubit>().state;
     final roster = context.watch<ServerMembersCubit>().state;
     final members = roster.members;

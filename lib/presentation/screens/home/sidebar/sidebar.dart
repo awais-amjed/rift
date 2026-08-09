@@ -117,13 +117,14 @@ class _SidebarState extends State<Sidebar> {
                       children: [
                         AppPanel(
                           width: width,
-                          child: SidebarContent(
-                            topPadding: widget.topPadding,
-                          ),
+                          child: SidebarContent(topPadding: widget.topPadding),
                         ),
                         SidebarResizeHandle(
-                          onDrag: (delta) =>
-                              _onDrag(delta, appState.sidebarWidth, windowWidth),
+                          onDrag: (delta) => _onDrag(
+                            delta,
+                            appState.sidebarWidth,
+                            windowWidth,
+                          ),
                           onDragEnd: _onDragEnd,
                           onReset: _reset,
                         ),

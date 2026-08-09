@@ -6,15 +6,13 @@ import '../../../../../../../data/classes/participant_info.dart';
 import '../../../../../../../data/constants.dart';
 import '../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
-import '../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../common/nav_row.dart';
 import '../../../../../../theme/app_text.dart';
-import '../../../../sidebar/widgets/participant_context_menu.dart';
 import '../channel_context_menu.dart';
-import '../../../../sidebar/widgets/participant_list_item.dart';
+import 'widgets/channel_drop_target.dart';
+import 'widgets/channel_roster.dart';
 import 'widgets/live_badge.dart';
-import 'widgets/presence_member_row.dart';
 
 /// A voice channel in the sidebar — Discord-style, showing who is in it.
 ///
@@ -55,24 +53,34 @@ class VoiceChannelTile extends StatelessWidget {
                     participants.isNotEmpty ||
                     presenceUsers.isNotEmpty;
 
+                // An empty channel is the most likely place to drop someone,
+                // so it catches a drag as readily as an occupied one.
                 if (!isOccupied) {
-                  return ChannelContextMenu.wrap(
-                    context: context,
-                    channel: channel,
-                    child: NavRow(
-                      icon: Icons.volume_up_rounded,
-                      label: channel.name,
-                      onTap: onTap,
+                  return ChannelDropTarget(
+                    channelId: channel.id,
+                    builder: (context, isTargeted) => ChannelContextMenu.wrap(
+                      context: context,
+                      channel: channel,
+                      child: NavRow(
+                        icon: Icons.volume_up_rounded,
+                        label: channel.name,
+                        onTap: onTap,
+                        isSelected: isTargeted,
+                      ),
                     ),
                   );
                 }
 
-                return _buildCard(
-                  context,
-                  themeState,
-                  appState,
-                  participants: participants,
-                  presenceUsers: presenceUsers,
+                return ChannelDropTarget(
+                  channelId: channel.id,
+                  builder: (context, isTargeted) => _buildCard(
+                    context,
+                    themeState,
+                    appState,
+                    participants: participants,
+                    presenceUsers: presenceUsers,
+                    isTargeted: isTargeted,
+                  ),
                 );
               },
             );
@@ -88,21 +96,25 @@ class VoiceChannelTile extends StatelessWidget {
     AppState appState, {
     required List<ParticipantInfo> participants,
     required List<PresenceUser> presenceUsers,
+    bool isTargeted = false,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
       padding: const EdgeInsets.all(9),
       // The channel you are *in* takes the accent, the same way a selected
       // row does; a channel that merely has people in it stays neutral. Both
-      // are cards, so the difference says which call is yours.
+      // are cards, so the difference says which call is yours. A drag hovering
+      // over it borrows the accent border — where this drop would land.
       decoration: BoxDecoration(
         color: isSelected ? null : themeState.bgHover,
         gradient: isSelected ? themeState.activeRowGradient : null,
         borderRadius: BorderRadius.circular(K.radiusCard),
         border: Border.all(
-          color: isSelected
-              ? themeState.channelActiveBorder
-              : themeState.borderElevated,
+          color: isTargeted
+              ? themeState.accentBright
+              : (isSelected
+                    ? themeState.channelActiveBorder
+                    : themeState.borderElevated),
         ),
       ),
       child: Column(
@@ -118,32 +130,12 @@ class VoiceChannelTile extends StatelessWidget {
             child: _buildHeader(context, themeState),
           ),
           if (participants.isNotEmpty || presenceUsers.isNotEmpty)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 2,
-              children: [
-                // Connected: full LiveKit state (speaking, mute, moderation).
-                for (final p in participants)
-                  ParticipantListItem(
-                    participant: p,
-                    setting: appState.participantSettings[p.userId],
-                    contextMenu: ParticipantContextMenu(
-                      identity: p.identity,
-                      name: context
-                          .watch<ServerMembersCubit>()
-                          .state
-                          .nameFor(p.userId, p.name),
-                      isLocal: p.isLocal,
-                    ),
-                  ),
-                // Another channel: presence only — no live mic state exists.
-                for (final u in presenceUsers)
-                  PresenceMemberRow(
-                    user: u,
-                    themeState: themeState,
-                    setting: appState.participantSettings[u.userId],
-                  ),
-              ],
+            ChannelRoster(
+              channelId: channel.id,
+              participants: participants,
+              presenceUsers: presenceUsers,
+              settings: appState.participantSettings,
+              themeState: themeState,
             ),
         ],
       ),

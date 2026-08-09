@@ -64,7 +64,10 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
 
   @override
   Widget build(BuildContext context) {
-    final member = context.watch<ServerMembersCubit>().state.byId[widget.userId];
+    final member = context
+        .watch<ServerMembersCubit>()
+        .state
+        .byId[widget.userId];
 
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
@@ -82,8 +85,7 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
               ContextMenuItem(
                 icon: role.icon,
                 label: role.label,
-                onTap: () =>
-                    _toggle(role, !role.isHeldBy(member.permissions)),
+                onTap: () => _toggle(role, !role.isHeldBy(member.permissions)),
                 trailing: _trailing(
                   role: role,
                   isHeld: role.isHeldBy(member.permissions),
