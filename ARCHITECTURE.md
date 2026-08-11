@@ -294,6 +294,19 @@ people change voice channels constantly. Broadcast has no per-client window. It 
 tenant-wide events-per-second budget that every chat topic already shares, and moving location off
 presence doesn't add to that: a presence diff fanned out to the same subscribers either way.
 
+That tenant budget is the one a self-hosted server actually has to be provisioned for. It defaults
+to **100 events per second**, it counts **deliveries rather than sends** (one broadcast to 20
+subscribers is 21 events), and `postgres_changes` — which is how unread badges reach every member
+of every joined server — spends the same allowance. Twenty or so chatty members is enough to
+exhaust it, whereupon realtime terminates channels with `Too many messages per second`. Raising it
+is a deployment step, not a code one: `UPDATE _realtime.tenants SET max_events_per_second = …` as
+`supabase_admin`, then recreate the container so it re-reads the cached tenant config. Do it in
+that order and it still reverts on the *next* restart — the self-host seed deletes and reinserts
+the tenant row on every boot with no `max_*` fields, so `SEED_SELF_HOST` has to go to `false` first
+(the tenant already exists by then, and schema migrations run regardless of it). LOCAL_DEV.md
+"Realtime rate limits" has the full procedure and the reasons short load tests fail to reproduce
+any of this.
+
 Broadcast is stateless, so a client that has just connected has missed every hop so far. It starts
 from a snapshot — the `voice_roster` edge function asks LiveKit, which is the only party that
 can't be out of date, and the merge lets any delta that raced the fetch win.
