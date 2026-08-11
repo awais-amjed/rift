@@ -568,6 +568,20 @@ class ServerRepository with _ChatApiMixin {
     }, bearerToken: bearerToken);
   }
 
+  /// Who is in which voice channel right now, as LiveKit sees it:
+  /// `{roster: {userId: channelId}}`.
+  ///
+  /// The snapshot a client starts from before it can rely on hearing about
+  /// changes — see [VoiceBroadcast].
+  Future<APIResponse> voiceRoster(String supabaseUrl, {String? bearerToken}) {
+    return _post(
+      supabaseUrl,
+      'voice_roster',
+      const {},
+      bearerToken: bearerToken,
+    );
+  }
+
   /// Unread counts for every channel and conversation on this server, in one
   /// call: `{channels: {id: n}, dms: {peerId: n}}`.
   Future<APIResponse> unreadCounts(

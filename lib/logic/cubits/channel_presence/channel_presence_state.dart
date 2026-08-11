@@ -8,7 +8,10 @@ class PresenceUser {
 }
 
 class ChannelPresenceState {
-  /// Maps channelId → list of users currently in that channel.
+  /// Maps channelId → who is in that voice channel, by display name.
+  ///
+  /// Built from the broadcast locations, filtered by [onlineUserIds] and with
+  /// the local user left out — see `ChannelPresenceCubit._emit`.
   final Map<String, List<PresenceUser>> channelPresence;
 
   /// Everyone with the app open on this server, whether or not they're in a

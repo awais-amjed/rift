@@ -5,44 +5,38 @@ import 'package:supabase/supabase.dart';
 
 import '../../../data/classes/server.dart';
 import '../../services/presence_ration.dart';
+import '../../services/voice_broadcast.dart';
+import '../../services/voice_locations.dart';
 import '../livekit/livekit_cubit.dart';
 import '../server/server_cubit.dart';
 
 part 'channel_presence_state.dart';
+part 'channel_presence_tracking.dart';
 
-/// Maintains Supabase Realtime Presence for the selected server.
+/// Who is online on the selected server, and who is in which voice channel.
 ///
-/// The local user is tracked for as long as the server is selected, so
-/// presence answers both questions the UI asks: *who is online here* (the
-/// member sidebar) and *who is in which voice channel* (the channel list). The
-/// tracked `channelId` is null while not in voice, and follows the LiveKit
-/// connection otherwise — no changes needed in LiveKitCubit.
+/// Two questions, and — the point of this class — **two transports**, because
+/// they change at completely different rates.
 ///
-/// ## Presence updates are rationed, and overspending kills the channel
+/// **Online** rides Realtime Presence, which allows one client only five
+/// publishes per 30 seconds and kills the channel on the sixth (see
+/// [_PresenceTrackingMixin] for what that failure looks like from in here). A
+/// budget that small is only safe for something that doesn't move, so the entry
+/// says `{userId, displayName}` and is published once per connection. What it
+/// buys in return is the thing nothing else here can do: **when the socket dies
+/// the entry dies with it**, and every other member is told.
 ///
-/// Realtime allows one client **5 presence events per 30 seconds**
-/// (`CLIENT_PRESENCE_MAX_CALLS` / `CLIENT_PRESENCE_WINDOW_MS`, defaults in
-/// realtime v2.102). The sixth is not refused — it logs
-/// `ClientPresenceRateLimitReached` and **terminates the channel**
-/// (`shutdown_response` → `{:stop, :normal}`).
+/// **Location** rides an ordinary broadcast on `voice:<serverId>`, one message
+/// per hop, because people change voice channels constantly and broadcast has
+/// no per-client window. See [VoiceBroadcast].
 ///
-/// The client is barely told. Its own copy of the presence state still lists
-/// it, so it looks online to itself, while for everyone else it has left. Every
-/// later track goes to a channel process that no longer exists and times out.
-/// Moving someone used to cost two updates (leaving, then arriving), so three
-/// moves in half a minute made a member invisible until they restarted the app.
-///
-/// Three rules come out of that, and all three are load-bearing:
-///
-/// * **Stay inside the ration.** [PresenceRation.publishWait] holds an update
-///   back until there is room in the 30-second window, and bursts coalesce into
-///   the last value — only where we are *now* is worth spending an event on.
-/// * **Don't spend two events on one move.** The half-second of "nowhere"
-///   between leaving one channel and joining the next is never published.
-/// * **A channel that stops working is rebuilt, not retried.** The ration and
-///   the channel process both belong to the connection, so a new one starts
-///   clean; tracking again on the old one can never work.
-class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
+/// The two are joined in [_emit]: a location is only drawn while presence still
+/// vouches for the person it belongs to. A client that crashes mid-call never
+/// gets to say it left, and doesn't have to — it drops off presence, and its
+/// last known location stops being believed.
+class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
+    with _PresenceTrackingMixin {
+  @override
   final ServerCubit _serverCubit;
   final LiveKitCubit _livekitCubit;
 
@@ -50,32 +44,23 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
   StreamSubscription<LiveKitState>? _lkSub;
 
   SupabaseClient? _client;
+  @override
   RealtimeChannel? _channel;
+  VoiceBroadcast? _voice;
   String? _currentServerId;
+  String? _currentUserId;
+  @override
   bool _subscribed = false;
 
-  /// Whether the local user is tracked at all, and the channel id in that
-  /// entry (null while not in a voice channel). Both are needed: "tracked with
-  /// no channel" and "not tracked" are different states, and collapsing them
-  /// would re-track on every LiveKit event. Only ever our *belief* about what
-  /// the server holds — see [_publishPending] for what happens when it's wrong.
-  bool _tracked = false;
-  String? _trackedChannelId;
+  /// Display names by user id, straight from the presence payload. The only
+  /// place a name for someone in a voice channel comes from, and the reason
+  /// "online" and "named" are the same set.
+  Map<String, String> _names = const {};
+  Set<String> _online = const {};
 
-  /// The update waiting to go out, and when the recent ones went. `_hasPending`
-  /// is separate because "publish null" and "nothing to publish" are different.
-  Timer? _publishTimer;
-  final List<DateTime> _recentPublishes = [];
-  bool _hasPending = false;
-  String? _pendingChannelId;
-
-  /// One update in flight at a time. Two overlapping tracks can be applied by
-  /// the server in either order, and the loser is a member shown in the channel
-  /// they left — the exact thing this class exists to get right.
-  bool _publishing = false;
-
-  Timer? _rebuildTimer;
-  int _rebuildAttempt = 0;
+  /// Bumped by everything that tears the channels down and builds them again,
+  /// so a connect that was overtaken while awaiting the teardown gives up.
+  int _connectEpoch = 0;
 
   /// Set while we're taking the channel down on purpose, so the `closed` status
   /// that follows isn't mistaken for the server hanging up on us.
@@ -88,7 +73,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
        _livekitCubit = livekitCubit,
        super(const ChannelPresenceState()) {
     _serverSub = serverCubit.stream.listen(_onServerChanged);
-    _lkSub = livekitCubit.stream.listen((_) => _reconcileTracking());
+    _lkSub = livekitCubit.stream.listen((_) => _announceLocation());
     // Bootstrap with current state
     _onServerChanged(serverCubit.state);
   }
@@ -97,23 +82,33 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
 
   Future<void> _onServerChanged(ServerState serverState) async {
     final server = serverState.selectedServer;
-    if (server?.id == _currentServerId) return;
+    // The user arriving matters as much as the server doing: we connect before
+    // registration finishes on first launch, and there is nobody to announce
+    // until it has.
+    if (server?.id == _currentServerId && server?.user?.id == _currentUserId) {
+      return;
+    }
+    final epoch = ++_connectEpoch;
     await _disconnectPresence();
+    // Two selections in quick succession both wait here, and without this the
+    // loser would come back and build a second client over the winner's.
+    if (isClosed || epoch != _connectEpoch) return;
     if (server != null && server.supabaseKey != null) {
       _connectPresence(server);
     }
   }
 
-  void _connectPresence(Server server) {
+  void _connectPresence(
+    Server server, {
+    Map<String, String> locations = const {},
+  }) {
     _currentServerId = server.id;
-    _tracked = false;
-    _trackedChannelId = null;
+    _currentUserId = server.user?.id;
     _subscribed = false;
-    // A new connection carries a new ration, so nothing spent on the old one
-    // should hold the first update back.
-    _recentPublishes.clear();
-    _client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    _channel = _client!.channel('presence:${server.id}');
+    _startTrackingSession();
+    final client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
+    _client = client;
+    _channel = client.channel('presence:${server.id}');
 
     _channel!
         .onPresenceSync((_) => _syncPresence())
@@ -121,220 +116,164 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState> {
         .onPresenceLeave((_) => _syncPresence())
         .subscribe((status, [err]) {
           if (status == RealtimeSubscribeStatus.subscribed) {
-            // (Re)subscribed — re-establish our presence from scratch (a
-            // realtime reconnect drops the server-side entry, and rejoining
-            // does not bring it back on its own).
+            // A realtime reconnect drops the server-side entry and rejoining
+            // does not bring it back, so every subscribe re-establishes it.
             _subscribed = true;
             _rebuildAttempt = 0;
             _tracked = false;
-            _trackedChannelId = null;
-            _reconcileTracking();
+            _ensureTracked();
           } else {
             _subscribed = false;
-            // Closed, errored or timed out. Overspending the presence ration
-            // ends the channel this way, and nothing rejoins it on its own —
-            // this is the only notice we get that we've gone quiet.
+            // Closed, errored or timed out. Nothing rejoins a dead presence
+            // channel on its own — this is the only notice we get.
             if (!_tearingDown) _scheduleRebuild();
           }
         });
+
+    final userId = server.user?.id;
+    if (userId != null) {
+      _voice = VoiceBroadcast(
+        client: client,
+        serverId: server.id,
+        userId: userId,
+        fetchRoster: _fetchRoster,
+        onChanged: _emit,
+        initial: locations,
+      );
+      _announceLocation();
+    }
   }
 
-  /// Tears the presence channel down. [keepState] holds on to what we last
-  /// knew during a rebuild, so the sidebar doesn't blink empty on the way
-  /// through.
+  /// Tears both channels down. [keepState] holds on to what we last knew during
+  /// a rebuild, so the sidebar doesn't blink empty on the way through.
+  ///
+  /// Deliberately does **not** untrack. An untrack is itself a presence event,
+  /// it blocks for the full socket timeout when the channel is already dead
+  /// (which is exactly when we rebuild), and it buys nothing: closing the
+  /// socket drops the entry and tells everyone anyway.
   Future<void> _disconnectPresence({bool keepState = false}) async {
     _tearingDown = true;
     final channel = _channel;
     final client = _client;
+    final voice = _voice;
     _channel = null;
     _client = null;
+    _voice = null;
     _currentServerId = null;
-    _tracked = false;
-    _trackedChannelId = null;
+    _currentUserId = null;
     _subscribed = false;
-    _publishTimer?.cancel();
-    _publishTimer = null;
-    _hasPending = false;
-    // Whatever was in flight belongs to a channel that no longer exists.
-    _publishing = false;
+    _stopTracking();
     try {
-      await channel?.untrack();
+      await voice?.dispose();
       await channel?.unsubscribe();
       client?.removeAllChannels();
       await client?.dispose();
     } catch (_) {}
     _tearingDown = false;
-    if (!isClosed && !keepState) emit(const ChannelPresenceState());
+    if (!isClosed && !keepState) {
+      _names = const {};
+      _online = const {};
+      emit(const ChannelPresenceState());
+    }
   }
 
-  // ── LiveKit state → track / untrack ─────────────────────────────────────
+  // ── Location ─────────────────────────────────────────────────────────────
 
-  /// Brings the tracked presence in line with the live LiveKit state. We stay
-  /// tracked the whole time the server is selected (that *is* being online);
-  /// only the `channelId` in the entry follows the voice connection.
-  void _reconcileTracking() {
-    if (_channel == null || !_subscribed) return;
-
-    final user = _serverCubit.state.selectedServer?.user;
-    if (user == null) return;
-
+  /// Tells the server where we are now, if it isn't where we last said.
+  void _announceLocation() {
     final lkState = _livekitCubit.state;
     // Connecting is not "nowhere". A move goes connected → connecting →
-    // connected, and announcing the gap would spend a second presence update
-    // to describe half a second of travel. Genuinely leaving a call goes
-    // straight to disconnected, which does publish.
+    // connected, and announcing the gap would blink us out of the channel list
+    // for the half-second of travel. Genuinely leaving a call goes straight to
+    // disconnected, which does announce.
     if (lkState.connectionState == LiveKitConnectionState.connecting) return;
-
-    final channelId =
-        lkState.connectionState == LiveKitConnectionState.connected
-        ? lkState.currentChannelId
-        : null;
-
-    if (_tracked && channelId == _trackedChannelId) {
-      // The server already says where we are — and anything queued behind that
-      // is now describing a channel we've come back from. Leaving it armed
-      // announces the old channel a few seconds after we returned, and spends
-      // an event of the ration to be wrong.
-      _cancelPending();
-      return;
-    }
-    _publish(channelId);
-  }
-
-  /// Queues [channelId] to be published as soon as the ration allows. A newer
-  /// value replaces whatever was waiting: only where we are *now* is worth
-  /// spending an event on.
-  void _publish(String? channelId) {
-    if (isClosed) return;
-    _pendingChannelId = channelId;
-    _hasPending = true;
-    _publishTimer?.cancel();
-    _publishTimer = Timer(
-      PresenceRation.publishWait(recent: _recentPublishes, now: DateTime.now()),
-      () => unawaited(_publishPending()),
+    _voice?.announce(
+      lkState.connectionState == LiveKitConnectionState.connected
+          ? lkState.currentChannelId
+          : null,
     );
   }
 
-  void _cancelPending() {
-    _publishTimer?.cancel();
-    _publishTimer = null;
-    _hasPending = false;
+  /// The authoritative roster from LiveKit, or null when it can't be had.
+  Future<Map<String, String>?> _fetchRoster() async {
+    // The subscribe that asked for this can land after the selection moved on.
+    if (_serverCubit.state.selectedServer == null) return null;
+    final response = await _serverCubit.voiceRoster();
+    if (!response.success) return null;
+    final data = response.data;
+    if (data is! Map) return null;
+    final roster = data['roster'];
+    if (roster is! Map) return null;
+    return {
+      for (final entry in roster.entries)
+        if (entry.key is String && entry.value is String)
+          entry.key as String: entry.value as String,
+    };
   }
 
-  Future<void> _publishPending() async {
-    if (isClosed || !_hasPending || _channel == null) return;
-    // Someone else is mid-flight; they'll come back for whatever is pending.
-    if (_publishing) return;
-    final user = _serverCubit.state.selectedServer?.user;
-    if (user == null) return;
+  // ── Presence ─────────────────────────────────────────────────────────────
 
-    _publishing = true;
-    // Spend it before the await: a second change arriving mid-flight must see
-    // this one already counted, or the two together break the ration.
-    final spent = PresenceRation.spend(_recentPublishes, DateTime.now());
-    _recentPublishes
-      ..clear()
-      ..addAll(spent);
-
-    final channelId = _pendingChannelId;
-    _hasPending = false;
-
-    ChannelResponse? result;
-    try {
-      result = await _channel?.track({
-        // Absent while not in a voice channel — the entry still means online.
-        'channelId': ?channelId,
-        'userId': user.id,
-        'displayName': user.displayName,
-      });
-    } catch (_) {}
-    _publishing = false;
-    if (isClosed) return;
-
-    if (result == ChannelResponse.ok) {
-      _tracked = true;
-      _trackedChannelId = channelId;
-      _rebuildAttempt = 0;
-      // Where we are may have moved on while this was in flight. Re-derive it
-      // from the live state rather than trusting what was queued — that is
-      // what makes every path here converge on the truth.
-      _reconcileTracking();
-      return;
-    }
-
-    // Refused, timed out, or sent while the socket was down. In every one of
-    // those cases the entry isn't there and tracking again on this channel
-    // won't put it there.
-    _tracked = false;
-    _trackedChannelId = null;
-    _scheduleRebuild();
-  }
-
-  void _scheduleRebuild() {
-    if (isClosed || _rebuildTimer != null) return;
-    final delay = PresenceRation.rebuildDelay(_rebuildAttempt);
-    _rebuildAttempt++;
-    _rebuildTimer = Timer(delay, () {
-      _rebuildTimer = null;
-      unawaited(_rebuild());
-    });
-  }
-
-  /// Throws the presence channel away and builds another.
+  /// Throws both channels away and builds them again.
   ///
-  /// The only cure for a dropped entry: the allowance is per connection, so a
-  /// new socket can track again where the old one silently could not.
+  /// The only cure for a dropped presence entry: the ration and the channel
+  /// process both belong to the connection, so a new one starts clean where the
+  /// old one silently could not.
+  @override
   Future<void> _rebuild() async {
     if (isClosed) return;
     final server = _serverCubit.state.selectedServer;
     if (server == null || server.supabaseKey == null) return;
 
+    final locations = _voice?.locations ?? const <String, String>{};
+    final epoch = ++_connectEpoch;
     await _disconnectPresence(keepState: true);
-    if (isClosed) return;
-    _connectPresence(server);
+    if (isClosed || epoch != _connectEpoch) return;
+    _connectPresence(server, locations: locations);
   }
 
   void _syncPresence() {
     if (isClosed) return;
     final entries = _channel?.presenceState() ?? <SinglePresenceState>[];
 
-    final localUserId = _serverCubit.state.selectedServer?.user?.id;
-
-    final Map<String, List<PresenceUser>> result = {};
-    final Set<String> online = {};
+    final names = <String, String>{};
     for (final entry in entries) {
       for (final presence in entry.presences) {
         final payload = presence.payload;
-        final channelId = payload['channelId'] as String?;
         final userId = payload['userId'] as String?;
         final displayName = payload['displayName'] as String?;
         if (userId == null || displayName == null) continue;
-
-        // Online counts the local user — the sidebar lists you too.
-        online.add(userId);
-
-        // ...but the per-channel roster doesn't: the local user's own channel
-        // is rendered from live LiveKit participants, so a stale self-entry
-        // (before an untrack round-trips) can't show us where we no longer are.
-        if (channelId == null || userId == localUserId) continue;
-        result
-            .putIfAbsent(channelId, () => [])
-            .add(PresenceUser(userId: userId, displayName: displayName));
+        names[userId] = displayName;
       }
     }
+    _names = names;
+    _online = names.keys.toSet();
+    _emit();
+    _healTracking(_online);
+  }
 
-    emit(ChannelPresenceState(channelPresence: result, onlineUserIds: online));
+  /// Joins the two transports into the one picture the UI reads.
+  void _emit() {
+    if (isClosed) return;
+    final byChannel = VoiceLocations.rosters(
+      locations: _voice?.locations ?? const {},
+      online: _online,
+      // Our own channel is drawn from live LiveKit participants; without this
+      // we'd be listed twice in the call we're actually in.
+      excluding: _serverCubit.state.selectedServer?.user?.id,
+    );
 
-    if (PresenceRation.shouldRetrack(
-      tracked: _tracked,
-      localUserId: localUserId,
-      onlineUserIds: online,
-    )) {
-      // Re-derive where we are rather than re-sending what we last said: the
-      // belief that just proved wrong is no basis for the next update.
-      _tracked = false;
-      _reconcileTracking();
+    final rosters = <String, List<PresenceUser>>{};
+    for (final entry in byChannel.entries) {
+      rosters[entry.key] = [
+        for (final userId in entry.value)
+          if (_names[userId] case final name?)
+            PresenceUser(userId: userId, displayName: name),
+      ]..sort((a, b) => a.displayName.compareTo(b.displayName));
     }
+
+    emit(
+      ChannelPresenceState(channelPresence: rosters, onlineUserIds: _online),
+    );
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────

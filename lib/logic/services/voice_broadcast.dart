@@ -1,0 +1,136 @@
+import 'dart:async';
+
+import 'package:supabase/supabase.dart';
+
+import 'voice_locations.dart';
+
+/// The live "who is in which voice channel" map for one server, over Realtime
+/// broadcast.
+///
+/// One message per channel change, in either direction. Broadcast has no
+/// per-client window the way presence does, which is the entire reason this
+/// isn't part of the presence payload — see [VoiceLocations] for the split and
+/// why presence still has a job.
+///
+/// Broadcast is also stateless: it carries changes, never the current picture.
+/// So on subscribe we fetch a snapshot from LiveKit ([fetchRoster]) and say
+/// again where we are, because a client that has just connected has missed
+/// every change so far and everyone else has missed ours.
+class VoiceBroadcast {
+  /// The local user, whose location we're the only one who can report.
+  final String userId;
+
+  /// The authoritative roster, `{userId: channelId}`, or null if it can't be
+  /// fetched right now — a failed snapshot is survivable, we just start from
+  /// what the deltas tell us.
+  final Future<Map<String, String>?> Function() fetchRoster;
+
+  /// [locations] moved.
+  final void Function() onChanged;
+
+  RealtimeChannel? _channel;
+  Map<String, String> _locations;
+  bool _subscribed = false;
+  bool _everSubscribed = false;
+
+  /// Where we last told everyone we are. Held separately from the map because
+  /// broadcast doesn't echo to the sender, so our own entry never arrives — and
+  /// "we've said nothing yet" is not the same as "we said we're nowhere".
+  String? _announced;
+  bool _hasAnnounced = false;
+
+  /// Everyone whose own broadcast reached us since the in-flight snapshot was
+  /// requested. They outrank it; see [VoiceLocations.mergeSnapshot].
+  final Set<String> _heard = {};
+  int _epoch = 0;
+  bool _disposed = false;
+
+  /// [initial] carries the last known map through a reconnect, so the channel
+  /// list doesn't blink empty while the replacement snapshot is in flight.
+  VoiceBroadcast({
+    required SupabaseClient client,
+    required String serverId,
+    required this.userId,
+    required this.fetchRoster,
+    required this.onChanged,
+    Map<String, String> initial = const {},
+  }) : _locations = initial {
+    _channel = client.channel(VoiceLocations.topic(serverId))
+      ..onBroadcast(event: VoiceLocations.event, callback: _onDelta)
+      ..subscribe((status, [_]) {
+        if (status != RealtimeSubscribeStatus.subscribed || _disposed) return;
+        _subscribed = true;
+        // Everyone else kept our last delta while we were away, but it may be
+        // stale — and if we joined a channel with the topic down, they never
+        // heard it at all. On the very first join there is nothing of ours to
+        // correct, so announcing "nowhere" would be a message saying nothing.
+        if (_hasAnnounced && (_announced != null || _everSubscribed)) _send();
+        _everSubscribed = true;
+        unawaited(_snapshot());
+      });
+  }
+
+  /// Where each member is, the local user included if they've been heard about.
+  Map<String, String> get locations => _locations;
+
+  /// Tell everyone we're now in [channelId], or nowhere when it's null.
+  ///
+  /// Repeating ourselves is dropped: LiveKit emits state far more often than it
+  /// changes rooms, and every one of those would otherwise be a message to the
+  /// whole server.
+  void announce(String? channelId) {
+    if (_hasAnnounced && channelId == _announced) return;
+    _announced = channelId;
+    _hasAnnounced = true;
+    _send();
+  }
+
+  void _send() {
+    // Before the join, `sendBroadcastMessage` silently falls back to an HTTP
+    // POST. It would work, but the subscribe callback is a few milliseconds
+    // away and re-sends this anyway.
+    if (!_subscribed) return;
+    try {
+      _channel?.sendBroadcastMessage(
+        event: VoiceLocations.event,
+        payload: VoiceLocations.encode(userId: userId, channelId: _announced),
+      );
+    } catch (_) {}
+  }
+
+  void _onDelta(Map<String, dynamic> message) {
+    if (_disposed) return;
+    final delta = VoiceLocations.decode(message);
+    if (delta == null) return;
+    _heard.add(delta.userId);
+    _locations = VoiceLocations.applyDelta(
+      _locations,
+      userId: delta.userId,
+      channelId: delta.channelId,
+    );
+    onChanged();
+  }
+
+  Future<void> _snapshot() async {
+    final epoch = ++_epoch;
+    _heard.clear();
+    final roster = await fetchRoster();
+    // A newer snapshot started while this one was out, or we were torn down.
+    if (roster == null || _disposed || epoch != _epoch) return;
+    _locations = VoiceLocations.mergeSnapshot(
+      roster,
+      current: _locations,
+      heard: _heard,
+    );
+    onChanged();
+  }
+
+  Future<void> dispose() async {
+    _disposed = true;
+    final channel = _channel;
+    _channel = null;
+    try {
+      await channel?.unsubscribe();
+    } catch (_) {}
+  }
+}

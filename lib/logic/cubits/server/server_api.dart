@@ -146,6 +146,15 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     ),
   );
 
+  /// Who is in which voice channel on the selected server, straight from
+  /// LiveKit: `{roster: {userId: channelId}}`.
+  Future<APIResponse> voiceRoster() => _callWithAutoRefresh(
+    (token) => _repository.voiceRoster(
+      state.selectedServer!.supabaseUrl,
+      bearerToken: token,
+    ),
+  );
+
   /// Creates a new server. On success returns the single-use admin invite code.
   Future<({bool success, String? inviteCode, String? error})> createServer({
     required String supabaseUrl,

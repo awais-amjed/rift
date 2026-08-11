@@ -35,6 +35,7 @@ An endpoint earns its place only if it holds a secret, or runs before the caller
 | `moderate_user` | Bearer + `is_admin` (checked by the RPC) | Mute/deafen/ban. Calls the `moderate_user` RPC with the caller's JWT — the rules stay in the database — then uses the LiveKit API secret to push the new permissions and metadata onto every live connection the target holds. See below |
 | `delete_channel` | Bearer + `channels_delete_managers` (checked by the policy) | Deletes the row with the caller's JWT, and the LiveKit room with the API secret. Rooms are named by channel id, so without the second half everyone carries on talking in a room whose channel is gone. Deleting a room disconnects its participants — that **is** the kick |
 | `move_user` | Bearer + `is_server_admin` / `is_channel_manager` (checked here — nothing is written down, so there is no RPC to defer to) | Pulls a member from the call they're in into another voice channel, by sending their connections a "join this channel" packet with the API secret. See below |
+| `voice_roster` | Bearer | Who is in which voice channel right now, `{userId: channelId}`, read off LiveKit. The snapshot a client starts from before the `voice:<serverId>` broadcasts can tell it anything — see ARCHITECTURE.md §5 |
 | `get_channel_key` | Bearer | Channel-key distribution (below) |
 | `post_channel_keys` | Bearer | Channel-key distribution (below) |
 | `sweep_channel_keys` | Bearer | Channel-key distribution (below) |

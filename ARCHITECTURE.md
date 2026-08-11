@@ -268,12 +268,13 @@ still has the conversation open behind another view.
 - Screenshare capture (video + per-platform system audio) runs in Rust for performance and
   publishes directly to the LiveKit room.
 
-### Presence is a scarce resource
+### Two questions, two transports
 
-Who is online, and who is in which voice channel, comes from **Supabase Realtime Presence** on
-`presence:<serverId>` — not from LiveKit, which only knows about the room you are in yourself.
+*Who is online* and *which voice channel are they in* are both answered by Realtime on the selected
+server, and deliberately not by the same mechanism — they change at completely different rates.
 
-Realtime rations how often one client may publish presence: **5 events per 30 seconds**
+**Presence (`presence:<serverId>`) carries only `{userId, displayName}`.** Realtime rations how
+often one client may publish presence: **5 events per 30 seconds**
 (`CLIENT_PRESENCE_MAX_CALLS` / `CLIENT_PRESENCE_WINDOW_MS`, realtime v2.102 defaults; the tenant
 columns `max_client_presence_events_per_window` / `client_presence_window_ms` override them). The
 sixth is not refused — realtime logs `ClientPresenceRateLimitReached` and **terminates the
@@ -284,17 +285,37 @@ looks online to itself while for everyone else it has left; every later track go
 process that no longer exists and times out. Nothing rejoins on its own. **Only building a new
 channel recovers** — the ration and the channel both belong to the connection.
 
-Three rules follow, and `ChannelPresenceCubit` exists to keep them:
+A budget that small is only safe for a fact that doesn't move, so presence publishes **once per
+connection**. What it buys in return is the thing nothing else here can do: when the socket dies
+the entry dies with it, and every other member is told.
 
-1. **Stay inside the ration.** Updates wait for room in the 30-second window (we spend 4 of the 5,
-   keeping one in reserve), and bursts coalesce into the last value.
-2. **Don't spend two events on one move.** The half-second of "nowhere" between leaving one voice
-   channel and joining the next is never published. This is what made the limit reachable in
-   normal use — moving a member three times in half a minute used to be enough to make them
-   disappear until they restarted the app.
-3. **A channel that stops working is rebuilt, not retried** — on a refused track or any
+**Broadcast (`voice:<serverId>`) carries the channel someone is in** — one message per hop, because
+people change voice channels constantly. Broadcast has no per-client window. It counts against the
+tenant-wide events-per-second budget that every chat topic already shares, and moving location off
+presence doesn't add to that: a presence diff fanned out to the same subscribers either way.
+
+Broadcast is stateless, so a client that has just connected has missed every hop so far. It starts
+from a snapshot — the `voice_roster` edge function asks LiveKit, which is the only party that
+can't be out of date, and the merge lets any delta that raced the fetch win.
+
+The two are joined when the state is built: **a location is only drawn while presence still vouches
+for the person it belongs to.** A client that crashes mid-call never gets to say it left, and
+doesn't have to.
+
+Four rules follow, and `ChannelPresenceCubit` exists to keep them:
+
+1. **Location never travels on presence.** Announcing a hop used to cost two presence events
+   (leaving, then arriving), so moving a member three times in half a minute was enough to make
+   them disappear until they restarted the app.
+2. **Stay inside the ration anyway.** The one publish per connection still waits for room in the
+   30-second window (we spend 4 of the 5, keeping one in reserve) — a guard rail against anyone
+   quietly walking back into the limit.
+3. **Don't announce the gap.** The half-second of "nowhere" between leaving one voice channel and
+   joining the next is never sent, or a move would blink the member out of the channel list.
+4. **A channel that stops working is rebuilt, not retried** — on a refused track or any
    non-subscribed status, with a doubling backoff so a broken server can't become a reconnect
-   storm.
+   storm. Untracking is never done: it is itself a presence event, it blocks for the full socket
+   timeout when the channel is already dead, and closing the socket does the same job for free.
 
 ---
 
