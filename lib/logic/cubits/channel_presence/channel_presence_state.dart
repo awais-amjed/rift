@@ -38,5 +38,22 @@ class ChannelPresenceState {
     return null;
   }
 
+  /// Whether [userId] has told us they are in a voice channel that isn't
+  /// [channelId].
+  ///
+  /// The channel you're *in* draws its roster from LiveKit rather than from
+  /// here, because that's what carries speaking and mute state — so a member
+  /// who leaves it lingers until the SFU gets round to mentioning it, while
+  /// their own broadcast has already put them somewhere else. For that gap they
+  /// are drawn in two channels at once. Their broadcast is the newer fact, so
+  /// it wins.
+  ///
+  /// Only ever true when we have a positive location for them: someone we
+  /// simply haven't heard from stays where LiveKit says they are.
+  bool isElsewhere(String userId, String channelId) {
+    final known = channelOf(userId);
+    return known != null && known != channelId;
+  }
+
   bool isOnline(String userId) => onlineUserIds.contains(userId);
 }
