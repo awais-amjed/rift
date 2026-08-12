@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
@@ -20,7 +19,10 @@ import 'widgets/credential_group.dart';
 /// to put in a second column, so the dialog changes width when you reach this
 /// step — as it already changes title and subtitle.
 class CreateServerModal extends StatefulWidget {
+  /// The server exists and the caller is registered on it as admin — not that
+  /// the flow is over. Creating a server has one more question to ask.
   final VoidCallback onSuccess;
+
   final VoidCallback onCancel;
 
   const CreateServerModal({
@@ -108,10 +110,9 @@ class _CreateServerModalState extends State<CreateServerModal> {
 
     if (!mounted) return;
 
-    if (registered == true) {
-      HelperMethods.showSuccess(message: 'Server created successfully!');
-      widget.onSuccess();
-    }
+    // No toast: the step this hands off to opens with "Server created" as its
+    // title, and saying it twice in two places at once reads as two events.
+    if (registered == true) widget.onSuccess();
   }
 
   @override

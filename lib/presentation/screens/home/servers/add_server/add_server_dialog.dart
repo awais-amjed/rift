@@ -6,9 +6,10 @@ import '../../../../common/app_modal.dart';
 import 'browse_servers_modal.dart';
 import 'create_server_modal.dart';
 import 'join_server_modal.dart';
+import 'publish_new_server_modal.dart';
 import 'widgets/server_mode_picker.dart';
 
-enum _Step { pick, browse, join, create }
+enum _Step { pick, browse, join, create, publish }
 
 /// Getting onto a server: pick how, then do it.
 ///
@@ -69,10 +70,13 @@ class _AddServerDialogState extends State<AddServerDialog> {
         onCancel: () =>
             _go(_picked == null ? _Step.pick : _Step.browse, listing: _picked),
       ),
+      // Creating one asks whether it should be findable; joining one doesn't,
+      // because that is not the joiner's call to make.
       _Step.create => CreateServerModal(
-        onSuccess: _handleSuccess,
+        onSuccess: () => _go(_Step.publish),
         onCancel: () => _go(_Step.pick),
       ),
+      _Step.publish => PublishNewServerModal(onDone: _handleSuccess),
     };
   }
 }

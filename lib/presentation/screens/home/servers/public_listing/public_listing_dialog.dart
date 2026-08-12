@@ -10,9 +10,9 @@ import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
+import '../../../../common/no_central_account.dart';
 import 'listing_draft.dart';
 import 'widgets/listing_form.dart';
-import 'widgets/no_central_account.dart';
 
 /// Publishing the selected server to the central directory — the admin end of
 /// the server browser (schema.md, `public_servers`).
@@ -173,7 +173,12 @@ class _PublicListingDialogState extends State<PublicListingDialog> {
       subtitle: 'Let people find this server without an invite',
       maxWidth: signedIn ? K.dialogWidthWide : K.dialogWidth,
       content: !signedIn
-          ? const NoCentralAccount()
+          ? const NoCentralAccount(
+              need:
+                  'The directory lives on the Rift central server, so listing '
+                  'a server needs a Rift account — that is what makes the '
+                  'listing yours to edit or remove later, from any device.',
+            )
           : _loading
           ? const Center(
               child: Padding(

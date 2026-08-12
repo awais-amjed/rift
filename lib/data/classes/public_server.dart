@@ -32,6 +32,10 @@ class PublicServer {
   final bool isListed;
   final DateTime updatedAt;
 
+  /// The column's `length(description) <= 300`, mirrored so a field can stop
+  /// at 300 rather than a save discovering the limit.
+  static const maxDescription = 300;
+
   const PublicServer({
     required this.id,
     required this.ownerId,

@@ -10,7 +10,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/hint_card.dart';
-import '../public_listing/widgets/no_central_account.dart';
+import '../../../../common/no_central_account.dart';
 import 'widgets/browse_results.dart';
 import 'widgets/tag_filter_bar.dart';
 
@@ -66,7 +66,13 @@ class _BrowseServersModalState extends State<BrowseServersModal> {
       title: 'Browse servers',
       subtitle: 'Public servers you can join without an invite',
       maxWidth: signedIn ? K.dialogWidthWide : K.dialogWidth,
-      content: signedIn ? _browser() : const NoCentralAccount(),
+      content: signedIn
+          ? _browser()
+          : const NoCentralAccount(
+              need:
+                  'The directory lives on the Rift central server, so finding '
+                  'a server in it needs a Rift account.',
+            ),
       actions: [
         AppButton(
           label: 'Back',

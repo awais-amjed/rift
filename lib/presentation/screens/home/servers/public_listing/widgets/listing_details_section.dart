@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../../data/classes/public_server.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_text_field.dart';
+import '../../../../../common/tag_editor.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../settings/widgets/section_title.dart';
-import 'tag_editor.dart';
 
 /// What a stranger reads in the browser before deciding to join: the name, a
 /// sentence about the place, and the tags they might have filtered by.
@@ -19,9 +20,6 @@ class ListingDetailsSection extends StatelessWidget {
   final ValueChanged<List<String>> onTagsChanged;
   final ThemeState themeState;
   final bool enabled;
-
-  /// The column's `length(description) <= 300`.
-  static const maxDescription = 300;
 
   const ListingDetailsSection({
     super.key,
@@ -64,7 +62,7 @@ class ListingDetailsSection extends StatelessWidget {
           hint: 'What happens here, in a sentence or two',
           enabled: enabled,
           maxLines: 3,
-          maxLength: maxDescription,
+          maxLength: PublicServer.maxDescription,
         ),
         const SizedBox(height: 16),
         TagEditor(

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../data/classes/public_server.dart';
-import '../../../../../../data/constants.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../common/app_text_field.dart';
-import '../../../../../theme/app_text.dart';
+import '../../data/classes/public_server.dart';
+import '../../data/constants.dart';
+import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_text.dart';
+import 'app_text_field.dart';
 
 /// The tags on a public listing: the ones already chosen, and a field to add
 /// another.
+///
+/// Shared rather than owned by the publish dialog — a server's tags are also
+/// set on the step right after it is created, and two copies of a normalising
+/// field would drift.
 ///
 /// Free slugs rather than a fixed category list, and the field normalises what
 /// you type ([ServerTags.normalise]) instead of refusing it — "Board Games"
