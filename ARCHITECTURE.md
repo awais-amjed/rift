@@ -161,8 +161,8 @@ conversations to a self-hosted server they share (or any messenger they like).
 | Storage       | central Supabase                       | a self-hosted server both users are members of |
 | Identity keys | X25519 derived for the central host    | X25519 derived for that server's host          |
 | Delivery      | GoTrue RLS + native Realtime           | Edge Functions + Realtime Broadcast            |
-| Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) | none imposed by Rift — operator's hardware, operator's call |
-| Media         | allowed; counts against quota, per-file size cap | allowed (operator's storage)         |
+| Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) — fixed, Rift's call | the same shapes, but **off by default** and set by the admin |
+| Media         | allowed; counts against quota, per-file size cap | allowed; per-file size cap the admin sets |
 | Unread badges | `read_state` cursors + `unread_counts()` | the same, for channels and DMs alike |
 
 - Central limits are enforced **server-side** (the send path checks a daily counter; a
@@ -174,6 +174,53 @@ conversations to a self-hosted server they share (or any messenger they like).
 - The UI surfaces the remaining daily quota as it tightens and nudges long conversations
   toward a shared server ("Continue on <server>" when one exists).
 - Privacy-mode users (no central account) simply have no central DMs; server DMs still work.
+
+### Operator limits on a self-hosted server [Implemented August 2026]
+
+Self-hosted used to impose nothing, on the reasoning that a server is somebody's own disk and
+therefore their own call. That was right about *whose* call it is and wrong about there being
+nothing to decide: an operator running a server for friends still may not want one member
+filling the disk with 200 MB videos, and had no way to say so.
+
+So the same limit shapes central uses exist here — but as columns on `servers` that an admin
+sets from Server Settings, and **every count-based one defaults to 0, meaning off**. A server
+that is upgraded and never touched behaves exactly as it did before. Migration 007 is the
+whole feature.
+
+| Limit | Column | Off by default |
+|---|---|---|
+| Per-file attachment size | `servers.max_attachment_bytes` | no — 25 MB, the ceiling the bucket already had |
+| Messages/member/day in a channel | `servers.default_channel_daily_quota`, overridable per channel by `channels.daily_quota` | yes |
+| Messages/member/day across server DMs | `servers.dm_daily_quota` | yes |
+| Delete messages older than N days | `servers.message_retention_days` | yes |
+| Keep at most N per channel / DM pair | `servers.message_history_cap` | yes |
+
+Three things about how these are enforced are worth stating, because each was a choice:
+
+- **The quota is a BEFORE INSERT trigger, not a send RPC.** Central wraps its send in
+  `send_dm()` because a daily counter is not a row predicate — the check is over *other* rows
+  and must happen in the same statement as the insert, or two clients race past it. All of
+  that is equally true here, but self-hosted messages are a direct PostgREST insert under
+  `messages_insert`; an RPC would mean a second write path per surface. A trigger buys the
+  same atomicity and stays invisible to the client until it fires. It has to sort *after*
+  `attest_message()`, which is what stamps `sender_id` — hence the `attest_*` / `enforce_*`
+  names.
+- **The attachment cap is enforced by the bucket, not the column.** The column is what the
+  client reads to refuse an oversized file with a sentence instead of a 413; `update_server`
+  mirrors it onto `chat-attachments`' `file_size_limit`. Because one Supabase project can host
+  several servers sharing that bucket, the mirror uses the **MAX** across them — so on a
+  multi-server project a stricter server's cap is client-enforced only.
+- **`channels.daily_quota` is three-valued.** NULL inherits the server default, a number sets
+  this channel's own, and 0 explicitly opts the channel *out* of a server-wide quota. NULL and
+  0 are different answers and the UI keeps them apart.
+
+Retention deletes for good, nightly, via `app.enforce_retention()` on pg_cron — in the `app`
+schema precisely so PostgREST can't expose a history-wiping RPC to members. Known gap, stated
+rather than hidden: deleting a message does **not** delete the attachment blobs it referenced,
+so a server with retention on accumulates unreferenced objects in `chat-attachments`. They are
+undecryptable once the message carrying their per-file key is gone — wasted bytes, not exposed
+content — but they are still bytes. Central's retention job has had the same gap since it
+shipped; sweeping them needs a blob→message index no schema here keeps yet.
 
 ### Group channels — "Design 2": wrapped channel key
 - Each channel has a random symmetric **channel key**; every message encrypted once with it.

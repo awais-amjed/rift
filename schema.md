@@ -24,11 +24,22 @@ written down as migrations — it is the account, and it will hold more than a d
 | name               | text        | Required                    | Server name                              |
 | icon_url           | text        | Optional                    | URL to server icon                       |
 | livekit_url        | text        | Required                    | LiveKit server URL                       |
+| max_attachment_bytes | bigint    | Default: 26214400 (25 MB), 1 … 500 MB | Per-file attachment cap. Mirrored onto `chat-attachments`' `file_size_limit` by `update_server`; that mirror is the enforcement, this column is what the client reads to refuse a file before uploading |
+| default_channel_daily_quota | integer | Default: 0, ≥ 0        | Messages/member/rolling 24h in a channel that sets no quota of its own. **0 = no limit** |
+| dm_daily_quota     | integer     | Default: 0, ≥ 0             | Messages/member/rolling 24h across all server DMs. **0 = no limit** |
+| message_retention_days | integer | Default: 0, ≥ 0            | Delete messages older than this. **0 = keep forever** |
+| message_history_cap | integer    | Default: 0, ≥ 0             | Keep at most this many per channel and per DM pair, newest first. **0 = no cap** |
 
 Members can read this row directly. The LiveKit credentials that used to sit in it live in
 **server_secrets** instead — one row per server, no grant and no policy, reachable only by the
 service role (`get_channel_token`, `create_server`, `update_server`). That split is what makes the
 rest of the row safe to expose.
+
+The limit columns (migration 007) are on this row rather than a settings table for the same
+reason: there is one per server, members already select it, and the client needs to *read* the
+attachment cap. There is no client-reachable UPDATE grant on `servers`, so admins change them
+through `update_server` like the name and the LiveKit URL. **Every count-based limit defaults
+to 0 = off**, so a server upgraded and never touched behaves as it did before.
 
 ### server_secrets
 
@@ -66,6 +77,12 @@ rest of the row safe to expose.
 | server_id    | uuid         | Required, Foreign Key → servers.id | Reference to associated server  |
 | name         | text         | Required                           | Channel name                    |
 | channel_type | channel_type | Required                           | Type of channel (voice or text) |
+| daily_quota  | integer      | Optional, ≥ 0                      | Per-member messages/rolling 24h here. **NULL inherits** `servers.default_channel_daily_quota`; **0 explicitly means no limit** — the two are different answers |
+
+`daily_quota` is the only nullable limit in the schema, and deliberately: nullable is what
+"inherit" needs, which is a third state beyond "some number" and "none". Channel managers may
+write it — `GRANT UPDATE (daily_quota)` in 007, under the existing
+`channels_update_managers` policy.
 
 ### invites
 
@@ -213,6 +230,40 @@ New members are seeded at registration with a cursor per channel at the current 
 otherwise joining a server would show every channel screaming with unread counts for history they
 cannot decrypt anyway.
 
+## Functions and jobs (self-hosted)
+
+Most of what a client does is a policy-checked table call; these are the exceptions worth
+naming. The full set lives in `003_api.sql` and `007_limits.sql`.
+
+### chat_quota(p_channel_id uuid default null)
+
+What the composer footer reads. A channel id asks about that channel; NULL asks about the
+caller's server DMs — one function so the client asks both surfaces the same question, the
+way central's `dm_quota()` answers for its one surface.
+
+Returns `{quota, remaining}`. **`remaining` is NULL when unlimited, not 0** — a quota of 0
+meaning "no limit" and a remaining of 0 meaning "you are out" are one keystroke apart in a
+UI, and returning the same number for both is how that gets confused. Asking about a channel
+on another server raises `not_a_member`, so the setting doesn't leak.
+
+### enforce_message_quota() — trigger on messages, dm_messages
+
+BEFORE INSERT, one function for both tables. Raises `quota_exceeded` (P0001) when the sender
+is out for that channel, or for DMs server-wide. Skips service-role writes (no `auth.uid()`),
+and returns immediately when no quota is configured — the default. **Must sort after
+`attest_message()`**, which stamps `sender_id`; Postgres runs same-timing triggers in name
+order, so `attest_*` before `enforce_*` is load-bearing.
+
+INSERT only: an edit is not a new message and must not cost quota, the same rule central
+states by having its edit path bypass `send_dm()`.
+
+### app.enforce_retention() — pg_cron `rift-message-retention`, nightly
+
+Applies `message_retention_days` and `message_history_cap` per server. In the `app` schema,
+not `public`, because it returns VOID and PostgREST would otherwise expose a history-wiping
+RPC to any member. Deletes are permanent; **attachment blobs of deleted messages are not
+swept** (see ARCHITECTURE.md §4).
+
 ## Tables (central)
 
 Central mirrors the self-hosted shapes where the idea is the same, so one client path serves both.
@@ -276,7 +327,10 @@ Same columns as their self-hosted counterparts. Differences that matter:
 ### chat-attachments
 
 - **Access**: Private; RLS allows any authenticated member to insert/select.
-- **Size cap**: 25 MB per object (`file_size_limit`).
+- **Size cap**: `servers.max_attachment_bytes`, mirrored here by `update_server` (25 MB
+  until an admin changes it). One Supabase project can host several servers sharing this
+  bucket, so the mirror writes the **MAX** across them — on a multi-server project a
+  stricter server's cap is client-enforced only.
 - **Purpose**: E2E-encrypted attachment blobs for channels + server DMs. Each
   object is AES-256-GCM ciphertext under a per-file key that lives only inside
   the encrypted message body — the server can't decrypt them. Objects are named
