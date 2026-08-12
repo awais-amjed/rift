@@ -101,7 +101,10 @@ class ReactionOps {
     required String emoji,
   }) => [
     for (final m in messages)
-      if (m.id != messageId) m else m.copyWith(reactions: _toggled(m.reactions, emoji)),
+      if (m.id != messageId)
+        m
+      else
+        m.copyWith(reactions: _toggled(m.reactions, emoji)),
   ];
 
   static List<MessageReaction> _toggled(

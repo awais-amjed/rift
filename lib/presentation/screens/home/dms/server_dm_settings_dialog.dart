@@ -53,7 +53,9 @@ class _ServerDmSettingsDialogState extends State<ServerDmSettingsDialog> {
       _retention != _initial.dmRetentionDays || _cap != _initial.dmHistoryCap;
 
   bool get _canSubmit =>
-      _retention != LimitInput.invalid && _cap != LimitInput.invalid && _changed;
+      _retention != LimitInput.invalid &&
+      _cap != LimitInput.invalid &&
+      _changed;
 
   /// What DMs fall back to, spelled out — an admin shouldn't have to open the
   /// server dialog to find out what "inherit" currently means.

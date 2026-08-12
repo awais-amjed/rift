@@ -131,5 +131,4 @@ class ChatMessageOps {
     }
     return (merged: [...kept, ...fresh], fresh: fresh);
   }
-
 }

@@ -18,10 +18,7 @@ class SidebarSizing {
   /// The widest the sidebar may be in a window of [windowWidth].
   static double maxFor(double windowWidth) {
     final share = windowWidth * K.sidebarMaxWindowFraction;
-    return math.max(
-      K.sidebarMinWidth,
-      math.min(K.sidebarMaxWidth, share),
-    );
+    return math.max(K.sidebarMinWidth, math.min(K.sidebarMaxWidth, share));
   }
 
   /// [width] brought inside the bounds for a window of [windowWidth].

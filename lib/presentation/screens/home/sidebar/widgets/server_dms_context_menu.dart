@@ -22,10 +22,7 @@ class ServerDmsContextMenu extends StatelessWidget {
   /// Wraps [child] in the menu for an admin, and returns it untouched for
   /// everyone else — so a member's right-click falls through instead of opening
   /// an empty panel.
-  static Widget wrap({
-    required BuildContext context,
-    required Widget child,
-  }) {
+  static Widget wrap({required BuildContext context, required Widget child}) {
     final isAdmin =
         context
             .watch<ServerCubit>()
