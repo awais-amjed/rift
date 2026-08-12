@@ -193,24 +193,58 @@ class CentralDmRepository
   // Realtime
   // ──────────────────────────────────────────────────────────
 
-  /// Subscribe to incoming DMs (INSERTs addressed to the caller). Returns the
-  /// channel so the caller can unsubscribe.
-  RealtimeChannel subscribeIncoming(void Function() onInsert) {
+  /// Subscribe to DMs addressed to the caller: [onInsert] for a new one,
+  /// [onUpdate] with the row id when one is edited.
+  ///
+  /// Deletes are absent on purpose. A DELETE event carries only the primary
+  /// key, so the `recipient_id` filter can't match it — subscribing would mean
+  /// hearing about every deletion on the tier, by everyone. A deleted central
+  /// DM therefore disappears when the conversation is next opened.
+  RealtimeChannel subscribeIncoming(
+    void Function() onInsert, {
+    required void Function(String messageId) onUpdate,
+  }) {
     final myId = _client.auth.currentUser!.id;
+    final mine = PostgresChangeFilter(
+      type: PostgresChangeFilterType.eq,
+      column: 'recipient_id',
+      value: myId,
+    );
     final channel = _client.channel('central-dm-incoming')
       ..onPostgresChanges(
         event: PostgresChangeEvent.insert,
         schema: 'public',
         table: 'dm_messages',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'recipient_id',
-          value: myId,
-        ),
+        filter: mine,
         callback: (_) => onInsert(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'dm_messages',
+        filter: mine,
+        callback: (payload) {
+          final id = payload.newRecord['id'];
+          if (id != null) onUpdate('$id');
+        },
       )
       ..subscribe();
     return channel;
+  }
+
+  /// One DM by id, or `{message: null}` when it is gone. The single-row read
+  /// behind an edit notification.
+  Future<APIResponse> getDm({required int messageId}) async {
+    try {
+      final row = await _client
+          .from('dm_messages')
+          .select()
+          .eq('id', messageId)
+          .maybeSingle();
+      return APIResponse.success({'message': row});
+    } catch (e) {
+      return APIResponse.error(e);
+    }
   }
 
   Future<void> unsubscribe(RealtimeChannel channel) async {

@@ -21,6 +21,7 @@ import '../vault/vault_cubit.dart';
 
 part 'dm_state.dart';
 part 'dm_conversations.dart';
+part 'dm_decrypt.dart';
 part 'dm_history.dart';
 part 'dm_send.dart';
 part 'dm_edit.dart';
@@ -36,6 +37,7 @@ part 'dm_reactions.dart';
 /// authoritative, the ping is a doorbell exactly like channel chat.
 class DmCubit extends Cubit<DmState>
     with
+        _DmDecryptMixin,
         _DmConversationsMixin,
         _DmHistoryMixin,
         _DmSendMixin,
@@ -160,6 +162,7 @@ class DmCubit extends Cubit<DmState>
     _rtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
     _rtClient!.channel('dm:${server.id}:${server.user!.id}')
       ..onBroadcast(event: 'new_dm', callback: (_) => _onDoorbell())
+      ..onBroadcast(event: 'message_changed', callback: _onChangeDoorbell)
       ..onBroadcast(event: 'typing', callback: _onTyping)
       ..onBroadcast(event: 'reaction', callback: _onReactionDoorbell)
       ..subscribe();
@@ -204,6 +207,28 @@ class DmCubit extends Cubit<DmState>
     try {
       _peerTopic?.sendBroadcastMessage(event: 'new_dm', payload: {});
     } catch (_) {}
+  }
+
+  /// Tell the peer that a message was edited or deleted. Which of the two, and
+  /// what it now says, is deliberately left out — they re-read the row, so a
+  /// forged ping can only cost them a request.
+  @override
+  void _ringChangeDoorbell(String messageId) {
+    try {
+      _peerTopic?.sendBroadcastMessage(
+        event: 'message_changed',
+        payload: {'message_id': messageId},
+      );
+    } catch (_) {}
+  }
+
+  void _onChangeDoorbell(Map<String, dynamic> payload) {
+    if (isClosed || state.chatStatus != DmChatStatus.ready) return;
+    final messageId = payload['message_id'];
+    if (messageId is String) unawaited(refreshMessage(messageId));
+    // The conversation list shows a preview of the newest message, which an
+    // edit or delete can change.
+    unawaited(refreshConversations());
   }
 
   /// Tell the peer which message's reactions changed, so they refresh that one

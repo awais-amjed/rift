@@ -1,13 +1,8 @@
 part of 'dm_cubit.dart';
 
-/// The open conversation: opening it, paging its history, and decrypting
-/// its rows.
-mixin _DmHistoryMixin on Cubit<DmState> {
-  ServerCubit get _serverCubit;
-  CryptoRepository get _crypto;
-  Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
-  Future<ServerIdentity> _vaultIdentityFor(Server server);
-  String? get _localUserId;
+/// The open conversation: opening it, and paging its history. Turning the rows
+/// into messages is [_DmDecryptMixin].
+mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
 
   /// The open peer just sent a message — used to clear their typing indicator.
   void _onOpenPeerMessage();
@@ -15,6 +10,52 @@ mixin _DmHistoryMixin on Cubit<DmState> {
   void _joinPeerTopic(String peerId);
   void _leavePeerTopic();
 
+  /// Opens (or starts) the conversation with [peerId]. [peerChatKey] comes
+  /// from the conversation row or the member picker.
+  Future<void> openConversation({
+    required String peerId,
+    required String peerName,
+    required String? peerChatKey,
+  }) async {
+    if (state.openPeerId == peerId && state.chatStatus == DmChatStatus.ready) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        openPeerId: peerId,
+        openPeerName: peerName,
+        chatStatus: DmChatStatus.loading,
+        messages: const [],
+        hasMoreHistory: false,
+        clearError: true,
+      ),
+    );
+
+    final key = await _dmKeyFor(peerId, peerChatKey);
+    if (state.openPeerId != peerId) return;
+    if (key == null) {
+      emit(
+        state.copyWith(
+          chatStatus: DmChatStatus.error,
+          error:
+              '$peerName has not enabled encrypted chat yet — they need to '
+              'open the app once.',
+        ),
+      );
+      return;
+    }
+
+    _joinPeerTopic(peerId);
+    await _fetchLatest(peerId);
+    if (state.openPeerId != peerId) return;
+    emit(state.copyWith(chatStatus: DmChatStatus.ready));
+  }
+
+  void closeConversation() {
+    _leavePeerTopic();
+    emit(state.copyWith(closeConversation: true));
+  }
 
   Future<void> _fetchLatest(String peerId) async {
     final response = await _serverCubit.listDms(
@@ -63,6 +104,47 @@ mixin _DmHistoryMixin on Cubit<DmState> {
     if (result.fresh.any((m) => !m.isMine)) _onOpenPeerMessage();
   }
 
+  /// Re-read one message the peer said changed, and apply what happened: an
+  /// edit swaps it in place, a delete takes it off the list.
+  ///
+  /// Neither reached an open conversation before — the DM edit path rang no
+  /// doorbell at all, so the peer saw the old text until they reopened.
+  ///
+  /// A message outside the loaded window is left alone, and a row that fails
+  /// verification is kept rather than dropped.
+  Future<void> refreshMessage(String messageId) async {
+    final peerId = state.openPeerId;
+    final id = int.tryParse(messageId);
+    if (peerId == null || id == null) return;
+    if (!state.messages.any((m) => m.id == messageId)) return;
+
+    final response = await _serverCubit.getDmMessage(messageId: id);
+    if (!response.success || state.openPeerId != peerId) return;
+
+    final row = (response.data as Map<String, dynamic>)['message'];
+    if (row == null) {
+      emit(
+        state.copyWith(
+          messages: ChatMessageOps.removeMessage(state.messages, messageId),
+        ),
+      );
+      return;
+    }
+
+    final decrypted = await _decryptRows(peerId, [
+      (row as Map).cast<String, dynamic>(),
+    ]);
+    if (decrypted.isEmpty || state.openPeerId != peerId) return;
+    emit(
+      state.copyWith(
+        messages: ChatMessageOps.replaceMessage(
+          state.messages,
+          decrypted.single,
+        ),
+      ),
+    );
+  }
+
   Future<void> loadMoreHistory() async {
     final peerId = state.openPeerId;
     if (peerId == null ||
@@ -93,133 +175,5 @@ mixin _DmHistoryMixin on Cubit<DmState> {
         isLoadingMore: false,
       ),
     );
-  }
-
-  Future<List<ChatMessage>> _decryptRows(
-    String peerId,
-    List<Map<String, dynamic>> rows,
-  ) async {
-    final result = <ChatMessage>[];
-    for (final row in rows) {
-      final message = await _decryptDmRow(
-        row,
-        peerId: peerId,
-        peerName: state.openPeerName ?? 'Unknown',
-        peerChatKey: null, // key is already cached from openConversation
-        peerSigningKey: null, // per-row attested key is used instead
-      );
-      if (message != null) result.add(message);
-    }
-    return result;
-  }
-
-  /// Decrypt + verify one DM row. Verification uses the row's server-attested
-  /// sender key when present, else [peerSigningKey]. Returns null on any
-  /// failure — never rendered.
-  Future<ChatMessage?> _decryptDmRow(
-    Map<String, dynamic> row, {
-    required String peerId,
-    required String peerName,
-    required String? peerChatKey,
-    required String? peerSigningKey,
-  }) async {
-    final localUserId = _localUserId;
-    if (localUserId == null) return null;
-
-    final key = await _dmKeyFor(peerId, peerChatKey);
-    if (key == null) return null;
-
-    final senderId = row['sender_id'] as String;
-    final isMine = senderId == localUserId;
-    final senderKeyB64 =
-        row['sender_public_key'] as String? ?? (isMine ? null : peerSigningKey);
-    if (senderKeyB64 == null && !isMine) return null;
-
-    try {
-      // For rows lacking an attested sender key (conversation previews of our
-      // own messages), fall back to our own signing key.
-      final Uint8List senderKey;
-      if (senderKeyB64 != null) {
-        senderKey = CryptoRepository.fromBase64(senderKeyB64);
-      } else {
-        final server = _serverCubit.state.selectedServer!;
-        final identity = await _vaultIdentityFor(server);
-        senderKey = identity.publicKeyBytes;
-      }
-
-      final plaintext = await _crypto.openMessage(
-        envelope: MessageEnvelope.fromJson(row),
-        messageKey: key,
-        senderPublicKey: senderKey,
-        contextId: DmCubit.conversationContext(localUserId, peerId),
-      );
-      if (plaintext == null) return null;
-
-      final body = MessageBody.decode(plaintext);
-      return ChatMessage(
-        id: '${row['id']}',
-        authorId: senderId,
-        authorName: isMine
-            ? (_serverCubit.state.selectedServer?.user?.displayName ?? 'Me')
-            : (row['sender_name'] as String? ?? peerName),
-        authorAvatarPath: row['sender_avatar_path'] as String?,
-        text: body.text,
-        attachments: body.attachments,
-        sentAt: DateTime.parse(row['created_at'] as String),
-        isMine: isMine,
-        editedAt: DateTime.tryParse('${row['edited_at']}'),
-        reactions: ReactionOps.fromRow(row),
-      );
-    } catch (e) {
-      HelperMethods.printDebug('[DM] dropped message ${row['id']}: $e');
-      return null;
-    }
-  }
-
-  /// Opens (or starts) the conversation with [peerId]. [peerChatKey] comes
-  /// from the conversation row or the member picker.
-  Future<void> openConversation({
-    required String peerId,
-    required String peerName,
-    required String? peerChatKey,
-  }) async {
-    if (state.openPeerId == peerId && state.chatStatus == DmChatStatus.ready) {
-      return;
-    }
-
-    emit(
-      state.copyWith(
-        openPeerId: peerId,
-        openPeerName: peerName,
-        chatStatus: DmChatStatus.loading,
-        messages: const [],
-        hasMoreHistory: false,
-        clearError: true,
-      ),
-    );
-
-    final key = await _dmKeyFor(peerId, peerChatKey);
-    if (state.openPeerId != peerId) return;
-    if (key == null) {
-      emit(
-        state.copyWith(
-          chatStatus: DmChatStatus.error,
-          error:
-              '$peerName has not enabled encrypted chat yet — they need to '
-              'open the app once.',
-        ),
-      );
-      return;
-    }
-
-    _joinPeerTopic(peerId);
-    await _fetchLatest(peerId);
-    if (state.openPeerId != peerId) return;
-    emit(state.copyWith(chatStatus: DmChatStatus.ready));
-  }
-
-  void closeConversation() {
-    _leavePeerTopic();
-    emit(state.copyWith(closeConversation: true));
   }
 }

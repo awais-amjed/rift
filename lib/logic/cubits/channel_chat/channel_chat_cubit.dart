@@ -24,6 +24,7 @@ part 'channel_chat_history.dart';
 part 'channel_chat_send.dart';
 part 'channel_chat_edit.dart';
 part 'channel_chat_reactions.dart';
+part 'channel_chat_realtime.dart';
 part 'channel_chat_sweep.dart';
 
 /// E2E chat for the selected server's text channels (ARCHITECTURE.md §4,
@@ -46,6 +47,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         _ChannelChatSendMixin,
         _ChannelChatEditMixin,
         _ChannelChatReactionsMixin,
+        _ChannelChatRealtimeMixin,
         _ChatSweepMixin {
   @override
   final ServerCubit _serverCubit;
@@ -79,18 +81,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   @override
   void _setCurrentKeyVersion(int version) => _currentKeyVersion = version;
-
-  SupabaseClient? _rtClient;
-  RealtimeChannel? _rtChannel;
-
-  /// Per-user expiry timers for typing indicators (removed when they lapse).
-  final Map<String, Timer> _typingTimers = {};
-
-  /// Rate-limit for our outgoing typing pings.
-  DateTime? _lastTypingSent;
-
-  static const _typingThrottle = Duration(seconds: 2);
-  static const _typingTimeout = Duration(seconds: 5);
 
   /// Guards against a stale async continuation writing into a newer channel.
   int _openGeneration = 0;
@@ -177,6 +167,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   }
 
   /// Retry entry point for the waiting/error states (UI button + doorbell).
+  @override
   Future<void> retry() async {
     final channelId = state.channelId;
     if (channelId == null) return;
@@ -194,8 +185,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     }
     _ensureServerChatReady();
   }
-
-  String? _rtServerId;
 
   // ──────────────────────────────────────────────────────────
   // Server chat readiness: key publish + sweep + doorbell
@@ -270,81 +259,12 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     }
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Realtime doorbell
-  // ──────────────────────────────────────────────────────────
-
-  void _setupRealtime(Server server, String channelId) {
-    if (server.supabaseKey == null) return;
-    _rtServerId = server.id;
-    _rtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    _rtChannel = _rtClient!.channel('chat:$channelId')
-      ..onBroadcast(event: 'new_message', callback: (_) => _onDoorbell())
-      ..onBroadcast(event: 'typing', callback: _onTyping)
-      ..onBroadcast(event: 'reaction', callback: _onReactionDoorbell)
-      ..subscribe();
-  }
-
-  Future<void> _teardownRealtime() async {
-    final channel = _rtChannel;
-    final client = _rtClient;
-    _rtChannel = null;
-    _rtClient = null;
-    _rtServerId = null;
-    _lastTypingSent = null;
-    for (final timer in _typingTimers.values) {
-      timer.cancel();
-    }
-    _typingTimers.clear();
-    try {
-      await channel?.unsubscribe();
-      client?.removeAllChannels();
-      await client?.dispose();
-    } catch (_) {}
-  }
 
   // ──────────────────────────────────────────────────────────
-  // Typing indicators
+  // Doorbell senders
   // ──────────────────────────────────────────────────────────
-
-  /// Broadcast that we're typing in the open channel (throttled). Called by
-  /// the composer on each keystroke.
-  void notifyTyping() {
-    final now = DateTime.now();
-    if (_lastTypingSent != null &&
-        now.difference(_lastTypingSent!) < _typingThrottle) {
-      return;
-    }
-    final user = _serverCubit.state.selectedServer?.user;
-    if (user == null || _rtChannel == null) return;
-    _lastTypingSent = now;
-    try {
-      _rtChannel!.sendBroadcastMessage(
-        event: 'typing',
-        payload: {'from': user.id, 'name': user.displayName},
-      );
-    } catch (_) {}
-  }
-
-  void _onTyping(Map<String, dynamic> payload) {
-    if (isClosed) return;
-    final data = (payload['payload'] ?? payload) as Map<String, dynamic>?;
-    final from = data?['from'] as String?;
-    final name = data?['name'] as String?;
-    final myId = _serverCubit.state.selectedServer?.user?.id;
-    if (from == null || name == null || from == myId) return;
-
-    _typingTimers[from]?.cancel();
-    _typingTimers[from] = Timer(_typingTimeout, () => _removeTyping(from));
-    if (state.typingUsers[from] == name) return;
-    emit(state.copyWith(typingUsers: {...state.typingUsers, from: name}));
-  }
-
-  void _removeTyping(String userId) {
-    _typingTimers.remove(userId)?.cancel();
-    if (isClosed || !state.typingUsers.containsKey(userId)) return;
-    emit(state.copyWith(typingUsers: {...state.typingUsers}..remove(userId)));
-  }
+  // Implemented here rather than in the realtime mixin because the mixins that
+  // ring them declare them abstractly; the topic they write to is the mixin's.
 
   @override
   void _onFreshIncoming(List<ChatMessage> incoming) {
@@ -366,6 +286,21 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     } catch (_) {}
   }
 
+  /// Notify other members that one message was edited or deleted.
+  ///
+  /// Deliberately does not say *which* of the two, or carry the new text: the
+  /// receiver re-reads the row and finds out, so a forged broadcast costs a
+  /// request instead of putting words in someone's mouth or hiding a message.
+  @override
+  void _ringChangeDoorbell(String messageId) {
+    try {
+      _rtChannel?.sendBroadcastMessage(
+        event: 'message_changed',
+        payload: {'message_id': messageId},
+      );
+    } catch (_) {}
+  }
+
   /// Notify other members that one message's reactions changed, so they
   /// re-fetch that message. Same fire-and-forget pattern as [_ringDoorbell].
   ///
@@ -379,31 +314,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         payload: {'message_id': messageId},
       );
     } catch (_) {}
-  }
-
-  /// A member changed a reaction. Refresh just the message they named; a ring
-  /// without one (an older client) still gets the whole-history fallback.
-  void _onReactionDoorbell(Map<String, dynamic> payload) {
-    if (isClosed) return;
-    final messageId = payload['message_id'];
-    if (messageId is String) {
-      unawaited(refreshReactionsFor(messageId));
-    } else {
-      unawaited(refreshReactions());
-    }
-  }
-
-  void _onDoorbell() {
-    if (isClosed) return;
-    switch (state.status) {
-      case ChannelChatStatus.ready:
-        unawaited(_fetchAfterLatest());
-      case ChannelChatStatus.waitingForKey:
-        // A member came online and may have healed our keyring entry.
-        unawaited(retry());
-      default:
-        break;
-    }
   }
 
   // ──────────────────────────────────────────────────────────

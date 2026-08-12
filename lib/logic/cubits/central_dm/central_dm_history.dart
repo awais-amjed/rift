@@ -1,29 +1,15 @@
 part of 'central_dm_cubit.dart';
 
-/// The open central-DM conversation: opening it, paging its history, and
-/// decrypting its rows. Sender verification keys come from the directory
-/// (TOFU): the peer's `signing_public_key` for their rows, ours for ours.
-mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
+/// The open central-DM conversation: opening it, and paging its history.
+/// Turning the rows into messages is [_CentralDmDecryptMixin].
+mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
   CentralDmRepository get _repo;
-  CryptoRepository get _crypto;
-  String? get _myUserId;
-  Map<String, String> get _peerSigningKeys;
-  Map<String, String> get _peerChatKeys;
-  Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
-  Future<ServerIdentity> _signingIdentity();
 
   /// Implemented by the send mixin.
   Future<void> refreshQuota();
 
   /// Implemented by the unread mixin.
   void markOpenConversationRead();
-
-  /// The DM context both sides derive independently — order-independent so
-  /// each peer computes the same string.
-  static String _context(String a, String b) {
-    final ids = [a, b]..sort();
-    return 'dm:${ids[0]}:${ids[1]}';
-  }
 
   Future<void> openConversation({
     required String peerId,
@@ -116,6 +102,42 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
     emit(state.copyWith(messages: result.merged));
   }
 
+  /// Re-read one message after the peer edited it. Central has no delete
+  /// notification (see `CentralDmRepository.subscribeIncoming`), but the row
+  /// being gone is still handled — a stale id would otherwise leave a message
+  /// on screen that no longer exists.
+  Future<void> refreshMessage(String messageId) async {
+    final peerId = state.openPeerId;
+    final id = int.tryParse(messageId);
+    if (peerId == null || id == null) return;
+    if (!state.messages.any((m) => m.id == messageId)) return;
+
+    final response = await _repo.getDm(messageId: id);
+    if (!response.success || state.openPeerId != peerId) return;
+
+    final row = (response.data as Map<String, dynamic>)['message'];
+    if (row == null) {
+      emit(
+        state.copyWith(
+          messages: ChatMessageOps.removeMessage(state.messages, messageId),
+        ),
+      );
+      return;
+    }
+
+    final message = await _decryptRow(
+      (row as Map).cast<String, dynamic>(),
+      peerId: peerId,
+      peerHandle: state.openPeerHandle ?? 'unknown',
+    );
+    if (message == null || state.openPeerId != peerId) return;
+    emit(
+      state.copyWith(
+        messages: ChatMessageOps.replaceMessage(state.messages, message),
+      ),
+    );
+  }
+
   Future<void> loadMoreHistory() async {
     final peerId = state.openPeerId;
     if (peerId == null ||
@@ -146,72 +168,5 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
         isLoadingMore: false,
       ),
     );
-  }
-
-  Future<List<ChatMessage>> _decryptRows(
-    String peerId,
-    List<Map<String, dynamic>> rows,
-  ) async {
-    final result = <ChatMessage>[];
-    for (final row in rows) {
-      final message = await _decryptRow(
-        row,
-        peerId: peerId,
-        peerHandle: state.openPeerHandle ?? 'unknown',
-      );
-      if (message != null) result.add(message);
-    }
-    return result;
-  }
-
-  /// Decrypt + verify one row. Returns null on any failure — a message that
-  /// doesn't verify is never rendered.
-  Future<ChatMessage?> _decryptRow(
-    Map<String, dynamic> row, {
-    required String peerId,
-    required String peerHandle,
-  }) async {
-    final myId = _myUserId;
-    if (myId == null) return null;
-
-    final key = await _dmKeyFor(peerId, _peerChatKeys[peerId]);
-    if (key == null) return null;
-
-    final senderId = row['sender_id'] as String;
-    final isMine = senderId == myId;
-
-    try {
-      final Uint8List senderKey;
-      if (isMine) {
-        senderKey = (await _signingIdentity()).publicKeyBytes;
-      } else {
-        final signingKeyB64 = _peerSigningKeys[peerId];
-        if (signingKeyB64 == null) return null;
-        senderKey = CryptoRepository.fromBase64(signingKeyB64);
-      }
-
-      final plaintext = await _crypto.openMessage(
-        envelope: MessageEnvelope.fromJson(row),
-        messageKey: key,
-        senderPublicKey: senderKey,
-        contextId: _context(myId, peerId),
-      );
-      if (plaintext == null) return null;
-
-      final body = MessageBody.decode(plaintext);
-      return ChatMessage(
-        id: '${row['id']}',
-        authorId: senderId,
-        authorName: isMine ? (state.myHandle ?? 'me') : peerHandle,
-        text: body.text,
-        attachments: body.attachments,
-        sentAt: DateTime.parse(row['created_at'] as String),
-        isMine: isMine,
-        editedAt: DateTime.tryParse('${row['edited_at']}'),
-      );
-    } catch (e) {
-      HelperMethods.printDebug('[CentralDM] dropped ${row['id']}: $e');
-      return null;
-    }
   }
 }

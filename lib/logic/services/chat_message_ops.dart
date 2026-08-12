@@ -83,6 +83,19 @@ class ChatMessageOps {
     String messageId,
   ) => messages.where((m) => m.id != messageId).toList();
 
+  /// Swap in a freshly re-read row, keeping its place in the list.
+  ///
+  /// A message we don't hold is left out rather than appended: the row may sit
+  /// outside the loaded window entirely, and dropping it into the end of the
+  /// list would put it out of order.
+  static List<ChatMessage> replaceMessage(
+    List<ChatMessage> messages,
+    ChatMessage message,
+  ) => [
+    for (final m in messages)
+      if (m.id != message.id) m else message,
+  ];
+
   /// Fold a freshly-fetched page into what's on screen.
   ///
   /// Rows we already hold are dropped, and a pending bubble is retired only

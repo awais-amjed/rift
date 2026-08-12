@@ -35,7 +35,7 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
         ).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,
-        contextId: _CentralDmHistoryMixin._context(myId, peerId),
+        contextId: _CentralDmDecryptMixin._context(myId, peerId),
         keyVersion: 1,
       );
 

@@ -63,6 +63,51 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
     if (freshIncoming.isNotEmpty) _onFreshIncoming(freshIncoming);
   }
 
+  /// Re-read one message a change doorbell named, and apply whatever happened
+  /// to it: an edit swaps the row in place, a delete takes it off the list.
+  ///
+  /// Both used to be invisible to anyone already in the channel. The doorbell
+  /// they rang sent everyone to [_fetchAfterLatest], which asks for rows
+  /// *newer* than the newest one held — and an edited message is not a new one,
+  /// so the answer was always empty. The change showed up when the channel was
+  /// next opened, and not before.
+  ///
+  /// A message outside the loaded window is left alone, and a row that fails
+  /// verification is kept rather than dropped: the ping is best-effort, and
+  /// reopening the channel re-reads everything properly.
+  Future<void> refreshMessage(String messageId) async {
+    final channelId = state.channelId;
+    final id = int.tryParse(messageId);
+    if (channelId == null || id == null) return;
+    if (!state.messages.any((m) => m.id == messageId)) return;
+
+    final response = await _serverCubit.getChatMessage(
+      channelId: channelId,
+      messageId: id,
+    );
+    if (!response.success || state.channelId != channelId) return;
+
+    final row = (response.data as Map<String, dynamic>)['message'];
+    if (row == null) {
+      emit(
+        state.copyWith(
+          messages: ChatMessageOps.removeMessage(state.messages, messageId),
+        ),
+      );
+      return;
+    }
+
+    final decrypted = await _decryptRows(channelId, [
+      (row as Map).cast<String, dynamic>(),
+    ]);
+    if (decrypted.isEmpty || state.channelId != channelId) return;
+    emit(
+      state.copyWith(
+        messages: ChatMessageOps.replaceMessage(state.messages, decrypted.single),
+      ),
+    );
+  }
+
   /// Scroll-up pagination: prepend the page before the oldest loaded row.
   Future<void> loadMoreHistory() async {
     final channelId = state.channelId;

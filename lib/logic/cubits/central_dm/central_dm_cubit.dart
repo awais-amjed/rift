@@ -27,6 +27,7 @@ import '../vault/vault_cubit.dart';
 part 'central_dm_state.dart';
 part 'central_dm_conversations.dart';
 part 'central_dm_unread.dart';
+part 'central_dm_decrypt.dart';
 part 'central_dm_history.dart';
 part 'central_dm_send.dart';
 part 'central_dm_edit.dart';
@@ -40,6 +41,7 @@ part 'central_dm_edit.dart';
 /// privacy-mode users simply see the signed-out state.
 class CentralDmCubit extends Cubit<CentralDmState>
     with
+        _CentralDmDecryptMixin,
         _CentralDmConversationsMixin,
         _CentralDmHistoryMixin,
         _CentralDmSendMixin,
@@ -190,7 +192,10 @@ class CentralDmCubit extends Cubit<CentralDmState>
       ),
     );
 
-    _incoming ??= _repo.subscribeIncoming(_onIncoming);
+    _incoming ??= _repo.subscribeIncoming(
+      _onIncoming,
+      onUpdate: _onMessageUpdated,
+    );
     emit(state.copyWith(status: CentralDmStatus.ready, myHandle: handle));
     // Cursors first: without them every message reads as unread, so the badge
     // would flash the whole history before settling.
@@ -204,6 +209,16 @@ class CentralDmCubit extends Cubit<CentralDmState>
     unawaited(refreshConversations());
     if (state.chatStatus == DmChatStatus.ready) {
       unawaited(_fetchAfterLatest());
+    }
+  }
+
+  /// The peer edited a message. `_fetchAfterLatest` can't see it — an edited
+  /// message is not a newer one — so the row is re-read by id.
+  void _onMessageUpdated(String messageId) {
+    if (isClosed) return;
+    unawaited(refreshConversations());
+    if (state.chatStatus == DmChatStatus.ready) {
+      unawaited(refreshMessage(messageId));
     }
   }
 

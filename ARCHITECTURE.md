@@ -206,6 +206,20 @@ Attachments (images, voice notes, files) are E2E-encrypted just like text:
 - Central attachments count against the sender's daily DM quota and are bounded
   by a per-file size cap (bucket `file_size_limit`).
 
+**An edit or a delete rings a doorbell that names the message.** The send
+doorbell sends receivers to fetch rows *newer* than the newest one they hold,
+which can never surface a change to a message they already have — so for a long
+time neither edits nor deletes reached anyone with the conversation already
+open; they appeared on the next open, and not before. The change doorbell
+carries the message id and nothing else: not the new text, not even which of the
+two happened. The receiver re-reads that one row and finds out — present means
+an edit, absent means a delete. Keeping the answer in the database is what holds
+the invariant that a forged broadcast costs a wasted request rather than letting
+anyone put words in someone else's message or make one disappear. Central DMs
+get the same behaviour from a Postgres `UPDATE` subscription instead of a
+broadcast; deletes there still wait for a reopen, because a `DELETE` event
+carries only the primary key and so can't be filtered to the recipient.
+
 **Emoji reactions are deliberately NOT E2E, and exist only on self-hosted
 servers.** Unlike message content, an emoji tally is stored in the clear
 (`message_reactions` / `dm_message_reactions`) — the server sees who reacted

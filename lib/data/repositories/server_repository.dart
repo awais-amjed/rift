@@ -12,6 +12,7 @@ import '../enums/error_code.dart';
 import 'server_db.dart';
 
 part 'server_repository_chat.dart';
+part 'server_repository_chat_reads.dart';
 part 'server_repository_reactions.dart';
 
 /// All I/O against a self-hosted server.
@@ -33,7 +34,8 @@ part 'server_repository_reactions.dart';
 /// Everything else was an endpoint that existed only because clients weren't
 /// trusted with the database — which was never a decision, just a consequence
 /// of tables without policies.
-class ServerRepository with _ChatApiMixin, _ReactionApiMixin {
+class ServerRepository
+    with _ChatApiMixin, _ChatReadApiMixin, _ReactionApiMixin {
   @override
   final ServerDb _db = ServerDb();
 

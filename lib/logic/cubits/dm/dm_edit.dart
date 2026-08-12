@@ -11,6 +11,10 @@ mixin _DmEditMixin on Cubit<DmState> {
   Map<String, Uint8List> get _dmKeys;
   Future<ServerIdentity> _vaultIdentityFor(Server server);
 
+  /// Tell the peer that this message changed, so their open conversation
+  /// re-reads it. Implemented by the hub.
+  void _ringChangeDoorbell(String messageId);
+
   /// Re-seal [messageId] with [newText]; attachments carry over unchanged.
   Future<void> editMessage(String messageId, String newText) async {
     final peerId = state.openPeerId;
@@ -64,6 +68,7 @@ mixin _DmEditMixin on Cubit<DmState> {
           ),
         ),
       );
+      _ringChangeDoorbell(messageId);
     } catch (e) {
       HelperMethods.printDebug('[DM] edit failed: $e');
       if (state.openPeerId == peerId) {
@@ -95,6 +100,7 @@ mixin _DmEditMixin on Cubit<DmState> {
           messages: ChatMessageOps.removeMessage(state.messages, messageId),
         ),
       );
+      _ringChangeDoorbell(messageId);
     } catch (e) {
       HelperMethods.printDebug('[DM] delete failed: $e');
       if (state.openPeerId == peerId) {

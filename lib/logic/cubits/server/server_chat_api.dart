@@ -165,6 +165,34 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     ),
   );
 
+  /// Re-read one channel message after a change doorbell named it. Answers
+  /// `{message: …}`, or `{message: null}` when the row has been deleted.
+  Future<APIResponse> getChatMessage({
+    required String channelId,
+    required int messageId,
+  }) => _callWithAutoRefresh(
+    (token) => _repository.getMessage(
+      state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
+      userId: _userId,
+      channelId: channelId,
+      messageId: messageId,
+      bearerToken: token,
+    ),
+  );
+
+  /// The same for one server DM.
+  Future<APIResponse> getDmMessage({required int messageId}) =>
+      _callWithAutoRefresh(
+        (token) => _repository.getDm(
+          state.selectedServer!.supabaseUrl,
+          anonKey: _anonKey,
+          userId: _userId,
+          messageId: messageId,
+          bearerToken: token,
+        ),
+      );
+
   /// Toggle the caller's [emoji] reaction on a message ([scope] is `channel`
   /// or `dm`, which picks the table; who may react is a policy).
   Future<APIResponse> toggleReaction({

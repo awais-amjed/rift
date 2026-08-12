@@ -12,7 +12,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
   int get _currentKeyVersion;
-  void _ringDoorbell();
+  void _ringChangeDoorbell(String messageId);
 
   /// Re-seal [messageId] with [newText]. Attachments are carried over
   /// unchanged. No-ops when the text is unchanged or empty.
@@ -76,7 +76,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
           ),
         ),
       );
-      _ringDoorbell();
+      _ringChangeDoorbell(messageId);
     } catch (e) {
       HelperMethods.printDebug('[Chat] edit failed: $e');
       if (state.channelId == channelId) {
@@ -111,7 +111,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
           messages: ChatMessageOps.removeMessage(state.messages, messageId),
         ),
       );
-      _ringDoorbell();
+      _ringChangeDoorbell(messageId);
     } catch (e) {
       HelperMethods.printDebug('[Chat] delete failed: $e');
       if (state.channelId == channelId) {
