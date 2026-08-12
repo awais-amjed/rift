@@ -114,9 +114,7 @@ void main() {
     expect(ends, 1);
   });
 
-  testWidgets('dragging the other way reports negative deltas', (
-    tester,
-  ) async {
+  testWidgets('dragging the other way reports negative deltas', (tester) async {
     await pump(tester);
     final start = tester.getCenter(find.byType(SidebarResizeHandle));
 
@@ -136,9 +134,7 @@ void main() {
     expect(deltas.fold<double>(0, (a, b) => a + b), closeTo(-40, 0.5));
   });
 
-  testWidgets('a double-click asks for the default width back', (
-    tester,
-  ) async {
+  testWidgets('a double-click asks for the default width back', (tester) async {
     await pump(tester);
     final centre = tester.getCenter(find.byType(SidebarResizeHandle));
 

@@ -16,6 +16,7 @@ import '../../../../settings/widgets/section_title.dart';
 class ListingDetailsSection extends StatelessWidget {
   final TextEditingController nameCtrl;
   final TextEditingController descriptionCtrl;
+  final TextEditingController tagCtrl;
   final List<String> tags;
   final ValueChanged<List<String>> onTagsChanged;
   final ThemeState themeState;
@@ -25,6 +26,7 @@ class ListingDetailsSection extends StatelessWidget {
     super.key,
     required this.nameCtrl,
     required this.descriptionCtrl,
+    required this.tagCtrl,
     required this.tags,
     required this.onTagsChanged,
     required this.themeState,
@@ -66,6 +68,7 @@ class ListingDetailsSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         TagEditor(
+          controller: tagCtrl,
           tags: tags,
           onChanged: onTagsChanged,
           themeState: themeState,

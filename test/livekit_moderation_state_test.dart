@@ -69,13 +69,16 @@ void main() {
       expect(released.isDeafenedEffective, isFalse);
     });
 
-    test('a member deafened by choice stays deafened when the server lifts', () {
-      const both = LiveKitState(isDeafened: true, isServerDeafened: true);
+    test(
+      'a member deafened by choice stays deafened when the server lifts',
+      () {
+        const both = LiveKitState(isDeafened: true, isServerDeafened: true);
 
-      final released = both.copyWith(isServerDeafened: false);
-      expect(released.isDeafenedEffective, isTrue);
-      expect(released.isMicOn, isFalse);
-    });
+        final released = both.copyWith(isServerDeafened: false);
+        expect(released.isDeafenedEffective, isTrue);
+        expect(released.isMicOn, isFalse);
+      },
+    );
   });
 
   group('LiveKitState.isDeafenedEffective / isModerated', () {

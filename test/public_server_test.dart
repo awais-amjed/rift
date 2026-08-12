@@ -83,4 +83,35 @@ void main() {
       expect(ServerTags.normalise('   '), isNull);
     });
   });
+
+  /// The editor turns typing into a chip on Enter, and a tag left in the box
+  /// used to be invisible to the save — so filling the field and pressing Save
+  /// published no tags at all. Saving reads through here instead.
+  group('ServerTags.withPending', () {
+    test('picks up a tag that was typed but never turned into a chip', () {
+      expect(ServerTags.withPending(const ['gaming'], 'Board Games'), [
+        'gaming',
+        'board-games',
+      ]);
+    });
+
+    test('an empty or unusable box changes nothing', () {
+      expect(ServerTags.withPending(const ['gaming'], ''), ['gaming']);
+      expect(ServerTags.withPending(const ['gaming'], '  '), ['gaming']);
+      expect(ServerTags.withPending(const ['gaming'], '!!'), ['gaming']);
+    });
+
+    test('a duplicate is dropped rather than repeated', () {
+      expect(ServerTags.withPending(const ['gaming'], 'Gaming'), ['gaming']);
+    });
+
+    test('it cannot push a listing past the column limit', () {
+      final full = List.generate(ServerTags.maxCount, (i) => 'tag-$i');
+      expect(ServerTags.withPending(full, 'one-more'), full);
+    });
+
+    test('no chips yet and one in the box still saves that one', () {
+      expect(ServerTags.withPending(const [], 'tech'), ['tech']);
+    });
+  });
 }

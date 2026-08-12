@@ -69,10 +69,7 @@ void main() {
                     GestureDetector(
                       key: siblingKey,
                       onTap: () => siblingTaps++,
-                      child: Container(
-                        height: 40,
-                        color: Colors.blueGrey,
-                      ),
+                      child: Container(height: 40, color: Colors.blueGrey),
                     ),
                   ],
                 ),

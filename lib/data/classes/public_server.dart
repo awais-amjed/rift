@@ -108,6 +108,22 @@ class ServerTags {
 
   static bool isValid(String tag) => _shape.hasMatch(tag);
 
+  /// [committed] plus whatever is still sitting in the input, normalised.
+  ///
+  /// The editor turns typing into a chip on Enter, and nobody should have to
+  /// know that: a tag typed and left in the box is a tag the person meant to
+  /// add, so saving has to pick it up rather than discard it. Duplicates and
+  /// anything over [maxCount] are dropped, exactly as adding it would have.
+  static List<String> withPending(List<String> committed, String pending) {
+    final tag = normalise(pending);
+    if (tag == null ||
+        committed.contains(tag) ||
+        committed.length >= maxCount) {
+      return committed;
+    }
+    return [...committed, tag];
+  }
+
   /// Fold free text into a tag, or null if nothing usable survives. Spaces
   /// become hyphens rather than being dropped, so "board games" is one tag
   /// instead of "boardgames".

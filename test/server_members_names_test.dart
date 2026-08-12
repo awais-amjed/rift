@@ -30,9 +30,12 @@ void main() {
       expect(state.nameFor('u2', 'Newcomer'), 'Newcomer');
     });
 
-    test('a roster that has not loaded yet falls back rather than blanking', () {
-      expect(ServerMembersState().nameFor('u1', 'Test2'), 'Test2');
-    });
+    test(
+      'a roster that has not loaded yet falls back rather than blanking',
+      () {
+        expect(ServerMembersState().nameFor('u1', 'Test2'), 'Test2');
+      },
+    );
 
     test('byId indexes every member', () {
       final state = ServerMembersState(

@@ -13,7 +13,14 @@ class ListingDraft {
   final nameCtrl = TextEditingController();
   final descriptionCtrl = TextEditingController();
 
-  List<String> tags = const [];
+  /// The tag being typed. Held here rather than inside `TagEditor` so that
+  /// [tags] can include it — a tag typed and not turned into a chip is still
+  /// a tag the person meant to add.
+  final tagCtrl = TextEditingController();
+
+  /// The tags already turned into chips. Read [tags] to save.
+  List<String> committedTags = const [];
+
   bool isListed = true;
 
   /// A new invite code was asked for and hasn't been saved yet. Minting waits
@@ -32,11 +39,14 @@ class ListingDraft {
     this.listing = listing;
     nameCtrl.text = listing?.name ?? server.name;
     descriptionCtrl.text = listing?.description ?? '';
-    tags = listing?.tags ?? const [];
+    committedTags = listing?.tags ?? const [];
     isListed = listing?.isListed ?? true;
   }
 
   String get name => nameCtrl.text.trim();
+
+  /// What to publish: the chips, plus anything still in the tag box.
+  List<String> get tags => ServerTags.withPending(committedTags, tagCtrl.text);
 
   /// Empty prose is no description rather than an empty one — the column is
   /// nullable and "" would be a second way to say the same thing.
@@ -46,5 +56,6 @@ class ListingDraft {
   void dispose() {
     nameCtrl.dispose();
     descriptionCtrl.dispose();
+    tagCtrl.dispose();
   }
 }

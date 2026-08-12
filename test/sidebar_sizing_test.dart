@@ -48,10 +48,7 @@ void main() {
         SidebarSizing.clamp(K.sidebarWidth, windowWidth: tiny),
         K.sidebarMinWidth,
       );
-      expect(
-        SidebarSizing.clamp(50, windowWidth: tiny),
-        K.sidebarMinWidth,
-      );
+      expect(SidebarSizing.clamp(50, windowWidth: tiny), K.sidebarMinWidth);
     });
   });
 

@@ -136,10 +136,11 @@ void main() {
 
   group('replaceMessage', () {
     test('swaps the row in place, keeping its position', () {
-      final result = ChatMessageOps.replaceMessage(
-        [msg('1'), msg('2', text: 'before'), msg('3')],
-        msg('2', text: 'after'),
-      );
+      final result = ChatMessageOps.replaceMessage([
+        msg('1'),
+        msg('2', text: 'before'),
+        msg('3'),
+      ], msg('2', text: 'after'));
       expect(result.map((m) => m.id), ['1', '2', '3']);
       expect(result[1].text, 'after');
     });
@@ -153,10 +154,10 @@ void main() {
 
     test('leaves the other rows identical', () {
       final first = msg('1');
-      final result = ChatMessageOps.replaceMessage(
-        [first, msg('2')],
-        msg('2', text: 'edited'),
-      );
+      final result = ChatMessageOps.replaceMessage([
+        first,
+        msg('2'),
+      ], msg('2', text: 'edited'));
       expect(result.first, same(first));
     });
   });

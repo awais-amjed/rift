@@ -54,9 +54,10 @@ class ListingForm extends StatelessWidget {
             ListingDetailsSection(
               nameCtrl: draft.nameCtrl,
               descriptionCtrl: draft.descriptionCtrl,
-              tags: draft.tags,
+              tagCtrl: draft.tagCtrl,
+              tags: draft.committedTags,
               onTagsChanged: (tags) {
-                draft.tags = tags;
+                draft.committedTags = tags;
                 onChanged();
               },
               themeState: themeState,

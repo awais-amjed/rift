@@ -40,8 +40,7 @@ const _longLabel = 'Delete-this-channel-permanently-for-everyone';
 /// Built lazily: [ThemeCubit] is hydrated, so it can't be constructed until
 /// `setUpAll` has given it storage.
 Map<String, Widget Function()> _cases() => {
-  'AppButton': () =>
-      const AppButton(label: _longLabel, expanded: true),
+  'AppButton': () => const AppButton(label: _longLabel, expanded: true),
   'AppButton with an icon': () => const AppButton(
     label: _longLabel,
     icon: Icon(Icons.add_rounded, size: 16),
@@ -69,12 +68,9 @@ Map<String, Widget Function()> _cases() => {
     label: _longLabel,
     color: Colors.green,
   ),
-  'HintCard': () =>
-      const HintCard(icon: Icons.info_outline, text: _longLabel),
-  'MessageBanner': () => const MessageBanner(
-    message: _longLabel,
-    kind: MessageBannerKind.error,
-  ),
+  'HintCard': () => const HintCard(icon: Icons.info_outline, text: _longLabel),
+  'MessageBanner': () =>
+      const MessageBanner(message: _longLabel, kind: MessageBannerKind.error),
   'PermissionToggle': () => PermissionToggle(
     icon: Icons.shield_outlined,
     label: _longLabel,

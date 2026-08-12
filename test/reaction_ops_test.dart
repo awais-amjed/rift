@@ -89,7 +89,9 @@ void main() {
         ),
         msg(
           '2',
-          reactions: [const MessageReaction(emoji: '🔥', count: 4, mine: false)],
+          reactions: [
+            const MessageReaction(emoji: '🔥', count: 4, mine: false),
+          ],
         ),
       ];
       final result = ReactionOps.withReactionsFor(

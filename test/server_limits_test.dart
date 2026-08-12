@@ -106,10 +106,7 @@ void main() {
       // The policy this feature exists for: trim the busy channels, keep the
       // DMs. Reading 0 back as null would put the server's 30 days on and
       // start deleting conversations the admin had exempted.
-      const limits = ServerLimits(
-        messageRetentionDays: 30,
-        dmRetentionDays: 0,
-      );
+      const limits = ServerLimits(messageRetentionDays: 30, dmRetentionDays: 0);
       expect(limits.effectiveDmRetentionDays, ServerLimits.unlimited);
       expect(limits.messageRetentionDays, 30, reason: 'channels unaffected');
     });

@@ -86,7 +86,10 @@ void main() {
       final position = place(target);
       expect(position.dx, greaterThanOrEqualTo(margin));
       expect(position.dy, greaterThanOrEqualTo(margin));
-      expect(position.dx + menu.width, lessThanOrEqualTo(screen.width - margin));
+      expect(
+        position.dx + menu.width,
+        lessThanOrEqualTo(screen.width - margin),
+      );
       expect(
         position.dy + menu.height,
         lessThanOrEqualTo(screen.height - margin),
