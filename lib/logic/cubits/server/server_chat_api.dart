@@ -16,7 +16,11 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     Future<APIResponse> Function(String token) call,
   );
 
-  static const String _attachmentsBucket = 'chat-attachments';
+  /// Each server owns its own attachment bucket (migration 008), named for its
+  /// id. One Supabase project can host several servers, and a shared bucket
+  /// could carry only one `file_size_limit` between them — and let a member of
+  /// one read another's objects. A bucket each makes both exact.
+  static String _bucketFor(Server server) => 'chat-${server.id}';
 
   /// Encrypt + upload an attachment blob to the selected server, scoped under
   /// [scopePrefix] (channel id / DM context). On success `data` is
@@ -35,7 +39,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
         baseUrl: server.supabaseUrl,
         anonKey: anonKey,
         bearerToken: token,
-        bucket: _attachmentsBucket,
+        bucket: _bucketFor(server),
         scopePrefix: scopePrefix,
         data: data,
       ),
@@ -58,7 +62,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
         baseUrl: server.supabaseUrl,
         anonKey: anonKey,
         bearerToken: token,
-        bucket: _attachmentsBucket,
+        bucket: _bucketFor(server),
         paths: paths,
       ),
     );
@@ -95,7 +99,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
         baseUrl: server.supabaseUrl,
         anonKey: anonKey,
         bearerToken: token,
-        bucket: _attachmentsBucket,
+        bucket: _bucketFor(server),
         path: path,
         keyB64: keyB64,
         nonceB64: nonceB64,

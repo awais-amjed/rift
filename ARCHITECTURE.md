@@ -205,6 +205,33 @@ hold no messages, so their settings dialog shows the name alone rather than a sw
 nothing. DMs have no per-conversation override; the server's cap applies, and it counts both
 people together, since a conversation is one bucket seen from either side.
 
+#### A bucket per server [Migration 008]
+
+Attachments used to land in one project-wide `chat-attachments` bucket, and since
+one Supabase project can host several servers (001 says so, and identity is derived per
+`(host, server_id)` precisely to allow it), that cost two things. `file_size_limit` is a
+property of a *bucket*, so a shared one can carry only one number — 007 mirrored the MAX
+across servers and accepted that a stricter server's cap was client-enforced only. And
+`chat_attachments_select` was `bucket_id = 'chat-attachments'` for **any** authenticated
+caller, so a member of one server could read another's objects. Ciphertext, so nothing
+leaked, but every other rule in the schema is scoped by `app.server_id()` and that one
+wasn't.
+
+Each server now owns `chat-<server uuid>` (41 characters against Storage's 100-character
+limit), and both problems become the same equality: `bucket_id = 'chat-' || app.server_id()`.
+
+The mechanism is smaller than the endpoint it replaced. `storage.buckets` is protected only
+against DELETE, so plain SQL can create a bucket and change its limit — which means triggers
+on `servers` do all of it: one mints the bucket on INSERT, another moves `file_size_limit`
+whenever `max_attachment_bytes` changes, *in the same statement*, so it cannot be skipped or
+raced. `update_server` no longer touches storage at all, and `create_server` needs no extra
+step and cannot half-succeed.
+
+The old shared bucket still exists — Storage refuses a SQL DELETE on a bucket — but has no
+policy, so nothing can read or write it. Anything left inside is unreachable and also
+undecryptable; `orphaned_attachments` spans every `chat-%` bucket, so it drains rather than
+lingering.
+
 #### Deleting a message has to delete its files
 
 This is the part that makes the limits mean anything, and it is more awkward than it looks.

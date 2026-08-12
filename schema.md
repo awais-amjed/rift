@@ -253,6 +253,9 @@ expose a history-wiping RPC to any member. Deletes are permanent.
 
 ### app.orphaned_attachments(p_grace interval default '1 hour')
 
+Returns `(bucket, object_name)` — a batch can span several buckets on a project hosting more
+than one server.
+
 Attachment blobs with no message left, found **without any message→blob linkage** — there is
 none to have, since storage paths live inside the encrypted body. It uses the one thing the
 server knows: an object's name begins with the scope it was uploaded for
@@ -336,22 +339,30 @@ Same columns as their self-hosted counterparts. Differences that matter:
 - **Access**: Public
 - **Purpose**: Storage for server-related assets (e.g., icons)
 
-### chat-attachments
+### chat-&lt;server uuid&gt; — one per server (migration 008)
 
-- **Access**: Private; RLS allows any authenticated member to insert/select, and to **delete
-  what they uploaded** (`owner = auth.uid()`) or, for a channel manager, anyone's — matching
-  who may delete the message a blob belongs to. That policy is what lets a client clean up
-  after itself; `sweep_attachments` gets the rest.
-- **Size cap**: `servers.max_attachment_bytes`, mirrored here by `update_server` (25 MB
-  until an admin changes it). One Supabase project can host several servers sharing this
-  bucket, so the mirror writes the **MAX** across them — on a multi-server project a
-  stricter server's cap is client-enforced only.
-- **Purpose**: E2E-encrypted attachment blobs for channels + server DMs. Each
-  object is AES-256-GCM ciphertext under a per-file key that lives only inside
-  the encrypted message body — the server can't decrypt them. Objects are named
-  `<scope>/<random>.bin` (scope = channel id or DM context). "Authenticated
-  read" leaks nothing: the bytes are meaningless without the in-message key and
-  paths are unguessable.
+- **Created by** a trigger on `servers`, so a server has its bucket from the moment its row
+  exists. A second trigger moves `file_size_limit` whenever `max_attachment_bytes` changes,
+  in the same statement. Nothing outside the database is involved.
+- **Access**: Private. Select/insert require `bucket_id = 'chat-' || app.server_id()`, so a
+  member reaches their own server's bucket and no other — and a banned member reaches none,
+  since `app.server_id()` returns null for them. Delete additionally requires
+  `owner = auth.uid()` or channel-manager, matching who may delete the message a blob
+  belongs to; that is what lets a client clean up after itself, and `sweep_attachments` gets
+  the rest.
+- **Size cap**: that server's own `max_attachment_bytes` — exact, because the limit belongs
+  to a bucket and each server has one. Storage rejects an oversized upload with a 413.
+- **Purpose**: E2E-encrypted attachment blobs for channels + server DMs. Each object is
+  AES-256-GCM ciphertext under a per-file key that lives only inside the encrypted message
+  body — the server can't decrypt them. Objects are named `<scope>/<random>.bin`
+  (scope = channel id or DM context).
+
+### chat-attachments (legacy)
+
+The single project-wide bucket every server used before 008. It still exists — Storage
+refuses a SQL DELETE on a bucket — but has **no policy at all**, so nothing can read or
+write it. `app.orphaned_attachments` spans every `chat-%` bucket, so anything left inside
+drains rather than lingering.
 
 ### central-dm-attachments (central project only)
 
