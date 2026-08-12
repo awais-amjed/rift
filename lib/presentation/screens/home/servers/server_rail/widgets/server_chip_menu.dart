@@ -67,9 +67,9 @@ class ServerChipMenu extends StatelessWidget {
           ContextMenuItem(
             icon: Icons.person_add_outlined,
             label: 'Invite people',
-            onTap: () => _open(
-              context,
-              (ctx) => MultiBlocProvider(
+            onTap: () => showDialogFromMenu(
+              context: context,
+              build: (ctx) => MultiBlocProvider(
                 providers: [
                   BlocProvider.value(value: ctx.read<ServerCubit>()),
                   BlocProvider.value(value: ctx.read<AppCubit>()),
@@ -86,9 +86,9 @@ class ServerChipMenu extends StatelessWidget {
           ContextMenuItem(
             icon: Icons.manage_accounts_outlined,
             label: 'Manage members',
-            onTap: () => _open(
-              context,
-              (ctx) => BlocProvider.value(
+            onTap: () => showDialogFromMenu(
+              context: context,
+              build: (ctx) => BlocProvider.value(
                 value: ctx.read<ServerCubit>(),
                 child: const MembersModal(),
               ),
@@ -98,9 +98,9 @@ class ServerChipMenu extends StatelessWidget {
           ContextMenuItem(
             icon: Icons.settings_outlined,
             label: 'Server settings',
-            onTap: () => _open(
-              context,
-              (ctx) => MultiBlocProvider(
+            onTap: () => showDialogFromMenu(
+              context: context,
+              build: (ctx) => MultiBlocProvider(
                 providers: [
                   BlocProvider.value(value: ctx.read<ServerCubit>()),
                   // Settings' third column is the server's public listing,
@@ -121,16 +121,6 @@ class ServerChipMenu extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  /// Menus are overlay entries, not routes, so anything that opens a dialog
-  /// has to dismiss the menu itself first — and read its cubits before the
-  /// menu's own context is torn down.
-  void _open(BuildContext context, Widget Function(BuildContext) builder) {
-    final dismiss = ContextMenuScope.of(context);
-    final host = context;
-    dismiss?.call();
-    showCustomDialog(context: host, builder: (_) => builder(host));
   }
 
   Future<void> _leave(BuildContext context) async {

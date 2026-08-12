@@ -49,11 +49,10 @@ class ChannelContextMenu extends StatelessWidget {
   }
 
   void _openSettings(BuildContext context) {
-    ContextMenuScope.of(context)?.call();
-    showCustomDialog(
+    showDialogFromMenu(
       context: context,
-      builder: (_) => BlocProvider.value(
-        value: context.read<ServerCubit>(),
+      build: (ctx) => BlocProvider.value(
+        value: ctx.read<ServerCubit>(),
         child: ChannelSettingsDialog(channel: channel),
       ),
     );

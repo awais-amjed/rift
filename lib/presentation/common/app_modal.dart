@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import 'app_modal_header.dart';
+import 'context_menu_region.dart';
 
 /// Shows a dialog that:
 /// - Cannot be dismissed by tapping the barrier
@@ -32,6 +33,42 @@ Future<T?> showAppModal<T>({
   required Widget modal,
 }) {
   return showCustomDialog<T>(context: context, builder: (_) => modal);
+}
+
+/// Opens a dialog from inside a context menu.
+///
+/// A menu is an overlay entry rather than a route, so it has to dismiss itself
+/// before the dialog opens — and its [BuildContext] is deactivated the moment
+/// it does. That makes the obvious spelling a trap:
+///
+/// ```dart
+/// dismiss?.call();
+/// showCustomDialog(context: menu, builder: (_) => BlocProvider.value(
+///   value: menu.read<ServerCubit>(), child: const SomeDialog()));
+/// ```
+///
+/// The `read` runs inside the *route's* builder, which Flutter re-invokes
+/// whenever the route rebuilds — and a route rebuilds for reasons that have
+/// nothing to do with the dialog. **Resizing the window is enough.** So it
+/// works on the first build and throws "Looking up a deactivated widget's
+/// ancestor" on the next.
+///
+/// [build] is therefore called **once, here, while the menu is still mounted**,
+/// and the route is handed the finished widget. The navigator is captured for
+/// the same reason: it outlives the overlay entry, and the menu's context
+/// won't.
+Future<T?> showDialogFromMenu<T>({
+  required BuildContext context,
+  required Widget Function(BuildContext) build,
+}) {
+  final dismiss = ContextMenuScope.of(context);
+  final dialog = build(context);
+  final navigator = Navigator.of(context);
+  dismiss?.call();
+  return showCustomDialog<T>(
+    context: navigator.context,
+    builder: (_) => dialog,
+  );
 }
 
 /// Base modal used for most dialogs in the app.

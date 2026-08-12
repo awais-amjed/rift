@@ -118,6 +118,7 @@ Before hand-rolling chrome, check `presentation/common/`:
 | Need | Use |
 | --- | --- |
 | A dialog | `AppModal` + `showAppModal` (`showCustomDialog` for a bare one) |
+| A dialog opened from a context menu | `showDialogFromMenu` — never `showCustomDialog` with the menu's context, see its doc |
 | Two groups in one dialog | `ModalColumns` — side by side when there's room, stacked when there isn't |
 | "Are you sure?" | `showConfirmDialog` — returns a non-null `bool`; dismiss means no |
 | An inline error / notice | `MessageBanner` |
