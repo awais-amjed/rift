@@ -187,4 +187,45 @@ void main() {
       expect(result[1].reactions, isEmpty);
     });
   });
+
+  group('ChatMessageOps.splitPage', () {
+    List<int> rows(int count) => List.generate(count, (i) => i);
+
+    test('the spare row is dropped and reported as more history', () {
+      final page = ChatMessageOps.splitPage(rows(4), limit: 3);
+      expect(page.rows, [0, 1, 2]);
+      expect(page.hasMore, isTrue);
+    });
+
+    test('a page exactly the limit long is the end — the old bug', () {
+      // 50 messages used to promise a fifty-first, and the reader who scrolled
+      // back got a spinner for a page that came back empty.
+      final page = ChatMessageOps.splitPage(rows(3), limit: 3);
+      expect(page.rows, [0, 1, 2]);
+      expect(page.hasMore, isFalse);
+    });
+
+    test('a short page is passed through', () {
+      final page = ChatMessageOps.splitPage(rows(2), limit: 3);
+      expect(page.rows, [0, 1]);
+      expect(page.hasMore, isFalse);
+    });
+
+    test('no rows at all', () {
+      final page = ChatMessageOps.splitPage(<int>[], limit: 3);
+      expect(page.rows, isEmpty);
+      expect(page.hasMore, isFalse);
+    });
+
+    test('defaults to the shared page size', () {
+      expect(
+        ChatMessageOps.splitPage(rows(ChatMessageOps.pageSize + 1)).hasMore,
+        isTrue,
+      );
+      expect(
+        ChatMessageOps.splitPage(rows(ChatMessageOps.pageSize)).hasMore,
+        isFalse,
+      );
+    });
+  });
 }

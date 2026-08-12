@@ -14,6 +14,22 @@ class ChatMessageOps {
   /// id — callers guard on an empty list before paginating.
   static const int _noOldestId = 0x7fffffffffffffff;
 
+  /// Trim an over-fetched page back to [limit] and report whether more exists.
+  ///
+  /// Every history read asks the database for `limit + 1` rows; the row past
+  /// the page is what proves there is another page. Inferring it from a full
+  /// page instead — the obvious shortcut — lies whenever the history is an
+  /// exact multiple of the page size: 50 messages would promise a fifty-first,
+  /// and the reader who scrolls back gets a spinner for a page that comes back
+  /// empty. One spare row on the wire is cheaper than a count.
+  static ({List<T> rows, bool hasMore}) splitPage<T>(
+    List<T> rows, {
+    int limit = pageSize,
+  }) => (
+    rows: rows.length > limit ? rows.sublist(0, limit) : rows,
+    hasMore: rows.length > limit,
+  );
+
   /// The newest server-acknowledged id. Pending messages carry non-numeric
   /// ids and are skipped.
   static int latestId(List<ChatMessage> messages) => messages

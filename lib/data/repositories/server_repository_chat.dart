@@ -292,21 +292,25 @@ mixin _ChatApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final pageSize = limit ?? 50;
+      final pageSize = limit ?? ChatMessageOps.pageSize;
       var query = db
           .from('messages')
           .select(_messageColumns)
           .eq('channel_id', channelId);
       if (afterId != null) query = query.gt('id', afterId);
       if (beforeId != null) query = query.lt('id', beforeId);
+      // One row past the page — see ChatMessageOps.splitPage.
       final rows = await query
           .order('id', ascending: afterId != null)
-          .limit(pageSize);
-      final messages = [
-        for (final r in (rows as List).cast<Map<String, dynamic>>())
-          _flatten(r),
-      ];
-      return {'messages': messages, 'has_more': messages.length == pageSize};
+          .limit(pageSize + 1);
+      final page = ChatMessageOps.splitPage(
+        (rows as List).cast<Map<String, dynamic>>(),
+        limit: pageSize,
+      );
+      return {
+        'messages': [for (final r in page.rows) _flatten(r)],
+        'has_more': page.hasMore,
+      };
     });
   }
 
@@ -341,7 +345,7 @@ mixin _ChatApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final pageSize = limit ?? 50;
+      final pageSize = limit ?? ChatMessageOps.pageSize;
       var query = db
           .from('dm_messages')
           .select(_dmColumns)
@@ -351,14 +355,18 @@ mixin _ChatApiMixin {
           );
       if (afterId != null) query = query.gt('id', afterId);
       if (beforeId != null) query = query.lt('id', beforeId);
+      // One row past the page — see ChatMessageOps.splitPage.
       final rows = await query
           .order('id', ascending: afterId != null)
-          .limit(pageSize);
-      final messages = [
-        for (final r in (rows as List).cast<Map<String, dynamic>>())
-          _flatten(r),
-      ];
-      return {'messages': messages, 'has_more': messages.length == pageSize};
+          .limit(pageSize + 1);
+      final page = ChatMessageOps.splitPage(
+        (rows as List).cast<Map<String, dynamic>>(),
+        limit: pageSize,
+      );
+      return {
+        'messages': [for (final r in page.rows) _flatten(r)],
+        'has_more': page.hasMore,
+      };
     });
   }
 

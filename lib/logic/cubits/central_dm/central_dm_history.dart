@@ -79,12 +79,13 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
     );
     if (!response.success || state.openPeerId != peerId) return;
 
-    final rows = (response.data as List).cast<Map<String, dynamic>>();
+    final data = response.data as Map<String, dynamic>;
+    final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
     final decrypted = await _decryptRows(peerId, rows);
     emit(
       state.copyWith(
         messages: decrypted.reversed.toList(),
-        hasMoreHistory: rows.length == ChatMessageOps.pageSize,
+        hasMoreHistory: data['has_more'] as bool? ?? false,
       ),
     );
     unawaited(refreshReactions());
@@ -101,7 +102,8 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
     );
     if (!response.success || state.openPeerId != peerId) return;
 
-    final rows = (response.data as List).cast<Map<String, dynamic>>();
+    final rows = ((response.data as Map<String, dynamic>)['messages'] as List)
+        .cast<Map<String, dynamic>>();
     if (rows.isEmpty) return;
 
     final incoming = await _decryptRows(peerId, rows);
@@ -137,12 +139,13 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
       return;
     }
 
-    final rows = (response.data as List).cast<Map<String, dynamic>>();
+    final data = response.data as Map<String, dynamic>;
+    final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
     final older = await _decryptRows(peerId, rows);
     emit(
       state.copyWith(
         messages: [...older.reversed, ...state.messages],
-        hasMoreHistory: rows.length == ChatMessageOps.pageSize,
+        hasMoreHistory: data['has_more'] as bool? ?? false,
         isLoadingMore: false,
       ),
     );

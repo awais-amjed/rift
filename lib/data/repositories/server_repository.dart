@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart' hide ErrorCode;
 
+import '../../logic/services/chat_message_ops.dart';
 import '../classes/api_response.dart';
 import '../enums/error_code.dart';
 import 'server_db.dart';

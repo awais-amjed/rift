@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../logic/services/chat_message_ops.dart';
 import '../classes/api_response.dart';
 import 'attachment_repository.dart';
 
@@ -137,11 +138,13 @@ class CentralDmRepository
 
   /// Page through the conversation with [peerId] (RLS already restricts rows
   /// to the caller's own conversations).
+  ///
+  /// Answers `{messages, has_more}`, the same shape the self-hosted reads use.
   Future<APIResponse> listDms({
     required String peerId,
     int? beforeId,
     int? afterId,
-    int limit = 50,
+    int limit = ChatMessageOps.pageSize,
   }) async {
     try {
       final myId = _client.auth.currentUser!.id;
@@ -154,10 +157,18 @@ class CentralDmRepository
           );
       if (afterId != null) query = query.gt('id', afterId);
       if (beforeId != null) query = query.lt('id', beforeId);
+      // One row past the page — see ChatMessageOps.splitPage.
       final rows = await query
           .order('id', ascending: afterId != null)
-          .limit(limit);
-      return APIResponse.success(rows);
+          .limit(limit + 1);
+      final page = ChatMessageOps.splitPage(
+        (rows as List).cast<Map<String, dynamic>>(),
+        limit: limit,
+      );
+      return APIResponse.success({
+        'messages': page.rows,
+        'has_more': page.hasMore,
+      });
     } catch (e) {
       return APIResponse.error(e);
     }
