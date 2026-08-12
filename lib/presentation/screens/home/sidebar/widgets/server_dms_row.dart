@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/nav_row.dart';
 import '../../../../common/unread_badge.dart';
+import 'server_dms_context_menu.dart';
 
 /// The way into this server's DMs, above its channels.
 ///
@@ -40,19 +41,22 @@ class ServerDmsRow extends StatelessWidget {
           // own bottom padding, and the channel list below sets its
           // distance through the section header's 16px lead-in.
           padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
-          child: NavRow(
-            icon: Icons.forum_outlined,
-            label: 'Server DMs',
-            isSelected: appState.surface == HomeSurface.serverDms,
-            isUnread: unread > 0,
-            trailing: unread > 0
-                ? UnreadBadge(
-                    count: unread,
-                    themeState: context.watch<ThemeCubit>().state,
-                  )
-                : null,
-            onTap: () =>
-                context.read<AppCubit>().setSurface(HomeSurface.serverDms),
+          child: ServerDmsContextMenu.wrap(
+            context: context,
+            child: NavRow(
+              icon: Icons.forum_outlined,
+              label: 'Server DMs',
+              isSelected: appState.surface == HomeSurface.serverDms,
+              isUnread: unread > 0,
+              trailing: unread > 0
+                  ? UnreadBadge(
+                      count: unread,
+                      themeState: context.watch<ThemeCubit>().state,
+                    )
+                  : null,
+              onTap: () =>
+                  context.read<AppCubit>().setSurface(HomeSurface.serverDms),
+            ),
           ),
         );
       },

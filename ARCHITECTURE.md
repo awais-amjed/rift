@@ -184,7 +184,7 @@ filling the disk, and had no way to say so.
 
 So limits exist here too — as columns an admin sets from Server Settings, with **every sweep
 defaulting to off**. A server that is upgraded and never touched behaves exactly as before.
-Migration 007 is the whole feature.
+Migration 007 is the feature; 009 extends it to DMs.
 
 **There is deliberately no daily message quota.** A quota is a rate limit, not a storage
 bound: N messages a day, forever, is still unbounded — it only takes longer to get there. The
@@ -192,18 +192,33 @@ thing an operator is actually worried about is the disk, and the instruments for
 ceiling on kept history and a ceiling on file size. Central still rations messages per day,
 because central is a funnel and rationing *is* its product; a self-hosted server is a home.
 
-| Limit | Column | Per-channel override | Off by default |
-|---|---|---|---|
-| Per-file attachment size | `servers.max_attachment_bytes` | — | no; 25 MB, the ceiling the bucket already had |
-| Delete messages older than N days | `servers.message_retention_days` | `channels.retention_days` | yes |
-| Keep at most N messages | `servers.message_history_cap` | `channels.history_cap` | yes |
+| Limit | Column | Channel override | DM override | Off by default |
+|---|---|---|---|---|
+| Per-file attachment size | `servers.max_attachment_bytes` | — | — | no; 25 MB, the ceiling the bucket already had |
+| Delete messages older than N days | `servers.message_retention_days` | `channels.retention_days` | `servers.dm_retention_days` | yes |
+| Keep at most N messages | `servers.message_history_cap` | `channels.history_cap` | `servers.dm_history_cap` | yes |
 
-The overrides are three-valued: NULL inherits the server's number, a value sets the channel's
-own, and 0 explicitly opts the channel *out* of a server-wide sweep. NULL and 0 are different
-answers and the UI keeps them apart. Voice channels carry the columns and ignore them — they
-hold no messages, so their settings dialog shows the name alone rather than a switch wired to
-nothing. DMs have no per-conversation override; the server's cap applies, and it counts both
-people together, since a conversation is one bucket seen from either side.
+The overrides are three-valued: NULL inherits the server's number, a value sets its own, and 0
+explicitly opts *out* of a server-wide sweep. NULL and 0 are different answers and the UI keeps
+them apart. Voice channels carry the columns and ignore them — they hold no messages, so their
+settings dialog shows the name alone rather than a switch wired to nothing.
+
+#### DMs get the same override [Migration 009]
+
+007 gave channels an override and left DMs with only the server-wide numbers, which made the
+obvious policy — trim the busy channels, keep the DMs — inexpressible. 009 adds
+`dm_retention_days` and `dm_history_cap`, read through the same COALESCE, and reached by
+right-clicking **Server DMs** in the sidebar (admins only, like the channel menu).
+
+They live on `servers` rather than on a conversation, and that is a decision rather than a
+convenience. **A per-conversation setting has no owner.** A DM belongs to two people, so
+neither end is the right person to decide how long the other's messages survive — and the
+policy exists to protect the operator's disk, which makes it the operator's call. Nullable
+where the two server-wide columns are `NOT NULL DEFAULT 0`, because these override rather than
+set the base case, exactly like the channel-level pair.
+
+The cap counts a conversation, not a sender: both people's messages together, one bucket seen
+from either side.
 
 #### A bucket per server [Migration 008]
 

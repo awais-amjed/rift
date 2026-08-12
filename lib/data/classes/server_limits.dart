@@ -40,15 +40,39 @@ class ServerLimits {
 
   /// Server-wide default: keep at most this many messages per channel and per
   /// DM pair. [unlimited] means no cap. A channel may override it — see
-  /// [Channel.historyCap]. DMs have no per-conversation override, so for them
-  /// this number is the only one, and it counts both people together.
+  /// [Channel.historyCap].
   final int messageHistoryCap;
+
+  /// The DM override for [messageRetentionDays] (migration 009). Null inherits
+  /// it; [unlimited] keeps DMs while channels are still being swept.
+  ///
+  /// Nullable where the two above are not, for the same reason
+  /// [Channel.retentionDays] is: those set the base case, this overrides it,
+  /// and "inherit" is a different answer from "no limit".
+  final int? dmRetentionDays;
+
+  /// The DM override for [messageHistoryCap]. Null inherits it. It counts a
+  /// conversation rather than a sender — both people's messages together, the
+  /// same bucket seen from either side.
+  ///
+  /// There is no per-conversation setting and won't be: a DM belongs to two
+  /// people, so neither end is the right person to decide how long the other's
+  /// messages survive.
+  final int? dmHistoryCap;
 
   const ServerLimits({
     this.maxAttachmentBytes = defaultMaxAttachmentBytes,
     this.messageRetentionDays = unlimited,
     this.messageHistoryCap = unlimited,
+    this.dmRetentionDays,
+    this.dmHistoryCap,
   });
+
+  /// What DMs are actually swept by, inherit resolved.
+  int get effectiveDmRetentionDays => dmRetentionDays ?? messageRetentionDays;
+
+  /// What DM conversations are actually capped at, inherit resolved.
+  int get effectiveDmHistoryCap => dmHistoryCap ?? messageHistoryCap;
 
   /// What a server reports before an admin has set anything.
   static const ServerLimits defaults = ServerLimits();
@@ -60,9 +84,13 @@ class ServerLimits {
   /// `update_server` keeps the two in step.
   bool allowsAttachment(int bytes) => bytes <= maxAttachmentBytes;
 
-  /// True when the operator has asked for anything at all to be swept.
+  /// True when the operator has asked for anything at all to be swept —
+  /// including a server that keeps its channels forever and trims only DMs.
   bool get sweepsHistory =>
-      messageRetentionDays != unlimited || messageHistoryCap != unlimited;
+      messageRetentionDays != unlimited ||
+      messageHistoryCap != unlimited ||
+      effectiveDmRetentionDays != unlimited ||
+      effectiveDmHistoryCap != unlimited;
 
   /// Reads the snake_case shape both `servers` rows and `update_server`
   /// responses use. Any field the server didn't send falls back to its
@@ -73,6 +101,13 @@ class ServerLimits {
       return value is num ? value.toInt() : fallback;
     }
 
+    // Distinct from [read]: here a missing or null key *is* the answer, so
+    // there is no fallback to fall back to.
+    int? readNullable(String key) {
+      final value = json[key];
+      return value is num ? value.toInt() : null;
+    }
+
     return ServerLimits(
       maxAttachmentBytes: read(
         'max_attachment_bytes',
@@ -80,33 +115,37 @@ class ServerLimits {
       ),
       messageRetentionDays: read('message_retention_days', unlimited),
       messageHistoryCap: read('message_history_cap', unlimited),
+      dmRetentionDays: readNullable('dm_retention_days'),
+      dmHistoryCap: readNullable('dm_history_cap'),
     );
   }
 
+  /// Every field, nulls included. Callers send the whole object, so an omitted
+  /// key would read as "leave it alone" where an explicit null means "go back
+  /// to inheriting" — and those must not be the same request.
   Map<String, dynamic> toJson() => {
     'max_attachment_bytes': maxAttachmentBytes,
     'message_retention_days': messageRetentionDays,
     'message_history_cap': messageHistoryCap,
+    'dm_retention_days': dmRetentionDays,
+    'dm_history_cap': dmHistoryCap,
   };
-
-  ServerLimits copyWith({
-    int? maxAttachmentBytes,
-    int? messageRetentionDays,
-    int? messageHistoryCap,
-  }) => ServerLimits(
-    maxAttachmentBytes: maxAttachmentBytes ?? this.maxAttachmentBytes,
-    messageRetentionDays: messageRetentionDays ?? this.messageRetentionDays,
-    messageHistoryCap: messageHistoryCap ?? this.messageHistoryCap,
-  );
 
   @override
   bool operator ==(Object other) =>
       other is ServerLimits &&
       other.maxAttachmentBytes == maxAttachmentBytes &&
       other.messageRetentionDays == messageRetentionDays &&
-      other.messageHistoryCap == messageHistoryCap;
+      other.messageHistoryCap == messageHistoryCap &&
+      other.dmRetentionDays == dmRetentionDays &&
+      other.dmHistoryCap == dmHistoryCap;
 
   @override
-  int get hashCode =>
-      Object.hash(maxAttachmentBytes, messageRetentionDays, messageHistoryCap);
+  int get hashCode => Object.hash(
+    maxAttachmentBytes,
+    messageRetentionDays,
+    messageHistoryCap,
+    dmRetentionDays,
+    dmHistoryCap,
+  );
 }

@@ -18,11 +18,20 @@ class ServerLimitsControllers {
   final retentionDays = TextEditingController();
   final historyCap = TextEditingController();
 
+  /// The DM overrides as last seeded. This dialog doesn't show them — they are
+  /// set by right-clicking Server DMs — but [ServerLimits] travels whole, so
+  /// saving here would send them as null and quietly undo them. Carried rather
+  /// than displayed.
+  int? _dmRetentionDays;
+  int? _dmHistoryCap;
+
   /// Fill the fields from what the server currently reports.
   void seed(ServerLimits limits) {
     attachmentMb.text = LimitInput.megabytesOf(limits.maxAttachmentBytes);
     retentionDays.text = LimitInput.textOf(limits.messageRetentionDays);
     historyCap.text = LimitInput.textOf(limits.messageHistoryCap);
+    _dmRetentionDays = limits.dmRetentionDays;
+    _dmHistoryCap = limits.dmHistoryCap;
   }
 
   void dispose() {
@@ -78,6 +87,8 @@ class ServerLimitsControllers {
         maxAttachmentBytes: bytes,
         messageRetentionDays: read['retention period']!,
         messageHistoryCap: read['history cap']!,
+        dmRetentionDays: _dmRetentionDays,
+        dmHistoryCap: _dmHistoryCap,
       ),
       error: null,
     );

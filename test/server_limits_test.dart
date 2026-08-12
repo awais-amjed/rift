@@ -74,8 +74,82 @@ void main() {
         maxAttachmentBytes: 1048576,
         messageRetentionDays: 7,
         messageHistoryCap: 100,
+        dmRetentionDays: 0,
+        dmHistoryCap: 250,
       );
       expect(ServerLimits.fromJson(limits.toJson()), limits);
+    });
+
+    test('toJson names the DM overrides even when they are null', () {
+      // The endpoint reads presence, not truthiness: an omitted key means
+      // "leave it alone" and an explicit null means "go back to inheriting".
+      // Dropping the key would make going back to inherit impossible.
+      final json = ServerLimits.defaults.toJson();
+      expect(json.containsKey('dm_retention_days'), isTrue);
+      expect(json['dm_retention_days'], isNull);
+      expect(json.containsKey('dm_history_cap'), isTrue);
+    });
+  });
+
+  group('DM retention overrides', () {
+    test('null inherits the server-wide numbers', () {
+      const limits = ServerLimits(
+        messageRetentionDays: 30,
+        messageHistoryCap: 500,
+      );
+      expect(limits.dmRetentionDays, isNull);
+      expect(limits.effectiveDmRetentionDays, 30);
+      expect(limits.effectiveDmHistoryCap, 500);
+    });
+
+    test('zero exempts DMs from a sweep the channels still get', () {
+      // The policy this feature exists for: trim the busy channels, keep the
+      // DMs. Reading 0 back as null would put the server's 30 days on and
+      // start deleting conversations the admin had exempted.
+      const limits = ServerLimits(
+        messageRetentionDays: 30,
+        dmRetentionDays: 0,
+      );
+      expect(limits.effectiveDmRetentionDays, ServerLimits.unlimited);
+      expect(limits.messageRetentionDays, 30, reason: 'channels unaffected');
+    });
+
+    test('a number of its own wins over the server-wide one', () {
+      const limits = ServerLimits(messageHistoryCap: 500, dmHistoryCap: 50);
+      expect(limits.effectiveDmHistoryCap, 50);
+    });
+
+    test('the two overrides are independent', () {
+      const limits = ServerLimits(
+        messageRetentionDays: 30,
+        messageHistoryCap: 500,
+        dmHistoryCap: 50,
+      );
+      expect(limits.effectiveDmRetentionDays, 30, reason: 'still inherits');
+      expect(limits.effectiveDmHistoryCap, 50);
+    });
+
+    test('sweepsHistory sees a server that only trims its DMs', () {
+      // Nothing server-wide, a cap on DMs alone: the sweep does run.
+      const limits = ServerLimits(dmHistoryCap: 50);
+      expect(limits.messageHistoryCap, ServerLimits.unlimited);
+      expect(limits.sweepsHistory, isTrue);
+    });
+
+    test('and stays false when DMs explicitly opt out of nothing', () {
+      expect(const ServerLimits(dmRetentionDays: 0).sweepsHistory, isFalse);
+    });
+
+    test('an override is not equal to the same number inherited', () {
+      // Both sweep DMs every 30 days today, but they are different settings:
+      // change the server-wide number and only one of them follows.
+      const inherited = ServerLimits(messageRetentionDays: 30);
+      const explicit = ServerLimits(
+        messageRetentionDays: 30,
+        dmRetentionDays: 30,
+      );
+      expect(inherited.effectiveDmRetentionDays, explicit.dmRetentionDays);
+      expect(inherited, isNot(explicit));
     });
   });
 

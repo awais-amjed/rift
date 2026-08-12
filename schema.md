@@ -24,9 +24,11 @@ written down as migrations — it is the account, and it will hold more than a d
 | name               | text        | Required                    | Server name                              |
 | icon_url           | text        | Optional                    | URL to server icon                       |
 | livekit_url        | text        | Required                    | LiveKit server URL                       |
-| max_attachment_bytes | bigint    | Default: 26214400 (25 MB), 1 … 500 MB | Per-file attachment cap. Mirrored onto `chat-attachments`' `file_size_limit` by `update_server`; that mirror is the enforcement, this column is what the client reads to refuse a file before uploading |
+| max_attachment_bytes | bigint    | Default: 26214400 (25 MB), 1 … 500 MB | Per-file attachment cap. A trigger mirrors it onto this server's `chat-<uuid>` bucket's `file_size_limit` (migration 008); that mirror is the enforcement, this column is what the client reads to refuse a file before uploading |
 | message_retention_days | integer | Default: 0, ≥ 0            | Server default: delete messages older than this. **0 = keep forever.** A channel may override it |
 | message_history_cap | integer    | Default: 0, ≥ 0             | Server default: keep at most this many per channel and per DM pair, newest first. **0 = no cap.** A channel may override it |
+| dm_retention_days  | integer     | Optional, ≥ 0               | DM override (migration 009). **NULL inherits** `message_retention_days`; **0 explicitly keeps DMs forever** while the channels are still swept |
+| dm_history_cap     | integer     | Optional, ≥ 0               | DM override. **NULL inherits** `message_history_cap`; **0 explicitly means no cap.** Counts a conversation, not a sender |
 
 Members can read this row directly. The LiveKit credentials that used to sit in it live in
 **server_secrets** instead — one row per server, no grant and no policy, reachable only by the
@@ -42,6 +44,11 @@ so a server upgraded and never touched behaves as it did before.
 There is deliberately **no daily message quota** here. A quota is a rate limit, not a storage
 bound — see ARCHITECTURE.md §4. An earlier draft of 007 added per-channel and per-DM quotas;
 the current file drops those columns, so a database that ran the draft converges on re-run.
+
+The two DM columns are nullable where the two above them are `NOT NULL DEFAULT 0`, because
+they override rather than set the base case — the same shape `channels.retention_days` uses.
+They sit on `servers` because a per-conversation setting would have no owner: a DM belongs to
+two people, and neither of them should be deciding how long the other's messages survive.
 
 ### server_secrets
 
@@ -239,14 +246,18 @@ cannot decrypt anyway.
 ## Functions and jobs (self-hosted)
 
 Most of what a client does is a policy-checked table call; these are the exceptions worth
-naming. The full set lives in `003_api.sql` and `007_limits.sql`.
+naming. The full set lives in `003_api.sql`, `007_limits.sql` and `009_dm_limits.sql`.
 
 ### app.enforce_retention() — pg_cron `rift-message-retention`, nightly
 
 Applies `message_retention_days` and `message_history_cap`, taking each channel's override
-where it set one (`COALESCE(c.retention_days, s.message_retention_days)`). DMs have no
-override, so the server's numbers apply, and the cap counts a conversation rather than a
-sender.
+where it set one (`COALESCE(c.retention_days, s.message_retention_days)`) and the server's DM
+override for DMs (`COALESCE(s.dm_retention_days, s.message_retention_days)`). The DM cap counts
+a conversation rather than a sender.
+
+The window is relative, not a calendar boundary: each run removes what is older than N days *at
+that moment*. A message sent this evening survives tomorrow morning's run and goes the night
+after — which reads as a broken sweep if you expect "older than today".
 
 In the `app` schema, not `public`, because it returns VOID and PostgREST would otherwise
 expose a history-wiping RPC to any member. Deletes are permanent.
