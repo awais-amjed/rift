@@ -124,6 +124,8 @@ Before hand-rolling chrome, check `presentation/common/`:
 | A button | `AppButton` (`AppButtonVariant.danger` for destructive) |
 | A settings heading / toggle | `SectionTitle`, `SettingToggleRow` |
 | An onboarding-style hero | `FeatureHeader` |
+| A prose field with a length limit | `AppTextField(maxLines:, maxLength:)` — the counter is already themed |
+| A pick-one row of chips | `SelectableSurface` (see `ChipSelector`, `TagFilterBar`) — it sets its own colours, so pass size and weight only |
 
 A dialog that doesn't fit `AppModal` (its body scrolls internally, e.g. a
 `ListView`) should say so in a comment rather than silently re-implementing the

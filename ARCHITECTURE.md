@@ -131,6 +131,55 @@ decrypt stored backups (Bitwarden/Proton model).
 - **[Planned follow-up]**: recovery key — random code shown once at signup, wraps the vault key a
   second time so password *or* recovery key can decrypt.
 
+### The public server directory — [Implemented August 2026]
+
+A server created in the app existed nowhere but on its own Supabase project and in the vaults
+of the people already on it. There was no way to find one you had not been handed an invite
+to, which made *self-hosted* and *private* the same word: an operator who **wanted** to be
+found had no way to say so. Central is the only place both sides already share, so the
+directory lives there for the same reason handles do.
+
+**A listing is plaintext, and that is not a hole in the trust model.** Everything else central
+stores is encrypted because it belongs to the user; a listing is an advertisement, and its
+whole point is to be read by strangers. It is opt-in per server, reversible, and holds:
+
+| Published | Not published |
+|---|---|
+| Name, description, up to five tags, icon | Anything about the members |
+| The server's Supabase URL and server id | The service key, the LiveKit credentials |
+| A member count the admin's client reports | Any message, key or keyring entry |
+| One ordinary invite code on that server | Any authority over the server |
+
+Joining from the browser is the invite-link path with the link filled in: `resolve_invite` →
+SIWS → `register`, all against the target server. **Central hands out the address, never the
+authority** — which is also why the self-hosted schema needed no migration for any of this.
+
+Writes go through `publish_server()` (there is no INSERT or UPDATE grant), so the per-account
+cap and the ownership check cannot be stepped around, and `owner_id` comes from `auth.uid()`
+rather than the caller. Delisting keeps the row; removing it doesn't. Publishing needs a
+claimed handle, because the listing is owned by an account and that ownership is what lets
+you edit or withdraw it from another device.
+
+#### What central cannot check, and what limits it
+
+**Central cannot verify that the publisher administers the server.** It has no credentials for
+that project and never will — the same property that makes self-hosting mean anything. So the
+first account to publish a `(supabase_url, server_id)` owns the listing, and a member who is
+not an admin could in principle publish a server before its owner does.
+
+What stops that being worth doing is that **a listing is only useful with a working invite
+code**, and minting one requires `can_create_tokens` on that server. A squatter without it
+publishes a dead link. And the real admin can revoke the code on their own server, which kills
+the listing without central being involved at all. This is documented rather than fixed:
+the fix would be central verifying a JWT issued by a server it has never heard of, which means
+central making outbound requests to arbitrary URLs on a stranger's say-so.
+
+The member count is self-reported for the same reason, and shown next to when it was last
+saved rather than as a live figure.
+
+Privacy-mode users have no central account and so no browser and no listings; their servers
+work exactly as before, reachable by invite link.
+
 ### Cross-device sync model
 The encrypted backup blob **is** the sync mechanism: same seed on every device = same identity
 everywhere. Server list becomes eventually-consistent via auto-upload + import-on-start. There is

@@ -190,10 +190,11 @@ A `test/` suite covers **pure, deterministic logic**:
   attachment-blob `encryptBytes`/`decryptBytes`, and the signed message envelope, each
   with its negative case (forge, replay across channels, key-version tamper, wrong key).
 - **Models / state** (`server_model_test.dart`, `notifications_state_test.dart`,
-  `message_model_test.dart`, `message_body_test.dart`, `message_reaction_test.dart`) — JSON
-  round-trips, token-freshness and unread math, the `signedPayload` binding, permission
-  defaults, the structured message body (attachment round-trip + legacy plain-text
-  compatibility), and reaction parsing + `ChatMessage.copyWith`.
+  `message_model_test.dart`, `message_body_test.dart`, `message_reaction_test.dart`,
+  `public_server_test.dart`) — JSON round-trips, token-freshness and unread math, the
+  `signedPayload` binding, permission defaults, the structured message body (attachment
+  round-trip + legacy plain-text compatibility), reaction parsing + `ChatMessage.copyWith`,
+  and the directory row plus the tag rules it mirrors from central migration 007.
 - **Storage isolation** (`storage_namespace_test.dart`) — `RIFT_PROFILE` namespacing.
 
 One deliberate exception to the "no widget tests" rule below:
