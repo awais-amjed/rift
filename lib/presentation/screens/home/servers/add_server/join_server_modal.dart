@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/public_server.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/invite_link.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -13,14 +14,23 @@ import '../../../../common/message_banner.dart';
 
 /// The join step of [AddServerDialog]: one invite link (server URL and code
 /// combined) plus the username and display name to join under.
+///
+/// Also the last step of the browser. A listing is an address and an invite
+/// code, which is exactly what a link is — so arriving from the directory
+/// fills in [listing] and this becomes the same form with one fewer field,
+/// rather than a second registration path that could drift from this one.
 class JoinServerModal extends StatefulWidget {
   final VoidCallback onSuccess;
   final VoidCallback onCancel;
+
+  /// The server picked in the browser, or null when the link is typed.
+  final PublicServer? listing;
 
   const JoinServerModal({
     super.key,
     required this.onSuccess,
     required this.onCancel,
+    this.listing,
   });
 
   @override
@@ -35,8 +45,13 @@ class _JoinServerModalState extends State<JoinServerModal> {
   bool _isLoading = false;
   String? _error;
 
+  /// The listing's link, when we arrived from the browser. Held rather than
+  /// put in the field: it is not something to edit, and showing an invite code
+  /// in a box invites someone to try.
+  String? get _prefilled => widget.listing?.inviteLink;
+
   bool get _canSubmit =>
-      _inviteLinkCtrl.text.trim().isNotEmpty &&
+      (_prefilled != null || _inviteLinkCtrl.text.trim().isNotEmpty) &&
       _usernameCtrl.text.trim().isNotEmpty &&
       _displayNameCtrl.text.trim().isNotEmpty;
 
@@ -51,7 +66,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
   Future<void> _submit() async {
     if (!_canSubmit) return;
 
-    final link = InviteLink.parse(_inviteLinkCtrl.text);
+    final link = InviteLink.parse(_prefilled ?? _inviteLinkCtrl.text);
     if (link == null) {
       setState(() {
         _error =
@@ -105,9 +120,13 @@ class _JoinServerModalState extends State<JoinServerModal> {
 
   @override
   Widget build(BuildContext context) {
+    final listing = widget.listing;
+
     return AppModal(
-      title: 'Join Server',
-      subtitle: 'Join a server with an invite link',
+      title: listing == null ? 'Join Server' : 'Join ${listing.name}',
+      subtitle: listing == null
+          ? 'Join a server with an invite link'
+          : 'Pick how you will appear on ${listing.host}',
       maxWidth: K.dialogWidth,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,21 +141,24 @@ class _JoinServerModalState extends State<JoinServerModal> {
               ),
             ),
 
-          AppTextField(
-            controller: _inviteLinkCtrl,
-            label: 'Invite Link',
-            hint: 'Paste the invite link you received',
-            enabled: !_isLoading,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 16),
+          if (listing == null) ...[
+            AppTextField(
+              controller: _inviteLinkCtrl,
+              label: 'Invite Link',
+              hint: 'Paste the invite link you received',
+              enabled: !_isLoading,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           AppTextField(
             controller: _usernameCtrl,
             label: 'Username',
             hint: 'myusername',
             enabled: !_isLoading,
+            autofocus: listing != null,
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),

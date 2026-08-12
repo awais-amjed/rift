@@ -6,16 +6,23 @@ import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/icon_tile.dart';
 import '../../../../../theme/app_text.dart';
 
-/// Widget for choosing between joining or creating a server.
+/// Widget for choosing how to get onto a server: find one, join one you were
+/// invited to, or build your own.
 ///
-/// Two cards and nothing else: the server rail on the left is already the way
-/// back to the servers, so this step doesn't carry its own.
+/// Cards and nothing else: the server rail on the left is already the way back
+/// to the servers, so this step doesn't carry its own.
+///
+/// Browsing comes first because it is the only one of the three that works
+/// with nothing in hand. The other two need something you were given or
+/// something you have paid for.
 class ServerModePicker extends StatelessWidget {
+  final VoidCallback onBrowse;
   final VoidCallback onJoin;
   final VoidCallback onCreate;
 
   const ServerModePicker({
     super.key,
+    required this.onBrowse,
     required this.onJoin,
     required this.onCreate,
   });
@@ -23,14 +30,20 @@ class ServerModePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      spacing: 10,
       children: [
+        _ModeCard(
+          icon: Icons.travel_explore_outlined,
+          title: 'Browse servers',
+          subtitle: 'Find a public server and join it',
+          onTap: onBrowse,
+        ),
         _ModeCard(
           icon: Icons.login_rounded,
           title: 'Join server',
           subtitle: 'Join an existing server with an invite link',
           onTap: onJoin,
         ),
-        const SizedBox(height: 10),
         _ModeCard(
           icon: Icons.build_outlined,
           title: 'Create server',
