@@ -24,6 +24,10 @@ class DmState {
 
   final String? error;
 
+  /// Messages left across *all* of this server's DMs today — the quota is per
+  /// member, not per conversation, so it deliberately survives closing one.
+  final ChatQuota quota;
+
   const DmState({
     this.conversations = const [],
     this.conversationsLoading = false,
@@ -35,6 +39,7 @@ class DmState {
     this.isLoadingMore = false,
     this.typingPeerName,
     this.error,
+    this.quota = ChatQuota.unlimited,
   });
 
   DmState copyWith({
@@ -51,6 +56,7 @@ class DmState {
     String? error,
     bool clearError = false,
     bool closeConversation = false,
+    ChatQuota? quota,
   }) {
     return DmState(
       conversations: conversations ?? this.conversations,
@@ -71,6 +77,7 @@ class DmState {
           ? null
           : (typingPeerName ?? this.typingPeerName),
       error: clearError ? null : (error ?? this.error),
+      quota: quota ?? this.quota,
     );
   }
 }

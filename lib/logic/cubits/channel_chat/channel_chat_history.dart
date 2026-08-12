@@ -12,7 +12,6 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
   /// not our own sends) so the hub can clear typing state and notify.
   void _onFreshIncoming(List<ChatMessage> incoming);
 
-
   Future<void> _fetchLatest(String channelId) async {
     final response = await _serverCubit.listChatMessages(
       channelId: channelId,
@@ -103,7 +102,10 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
     if (decrypted.isEmpty || state.channelId != channelId) return;
     emit(
       state.copyWith(
-        messages: ChatMessageOps.replaceMessage(state.messages, decrypted.single),
+        messages: ChatMessageOps.replaceMessage(
+          state.messages,
+          decrypted.single,
+        ),
       ),
     );
   }

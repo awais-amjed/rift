@@ -15,6 +15,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     String? keyVersion,
     ServerUser? user,
     List<Channel>? channels,
+    ServerLimits? limits,
     bool clearUser = false,
   });
 

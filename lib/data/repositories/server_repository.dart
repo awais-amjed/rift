@@ -8,6 +8,7 @@ import 'package:supabase/supabase.dart' hide ErrorCode;
 import '../../logic/services/chat_message_ops.dart';
 import '../../logic/services/reaction_ops.dart';
 import '../classes/api_response.dart';
+import '../classes/server_limits.dart';
 import '../enums/error_code.dart';
 import 'server_db.dart';
 
@@ -157,7 +158,7 @@ class ServerRepository
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final server = await db
           .from('servers')
-          .select('id, name, icon_url, livekit_url')
+          .select('id, name, icon_url, livekit_url, $_limitColumns')
           .limit(1)
           .maybeSingle();
       if (server == null) {
@@ -165,7 +166,7 @@ class ServerRepository
       }
       final channels = await db
           .from('channels')
-          .select('id, name, channel_type')
+          .select('id, name, channel_type, daily_quota')
           .order('name');
       final user = await db
           .from('users')
@@ -184,17 +185,29 @@ class ServerRepository
         'supabase_key': anonKey,
         'channels': channels,
         'user': user == null ? null : _userRow(user),
+        // Flat, so ServerLimits.fromJson reads this map and the
+        // update_server response with the same code.
+        ...ServerLimits.fromJson(server).toJson(),
       };
     });
   }
+
+  /// The operator-limit columns added in migration 007, in the order
+  /// [ServerLimits] reads them.
+  static const _limitColumns =
+      'max_attachment_bytes, default_channel_daily_quota, dm_daily_quota, '
+      'message_retention_days, message_history_cap';
 
   /// Update server settings (admin only).
   ///
   /// One of the few things still on an edge function, and for the usual
   /// reason: it writes the LiveKit API key and secret. Those live in
   /// `server_secrets`, which has no client-reachable path at all, so the write
-  /// has to happen somewhere holding the service role. Name and icon ride along
-  /// rather than splitting one dialog across two transports.
+  /// has to happen somewhere holding the service role. Name, icon and the
+  /// operator limits ride along rather than splitting one dialog across two
+  /// transports — and the limits have a second reason to be here: saving the
+  /// attachment cap also has to move the storage bucket's `file_size_limit`,
+  /// which no client-reachable grant can do.
   Future<APIResponse> updateServer(
     String supabaseUrl, {
     String? bearerToken,
@@ -203,6 +216,7 @@ class ServerRepository
     String? livekitUrl,
     String? livekitApiKey,
     String? livekitSecretKey,
+    ServerLimits? limits,
   }) {
     return _post(supabaseUrl, 'update_server', {
       'name': ?name,
@@ -210,7 +224,27 @@ class ServerRepository
       'livekit_url': ?livekitUrl,
       'livekit_api_key': ?livekitApiKey,
       'livekit_secret_key': ?livekitSecretKey,
+      ...?limits?.toJson(),
     }, bearerToken: bearerToken);
+  }
+
+  /// The caller's remaining messages for one surface: a channel id asks about
+  /// that channel, null asks about their server DMs.
+  ///
+  /// Returns `{quota, remaining}`. A `quota` of 0 means unlimited and comes
+  /// with a null `remaining` — see migration 007 for why those are kept
+  /// distinguishable.
+  Future<APIResponse> getChatQuota(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    String? channelId,
+  }) {
+    return ServerDb.run(() async {
+      return _db
+          .client(supabaseUrl, anonKey, bearerToken)
+          .rpc('chat_quota', params: {'p_channel_id': channelId});
+    });
   }
 
   /// The `sub` claim of a JWT, without verifying it — the client is reading its
@@ -478,29 +512,45 @@ class ServerRepository
 
   /// Delete a channel (requires channel manager). Its messages and keyring go
   /// with it by cascade.
-  /// Rename a channel (requires channel manager).
+  /// Update a channel's settings (requires channel manager).
   ///
-  /// A plain update — the column grant covers only `name`, and
-  /// `channels_update_managers` decides who may. Nothing else has to happen:
-  /// a LiveKit room is named by the channel's **id**, so renaming a voice
-  /// channel doesn't touch the call going on inside it.
-  Future<APIResponse> renameChannel(
+  /// A plain update — the column grant covers only `name` and `daily_quota`,
+  /// and `channels_update_managers` decides who may. Nothing else has to
+  /// happen: a LiveKit room is named by the channel's **id**, so renaming a
+  /// voice channel doesn't touch the call going on inside it.
+  ///
+  /// [dailyQuota] is three-valued, which is why it isn't a plain `int?`:
+  /// omitted leaves the column alone, a value sets it, and [clearDailyQuota]
+  /// writes NULL to go back to inheriting the server default.
+  Future<APIResponse> updateChannel(
     String supabaseUrl,
     String channelId, {
     required String anonKey,
     String? bearerToken,
-    required String name,
+    String? name,
+    int? dailyQuota,
+    bool clearDailyQuota = false,
   }) {
     return ServerDb.run(() async {
+      final patch = <String, dynamic>{
+        'name': ?name,
+        if (clearDailyQuota)
+          'daily_quota': null
+        else
+          'daily_quota': ?dailyQuota,
+      };
+      if (patch.isEmpty) {
+        throw const PostgrestException(message: 'Nothing to update');
+      }
       final rows = await _db
           .client(supabaseUrl, anonKey, bearerToken)
           .from('channels')
-          .update({'name': name})
+          .update(patch)
           .eq('id', channelId)
-          .select('id, name, channel_type');
+          .select('id, name, channel_type, daily_quota');
       if ((rows as List).isEmpty) {
         throw const PostgrestException(
-          message: 'Channel not found, or not yours to rename',
+          message: 'Channel not found, or not yours to change',
         );
       }
       return rows.first;

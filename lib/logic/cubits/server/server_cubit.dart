@@ -7,6 +7,7 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/enums/error_code.dart';
@@ -22,6 +23,7 @@ part 'server_state.dart';
 part 'server_crud.dart';
 part 'server_selection.dart';
 part 'server_api.dart';
+part 'server_channels_api.dart';
 part 'server_chat_api.dart';
 part 'server_profile_api.dart';
 
@@ -30,6 +32,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerCrudMixin,
         _ServerSelectionMixin,
         _ServerApiMixin,
+        _ServerChannelsApiMixin,
         _ServerChatApiMixin,
         _ServerProfileApiMixin {
   @override
@@ -207,6 +210,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     String? keyVersion,
     ServerUser? user,
     List<Channel>? channels,
+    ServerLimits? limits,
     bool clearUser = false,
   }) {
     final updated = state.servers.map((s) {
@@ -220,6 +224,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         keyVersion: keyVersion,
         user: user,
         channels: channels,
+        limits: limits,
         clearUser: clearUser,
       );
     }).toList();

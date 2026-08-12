@@ -3,12 +3,14 @@ part of 'dm_cubit.dart';
 /// The open conversation: opening it, and paging its history. Turning the rows
 /// into messages is [_DmDecryptMixin].
 mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
-
   /// The open peer just sent a message — used to clear their typing indicator.
   void _onOpenPeerMessage();
 
   void _joinPeerTopic(String peerId);
   void _leavePeerTopic();
+
+  /// Implemented by the send mixin.
+  Future<void> refreshQuota();
 
   /// Opens (or starts) the conversation with [peerId]. [peerChatKey] comes
   /// from the conversation row or the member picker.
@@ -50,6 +52,8 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     await _fetchLatest(peerId);
     if (state.openPeerId != peerId) return;
     emit(state.copyWith(chatStatus: DmChatStatus.ready));
+    // Not awaited: the composer is usable before the meter knows what to say.
+    unawaited(refreshQuota());
   }
 
   void closeConversation() {

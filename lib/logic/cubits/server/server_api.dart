@@ -27,6 +27,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     String? keyVersion,
     ServerUser? user,
     List<Channel>? channels,
+    ServerLimits? limits,
     bool clearUser = false,
   });
 
@@ -224,89 +225,6 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     return (success: true, error: null, serverId: null, serverName: null);
   }
 
-  /// Create a new channel in the selected server.
-  Future<({bool success, String? error})> createChannel({
-    required String name,
-    required String channelType,
-  }) async {
-    final server = state.selectedServer;
-    if (server == null) {
-      return (success: false, error: 'No server selected');
-    }
-
-    final response = await _callWithAutoRefresh(
-      (token) => _repository.createChannel(
-        server.supabaseUrl,
-        anonKey: _anonKey,
-        serverId: _serverId,
-        bearerToken: token,
-        name: name,
-        channelType: channelType,
-      ),
-    );
-
-    if (!response.success) {
-      return (
-        success: false,
-        error: response.error ?? 'Failed to create channel',
-      );
-    }
-
-    // Refresh our own channel list to include the newly created one, and ping
-    // the server_events doorbell so other members refresh in realtime.
-    await refreshServerDetails();
-    _onServerEvent?.call();
-    return (success: true, error: null);
-  }
-
-  /// Rename a channel in the selected server (channel manager only).
-  Future<({bool success, String? error})> renameChannel({
-    required String channelId,
-    required String name,
-  }) => _changeChannel(
-    (server, token) => _repository.renameChannel(
-      server.supabaseUrl,
-      channelId,
-      anonKey: _anonKey,
-      bearerToken: token,
-      name: name,
-    ),
-    failure: 'Failed to rename channel',
-  );
-
-  /// Delete a channel in the selected server (channel manager only). Anyone in
-  /// its call is dropped — see [ServerRepository.deleteChannel].
-  Future<({bool success, String? error})> deleteChannel(String channelId) =>
-      _changeChannel(
-        (server, token) => _repository.deleteChannel(
-          server.supabaseUrl,
-          channelId,
-          bearerToken: token,
-        ),
-        failure: 'Failed to delete channel',
-      );
-
-  /// Runs a channel mutation, then brings everyone's sidebar in line: our own
-  /// list directly, and other members' through the `server_events` doorbell.
-  /// They also hear it from Realtime on `channels`; the ping is what makes it
-  /// immediate rather than a beat later.
-  Future<({bool success, String? error})> _changeChannel(
-    Future<APIResponse> Function(Server server, String token) call, {
-    required String failure,
-  }) async {
-    final server = state.selectedServer;
-    if (server == null) return (success: false, error: 'No server selected');
-
-    final response = await _callWithAutoRefresh((token) => call(server, token));
-    if (!response.success) {
-      return (success: false, error: response.error ?? failure);
-    }
-
-    await refreshServerDetails();
-    _onServerEvent?.call();
-    return (success: true, error: null);
-  }
-
   /// Update the selected server's settings (admin only). Only non-null fields
   /// are sent; the LiveKit API key / secret are write-only (never stored client
   /// side — the client only keeps [Server.livekitUrl]). On success the local
@@ -318,6 +236,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     String? livekitUrl,
     String? livekitApiKey,
     String? livekitSecretKey,
+    ServerLimits? limits,
   }) async {
     final server = state.selectedServer;
     if (server == null) {
@@ -333,6 +252,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
         livekitUrl: livekitUrl,
         livekitApiKey: livekitApiKey,
         livekitSecretKey: livekitSecretKey,
+        limits: limits,
       ),
     );
 
@@ -349,9 +269,38 @@ mixin _ServerApiMixin on Cubit<ServerState> {
       name: data['name'] as String? ?? name,
       iconUrl: data['icon_url'] as String?,
       livekitUrl: data['livekit_url'] as String? ?? livekitUrl,
+      // Read back rather than echoed: the endpoint returns the whole row, so a
+      // limit the server clamped or refused shows up here as what was stored.
+      limits: data.isEmpty ? limits : ServerLimits.fromJson(data),
     );
     _onServerEvent?.call();
     return (success: true, error: null);
+  }
+
+  /// The caller's remaining messages for one surface — a channel, or (null)
+  /// their server DMs. Null when the server can't be asked.
+  Future<({int quota, int? remaining})?> fetchChatQuota({
+    String? channelId,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) return null;
+
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.getChatQuota(
+        server.supabaseUrl,
+        anonKey: _anonKey,
+        bearerToken: token,
+        channelId: channelId,
+      ),
+    );
+    if (!response.success) return null;
+
+    final data = (response.data as Map?)?.cast<String, dynamic>();
+    if (data == null) return null;
+    return (
+      quota: (data['quota'] as num?)?.toInt() ?? ServerLimits.unlimited,
+      remaining: (data['remaining'] as num?)?.toInt(),
+    );
   }
 
   /// Refresh the channel list and other details for the selected server.

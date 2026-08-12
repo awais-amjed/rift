@@ -1,4 +1,5 @@
 import 'channel.dart';
+import 'server_limits.dart';
 import 'server_user.dart';
 
 class Server {
@@ -11,6 +12,11 @@ class Server {
   final String token;
   final ServerUser? user;
   final List<Channel> channels;
+
+  /// The operator limits this server reports (migration 007). Never null — a
+  /// server that has never had them set, or is too old to have the columns,
+  /// reports [ServerLimits.defaults].
+  final ServerLimits limits;
 
   /// The Ed25519 key derivation version for this server (e.g. 'v1', 'v2').
   /// Incremented on key rotation.
@@ -37,6 +43,7 @@ class Server {
     this.user,
     this.channels = const [],
     this.keyVersion = 'v1',
+    this.limits = ServerLimits.defaults,
     DateTime? tokenIssuedAt,
   }) : tokenIssuedAt = tokenIssuedAt ?? DateTime.now();
 
@@ -57,6 +64,7 @@ class Server {
       token: token,
       keyVersion: keyVersion,
       tokenIssuedAt: DateTime.now(),
+      limits: ServerLimits.fromJson(serverDetails),
       user: serverDetails['user'] != null
           ? ServerUser.fromJson(serverDetails['user'] as Map<String, dynamic>)
           : null,
@@ -84,6 +92,7 @@ class Server {
       token: token,
       keyVersion: 'v1',
       tokenIssuedAt: DateTime.now(),
+      limits: ServerLimits.fromJson(serverData),
       user: serverData['user'] != null
           ? ServerUser.fromJson(serverData['user'] as Map<String, dynamic>)
           : null,
@@ -110,6 +119,9 @@ class Server {
       tokenIssuedAt: json['tokenIssuedAt'] != null
           ? DateTime.parse(json['tokenIssuedAt'] as String)
           : DateTime.fromMillisecondsSinceEpoch(0),
+      limits: json['limits'] != null
+          ? ServerLimits.fromJson(json['limits'] as Map<String, dynamic>)
+          : ServerLimits.defaults,
       user: json['user'] != null
           ? ServerUser.fromJson(json['user'] as Map<String, dynamic>)
           : null,
@@ -131,6 +143,7 @@ class Server {
     'token': token,
     'keyVersion': keyVersion,
     'tokenIssuedAt': tokenIssuedAt.toIso8601String(),
+    'limits': limits.toJson(),
     'user': user?.toJson(),
     'channels': channels.map((c) => c.toJson()).toList(),
   };
@@ -147,6 +160,7 @@ class Server {
     DateTime? tokenIssuedAt,
     ServerUser? user,
     List<Channel>? channels,
+    ServerLimits? limits,
     bool clearUser = false,
   }) {
     return Server(
@@ -162,6 +176,7 @@ class Server {
       tokenIssuedAt: token != null
           ? DateTime.now()
           : (tokenIssuedAt ?? this.tokenIssuedAt),
+      limits: limits ?? this.limits,
       user: clearUser ? null : (user ?? this.user),
       channels: channels ?? this.channels,
     );

@@ -39,6 +39,10 @@ class ChannelChatState {
   /// [ChannelChatStatus.error].
   final ChatFailure? failure;
 
+  /// Messages left in this channel today. [ChatQuota.unlimited] on a server
+  /// whose admin set no quota, which is the default.
+  final ChatQuota quota;
+
   const ChannelChatState({
     this.status = ChannelChatStatus.closed,
     this.channelId,
@@ -47,6 +51,7 @@ class ChannelChatState {
     this.isLoadingMore = false,
     this.typingUsers = const {},
     this.failure,
+    this.quota = ChatQuota.unlimited,
   });
 
   ChannelChatState copyWith({
@@ -57,6 +62,7 @@ class ChannelChatState {
     bool? isLoadingMore,
     Map<String, String>? typingUsers,
     ChatFailure? failure,
+    ChatQuota? quota,
     bool clearFailure = false,
   }) {
     return ChannelChatState(
@@ -67,6 +73,7 @@ class ChannelChatState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       typingUsers: typingUsers ?? this.typingUsers,
       failure: clearFailure ? null : (failure ?? this.failure),
+      quota: quota ?? this.quota,
     );
   }
 }

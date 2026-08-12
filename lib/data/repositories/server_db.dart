@@ -31,6 +31,10 @@ class ServerDb {
     return db;
   }
 
+  /// A bare `snake_case` token, which is how the migrations spell a raised
+  /// error — as opposed to the sentences Postgres itself raises.
+  static final RegExp _raisedCode = RegExp(r'^[a-z][a-z0-9_]{2,40}$');
+
   /// Runs one database call and turns whatever comes back — rows, an RPC's
   /// json, an exception — into the [APIResponse] the rest of the app speaks.
   ///
@@ -51,6 +55,16 @@ class ServerDb {
           error: message,
           errorCode: ErrorCode.tokenExpired,
         );
+      }
+      // A RAISE EXCEPTION in a trigger or an RPC arrives as P0001 with the
+      // raised text as the message — so `quota_exceeded` from migration 007's
+      // trigger would otherwise reach callers as the code "P0001", which no
+      // caller can act on. The migrations raise bare snake_case tokens by
+      // convention (`quota_exceeded`, `not_a_member`, `not_authenticated`), so
+      // one that looks like a token is passed through as the code, matching
+      // what the central tier already returns for the same wall.
+      if (e.code == 'P0001' && _raisedCode.hasMatch(message)) {
+        return APIResponse(success: false, error: message, errorCode: message);
       }
       // 42501 is Postgres' "permission denied" — a policy or a column grant
       // said no. It reaches the user as a plain refusal, not a retry.
