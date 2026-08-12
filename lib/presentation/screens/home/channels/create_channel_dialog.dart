@@ -128,7 +128,6 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               label: _isLoading ? 'Creating...' : 'Create Channel',
               isLoading: _isLoading,
               onPressed: _canSubmit && !_isLoading ? _submit : null,
-              expanded: true,
             ),
           ],
         );

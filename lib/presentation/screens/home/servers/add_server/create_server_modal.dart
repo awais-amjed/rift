@@ -1,0 +1,218 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
+import '../../../../common/app_button.dart';
+import '../../../../common/app_modal.dart';
+import '../../../../common/app_text_field.dart';
+import '../../../../common/message_banner.dart';
+import '../../../../common/modal_columns.dart';
+import '../create_user_dialog.dart';
+import 'widgets/credential_group.dart';
+
+/// The create step of [AddServerDialog]: a name plus the Supabase and LiveKit
+/// credentials the server will run on.
+///
+/// Wider than the other two steps. Six fields in two credential groups stand
+/// beside each other here; picking a mode and pasting an invite have nothing
+/// to put in a second column, so the dialog changes width when you reach this
+/// step — as it already changes title and subtitle.
+class CreateServerModal extends StatefulWidget {
+  final VoidCallback onSuccess;
+  final VoidCallback onCancel;
+
+  const CreateServerModal({
+    super.key,
+    required this.onSuccess,
+    required this.onCancel,
+  });
+
+  @override
+  State<CreateServerModal> createState() => _CreateServerModalState();
+}
+
+class _CreateServerModalState extends State<CreateServerModal> {
+  final _nameCtrl = TextEditingController();
+  final _supabaseUrlCtrl = TextEditingController();
+  final _setupSecretCtrl = TextEditingController();
+  final _livekitUrlCtrl = TextEditingController();
+  final _apiKeyCtrl = TextEditingController();
+  final _secretKeyCtrl = TextEditingController();
+
+  bool _isLoading = false;
+  String? _error;
+
+  bool get _canSubmit =>
+      _nameCtrl.text.trim().isNotEmpty &&
+      _supabaseUrlCtrl.text.trim().isNotEmpty &&
+      _setupSecretCtrl.text.trim().isNotEmpty &&
+      _livekitUrlCtrl.text.trim().isNotEmpty &&
+      _apiKeyCtrl.text.trim().isNotEmpty &&
+      _secretKeyCtrl.text.trim().isNotEmpty;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _supabaseUrlCtrl.dispose();
+    _setupSecretCtrl.dispose();
+    _livekitUrlCtrl.dispose();
+    _apiKeyCtrl.dispose();
+    _secretKeyCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_canSubmit) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    final supabaseUrl = _supabaseUrlCtrl.text.trim();
+
+    final response = await context.read<ServerCubit>().createServer(
+      supabaseUrl: supabaseUrl,
+      serviceKey: _setupSecretCtrl.text.trim(),
+      name: _nameCtrl.text.trim(),
+      livekitUrl: _livekitUrlCtrl.text.trim(),
+      livekitApiKey: _apiKeyCtrl.text.trim(),
+      livekitSecretKey: _secretKeyCtrl.text.trim(),
+    );
+
+    if (!mounted) return;
+
+    if (!response.success) {
+      setState(() {
+        _error = response.error;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    final inviteCode = response.inviteCode!;
+
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+
+    // Register as admin using the single-use invite code generated for us.
+    final registered = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          CreateUserDialog(supabaseUrl: supabaseUrl, inviteCode: inviteCode),
+    );
+
+    if (!mounted) return;
+
+    if (registered == true) {
+      HelperMethods.showSuccess(message: 'Server created successfully!');
+      widget.onSuccess();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppModal(
+      title: 'Create Server',
+      subtitle: 'Set up your own server with Supabase and LiveKit',
+      maxWidth: K.dialogWidthWide,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: MessageBanner(
+                message: _error!,
+                kind: MessageBannerKind.error,
+              ),
+            ),
+
+          AppTextField(
+            controller: _nameCtrl,
+            label: 'Server Name',
+            hint: 'My Server',
+            enabled: !_isLoading,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 18),
+
+          // Two sets of credentials from two different services, which is
+          // the longest form in the app — side by side it stops being a
+          // scroll.
+          ModalColumns(
+            children: [
+              CredentialGroup(
+                label: 'Supabase Configuration',
+                fields: [
+                  AppTextField(
+                    controller: _supabaseUrlCtrl,
+                    label: 'Supabase URL',
+                    hint: 'https://xxxxx.supabase.co',
+                    enabled: !_isLoading,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  AppTextField(
+                    controller: _setupSecretCtrl,
+                    label: 'Service Role Key',
+                    hint: 'Your Supabase service_role key',
+                    obscureText: true,
+                    enabled: !_isLoading,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ],
+              ),
+              CredentialGroup(
+                label: 'LiveKit Configuration',
+                fields: [
+                  AppTextField(
+                    controller: _livekitUrlCtrl,
+                    label: 'LiveKit URL',
+                    hint: 'wss://xxxxx.livekit.cloud',
+                    enabled: !_isLoading,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  AppTextField(
+                    controller: _apiKeyCtrl,
+                    label: 'LiveKit API Key',
+                    hint: 'API Key',
+                    enabled: !_isLoading,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  AppTextField(
+                    controller: _secretKeyCtrl,
+                    label: 'LiveKit Secret Key',
+                    hint: 'Secret Key',
+                    obscureText: true,
+                    enabled: !_isLoading,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+      // Back first, then the way on — reading order should run from the way
+      // out to the commit, not the other way round.
+      actions: [
+        AppButton(
+          label: 'Back',
+          variant: AppButtonVariant.secondary,
+          onPressed: _isLoading ? null : widget.onCancel,
+        ),
+        AppButton(
+          label: _isLoading ? 'Creating…' : 'Create server',
+          onPressed: _canSubmit && !_isLoading ? _submit : null,
+          isLoading: _isLoading,
+        ),
+      ],
+    );
+  }
+}

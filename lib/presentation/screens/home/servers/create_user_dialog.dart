@@ -140,7 +140,6 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
               label: _isLoading ? 'Creating...' : 'Create Account',
               isLoading: _isLoading,
               onPressed: _canSubmit && !_isLoading ? _submit : null,
-              expanded: true,
             ),
           ],
         );

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/presentation/common/app_button.dart';
 import 'package:rift/presentation/common/app_modal.dart';
 
 /// In-memory stand-in so [ThemeCubit] (a HydratedCubit) can be built in tests.
@@ -45,6 +46,7 @@ void main() {
     WidgetTester tester, {
     required double contentHeight,
     Size window = const Size(1600, 900),
+    List<Widget>? actions,
   }) async {
     tester.view.physicalSize = window;
     tester.view.devicePixelRatio = 1.0;
@@ -58,6 +60,7 @@ void main() {
             title: 'Add Server',
             maxWidth: maxWidth,
             content: SizedBox(height: contentHeight, width: double.infinity),
+            actions: actions,
           ),
         ),
       ),
@@ -121,5 +124,31 @@ void main() {
         greaterThan(0),
       ),
     );
+  });
+
+  testWidgets('footer buttons keep their own width and sit at the end', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      contentHeight: 120,
+      actions: const [
+        AppButton(label: 'Cancel', variant: AppButtonVariant.secondary),
+        AppButton(label: 'Save'),
+      ],
+    );
+
+    final dialog = tester.getRect(_surface);
+    final cancel = tester.getRect(find.widgetWithText(AppButton, 'Cancel'));
+    final save = tester.getRect(find.widgetWithText(AppButton, 'Save'));
+
+    // Each is the width of its own label. Dividing the footer between them
+    // made Cancel as wide as the thing it cancels.
+    expect(save.width, lessThan(maxWidth / 3));
+    expect(cancel.width, lessThan(maxWidth / 3));
+
+    // Gathered at the trailing edge, in order, against the footer's padding.
+    expect(cancel.right, lessThan(save.left));
+    expect(dialog.right - save.right, moreOrLessEquals(20, epsilon: 0.5));
   });
 }

@@ -38,13 +38,23 @@ class K {
   /// A standalone button.
   static const double controlHeight = 38;
 
-  /// Text fields, dropdowns, segmented options and dialog-footer buttons —
-  /// one step taller than a standalone button, so a form's controls line up
-  /// with each other rather than with the buttons scattered around the app.
+  /// Text fields, dropdowns and segmented options — one step taller than a
+  /// standalone button, so a form's controls line up with each other rather
+  /// than with the buttons scattered around the app. A dialog's footer
+  /// buttons are *not* form controls: they sit below the divider and take
+  /// [controlHeight].
   static const double fieldHeight = 40;
 
   /// Square icon buttons.
   static const double iconButtonSize = 36;
+
+  // ── Dialog widths ─────────────────────────────────────────
+  /// A form dialog whose fields run in one column.
+  static const double dialogWidth = 480;
+
+  /// A form dialog holding two groups side by side — see `ModalColumns`,
+  /// which needs roughly this much before it stops stacking them.
+  static const double dialogWidthWide = 760;
 
   // ── Panel workspace ───────────────────────────────────────
   /// Gap between the floating panels, and between them and the window edge.

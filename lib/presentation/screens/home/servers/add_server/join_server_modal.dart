@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/constants.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../data/invite_link.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
-import '../../../common/app_button.dart';
-import '../../../common/app_text_field.dart';
-import '../../../common/message_banner.dart';
+import '../../../../common/app_button.dart';
+import '../../../../common/app_modal.dart';
+import '../../../../common/app_text_field.dart';
+import '../../../../common/message_banner.dart';
 
-/// Form to join an existing server using a single invite link (server URL +
-/// invite code combined) plus a username / display name.
-class JoinServerForm extends StatefulWidget {
+/// The join step of [AddServerDialog]: one invite link (server URL and code
+/// combined) plus the username and display name to join under.
+class JoinServerModal extends StatefulWidget {
   final VoidCallback onSuccess;
   final VoidCallback onCancel;
 
-  const JoinServerForm({
+  const JoinServerModal({
     super.key,
     required this.onSuccess,
     required this.onCancel,
   });
 
   @override
-  State<JoinServerForm> createState() => _JoinServerFormState();
+  State<JoinServerModal> createState() => _JoinServerModalState();
 }
 
-class _JoinServerFormState extends State<JoinServerForm> {
+class _JoinServerModalState extends State<JoinServerModal> {
   final _inviteLinkCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
   final _displayNameCtrl = TextEditingController();
@@ -104,67 +105,62 @@ class _JoinServerFormState extends State<JoinServerForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: MessageBanner(
-              message: _error!,
-              kind: MessageBannerKind.error,
-            ),
-          ),
-
-        AppTextField(
-          controller: _inviteLinkCtrl,
-          label: 'Invite Link',
-          hint: 'Paste the invite link you received',
-          enabled: !_isLoading,
-          autofocus: true,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
-
-        AppTextField(
-          controller: _usernameCtrl,
-          label: 'Username',
-          hint: 'myusername',
-          enabled: !_isLoading,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 12),
-        AppTextField(
-          controller: _displayNameCtrl,
-          label: 'Display Name',
-          hint: 'How others will see you',
-          enabled: !_isLoading,
-          onChanged: (_) => setState(() {}),
-        ),
-
-        const SizedBox(height: 20),
-        // Back first and sized to its label, the commit filling the rest —
-        // reading order should run from the way out to the way on, not the
-        // other way round.
-        Row(
-          spacing: 10,
-          children: [
-            AppButton(
-              label: 'Back',
-              variant: AppButtonVariant.secondary,
-              height: K.fieldHeight,
-              onPressed: _isLoading ? null : widget.onCancel,
-            ),
-            Expanded(
-              child: AppButton(
-                label: _isLoading ? 'Joining…' : 'Join server',
-                onPressed: _canSubmit && !_isLoading ? _submit : null,
-                isLoading: _isLoading,
-                expanded: true,
-                height: K.fieldHeight,
+    return AppModal(
+      title: 'Join Server',
+      subtitle: 'Join a server with an invite link',
+      maxWidth: K.dialogWidth,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: MessageBanner(
+                message: _error!,
+                kind: MessageBannerKind.error,
               ),
             ),
-          ],
+
+          AppTextField(
+            controller: _inviteLinkCtrl,
+            label: 'Invite Link',
+            hint: 'Paste the invite link you received',
+            enabled: !_isLoading,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+
+          AppTextField(
+            controller: _usernameCtrl,
+            label: 'Username',
+            hint: 'myusername',
+            enabled: !_isLoading,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          AppTextField(
+            controller: _displayNameCtrl,
+            label: 'Display Name',
+            hint: 'How others will see you',
+            enabled: !_isLoading,
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
+      // Back first, then the way on — reading order should run from the way
+      // out to the commit, not the other way round.
+      actions: [
+        AppButton(
+          label: 'Back',
+          variant: AppButtonVariant.secondary,
+          onPressed: _isLoading ? null : widget.onCancel,
+        ),
+        AppButton(
+          label: _isLoading ? 'Joining…' : 'Join server',
+          onPressed: _canSubmit && !_isLoading ? _submit : null,
+          isLoading: _isLoading,
         ),
       ],
     );

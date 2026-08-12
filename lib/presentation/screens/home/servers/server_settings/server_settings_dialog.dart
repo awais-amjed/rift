@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server_limits.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -112,12 +113,11 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
         return AppModal(
           title: 'Server Settings',
           subtitle: 'Connection and limits for this server',
-          // Wide enough for the two halves to stand beside each other. Stacked
-          // they ran past the bottom of the window and scrolled, which is a
-          // poor trade on a desktop screen with the width to spare —
+          // Wide enough for the two halves to stand beside each other.
+          // Stacked they ran past the bottom of the window and scrolled, which
+          // is a poor trade on a desktop screen with the width to spare —
           // [ModalColumns] falls back to stacking if the window is narrow.
-          maxWidth: 760,
-          actionsFillWidth: false,
+          maxWidth: K.dialogWidthWide,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

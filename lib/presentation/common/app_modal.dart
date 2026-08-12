@@ -52,13 +52,6 @@ class AppModal extends StatelessWidget {
   /// screen with several hundred pixels to spare.
   final double? maxHeight;
 
-  /// Whether the action buttons divide the footer between them.
-  ///
-  /// Right for a narrow dialog, where two half-width buttons read as a pair.
-  /// A wide one should set this false: stretching Cancel to 350px doesn't make
-  /// it any easier to hit, it just makes it look like the main event.
-  final bool actionsFillWidth;
-
   /// How much of the window a modal may fill before it starts scrolling.
   static const _maxHeightFraction = 0.85;
 
@@ -71,7 +64,6 @@ class AppModal extends StatelessWidget {
     this.actions,
     this.maxWidth = 448,
     this.maxHeight,
-    this.actionsFillWidth = true,
   });
 
   @override
@@ -115,23 +107,18 @@ class AppModal extends StatelessWidget {
                     child: content,
                   ),
                 ),
-                // Actions
+                // Actions, each the width of its own label and gathered at the
+                // trailing edge. Dividing the footer between them instead
+                // sizes a button by how many others there happen to be, which
+                // is how Cancel ended up as wide as the thing it cancels.
                 if (actions != null) ...[
                   Divider(height: 1, color: borderColor),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
                     child: Row(
-                      mainAxisAlignment: actionsFillWidth
-                          ? MainAxisAlignment.start
-                          : MainAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.end,
                       spacing: 10,
-                      children: [
-                        for (final action in actions!)
-                          if (actionsFillWidth)
-                            Expanded(child: action)
-                          else
-                            action,
-                      ],
+                      children: actions!,
                     ),
                   ),
                 ],

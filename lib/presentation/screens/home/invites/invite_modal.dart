@@ -134,7 +134,6 @@ class _InviteModalState extends State<InviteModal> {
                   label: 'Close',
                   variant: AppButtonVariant.secondary,
                   onPressed: () => Navigator.of(context).pop(),
-                  expanded: true,
                 ),
                 AppButton(
                   label: _isGenerating
@@ -151,7 +150,6 @@ class _InviteModalState extends State<InviteModal> {
                           size: 15,
                           color: Colors.white,
                         ),
-                  expanded: true,
                 ),
               ],
             );
