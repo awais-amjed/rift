@@ -7,9 +7,15 @@ import 'widgets/server_mode_picker.dart';
 
 enum _Step { pick, join, create }
 
-/// A touch wider than the app's default modal: the create step is six fields
-/// and two section headers, and cramping those doesn't make them shorter.
-const _width = 480.0;
+/// A touch wider than the app's default modal: picking a mode and pasting an
+/// invite are both short, but cramping them doesn't make them shorter.
+const _narrow = 480.0;
+
+/// The create step is six fields in two credential groups, which stand beside
+/// each other rather than running off the bottom of the window. The dialog
+/// changes width when you get there; it changes title and subtitle too, so it
+/// already reads as a step rather than the same panel.
+const _wide = 720.0;
 
 /// Getting onto a server: pick join or create, then fill in the one you picked.
 ///
@@ -38,6 +44,8 @@ class _AddServerDialogState extends State<AddServerDialog> {
     _Step.join => 'Join a server with an invite link',
     _Step.create => 'Set up your own server with Supabase and LiveKit',
   };
+
+  double get _width => _step == _Step.create ? _wide : _narrow;
 
   void _handleSuccess() => Navigator.of(context).pop();
 
