@@ -3,13 +3,11 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../logic/services/chat_message_ops.dart';
-import '../../logic/services/reaction_ops.dart';
 import '../classes/api_response.dart';
 import 'attachment_repository.dart';
 
 part 'central_dm_repository_attachments.dart';
 part 'central_dm_repository_directory.dart';
-part 'central_dm_repository_reactions.dart';
 part 'central_dm_repository_read_state.dart';
 
 /// Central-server DM I/O (Stage 3 — the discovery/first-contact tier,
@@ -19,7 +17,6 @@ part 'central_dm_repository_read_state.dart';
 /// opaque envelopes and directory rows.
 class CentralDmRepository
     with
-        _CentralDmReactionsMixin,
         _CentralDmAttachmentsMixin,
         _CentralDmDirectoryMixin,
         _CentralDmReadStateMixin {
@@ -151,9 +148,7 @@ class CentralDmRepository
       final myId = _client.auth.currentUser!.id;
       var query = _client
           .from('dm_messages')
-          // Reactions ride along with the page rather than costing a second
-          // round trip after it — see the self-hosted `_messageColumns`.
-          .select('*, dm_message_reactions(user_id, emoji)')
+          .select()
           .or(
             'and(sender_id.eq.$myId,recipient_id.eq.$peerId),'
             'and(sender_id.eq.$peerId,recipient_id.eq.$myId)',
@@ -169,26 +164,12 @@ class CentralDmRepository
         limit: limit,
       );
       return APIResponse.success({
-        'messages': [for (final row in page.rows) _withReactions(row, myId)],
+        'messages': page.rows,
         'has_more': page.hasMore,
       });
     } catch (e) {
       return APIResponse.error(e);
     }
-  }
-
-  /// Tally a row's embedded reaction rows into counts, the shape the cubit
-  /// builds `ChatMessage.reactions` from.
-  static Map<String, dynamic> _withReactions(
-    Map<String, dynamic> row,
-    String? myId,
-  ) {
-    final raw = (row['dm_message_reactions'] as List? ?? const [])
-        .cast<Map<String, dynamic>>();
-    return {
-      ...row..remove('dm_message_reactions'),
-      'reactions': ReactionOps.aggregate(raw, userId: myId),
-    };
   }
 
   /// Recent envelopes involving the caller (newest first) — the cubit groups

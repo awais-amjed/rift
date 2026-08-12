@@ -206,9 +206,10 @@ Attachments (images, voice notes, files) are E2E-encrypted just like text:
 - Central attachments count against the sender's daily DM quota and are bounded
   by a per-file size cap (bucket `file_size_limit`).
 
-**Emoji reactions are deliberately NOT E2E.** Unlike message content, an emoji
-tally is stored in the clear (`message_reactions` / `dm_message_reactions`,
-both tiers) — the server sees who reacted with which emoji. This
+**Emoji reactions are deliberately NOT E2E, and exist only on self-hosted
+servers.** Unlike message content, an emoji tally is stored in the clear
+(`message_reactions` / `dm_message_reactions`) — the server sees who reacted
+with which emoji. This
 is the accepted metadata cost of a Discord-like reaction UX; message *content*
 stays encrypted. Toggling is one call (add if absent, else remove); clients
 tally them from the reaction rows they can already read, and refresh live off
@@ -221,6 +222,11 @@ one round trip, and the cost does not grow as the reader scrolls back. A change
 message that changed so each listener re-reads one message instead of its whole
 loaded history. A ring without a name still falls back to re-reading everything,
 which is what keeps a client on an older build correct rather than silent.
+
+Central DMs have none of this. That tier is first contact — quota'd, retained 30
+days, running on infrastructure the project pays for — so it carries only what
+first contact needs, and a conversation worth reacting to belongs on a server
+the two of you share by then.
 
 **Unread state is server-side, and it is a bookmark.** Each conversation has one
 row in `read_state` holding the newest message that member has read — per

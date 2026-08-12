@@ -10,7 +10,7 @@ reference view. Access rules are not repeated here — every table's grants and 
 that folder's `002_security.sql`, deliberately in one place.
 
 Where the two schemas hold the same idea they now use the same names: `users`, `dm_messages`,
-`dm_message_reactions`, `read_state`. Central's account row was `dm_profiles` until it was
+`read_state`. Central's account row was `dm_profiles` until it was
 written down as migrations — it is the account, and it will hold more than a directory profile.
 
 ## Tables (self-hosted)
@@ -151,10 +151,13 @@ else's object.
 Emoji reactions on channel messages / server DMs. **Not E2E** — the server
 stores who reacted with which emoji, in the clear (accepted metadata trade-off,
 ARCHITECTURE.md §4). One row per (message, user, emoji); toggling re-adds or
-removes it. RLS enabled with no policies (access is via the service-role
-`toggle_reaction` / `list_reactions` edge functions). On the **central** project
-the equivalent table is `dm_reactions` with participant-scoped RLS (direct
-client access, not an edge function).
+removes it. Direct table access under participant-scoped policies: you may read
+reactions on messages you can read, insert only as yourself, and delete only
+your own.
+
+Message reads embed these rows, so a page of history arrives with its reactions
+already tallied and nothing is fetched per page. **Self-hosted only** — the
+central tier has no reactions at all (migration 006 dropped the table).
 
 | Column     | Type        | Constraints                                    | Description                     |
 |------------|-------------|------------------------------------------------|---------------------------------|
@@ -228,9 +231,13 @@ verify a first message.
 | chat_public_key    | text        | Required                             | X25519, for the pairwise DM key    |
 | signing_public_key | text        | Required                             | Ed25519, for signature verification |
 
-### dm_messages / dm_message_reactions / read_state (central)
+### dm_messages / read_state (central)
 
 Same columns as their self-hosted counterparts. Differences that matter:
+
+- **No reactions.** Central DMs are the first-contact tier — quota'd, retained
+  30 days, running on infrastructure the project pays for — so they carry only
+  what first contact needs. React on a server you share.
 
 - **Sends go through `send_dm()`**, an RPC, because the daily quota is a count over *other* rows
   and has to happen in the same statement that inserts. Edits and deletes are ordinary policy-

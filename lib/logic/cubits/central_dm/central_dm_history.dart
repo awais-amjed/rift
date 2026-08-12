@@ -208,7 +208,6 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
         sentAt: DateTime.parse(row['created_at'] as String),
         isMine: isMine,
         editedAt: DateTime.tryParse('${row['edited_at']}'),
-        reactions: ReactionOps.fromRow(row),
       );
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] dropped ${row['id']}: $e');

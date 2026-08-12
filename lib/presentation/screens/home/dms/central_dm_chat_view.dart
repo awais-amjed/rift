@@ -63,7 +63,8 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           messages: state.messages,
           controller: scrollController,
           attachmentLoader: context.read<CentralDmCubit>().loadAttachment,
-          onToggleReaction: context.read<CentralDmCubit>().toggleReaction,
+          // No onToggleReaction: central DMs are the first-contact tier and are
+          // kept deliberately thin — reactions live on servers.
           onEdit: context.read<CentralDmCubit>().editMessage,
           onDelete: context.read<CentralDmCubit>().deleteMessage,
         );
