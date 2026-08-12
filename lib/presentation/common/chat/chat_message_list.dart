@@ -103,9 +103,29 @@ class _ChatMessageListState extends State<ChatMessageList> {
     return DateFormat('MMM d, yyyy').format(d);
   }
 
-  /// Ids to animate this build: newly-seen incoming messages, but only once the
-  /// list has been populated at least once (so opening a chat doesn't animate
-  /// the whole backlog). Also records every current id as seen.
+  /// Ids to animate, recomputed when the messages change rather than during
+  /// build: the scan also *records* what it has seen, and a build that runs
+  /// twice for one frame would consume the animation on the first pass and
+  /// render the second without it.
+  Set<String> _animating = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _animating = _computeAnimating();
+  }
+
+  @override
+  void didUpdateWidget(ChatMessageList old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.messages, widget.messages)) {
+      _animating = _computeAnimating();
+    }
+  }
+
+  /// Newly-seen incoming messages, but only once the list has been populated at
+  /// least once (so opening a chat doesn't animate the whole backlog). Also
+  /// records every current id as seen.
   Set<String> _computeAnimating() {
     final animate = <String>{};
     final primed = _seen.isNotEmpty;
@@ -142,7 +162,6 @@ class _ChatMessageListState extends State<ChatMessageList> {
           );
         }
 
-        final animating = _computeAnimating();
         final items = _buildItems();
 
         return ListView.builder(
@@ -166,7 +185,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               onEdit: widget.onEdit,
               onDelete: widget.onDelete,
               isModerator: widget.isModerator,
-              animateIn: animating.contains(msg.id),
+              animateIn: _animating.contains(msg.id),
             );
           },
         );

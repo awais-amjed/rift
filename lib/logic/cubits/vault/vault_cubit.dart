@@ -8,6 +8,7 @@ import '../../../data/classes/encrypted_seed.dart';
 import '../../../data/classes/encrypted_vault.dart';
 import '../../../data/enums/auth_status.dart';
 import '../../../logic/helper_methods.dart';
+import '../../../logic/services/attachment_cache.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_repository.dart';
@@ -130,6 +131,9 @@ class VaultCubit extends Cubit<VaultState>
     await _storage.deleteAll();
     _identityCache.clear();
     _chatIdentityCache.clear();
+    // Decrypted attachment bytes outlive the cubits that fetched them, so the
+    // keys going away has to take the plaintext with it.
+    AttachmentCache.instance.clear();
     emit(const VaultState(status: AuthStatus.fresh));
   }
 }

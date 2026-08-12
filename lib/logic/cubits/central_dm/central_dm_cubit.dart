@@ -16,6 +16,7 @@ import '../../../data/repositories/crypto_repository.dart';
 import '../../../supabase_config.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../helper_methods.dart';
+import '../../services/attachment_cache.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/dm_unread_scan.dart';
@@ -229,6 +230,15 @@ class CentralDmCubit extends Cubit<CentralDmState>
     _notifier.reset();
     // Cursors belong to the signed-in account, not the app.
     _resetUnread();
+    // Decrypted attachment bytes are held outside any cubit's state, so an
+    // account going away has to empty them too. Self-hosted entries go with
+    // them — the cache isn't keyed by tier, and all of it is re-downloadable.
+    //
+    // Only when there was a session to end. This runs on every vault emission
+    // for anyone with no central account at all, and throwing away a
+    // privacy-mode user's cached images on each one would be a steady trickle
+    // of re-downloads for nothing.
+    if (channel != null) AttachmentCache.instance.clear();
     if (channel != null) await _repo.unsubscribe(channel);
   }
 

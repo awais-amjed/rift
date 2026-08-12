@@ -91,9 +91,8 @@ mixin _ChannelChatRealtimeMixin
 
   void _onTyping(Map<String, dynamic> payload) {
     if (isClosed) return;
-    final data = (payload['payload'] ?? payload) as Map<String, dynamic>?;
-    final from = data?['from'] as String?;
-    final name = data?['name'] as String?;
+    final from = BroadcastPayload.stringOf(payload, 'from');
+    final name = BroadcastPayload.stringOf(payload, 'name');
     final myId = _serverCubit.state.selectedServer?.user?.id;
     if (from == null || name == null || from == myId) return;
 
@@ -111,16 +110,16 @@ mixin _ChannelChatRealtimeMixin
 
   void _onChangeDoorbell(Map<String, dynamic> payload) {
     if (isClosed || state.status != ChannelChatStatus.ready) return;
-    final messageId = payload['message_id'];
-    if (messageId is String) unawaited(refreshMessage(messageId));
+    final messageId = BroadcastPayload.stringOf(payload, 'message_id');
+    if (messageId != null) unawaited(refreshMessage(messageId));
   }
 
   /// A member changed a reaction. Refresh just the message they named; a ring
   /// without one (an older client) still gets the whole-history fallback.
   void _onReactionDoorbell(Map<String, dynamic> payload) {
     if (isClosed) return;
-    final messageId = payload['message_id'];
-    if (messageId is String) {
+    final messageId = BroadcastPayload.stringOf(payload, 'message_id');
+    if (messageId != null) {
       unawaited(refreshReactionsFor(messageId));
     } else {
       unawaited(refreshReactions());

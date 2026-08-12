@@ -13,6 +13,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/chat_attachment_uploader.dart';
+import '../../services/broadcast_payload.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/notification_service.dart';
 import '../../services/reaction_ops.dart';
@@ -224,8 +225,8 @@ class DmCubit extends Cubit<DmState>
 
   void _onChangeDoorbell(Map<String, dynamic> payload) {
     if (isClosed || state.chatStatus != DmChatStatus.ready) return;
-    final messageId = payload['message_id'];
-    if (messageId is String) unawaited(refreshMessage(messageId));
+    final messageId = BroadcastPayload.stringOf(payload, 'message_id');
+    if (messageId != null) unawaited(refreshMessage(messageId));
     // The conversation list shows a preview of the newest message, which an
     // edit or delete can change.
     unawaited(refreshConversations());
@@ -247,8 +248,8 @@ class DmCubit extends Cubit<DmState>
   /// everything loaded.
   void _onReactionDoorbell(Map<String, dynamic> payload) {
     if (isClosed) return;
-    final messageId = payload['message_id'];
-    if (messageId is String) {
+    final messageId = BroadcastPayload.stringOf(payload, 'message_id');
+    if (messageId != null) {
       unawaited(refreshReactionsFor(messageId));
     } else {
       unawaited(refreshReactions());
@@ -287,9 +288,8 @@ class DmCubit extends Cubit<DmState>
 
   void _onTyping(Map<String, dynamic> payload) {
     if (isClosed) return;
-    final data = (payload['payload'] ?? payload) as Map<String, dynamic>?;
-    final from = data?['from'] as String?;
-    final name = data?['name'] as String?;
+    final from = BroadcastPayload.stringOf(payload, 'from');
+    final name = BroadcastPayload.stringOf(payload, 'name');
     // Only surface typing for the conversation the user currently has open.
     if (from == null || name == null || from != state.openPeerId) return;
 

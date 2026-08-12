@@ -110,15 +110,25 @@ class ChatMessageOps {
     final fresh = incoming.where((m) => !known.contains(m.id)).toList();
     if (fresh.isEmpty) return (merged: current, fresh: const []);
 
-    final freshMineTexts = fresh
-        .where((m) => m.isMine)
-        .map((m) => m.text)
-        .toSet();
-    final kept = current
-        .where(
-          (m) => !(m.isPending && m.isMine && freshMineTexts.contains(m.text)),
-        )
-        .toList();
+    // One acknowledged row retires one bubble, oldest first — a count, not a
+    // set of texts. Matching on membership let a single arriving row retire
+    // *every* pending bubble that happened to say the same thing: send "ok"
+    // twice and the first one coming back took both, leaving the second send's
+    // own acknowledgement with no bubble to replace. That message then existed
+    // on the server and nowhere on screen until the chat was reopened.
+    final unclaimed = <String, int>{};
+    for (final m in fresh) {
+      if (m.isMine) unclaimed[m.text] = (unclaimed[m.text] ?? 0) + 1;
+    }
+    final kept = <ChatMessage>[];
+    for (final m in current) {
+      final claims = unclaimed[m.text] ?? 0;
+      if (m.isPending && m.isMine && claims > 0) {
+        unclaimed[m.text] = claims - 1;
+        continue;
+      }
+      kept.add(m);
+    }
     return (merged: [...kept, ...fresh], fresh: fresh);
   }
 

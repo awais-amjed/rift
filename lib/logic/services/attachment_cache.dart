@@ -28,4 +28,13 @@ class AttachmentCache {
       _entries.remove(_entries.keys.first);
     }
   }
+
+  /// Forget everything held.
+  ///
+  /// This is the only place in the app where decrypted message content outlives
+  /// the state of the cubit that fetched it, so it has to be emptied whenever
+  /// the identity that could read it goes away — wiping the vault, or signing
+  /// out of the central account. Everything here is re-downloadable, so the
+  /// cost of clearing too eagerly is one round trip.
+  void clear() => _entries.clear();
 }

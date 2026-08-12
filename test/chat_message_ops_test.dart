@@ -65,6 +65,43 @@ void main() {
       expect(result.merged.map((m) => m.id), ['1', 'pending-1', '2']);
     });
 
+    test('one arriving row retires one bubble, not every matching one', () {
+      // Two identical sends in flight; the first comes back on someone else's
+      // doorbell. The second bubble has to survive, or its own acknowledgement
+      // finds nothing to replace and the message is lost from the screen.
+      final result = ChatMessageOps.mergeIncoming(
+        current: [
+          msg('1'),
+          msg('pending-0', text: 'ok', mine: true, pending: true),
+          msg('pending-1', text: 'ok', mine: true, pending: true),
+        ],
+        incoming: [msg('2', text: 'ok', mine: true)],
+      );
+      expect(result.merged.map((m) => m.id), ['1', 'pending-1', '2']);
+    });
+
+    test('both bubbles go when both rows come back at once', () {
+      final result = ChatMessageOps.mergeIncoming(
+        current: [
+          msg('pending-0', text: 'ok', mine: true, pending: true),
+          msg('pending-1', text: 'ok', mine: true, pending: true),
+        ],
+        incoming: [
+          msg('2', text: 'ok', mine: true),
+          msg('3', text: 'ok', mine: true),
+        ],
+      );
+      expect(result.merged.map((m) => m.id), ['2', '3']);
+    });
+
+    test("someone else's identical message retires nothing", () {
+      final result = ChatMessageOps.mergeIncoming(
+        current: [msg('pending-0', text: 'ok', mine: true, pending: true)],
+        incoming: [msg('2', text: 'ok')],
+      );
+      expect(result.merged.map((m) => m.id), ['pending-0', '2']);
+    });
+
     test('nothing fresh leaves the list untouched', () {
       final current = [msg('1')];
       final result = ChatMessageOps.mergeIncoming(

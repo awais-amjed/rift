@@ -11,6 +11,7 @@ import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
+import '../../services/broadcast_payload.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_failure.dart';
 import '../../services/chat_message_ops.dart';
