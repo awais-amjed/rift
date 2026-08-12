@@ -214,6 +214,14 @@ stays encrypted. Toggling is one call (add if absent, else remove); clients
 tally them from the reaction rows they can already read, and refresh live off
 Realtime.
 
+Because they are not encrypted, reactions can ride along with the message page
+as a PostgREST embed rather than being fetched after it — opening a channel is
+one round trip, and the cost does not grow as the reader scrolls back. A change
+*after* the page loaded is what the reaction doorbell is for, and it names the
+message that changed so each listener re-reads one message instead of its whole
+loaded history. A ring without a name still falls back to re-reading everything,
+which is what keeps a client on an older build correct rather than silent.
+
 **Unread state is server-side, and it is a bookmark.** Each conversation has one
 row in `read_state` holding the newest message that member has read — per
 channel and per DM peer, in both tiers. `unread_counts()` returns every badge in

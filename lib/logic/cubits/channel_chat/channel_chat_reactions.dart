@@ -2,9 +2,13 @@ part of 'channel_chat_cubit.dart';
 
 /// Reactions on channel messages. Not E2E — the server sees who reacted with
 /// what (ARCHITECTURE.md §4).
+///
+/// A message page arrives with its reactions already on it, so nothing here
+/// runs on open or on scroll. These are only for a change *after* the page
+/// loaded: your own tap, or a doorbell saying someone else's.
 mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
-  void _ringReactionDoorbell();
+  void _ringReactionDoorbell(String messageId);
 
   /// Toggle the local user's [emoji] reaction on a message. Applies an
   /// optimistic flip, then reconciles with the server's authoritative counts.
@@ -15,7 +19,7 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
 
     emit(
       state.copyWith(
-        messages: ChatMessageOps.withOptimisticReaction(
+        messages: ReactionOps.withOptimisticReaction(
           state.messages,
           messageId: messageId,
           emoji: emoji,
@@ -30,16 +34,41 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
     );
     if (state.channelId != channelId) return;
     if (response.success) {
-      _ringReactionDoorbell();
+      _ringReactionDoorbell(messageId);
     } else {
       HelperMethods.showError(error: 'Failed to react');
     }
-    await refreshReactions();
+    await refreshReactionsFor(messageId);
   }
 
-  /// Re-fetch authoritative reactions for the loaded messages and merge them in
-  /// (message content/order untouched). Called after a page load and whenever a
-  /// reaction doorbell fires.
+  /// Re-fetch the authoritative reactions on one message and merge them in.
+  /// Everything else on screen is left alone.
+  Future<void> refreshReactionsFor(String messageId) async {
+    final channelId = state.channelId;
+    final idNum = int.tryParse(messageId);
+    if (channelId == null || idNum == null) return;
+
+    final response = await _serverCubit.listReactions(
+      scope: 'channel',
+      messageIds: [idNum],
+    );
+    if (!response.success || state.channelId != channelId) return;
+    emit(
+      state.copyWith(
+        messages: ReactionOps.withReactionsFor(
+          state.messages,
+          messageId: messageId,
+          data: response.data as Map<String, dynamic>,
+        ),
+      ),
+    );
+  }
+
+  /// Re-fetch reactions for every loaded message.
+  ///
+  /// The fallback for a doorbell that didn't name a message — a client on an
+  /// older build rings without one. Costs a request that grows with how far
+  /// the reader has scrolled, which is exactly why the doorbell carries the id.
   Future<void> refreshReactions() async {
     final channelId = state.channelId;
     if (channelId == null) return;
@@ -53,7 +82,7 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
     if (!response.success || state.channelId != channelId) return;
     emit(
       state.copyWith(
-        messages: ChatMessageOps.withReactions(
+        messages: ReactionOps.withReactions(
           state.messages,
           response.data as Map<String, dynamic>,
         ),

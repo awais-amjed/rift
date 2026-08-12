@@ -6,11 +6,13 @@ import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart' hide ErrorCode;
 
 import '../../logic/services/chat_message_ops.dart';
+import '../../logic/services/reaction_ops.dart';
 import '../classes/api_response.dart';
 import '../enums/error_code.dart';
 import 'server_db.dart';
 
 part 'server_repository_chat.dart';
+part 'server_repository_reactions.dart';
 
 /// All I/O against a self-hosted server.
 ///
@@ -31,7 +33,7 @@ part 'server_repository_chat.dart';
 /// Everything else was an endpoint that existed only because clients weren't
 /// trusted with the database — which was never a decision, just a consequence
 /// of tables without policies.
-class ServerRepository with _ChatApiMixin {
+class ServerRepository with _ChatApiMixin, _ReactionApiMixin {
   @override
   final ServerDb _db = ServerDb();
 

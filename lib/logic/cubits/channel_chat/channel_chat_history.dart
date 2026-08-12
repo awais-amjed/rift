@@ -12,8 +12,6 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
   /// not our own sends) so the hub can clear typing state and notify.
   void _onFreshIncoming(List<ChatMessage> incoming);
 
-  /// Implemented by the reactions mixin.
-  Future<void> refreshReactions();
 
   Future<void> _fetchLatest(String channelId) async {
     final response = await _serverCubit.listChatMessages(
@@ -32,7 +30,6 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
         hasMoreHistory: data['has_more'] as bool? ?? false,
       ),
     );
-    unawaited(refreshReactions());
   }
 
   /// Catch up on rows newer than what we hold (doorbell / reconnect path).
@@ -61,7 +58,6 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
     if (result.fresh.isEmpty) return;
 
     emit(state.copyWith(messages: result.merged));
-    unawaited(refreshReactions());
 
     final freshIncoming = result.fresh.where((m) => !m.isMine).toList();
     if (freshIncoming.isNotEmpty) _onFreshIncoming(freshIncoming);
@@ -98,7 +94,6 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
         isLoadingMore: false,
       ),
     );
-    unawaited(refreshReactions());
   }
 
   /// Decrypt + verify a batch of envelope rows, preserving input order.
@@ -142,6 +137,7 @@ mixin _ChannelChatHistoryMixin on Cubit<ChannelChatState> {
             sentAt: DateTime.parse(row['created_at'] as String),
             isMine: row['sender_id'] == localUserId,
             editedAt: DateTime.tryParse('${row['edited_at']}'),
+            reactions: ReactionOps.fromRow(row),
           ),
         );
       } catch (e) {

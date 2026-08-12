@@ -14,6 +14,7 @@ import '../../helper_methods.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_failure.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/reaction_ops.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -280,7 +281,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     _rtChannel = _rtClient!.channel('chat:$channelId')
       ..onBroadcast(event: 'new_message', callback: (_) => _onDoorbell())
       ..onBroadcast(event: 'typing', callback: _onTyping)
-      ..onBroadcast(event: 'reaction', callback: (_) => refreshReactions())
+      ..onBroadcast(event: 'reaction', callback: _onReactionDoorbell)
       ..subscribe();
   }
 
@@ -365,13 +366,31 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     } catch (_) {}
   }
 
-  /// Notify other members that reactions changed, so they re-fetch. Same
-  /// fire-and-forget doorbell pattern as [_ringDoorbell].
+  /// Notify other members that one message's reactions changed, so they
+  /// re-fetch that message. Same fire-and-forget pattern as [_ringDoorbell].
+  ///
+  /// The id is what keeps the other side's response proportional: without it
+  /// every listener re-reads reactions for its whole loaded history.
   @override
-  void _ringReactionDoorbell() {
+  void _ringReactionDoorbell(String messageId) {
     try {
-      _rtChannel?.sendBroadcastMessage(event: 'reaction', payload: {});
+      _rtChannel?.sendBroadcastMessage(
+        event: 'reaction',
+        payload: {'message_id': messageId},
+      );
     } catch (_) {}
+  }
+
+  /// A member changed a reaction. Refresh just the message they named; a ring
+  /// without one (an older client) still gets the whole-history fallback.
+  void _onReactionDoorbell(Map<String, dynamic> payload) {
+    if (isClosed) return;
+    final messageId = payload['message_id'];
+    if (messageId is String) {
+      unawaited(refreshReactionsFor(messageId));
+    } else {
+      unawaited(refreshReactions());
+    }
   }
 
   void _onDoorbell() {

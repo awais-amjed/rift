@@ -2,6 +2,11 @@ part of 'central_dm_cubit.dart';
 
 /// Reactions on central DMs. Not E2E — the central server sees who reacted
 /// with what (ARCHITECTURE.md §4).
+///
+/// A message page arrives with its reactions already on it, so this runs only
+/// for your own tap. Unlike the self-hosted surfaces there is no reaction
+/// doorbell here, so a peer's reaction shows up when the conversation is next
+/// opened rather than live.
 mixin _CentralDmReactionsMixin on Cubit<CentralDmState> {
   CentralDmRepository get _repo;
 
@@ -14,7 +19,7 @@ mixin _CentralDmReactionsMixin on Cubit<CentralDmState> {
 
     emit(
       state.copyWith(
-        messages: ChatMessageOps.withOptimisticReaction(
+        messages: ReactionOps.withOptimisticReaction(
           state.messages,
           messageId: messageId,
           emoji: emoji,
@@ -27,22 +32,23 @@ mixin _CentralDmReactionsMixin on Cubit<CentralDmState> {
     if (!response.success) {
       HelperMethods.showError(error: 'Failed to react');
     }
-    await refreshReactions();
+    await refreshReactionsFor(messageId);
   }
 
-  Future<void> refreshReactions() async {
+  /// Re-fetch one message's authoritative reactions, leaving the rest alone.
+  Future<void> refreshReactionsFor(String messageId) async {
     final peerId = state.openPeerId;
-    if (peerId == null) return;
-    final ids = ChatMessageOps.ackedIds(state.messages);
-    if (ids.isEmpty) return;
+    final idNum = int.tryParse(messageId);
+    if (peerId == null || idNum == null) return;
 
-    final response = await _repo.listReactions(messageIds: ids);
+    final response = await _repo.listReactions(messageIds: [idNum]);
     if (!response.success || state.openPeerId != peerId) return;
     emit(
       state.copyWith(
-        messages: ChatMessageOps.withReactions(
+        messages: ReactionOps.withReactionsFor(
           state.messages,
-          response.data as Map<String, dynamic>,
+          messageId: messageId,
+          data: response.data as Map<String, dynamic>,
         ),
       ),
     );

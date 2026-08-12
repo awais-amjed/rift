@@ -21,28 +21,46 @@ mixin _ChatApiMixin {
     String? bearerToken,
   });
 
-  /// The columns every message read needs, with the sender's profile embedded.
-  /// The FK has to be named explicitly: reactions added a second
+  /// The columns every message read needs, with the sender's profile and the
+  /// message's reactions embedded.
+  ///
+  /// The sender FK has to be named explicitly: reactions added a second
   /// messages↔users relationship, and PostgREST refuses an ambiguous embed.
+  ///
+  /// Reactions ride along rather than being fetched after the page, so opening
+  /// a channel is one round trip instead of two and the cost stops growing with
+  /// how far the reader has scrolled. RLS applies to the embed as it does to a
+  /// standalone read, so this widens nothing.
   static const _messageColumns =
       'id, created_at, channel_id, sender_id, ciphertext, nonce, signature, '
       'key_version, edited_at, '
-      'sender:users!messages_sender_id_fkey(display_name, public_key, avatar_path)';
+      'sender:users!messages_sender_id_fkey(display_name, public_key, avatar_path), '
+      'message_reactions(user_id, emoji)';
 
   static const _dmColumns =
       'id, created_at, sender_id, recipient_id, ciphertext, nonce, signature, '
       'key_version, edited_at, '
-      'sender:users!dm_messages_sender_id_fkey(display_name, public_key, avatar_path)';
+      'sender:users!dm_messages_sender_id_fkey(display_name, public_key, avatar_path), '
+      'dm_message_reactions(user_id, emoji)';
 
-  /// Lifts the embedded sender onto the row, which is the shape the chat
-  /// cubits decrypt from.
-  static Map<String, dynamic> _flatten(Map<String, dynamic> row) {
+  /// Lifts the embedded sender onto the row and tallies the embedded reaction
+  /// rows into counts, which is the shape the chat cubits decrypt from.
+  static Map<String, dynamic> _flatten(
+    Map<String, dynamic> row, {
+    required String? userId,
+    required String reactionsKey,
+  }) {
     final sender = row['sender'] as Map<String, dynamic>?;
+    final reactions = (row[reactionsKey] as List? ?? const [])
+        .cast<Map<String, dynamic>>();
     return {
-      ...row..remove('sender'),
+      ...row
+        ..remove('sender')
+        ..remove(reactionsKey),
       'sender_name': sender?['display_name'] ?? 'Unknown',
       'sender_public_key': sender?['public_key'],
       'sender_avatar_path': sender?['avatar_path'],
+      'reactions': ReactionOps.aggregate(reactions, userId: userId),
     };
   }
 
@@ -61,89 +79,6 @@ mixin _ChatApiMixin {
           .update({'chat_public_key': chatPublicKey})
           .eq('id', userId);
       return {'published': true};
-    });
-  }
-
-  /// Toggle the caller's [emoji] reaction on a message. [scope] is `channel`
-  /// or `dm`. Returns `{reacted}`.
-  ///
-  /// Insert-then-fall-back-to-delete rather than read-then-write: the primary
-  /// key is (message, user, emoji), so a duplicate is the database telling us
-  /// the reaction was already there, with no window in between.
-  Future<APIResponse> toggleReaction(
-    String supabaseUrl, {
-    required String anonKey,
-    required String userId,
-    String? bearerToken,
-    required String scope,
-    required int messageId,
-    required String emoji,
-  }) {
-    final table = scope == 'dm' ? 'dm_message_reactions' : 'message_reactions';
-    return ServerDb.run(() async {
-      final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      try {
-        await db.from(table).insert({
-          'message_id': messageId,
-          'user_id': userId,
-          'emoji': emoji,
-        });
-        return {'reacted': true};
-      } on PostgrestException catch (e) {
-        if (e.code != '23505') rethrow;
-        await db
-            .from(table)
-            .delete()
-            .eq('message_id', messageId)
-            .eq('user_id', userId)
-            .eq('emoji', emoji);
-        return {'reacted': false};
-      }
-    });
-  }
-
-  /// Aggregated reactions for [messageIds] — `{reactions: {id: [...]}}` with a
-  /// count and whether the caller is in it.
-  Future<APIResponse> listReactions(
-    String supabaseUrl, {
-    required String anonKey,
-    required String userId,
-    String? bearerToken,
-    required String scope,
-    required List<int> messageIds,
-  }) {
-    final table = scope == 'dm' ? 'dm_message_reactions' : 'message_reactions';
-    return ServerDb.run(() async {
-      if (messageIds.isEmpty) return {'reactions': <String, dynamic>{}};
-      final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final rows = await db
-          .from(table)
-          .select('message_id, user_id, emoji')
-          .inFilter('message_id', messageIds);
-
-      // Tallying here rather than in SQL keeps the round trip to one and the
-      // rows are already scoped to messages the caller can see.
-      final byMessage = <String, Map<String, ({int count, bool mine})>>{};
-      for (final row in (rows as List).cast<Map<String, dynamic>>()) {
-        final id = '${row['message_id']}';
-        final emoji = row['emoji'] as String;
-        final existing =
-            byMessage.putIfAbsent(id, () => {})[emoji] ??
-            (count: 0, mine: false);
-        byMessage[id]![emoji] = (
-          count: existing.count + 1,
-          mine: existing.mine || row['user_id'] == userId,
-        );
-      }
-      return {
-        'reactions': {
-          for (final entry in byMessage.entries)
-            entry.key: [
-              for (final e in entry.value.entries)
-                {'emoji': e.key, 'count': e.value.count, 'mine': e.value.mine},
-            ],
-        },
-      };
     });
   }
 
@@ -284,6 +219,7 @@ mixin _ChatApiMixin {
   Future<APIResponse> listMessages(
     String supabaseUrl, {
     required String anonKey,
+    required String userId,
     String? bearerToken,
     required String channelId,
     int? beforeId,
@@ -308,7 +244,10 @@ mixin _ChatApiMixin {
         limit: pageSize,
       );
       return {
-        'messages': [for (final r in page.rows) _flatten(r)],
+        'messages': [
+          for (final r in page.rows)
+            _flatten(r, userId: userId, reactionsKey: 'message_reactions'),
+        ],
         'has_more': page.hasMore,
       };
     });
@@ -364,7 +303,10 @@ mixin _ChatApiMixin {
         limit: pageSize,
       );
       return {
-        'messages': [for (final r in page.rows) _flatten(r)],
+        'messages': [
+          for (final r in page.rows)
+            _flatten(r, userId: userId, reactionsKey: 'dm_message_reactions'),
+        ],
         'has_more': page.hasMore,
       };
     });

@@ -15,8 +15,6 @@ mixin _DmHistoryMixin on Cubit<DmState> {
   void _joinPeerTopic(String peerId);
   void _leavePeerTopic();
 
-  /// Implemented by the reactions mixin.
-  Future<void> refreshReactions();
 
   Future<void> _fetchLatest(String peerId) async {
     final response = await _serverCubit.listDms(
@@ -34,7 +32,6 @@ mixin _DmHistoryMixin on Cubit<DmState> {
         hasMoreHistory: data['has_more'] as bool? ?? false,
       ),
     );
-    unawaited(refreshReactions());
   }
 
   Future<void> _fetchAfterLatest() async {
@@ -62,7 +59,6 @@ mixin _DmHistoryMixin on Cubit<DmState> {
     if (result.fresh.isEmpty) return;
 
     emit(state.copyWith(messages: result.merged));
-    unawaited(refreshReactions());
 
     if (result.fresh.any((m) => !m.isMine)) _onOpenPeerMessage();
   }
@@ -97,7 +93,6 @@ mixin _DmHistoryMixin on Cubit<DmState> {
         isLoadingMore: false,
       ),
     );
-    unawaited(refreshReactions());
   }
 
   Future<List<ChatMessage>> _decryptRows(
@@ -173,6 +168,7 @@ mixin _DmHistoryMixin on Cubit<DmState> {
         sentAt: DateTime.parse(row['created_at'] as String),
         isMine: isMine,
         editedAt: DateTime.tryParse('${row['edited_at']}'),
+        reactions: ReactionOps.fromRow(row),
       );
     } catch (e) {
       HelperMethods.printDebug('[DM] dropped message ${row['id']}: $e');

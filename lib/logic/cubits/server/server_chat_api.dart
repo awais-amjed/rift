@@ -156,6 +156,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     (token) => _repository.listMessages(
       state.selectedServer!.supabaseUrl,
       anonKey: _anonKey,
+      userId: _userId,
       channelId: channelId,
       beforeId: beforeId,
       afterId: afterId,

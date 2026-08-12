@@ -15,6 +15,7 @@ import '../../helper_methods.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/notification_service.dart';
+import '../../services/reaction_ops.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -160,7 +161,7 @@ class DmCubit extends Cubit<DmState>
     _rtClient!.channel('dm:${server.id}:${server.user!.id}')
       ..onBroadcast(event: 'new_dm', callback: (_) => _onDoorbell())
       ..onBroadcast(event: 'typing', callback: _onTyping)
-      ..onBroadcast(event: 'reaction', callback: (_) => refreshReactions())
+      ..onBroadcast(event: 'reaction', callback: _onReactionDoorbell)
       ..subscribe();
   }
 
@@ -205,11 +206,28 @@ class DmCubit extends Cubit<DmState>
     } catch (_) {}
   }
 
+  /// Tell the peer which message's reactions changed, so they refresh that one
+  /// rather than every message they have loaded.
   @override
-  void _ringReactionDoorbell() {
+  void _ringReactionDoorbell(String messageId) {
     try {
-      _peerTopic?.sendBroadcastMessage(event: 'reaction', payload: {});
+      _peerTopic?.sendBroadcastMessage(
+        event: 'reaction',
+        payload: {'message_id': messageId},
+      );
     } catch (_) {}
+  }
+
+  /// A ring without a message id is an older client; fall back to refreshing
+  /// everything loaded.
+  void _onReactionDoorbell(Map<String, dynamic> payload) {
+    if (isClosed) return;
+    final messageId = payload['message_id'];
+    if (messageId is String) {
+      unawaited(refreshReactionsFor(messageId));
+    } else {
+      unawaited(refreshReactions());
+    }
   }
 
   void _onDoorbell() {

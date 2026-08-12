@@ -51,7 +51,10 @@ mixin _CentralDmReactionsMixin {
   }
 
   /// Aggregated reactions for [messageIds], shaped like the self-hosted
-  /// `list_reactions` (`{ reactions: { id: [{emoji,count,mine}] } }`).
+  /// `listReactions` (`{ reactions: { id: [{emoji,count,mine}] } }`).
+  ///
+  /// Message pages carry their own reactions, so this is only for reconciling
+  /// after a toggle.
   Future<APIResponse> listReactions({required List<int> messageIds}) async {
     try {
       final uid = _client.auth.currentUser?.id;
@@ -63,21 +66,12 @@ mixin _CentralDmReactionsMixin {
           .select('message_id, user_id, emoji')
           .inFilter('message_id', messageIds);
 
-      final byMsg = <String, Map<String, Map<String, dynamic>>>{};
-      for (final row in (rows as List).cast<Map<String, dynamic>>()) {
-        final mid = '${row['message_id']}';
-        final emoji = row['emoji'] as String;
-        final bucket = byMsg.putIfAbsent(mid, () => {});
-        final agg = bucket.putIfAbsent(
-          emoji,
-          () => {'emoji': emoji, 'count': 0, 'mine': false},
-        );
-        agg['count'] = (agg['count'] as int) + 1;
-        if (row['user_id'] == uid) agg['mine'] = true;
-      }
-      final reactions = <String, dynamic>{};
-      byMsg.forEach((mid, bucket) => reactions[mid] = bucket.values.toList());
-      return APIResponse.success({'reactions': reactions});
+      return APIResponse.success({
+        'reactions': ReactionOps.byMessage(
+          (rows as List).cast<Map<String, dynamic>>(),
+          userId: uid,
+        ),
+      });
     } catch (e) {
       return APIResponse.error(e);
     }

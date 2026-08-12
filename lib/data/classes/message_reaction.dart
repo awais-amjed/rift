@@ -18,4 +18,14 @@ class MessageReaction {
         count: (json['count'] as num).toInt(),
         mine: json['mine'] as bool? ?? false,
       );
+
+  /// Parse an aggregated list off a message row or a reaction read. Anything
+  /// that isn't a list — absent, or a message nobody has reacted to — is no
+  /// reactions rather than an error.
+  static List<MessageReaction> listFrom(Object? raw) => raw is List
+      ? [
+          for (final entry in raw)
+            MessageReaction.fromJson((entry as Map).cast<String, dynamic>()),
+        ]
+      : const [];
 }

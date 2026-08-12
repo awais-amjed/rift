@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../logic/services/chat_message_ops.dart';
+import '../../logic/services/reaction_ops.dart';
 import '../classes/api_response.dart';
 import 'attachment_repository.dart';
 
@@ -150,7 +151,9 @@ class CentralDmRepository
       final myId = _client.auth.currentUser!.id;
       var query = _client
           .from('dm_messages')
-          .select()
+          // Reactions ride along with the page rather than costing a second
+          // round trip after it — see the self-hosted `_messageColumns`.
+          .select('*, dm_message_reactions(user_id, emoji)')
           .or(
             'and(sender_id.eq.$myId,recipient_id.eq.$peerId),'
             'and(sender_id.eq.$peerId,recipient_id.eq.$myId)',
@@ -166,12 +169,26 @@ class CentralDmRepository
         limit: limit,
       );
       return APIResponse.success({
-        'messages': page.rows,
+        'messages': [for (final row in page.rows) _withReactions(row, myId)],
         'has_more': page.hasMore,
       });
     } catch (e) {
       return APIResponse.error(e);
     }
+  }
+
+  /// Tally a row's embedded reaction rows into counts, the shape the cubit
+  /// builds `ChatMessage.reactions` from.
+  static Map<String, dynamic> _withReactions(
+    Map<String, dynamic> row,
+    String? myId,
+  ) {
+    final raw = (row['dm_message_reactions'] as List? ?? const [])
+        .cast<Map<String, dynamic>>();
+    return {
+      ...row..remove('dm_message_reactions'),
+      'reactions': ReactionOps.aggregate(raw, userId: myId),
+    };
   }
 
   /// Recent envelopes involving the caller (newest first) — the cubit groups

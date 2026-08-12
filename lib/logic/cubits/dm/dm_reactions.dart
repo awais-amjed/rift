@@ -2,9 +2,12 @@ part of 'dm_cubit.dart';
 
 /// Reactions on server DMs. Not E2E — the server sees who reacted with what
 /// (ARCHITECTURE.md §4).
+///
+/// A message page arrives with its reactions already on it, so nothing here
+/// runs on open or on scroll — only when a reaction changes afterwards.
 mixin _DmReactionsMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
-  void _ringReactionDoorbell();
+  void _ringReactionDoorbell(String messageId);
 
   /// Optimistic flip first so the tap feels instant, then reconcile with the
   /// server's authoritative counts.
@@ -15,7 +18,7 @@ mixin _DmReactionsMixin on Cubit<DmState> {
 
     emit(
       state.copyWith(
-        messages: ChatMessageOps.withOptimisticReaction(
+        messages: ReactionOps.withOptimisticReaction(
           state.messages,
           messageId: messageId,
           emoji: emoji,
@@ -30,13 +33,36 @@ mixin _DmReactionsMixin on Cubit<DmState> {
     );
     if (state.openPeerId != peerId) return;
     if (response.success) {
-      _ringReactionDoorbell();
+      _ringReactionDoorbell(messageId);
     } else {
       HelperMethods.showError(error: 'Failed to react');
     }
-    await refreshReactions();
+    await refreshReactionsFor(messageId);
   }
 
+  /// Re-fetch one message's authoritative reactions, leaving the rest alone.
+  Future<void> refreshReactionsFor(String messageId) async {
+    final peerId = state.openPeerId;
+    final idNum = int.tryParse(messageId);
+    if (peerId == null || idNum == null) return;
+
+    final response = await _serverCubit.listReactions(
+      scope: 'dm',
+      messageIds: [idNum],
+    );
+    if (!response.success || state.openPeerId != peerId) return;
+    emit(
+      state.copyWith(
+        messages: ReactionOps.withReactionsFor(
+          state.messages,
+          messageId: messageId,
+          data: response.data as Map<String, dynamic>,
+        ),
+      ),
+    );
+  }
+
+  /// Every loaded message — the fallback for a doorbell that didn't name one.
   Future<void> refreshReactions() async {
     final peerId = state.openPeerId;
     if (peerId == null) return;
@@ -50,7 +76,7 @@ mixin _DmReactionsMixin on Cubit<DmState> {
     if (!response.success || state.openPeerId != peerId) return;
     emit(
       state.copyWith(
-        messages: ChatMessageOps.withReactions(
+        messages: ReactionOps.withReactions(
           state.messages,
           response.data as Map<String, dynamic>,
         ),

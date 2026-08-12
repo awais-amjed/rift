@@ -1,9 +1,10 @@
 import '../../data/classes/chat_message.dart';
-import '../../data/classes/message_reaction.dart';
 
 /// Pure list transforms shared by all three chat surfaces (channels, server
 /// DMs, central DMs). They hold no state and touch no I/O, so the cubits keep
 /// only their transport differences and this logic is unit-testable.
+///
+/// Reactions have their own file — see `ReactionOps`.
 class ChatMessageOps {
   const ChatMessageOps._();
 
@@ -108,64 +109,4 @@ class ChatMessageOps {
     return (merged: [...kept, ...fresh], fresh: fresh);
   }
 
-  /// Replace every message's reactions with the server's authoritative counts
-  /// (`{messageId: [{emoji, count, mine}]}`). Message content and order are
-  /// untouched; a message missing from the map simply has none.
-  static List<ChatMessage> withReactions(
-    List<ChatMessage> messages,
-    Map<String, dynamic> data,
-  ) {
-    final raw = (data['reactions'] as Map).cast<String, dynamic>();
-    return messages.map((m) {
-      final list = raw[m.id];
-      final reactions = list == null
-          ? const <MessageReaction>[]
-          : (list as List)
-                .cast<Map<String, dynamic>>()
-                .map(MessageReaction.fromJson)
-                .toList();
-      return m.copyWith(reactions: reactions);
-    }).toList();
-  }
-
-  /// Flip the local user's reaction locally so the tap feels instant. The
-  /// server's counts overwrite this as soon as they come back.
-  static List<ChatMessage> withOptimisticReaction(
-    List<ChatMessage> messages, {
-    required String messageId,
-    required String emoji,
-  }) {
-    return messages.map((m) {
-      if (m.id != messageId) return m;
-      return m.copyWith(reactions: _toggled(m.reactions, emoji));
-    }).toList();
-  }
-
-  static List<MessageReaction> _toggled(
-    List<MessageReaction> reactions,
-    String emoji,
-  ) {
-    final list = [...reactions];
-    final idx = list.indexWhere((r) => r.emoji == emoji);
-    if (idx == -1) {
-      list.add(MessageReaction(emoji: emoji, count: 1, mine: true));
-      return list;
-    }
-    final existing = list[idx];
-    if (!existing.mine) {
-      list[idx] = MessageReaction(
-        emoji: emoji,
-        count: existing.count + 1,
-        mine: true,
-      );
-      return list;
-    }
-    final count = existing.count - 1;
-    if (count <= 0) {
-      list.removeAt(idx);
-    } else {
-      list[idx] = MessageReaction(emoji: emoji, count: count, mine: false);
-    }
-    return list;
-  }
 }

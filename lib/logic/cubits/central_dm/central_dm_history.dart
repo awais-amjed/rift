@@ -12,8 +12,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
   Future<ServerIdentity> _signingIdentity();
 
-  /// Implemented by the reactions and send mixins.
-  Future<void> refreshReactions();
+  /// Implemented by the send mixin.
   Future<void> refreshQuota();
 
   /// Implemented by the unread mixin.
@@ -88,7 +87,6 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
         hasMoreHistory: data['has_more'] as bool? ?? false,
       ),
     );
-    unawaited(refreshReactions());
   }
 
   Future<void> _fetchAfterLatest() async {
@@ -116,7 +114,6 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
     if (result.fresh.isEmpty) return;
 
     emit(state.copyWith(messages: result.merged));
-    unawaited(refreshReactions());
   }
 
   Future<void> loadMoreHistory() async {
@@ -149,7 +146,6 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
         isLoadingMore: false,
       ),
     );
-    unawaited(refreshReactions());
   }
 
   Future<List<ChatMessage>> _decryptRows(
@@ -212,6 +208,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState> {
         sentAt: DateTime.parse(row['created_at'] as String),
         isMine: isMine,
         editedAt: DateTime.tryParse('${row['edited_at']}'),
+        reactions: ReactionOps.fromRow(row),
       );
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] dropped ${row['id']}: $e');

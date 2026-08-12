@@ -18,6 +18,7 @@ import '../../../data/enums/home_surface.dart';
 import '../../helper_methods.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/reaction_ops.dart';
 import '../../services/dm_unread_scan.dart';
 import '../../services/notification_service.dart';
 import '../../services/window_focus_service.dart';
