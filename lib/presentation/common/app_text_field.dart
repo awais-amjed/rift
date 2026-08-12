@@ -21,6 +21,15 @@ class AppTextField extends StatelessWidget {
   final VoidCallback? onEditingComplete;
   final bool autofocus;
 
+  /// More than one turns the field into a box that grows to this many lines
+  /// and then scrolls — for prose (a server description), not for a value.
+  final int maxLines;
+
+  /// Caps the text and shows the remaining count. Set it where a database
+  /// column has a limit, so the field refuses the 301st character rather than
+  /// the save doing it.
+  final int? maxLength;
+
   const AppTextField({
     super.key,
     required this.controller,
@@ -33,6 +42,8 @@ class AppTextField extends StatelessWidget {
     this.onChanged,
     this.onEditingComplete,
     this.autofocus = false,
+    this.maxLines = 1,
+    this.maxLength,
   });
 
   @override
@@ -67,6 +78,8 @@ class AppTextField extends StatelessWidget {
           onChanged: onChanged,
           onEditingComplete: onEditingComplete,
           autofocus: autofocus,
+          maxLines: obscureText ? 1 : maxLines,
+          maxLength: maxLength,
           style: AppText.body.copyWith(
             fontSize: 13.5,
             color: themeState.textPrimary,
@@ -98,6 +111,15 @@ class AppTextField extends StatelessWidget {
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 10,
+            ),
+            // Material's counter is a second line of text under the field, in
+            // the wrong colour and at the wrong weight. Keep the count — it is
+            // the point of setting a limit — and dress it like every other
+            // helper line in the app.
+            counterStyle: AppText.label.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: themeState.textTertiary,
             ),
           ),
         ),

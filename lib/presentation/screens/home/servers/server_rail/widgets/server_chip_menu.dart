@@ -4,7 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
+import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
@@ -15,6 +18,7 @@ import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../invites/invite_modal.dart';
 import '../../../members/members_modal.dart';
+import '../../public_listing/public_listing_dialog.dart';
 import '../../server_settings/server_settings_dialog.dart';
 
 /// Right-click menu on a rail chip.
@@ -88,6 +92,25 @@ class ServerChipMenu extends StatelessWidget {
               (ctx) => BlocProvider.value(
                 value: ctx.read<ServerCubit>(),
                 child: const MembersModal(),
+              ),
+            ),
+          ),
+        // Publishing is an act of the *server*, so it belongs beside its
+        // settings rather than in the account section it writes to.
+        if (permissions?.isServerAdmin ?? false)
+          ContextMenuItem(
+            icon: Icons.public_outlined,
+            label: 'Public listing',
+            onTap: () => _open(
+              context,
+              (ctx) => MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(value: ctx.read<ServerCubit>()),
+                  BlocProvider.value(value: ctx.read<PublicServersCubit>()),
+                  BlocProvider.value(value: ctx.read<ServerMembersCubit>()),
+                  BlocProvider.value(value: ctx.read<SupabaseBackupCubit>()),
+                ],
+                child: const PublicListingDialog(),
               ),
             ),
           ),
