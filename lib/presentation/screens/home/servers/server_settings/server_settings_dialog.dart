@@ -8,6 +8,7 @@ import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../common/modal_columns.dart';
 import 'server_limits_controllers.dart';
 import 'widgets/server_connection_section.dart';
 import 'widgets/server_limits_section.dart';
@@ -111,30 +112,36 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
         return AppModal(
           title: 'Server Settings',
           subtitle: 'Connection and limits for this server',
-          maxWidth: 460,
+          // Wide enough for the two halves to stand beside each other. Stacked
+          // they ran past the bottom of the window and scrolled, which is a
+          // poor trade on a desktop screen with the width to spare —
+          // [ModalColumns] falls back to stacking if the window is narrow.
+          maxWidth: 760,
+          actionsFillWidth: false,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_error != null) ...[
                 MessageBanner(message: _error!, kind: MessageBannerKind.error),
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
               ],
-              ServerConnectionSection(
-                nameCtrl: _nameCtrl,
-                livekitUrlCtrl: _livekitUrlCtrl,
-                apiKeyCtrl: _apiKeyCtrl,
-                secretCtrl: _secretCtrl,
-                themeState: themeState,
-                enabled: !_isLoading,
-              ),
-              const SizedBox(height: 24),
-              Divider(color: themeState.borderPrimary, height: 1),
-              const SizedBox(height: 20),
-              ServerLimitsSection(
-                controllers: _limits,
-                themeState: themeState,
-                enabled: !_isLoading,
+              ModalColumns(
+                children: [
+                  ServerConnectionSection(
+                    nameCtrl: _nameCtrl,
+                    livekitUrlCtrl: _livekitUrlCtrl,
+                    apiKeyCtrl: _apiKeyCtrl,
+                    secretCtrl: _secretCtrl,
+                    themeState: themeState,
+                    enabled: !_isLoading,
+                  ),
+                  ServerLimitsSection(
+                    controllers: _limits,
+                    themeState: themeState,
+                    enabled: !_isLoading,
+                  ),
+                ],
               ),
             ],
           ),

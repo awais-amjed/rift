@@ -59,7 +59,7 @@ class ServerLimitsSection extends StatelessWidget {
           hint: 'Keep forever',
           helper:
               'Deleted for good, nightly, along with their attachments. A '
-              'channel can override this.',
+              'channel or the DMs can override this.',
           enabled: enabled,
         ),
         const SizedBox(height: 16),
@@ -70,8 +70,19 @@ class ServerLimitsSection extends StatelessWidget {
           hint: 'Keep everything',
           helper:
               'Per channel and per conversation, oldest dropped first. Also '
-              'permanent, and also overridable per channel.',
+              'permanent, and also overridable.',
           enabled: enabled,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Both sweeps reach the direct messages on this server as well. To '
+          'give those their own numbers, right-click Server DMs in the '
+          'sidebar.',
+          style: AppText.label.copyWith(
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+            color: themeState.textTertiary,
+          ),
         ),
       ],
     );

@@ -52,6 +52,13 @@ class AppModal extends StatelessWidget {
   /// screen with several hundred pixels to spare.
   final double? maxHeight;
 
+  /// Whether the action buttons divide the footer between them.
+  ///
+  /// Right for a narrow dialog, where two half-width buttons read as a pair.
+  /// A wide one should set this false: stretching Cancel to 350px doesn't make
+  /// it any easier to hit, it just makes it look like the main event.
+  final bool actionsFillWidth;
+
   /// How much of the window a modal may fill before it starts scrolling.
   static const _maxHeightFraction = 0.85;
 
@@ -64,6 +71,7 @@ class AppModal extends StatelessWidget {
     this.actions,
     this.maxWidth = 448,
     this.maxHeight,
+    this.actionsFillWidth = true,
   });
 
   @override
@@ -113,16 +121,17 @@ class AppModal extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
                     child: Row(
-                      children: actions!
-                          .map((a) => Expanded(child: a))
-                          .toList()
-                          .fold<List<Widget>>([], (acc, widget) {
-                            if (acc.isNotEmpty) {
-                              acc.add(const SizedBox(width: 10));
-                            }
-                            acc.add(widget);
-                            return acc;
-                          }),
+                      mainAxisAlignment: actionsFillWidth
+                          ? MainAxisAlignment.start
+                          : MainAxisAlignment.end,
+                      spacing: 10,
+                      children: [
+                        for (final action in actions!)
+                          if (actionsFillWidth)
+                            Expanded(child: action)
+                          else
+                            action,
+                      ],
                     ),
                   ),
                 ],
