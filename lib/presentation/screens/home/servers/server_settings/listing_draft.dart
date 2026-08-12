@@ -1,16 +1,18 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../../../data/classes/public_server.dart';
-import '../../../../../data/classes/server.dart';
 
-/// The public listing being edited, as one object.
+/// The discovery third of the server settings dialog, as one object.
 ///
-/// Same reasoning as `ServerLimitsControllers`: these fields share all of
-/// their behaviour — every one of them is seeded from the same place, read
-/// back together, and means nothing on its own — and keeping them here is what
-/// keeps the dialog inside its size budget.
+/// Same reasoning as [ServerLimitsControllers] beside it: these fields share
+/// all of their behaviour — seeded from the same place, read back together,
+/// meaningless on their own — and keeping them here is what lets the dialog
+/// hold three sections and stay inside its size budget.
+///
+/// There is no name field. The listing is named by the server, one field up in
+/// the same dialog: a server with two names is a server whose rename silently
+/// doesn't reach the people looking for it.
 class ListingDraft {
-  final nameCtrl = TextEditingController();
   final descriptionCtrl = TextEditingController();
 
   /// The tag being typed. Held here rather than inside `TagEditor` so that
@@ -21,29 +23,27 @@ class ListingDraft {
   /// The tags already turned into chips. Read [tags] to save.
   List<String> committedTags = const [];
 
-  bool isListed = true;
+  bool isListed = false;
 
   /// A new invite code was asked for and hasn't been saved yet. Minting waits
-  /// for the save because resetting locks out everyone holding the old link —
-  /// backing out of the dialog must leave it working.
+  /// for Save because resetting locks out everyone holding the old link —
+  /// cancelling the dialog must leave it working.
   bool resetLink = false;
 
   /// What central already holds for this server, or null when it has never
   /// been published. Also the source of the invite code a save reuses.
   PublicServer? listing;
 
-  /// Fill the form from the existing listing, falling back to the server
-  /// itself — an unpublished server starts from its own name, which is almost
-  /// always the right answer and never a surprising one.
-  void seed({required Server server, PublicServer? listing}) {
+  /// Fill from the existing listing. A server that has never been published
+  /// starts unlisted with everything blank — publishing is always something
+  /// somebody chose, never a default that ran.
+  void seed(PublicServer? listing) {
     this.listing = listing;
-    nameCtrl.text = listing?.name ?? server.name;
     descriptionCtrl.text = listing?.description ?? '';
     committedTags = listing?.tags ?? const [];
-    isListed = listing?.isListed ?? true;
+    isListed = listing?.isListed ?? false;
+    resetLink = false;
   }
-
-  String get name => nameCtrl.text.trim();
 
   /// What to publish: the chips, plus anything still in the tag box.
   List<String> get tags => ServerTags.withPending(committedTags, tagCtrl.text);
@@ -53,8 +53,12 @@ class ListingDraft {
   String? get description =>
       descriptionCtrl.text.trim().isEmpty ? null : descriptionCtrl.text.trim();
 
+  /// Whether Save has anything to send to central at all. A server that was
+  /// never listed and still isn't shouldn't cost a round trip, or an error
+  /// from a service the admin never asked to use.
+  bool get touchesDirectory => listing != null || isListed;
+
   void dispose() {
-    nameCtrl.dispose();
     descriptionCtrl.dispose();
     tagCtrl.dispose();
   }

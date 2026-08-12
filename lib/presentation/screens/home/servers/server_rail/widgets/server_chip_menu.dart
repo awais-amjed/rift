@@ -18,7 +18,6 @@ import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../invites/invite_modal.dart';
 import '../../../members/members_modal.dart';
-import '../../public_listing/public_listing_dialog.dart';
 import '../../server_settings/server_settings_dialog.dart';
 
 /// Right-click menu on a rail chip.
@@ -95,33 +94,21 @@ class ServerChipMenu extends StatelessWidget {
               ),
             ),
           ),
-        // Publishing is an act of the *server*, so it belongs beside its
-        // settings rather than in the account section it writes to.
-        if (permissions?.isServerAdmin ?? false)
-          ContextMenuItem(
-            icon: Icons.public_outlined,
-            label: 'Public listing',
-            onTap: () => _open(
-              context,
-              (ctx) => MultiBlocProvider(
-                providers: [
-                  BlocProvider.value(value: ctx.read<ServerCubit>()),
-                  BlocProvider.value(value: ctx.read<PublicServersCubit>()),
-                  BlocProvider.value(value: ctx.read<ServerMembersCubit>()),
-                  BlocProvider.value(value: ctx.read<SupabaseBackupCubit>()),
-                ],
-                child: const PublicListingDialog(),
-              ),
-            ),
-          ),
         if (permissions?.isServerAdmin ?? false)
           ContextMenuItem(
             icon: Icons.settings_outlined,
             label: 'Server settings',
             onTap: () => _open(
               context,
-              (ctx) => BlocProvider.value(
-                value: ctx.read<ServerCubit>(),
+              (ctx) => MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(value: ctx.read<ServerCubit>()),
+                  // Settings' third column is the server's public listing,
+                  // which lives on central rather than on the server.
+                  BlocProvider.value(value: ctx.read<PublicServersCubit>()),
+                  BlocProvider.value(value: ctx.read<ServerMembersCubit>()),
+                  BlocProvider.value(value: ctx.read<SupabaseBackupCubit>()),
+                ],
                 child: const ServerSettingsDialog(),
               ),
             ),

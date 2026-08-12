@@ -63,8 +63,8 @@ class BrowseResults extends StatelessWidget {
           icon: searching ? Icons.search_off_outlined : Icons.public_outlined,
           text: searching
               ? 'Nothing matches that. Try fewer words, or clear the tag.'
-              : 'No servers have been listed yet. Create one and publish it '
-                    'from its Public listing, and it will show up here.',
+              : 'No servers have been listed yet. Create one and list it '
+                    'under Discovery in its settings, and it shows up here.',
         ),
       );
     }

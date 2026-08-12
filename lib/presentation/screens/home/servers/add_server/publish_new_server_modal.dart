@@ -167,7 +167,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
         Text(
           'A listed server can be found and joined by anyone with a Rift '
           'account, without an invite from you. Either answer can be changed '
-          'later — right-click the server and open Public listing.',
+          'later, under Discovery in the server settings.',
           style: AppText.secondary.copyWith(color: themeState.textSecondary),
         ),
         const SizedBox(height: 16),

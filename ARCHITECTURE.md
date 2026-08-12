@@ -160,6 +160,13 @@ rather than the caller. Delisting keeps the row; removing it doesn't. Publishing
 claimed handle, because the listing is owned by an account and that ownership is what lets
 you edit or withdraw it from another device.
 
+The question is asked on the step after a server is created, and lives afterwards as the
+**Discovery** column of Server Settings. That column is the one place in the app where a
+single Save writes to two databases under two accounts — the server's own update first, the
+listing second, and the dialog reports which half landed rather than pretending it is one
+write. It sat in a dialog of its own first, precisely to avoid that; being in the place
+people look for it turned out to matter more than the seam being tidy.
+
 #### What central cannot check, and what limits it
 
 **Central cannot verify that the publisher administers the server.** It has no credentials for

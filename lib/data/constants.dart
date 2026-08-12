@@ -56,6 +56,11 @@ class K {
   /// which needs roughly this much before it stops stacking them.
   static const double dialogWidthWide = 760;
 
+  /// Three groups side by side. `ModalColumns` wants 300 a column plus the two
+  /// rules between them, so anything under about 1000 stacks instead — which
+  /// still happens, correctly, on a narrow window.
+  static const double dialogWidthWidest = 1040;
+
   // ── Panel workspace ───────────────────────────────────────
   /// Gap between the floating panels, and between them and the window edge.
   static const double panelGutter = 10;

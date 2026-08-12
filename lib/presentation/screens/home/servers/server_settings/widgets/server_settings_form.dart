@@ -1,0 +1,100 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../common/message_banner.dart';
+import '../../../../../common/modal_columns.dart';
+import '../listing_draft.dart';
+import '../server_limits_controllers.dart';
+import 'server_connection_section.dart';
+import 'server_discovery_section.dart';
+import 'server_limits_section.dart';
+
+/// The three groups of server settings, side by side: what the server connects
+/// to, what it will keep, and who can find it.
+///
+/// They are three columns rather than one long page because a settings form is
+/// a handful of independent groups, not a list — stacked they run past the
+/// bottom of the window while a desktop screen has the width sitting unused.
+/// [ModalColumns] still stacks them if the window is genuinely narrow.
+class ServerSettingsForm extends StatelessWidget {
+  final TextEditingController nameCtrl;
+  final TextEditingController livekitUrlCtrl;
+  final TextEditingController apiKeyCtrl;
+  final TextEditingController secretCtrl;
+  final ServerLimitsControllers limits;
+  final ListingDraft listing;
+
+  final String? error;
+  final bool enabled;
+
+  /// The dialog owns the draft, so every discovery edit has to tell it to
+  /// rebuild.
+  final VoidCallback onChanged;
+
+  final VoidCallback onRemoveListing;
+
+  const ServerSettingsForm({
+    super.key,
+    required this.nameCtrl,
+    required this.livekitUrlCtrl,
+    required this.apiKeyCtrl,
+    required this.secretCtrl,
+    required this.limits,
+    required this.listing,
+    required this.error,
+    required this.enabled,
+    required this.onChanged,
+    required this.onRemoveListing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final themeState = context.watch<ThemeCubit>().state;
+    final signedIn = context.select<SupabaseBackupCubit, bool>(
+      (c) => c.state.isSignedIn,
+    );
+    final memberCount = context.select<ServerMembersCubit, int>(
+      (c) => c.state.members?.length ?? 0,
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (error != null) ...[
+          MessageBanner(message: error!, kind: MessageBannerKind.error),
+          const SizedBox(height: 18),
+        ],
+        ModalColumns(
+          children: [
+            ServerConnectionSection(
+              nameCtrl: nameCtrl,
+              livekitUrlCtrl: livekitUrlCtrl,
+              apiKeyCtrl: apiKeyCtrl,
+              secretCtrl: secretCtrl,
+              themeState: themeState,
+              enabled: enabled,
+            ),
+            ServerLimitsSection(
+              controllers: limits,
+              themeState: themeState,
+              enabled: enabled,
+            ),
+            ServerDiscoverySection(
+              draft: listing,
+              signedIn: signedIn,
+              memberCount: memberCount,
+              onChanged: onChanged,
+              onRemove: onRemoveListing,
+              themeState: themeState,
+              enabled: enabled,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
