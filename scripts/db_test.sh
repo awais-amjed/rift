@@ -6,8 +6,9 @@
 # the hosted project, which has real accounts on it. The scratch database gets a
 # tiny `auth` shim (a users table and `auth.uid()` reading the JWT claim, which
 # is what Supabase's own definition does) so the central migrations apply
-# unchanged; 004 and 005 are skipped there because scheduling and storage aren't
-# what these tests are about.
+# unchanged. Only the files that define reachable surface are applied — 004
+# (scheduling), 005 (storage) and 006 (a drop) aren't what these tests are
+# about, so the list is explicit rather than a glob.
 #
 # Both suites end in ROLLBACK, so neither writes anything. A failure raises,
 # which aborts the transaction and exits non-zero.
@@ -56,7 +57,7 @@ DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object T
 GRANT USAGE ON SCHEMA public, auth TO anon, authenticated;
 SQL
 
-for f in 001_schema 002_security 003_api; do
+for f in 001_schema 002_security 003_api 007_public_servers; do
   psql_migrate -f - < "$ROOT/central_server_migrations/$f.sql" >/dev/null
 done
 

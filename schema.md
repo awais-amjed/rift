@@ -308,6 +308,48 @@ verify a first message.
 | chat_public_key    | text        | Required                             | X25519, for the pairwise DM key    |
 | signing_public_key | text        | Required                             | Ed25519, for signature verification |
 
+### public_servers (central)
+
+The server directory — how a self-hosted server becomes findable by someone who
+was never handed an invite. Publishing is opt-in per server and reversible, and the row
+is **plaintext on purpose**: everything else central stores is encrypted because it belongs
+to the user, whereas a listing is an advertisement whose whole point is to be read by
+strangers. It holds no service key, no LiveKit credentials and nothing about the members.
+
+| Column       | Type        | Constraints                                | Description                                                                 |
+|--------------|-------------|--------------------------------------------|-----------------------------------------------------------------------------|
+| id           | uuid        | Primary Key, Auto-generated                | Listing id (central's own — unrelated to the server's)                       |
+| created_at   | timestamptz | Auto-created                               | First published                                                              |
+| updated_at   | timestamptz | Auto-created, bumped by `publish_server`   | Last saved; what "Updated 3 days ago" in the browser reads                   |
+| owner_id     | uuid        | Required, FK → users.id (cascade)          | The account that published it; deleting the account withdraws the listing    |
+| supabase_url | text        | Required, `^https?://`, ≤ 200              | Where the server lives. Not an FK to anything — central has never heard of that project |
+| server_id    | uuid        | Required                                   | Which server on that project (one project may host several)                  |
+| invite_code  | text        | Required, 4–64                             | An ordinary unlimited-use, permissionless invite on the target server        |
+| name         | text        | Required, 1–64 (trimmed)                   | Display name                                                                 |
+| description  | text        | Optional, ≤ 300                            | Free text shown in the browser                                               |
+| icon_url     | text        | Optional, ≤ 500                            | Server icon                                                                  |
+| tags         | text[]      | ≤ 5, each `^[a-z0-9-]{2,20}$`              | The whole of the browser's filtering. Free slugs rather than a fixed category list, which would need a migration per community we failed to imagine |
+| member_count | integer     | Default 0, ≥ 0                             | **Self-reported** — central cannot count members of a database it has no credentials for. Read it as what the operator claimed at `updated_at` |
+| is_listed    | boolean     | Default true                               | Delisting keeps the row, its code and its copy while taking it out of the browser |
+| —            | —           | Unique (supabase_url, server_id)           | One listing per server                                                       |
+
+**All writes go through `publish_server()`**; there is no INSERT or UPDATE grant, so the
+per-account cap (`max_public_servers()`, 10) and the ownership check can't be stepped around.
+SELECT is `is_listed OR owner_id = auth.uid()` — a delisted row stays visible to the person
+who has to manage it — and DELETE is own-row.
+
+`publish_server` is SECURITY DEFINER where `claim_handle` is INVOKER, because its ownership
+check has to read a row that may be *delisted and someone else's*, which the select policy
+hides; under INVOKER that case surfaced as a unique violation instead of an answer.
+`owner_id` comes from `auth.uid()` and never from the caller.
+
+**Central cannot verify that the publisher administers the server** — it has no credentials
+for that project and never will. The first account to publish a `(supabase_url, server_id)`
+owns the listing. What limits the damage is that a listing is only worth anything with a
+working invite code, which only someone holding `can_create_tokens` there can produce, and
+that the real admin can revoke that code on their own server without central being involved.
+See ARCHITECTURE.md §3.
+
 ### dm_messages / read_state (central)
 
 Same columns as their self-hosted counterparts. Differences that matter:
