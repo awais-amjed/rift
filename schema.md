@@ -25,10 +25,8 @@ written down as migrations — it is the account, and it will hold more than a d
 | icon_url           | text        | Optional                    | URL to server icon                       |
 | livekit_url        | text        | Required                    | LiveKit server URL                       |
 | max_attachment_bytes | bigint    | Default: 26214400 (25 MB), 1 … 500 MB | Per-file attachment cap. Mirrored onto `chat-attachments`' `file_size_limit` by `update_server`; that mirror is the enforcement, this column is what the client reads to refuse a file before uploading |
-| default_channel_daily_quota | integer | Default: 0, ≥ 0        | Messages/member/rolling 24h in a channel that sets no quota of its own. **0 = no limit** |
-| dm_daily_quota     | integer     | Default: 0, ≥ 0             | Messages/member/rolling 24h across all server DMs. **0 = no limit** |
-| message_retention_days | integer | Default: 0, ≥ 0            | Delete messages older than this. **0 = keep forever** |
-| message_history_cap | integer    | Default: 0, ≥ 0             | Keep at most this many per channel and per DM pair, newest first. **0 = no cap** |
+| message_retention_days | integer | Default: 0, ≥ 0            | Server default: delete messages older than this. **0 = keep forever.** A channel may override it |
+| message_history_cap | integer    | Default: 0, ≥ 0             | Server default: keep at most this many per channel and per DM pair, newest first. **0 = no cap.** A channel may override it |
 
 Members can read this row directly. The LiveKit credentials that used to sit in it live in
 **server_secrets** instead — one row per server, no grant and no policy, reachable only by the
@@ -38,8 +36,12 @@ rest of the row safe to expose.
 The limit columns (migration 007) are on this row rather than a settings table for the same
 reason: there is one per server, members already select it, and the client needs to *read* the
 attachment cap. There is no client-reachable UPDATE grant on `servers`, so admins change them
-through `update_server` like the name and the LiveKit URL. **Every count-based limit defaults
-to 0 = off**, so a server upgraded and never touched behaves as it did before.
+through `update_server` like the name and the LiveKit URL. **Both sweeps default to 0 = off**,
+so a server upgraded and never touched behaves as it did before.
+
+There is deliberately **no daily message quota** here. A quota is a rate limit, not a storage
+bound — see ARCHITECTURE.md §4. An earlier draft of 007 added per-channel and per-DM quotas;
+the current file drops those columns, so a database that ran the draft converges on re-run.
 
 ### server_secrets
 
@@ -77,12 +79,16 @@ to 0 = off**, so a server upgraded and never touched behaves as it did before.
 | server_id    | uuid         | Required, Foreign Key → servers.id | Reference to associated server  |
 | name         | text         | Required                           | Channel name                    |
 | channel_type | channel_type | Required                           | Type of channel (voice or text) |
-| daily_quota  | integer      | Optional, ≥ 0                      | Per-member messages/rolling 24h here. **NULL inherits** `servers.default_channel_daily_quota`; **0 explicitly means no limit** — the two are different answers |
+| retention_days | integer    | Optional, ≥ 0                      | Delete this channel's messages older than this. **NULL inherits** `servers.message_retention_days`; **0 explicitly means keep forever** — the two are different answers |
+| history_cap  | integer      | Optional, ≥ 0                      | Keep at most this many messages here. **NULL inherits** `servers.message_history_cap`; **0 explicitly means no cap** |
 
-`daily_quota` is the only nullable limit in the schema, and deliberately: nullable is what
-"inherit" needs, which is a third state beyond "some number" and "none". Channel managers may
-write it — `GRANT UPDATE (daily_quota)` in 007, under the existing
+These are the only nullable limits in the schema, and deliberately: nullable is what "inherit"
+needs, which is a third state beyond "some number" and "none". Channel managers may write them
+— `GRANT UPDATE (retention_days, history_cap)` in 007, under the existing
 `channels_update_managers` policy.
+
+A **voice** channel carries both columns and ignores them; it has no messages. The settings
+dialog hides them for one rather than offering a switch wired to nothing.
 
 ### invites
 
@@ -235,34 +241,40 @@ cannot decrypt anyway.
 Most of what a client does is a policy-checked table call; these are the exceptions worth
 naming. The full set lives in `003_api.sql` and `007_limits.sql`.
 
-### chat_quota(p_channel_id uuid default null)
-
-What the composer footer reads. A channel id asks about that channel; NULL asks about the
-caller's server DMs — one function so the client asks both surfaces the same question, the
-way central's `dm_quota()` answers for its one surface.
-
-Returns `{quota, remaining}`. **`remaining` is NULL when unlimited, not 0** — a quota of 0
-meaning "no limit" and a remaining of 0 meaning "you are out" are one keystroke apart in a
-UI, and returning the same number for both is how that gets confused. Asking about a channel
-on another server raises `not_a_member`, so the setting doesn't leak.
-
-### enforce_message_quota() — trigger on messages, dm_messages
-
-BEFORE INSERT, one function for both tables. Raises `quota_exceeded` (P0001) when the sender
-is out for that channel, or for DMs server-wide. Skips service-role writes (no `auth.uid()`),
-and returns immediately when no quota is configured — the default. **Must sort after
-`attest_message()`**, which stamps `sender_id`; Postgres runs same-timing triggers in name
-order, so `attest_*` before `enforce_*` is load-bearing.
-
-INSERT only: an edit is not a new message and must not cost quota, the same rule central
-states by having its edit path bypass `send_dm()`.
-
 ### app.enforce_retention() — pg_cron `rift-message-retention`, nightly
 
-Applies `message_retention_days` and `message_history_cap` per server. In the `app` schema,
-not `public`, because it returns VOID and PostgREST would otherwise expose a history-wiping
-RPC to any member. Deletes are permanent; **attachment blobs of deleted messages are not
-swept** (see ARCHITECTURE.md §4).
+Applies `message_retention_days` and `message_history_cap`, taking each channel's override
+where it set one (`COALESCE(c.retention_days, s.message_retention_days)`). DMs have no
+override, so the server's numbers apply, and the cap counts a conversation rather than a
+sender.
+
+In the `app` schema, not `public`, because it returns VOID and PostgREST would otherwise
+expose a history-wiping RPC to any member. Deletes are permanent.
+
+### app.orphaned_attachments(p_grace interval default '1 hour')
+
+Attachment blobs with no message left, found **without any message→blob linkage** — there is
+none to have, since storage paths live inside the encrypted body. It uses the one thing the
+server knows: an object's name begins with the scope it was uploaded for
+(`<channelId>/…` or `dm_<lower uuid>_<higher uuid>/…`, the client's conversation context with
+colons swapped for underscores). Anything older than the oldest surviving message of its scope
+belonged to a message that is gone; a scope with no messages at all is entirely orphaned.
+
+`p_grace` does two jobs. It ignores objects newer than the grace period, so an upload whose
+message row is still in flight survives. And it is subtracted from the watermark, because **an
+attachment is uploaded before the message carrying its key** — without that, the blobs of the
+oldest surviving message would be swept on every run, silently.
+
+### sweep_attachments(p_limit integer default 1000)
+
+The one door into both of the above, and the only function of this feature in `public` —
+because PostgREST cannot see the `app` schema, and the `sweep_attachments` edge function
+reaches the database through PostgREST. Granted to `service_role` **only**; the grant is all
+that stands between a member and a history sweep, so `tests/policies_test.sql` asserts it.
+
+Returns `{orphans: [names]}`, capped. The edge function deletes them through the Storage API,
+which is the only thing that frees bytes: `storage.protect_delete()` refuses a direct DELETE on
+`storage.objects`.
 
 ## Tables (central)
 
@@ -326,7 +338,10 @@ Same columns as their self-hosted counterparts. Differences that matter:
 
 ### chat-attachments
 
-- **Access**: Private; RLS allows any authenticated member to insert/select.
+- **Access**: Private; RLS allows any authenticated member to insert/select, and to **delete
+  what they uploaded** (`owner = auth.uid()`) or, for a channel manager, anyone's — matching
+  who may delete the message a blob belongs to. That policy is what lets a client clean up
+  after itself; `sweep_attachments` gets the rest.
 - **Size cap**: `servers.max_attachment_bytes`, mirrored here by `update_server` (25 MB
   until an admin changes it). One Supabase project can host several servers sharing this
   bucket, so the mirror writes the **MAX** across them — on a multi-server project a

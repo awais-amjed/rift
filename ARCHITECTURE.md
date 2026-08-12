@@ -161,8 +161,8 @@ conversations to a self-hosted server they share (or any messenger they like).
 | Storage       | central Supabase                       | a self-hosted server both users are members of |
 | Identity keys | X25519 derived for the central host    | X25519 derived for that server's host          |
 | Delivery      | GoTrue RLS + native Realtime           | Edge Functions + Realtime Broadcast            |
-| Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) — fixed, Rift's call | the same shapes, but **off by default** and set by the admin |
-| Media         | allowed; counts against quota, per-file size cap | allowed; per-file size cap the admin sets |
+| Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) — fixed, Rift's call | no message quota; a TTL and a history cap the admin sets, **off by default** |
+| Media         | allowed; counts against quota, per-file size cap | allowed; per-file size cap the admin sets, and blobs swept with their messages |
 | Unread badges | `read_state` cursors + `unread_counts()` | the same, for channels and DMs alike |
 
 - Central limits are enforced **server-side** (the send path checks a daily counter; a
@@ -179,48 +179,72 @@ conversations to a self-hosted server they share (or any messenger they like).
 
 Self-hosted used to impose nothing, on the reasoning that a server is somebody's own disk and
 therefore their own call. That was right about *whose* call it is and wrong about there being
-nothing to decide: an operator running a server for friends still may not want one member
-filling the disk with 200 MB videos, and had no way to say so.
+nothing to decide: an operator running a server for friends still may not want two of them
+filling the disk, and had no way to say so.
 
-So the same limit shapes central uses exist here — but as columns on `servers` that an admin
-sets from Server Settings, and **every count-based one defaults to 0, meaning off**. A server
-that is upgraded and never touched behaves exactly as it did before. Migration 007 is the
-whole feature.
+So limits exist here too — as columns an admin sets from Server Settings, with **every sweep
+defaulting to off**. A server that is upgraded and never touched behaves exactly as before.
+Migration 007 is the whole feature.
 
-| Limit | Column | Off by default |
-|---|---|---|
-| Per-file attachment size | `servers.max_attachment_bytes` | no — 25 MB, the ceiling the bucket already had |
-| Messages/member/day in a channel | `servers.default_channel_daily_quota`, overridable per channel by `channels.daily_quota` | yes |
-| Messages/member/day across server DMs | `servers.dm_daily_quota` | yes |
-| Delete messages older than N days | `servers.message_retention_days` | yes |
-| Keep at most N per channel / DM pair | `servers.message_history_cap` | yes |
+**There is deliberately no daily message quota.** A quota is a rate limit, not a storage
+bound: N messages a day, forever, is still unbounded — it only takes longer to get there. The
+thing an operator is actually worried about is the disk, and the instruments for that are a
+ceiling on kept history and a ceiling on file size. Central still rations messages per day,
+because central is a funnel and rationing *is* its product; a self-hosted server is a home.
 
-Three things about how these are enforced are worth stating, because each was a choice:
+| Limit | Column | Per-channel override | Off by default |
+|---|---|---|---|
+| Per-file attachment size | `servers.max_attachment_bytes` | — | no; 25 MB, the ceiling the bucket already had |
+| Delete messages older than N days | `servers.message_retention_days` | `channels.retention_days` | yes |
+| Keep at most N messages | `servers.message_history_cap` | `channels.history_cap` | yes |
 
-- **The quota is a BEFORE INSERT trigger, not a send RPC.** Central wraps its send in
-  `send_dm()` because a daily counter is not a row predicate — the check is over *other* rows
-  and must happen in the same statement as the insert, or two clients race past it. All of
-  that is equally true here, but self-hosted messages are a direct PostgREST insert under
-  `messages_insert`; an RPC would mean a second write path per surface. A trigger buys the
-  same atomicity and stays invisible to the client until it fires. It has to sort *after*
-  `attest_message()`, which is what stamps `sender_id` — hence the `attest_*` / `enforce_*`
-  names.
-- **The attachment cap is enforced by the bucket, not the column.** The column is what the
-  client reads to refuse an oversized file with a sentence instead of a 413; `update_server`
-  mirrors it onto `chat-attachments`' `file_size_limit`. Because one Supabase project can host
-  several servers sharing that bucket, the mirror uses the **MAX** across them — so on a
-  multi-server project a stricter server's cap is client-enforced only.
-- **`channels.daily_quota` is three-valued.** NULL inherits the server default, a number sets
-  this channel's own, and 0 explicitly opts the channel *out* of a server-wide quota. NULL and
-  0 are different answers and the UI keeps them apart.
+The overrides are three-valued: NULL inherits the server's number, a value sets the channel's
+own, and 0 explicitly opts the channel *out* of a server-wide sweep. NULL and 0 are different
+answers and the UI keeps them apart. Voice channels carry the columns and ignore them — they
+hold no messages, so their settings dialog shows the name alone rather than a switch wired to
+nothing. DMs have no per-conversation override; the server's cap applies, and it counts both
+people together, since a conversation is one bucket seen from either side.
 
-Retention deletes for good, nightly, via `app.enforce_retention()` on pg_cron — in the `app`
-schema precisely so PostgREST can't expose a history-wiping RPC to members. Known gap, stated
-rather than hidden: deleting a message does **not** delete the attachment blobs it referenced,
-so a server with retention on accumulates unreferenced objects in `chat-attachments`. They are
-undecryptable once the message carrying their per-file key is gone — wasted bytes, not exposed
-content — but they are still bytes. Central's retention job has had the same gap since it
-shipped; sweeping them needs a blob→message index no schema here keeps yet.
+#### Deleting a message has to delete its files
+
+This is the part that makes the limits mean anything, and it is more awkward than it looks.
+
+A message row is tiny — `ciphertext` is capped at 16 KB, so even a thousand messages is a few
+megabytes. **The storage is the attachments.** Sweeping rows without their blobs would be a
+limit that looks like it works and doesn't.
+
+Two constraints shape the answer:
+
+- **The server can't find a message's blobs.** Storage paths live inside the E2E-encrypted
+  body — that is the whole design. Only a client that has decrypted the message knows which
+  blobs are its.
+- **The database can't delete them.** `storage.protect_delete()` refuses a direct DELETE on
+  `storage.objects` ("Use the Storage API instead"), so an `ON DELETE CASCADE` from a
+  message→blob table would have deleted linkage rows and freed **zero bytes**. Such a table
+  would have bought a metadata leak and nothing else, which is why there isn't one.
+
+So the work splits in two:
+
+- **A client deleting a message deletes that message's blobs**, through the Storage API, using
+  the paths it just decrypted (`AttachmentCleanup`). A `chat_attachments_delete` policy lets a
+  member remove what they uploaded, and a channel manager remove anyone's — matching who may
+  delete the message itself. Best-effort: a blob must never be able to fail the delete around
+  it.
+- **`sweep_attachments` collects everything no client will.** Blobs of messages the retention
+  sweep removed, uploads whose message insert then failed, channels deleted outright. It finds
+  them with no linkage at all, using the one thing the server does know: an object's name
+  begins with the scope it was uploaded for, so anything older than the oldest surviving
+  message of its scope belonged to a message that is gone. It is an edge function because only
+  something holding the service key can call the Storage API. Clients run it on server-ready.
+
+One subtlety in that watermark, worth stating because getting it wrong is silent data loss: an
+attachment is uploaded *before* the message carrying its key, so the blobs of the oldest
+surviving message are themselves older than the watermark. Comparing against a bare watermark
+would delete the attachments of the very message it was protecting, on every sweep. A one-hour
+margin covers the gap, and doubles as protection for an upload still in flight.
+
+The central tier has no such sweep — its 30-day TTL trims messages but not storage, so a
+central attachment is only ever freed by the client that deletes its message.
 
 ### Group channels — "Design 2": wrapped channel key
 - Each channel has a random symmetric **channel key**; every message encrypted once with it.
