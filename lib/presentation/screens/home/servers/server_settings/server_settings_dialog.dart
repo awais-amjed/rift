@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
-import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
-import '../../../../theme/app_text.dart';
+import 'server_limits_controllers.dart';
+import 'widgets/server_connection_section.dart';
+import 'widgets/server_limits_section.dart';
 
-/// Admin-only settings for the currently selected server: display name and the
-/// LiveKit connection (URL + API key + secret). The API key/secret are
-/// write-only — never fetched to the client — so their fields start blank and
-/// are only sent when filled (blank = keep current). Fixes a misconfigured
-/// LiveKit setup without re-creating the server.
+/// Admin-only settings for the currently selected server: display name, the
+/// LiveKit connection, and the operator limits from migration 007.
+///
+/// The limits live here rather than anywhere else for the same reason the
+/// LiveKit credentials do — saving the attachment cap also has to move the
+/// storage bucket's ceiling, which only the service role can do, so it takes
+/// the same edge-function trip.
 class ServerSettingsDialog extends StatefulWidget {
   const ServerSettingsDialog({super.key});
 
@@ -27,6 +31,11 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
   late final TextEditingController _livekitUrlCtrl;
   final _apiKeyCtrl = TextEditingController();
   final _secretCtrl = TextEditingController();
+  final _limits = ServerLimitsControllers();
+
+  /// What the server reported when the dialog opened, so an unchanged form
+  /// doesn't send a write.
+  late final ServerLimits _initialLimits;
 
   bool _isLoading = false;
   String? _error;
@@ -37,6 +46,8 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
     final server = context.read<ServerCubit>().state.selectedServer;
     _nameCtrl = TextEditingController(text: server?.name ?? '');
     _livekitUrlCtrl = TextEditingController(text: server?.livekitUrl ?? '');
+    _initialLimits = server?.limits ?? ServerLimits.defaults;
+    _limits.seed(_initialLimits);
   }
 
   @override
@@ -45,17 +56,20 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
     _livekitUrlCtrl.dispose();
     _apiKeyCtrl.dispose();
     _secretCtrl.dispose();
+    _limits.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final name = _nameCtrl.text.trim();
-    final livekitUrl = _livekitUrlCtrl.text.trim();
-    final apiKey = _apiKeyCtrl.text.trim();
-    final secret = _secretCtrl.text.trim();
-
     if (name.isEmpty) {
       setState(() => _error = 'Server name cannot be empty');
+      return;
+    }
+
+    final parsed = _limits.read();
+    if (parsed.limits == null) {
+      setState(() => _error = parsed.error);
       return;
     }
 
@@ -64,11 +78,16 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
       _error = null;
     });
 
+    final livekitUrl = _livekitUrlCtrl.text.trim();
+    final apiKey = _apiKeyCtrl.text.trim();
+    final secret = _secretCtrl.text.trim();
+
     final result = await context.read<ServerCubit>().updateServerDetails(
       name: name,
       livekitUrl: livekitUrl.isEmpty ? null : livekitUrl,
       livekitApiKey: apiKey.isEmpty ? null : apiKey,
       livekitSecretKey: secret.isEmpty ? null : secret,
+      limits: parsed.limits == _initialLimits ? null : parsed.limits,
     );
 
     if (!mounted) return;
@@ -91,7 +110,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
       builder: (context, themeState) {
         return AppModal(
           title: 'Server Settings',
-          subtitle: 'Name and LiveKit connection for this server',
+          subtitle: 'Connection and limits for this server',
           maxWidth: 460,
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -101,44 +120,21 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                 MessageBanner(message: _error!, kind: MessageBannerKind.error),
                 const SizedBox(height: 12),
               ],
-              AppTextField(
-                controller: _nameCtrl,
-                label: 'Server Name',
-                hint: 'My Server',
+              ServerConnectionSection(
+                nameCtrl: _nameCtrl,
+                livekitUrlCtrl: _livekitUrlCtrl,
+                apiKeyCtrl: _apiKeyCtrl,
+                secretCtrl: _secretCtrl,
+                themeState: themeState,
                 enabled: !_isLoading,
               ),
-              const SizedBox(height: 16),
-              AppTextField(
-                controller: _livekitUrlCtrl,
-                label: 'LiveKit URL',
-                hint: 'wss://livekit.example.com',
+              const SizedBox(height: 24),
+              Divider(color: themeState.borderPrimary, height: 1),
+              const SizedBox(height: 20),
+              ServerLimitsSection(
+                controllers: _limits,
+                themeState: themeState,
                 enabled: !_isLoading,
-              ),
-              const SizedBox(height: 16),
-              AppTextField(
-                controller: _apiKeyCtrl,
-                label: 'LiveKit API Key',
-                hint: 'Leave blank to keep current',
-                enabled: !_isLoading,
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-              AppTextField(
-                controller: _secretCtrl,
-                label: 'LiveKit Secret Key',
-                hint: 'Leave blank to keep current',
-                enabled: !_isLoading,
-                obscureText: true,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'The API key and secret are stored only on the server and '
-                'never sent back — leave them blank to keep the current '
-                'values.',
-                style: AppText.label.copyWith(
-                  fontSize: 11,
-                  color: themeState.textTertiary,
-                ),
               ),
             ],
           ),

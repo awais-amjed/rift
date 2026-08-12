@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/composer/chat_composer.dart';
@@ -46,6 +47,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
                 ? 'Daily limit reached — continue on a shared server'
                 : 'Message @${state.openPeerHandle ?? ''}',
             enabled: !quotaEmpty,
+            maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
             footer: const QuotaMeter(),
             onSend: (text, attachments) => context
                 .read<CentralDmCubit>()

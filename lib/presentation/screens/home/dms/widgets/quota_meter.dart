@@ -1,86 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/constants.dart';
+import '../../../../../data/classes/chat_quota.dart';
+import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../theme/custom_colors.dart';
+import '../../../../common/chat/chat_quota_meter.dart';
 
-/// Composer footer for central DMs: how many messages are left today, and the
-/// nudge to move somewhere without a limit.
-///
-/// Hidden until the number starts to matter — a quota you're nowhere near is
-/// noise, and showing it constantly would make the central tier feel meaner
-/// than it is.
+/// The central DM composer footer: [ChatQuotaMeter] wired to the central
+/// cubit's daily budget, with the nudge that is specific to this tier — the
+/// point of central's limit is to move a conversation that has become a real
+/// one somewhere it isn't rationed.
 class QuotaMeter extends StatelessWidget {
-  /// Below this many remaining messages the meter becomes visible.
-  static const _showBelow = 25;
-
-  /// Below this it turns amber; at zero, red.
-  static const _warnBelow = 10;
-
   const QuotaMeter({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
     final state = context.watch<CentralDmCubit>().state;
-    final remaining = state.remaining;
-    final quota = state.quota;
-
-    if (remaining == null || quota == null || remaining >= _showBelow) {
-      return const SizedBox.shrink();
-    }
-
-    final exhausted = remaining <= 0;
-    final color = exhausted
-        ? CustomColors.error
-        : (remaining < _warnBelow
-              ? CustomColors.warning
-              : themeState.textTertiary);
-
-    // Bar and text on one line: the meter is a footnote under the composer,
-    // and stacking it made a limit you're nowhere near look like a warning.
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 7, 4, 0),
-      child: Row(
-        spacing: 8,
-        children: [
-          Expanded(child: _buildBar(themeState, color, remaining / quota)),
-          Text(
-            exhausted
-                ? 'Daily limit reached'
-                : '$remaining of $quota messages left today',
-            style: AppText.label.copyWith(color: color),
-          ),
-          Flexible(
-            child: Text(
-              exhausted
-                  ? '· continue on a server you share'
-                  : '· move longer chats to a shared server',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.label.copyWith(
-                fontWeight: FontWeight.w400,
-                color: themeState.textQuaternary,
-              ),
-            ),
-          ),
-        ],
+    return ChatQuotaMeter(
+      quota: ChatQuota(
+        quota: state.quota ?? ServerLimits.unlimited,
+        remaining: state.remaining,
       ),
-    );
-  }
-
-  Widget _buildBar(ThemeState themeState, Color color, double fraction) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(K.radiusPill),
-      child: LinearProgressIndicator(
-        value: fraction.clamp(0.0, 1.0),
-        minHeight: 3,
-        backgroundColor: themeState.borderPrimary,
-        valueColor: AlwaysStoppedAnimation(color),
-      ),
+      nudge: 'move longer chats to a shared server',
+      exhaustedNudge: 'continue on a server you share',
     );
   }
 }

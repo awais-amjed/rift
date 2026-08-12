@@ -11,9 +11,9 @@ import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/context_menu_region.dart';
-import '../../rename_channel_dialog.dart';
+import '../../channel_settings_dialog.dart';
 
-/// Right-click menu for a channel in the sidebar — rename and delete.
+/// Right-click menu for a channel in the sidebar — settings and delete.
 ///
 /// Channel managers only. Members get no menu at all rather than a menu of
 /// things that would be refused: `channels_update_managers` and
@@ -48,13 +48,13 @@ class ChannelContextMenu extends StatelessWidget {
     );
   }
 
-  void _rename(BuildContext context) {
+  void _openSettings(BuildContext context) {
     ContextMenuScope.of(context)?.call();
     showCustomDialog(
       context: context,
       builder: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
-        child: RenameChannelDialog(channel: channel),
+        child: ChannelSettingsDialog(channel: channel),
       ),
     );
   }
@@ -100,9 +100,9 @@ class ChannelContextMenu extends StatelessWidget {
       ),
       children: [
         ContextMenuItem(
-          icon: Icons.drive_file_rename_outline_rounded,
-          label: 'Rename',
-          onTap: () => _rename(context),
+          icon: Icons.tune_rounded,
+          label: 'Settings',
+          onTap: () => _openSettings(context),
         ),
         ContextMenuItem(
           icon: Icons.delete_outline_rounded,

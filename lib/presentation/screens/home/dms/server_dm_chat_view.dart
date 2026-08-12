@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
+import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/chat_quota_meter.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/typing_indicator.dart';
 import 'widgets/dm_chat_header.dart';
@@ -47,15 +50,33 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
             themeState: themeState,
           ),
           ChatComposer(
-            hintText: 'Message ${state.openPeerName ?? ''}',
+            hintText: state.quota.isExhausted
+                ? "You've hit today's direct-message limit"
+                : 'Message ${state.openPeerName ?? ''}',
+            enabled: !state.quota.isExhausted,
+            maxAttachmentBytes: _maxAttachmentBytes(),
             onSend: (text, attachments) =>
                 context.read<DmCubit>().sendDm(text, attachments: attachments),
             onTyping: () => context.read<DmCubit>().notifyTyping(),
+            // A server DM's budget is shared by every conversation on the
+            // server, and a channel is the surface without one — the same
+            // shape of nudge central makes towards a shared server.
+            footer: ChatQuotaMeter(
+              quota: state.quota,
+              nudge: 'channels have their own limits',
+              exhaustedNudge: 'carry on in a channel',
+            ),
           ),
         ],
       ],
     );
   }
+
+  /// The operator's per-file attachment cap for this server.
+  int _maxAttachmentBytes() =>
+      (context.read<ServerCubit>().state.selectedServer?.limits ??
+              ServerLimits.defaults)
+          .maxAttachmentBytes;
 
   Widget _buildBody(DmState state, ThemeState themeState) {
     switch (state.chatStatus) {

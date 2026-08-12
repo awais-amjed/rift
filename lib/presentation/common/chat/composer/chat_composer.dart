@@ -6,10 +6,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/attachment.dart';
 import '../../../../data/classes/pending_attachment.dart';
+import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
-import '../../../../logic/services/image_dimensions.dart';
-import '../../../../logic/services/mime_util.dart';
+import '../../../../logic/services/attachment_staging.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
 import '../../emoji_text.dart';
 import 'composer_icon_button.dart';
@@ -37,9 +37,13 @@ class ChatComposer extends StatefulWidget {
   final bool enabled;
   final Widget? footer;
 
-  /// Hard cap on how many files can ride on one message (bounds central-DM
-  /// quota gaming and keeps a row readable).
-  static const int maxAttachments = 10;
+  /// Per-file size cap for this surface, in bytes.
+  ///
+  /// Checked here so an oversized file is refused with a sentence at the
+  /// moment it is picked, rather than after it has been read, encrypted and
+  /// pushed at a bucket that answers 413. The bucket's own `file_size_limit`
+  /// is still the enforcement — this is the courtesy.
+  final int maxAttachmentBytes;
 
   const ChatComposer({
     super.key,
@@ -48,6 +52,7 @@ class ChatComposer extends StatefulWidget {
     this.hintText = 'Send a message',
     this.enabled = true,
     this.footer,
+    this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
   });
 
   @override
@@ -65,7 +70,8 @@ class _ChatComposerState extends State<ChatComposer> {
   Duration _elapsed = Duration.zero;
   Timer? _recordTimer;
 
-  bool get _atAttachmentLimit => _staged.length >= ChatComposer.maxAttachments;
+  bool get _atAttachmentLimit =>
+      _staged.length >= AttachmentStaging.maxPerMessage;
 
   @override
   void initState() {
@@ -111,31 +117,14 @@ class _ChatComposerState extends State<ChatComposer> {
       final files = await openFiles();
       if (files.isEmpty) return;
       for (final file in files) {
-        if (_atAttachmentLimit) {
-          HelperMethods.showError(
-            error: 'Up to ${ChatComposer.maxAttachments} files per message.',
-          );
-          break;
-        }
         final bytes = await file.readAsBytes();
-        final name = file.name;
-        final mime = (file.mimeType != null && file.mimeType!.isNotEmpty)
-            ? file.mimeType!
-            : mimeFromName(name);
-        final kind = AttachmentKind.fromMime(mime);
-        // Recorded now so the receiver's message list can reserve the right
-        // box before it has the bytes to measure.
-        final size = kind == AttachmentKind.image
-            ? await readImageDimensions(bytes)
-            : null;
+        // One rejected file doesn't abandon the rest of the selection.
+        if (!_accepts(name: file.name, bytes: bytes.length)) continue;
         _staged.add(
-          PendingAttachment(
+          await AttachmentStaging.stage(
             bytes: bytes,
-            name: name,
-            mime: mime,
-            kind: kind,
-            width: size?.width,
-            height: size?.height,
+            name: file.name,
+            mimeType: file.mimeType,
           ),
         );
       }
@@ -144,6 +133,20 @@ class _ChatComposerState extends State<ChatComposer> {
       HelperMethods.printDebug('[Composer] file pick failed: $e');
       HelperMethods.showError(error: "Couldn't attach that file.");
     }
+  }
+
+  /// True when the file fits; shows the reason and returns false when it
+  /// doesn't.
+  bool _accepts({required String name, required int bytes}) {
+    final rejection = AttachmentStaging.rejectionFor(
+      name: name,
+      bytes: bytes,
+      maxBytes: widget.maxAttachmentBytes,
+      alreadyStaged: _staged.length,
+    );
+    if (rejection == null) return true;
+    HelperMethods.showError(error: rejection);
+    return false;
   }
 
   void _removeStaged(int index) {
@@ -193,6 +196,13 @@ class _ChatComposerState extends State<ChatComposer> {
     try {
       final bytes = await _recorder.stop();
       if (!mounted) return;
+      // A long enough recording outgrows the cap the same way a picked file
+      // does, and finding that out at upload time would lose the take.
+      if (bytes != null &&
+          !_accepts(name: 'That recording', bytes: bytes.length)) {
+        setState(() => _isRecording = false);
+        return;
+      }
       setState(() {
         _isRecording = false;
         if (bytes != null) {

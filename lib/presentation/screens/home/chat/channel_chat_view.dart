@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/chat_failure.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/chat_quota_meter.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/typing_indicator.dart';
 import 'widgets/chat_header.dart';
@@ -52,6 +54,14 @@ class _ChannelChatViewState extends State<ChannelChatView>
                           .sendMessage(text, attachments: attachments),
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
+                      maxAttachmentBytes: _maxAttachmentBytes(context),
+                      hintText: chatState.quota.isExhausted
+                          ? "You've hit today's limit for this channel"
+                          : 'Send a message',
+                      enabled: !chatState.quota.isExhausted,
+                      // No nudge: a channel's limit is the operator's rule and
+                      // there is nowhere else the member should be sent.
+                      footer: ChatQuotaMeter(quota: chatState.quota),
                     ),
                   ],
                 ],
@@ -62,6 +72,12 @@ class _ChannelChatViewState extends State<ChannelChatView>
       },
     );
   }
+
+  /// The operator's per-file attachment cap for this server.
+  int _maxAttachmentBytes(BuildContext context) =>
+      (context.read<ServerCubit>().state.selectedServer?.limits ??
+              ServerLimits.defaults)
+          .maxAttachmentBytes;
 
   /// Channel managers and server admins may delete anyone's message here.
   bool _isModerator(BuildContext context) {

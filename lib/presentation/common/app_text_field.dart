@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
@@ -13,6 +14,9 @@ class AppTextField extends StatelessWidget {
   final bool obscureText;
   final bool enabled;
   final TextInputType? keyboardType;
+
+  /// Restricts what can be typed, e.g. digits only for a numeric limit.
+  final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
   final VoidCallback? onEditingComplete;
   final bool autofocus;
@@ -25,6 +29,7 @@ class AppTextField extends StatelessWidget {
     this.obscureText = false,
     this.enabled = true,
     this.keyboardType,
+    this.inputFormatters,
     this.onChanged,
     this.onEditingComplete,
     this.autofocus = false,
@@ -58,6 +63,7 @@ class AppTextField extends StatelessWidget {
           obscureText: obscureText,
           enabled: enabled,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           onChanged: onChanged,
           onEditingComplete: onEditingComplete,
           autofocus: autofocus,
