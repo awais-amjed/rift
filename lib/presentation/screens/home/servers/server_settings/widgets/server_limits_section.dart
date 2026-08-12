@@ -33,8 +33,9 @@ class ServerLimitsSection extends StatelessWidget {
         SectionTitle(label: 'Limits', themeState: themeState),
         const SizedBox(height: 4),
         Text(
-          "Nothing here is on unless you turn it on. Leave a box empty and "
-          "there's no limit.",
+          'Nothing here is on unless you turn it on. Leave a box empty and '
+          "there's no limit. Attachments are what fill a disk, so the two "
+          'sweeps below delete their files too.',
           style: AppText.label.copyWith(
             fontSize: 11,
             fontWeight: FontWeight.w400,
@@ -52,31 +53,13 @@ class ServerLimitsSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         LimitField(
-          controller: controllers.channelQuota,
-          label: 'Messages per member in a channel',
-          unit: 'per day',
-          hint: 'No limit',
-          helper:
-              'The default for every channel. A single channel can override '
-              'it from its own settings.',
-          enabled: enabled,
-        ),
-        const SizedBox(height: 16),
-        LimitField(
-          controller: controllers.dmQuota,
-          label: 'Direct messages per member',
-          unit: 'per day',
-          hint: 'No limit',
-          helper: "Counts across all of a member's conversations here.",
-          enabled: enabled,
-        ),
-        const SizedBox(height: 16),
-        LimitField(
           controller: controllers.retentionDays,
           label: 'Delete messages older than',
           unit: 'days',
           hint: 'Keep forever',
-          helper: 'Deleted for good, nightly. There is no undo and no archive.',
+          helper:
+              'Deleted for good, nightly, along with their attachments. A '
+              'channel can override this.',
           enabled: enabled,
         ),
         const SizedBox(height: 16),
@@ -87,7 +70,7 @@ class ServerLimitsSection extends StatelessWidget {
           hint: 'Keep everything',
           helper:
               'Per channel and per conversation, oldest dropped first. Also '
-              'permanent.',
+              'permanent, and also overridable per channel.',
           enabled: enabled,
         ),
       ],

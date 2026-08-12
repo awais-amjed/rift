@@ -57,15 +57,18 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     return (success: true, error: null);
   }
 
-  /// Change a channel's name and/or its daily quota (channel manager only).
+  /// Change a channel's name and/or its retention overrides (channel manager
+  /// only).
   ///
-  /// [dailyQuota] omitted leaves the quota alone; [clearDailyQuota] puts the
-  /// channel back to inheriting the server's default.
+  /// An override omitted leaves that column alone; the matching `clear…` flag
+  /// puts the channel back to inheriting the server's number.
   Future<({bool success, String? error})> updateChannel({
     required String channelId,
     String? name,
-    int? dailyQuota,
-    bool clearDailyQuota = false,
+    int? retentionDays,
+    bool clearRetentionDays = false,
+    int? historyCap,
+    bool clearHistoryCap = false,
   }) => _changeChannel(
     (server, token) => _repository.updateChannel(
       server.supabaseUrl,
@@ -73,8 +76,10 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
       anonKey: _anonKey,
       bearerToken: token,
       name: name,
-      dailyQuota: dailyQuota,
-      clearDailyQuota: clearDailyQuota,
+      retentionDays: retentionDays,
+      clearRetentionDays: clearRetentionDays,
+      historyCap: historyCap,
+      clearHistoryCap: clearHistoryCap,
     ),
     failure: 'Failed to update channel',
   );

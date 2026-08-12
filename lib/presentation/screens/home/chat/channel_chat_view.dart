@@ -8,7 +8,6 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/chat_failure.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
-import '../../../common/chat/chat_quota_meter.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/typing_indicator.dart';
 import 'widgets/chat_header.dart';
@@ -55,13 +54,6 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
-                      hintText: chatState.quota.isExhausted
-                          ? "You've hit today's limit for this channel"
-                          : 'Send a message',
-                      enabled: !chatState.quota.isExhausted,
-                      // No nudge: a channel's limit is the operator's rule and
-                      // there is nowhere else the member should be sent.
-                      footer: ChatQuotaMeter(quota: chatState.quota),
                     ),
                   ],
                 ],

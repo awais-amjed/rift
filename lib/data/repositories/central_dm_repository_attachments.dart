@@ -43,6 +43,24 @@ mixin _CentralDmAttachmentsMixin {
     }
   }
 
+  /// Remove attachment blobs — what a client does when it deletes a message
+  /// that carried them.
+  ///
+  /// Central has no retention sweep for these, so this is the *only* thing that
+  /// ever frees them: unlike a self-hosted server, nothing here runs later to
+  /// collect what a failed delete left behind. Central's own 30-day message TTL
+  /// doesn't touch storage. Best-effort all the same — see
+  /// [AttachmentCleanup.forMessage] for why a blob must never block a delete.
+  Future<APIResponse> deleteAttachments(List<String> paths) async {
+    if (paths.isEmpty) return APIResponse.success({'deleted': 0});
+    try {
+      await _client.storage.from(_attachmentsBucket).remove(paths);
+      return APIResponse.success({'deleted': paths.length});
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
   /// Download + decrypt one attachment blob. On success `data` is the decrypted
   /// `Uint8List`.
   Future<APIResponse> downloadAttachment({

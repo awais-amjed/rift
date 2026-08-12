@@ -29,6 +29,10 @@ class AttachmentCache {
     }
   }
 
+  /// Forget one entry — the message that carried it was deleted, so its
+  /// plaintext should not outlive it in memory.
+  void remove(String path) => _entries.remove(path);
+
   /// Forget everything held.
   ///
   /// This is the only place in the app where decrypted message content outlives

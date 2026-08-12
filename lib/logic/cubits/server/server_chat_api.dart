@@ -42,6 +42,42 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     );
   }
 
+  /// Remove attachment blobs from the selected server.
+  ///
+  /// Called when a message carrying them is deleted: the client has just
+  /// decrypted that message, so it is the only party that knows which blobs
+  /// belong to it. Best-effort — see [AttachmentRepository.deleteObjects].
+  Future<APIResponse> deleteAttachments(List<String> paths) {
+    final server = state.selectedServer;
+    final anonKey = server?.supabaseKey;
+    if (server == null || anonKey == null) {
+      return Future.value(APIResponse.error('No server selected'));
+    }
+    return _callWithAutoRefresh(
+      (token) => _attachments.deleteObjects(
+        baseUrl: server.supabaseUrl,
+        anonKey: anonKey,
+        bearerToken: token,
+        bucket: _attachmentsBucket,
+        paths: paths,
+      ),
+    );
+  }
+
+  /// Apply this server's retention settings and clear out the attachment blobs
+  /// whose messages are gone. Safe for any member to call — it removes only
+  /// unreferenced objects.
+  Future<APIResponse> sweepAttachments() {
+    final server = state.selectedServer;
+    if (server == null) {
+      return Future.value(APIResponse.error('No server selected'));
+    }
+    return _callWithAutoRefresh(
+      (token) =>
+          _repository.sweepAttachments(server.supabaseUrl, bearerToken: token),
+    );
+  }
+
   /// Download + decrypt an attachment blob from the selected server. On success
   /// `data` is the decrypted `Uint8List`.
   Future<APIResponse> downloadAttachment({

@@ -9,9 +9,6 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   void _joinPeerTopic(String peerId);
   void _leavePeerTopic();
 
-  /// Implemented by the send mixin.
-  Future<void> refreshQuota();
-
   /// Opens (or starts) the conversation with [peerId]. [peerChatKey] comes
   /// from the conversation row or the member picker.
   Future<void> openConversation({
@@ -52,8 +49,6 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     await _fetchLatest(peerId);
     if (state.openPeerId != peerId) return;
     emit(state.copyWith(chatStatus: DmChatStatus.ready));
-    // Not awaited: the composer is usable before the meter knows what to say.
-    unawaited(refreshQuota());
   }
 
   void closeConversation() {

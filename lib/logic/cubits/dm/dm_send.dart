@@ -14,17 +14,6 @@ mixin _DmSendMixin on Cubit<DmState> {
 
   int _pendingCounter = 0;
 
-  /// Re-read how many DMs are left today.
-  ///
-  /// Unlike a channel's, this budget is shared by every conversation on the
-  /// server, so it is refreshed when a conversation opens rather than being
-  /// tied to one peer.
-  Future<void> refreshQuota() async {
-    final result = await _serverCubit.fetchChatQuota();
-    if (isClosed || result == null) return;
-    emit(state.copyWith(quota: ChatQuota.fromResult(result)));
-  }
-
   Future<void> sendDm(
     String text, {
     List<PendingAttachment> attachments = const [],
@@ -90,7 +79,9 @@ mixin _DmSendMixin on Cubit<DmState> {
 
       if (!response.success) {
         _removePending(pendingId);
-        _reportSendFailure(response);
+        HelperMethods.showError(
+          error: response.error ?? 'Failed to send message',
+        );
         return;
       }
 
@@ -110,7 +101,6 @@ mixin _DmSendMixin on Cubit<DmState> {
               isMine: true,
             ),
           ),
-          quota: state.quota.spendOne(),
         ),
       );
       _ringPeerDoorbell();
@@ -128,23 +118,6 @@ mixin _DmSendMixin on Cubit<DmState> {
         HelperMethods.showError(error: 'Failed to send message');
       }
     }
-  }
-
-  /// The quota wall gets its own sentence and pins the meter at zero. The
-  /// wording points at a channel, because that is what a server DM's limit is
-  /// there to push long conversations towards — the same nudge central makes
-  /// towards a shared server.
-  void _reportSendFailure(APIResponse response) {
-    if (response.errorCode == ErrorCode.quotaExceeded) {
-      emit(state.copyWith(quota: state.quota.spent));
-      HelperMethods.showError(
-        error:
-            "You've hit this server's daily direct-message limit. "
-            'Carry on in a channel, or try again tomorrow.',
-      );
-      return;
-    }
-    HelperMethods.showError(error: response.error ?? 'Failed to send message');
   }
 
   void _removePending(String pendingId) {

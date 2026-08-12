@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -110,6 +111,51 @@ class AttachmentRepository {
         keyB64: blob.keyB64,
         nonceB64: blob.nonceB64,
       ));
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
+  /// Remove blobs from [bucket] — what a client does when it deletes a message
+  /// that carried attachments.
+  ///
+  /// The client is the right place for this and the *only* practical one. It
+  /// has just decrypted the message body, so it holds the storage paths, which
+  /// the server cannot read at all. And the database can't help even if it
+  /// could: `storage.protect_delete()` refuses a direct DELETE on
+  /// `storage.objects`, so bytes are only ever freed through this API.
+  ///
+  /// Best-effort by design. A message row is what people see; a blob that
+  /// outlives it is undecryptable waste, and the `sweep_attachments` function
+  /// collects it later. So a failure here must not stop the delete.
+  Future<APIResponse> deleteObjects({
+    required String baseUrl,
+    required String anonKey,
+    required String bearerToken,
+    required String bucket,
+    required List<String> paths,
+  }) async {
+    if (paths.isEmpty) return APIResponse.success({'deleted': 0});
+    try {
+      final uri = Uri.parse('$baseUrl/storage/v1/object/$bucket');
+      final resp = await _http
+          .delete(
+            uri,
+            headers: {
+              ..._headers(anonKey, bearerToken),
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'prefixes': paths}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (resp.statusCode == 401 || resp.statusCode == 403) {
+        return APIResponse.error('Not authorized', errorCode: 'token_expired');
+      }
+      if (resp.statusCode >= 300) {
+        return APIResponse.error('Delete failed (${resp.statusCode})');
+      }
+      return APIResponse.success({'deleted': paths.length});
     } catch (e) {
       return APIResponse.error(e);
     }

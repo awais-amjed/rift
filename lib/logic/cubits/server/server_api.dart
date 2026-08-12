@@ -277,32 +277,6 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     return (success: true, error: null);
   }
 
-  /// The caller's remaining messages for one surface — a channel, or (null)
-  /// their server DMs. Null when the server can't be asked.
-  Future<({int quota, int? remaining})?> fetchChatQuota({
-    String? channelId,
-  }) async {
-    final server = state.selectedServer;
-    if (server == null) return null;
-
-    final response = await _callWithAutoRefresh(
-      (token) => _repository.getChatQuota(
-        server.supabaseUrl,
-        anonKey: _anonKey,
-        bearerToken: token,
-        channelId: channelId,
-      ),
-    );
-    if (!response.success) return null;
-
-    final data = (response.data as Map?)?.cast<String, dynamic>();
-    if (data == null) return null;
-    return (
-      quota: (data['quota'] as num?)?.toInt() ?? ServerLimits.unlimited,
-      remaining: (data['remaining'] as num?)?.toInt(),
-    );
-  }
-
   /// Refresh the channel list and other details for the selected server.
   Future<({bool success, String? error})> refreshServerDetails() async {
     final server = state.selectedServer;

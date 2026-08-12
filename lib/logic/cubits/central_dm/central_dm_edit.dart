@@ -78,6 +78,10 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
     final id = int.tryParse(messageId);
     if (peerId == null || id == null) return;
 
+    // Captured before the row goes: once it leaves the list, nothing else in
+    // the app knows which blobs were its.
+    final doomed = state.messages.where((m) => m.id == messageId).firstOrNull;
+
     try {
       final response = await _repo.deleteDm(messageId: id);
       if (state.openPeerId != peerId) return;
@@ -93,6 +97,9 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
         state.copyWith(
           messages: ChatMessageOps.removeMessage(state.messages, messageId),
         ),
+      );
+      unawaited(
+        AttachmentCleanup.forMessage(doomed, delete: _repo.deleteAttachments),
       );
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] delete failed: $e');

@@ -166,7 +166,7 @@ class ServerRepository
       }
       final channels = await db
           .from('channels')
-          .select('id, name, channel_type, daily_quota')
+          .select('id, name, channel_type, retention_days, history_cap')
           .order('name');
       final user = await db
           .from('users')
@@ -195,8 +195,7 @@ class ServerRepository
   /// The operator-limit columns added in migration 007, in the order
   /// [ServerLimits] reads them.
   static const _limitColumns =
-      'max_attachment_bytes, default_channel_daily_quota, dm_daily_quota, '
-      'message_retention_days, message_history_cap';
+      'max_attachment_bytes, message_retention_days, message_history_cap';
 
   /// Update server settings (admin only).
   ///
@@ -226,25 +225,6 @@ class ServerRepository
       'livekit_secret_key': ?livekitSecretKey,
       ...?limits?.toJson(),
     }, bearerToken: bearerToken);
-  }
-
-  /// The caller's remaining messages for one surface: a channel id asks about
-  /// that channel, null asks about their server DMs.
-  ///
-  /// Returns `{quota, remaining}`. A `quota` of 0 means unlimited and comes
-  /// with a null `remaining` — see migration 007 for why those are kept
-  /// distinguishable.
-  Future<APIResponse> getChatQuota(
-    String supabaseUrl, {
-    required String anonKey,
-    String? bearerToken,
-    String? channelId,
-  }) {
-    return ServerDb.run(() async {
-      return _db
-          .client(supabaseUrl, anonKey, bearerToken)
-          .rpc('chat_quota', params: {'p_channel_id': channelId});
-    });
   }
 
   /// The `sub` claim of a JWT, without verifying it — the client is reading its
@@ -512,32 +492,55 @@ class ServerRepository
 
   /// Delete a channel (requires channel manager). Its messages and keyring go
   /// with it by cascade.
+  /// Apply the server's retention settings and remove the attachment blobs
+  /// left behind (migration 007).
+  ///
+  /// An edge function rather than a table call, and not for the usual reason:
+  /// this one needs the *Storage API*. `storage.protect_delete()` refuses a
+  /// direct DELETE on `storage.objects`, so no database role can free a blob —
+  /// only something holding the service key can finish the job.
+  Future<APIResponse> sweepAttachments(
+    String supabaseUrl, {
+    String? bearerToken,
+  }) => _post(
+    supabaseUrl,
+    'sweep_attachments',
+    const {},
+    bearerToken: bearerToken,
+  );
+
   /// Update a channel's settings (requires channel manager).
   ///
-  /// A plain update — the column grant covers only `name` and `daily_quota`,
-  /// and `channels_update_managers` decides who may. Nothing else has to
-  /// happen: a LiveKit room is named by the channel's **id**, so renaming a
-  /// voice channel doesn't touch the call going on inside it.
+  /// A plain update — the column grant covers only `name`, `retention_days`
+  /// and `history_cap`, and `channels_update_managers` decides who may.
+  /// Nothing else has to happen: a LiveKit room is named by the channel's
+  /// **id**, so renaming a voice channel doesn't touch the call inside it.
   ///
-  /// [dailyQuota] is three-valued, which is why it isn't a plain `int?`:
-  /// omitted leaves the column alone, a value sets it, and [clearDailyQuota]
-  /// writes NULL to go back to inheriting the server default.
+  /// The retention overrides are three-valued, which is why they aren't plain
+  /// `int?`s: omitted leaves the column alone, a value sets it, and the
+  /// matching `clear…` flag writes NULL to go back to inheriting the server's.
   Future<APIResponse> updateChannel(
     String supabaseUrl,
     String channelId, {
     required String anonKey,
     String? bearerToken,
     String? name,
-    int? dailyQuota,
-    bool clearDailyQuota = false,
+    int? retentionDays,
+    bool clearRetentionDays = false,
+    int? historyCap,
+    bool clearHistoryCap = false,
   }) {
     return ServerDb.run(() async {
       final patch = <String, dynamic>{
         'name': ?name,
-        if (clearDailyQuota)
-          'daily_quota': null
+        if (clearRetentionDays)
+          'retention_days': null
         else
-          'daily_quota': ?dailyQuota,
+          'retention_days': ?retentionDays,
+        if (clearHistoryCap)
+          'history_cap': null
+        else
+          'history_cap': ?historyCap,
       };
       if (patch.isEmpty) {
         throw const PostgrestException(message: 'Nothing to update');
@@ -547,7 +550,7 @@ class ServerRepository
           .from('channels')
           .update(patch)
           .eq('id', channelId)
-          .select('id, name, channel_type, daily_quota');
+          .select('id, name, channel_type, retention_days, history_cap');
       if ((rows as List).isEmpty) {
         throw const PostgrestException(
           message: 'Channel not found, or not yours to change',

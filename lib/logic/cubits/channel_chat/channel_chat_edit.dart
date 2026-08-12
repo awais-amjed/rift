@@ -92,6 +92,10 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
     final id = int.tryParse(messageId);
     if (channelId == null || id == null) return;
 
+    // Captured before the row goes: once it leaves the list, nothing else in
+    // the app knows which blobs were its.
+    final doomed = state.messages.where((m) => m.id == messageId).firstOrNull;
+
     try {
       final response = await _serverCubit.deleteChatMessage(
         channelId: channelId,
@@ -109,6 +113,12 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
       emit(
         state.copyWith(
           messages: ChatMessageOps.removeMessage(state.messages, messageId),
+        ),
+      );
+      unawaited(
+        AttachmentCleanup.forMessage(
+          doomed,
+          delete: _serverCubit.deleteAttachments,
         ),
       );
       _ringChangeDoorbell(messageId);

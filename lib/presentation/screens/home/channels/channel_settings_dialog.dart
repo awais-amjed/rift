@@ -11,12 +11,16 @@ import '../../../common/app_text_field.dart';
 import '../../../common/limit_field.dart';
 import '../../../common/message_banner.dart';
 
-/// Per-channel settings for a channel manager: the name, and how many messages
-/// a member may send here per day.
+/// Per-channel settings for a channel manager: the name, and how much history
+/// this channel keeps.
 ///
-/// The quota box is three-valued and the helper line under it is what makes
-/// that legible — blank inherits the server's default, 0 opts this channel out
-/// of that default, and a number sets its own. See migration 007.
+/// A voice channel gets the name and nothing else — it holds no messages, so
+/// there is no history for a retention setting to act on, and showing one would
+/// be offering a switch wired to nothing.
+///
+/// Both retention boxes are three-valued and the helper line under each is what
+/// makes that legible: blank inherits the server's number, 0 opts this channel
+/// out of it, and a number sets its own. See migration 007.
 class ChannelSettingsDialog extends StatefulWidget {
   final Channel channel;
 
@@ -31,45 +35,53 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
     text: widget.channel.name,
   );
 
-  /// Blank when the channel inherits — including when it inherits an unlimited
-  /// default, because "inherit" is about where the number comes from, not what
-  /// it is.
-  late final TextEditingController _quotaCtrl = TextEditingController(
-    text: widget.channel.dailyQuota?.toString() ?? '',
+  /// Blank when the channel inherits — including when it inherits a server that
+  /// keeps everything, because "inherit" is about where the number comes from,
+  /// not what it is.
+  late final TextEditingController _retentionCtrl = TextEditingController(
+    text: widget.channel.retentionDays?.toString() ?? '',
+  );
+  late final TextEditingController _capCtrl = TextEditingController(
+    text: widget.channel.historyCap?.toString() ?? '',
   );
 
   bool _isLoading = false;
   String? _error;
 
   String get _name => _nameCtrl.text.trim();
-  int? get _quota => LimitInput.parse(_quotaCtrl.text);
+  int? get _retention => LimitInput.parse(_retentionCtrl.text);
+  int? get _cap => LimitInput.parse(_capCtrl.text);
 
   bool get _nameChanged => _name.isNotEmpty && _name != widget.channel.name;
-  bool get _quotaChanged => _quota != widget.channel.dailyQuota;
+  bool get _retentionChanged => _retention != widget.channel.retentionDays;
+  bool get _capChanged => _cap != widget.channel.historyCap;
 
   bool get _canSubmit =>
       _name.isNotEmpty &&
-      _quota != LimitInput.invalid &&
-      (_nameChanged || _quotaChanged);
+      _retention != LimitInput.invalid &&
+      _cap != LimitInput.invalid &&
+      (_nameChanged || _retentionChanged || _capChanged);
+
+  ServerLimits get _serverLimits =>
+      context.read<ServerCubit>().state.selectedServer?.limits ??
+      ServerLimits.defaults;
+
+  /// What the channel falls back to, spelled out — an admin shouldn't have to
+  /// open the server dialog to find out what "inherit" currently means.
+  String _inheritHelper(int serverValue, String unit, String whenOff) {
+    final fallback = serverValue == ServerLimits.unlimited
+        ? whenOff
+        : '$serverValue $unit';
+    return 'Blank inherits the server setting ($fallback). 0 means no limit '
+        'in this channel.';
+  }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _quotaCtrl.dispose();
+    _retentionCtrl.dispose();
+    _capCtrl.dispose();
     super.dispose();
-  }
-
-  /// What the channel falls back to, spelled out — an admin shouldn't have to
-  /// open the server dialog to find out what "inherit" currently means.
-  String get _inheritHelper {
-    final limits =
-        context.read<ServerCubit>().state.selectedServer?.limits ??
-        ServerLimits.defaults;
-    final fallback = limits.defaultChannelDailyQuota == ServerLimits.unlimited
-        ? 'no limit'
-        : '${limits.defaultChannelDailyQuota} per day';
-    return 'Blank inherits the server default ($fallback). '
-        '0 means no limit in this channel.';
   }
 
   Future<void> _submit() async {
@@ -79,12 +91,15 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
       _error = null;
     });
 
-    final quota = _quota;
+    final retention = _retention;
+    final cap = _cap;
     final result = await context.read<ServerCubit>().updateChannel(
       channelId: widget.channel.id,
       name: _nameChanged ? _name : null,
-      dailyQuota: _quotaChanged ? quota : null,
-      clearDailyQuota: _quotaChanged && quota == null,
+      retentionDays: _retentionChanged ? retention : null,
+      clearRetentionDays: _retentionChanged && retention == null,
+      historyCap: _capChanged ? cap : null,
+      clearHistoryCap: _capChanged && cap == null,
     );
     if (!mounted) return;
 
@@ -120,16 +135,36 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
             onChanged: (_) => setState(() {}),
             onEditingComplete: _submit,
           ),
-          const SizedBox(height: 16),
-          LimitField(
-            controller: _quotaCtrl,
-            label: 'Messages per member',
-            unit: 'per day',
-            hint: 'Server default',
-            helper: _inheritHelper,
-            enabled: !_isLoading,
-            onChanged: (_) => setState(() {}),
-          ),
+          if (widget.channel.hasMessages) ...[
+            const SizedBox(height: 16),
+            LimitField(
+              controller: _retentionCtrl,
+              label: 'Delete messages older than',
+              unit: 'days',
+              hint: 'Server setting',
+              helper: _inheritHelper(
+                _serverLimits.messageRetentionDays,
+                'days',
+                'keep forever',
+              ),
+              enabled: !_isLoading,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 16),
+            LimitField(
+              controller: _capCtrl,
+              label: 'Keep at most',
+              unit: 'messages',
+              hint: 'Server setting',
+              helper: _inheritHelper(
+                _serverLimits.messageHistoryCap,
+                'messages',
+                'keep everything',
+              ),
+              enabled: !_isLoading,
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
         ],
       ),
       actions: [

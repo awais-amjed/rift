@@ -17,6 +17,7 @@ import '../../../supabase_config.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cache.dart';
+import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/dm_unread_scan.dart';

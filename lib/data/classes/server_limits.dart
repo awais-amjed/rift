@@ -2,13 +2,18 @@
 ///
 /// Central imposes its limits because central pays for central; a self-hosted
 /// server imposes whatever its operator decides, which is usually nothing. So
-/// **every quota here defaults to [unlimited]**, and [defaults] is what a server
-/// that predates this feature — or one whose admin never opened the dialog —
-/// reports.
+/// **every count-based limit here defaults to [unlimited]**, and [defaults] is
+/// what a server that predates this feature — or one whose admin never opened
+/// the dialog — reports.
 ///
-/// The one exception is [maxAttachmentBytes], which is a size rather than a
-/// count and therefore has no meaningful "off": storage has always had a
-/// ceiling, and [defaultMaxAttachmentBytes] is the one it already had.
+/// What is deliberately absent is a daily message quota. A quota is a rate
+/// limit, not a storage bound: N messages a day, forever, is still unbounded.
+/// What an operator is actually worried about is the disk, and the instruments
+/// for that are a ceiling on kept history and a ceiling on file size.
+///
+/// [maxAttachmentBytes] is the one limit with no "off", because it is a size
+/// rather than a count: storage has always had a ceiling, and
+/// [defaultMaxAttachmentBytes] is the one it already had.
 class ServerLimits {
   /// The value every count-based limit uses to mean "no limit".
   static const int unlimited = 0;
@@ -28,24 +33,19 @@ class ServerLimits {
   /// Per-file attachment cap in bytes.
   final int maxAttachmentBytes;
 
-  /// Messages per member per rolling 24h in a channel that sets no quota of
-  /// its own. See [Channel.dailyQuota] for the per-channel override.
-  final int defaultChannelDailyQuota;
-
-  /// Messages per member per rolling 24h across all of their server DMs — the
-  /// same shape as the central tier's daily quota.
-  final int dmDailyQuota;
-
-  /// Delete messages older than this many days. [unlimited] keeps everything.
+  /// Server-wide default: delete messages older than this many days.
+  /// [unlimited] keeps everything. A channel may override it — see
+  /// [Channel.retentionDays].
   final int messageRetentionDays;
 
-  /// Keep at most this many messages per channel and per DM pair.
+  /// Server-wide default: keep at most this many messages per channel and per
+  /// DM pair. [unlimited] means no cap. A channel may override it — see
+  /// [Channel.historyCap]. DMs have no per-conversation override, so for them
+  /// this number is the only one, and it counts both people together.
   final int messageHistoryCap;
 
   const ServerLimits({
     this.maxAttachmentBytes = defaultMaxAttachmentBytes,
-    this.defaultChannelDailyQuota = unlimited,
-    this.dmDailyQuota = unlimited,
     this.messageRetentionDays = unlimited,
     this.messageHistoryCap = unlimited,
   });
@@ -78,8 +78,6 @@ class ServerLimits {
         'max_attachment_bytes',
         defaultMaxAttachmentBytes,
       ),
-      defaultChannelDailyQuota: read('default_channel_daily_quota', unlimited),
-      dmDailyQuota: read('dm_daily_quota', unlimited),
       messageRetentionDays: read('message_retention_days', unlimited),
       messageHistoryCap: read('message_history_cap', unlimited),
     );
@@ -87,23 +85,16 @@ class ServerLimits {
 
   Map<String, dynamic> toJson() => {
     'max_attachment_bytes': maxAttachmentBytes,
-    'default_channel_daily_quota': defaultChannelDailyQuota,
-    'dm_daily_quota': dmDailyQuota,
     'message_retention_days': messageRetentionDays,
     'message_history_cap': messageHistoryCap,
   };
 
   ServerLimits copyWith({
     int? maxAttachmentBytes,
-    int? defaultChannelDailyQuota,
-    int? dmDailyQuota,
     int? messageRetentionDays,
     int? messageHistoryCap,
   }) => ServerLimits(
     maxAttachmentBytes: maxAttachmentBytes ?? this.maxAttachmentBytes,
-    defaultChannelDailyQuota:
-        defaultChannelDailyQuota ?? this.defaultChannelDailyQuota,
-    dmDailyQuota: dmDailyQuota ?? this.dmDailyQuota,
     messageRetentionDays: messageRetentionDays ?? this.messageRetentionDays,
     messageHistoryCap: messageHistoryCap ?? this.messageHistoryCap,
   );
@@ -112,17 +103,10 @@ class ServerLimits {
   bool operator ==(Object other) =>
       other is ServerLimits &&
       other.maxAttachmentBytes == maxAttachmentBytes &&
-      other.defaultChannelDailyQuota == defaultChannelDailyQuota &&
-      other.dmDailyQuota == dmDailyQuota &&
       other.messageRetentionDays == messageRetentionDays &&
       other.messageHistoryCap == messageHistoryCap;
 
   @override
-  int get hashCode => Object.hash(
-    maxAttachmentBytes,
-    defaultChannelDailyQuota,
-    dmDailyQuota,
-    messageRetentionDays,
-    messageHistoryCap,
-  );
+  int get hashCode =>
+      Object.hash(maxAttachmentBytes, messageRetentionDays, messageHistoryCap);
 }

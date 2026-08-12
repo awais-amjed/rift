@@ -2,19 +2,17 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase/supabase.dart' hide ErrorCode;
+import 'package:supabase/supabase.dart';
 
-import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
-import '../../../data/classes/chat_quota.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
-import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/broadcast_payload.dart';
+import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_failure.dart';
 import '../../services/chat_message_ops.dart';
@@ -160,9 +158,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     await _fetchLatest(channelId);
     if (_isStale(generation)) return;
     emit(state.copyWith(status: ChannelChatStatus.ready));
-    // Not awaited: the composer is usable before the meter knows what to say,
-    // and a server with no quota set answers "unlimited" anyway.
-    unawaited(refreshQuota(channelId));
   }
 
   Future<void> closeChannel() async {
@@ -227,6 +222,12 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     // readiness unset so the next server/vault event retries the whole setup.
     if (!_publishedChatKey.contains(server.id)) _readyServerId = null;
     unawaited(_runKeySweep());
+    // Housekeeping, not chat: applies the operator's retention settings and
+    // removes attachment blobs whose messages are gone. It rides along here
+    // because this is the app's once-per-server-ready hook, and because a
+    // server whose members never open it never gets swept — the pg_cron job
+    // trims message rows but cannot touch storage.
+    unawaited(_serverCubit.sweepAttachments());
   }
 
   void _setupSweepRealtime(Server server) {

@@ -11,17 +11,6 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
 
   int _pendingCounter = 0;
 
-  /// Re-read how many messages are left in [channelId] today.
-  ///
-  /// Called on open rather than after every send: sends decrement the local
-  /// count, and the number that has to be right is the one an admin's change —
-  /// or another device — would have moved while the channel was closed.
-  Future<void> refreshQuota(String channelId) async {
-    final result = await _serverCubit.fetchChatQuota(channelId: channelId);
-    if (isClosed || result == null || state.channelId != channelId) return;
-    emit(state.copyWith(quota: ChatQuota.fromResult(result)));
-  }
-
   /// Seal, sign, and send a message ([text] and/or [attachments]); shows an
   /// optimistic pending message until the server acknowledges. Attachments are
   /// encrypted + uploaded first; on any failure the pending message is removed
@@ -93,7 +82,9 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
 
       if (!response.success) {
         _removePending(pendingId);
-        _reportSendFailure(response);
+        HelperMethods.showError(
+          error: response.error ?? 'Failed to send message',
+        );
         return;
       }
 
@@ -113,7 +104,6 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
               isMine: true,
             ),
           ),
-          quota: state.quota.spendOne(),
         ),
       );
       _ringDoorbell();
@@ -130,23 +120,6 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         HelperMethods.showError(error: 'Failed to send message');
       }
     }
-  }
-
-  /// The quota wall gets its own sentence and pins the meter at zero — a
-  /// generic "failed to send" would read as a network problem, and the meter
-  /// may not have known it was the last message (another device spends the
-  /// same budget).
-  void _reportSendFailure(APIResponse response) {
-    if (response.errorCode == ErrorCode.quotaExceeded) {
-      emit(state.copyWith(quota: state.quota.spent));
-      HelperMethods.showError(
-        error:
-            "You've hit this channel's daily message limit. "
-            'It resets 24 hours after your earliest message today.',
-      );
-      return;
-    }
-    HelperMethods.showError(error: response.error ?? 'Failed to send message');
   }
 
   void _removePending(String pendingId) {

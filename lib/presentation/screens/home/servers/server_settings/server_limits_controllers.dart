@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/services/limit_input.dart';
 
-/// The five limit fields of the server settings dialog, as one object.
+/// The three limit fields of the server settings dialog, as one object.
 ///
 /// They are grouped rather than sitting loose in the dialog's state because
 /// they share all of their behaviour: each is seeded from a [ServerLimits],
@@ -15,24 +15,18 @@ class ServerLimitsControllers {
   /// in bytes.
   final attachmentMb = TextEditingController();
 
-  final channelQuota = TextEditingController();
-  final dmQuota = TextEditingController();
   final retentionDays = TextEditingController();
   final historyCap = TextEditingController();
 
   /// Fill the fields from what the server currently reports.
   void seed(ServerLimits limits) {
     attachmentMb.text = LimitInput.megabytesOf(limits.maxAttachmentBytes);
-    channelQuota.text = LimitInput.textOf(limits.defaultChannelDailyQuota);
-    dmQuota.text = LimitInput.textOf(limits.dmDailyQuota);
     retentionDays.text = LimitInput.textOf(limits.messageRetentionDays);
     historyCap.text = LimitInput.textOf(limits.messageHistoryCap);
   }
 
   void dispose() {
     attachmentMb.dispose();
-    channelQuota.dispose();
-    dmQuota.dispose();
     retentionDays.dispose();
     historyCap.dispose();
   }
@@ -64,8 +58,6 @@ class ServerLimitsControllers {
     }
 
     final counts = <String, TextEditingController>{
-      'daily channel limit': channelQuota,
-      'daily DM limit': dmQuota,
       'retention period': retentionDays,
       'history cap': historyCap,
     };
@@ -84,8 +76,6 @@ class ServerLimitsControllers {
     return (
       limits: ServerLimits(
         maxAttachmentBytes: bytes,
-        defaultChannelDailyQuota: read['daily channel limit']!,
-        dmDailyQuota: read['daily DM limit']!,
         messageRetentionDays: read['retention period']!,
         messageHistoryCap: read['history cap']!,
       ),
