@@ -8,6 +8,7 @@ import '../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
 import '../logic/cubits/livekit/livekit_cubit.dart';
 import '../logic/cubits/notifications/server_notifications_cubit.dart';
+import '../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../logic/cubits/server/server_cubit.dart';
 import '../logic/cubits/server_events/server_events_cubit.dart';
@@ -116,6 +117,10 @@ class AppProviders extends StatelessWidget {
           lazy: false,
           create: _createBackupCubit,
         ),
+        // Lazy, and the only cubit here that should be: the directory is read
+        // when a dialog asks for it, so an account that never browses or
+        // publishes never contacts central for this at all.
+        BlocProvider(create: (_) => PublicServersCubit()),
       ],
       child: child,
     );
