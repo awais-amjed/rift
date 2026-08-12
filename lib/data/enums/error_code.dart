@@ -72,6 +72,16 @@ class ErrorCode {
   // ── Permissions ───────────────────────────────────────────────────────────────
   static const String permissionDenied = 'permission_denied';
 
+  // ── Operator limits ───────────────────────────────────────────────────────────
+  /// A limit an admin tried to save is negative, or the attachment cap is
+  /// outside what Storage will accept.
+  static const String limitInvalid = 'limit_invalid';
+
+  /// The sender is out of daily messages for this channel or for DMs. Raised by
+  /// the quota trigger in migration 007, and by central's `send_dm` RPC — one
+  /// code for the same wall on either tier.
+  static const String quotaExceeded = 'quota_exceeded';
+
   // ── Client-side ───────────────────────────────────────────────────────────────
   /// No socket: the connection was refused, or the host did not resolve.
   /// Minted by the client, not the server — when the server is down there is
