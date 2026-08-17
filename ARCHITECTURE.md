@@ -75,6 +75,8 @@ seed-derived secret ever reaches the server (auth is a signature). Full design i
    Ed25519 key (base58 of the key is the "address") and posts it to the `login` Edge Function, which
    proxies GoTrue's `grant_type=web3` server-side (so no anon key is needed client-side) and returns
    a GoTrue session (access JWT + refresh token). `Chain ID: solana:mainnet`, base64 signature.
+   The message's domain/URI are a fixed `localhost`, never the server's address — GoTrue refuses
+   IP domains and non-HTTPS names, and the field is wallet ceremony Rift has no use for.
 3. **Session refresh**: all API calls flow through `ServerCubit._callWithAutoRefresh` (and the
    notifications cubit keeps every *joined* server's JWT fresh); a session near expiry (or a rejected
    JWT) triggers a silent re-login — the key is derived from the seed, so it never prompts.

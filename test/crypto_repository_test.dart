@@ -121,8 +121,6 @@ void main() {
       final signed = await crypto.signSiws(
         keyPair: id.keyPair,
         publicKeyBytes: id.publicKeyBytes,
-        domain: 'localhost',
-        uri: 'http://localhost:8000',
       );
 
       // Format required by GoTrue's web3 grant (verified on the stack).
@@ -131,7 +129,7 @@ void main() {
         startsWith('localhost wants you to sign in with your Solana account:'),
       );
       expect(signed.message, contains('\n$address\n'));
-      expect(signed.message, contains('URI: http://localhost:8000'));
+      expect(signed.message, contains('URI: http://localhost'));
       expect(signed.message, contains('Chain ID: solana:mainnet'));
       expect(signed.message, contains('Version: 1'));
 
@@ -157,8 +155,6 @@ void main() {
       final signed = await crypto.signSiws(
         keyPair: id.keyPair,
         publicKeyBytes: id.publicKeyBytes,
-        domain: 'localhost',
-        uri: 'http://localhost:8000',
       );
 
       final ed = Ed25519();
@@ -171,6 +167,38 @@ void main() {
         ),
       );
       expect(ok, isFalse);
+    });
+
+    test('names localhost whichever server the identity is for', () async {
+      // The guard on the reason this takes no address: GoTrue rejects a bare IP
+      // domain, and demands https + an allow-list entry for any other name, so
+      // a server on a LAN IP could not log in if its address were signed.
+      final localId = await crypto.deriveServerIdentity(
+        masterSeed: seed,
+        host: 'localhost',
+        serverId: 's1',
+      );
+      final lanId = await crypto.deriveServerIdentity(
+        masterSeed: seed,
+        host: '192.168.1.6',
+        serverId: 's1',
+      );
+      final signed = await crypto.signSiws(
+        keyPair: lanId.keyPair,
+        publicKeyBytes: lanId.publicKeyBytes,
+      );
+
+      expect(
+        signed.message,
+        startsWith('localhost wants you to sign in with your Solana account:'),
+      );
+      expect(signed.message, isNot(contains('192.168.1.6')));
+      // The host still picks the key, so the LAN server signs as its own
+      // identity rather than sharing one with every other server.
+      expect(
+        CryptoRepository.toBase58(lanId.publicKeyBytes),
+        isNot(equals(CryptoRepository.toBase58(localId.publicKeyBytes))),
+      );
     });
   });
 

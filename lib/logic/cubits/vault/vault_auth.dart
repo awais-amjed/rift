@@ -43,11 +43,12 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
   }) async {
     final host = Uri.parse(supabaseUrl).host;
     final identity = await getIdentityForHost(host, serverId: serverId);
+    // The host picks the *key*; it is deliberately not written into the signed
+    // message, which names a fixed domain so a server can live at any address —
+    // a LAN IP, a plain-http hostname — that GoTrue would otherwise reject.
     final signed = await _crypto.signSiws(
       keyPair: identity.keyPair,
       publicKeyBytes: identity.publicKeyBytes,
-      domain: host,
-      uri: supabaseUrl,
     );
     final response = await _serverRepo.login(
       supabaseUrl,

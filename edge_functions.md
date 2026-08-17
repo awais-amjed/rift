@@ -233,6 +233,11 @@ Apply migrations with `docker exec -i supabase-db psql -U postgres -v ON_ERROR_S
 Requirements for the stack's GoTrue config: enable the SIWS grant with
 `GOTRUE_EXTERNAL_WEB3_SOLANA_ENABLED=true` (dev keeps signup on so SIWS auto-creates the
 `auth.users` row; production sets `GOTRUE_DISABLE_SIGNUP=true` and provisions via `register`).
+Leave `SITE_URL` as a `localhost` URL, or add `http://localhost` to `ADDITIONAL_REDIRECT_URLS`:
+the SIWS message names a fixed `localhost` domain whatever address the server is reachable at,
+because GoTrue rejects IP domains outright and demands HTTPS plus an allow-list entry for any
+other name (see `auth.md`, "Why the SIWS domain is fixed"). The server's own URL is never
+required to appear in either setting.
 Keep `FUNCTIONS_VERIFY_JWT=false` — `login`, `register` and `resolve_invite` are invoked without
 the runtime's own JWT gate (each self-validates).
 

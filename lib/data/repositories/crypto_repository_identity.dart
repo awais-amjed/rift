@@ -79,18 +79,38 @@ mixin _IdentityCryptoMixin {
   // Ed25519 — Sign-in-with-Web3 (SIWS) login signing
   // ──────────────────────────────────────────────────────────
 
-  /// Build and sign a Sign-in-with-Solana (SIWS) message for [domain]/[uri]
-  /// with an Ed25519 keypair. The base58 of the public key is the "Solana
-  /// address" GoTrue keys the identity on. Returns the exact message that was
-  /// signed plus the base64 signature — both posted to the `login` function.
+  /// The domain and URI written into every SIWS message, for every server.
+  ///
+  /// **Deliberately constant, and deliberately not the server's address.**
+  /// GoTrue's web3 grant refuses most real addresses: the domain must match
+  /// `^(localhost|<dotted-name>.<tld>)(:port)?$` — so a bare LAN IP like
+  /// `192.168.1.6` is rejected outright — and anything other than `localhost`
+  /// additionally has to be **https**, be listed in the stack's `SITE_URL` /
+  /// `URI_ALLOW_LIST`, and repeat its port in the domain. Signing the real
+  /// address would mean a Rift server could only be reached over HTTPS at a
+  /// name its operator had also configured GoTrue to expect.
+  ///
+  /// Nothing is lost by faking it. These two fields exist so a *wallet* can
+  /// tell you which site is asking you to sign; Rift has no wallet and no
+  /// third-party sites — the key is derived per `(host, serverId)`, the message
+  /// is posted only to the host it was derived for, and GoTrue identifies the
+  /// caller by the signing key, never by this text.
+  static const _siwsDomain = 'localhost';
+  static const _siwsUri = 'http://localhost';
+
+  /// Build and sign a Sign-in-with-Solana (SIWS) message with an Ed25519
+  /// keypair. The base58 of the public key is the "Solana address" GoTrue keys
+  /// the identity on. Returns the exact message that was signed plus the base64
+  /// signature — both posted to the `login` function.
+  ///
+  /// Takes no address: see [_siwsDomain] for why the message names `localhost`
+  /// whatever server it is for.
   ///
   /// `Chain ID: solana:mainnet` and the base64 signature encoding are required
   /// by GoTrue's web3 grant (verified against the local stack — see auth.md).
   Future<({String message, String signatureBase64})> signSiws({
     required SimpleKeyPair keyPair,
     required Uint8List publicKeyBytes,
-    required String domain,
-    required String uri,
   }) async {
     final address = CryptoRepository.toBase58(publicKeyBytes);
     final nonce = CryptoRepository.toBase64(
@@ -99,12 +119,12 @@ mixin _IdentityCryptoMixin {
     final issuedAt = DateTime.now().toUtc().toIso8601String();
 
     final message =
-        '$domain wants you to sign in with your Solana account:\n'
+        '$_siwsDomain wants you to sign in with your Solana account:\n'
         '$address\n'
         '\n'
         'Sign in to Rift.\n'
         '\n'
-        'URI: $uri\n'
+        'URI: $_siwsUri\n'
         'Version: 1\n'
         'Chain ID: solana:mainnet\n'
         'Nonce: $nonce\n'
