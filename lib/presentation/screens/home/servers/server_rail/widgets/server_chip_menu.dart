@@ -26,6 +26,11 @@ import '../../server_settings/server_settings_dialog.dart';
 /// read, invite, manage members, settings, leave. They belong on the chip for
 /// the server they act on, rather than in a dialog listing all servers or in a
 /// toolbar above the channel list that costs every member vertical space.
+///
+/// Mark as read and Leave are told which server to act on. The three dialogs
+/// are not: they, and every API call beneath them, read `ServerCubit`'s
+/// **selected** server — which is why opening this menu selects the chip
+/// (`RailServerChip`'s `onOpen`). Anything added here inherits that.
 class ServerChipMenu extends StatelessWidget {
   final Server server;
 

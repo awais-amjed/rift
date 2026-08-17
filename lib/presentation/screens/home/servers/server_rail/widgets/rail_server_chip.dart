@@ -20,6 +20,9 @@ class RailServerChip extends StatefulWidget {
   final Server server;
   final bool isSelected;
   final int unreadCount;
+
+  /// Makes this the current server. Runs on a right-click too, not only a
+  /// left-click — the menu that a right-click opens acts on whatever is current.
   final VoidCallback onTap;
 
   const RailServerChip({
@@ -49,6 +52,12 @@ class _RailServerChipState extends State<RailServerChip> {
       builder: (context, themeState) {
         return ContextMenuRegion(
           contextMenu: ServerChipMenu(server: widget.server),
+          // A right-click selects the chip as well as opening its menu. The
+          // menu's dialogs — invite, members, settings — all act on the
+          // *selected* server, so anything else lets you open the menu on one
+          // server and change another. Selecting also moves the halo, which is
+          // how you can see which server the menu is about to act on.
+          onOpen: widget.onTap,
           child: Tooltip(
             message: widget.server.name,
             waitDuration: const Duration(milliseconds: 400),
