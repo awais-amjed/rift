@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/server.dart';
 import '../../../../../data/classes/server_limits.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
@@ -13,11 +13,16 @@ import '../../../../common/app_modal.dart';
 import 'listing_actions.dart';
 import 'listing_draft.dart';
 import 'server_limits_controllers.dart';
+import 'server_settings_save.dart';
 import 'widgets/server_settings_form.dart';
 
-/// Admin-only settings for the currently selected server: display name, the
-/// LiveKit connection, the operator limits from migration 007, and whether the
-/// server is in the central directory.
+/// Admin-only settings for [server]: display name, the LiveKit connection, the
+/// operator limits from migration 007, and whether the server is in the central
+/// directory.
+///
+/// Takes the server rather than reading the selection, because it opens from the
+/// rail's menu for any server — including one you are not looking at. Every
+/// write below names it.
 ///
 /// The limits live here rather than anywhere else for the same reason the
 /// LiveKit credentials do — saving the attachment cap also has to move the
@@ -32,7 +37,9 @@ import 'widgets/server_settings_form.dart';
 /// server's update first and the listing second ([ListingActions]), and says
 /// which half landed rather than pretending it is one write.
 class ServerSettingsDialog extends StatefulWidget {
-  const ServerSettingsDialog({super.key});
+  final Server server;
+
+  const ServerSettingsDialog({super.key, required this.server});
 
   @override
   State<ServerSettingsDialog> createState() => _ServerSettingsDialogState();
@@ -50,18 +57,26 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
   /// doesn't send a write.
   late final ServerLimits _initialLimits;
 
+  /// How many members this server has, for the disclosure the listing makes.
+  ///
+  /// Fetched here rather than taken from `ServerMembersCubit`, which is the
+  /// *selected* server's live roster — and this dialog is not always about the
+  /// selected server. Null until it arrives, or if it doesn't.
+  int? _memberCount;
+
   bool _isLoading = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    final server = context.read<ServerCubit>().state.selectedServer;
-    _nameCtrl = TextEditingController(text: server?.name ?? '');
-    _livekitUrlCtrl = TextEditingController(text: server?.livekitUrl ?? '');
-    _initialLimits = server?.limits ?? ServerLimits.defaults;
+    final server = widget.server;
+    _nameCtrl = TextEditingController(text: server.name);
+    _livekitUrlCtrl = TextEditingController(text: server.livekitUrl ?? '');
+    _initialLimits = server.limits;
     _limits.seed(_initialLimits);
     _loadListing();
+    _loadMemberCount();
   }
 
   @override
@@ -79,14 +94,24 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
   /// different database, and a slow central shouldn't hold up a LiveKit URL.
   Future<void> _loadListing() async {
     if (!context.read<SupabaseBackupCubit>().state.isSignedIn) return;
-    final server = context.read<ServerCubit>().state.selectedServer;
+    final server = widget.server;
     final cubit = context.read<PublicServersCubit>();
     await cubit.loadMine();
-    if (!mounted || server == null) return;
+    if (!mounted) return;
 
     setState(
       () => _listing.seed(cubit.listingFor(server.supabaseUrl, server.id)),
     );
+  }
+
+  /// Also non-blocking, and allowed to fail: the count is a sentence in the
+  /// disclosure, not something Save depends on.
+  Future<void> _loadMemberCount() async {
+    final result = await context.read<ServerCubit>().listMembers(
+      serverId: widget.server.id,
+    );
+    if (!mounted || result.members == null) return;
+    setState(() => _memberCount = result.members!.length);
   }
 
   Future<void> _submit() async {
@@ -107,49 +132,26 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
       _error = null;
     });
 
-    final serverCubit = context.read<ServerCubit>();
-    final server = serverCubit.state.selectedServer;
-    final livekitUrl = _livekitUrlCtrl.text.trim();
-    final apiKey = _apiKeyCtrl.text.trim();
-    final secret = _secretCtrl.text.trim();
-
-    final result = await serverCubit.updateServerDetails(
+    final error = await ServerSettingsSave.run(
+      server: widget.server,
       name: name,
-      livekitUrl: livekitUrl.isEmpty ? null : livekitUrl,
-      livekitApiKey: apiKey.isEmpty ? null : apiKey,
-      livekitSecretKey: secret.isEmpty ? null : secret,
       limits: parsed.limits == _initialLimits ? null : parsed.limits,
+      livekitUrl: _livekitUrlCtrl.text.trim(),
+      apiKey: _apiKeyCtrl.text.trim(),
+      secret: _secretCtrl.text.trim(),
+      draft: _listing,
+      serverCubit: context.read<ServerCubit>(),
+      publicServers: context.read<PublicServersCubit>(),
+      // Whatever the listing already says, if this server's roster never
+      // arrived — better a stale count than publishing zero over a real one.
+      memberCount: _memberCount ?? _listing.listing?.memberCount ?? 0,
     );
 
     if (!mounted) return;
 
-    if (!result.success) {
+    if (error != null) {
       setState(() {
-        _error = result.error;
-        _isLoading = false;
-      });
-      return;
-    }
-
-    // Second database, second account. It runs after, so a central outage can
-    // never cost the server's own settings.
-    final listingError = server == null
-        ? null
-        : await ListingActions.save(
-            server: server,
-            name: name,
-            draft: _listing,
-            serverCubit: serverCubit,
-            publicServers: context.read<PublicServersCubit>(),
-            memberCount:
-                context.read<ServerMembersCubit>().state.members?.length ?? 0,
-          );
-
-    if (!mounted) return;
-
-    if (listingError != null) {
-      setState(() {
-        _error = listingError;
+        _error = error;
         _isLoading = false;
       });
       return;
@@ -179,7 +181,9 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
   Widget build(BuildContext context) {
     return AppModal(
       title: 'Server Settings',
-      subtitle: 'Connection, limits and discovery for this server',
+      // Named, because this dialog opens for any server in the rail — not only
+      // the one whose channels are on screen behind it.
+      subtitle: 'Connection, limits and discovery for ${widget.server.name}',
       maxWidth: K.dialogWidthWidest,
       content: ServerSettingsForm(
         nameCtrl: _nameCtrl,
@@ -188,6 +192,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
         secretCtrl: _secretCtrl,
         limits: _limits,
         listing: _listing,
+        memberCount: _memberCount,
         error: _error,
         enabled: !_isLoading,
         onChanged: () => setState(() {}),

@@ -48,7 +48,7 @@ class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
 
   @override
   Future<({bool success, List<ServerMember>? members, String? error})>
-  listMembers() async =>
+  listMembers({String? serverId}) async =>
       (success: true, members: <ServerMember>[], error: null);
 
   @override

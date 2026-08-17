@@ -72,6 +72,9 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     final invite = await context.read<ServerCubit>().createInvite(
       maxUses: null,
       expiresInSeconds: null,
+      // The server this listing is for, which is also what the publish below
+      // names. Same server either way; saying so keeps them from drifting.
+      serverId: server.id,
     );
     if (!mounted) return;
     if (!invite.success || invite.inviteCode == null) {

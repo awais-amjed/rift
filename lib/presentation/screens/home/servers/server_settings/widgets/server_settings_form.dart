@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/message_banner.dart';
@@ -27,6 +26,12 @@ class ServerSettingsForm extends StatelessWidget {
   final ServerLimitsControllers limits;
   final ListingDraft listing;
 
+  /// This server's member count for the discovery disclosure, or null while the
+  /// dialog is still fetching it. Passed in rather than read from a cubit: the
+  /// live roster belongs to the *selected* server, and this form is not always
+  /// about that one.
+  final int? memberCount;
+
   final String? error;
   final bool enabled;
 
@@ -44,6 +49,7 @@ class ServerSettingsForm extends StatelessWidget {
     required this.secretCtrl,
     required this.limits,
     required this.listing,
+    required this.memberCount,
     required this.error,
     required this.enabled,
     required this.onChanged,
@@ -56,10 +62,6 @@ class ServerSettingsForm extends StatelessWidget {
     final signedIn = context.select<SupabaseBackupCubit, bool>(
       (c) => c.state.isSignedIn,
     );
-    final memberCount = context.select<ServerMembersCubit, int>(
-      (c) => c.state.members?.length ?? 0,
-    );
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,

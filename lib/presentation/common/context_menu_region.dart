@@ -25,20 +25,10 @@ class ContextMenuRegion extends StatefulWidget {
   final Widget child;
   final Widget contextMenu;
 
-  /// Runs just before the menu opens.
-  ///
-  /// For a menu whose items act on app-wide *current* state rather than on
-  /// something they were handed, this is where the right-click makes that state
-  /// agree with what was clicked. The rail's chips are the case: their dialogs
-  /// and every API call under them resolve `ServerCubit`'s **selected** server,
-  /// so without this the menu opens on one server and acts on another.
-  final VoidCallback? onOpen;
-
   const ContextMenuRegion({
     super.key,
     required this.child,
     required this.contextMenu,
-    this.onOpen,
   });
 
   @override
@@ -50,7 +40,6 @@ class _ContextMenuRegionState extends State<ContextMenuRegion> {
 
   void _show(Offset globalPosition) {
     _dismiss();
-    widget.onOpen?.call();
 
     _entry = OverlayEntry(
       builder: (context) {

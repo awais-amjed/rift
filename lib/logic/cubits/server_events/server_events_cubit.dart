@@ -107,8 +107,14 @@ class ServerEventsCubit extends Cubit<int> {
     unawaited(_serverCubit.refreshServerDetails());
   }
 
-  /// Ping the selected server's topic so other members refresh.
-  void notifyServerChanged() {
+  /// Ping [serverId]'s topic so other members refresh.
+  ///
+  /// Only one server is subscribed at a time — the one being looked at — so a
+  /// change applied to another server (its settings, from the rail's menu) has
+  /// no topic to ring here and is dropped. Those members hear it from Realtime
+  /// on the row itself instead; the doorbell is only what makes it immediate.
+  void notifyServerChanged(String serverId) {
+    if (serverId != _serverId) return;
     try {
       _channel?.sendBroadcastMessage(event: 'changed', payload: {});
     } catch (_) {}

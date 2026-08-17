@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
@@ -37,7 +37,7 @@ class SidebarHeader extends StatelessWidget {
             ServerHeader(
               server: server,
               onOpenSettings: isAdmin
-                  ? () => _openServerSettings(context)
+                  ? () => _openServerSettings(context, server)
                   : null,
             ),
             JumpField(onTap: () => openQuickSwitcher(context)),
@@ -47,9 +47,9 @@ class SidebarHeader extends StatelessWidget {
     );
   }
 
-  /// Admin-only settings for the selected server: connection, limits, and its
-  /// listing in the central directory.
-  void _openServerSettings(BuildContext context) {
+  /// Admin-only settings for [server] — here, always the one this header is
+  /// showing: connection, limits, and its listing in the central directory.
+  void _openServerSettings(BuildContext context, Server server) {
     showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
@@ -58,10 +58,9 @@ class SidebarHeader extends StatelessWidget {
           BlocProvider.value(value: context.read<ThemeCubit>()),
           // The discovery column lives on central rather than on the server.
           BlocProvider.value(value: context.read<PublicServersCubit>()),
-          BlocProvider.value(value: context.read<ServerMembersCubit>()),
           BlocProvider.value(value: context.read<SupabaseBackupCubit>()),
         ],
-        child: const ServerSettingsDialog(),
+        child: ServerSettingsDialog(server: server),
       ),
     );
   }

@@ -13,8 +13,8 @@ import 'listing_draft.dart';
 /// the user's Rift account. Keeping the two-database seam in one named place
 /// is what stops the dialog reading as though it were one write.
 class ListingActions {
-  /// The directory half of Save, run *after* the server's own update so a
-  /// central outage can never cost the server's settings.
+  /// The directory half of Save, run after the server's own update — see
+  /// [ServerSettingsSave], which owns that order.
   ///
   /// Returns null on success, or the sentence to show when the settings saved
   /// and the listing did not — the outcome a single "Saved" would have lied
@@ -29,7 +29,7 @@ class ListingActions {
   }) async {
     if (!draft.touchesDirectory) return null;
 
-    final code = await _inviteCode(draft, serverCubit);
+    final code = await _inviteCode(draft, serverCubit, server.id);
     if (code == null) {
       return 'Server settings saved, but the listing needs a join link and '
           'one could not be created. Try Save again.';
@@ -95,6 +95,7 @@ class ListingActions {
   static Future<String?> _inviteCode(
     ListingDraft draft,
     ServerCubit serverCubit,
+    String serverId,
   ) async {
     final existing = draft.listing?.inviteCode;
     if (existing != null && !draft.resetLink) return existing;
@@ -102,6 +103,8 @@ class ListingActions {
     final result = await serverCubit.createInvite(
       maxUses: null,
       expiresInSeconds: null,
+      // The listing's server, which is not necessarily the one on screen.
+      serverId: serverId,
     );
     return result.success ? result.inviteCode : null;
   }

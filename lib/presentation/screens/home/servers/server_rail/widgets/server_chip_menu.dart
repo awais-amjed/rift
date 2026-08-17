@@ -6,7 +6,6 @@ import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_modal.dart';
@@ -27,10 +26,10 @@ import '../../server_settings/server_settings_dialog.dart';
 /// the server they act on, rather than in a dialog listing all servers or in a
 /// toolbar above the channel list that costs every member vertical space.
 ///
-/// Mark as read and Leave are told which server to act on. The three dialogs
-/// are not: they, and every API call beneath them, read `ServerCubit`'s
-/// **selected** server — which is why opening this menu selects the chip
-/// (`RailServerChip`'s `onOpen`). Anything added here inherits that.
+/// **Every item is handed the server it acts on**, including the dialogs — they
+/// take a [Server] and pass its id down, so none of them reads the selection.
+/// That is what lets the menu work on a chip you are not currently looking at
+/// without first navigating you there. Anything added here has to do the same.
 class ServerChipMenu extends StatelessWidget {
   final Server server;
 
@@ -79,7 +78,7 @@ class ServerChipMenu extends StatelessWidget {
                   BlocProvider.value(value: ctx.read<ServerCubit>()),
                   BlocProvider.value(value: ctx.read<AppCubit>()),
                 ],
-                child: const InviteModal(),
+                child: InviteModal(server: server),
               ),
             ),
           ),
@@ -95,7 +94,7 @@ class ServerChipMenu extends StatelessWidget {
               context: context,
               build: (ctx) => BlocProvider.value(
                 value: ctx.read<ServerCubit>(),
-                child: const MembersModal(),
+                child: MembersModal(server: server),
               ),
             ),
           ),
@@ -111,10 +110,9 @@ class ServerChipMenu extends StatelessWidget {
                   // Settings' third column is the server's public listing,
                   // which lives on central rather than on the server.
                   BlocProvider.value(value: ctx.read<PublicServersCubit>()),
-                  BlocProvider.value(value: ctx.read<ServerMembersCubit>()),
                   BlocProvider.value(value: ctx.read<SupabaseBackupCubit>()),
                 ],
-                child: const ServerSettingsDialog(),
+                child: ServerSettingsDialog(server: server),
               ),
             ),
           ),

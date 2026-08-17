@@ -21,7 +21,11 @@ import '../listing_draft.dart';
 class ServerDiscoverySection extends StatelessWidget {
   final ListingDraft draft;
   final bool signedIn;
-  final int memberCount;
+
+  /// This server's member count, or null while the dialog is still fetching it —
+  /// in which case the disclosure names the count without quoting a number,
+  /// rather than claiming a zero it hasn't checked.
+  final int? memberCount;
 
   /// The dialog owns the draft, so every edit has to tell it to rebuild.
   final VoidCallback onChanged;
@@ -115,7 +119,8 @@ class ServerDiscoverySection extends StatelessWidget {
               icon: Icons.public_outlined,
               text:
                   'Published in the clear: the name and description above, '
-                  "this server's address, its member count ($memberCount) and "
+                  "this server's address, its member count"
+                  '${memberCount == null ? '' : ' ($memberCount)'} and '
                   'a join link. Not your messages, your members, or any key — '
                   'somebody joining goes through this server, exactly as if '
                   'you had sent them an invite.',

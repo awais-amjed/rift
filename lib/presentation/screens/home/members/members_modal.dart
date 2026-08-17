@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/server.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../common/icon_tile.dart';
 import '../../../theme/custom_colors.dart';
-import 'widgets/member_row.dart';
+import 'widgets/members_list.dart';
+import 'widgets/members_modal_header.dart';
 import '../../../theme/app_text.dart';
 
-/// Members dialog — lists everyone on the server with their permissions and
+/// Members dialog — lists everyone on [server] with their permissions and
 /// moderation state. Server admins manage permissions here (Discord-style:
 /// invites grant nothing, promotion happens after joining); admins and
 /// channel managers get mute/deafen controls.
+///
+/// Takes the server rather than reading the selection: it opens from the rail's
+/// menu, which can be a server you are not currently looking at. Every call it
+/// makes names that server, so the roster and the permission writes cannot drift
+/// onto a different one.
 class MembersModal extends StatefulWidget {
-  const MembersModal({super.key});
+  final Server server;
+
+  const MembersModal({super.key, required this.server});
 
   @override
   State<MembersModal> createState() => _MembersModalState();
@@ -36,7 +44,9 @@ class _MembersModalState extends State<MembersModal> {
   }
 
   Future<void> _load() async {
-    final result = await context.read<ServerCubit>().listMembers();
+    final result = await context.read<ServerCubit>().listMembers(
+      serverId: widget.server.id,
+    );
     if (!mounted) return;
     setState(() {
       _members = result.members;
@@ -56,6 +66,7 @@ class _MembersModalState extends State<MembersModal> {
       isServerAdmin: isServerAdmin,
       isChannelManager: isChannelManager,
       canCreateTokens: canCreateTokens,
+      serverId: widget.server.id,
     );
     if (!mounted) return;
     setState(() {
@@ -87,6 +98,7 @@ class _MembersModalState extends State<MembersModal> {
       userId: member.id,
       isMuted: muted,
       isDeafened: deafened,
+      serverId: widget.server.id,
     );
     if (!mounted) return;
     setState(() {
@@ -109,7 +121,13 @@ class _MembersModalState extends State<MembersModal> {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final viewer = context.watch<ServerCubit>().state.selectedServer?.user;
+        // Live rather than read off the passed-in snapshot, so being demoted
+        // while the dialog is open takes the controls away.
+        final viewer = context
+            .watch<ServerCubit>()
+            .state
+            .serverById(widget.server.id)
+            ?.user;
         final viewerPerms = viewer?.permissions;
         final viewerIsAdmin = viewerPerms?.isServerAdmin ?? false;
         final viewerIsModerator =
@@ -129,41 +147,10 @@ class _MembersModalState extends State<MembersModal> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Header ──────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 14, 16),
-                  child: Row(
-                    children: [
-                      IconTile(
-                        icon: Icons.group_outlined,
-                        color: themeState.accentBright,
-                        size: 36,
-                        radius: K.radiusButton,
-                        iconSize: 18,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _members == null
-                              ? 'Members'
-                              : 'Members — ${_members!.length}',
-                          style: AppText.row.copyWith(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: themeState.textPrimary,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: Icon(
-                          Icons.close,
-                          size: 18,
-                          color: themeState.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
+                MembersModalHeader(
+                  count: _members?.length,
+                  serverName: widget.server.name,
+                  themeState: themeState,
                 ),
                 Divider(height: 1, color: themeState.borderPrimary),
 
@@ -186,49 +173,20 @@ class _MembersModalState extends State<MembersModal> {
                   )
                 else if (_members != null)
                   Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _members!.length,
-                      itemBuilder: (context, index) {
-                        final member = _members![index];
-                        final isSelf = member.id == viewer?.id;
-                        return MemberRow(
-                          member: member,
-                          isSelf: isSelf,
-                          isExpanded: _expandedId == member.id,
-                          isBusy: _busyId == member.id,
-                          // Admins manage permissions for everyone but
-                          // themselves (the server rejects self-edits).
-                          canManagePermissions: viewerIsAdmin && !isSelf,
-                          // Moderators mute/deafen non-admins.
-                          canModerate:
-                              viewerIsModerator &&
-                              !isSelf &&
-                              !member.permissions.isServerAdmin,
-                          onTap: () => setState(() {
-                            _expandedId = _expandedId == member.id
-                                ? null
-                                : member.id;
-                          }),
-                          onPermissionChanged:
-                              ({
-                                isServerAdmin,
-                                isChannelManager,
-                                canCreateTokens,
-                              }) => _setPermission(
-                                member,
-                                isServerAdmin: isServerAdmin,
-                                isChannelManager: isChannelManager,
-                                canCreateTokens: canCreateTokens,
-                              ),
-                          onModerate: ({muted, deafened}) => _moderate(
-                            member,
-                            muted: muted,
-                            deafened: deafened,
-                          ),
-                        );
-                      },
+                    child: MembersList(
+                      members: _members!,
+                      viewerId: viewer?.id,
+                      viewerIsAdmin: viewerIsAdmin,
+                      viewerIsModerator: viewerIsModerator,
+                      expandedId: _expandedId,
+                      busyId: _busyId,
+                      onTap: (member) => setState(() {
+                        _expandedId = _expandedId == member.id
+                            ? null
+                            : member.id;
+                      }),
+                      onPermissionChanged: _setPermission,
+                      onModerate: _moderate,
                     ),
                   ),
               ],

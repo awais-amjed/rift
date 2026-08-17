@@ -73,6 +73,10 @@ edge_functions.md   # Edge Function API doc — update when functions change
   the API always returns 200.
 - Session (JWT) expiry is handled centrally by `ServerCubit._callWithAutoRefresh` (a silent SIWS
   re-login); new API calls must go through it rather than re-implementing refresh/retry.
+  It runs against the selected server; `_callFor(server, …)` is the same thing for a **named**
+  server. An API call a dialog can open for a server other than the current one takes an
+  optional `serverId` and resolves it with `_target()` — reading `state.selectedServer` inside
+  such a call is how a form ends up writing to the wrong server.
 - Enums carry their own `fromString` / `toJson` conversions (see `channel_type.dart`).
 
 ## Crypto rules

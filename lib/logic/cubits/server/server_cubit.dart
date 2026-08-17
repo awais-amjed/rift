@@ -23,6 +23,7 @@ part 'server_state.dart';
 part 'server_crud.dart';
 part 'server_selection.dart';
 part 'server_api.dart';
+part 'server_members_api.dart';
 part 'server_channels_api.dart';
 part 'server_chat_api.dart';
 part 'server_profile_api.dart';
@@ -32,6 +33,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerCrudMixin,
         _ServerSelectionMixin,
         _ServerApiMixin,
+        _ServerMembersApiMixin,
         _ServerChannelsApiMixin,
         _ServerChatApiMixin,
         _ServerProfileApiMixin {
@@ -61,6 +63,25 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   String get _userId => state.selectedServer?.user?.id ?? '';
 
+  /// The server a call is about: [serverId] when the caller named one, the
+  /// selection when it didn't.
+  ///
+  /// Lives on the class because both API mixins resolve through it. Every method
+  /// a dialog can open for a server other than the current one takes an optional
+  /// `serverId` and starts here; the default keeps the call sites that genuinely
+  /// mean "this server" — the chat surfaces, the sidebar — reading as they did.
+  @override
+  Server? _target(String? serverId) =>
+      serverId == null ? state.selectedServer : state.serverById(serverId);
+
+  /// What to say when [_target] finds nothing. A named server that isn't here is
+  /// a different failure from having nothing selected, and telling them apart is
+  /// the difference between "pick a server" and "this one is gone".
+  @override
+  String _noTarget(String? serverId) => serverId == null
+      ? 'No server selected'
+      : 'That server is no longer on this device';
+
   /// Called after the server list changes — wired to cloud auto-backup.
   @override
   void Function()? _onServersChanged;
@@ -83,13 +104,17 @@ class ServerCubit extends HydratedCubit<ServerState>
     _onServersChanged = callback;
   }
 
-  /// Called after a structural change to the *selected* server (e.g. a channel
-  /// created) — wired to the `server_events` Broadcast doorbell so other members
-  /// refresh in realtime.
+  /// Called after a structural change to a server (e.g. a channel created) —
+  /// wired to the `server_events` Broadcast doorbell so other members refresh in
+  /// realtime.
+  ///
+  /// Takes the server it happened on, because the doorbell can only ring on the
+  /// topic this device is subscribed to: renaming a server you are not looking
+  /// at has nobody to tell, and must not ring the bell on the one you are.
   @override
-  void Function()? _onServerEvent;
+  void Function(String serverId)? _onServerEvent;
 
-  void setOnServerEvent(void Function() callback) {
+  void setOnServerEvent(void Function(String serverId) callback) {
     _onServerEvent = callback;
   }
 
@@ -168,16 +193,20 @@ class ServerCubit extends HydratedCubit<ServerState>
     return newToken;
   }
 
-  /// Executes [call] with the current bearer token.
+  /// Executes [call] with [server]'s bearer token.
   /// If the token is near expiry a background refresh is kicked off concurrently.
   /// If the call returns a session-invalid error, re-authenticates and retries once.
+  ///
+  /// Takes the server rather than reading the selection, which is what lets an
+  /// API call act on a server you are not currently looking at. Nothing here
+  /// had to change for that: [reAuthenticateServer] and its coalescing map were
+  /// already keyed by server id, because the notifications cubit keeps every
+  /// joined server's session fresh.
   @override
-  Future<APIResponse> _callWithAutoRefresh(
+  Future<APIResponse> _callFor(
+    Server server,
     Future<APIResponse> Function(String token) call,
   ) async {
-    final server = state.selectedServer;
-    if (server == null) return APIResponse.error('No server selected');
-
     if (server.isTokenNearExpiry && _vaultCubit != null) {
       // Proactive refresh; coalesced by reAuthenticateServer.
       unawaited(reAuthenticateServer(server.id));
@@ -193,6 +222,18 @@ class ServerCubit extends HydratedCubit<ServerState>
     }
 
     return response;
+  }
+
+  /// [_callFor] against the selected server — for the calls that are about
+  /// whatever you are looking at (a channel token, the voice roster) rather than
+  /// about a server named by the caller.
+  @override
+  Future<APIResponse> _callWithAutoRefresh(
+    Future<APIResponse> Function(String token) call,
+  ) async {
+    final server = state.selectedServer;
+    if (server == null) return APIResponse.error('No server selected');
+    return _callFor(server, call);
   }
 
   // ──────────────────────────────────────────────────────────

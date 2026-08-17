@@ -3,17 +3,20 @@ part of 'server_cubit.dart';
 mixin _ServerApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
 
-  /// The selected server's anon key, id, and the caller's own user id — what a
-  /// direct PostgREST call needs on top of a bearer token.
+  /// The selected server's anon key — what a direct PostgREST call needs on top
+  /// of a bearer token, for the calls that are about the current server.
   String get _anonKey;
-  String get _serverId;
-  String get _userId;
 
   /// Ping the `server_events` doorbell after a structural change (channel
   /// create/delete, …) so other members refresh in realtime.
-  void Function()? get _onServerEvent;
+  void Function(String serverId)? get _onServerEvent;
 
   Future<APIResponse> _callWithAutoRefresh(
+    Future<APIResponse> Function(String token) call,
+  );
+
+  Future<APIResponse> _callFor(
+    Server server,
     Future<APIResponse> Function(String token) call,
   );
 
@@ -31,6 +34,11 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     bool clearUser = false,
   });
 
+  /// Implemented by [ServerCubit]: the server a call is about — the one the
+  /// caller named, or the selection when it named none.
+  Server? _target(String? serverId);
+  String _noTarget(String? serverId);
+
   // ──────────────────────────────────────────────────────────
   // API Operations
   // ──────────────────────────────────────────────────────────
@@ -45,91 +53,6 @@ mixin _ServerApiMixin on Cubit<ServerState> {
       channelId,
       screenShare: screenShare,
       bearerToken: token,
-    ),
-  );
-
-  /// Last fetched member list, keyed by user id — warmed by [listMembers].
-  ///
-  /// Lets any surface resolve a user id to their profile (notably
-  /// `chat_public_key`, needed to open a DM) without another round trip. Not
-  /// authoritative: [findMember] refetches on a miss.
-  final Map<String, ServerMember> _memberCache = {};
-
-  /// A member by user id, fetching the list once if we haven't got them.
-  /// Null when they aren't a member of the selected server.
-  Future<ServerMember?> findMember(String userId) async {
-    final cached = _memberCache[userId];
-    if (cached != null) return cached;
-    final result = await listMembers();
-    if (!result.success) return null;
-    return _memberCache[userId];
-  }
-
-  /// Fetch the full member list for the selected server.
-  Future<({bool success, List<ServerMember>? members, String? error})>
-  listMembers() async {
-    final server = state.selectedServer;
-    if (server == null) {
-      return (success: false, members: null, error: 'No server selected');
-    }
-
-    final response = await _callWithAutoRefresh(
-      (token) => _repository.listUsers(
-        server.supabaseUrl,
-        anonKey: _anonKey,
-        bearerToken: token,
-      ),
-    );
-
-    if (!response.success) {
-      return (
-        success: false,
-        members: null,
-        error: response.error ?? 'Failed to load members',
-      );
-    }
-
-    final members = ((response.data['users'] as List<dynamic>?) ?? [])
-        .map((u) => ServerMember.fromJson(u as Map<String, dynamic>))
-        .toList();
-    _memberCache
-      ..clear()
-      ..addEntries(members.map((m) => MapEntry(m.id, m)));
-    return (success: true, members: members, error: null);
-  }
-
-  /// Set a member's permission flags (server admin only).
-  Future<APIResponse> setUserPermissions({
-    required String userId,
-    bool? isServerAdmin,
-    bool? isChannelManager,
-    bool? canCreateTokens,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.setUserPermissions(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      bearerToken: token,
-      userId: userId,
-      isServerAdmin: isServerAdmin,
-      isChannelManager: isChannelManager,
-      canCreateTokens: canCreateTokens,
-    ),
-  );
-
-  /// Persistently mutes/deafens a user server-wide (requires channel
-  /// manager or server admin).
-  Future<APIResponse> moderateUser({
-    required String userId,
-    bool? isMuted,
-    bool? isDeafened,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.moderateUser(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      bearerToken: token,
-      userId: userId,
-      isMuted: isMuted,
-      isDeafened: isDeafened,
     ),
   );
 
@@ -185,22 +108,24 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     return (success: true, inviteCode: inviteCode, error: null);
   }
 
-  /// Create a plain invite code for the selected server.
+  /// Create a plain invite code for [serverId], or for the selected server.
   Future<({bool success, String? inviteCode, String? error})> createInvite({
     int? maxUses = 1,
     int? expiresInSeconds,
+    String? serverId,
   }) async {
-    final server = state.selectedServer;
+    final server = _target(serverId);
     if (server == null) {
-      return (success: false, inviteCode: null, error: 'No server selected');
+      return (success: false, inviteCode: null, error: _noTarget(serverId));
     }
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.createInvite(
         server.supabaseUrl,
-        anonKey: _anonKey,
-        serverId: _serverId,
-        userId: _userId,
+        anonKey: server.supabaseKey ?? '',
+        serverId: server.id,
+        userId: server.user?.id ?? '',
         bearerToken: token,
         maxUses: maxUses,
         expiresInSeconds: expiresInSeconds,
@@ -225,11 +150,11 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     return (success: true, error: null, serverId: null, serverName: null);
   }
 
-  /// Update the selected server's settings (admin only). Only non-null fields
-  /// are sent; the LiveKit API key / secret are write-only (never stored client
-  /// side — the client only keeps [Server.livekitUrl]). On success the local
-  /// name/icon/url are updated and the `server_events` doorbell is pinged so
-  /// other members pick up the change.
+  /// Update the settings of [serverId], or of the selected server (admin only).
+  /// Only non-null fields are sent; the LiveKit API key / secret are write-only
+  /// (never stored client side — the client only keeps [Server.livekitUrl]). On
+  /// success the local name/icon/url are updated and the `server_events`
+  /// doorbell is pinged so other members pick up the change.
   Future<({bool success, String? error})> updateServerDetails({
     String? name,
     String? iconUrl,
@@ -237,13 +162,15 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     String? livekitApiKey,
     String? livekitSecretKey,
     ServerLimits? limits,
+    String? serverId,
   }) async {
-    final server = state.selectedServer;
+    final server = _target(serverId);
     if (server == null) {
-      return (success: false, error: 'No server selected');
+      return (success: false, error: _noTarget(serverId));
     }
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.updateServer(
         server.supabaseUrl,
         bearerToken: token,
@@ -273,7 +200,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
       // limit the server clamped or refused shows up here as what was stored.
       limits: data.isEmpty ? limits : ServerLimits.fromJson(data),
     );
-    _onServerEvent?.call();
+    _onServerEvent?.call(server.id);
     return (success: true, error: null);
   }
 

@@ -12,8 +12,9 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
   String get _serverId;
 
   /// Ping the `server_events` doorbell after a structural change so other
-  /// members refresh in realtime.
-  void Function()? get _onServerEvent;
+  /// members refresh in realtime. Takes the server it happened on; channels are
+  /// only ever created and deleted on the selected one.
+  void Function(String serverId)? get _onServerEvent;
 
   Future<APIResponse> _callWithAutoRefresh(
     Future<APIResponse> Function(String token) call,
@@ -53,7 +54,7 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     // Refresh our own channel list to include the newly created one, and ping
     // the server_events doorbell so other members refresh in realtime.
     await refreshServerDetails();
-    _onServerEvent?.call();
+    _onServerEvent?.call(server.id);
     return (success: true, error: null);
   }
 
@@ -113,7 +114,7 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     }
 
     await refreshServerDetails();
-    _onServerEvent?.call();
+    _onServerEvent?.call(server.id);
     return (success: true, error: null);
   }
 }
