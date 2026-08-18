@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -13,8 +12,8 @@ part 'voice_stats_state.dart';
 
 // ── Cubit ────────────────────────────────────────────────────────────────────
 
-/// Polls the local participant's audio sender stats every second and tracks
-/// ping history for the last 5 minutes.
+/// Polls the call's transport stats every second and tracks ping history for
+/// the last 5 minutes.
 class VoiceStatsCubit extends Cubit<VoiceStatsState> {
   StreamSubscription<LiveKitState>? _lkSub;
   Timer? _timer;
@@ -56,107 +55,48 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
     if (room == null) return;
 
     try {
-      // Gather sender stats — audio first, then video as fallback.
-      List<StatsReport> senderStats = [];
-      bool senderIsAudio = false;
-
-      final local = room.localParticipant;
-      if (local != null) {
-        for (final pub in local.audioTrackPublications) {
-          final s = pub.track?.sender;
-          if (s != null) {
-            senderStats = await s.getStats();
-            senderIsAudio = true;
-            break;
-          }
-        }
-        if (senderStats.isEmpty) {
-          for (final pub in local.videoTrackPublications) {
-            final s = pub.track?.sender;
-            if (s != null) {
-              senderStats = await s.getStats();
-              break;
-            }
-          }
-        }
-      }
-
-      // Fall back to a remote participant's receiver for the candidate-pair RTT.
-      List<StatsReport> receiverStats = [];
-      if (senderStats.isEmpty) {
-        outer:
-        for (final remote in room.remoteParticipants.values) {
-          for (final pub in [
-            ...remote.audioTrackPublications,
-            ...remote.videoTrackPublications,
-          ]) {
-            final receiver = pub.track?.receiver;
-            if (receiver != null) {
-              receiverStats = await receiver.getStats();
-              if (receiverStats.isNotEmpty) break outer;
-            }
-          }
-        }
-      }
+      final senderStats = await _collectSenderStats(room);
+      final receiverStats = await _collectReceiverStats(room);
 
       if (isClosed) return;
 
-      final allStats = [...senderStats, ...receiverStats];
-      if (allStats.isEmpty) {
-        emit(const VoiceStatsState(isConnected: true, isAlone: true));
-        return;
-      }
-
-      double? rttMs;
-      double? packetLossPercent;
-
-      // RTT from STUN candidate-pair (connection-level, available regardless of mute)
-      for (final s in allStats) {
-        if (s.type == 'candidate-pair' && s.values['state'] == 'succeeded') {
-          final rtt = s.values['currentRoundTripTime'] as num?;
-          if (rtt != null) rttMs = rtt * 1000;
-          break;
-        }
-      }
-
-      // Packet loss from remote-inbound-rtp (per RTCP interval — already fresh)
-      if (senderIsAudio) {
-        for (final s in senderStats) {
-          if (s.type == 'remote-inbound-rtp' && s.values['kind'] == 'audio') {
-            final fractionLost = s.values['fractionLost'] as num?;
-            if (fractionLost != null) {
-              packetLossPercent = (fractionLost * 100).clamp(0, 100).toDouble();
-            }
-            if (rttMs == null) {
-              final rtt = s.values['roundTripTime'] as num?;
-              if (rtt != null) rttMs = rtt * 1000;
-            }
-            break;
-          }
-        }
-      }
-
-      // Update ping history
       final now = DateTime.now();
       final cutoff = now.subtract(const Duration(minutes: 5));
       final samples = List<PingSample>.from(state.pingSamples)
         ..removeWhere((s) => s.time.isBefore(cutoff));
-      if (rttMs != null) {
-        samples.add(PingSample(time: now, rttMs: rttMs));
+
+      if (senderStats.isEmpty && receiverStats.isEmpty) {
+        // Drop the live readings but keep the history. The graph covers five
+        // minutes, and a gap in the stats is not a reason to throw away what
+        // came before it — this used to reset and take the graph with it.
+        emit(
+          VoiceStatsState(
+            pingSamples: samples,
+            isConnected: true,
+            isAlone: true,
+          ),
+        );
+        return;
       }
 
-      // Jitter = std-dev of the last 10 RTT samples.
-      // Self-computed so it resets immediately — no cumulative EMA artifacts.
-      final jitterMs = _calcJitter(samples);
+      final rttMs = _readRtt(senderStats, receiverStats);
+      final jitterMs = _readJitter(senderStats, receiverStats);
+      final packetLossPercent = _readPacketLoss(senderStats);
 
-      final quality = _calcQuality(rttMs, jitterMs, packetLossPercent);
+      // Only record a genuinely new measurement. currentRoundTripTime is
+      // refreshed by ICE consent checks every few seconds while this polls
+      // every second, so appending unconditionally filled the history with
+      // repeats of one reading and gave the graph a resolution it never had.
+      if (rttMs != null && (samples.isEmpty || samples.last.rttMs != rttMs)) {
+        samples.add(PingSample(time: now, rttMs: rttMs));
+      }
 
       emit(
         VoiceStatsState(
           rttMs: rttMs,
           jitterMs: jitterMs,
           packetLossPercent: packetLossPercent,
-          quality: quality,
+          quality: _calcQuality(rttMs, jitterMs, packetLossPercent),
           pingSamples: samples,
           isConnected: true,
           isAlone: false,
@@ -167,31 +107,130 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
     }
   }
 
-  /// Standard deviation of the last 10 RTT samples as a real-time jitter proxy.
-  double? _calcJitter(List<PingSample> samples) {
-    if (samples.length < 2) return null;
-    final recent = samples.length > 10
-        ? samples.sublist(samples.length - 10)
-        : samples;
-    final mean = recent.fold(0.0, (sum, s) => sum + s.rttMs) / recent.length;
-    final variance =
-        recent.fold(0.0, (sum, s) => sum + pow(s.rttMs - mean, 2)) /
-        recent.length;
-    return sqrt(variance);
+  /// Stats for what we are publishing — audio first, video as a fallback.
+  Future<List<StatsReport>> _collectSenderStats(Room room) async {
+    final local = room.localParticipant;
+    if (local == null) return const [];
+    for (final pub in [
+      ...local.audioTrackPublications,
+      ...local.videoTrackPublications,
+    ]) {
+      final sender = pub.track?.sender;
+      if (sender == null) continue;
+      final stats = await sender.getStats();
+      if (stats.isNotEmpty) return stats;
+    }
+    return const [];
   }
 
+  /// Stats for what we are receiving.
+  ///
+  /// Collected even while we are publishing, because push-to-talk leaves the
+  /// mic muted most of the time and every outbound measurement dries up the
+  /// moment we stop sending — no RTP going out means no RTCP receiver reports
+  /// coming back.
+  Future<List<StatsReport>> _collectReceiverStats(Room room) async {
+    for (final remote in room.remoteParticipants.values) {
+      for (final pub in [
+        ...remote.audioTrackPublications,
+        ...remote.videoTrackPublications,
+      ]) {
+        final receiver = pub.track?.receiver;
+        if (receiver == null) continue;
+        final stats = await receiver.getStats();
+        if (stats.isNotEmpty) return stats;
+      }
+    }
+    return const [];
+  }
+
+  /// Round-trip time in milliseconds, preferring the publishing connection.
+  ///
+  /// LiveKit runs a publisher and a subscriber peer connection, each with its
+  /// own ICE candidate pair and its own round-trip time. Searching one and
+  /// then the other in a fixed order keeps the reading on a single connection
+  /// instead of flipping between two different numbers as tracks come and go.
+  double? _readRtt(List<StatsReport> sender, List<StatsReport> receiver) {
+    for (final reports in [sender, receiver]) {
+      for (final s in reports) {
+        if (s.type != 'candidate-pair') continue;
+        if (s.values['state'] != 'succeeded') continue;
+        final rtt = s.values['currentRoundTripTime'] as num?;
+        // Keep looking rather than giving up here. A succeeded pair with no
+        // measurement is not an answer, and a report usually holds several.
+        if (rtt == null) continue;
+        return rtt * 1000;
+      }
+    }
+    // No usable ICE measurement — fall back to the RTCP round trip, which
+    // only exists while we are sending.
+    for (final s in sender) {
+      if (s.type != 'remote-inbound-rtp') continue;
+      final rtt = s.values['roundTripTime'] as num?;
+      if (rtt != null) return rtt * 1000;
+    }
+    return null;
+  }
+
+  /// Real RTP jitter, in milliseconds.
+  ///
+  /// This used to be the standard deviation of the last ten round-trip
+  /// samples, which measures ping variability rather than jitter and swings
+  /// far wider. One stale reading stepping from 1ms to 40ms produced about
+  /// 12ms of it — enough to fail the 20ms bar on a link whose ping was 1ms,
+  /// and it stayed in the window for the next ten polls. WebRTC reports the
+  /// real quantity, and the thresholds were written for that.
+  double? _readJitter(List<StatsReport> sender, List<StatsReport> receiver) {
+    // How our audio lands at the server, reported back over RTCP.
+    for (final s in sender) {
+      if (s.type != 'remote-inbound-rtp') continue;
+      if (s.values['kind'] != 'audio') continue;
+      final jitter = s.values['jitter'] as num?;
+      if (jitter != null) return jitter * 1000;
+    }
+    // Otherwise how audio lands here, which stays measurable while muted for
+    // as long as somebody else is talking.
+    for (final s in receiver) {
+      if (s.type != 'inbound-rtp') continue;
+      if (s.values['kind'] != 'audio') continue;
+      final jitter = s.values['jitter'] as num?;
+      if (jitter != null) return jitter * 1000;
+    }
+    return null;
+  }
+
+  /// Outbound packet loss, as a percentage.
+  ///
+  /// Null while the mic is muted: with no RTP going out there are no receiver
+  /// reports coming back and nothing to measure. [_calcQuality] treats that as
+  /// no evidence of loss rather than as zero loss observed.
+  double? _readPacketLoss(List<StatsReport> sender) {
+    for (final s in sender) {
+      if (s.type != 'remote-inbound-rtp') continue;
+      if (s.values['kind'] != 'audio') continue;
+      final fractionLost = s.values['fractionLost'] as num?;
+      if (fractionLost == null) continue;
+      return (fractionLost * 100).clamp(0, 100).toDouble();
+    }
+    return null;
+  }
+
+  /// Grades the call.
+  ///
+  /// The jitter bars are in real RTP jitter now rather than round-trip
+  /// standard deviation, so they mean what they look like they mean. Excellent
+  /// exists so a 1ms link and a 90ms one stop sharing a label.
   VoiceQuality _calcQuality(
     double? rttMs,
     double? jitterMs,
     double? lossPercent,
   ) {
     if (rttMs == null) return VoiceQuality.unknown;
-    if (rttMs < 100 && (jitterMs ?? 0) < 20 && (lossPercent ?? 0) < 1) {
-      return VoiceQuality.good;
-    }
-    if (rttMs < 200 && (jitterMs ?? 0) < 50 && (lossPercent ?? 0) < 5) {
-      return VoiceQuality.fair;
-    }
+    final jitter = jitterMs ?? 0;
+    final loss = lossPercent ?? 0;
+    if (rttMs < 50 && jitter < 10 && loss < 0.5) return VoiceQuality.excellent;
+    if (rttMs < 100 && jitter < 20 && loss < 1) return VoiceQuality.good;
+    if (rttMs < 200 && jitter < 50 && loss < 5) return VoiceQuality.fair;
     return VoiceQuality.poor;
   }
 

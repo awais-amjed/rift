@@ -1,1 +1,1 @@
-enum VoiceQuality { unknown, good, fair, poor }
+enum VoiceQuality { unknown, excellent, good, fair, poor }

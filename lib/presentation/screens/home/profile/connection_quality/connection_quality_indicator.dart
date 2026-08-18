@@ -161,8 +161,9 @@ class _ConnectionQualityIndicatorState
   }
 
   IconData _qualityIcon(VoiceQuality quality) => switch (quality) {
-    VoiceQuality.good => Icons.signal_cellular_4_bar,
-    VoiceQuality.fair => Icons.signal_cellular_alt,
+    VoiceQuality.excellent => Icons.signal_cellular_4_bar,
+    VoiceQuality.good => Icons.signal_cellular_alt,
+    VoiceQuality.fair => Icons.signal_cellular_alt_2_bar,
     VoiceQuality.poor => Icons.signal_cellular_0_bar,
     VoiceQuality.unknown => Icons.signal_cellular_null,
   };
@@ -171,6 +172,7 @@ class _ConnectionQualityIndicatorState
   /// against whichever palette is running instead of fighting it.
   Color _qualityColor(VoiceQuality quality, ThemeState themeState) =>
       switch (quality) {
+        VoiceQuality.excellent => CustomColors.success,
         VoiceQuality.good => CustomColors.success,
         VoiceQuality.fair => CustomColors.warning,
         VoiceQuality.poor => CustomColors.error,
@@ -178,6 +180,7 @@ class _ConnectionQualityIndicatorState
       };
 
   String _qualityLabel(VoiceQuality quality) => switch (quality) {
+    VoiceQuality.excellent => 'Excellent',
     VoiceQuality.good => 'Good',
     VoiceQuality.fair => 'Fair',
     VoiceQuality.poor => 'Poor',
