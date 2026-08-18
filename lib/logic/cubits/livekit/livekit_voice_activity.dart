@@ -27,6 +27,11 @@ part of 'livekit_cubit.dart';
 /// was removed rather than carried as a setting that does nothing.
 mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   void _syncParticipants();
+  // Signature has to match `_LiveKitConnectionMixin`'s declaration, which this
+  // mixin overrides by being applied after it, even though only the no-argument
+  // form is called here.
+  // ignore: unused_element_parameter
+  bool _shouldTransmitMic({bool? micEnabled});
 
   CancelListenFunc? _vadRendererCancel;
   String? _vadTrackId; // media-stream track id the renderer is bound to
@@ -61,9 +66,18 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   final LevelThrottle _micLevelThrottle = LevelThrottle();
 
   /// Whether the mic level is worth measuring at all.
+  ///
+  /// This has to follow what is actually being transmitted, not just the
+  /// user's own mic toggle. Push-to-talk leaves [LiveKitState.isMicEnabled]
+  /// alone and flips [LiveKitState.isPushToTalkPressed] instead, and releasing
+  /// the key mutes the publication rather than removing it. Reading the toggle
+  /// therefore stayed true on release, [_applyMonitor] took its "same track,
+  /// already attached" early return, and no frames ever arrived to close the
+  /// detector's hold window — so letting go mid-word left the glow on for
+  /// good, while letting go during a pause looked fine.
   bool get _monitorActive {
     if (state.connectionState != LiveKitConnectionState.connected) return false;
-    return state.isMicEnabled && !state.isDeafened;
+    return _shouldTransmitMic();
   }
 
   LocalTrackPublication? _localMicPublication() {
