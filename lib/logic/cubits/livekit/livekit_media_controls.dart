@@ -99,10 +99,48 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     }
   }
 
+  /// How long the mic keeps transmitting after the key comes up.
+  ///
+  /// Muting the instant the key is released cuts the end off whatever was
+  /// being said — `LocalTrack.mute` disables the media stream track straight
+  /// away, so everything still in the encoder and on its way to the server is
+  /// lost, and the server stops forwarding the moment the mute signal lands.
+  /// The signal travels over the reliable socket while the audio does not, so
+  /// it can arrive first. Holding transmission open for a moment lets all of
+  /// that drain before anything is torn down.
+  static const Duration _pushToTalkReleaseDelay = Duration(milliseconds: 200);
+
+  Timer? _pushToTalkReleaseTimer;
+
+  /// Cancels a pending release, so nothing is torn down out from under a
+  /// caller that is about to change the mic itself.
+  void _cancelPushToTalkRelease() {
+    _pushToTalkReleaseTimer?.cancel();
+    _pushToTalkReleaseTimer = null;
+  }
+
   Future<void> setPushToTalkPressed(bool pressed) async {
-    if (state.isPushToTalkPressed == pressed) return;
-    emit(state.copyWith(isPushToTalkPressed: pressed));
-    await _syncMicrophoneTransmission(syncParticipants: true);
+    if (pressed) {
+      // Pressing again inside the release window: the mic never stopped, so
+      // there is nothing to restart, just a teardown to call off. Auto-repeat
+      // sends this many times over while the key is held.
+      _cancelPushToTalkRelease();
+      if (state.isPushToTalkPressed) return;
+      emit(state.copyWith(isPushToTalkPressed: true));
+      await _syncMicrophoneTransmission(syncParticipants: true);
+      return;
+    }
+
+    if (!state.isPushToTalkPressed || _pushToTalkReleaseTimer != null) return;
+
+    _pushToTalkReleaseTimer = Timer(_pushToTalkReleaseDelay, () {
+      _pushToTalkReleaseTimer = null;
+      // The cubit can be closed, or the key pressed again and the state
+      // already moved on, between scheduling this and it firing.
+      if (isClosed || !state.isPushToTalkPressed) return;
+      emit(state.copyWith(isPushToTalkPressed: false));
+      unawaited(_syncMicrophoneTransmission(syncParticipants: true));
+    });
   }
 
   Future<void> toggleCamera() async {

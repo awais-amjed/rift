@@ -195,8 +195,13 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     final shouldResetPressed =
         !appState.pushToTalkEnabled || appState.pushToTalkKeyId == null;
-    if (shouldResetPressed && state.isPushToTalkPressed) {
-      emit(state.copyWith(isPushToTalkPressed: false));
+    if (shouldResetPressed) {
+      // Turning push-to-talk off mid-release must not leave a timer behind to
+      // undo the mic state this is about to settle.
+      _cancelPushToTalkRelease();
+      if (state.isPushToTalkPressed) {
+        emit(state.copyWith(isPushToTalkPressed: false));
+      }
     }
     unawaited(_syncMicrophoneTransmission());
   }
@@ -305,6 +310,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
   @override
   Future<void> close() async {
+    _cancelPushToTalkRelease();
     await _appSubscription?.cancel();
     await _cleanupRoom();
     await _micLevelController.close();
