@@ -4,7 +4,7 @@ part of 'voice_stats_cubit.dart';
 
 class VoiceStatsState {
   final double? rttMs;
-  final double? jitterMs;
+  final double? avgRttMs;
   final double? packetLossPercent;
   final VoiceQuality quality;
   final List<PingSample> pingSamples;
@@ -13,7 +13,7 @@ class VoiceStatsState {
 
   const VoiceStatsState({
     this.rttMs,
-    this.jitterMs,
+    this.avgRttMs,
     this.packetLossPercent,
     this.quality = VoiceQuality.unknown,
     this.pingSamples = const [],
@@ -23,7 +23,7 @@ class VoiceStatsState {
 
   VoiceStatsState copyWith({
     double? rttMs,
-    double? jitterMs,
+    double? avgRttMs,
     double? packetLossPercent,
     VoiceQuality? quality,
     List<PingSample>? pingSamples,
@@ -32,7 +32,7 @@ class VoiceStatsState {
   }) {
     return VoiceStatsState(
       rttMs: rttMs ?? this.rttMs,
-      jitterMs: jitterMs ?? this.jitterMs,
+      avgRttMs: avgRttMs ?? this.avgRttMs,
       packetLossPercent: packetLossPercent ?? this.packetLossPercent,
       quality: quality ?? this.quality,
       pingSamples: pingSamples ?? this.pingSamples,

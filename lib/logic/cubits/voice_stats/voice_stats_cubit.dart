@@ -80,7 +80,6 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
       }
 
       final rttMs = _readRtt(senderStats, receiverStats);
-      final jitterMs = _readJitter(senderStats, receiverStats);
       final packetLossPercent = _readPacketLoss(senderStats);
 
       // Only record a genuinely new measurement. currentRoundTripTime is
@@ -91,12 +90,14 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
         samples.add(PingSample(time: now, rttMs: rttMs));
       }
 
+      final avgRttMs = _averageRtt(samples);
+
       emit(
         VoiceStatsState(
           rttMs: rttMs,
-          jitterMs: jitterMs,
+          avgRttMs: avgRttMs,
           packetLossPercent: packetLossPercent,
-          quality: _calcQuality(rttMs, jitterMs, packetLossPercent),
+          quality: _calcQuality(rttMs, packetLossPercent),
           pingSamples: samples,
           isConnected: true,
           isAlone: false,
@@ -172,31 +173,14 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
     return null;
   }
 
-  /// Real RTP jitter, in milliseconds.
-  ///
-  /// This used to be the standard deviation of the last ten round-trip
-  /// samples, which measures ping variability rather than jitter and swings
-  /// far wider. One stale reading stepping from 1ms to 40ms produced about
-  /// 12ms of it — enough to fail the 20ms bar on a link whose ping was 1ms,
-  /// and it stayed in the window for the next ten polls. WebRTC reports the
-  /// real quantity, and the thresholds were written for that.
-  double? _readJitter(List<StatsReport> sender, List<StatsReport> receiver) {
-    // How our audio lands at the server, reported back over RTCP.
-    for (final s in sender) {
-      if (s.type != 'remote-inbound-rtp') continue;
-      if (s.values['kind'] != 'audio') continue;
-      final jitter = s.values['jitter'] as num?;
-      if (jitter != null) return jitter * 1000;
-    }
-    // Otherwise how audio lands here, which stays measurable while muted for
-    // as long as somebody else is talking.
-    for (final s in receiver) {
-      if (s.type != 'inbound-rtp') continue;
-      if (s.values['kind'] != 'audio') continue;
-      final jitter = s.values['jitter'] as num?;
-      if (jitter != null) return jitter * 1000;
-    }
-    return null;
+  /// Mean of the last ten round-trip readings, for display alongside the
+  /// current one. Grading does not use it — see [_calcQuality].
+  double? _averageRtt(List<PingSample> samples) {
+    if (samples.isEmpty) return null;
+    final recent = samples.length > 10
+        ? samples.sublist(samples.length - 10)
+        : samples;
+    return recent.fold(0.0, (sum, s) => sum + s.rttMs) / recent.length;
   }
 
   /// Outbound packet loss, as a percentage.
@@ -215,22 +199,24 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
     return null;
   }
 
-  /// Grades the call.
+  /// Grades the call on round-trip time and packet loss.
   ///
-  /// The jitter bars are in real RTP jitter now rather than round-trip
-  /// standard deviation, so they mean what they look like they mean. Excellent
-  /// exists so a 1ms link and a 90ms one stop sharing a label.
-  VoiceQuality _calcQuality(
-    double? rttMs,
-    double? jitterMs,
-    double? lossPercent,
-  ) {
+  /// Jitter used to count here and no longer does. RTP jitter is an
+  /// inter-arrival measure, and push-to-talk means remote audio stops dead
+  /// whenever somebody releases their key — the gap across a pause folds
+  /// straight into the estimate, so it grew with how long people stayed quiet
+  /// rather than with anything about the network. A LAN with a 1ms ping still
+  /// read tens of milliseconds and graded Poor.
+  ///
+  /// Grading reads the latest measurement, so the badge follows the connection
+  /// as it changes rather than lagging behind a run of older readings.
+  /// [VoiceStatsState.avgRttMs] is there to be shown, not to grade on.
+  VoiceQuality _calcQuality(double? rttMs, double? lossPercent) {
     if (rttMs == null) return VoiceQuality.unknown;
-    final jitter = jitterMs ?? 0;
     final loss = lossPercent ?? 0;
-    if (rttMs < 50 && jitter < 10 && loss < 0.5) return VoiceQuality.excellent;
-    if (rttMs < 100 && jitter < 20 && loss < 1) return VoiceQuality.good;
-    if (rttMs < 200 && jitter < 50 && loss < 5) return VoiceQuality.fair;
+    if (rttMs < 50 && loss < 0.5) return VoiceQuality.excellent;
+    if (rttMs < 100 && loss < 1) return VoiceQuality.good;
+    if (rttMs < 200 && loss < 5) return VoiceQuality.fair;
     return VoiceQuality.poor;
   }
 

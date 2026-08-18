@@ -10,7 +10,7 @@ import 'ping_graph.dart';
 import '../../../../theme/app_text.dart';
 
 /// Popup panel shown above the connection quality indicator.
-/// Shows ping, jitter, packet loss, and a 5-minute ping history graph.
+/// Shows ping, average ping, packet loss, and a 5-minute ping history graph.
 class ConnectionQualityPopup extends StatelessWidget {
   const ConnectionQualityPopup({super.key});
 
@@ -74,7 +74,7 @@ class ConnectionQualityPopup extends StatelessWidget {
 
                     // Stats rows
                     if (stats.rttMs != null ||
-                        stats.jitterMs != null ||
+                        stats.avgRttMs != null ||
                         stats.packetLossPercent != null) ...[
                       const SizedBox(height: 12),
                       Divider(height: 1, color: borderColor),
@@ -86,12 +86,12 @@ class ConnectionQualityPopup extends StatelessWidget {
                           isWarning: stats.rttMs! > 200,
                           themeState: themeState,
                         ),
-                      if (stats.jitterMs != null) ...[
+                      if (stats.avgRttMs != null) ...[
                         const SizedBox(height: 6),
                         _StatRow(
-                          label: 'Jitter',
-                          value: '${stats.jitterMs!.toStringAsFixed(1)} ms',
-                          isWarning: stats.jitterMs! > 50,
+                          label: 'Average Ping',
+                          value: '${stats.avgRttMs!.toStringAsFixed(0)} ms',
+                          isWarning: stats.avgRttMs! > 200,
                           themeState: themeState,
                         ),
                       ],
