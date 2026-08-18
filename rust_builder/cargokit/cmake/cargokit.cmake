@@ -25,7 +25,19 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         set(CARGOKIT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
         set(OUTPUT_LIB "${CMAKE_CURRENT_BINARY_DIR}/${CARGOKIT_LIB_FULL_NAME}")
     endif()
-    set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
+    # The default temp dir is deep enough that webrtc-sys's nested third-party
+    # headers land past the 260 char MAX_PATH that cl.exe still enforces, so
+    # keep cargo's target dir short. It has to stay inside the project: cargo
+    # discovers .cargo/config.toml by walking up from its working directory,
+    # which run_build_tool.cmd sets to this dir.
+    if (DEFINED ENV{CARGOKIT_TARGET_TEMP_DIR})
+        set(CARGOKIT_TEMP_DIR "$ENV{CARGOKIT_TARGET_TEMP_DIR}")
+    elseif (WIN32)
+        get_filename_component(CARGOKIT_PROJECT_ROOT "${CMAKE_SOURCE_DIR}/.." ABSOLUTE)
+        set(CARGOKIT_TEMP_DIR "${CARGOKIT_PROJECT_ROOT}/ck")
+    else()
+        set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
+    endif()
 
     if (FLUTTER_TARGET_PLATFORM)
         set(CARGOKIT_TARGET_PLATFORM "${FLUTTER_TARGET_PLATFORM}")

@@ -1,5 +1,10 @@
 # Windows-specific configuration to use static C runtime
 # This is required because libwebrtc-sys is compiled with /MT (static runtime)
+#
+# This lives at the repo root rather than in rust/ because cargo discovers
+# config.toml by walking up from the working directory, not from
+# --manifest-path. Cargokit runs cargo from the CMake build dir, so a config
+# under rust/ is never seen. The root is on the walk-up path for both.
 
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
@@ -9,4 +14,3 @@ rustflags = ["-C", "target-feature=+crt-static"]
 
 [target.aarch64-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
-
