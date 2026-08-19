@@ -65,9 +65,6 @@ dependencies:
   flutter_local_notifications: ^22.1.0
   record: ^7.1.1
   emoji_picker_flutter: ^4.5.3
-  # Only so libwebrtc's native logs have somewhere to go: flutter_webrtc's
-  # Helper.setLogger takes a logger from this package.
-  logger: ^2.7.0
 
 dev_dependencies:
   flutter_test:

@@ -36,13 +36,9 @@ class AudioDevices {
     var ins = await inputs();
     var outs = await outputs();
     if (ins.isEmpty && outs.isEmpty) {
-      debugPrint('[AudioDevices] empty, priming the audio device module…');
       await _prime();
       ins = await inputs();
       outs = await outputs();
-      debugPrint(
-        '[AudioDevices] after priming: ${ins.length} in, ${outs.length} out',
-      );
     }
     return (inputs: ins, outputs: outs);
   }
@@ -200,29 +196,4 @@ class AudioDevices {
         (d) => d?.deviceId == deviceId,
         orElse: () => null,
       );
-
-  /// Dumps everything the platform reports about its audio devices.
-  ///
-  /// Which list a device lands in is decided by the `kind` the plugin returns,
-  /// below anything this app can see, so when one turns up under the wrong
-  /// heading this is the only way to tell whether the fault is here or there.
-  static Future<void> debugDump() async {
-    if (!kDebugMode) return;
-    try {
-      final all = await Hardware.instance.enumerateDevices();
-      debugPrint('[AudioDevices] platform reports ${all.length} device(s):');
-      for (final d in all) {
-        debugPrint(
-          '[AudioDevices]   kind=${d.kind} | id=${d.deviceId} | '
-          'label=${d.label}',
-        );
-      }
-      debugPrint(
-        '[AudioDevices] selected in: ${Hardware.instance.selectedAudioInput?.deviceId} '
-        '| out: ${Hardware.instance.selectedAudioOutput?.deviceId}',
-      );
-    } catch (e) {
-      debugPrint('[AudioDevices] enumeration failed: $e');
-    }
-  }
 }

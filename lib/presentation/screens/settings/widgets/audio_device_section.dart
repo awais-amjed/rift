@@ -55,8 +55,6 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
   Future<void> _loadDevices() async {
     try {
-      await AudioDevices.debugDump();
-
       final devices = await AudioDevices.load();
       final inputFormats = await AudioDevices.inputEndpointFormats();
       final outputFormats = await AudioDevices.outputEndpointFormats();
