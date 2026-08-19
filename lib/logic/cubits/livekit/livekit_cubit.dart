@@ -252,6 +252,22 @@ class LiveKitCubit extends Cubit<LiveKitState>
     );
   }
 
+  /// Rebuilds mic capture, for after the input device changes.
+  ///
+  /// WebRTC binds the device when the track is created, so a track that is
+  /// already publishing keeps capturing from the old microphone however the
+  /// selection changes underneath it.
+  ///
+  /// There is deliberately no matching hook for the output device. Playout is
+  /// not tied to a track this side owns: `Hardware.selectAudioOutput` reaches
+  /// libwebrtc's `SetPlayoutDevice`, which already stops playout, sets the
+  /// device, and initialises and starts it again when something is playing.
+  /// This used to rejoin the channel on every output change, on the belief
+  /// that mid-call switching was unsupported — it isn't, and the rejoin only
+  /// tore the connection down underneath a device change that was already in
+  /// flight on the worker thread.
+  Future<void> refreshAudioInput() => _refreshMicrophoneCapture();
+
   /// Re-publishes the mic track so changed capture options take effect during
   /// a live call. WebRTC bakes these constraints in at track creation, so the
   /// track must be recreated — stop it, then let the normal transmission sync

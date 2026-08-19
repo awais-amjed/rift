@@ -7,15 +7,11 @@ import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-// These functions are ignored because they are not marked as `pub`: `run_capture_loop`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SendableFrame`
+// These functions are ignored because they are not marked as `pub`: `encode_thumbnail`, `new`, `run_capture_loop`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SendableFrame`, `WindowsTimerResolutionGuard`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `drop`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `spawn_capture_thread`
 
-/// Capture a JPEG thumbnail for a single capture source (Windows only).
-///
-/// Returns `None` if the source doesn't exist, the capture fails, or encoding
-/// fails.  The returned bytes are a JPEG image scaled to at most 320 px wide.
-/// On non-Windows platforms this always returns `None`.
 Future<Uint8List?> getCaptureSourceThumbnail({
   required bool captureFullScreen,
   required int sourceIndex,

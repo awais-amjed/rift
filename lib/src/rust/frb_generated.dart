@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/audio_endpoints.dart';
 import 'api/screenshare.dart';
 import 'api/screenshare/audio_linux.dart';
 import 'api/screenshare/audio_windows.dart';
@@ -68,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -919278193;
+  int get rustContentHash => -1123015992;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -96,6 +97,10 @@ abstract class RustLibApi extends BaseApi {
   Future<List<CaptureSource>> crateApiScreenshareCaptureListCaptureSources({
     required bool captureFullScreen,
   });
+
+  Future<List<AudioEndpoint>> crateApiAudioEndpointsListInputEndpoints();
+
+  Future<List<AudioEndpoint>> crateApiAudioEndpointsListOutputEndpoints();
 
   Stream<ScreenshareEvent> crateApiScreenshareScreenshareEventStream();
 
@@ -278,6 +283,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<AudioEndpoint>> crateApiAudioEndpointsListInputEndpoints() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_audio_endpoint,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAudioEndpointsListInputEndpointsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAudioEndpointsListInputEndpointsConstMeta =>
+      const TaskConstMeta(debugName: "list_input_endpoints", argNames: []);
+
+  @override
+  Future<List<AudioEndpoint>> crateApiAudioEndpointsListOutputEndpoints() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_audio_endpoint,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAudioEndpointsListOutputEndpointsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAudioEndpointsListOutputEndpointsConstMeta =>
+      const TaskConstMeta(debugName: "list_output_endpoints", argNames: []);
+
+  @override
   Stream<ScreenshareEvent> crateApiScreenshareScreenshareEventStream() {
     final sink = RustStreamSink<ScreenshareEvent>();
     unawaited(
@@ -289,7 +348,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 6,
+              funcId: 8,
               port: port_,
             );
           },
@@ -324,7 +383,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 9,
             port: port_,
           );
         },
@@ -351,7 +410,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 10,
             port: port_,
           );
         },
@@ -387,6 +446,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
+  }
+
+  @protected
+  AudioEndpoint dco_decode_audio_endpoint(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return AudioEndpoint(
+      deviceId: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      channels: dco_decode_u_32(arr[2]),
+      sampleRate: dco_decode_u_32(arr[3]),
+    );
   }
 
   @protected
@@ -451,6 +524,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  List<AudioEndpoint> dco_decode_list_audio_endpoint(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_audio_endpoint).toList();
   }
 
   @protected
@@ -561,6 +640,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AudioEndpoint sse_decode_audio_endpoint(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_channels = sse_decode_u_32(deserializer);
+    var var_sampleRate = sse_decode_u_32(deserializer);
+    return AudioEndpoint(
+      deviceId: var_deviceId,
+      name: var_name,
+      channels: var_channels,
+      sampleRate: var_sampleRate,
+    );
+  }
+
+  @protected
   AudioSource sse_decode_audio_source(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_u_32(deserializer);
@@ -624,6 +718,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  List<AudioEndpoint> sse_decode_list_audio_endpoint(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <AudioEndpoint>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_audio_endpoint(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -799,6 +907,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_audio_endpoint(AudioEndpoint self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_u_32(self.channels, serializer);
+    sse_encode_u_32(self.sampleRate, serializer);
+  }
+
+  @protected
   void sse_encode_audio_source(AudioSource self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.index, serializer);
@@ -851,6 +968,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_list_audio_endpoint(
+    List<AudioEndpoint> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_audio_endpoint(item, serializer);
+    }
   }
 
   @protected

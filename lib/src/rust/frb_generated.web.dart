@@ -6,6 +6,7 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
+import 'api/audio_endpoints.dart';
 import 'api/screenshare.dart';
 import 'api/screenshare/audio_linux.dart';
 import 'api/screenshare/audio_windows.dart';
@@ -36,6 +37,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AudioEndpoint dco_decode_audio_endpoint(dynamic raw);
+
+  @protected
   AudioSource dco_decode_audio_source(dynamic raw);
 
   @protected
@@ -55,6 +59,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_i_32(dynamic raw);
+
+  @protected
+  List<AudioEndpoint> dco_decode_list_audio_endpoint(dynamic raw);
 
   @protected
   List<AudioSource> dco_decode_list_audio_source(dynamic raw);
@@ -101,6 +108,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  AudioEndpoint sse_decode_audio_endpoint(SseDeserializer deserializer);
+
+  @protected
   AudioSource sse_decode_audio_source(SseDeserializer deserializer);
 
   @protected
@@ -124,6 +134,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  List<AudioEndpoint> sse_decode_list_audio_endpoint(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<AudioSource> sse_decode_list_audio_source(SseDeserializer deserializer);
@@ -180,6 +195,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_audio_endpoint(AudioEndpoint self, SseSerializer serializer);
+
+  @protected
   void sse_encode_audio_source(AudioSource self, SseSerializer serializer);
 
   @protected
@@ -205,6 +223,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_audio_endpoint(
+    List<AudioEndpoint> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_audio_source(
