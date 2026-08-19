@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../src/rust/api/audio_endpoints.dart';
@@ -22,59 +21,26 @@ class AudioDevices {
   static Future<List<MediaDevice>> outputs() =>
       Hardware.instance.enumerateDevices(type: 'audiooutput');
 
-  /// Both lists, priming the platform first if it has nothing to say.
+  /// Both lists, which are empty unless a call is up.
   ///
   /// Audio devices are not enumerated by the operating system here but by
   /// WebRTC's audio device module: the plugin walks `RecordingDevices()` and
   /// `PlayoutDevices()` and reports what they return. Both refuse to answer
   /// until that module has been initialised, and return -1, which the plugin
   /// loops zero times over — so outside a call both lists come back empty and
-  /// the settings screen said "No devices found" until a channel was joined.
-  /// Only the camera showed, because video devices are enumerated separately.
-  static Future<({List<MediaDevice> inputs, List<MediaDevice> outputs})>
-  load() async {
-    var ins = await inputs();
-    var outs = await outputs();
-    if (ins.isEmpty && outs.isEmpty) {
-      await _prime();
-      ins = await inputs();
-      outs = await outputs();
-    }
-    return (inputs: ins, outputs: outs);
-  }
-
-  /// Starts and immediately discards a peer connection that wants audio, only
-  /// to make WebRTC bring its audio device module up.
+  /// the settings screen says "No devices found" until a channel is joined.
+  /// Only the camera shows, because video devices are enumerated separately.
   ///
-  /// Opening a capture stream was tried first and does nothing: `getUserMedia`
-  /// builds an audio source straight off the peer connection factory without
-  /// touching the device module, which is why priming that way logged a live
-  /// capture track and still enumerated nothing. Describing an audio
-  /// transceiver in a local session description is what creates the voice
-  /// engine, and it does not touch the microphone on the way.
-  static Future<void> _prime() async {
-    rtc.RTCPeerConnection? pc;
-    try {
-      pc = await rtc.createPeerConnection({'iceServers': <Object>[]});
-      await pc.addTransceiver(
-        kind: rtc.RTCRtpMediaType.RTCRtpMediaTypeAudio,
-        init: rtc.RTCRtpTransceiverInit(
-          direction: rtc.TransceiverDirection.RecvOnly,
-        ),
-      );
-      await pc.setLocalDescription(await pc.createOffer());
-    } catch (e) {
-      debugPrint('[AudioDevices] priming failed: $e');
-    } finally {
-      if (pc != null) {
-        try {
-          await pc.close();
-        } finally {
-          await pc.dispose();
-        }
-      }
-    }
-  }
+  /// Two ways of bringing that module up from here have been tried and
+  /// measured, and neither does: `getUserMedia` builds an audio source straight
+  /// off the peer connection factory without touching it, and a peer connection
+  /// carrying a receive-only audio transceiver in its local description does not
+  /// reach it either. Listing devices outside a call needs to come from Windows
+  /// instead — `listInputEndpoints` and `listOutputEndpoints` already can —
+  /// but applying a choice still goes through the device module, so the two
+  /// halves have to be solved together rather than by priming.
+  static Future<({List<MediaDevice> inputs, List<MediaDevice> outputs})>
+  load() async => (inputs: await inputs(), outputs: await outputs());
 
   /// The sample rates WebRTC's Windows device module will offer an endpoint.
   ///
