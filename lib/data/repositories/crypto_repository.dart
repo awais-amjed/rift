@@ -50,9 +50,32 @@ class CryptoRepository with _IdentityCryptoMixin, _ChatCryptoMixin {
   // Argon2id — Vault key derivation
   // ──────────────────────────────────────────────────────────
 
+  /// True when compiled for the web.
+  ///
+  /// The same trick `kIsWeb` uses, spelled out here rather than imported:
+  /// dart2js has one number type, so `0` and `0.0` really are identical there
+  /// and the compiler folds this to a constant. Taking it from
+  /// `package:flutter/foundation.dart` instead would pull Flutter into the
+  /// data layer and break the pure-Dart test scripts.
+  static const bool _isWeb = identical(0, 0.0);
+
+  /// Runs [work] off the UI thread where there is one to get off.
+  ///
+  /// Argon2id at 64 MiB is a deliberate second of CPU, so on native it goes to
+  /// an isolate. The web has none — `dart:isolate` imports fine under dart2js
+  /// and then throws `Unsupported operation` the moment [Isolate.run] is
+  /// called, which is how vault creation failed there. Flutter's `compute`
+  /// would not have helped: on the web it runs inline on the main thread too.
+  /// So the honest thing is to await it directly and wear the jank.
+  ///
+  /// A web worker would fix the jank properly, and is worth doing if the
+  /// freeze is felt — see TODO.md.
+  static Future<T> _derive<T>(Future<T> Function() work) =>
+      _isWeb ? work() : Isolate.run(work);
+
   /// Derive a 256-bit Vault Key from [password] + [salt] using Argon2id.
   ///
-  /// Runs in a background isolate to avoid blocking the UI.
+  /// Off the UI thread where the platform has isolates — see [_derive].
   Future<Uint8List> deriveVaultKey({
     required String password,
     required Uint8List salt,
@@ -60,7 +83,7 @@ class CryptoRepository with _IdentityCryptoMixin, _ChatCryptoMixin {
     int iterations = 2,
     int parallelism = 1,
   }) async {
-    return Isolate.run(() async {
+    return _derive(() async {
       final algorithm = Argon2id(
         memory: memoryKiB,
         iterations: iterations,
@@ -98,12 +121,12 @@ class CryptoRepository with _IdentityCryptoMixin, _ChatCryptoMixin {
   ///
   /// The email is the KDF salt (lowercased + trimmed) so the derivation is
   /// reproducible on a fresh device before anything has been downloaded.
-  /// Runs in a background isolate.
+  /// Off the UI thread where the platform has isolates — see [_derive].
   Future<({String authPassword, String vaultPassword})> deriveAccountKeys({
     required String email,
     required String password,
   }) async {
-    return Isolate.run(() async {
+    return _derive(() async {
       final normalizedEmail = email.trim().toLowerCase();
       final emailHash = await Sha256().hash(utf8.encode(normalizedEmail));
 

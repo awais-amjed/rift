@@ -31,6 +31,21 @@ void main() {
       expect(ChatMessageOps.oldestId([msg('7'), msg('12')]), 7);
     });
 
+    test('the empty-list sentinel is above every id and web-safe', () {
+      // Seeds a running minimum and reaches the API as "everything before
+      // this", so it has to sit above any real id — an empty list must ask
+      // for the newest page, not for nothing.
+      final sentinel = ChatMessageOps.oldestId(const []);
+      expect(sentinel, greaterThan(ChatMessageOps.oldestId([msg('999999')])));
+
+      // On the web an `int` *is* a double. The sentinel was the 64-bit
+      // maximum, which has no exact double — dart2js refused to compile the
+      // literal and took the whole web build down with it. Anything that
+      // survives this round-trip compiles and compares the same on every
+      // target.
+      expect(sentinel.toDouble().toInt(), sentinel);
+    });
+
     test('ackedIds drops non-numeric ids', () {
       final ids = ChatMessageOps.ackedIds([
         msg('7'),

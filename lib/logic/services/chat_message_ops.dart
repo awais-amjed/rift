@@ -12,8 +12,15 @@ class ChatMessageOps {
   static const int pageSize = 50;
 
   /// Sentinel for "no acknowledged message yet" when scanning for the oldest
-  /// id — callers guard on an empty list before paginating.
-  static const int _noOldestId = 0x7fffffffffffffff;
+  /// id — callers guard on an empty list before paginating. It has to be
+  /// *above* every real id, because it is the seed of a running minimum and
+  /// reaches the API as "everything before this".
+  ///
+  /// `2^53 - 1` rather than the 64-bit maximum: an `int` on the web is a
+  /// double, and `0x7fffffffffffffff` has no exact representation there —
+  /// dart2js refuses to compile the literal at all. This is exact on every
+  /// target and still far beyond anything a `bigserial` will hand out.
+  static const int _noOldestId = 9007199254740991;
 
   /// Trim an over-fetched page back to [limit] and report whether more exists.
   ///
