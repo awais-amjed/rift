@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/services/host_platform.dart';
 import '../../../../theme/app_text.dart';
 
 /// The "Jump to…" pill under the server header — the entry point to the quick
@@ -57,7 +58,10 @@ class JumpField extends StatelessWidget {
                         ),
                       ),
                     ),
-                    _buildKbdChip(themeState),
+                    // A phone has no Ctrl key to press, so the chip is
+                    // instructions for a keyboard that isn't there — and the
+                    // width it takes is width the field wanted.
+                    if (!HostPlatform.isMobile) _buildKbdChip(themeState),
                   ],
                 ),
               ),
