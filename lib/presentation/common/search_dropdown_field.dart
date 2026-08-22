@@ -35,6 +35,15 @@ class SearchDropdownField<T> extends StatefulWidget {
   /// has nothing sensible to show for an empty query.
   final bool openOnFocus;
 
+  /// Fires when the drop-down opens and closes.
+  ///
+  /// The panel behind needs it: a drop-down anchored under the field lands on
+  /// whatever the list is showing, and an empty state is the worst thing for
+  /// it to land on — two rounded cards of nearly the same colour, one sliced
+  /// through a line of text by the other's bottom edge. It also contradicts
+  /// the drop-down, saying there is nobody here over a list of people.
+  final ValueChanged<bool>? onOpenChanged;
+
   /// Supply both to drive the field from outside — to pre-fill it, or to
   /// focus it from a button elsewhere. Omit and the field owns its own.
   final TextEditingController? controller;
@@ -47,6 +56,7 @@ class SearchDropdownField<T> extends StatefulWidget {
     required this.itemBuilder,
     this.emptyMessage = 'No matches.',
     this.openOnFocus = false,
+    this.onOpenChanged,
     this.controller,
     this.focusNode,
   });
@@ -79,7 +89,12 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _removeOverlay();
+    // Torn down directly rather than through `_removeOverlay`: that reports
+    // the close to the panel behind, and a panel rebuilding itself while this
+    // field is being disposed is a setState during teardown. Nothing is left
+    // to tell — the field is going with it.
+    _overlay?.remove();
+    _overlay = null;
     _controller.removeListener(_onTextChanged);
     _focusNode.removeListener(_onFocusChanged);
     if (widget.controller == null) _controller.dispose();
@@ -142,11 +157,14 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
     }
     _overlay = OverlayEntry(builder: (_) => _buildOverlay());
     Overlay.of(context).insert(_overlay!);
+    widget.onOpenChanged?.call(true);
   }
 
   void _removeOverlay() {
-    _overlay?.remove();
+    if (_overlay == null) return;
+    _overlay!.remove();
     _overlay = null;
+    widget.onOpenChanged?.call(false);
   }
 
   @override

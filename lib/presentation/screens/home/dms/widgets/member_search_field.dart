@@ -5,10 +5,8 @@ import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/search_dropdown_field.dart';
-import '../../../../common/squircle_avatar.dart';
-import '../../../../theme/app_text.dart';
+import 'member_row.dart';
 
 /// Starts a DM with a member of the selected server.
 ///
@@ -17,7 +15,11 @@ import '../../../../theme/app_text.dart';
 /// fetched once and filtered locally — a server's membership doesn't change
 /// between keystrokes.
 class MemberSearchField extends StatefulWidget {
-  const MemberSearchField({super.key});
+  /// Forwarded to [SearchDropdownField.onOpenChanged] so the list behind can
+  /// stand down while results are floating over it.
+  final ValueChanged<bool>? onOpenChanged;
+
+  const MemberSearchField({super.key, this.onOpenChanged});
 
   @override
   State<MemberSearchField> createState() => _MemberSearchFieldState();
@@ -65,10 +67,11 @@ class _MemberSearchFieldState extends State<MemberSearchField> {
   Widget build(BuildContext context) {
     return SearchDropdownField<ServerMember>(
       hintText: 'Find a member…',
+      onOpenChanged: widget.onOpenChanged,
       emptyMessage: 'No members match that name.',
       openOnFocus: true,
       onSearch: _search,
-      itemBuilder: (context, member, dismiss) => _MemberRow(
+      itemBuilder: (context, member, dismiss) => MemberRow(
         member: member,
         // Someone who has never opened the app has published no chat key, so
         // there is nothing to encrypt to yet.
@@ -84,68 +87,6 @@ class _MemberSearchFieldState extends State<MemberSearchField> {
                   peerChatKey: member.chatPublicKey,
                 );
               },
-      ),
-    );
-  }
-}
-
-/// One member in the drop-down. Members with no published chat key are shown
-/// but unpickable, with the reason — hiding them reads as them not existing.
-class _MemberRow extends StatelessWidget {
-  final ServerMember member;
-  final VoidCallback? onTap;
-
-  const _MemberRow({required this.member, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
-    final enabled = onTap != null;
-    final radius = BorderRadius.circular(9);
-
-    return Opacity(
-      opacity: enabled ? 1 : 0.5,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: radius,
-        child: InkWell(
-          borderRadius: radius,
-          hoverColor: themeState.bgHover,
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-            child: Row(
-              spacing: 9,
-              children: [
-                SquircleAvatar(
-                  name: member.displayName,
-                  seed: member.id,
-                  imageUrl: member.avatarPath,
-                  size: 26,
-                ),
-                Expanded(
-                  child: Text(
-                    member.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.row.copyWith(
-                      fontSize: 13,
-                      color: themeState.textPrimary,
-                    ),
-                  ),
-                ),
-                if (!enabled)
-                  Text(
-                    'no keys yet',
-                    style: AppText.label.copyWith(
-                      fontWeight: FontWeight.w400,
-                      color: themeState.textQuaternary,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

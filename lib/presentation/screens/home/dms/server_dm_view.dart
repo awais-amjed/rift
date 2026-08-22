@@ -16,8 +16,22 @@ import 'widgets/member_search_field.dart';
 /// Reached from the server's own column rather than the rail, because that is
 /// what they are: part of this server, gone when you switch away from it, and
 /// unlimited in a way central DMs aren't.
-class ServerDmView extends StatelessWidget {
+class ServerDmView extends StatefulWidget {
   const ServerDmView({super.key});
+
+  @override
+  State<ServerDmView> createState() => _ServerDmViewState();
+}
+
+class _ServerDmViewState extends State<ServerDmView> {
+  /// Whether the member search is showing results over the list.
+  ///
+  /// The empty state stands down while it is: the drop-down is anchored under
+  /// the field and lands squarely on it, and two rounded cards of nearly the
+  /// same colour — one cutting through a line of the other's text — read as
+  /// a single broken element. It is also the wrong thing to be saying, since
+  /// "no conversations yet" sits under a list of people you can start one with.
+  bool _searchOpen = false;
 
   @override
   Widget build(BuildContext context) {
@@ -42,16 +56,25 @@ class ServerDmView extends StatelessWidget {
         unreadFor: server == null
             ? null
             : (peerId) => notifications.unreadForDm(server.id, peerId),
-        search: server != null ? const MemberSearchField() : null,
-        emptyState: HintCard(
-          icon: server == null
-              ? Icons.dns_outlined
-              : Icons.chat_bubble_outline_rounded,
-          text: server == null
-              ? 'Join a server to message its members.'
-              : 'No conversations on this server yet. These are unlimited — '
-                    'unlike central DMs, they stay on the server.',
-        ),
+        search: server != null
+            ? MemberSearchField(
+                onOpenChanged: (open) {
+                  if (mounted) setState(() => _searchOpen = open);
+                },
+              )
+            : null,
+        emptyState: _searchOpen
+            ? null
+            : HintCard(
+                icon: server == null
+                    ? Icons.dns_outlined
+                    : Icons.chat_bubble_outline_rounded,
+                text: server == null
+                    ? 'Join a server to message its members.'
+                    : 'No conversations on this server yet. These are '
+                          'unlimited — unlike central DMs, they stay on the '
+                          'server.',
+              ),
         onOpen: (c) {
           // Only one DM surface is open at a time.
           context.read<CentralDmCubit>().closeConversation();
