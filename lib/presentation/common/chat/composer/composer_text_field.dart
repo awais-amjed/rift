@@ -80,6 +80,12 @@ class ComposerTextField extends StatelessWidget {
               ),
               decoration: InputDecoration(
                 hintText: hintText,
+                // One line, always. The field grows to `_maxLines` for what
+                // you type, and the hint inherits that room — so in a narrow
+                // conversation pane "Message Schema Tester" broke a word per
+                // line and pushed the whole bar taller before a key was
+                // pressed. The placeholder should shorten, not reflow.
+                hintMaxLines: 1,
                 // Same metrics as the real text, so the hint sits exactly
                 // where typing will start.
                 hintStyle: AppText.body.copyWith(
