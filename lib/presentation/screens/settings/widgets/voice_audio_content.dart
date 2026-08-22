@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/services/host_platform.dart';
 import 'audio_device_section.dart';
 import 'mic_test/mic_test_section.dart';
 import 'section_title.dart';
@@ -23,6 +24,17 @@ class VoiceAudioContent extends StatelessWidget {
   /// Audio ducking and push-to-talk both need Windows APIs.
   static final bool _isWindows = !kIsWeb && Platform.isWindows;
 
+  /// Picking an input and an output by name is a desktop idea, and on a phone
+  /// it is two dead controls: WebRTC's Android device module does not
+  /// enumerate playout devices at all, so Output reads "No devices found"
+  /// forever, and Input offers nothing but "System Default". Routing there
+  /// belongs to the OS and to LiveKit's own audio switch, which follow the
+  /// headset being plugged in without being asked.
+  ///
+  /// The processing toggles and the mic test below stay: those are about the
+  /// signal, not about which socket it came from, and they work everywhere.
+  static final bool _canPickDevices = !HostPlatform.isMobile;
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AppCubit, AppState>(
@@ -36,8 +48,10 @@ class VoiceAudioContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              AudioDeviceSection(themeState: themeState),
-              _divider(),
+              if (_canPickDevices) ...[
+                AudioDeviceSection(themeState: themeState),
+                _divider(),
+              ],
               AudioProcessingSection(
                 themeState: themeState,
                 appState: appState,

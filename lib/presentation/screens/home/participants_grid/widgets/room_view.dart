@@ -6,6 +6,7 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../../logic/services/host_platform.dart';
 import '../../controls/context_strip.dart';
 import '../../controls/control_bar.dart';
 import 'participant_grid_layout.dart';
@@ -28,7 +29,15 @@ class RoomView extends StatefulWidget {
 }
 
 class _RoomViewState extends State<RoomView> {
-  static const _hideDelay = Duration(seconds: 2);
+  /// How long the chrome stays after the last sign of life.
+  ///
+  /// Longer under a thumb. A cursor keeps the chrome alive just by being
+  /// moved, and it is already hovering over the pill when it reaches it; a
+  /// thumb has to travel the whole way with nothing keeping the timer fed,
+  /// and two seconds is not enough to cross a phone and land on Leave.
+  static Duration get _hideDelay => HostPlatform.isMobile
+      ? const Duration(seconds: 4)
+      : const Duration(seconds: 2);
 
   bool _chromeVisible = true;
   Timer? _hideTimer;
@@ -52,8 +61,8 @@ class _RoomViewState extends State<RoomView> {
     });
   }
 
-  /// Pointer activity anywhere in the room area reveals the chrome and resets
-  /// the idle timer.
+  /// Any sign of life in the room area reveals the chrome and resets the idle
+  /// timer.
   void _showChrome() {
     if (!_chromeVisible) setState(() => _chromeVisible = true);
     _scheduleHide();
@@ -72,6 +81,15 @@ class _RoomViewState extends State<RoomView> {
               behavior: HitTestBehavior.translucent,
               onPointerHover: (_) => _showChrome(),
               onPointerMove: (_) => _showChrome(),
+              // Hover never fires without a mouse, and move only fires during
+              // a drag — so on a phone the chrome went away after two seconds
+              // and nothing brought it back. That leaves you in a call with no
+              // mute and no way out of it but the drawer.
+              //
+              // A Listener rather than a tap recognizer on purpose: it does
+              // not enter the gesture arena, so revealing the controls cannot
+              // steal the press that was aimed at one of them.
+              onPointerDown: (_) => _showChrome(),
               child: Stack(
                 children: [
                   Column(

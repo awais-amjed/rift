@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../../logic/services/host_platform.dart';
 import '../../../../../theme/app_text.dart';
 import 'mic_level_meter.dart';
 
@@ -41,8 +42,15 @@ class InputLevelPanel extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Test Mic and speak — the bar should move with your voice. If it '
-          'stays dark, Rift is not hearing the input device selected above.',
+          // "selected above" only means something where there is a picker
+          // above to have selected in. On a phone there is not — the OS owns
+          // routing there — so the sentence would be pointing at nothing.
+          HostPlatform.isMobile
+              ? 'Test Mic and speak — the bar should move with your voice. If '
+                    'it stays dark, Rift is not hearing your microphone.'
+              : 'Test Mic and speak — the bar should move with your voice. If '
+                    'it stays dark, Rift is not hearing the input device '
+                    'selected above.',
           style: AppText.secondary.copyWith(
             color: themeState.textTertiary,
             fontSize: 12,
