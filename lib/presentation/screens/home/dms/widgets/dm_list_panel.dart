@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import '../../chat/widgets/chat_header.dart';
+import '../../chat/widgets/header_pane_buttons.dart';
 import 'dm_conversation_tile.dart';
 
 /// The conversation list down the left of the server-DM surface.
@@ -54,7 +56,7 @@ class DmListPanel extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(themeState),
+            _buildHeader(context, themeState),
             if (search != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
@@ -67,37 +69,53 @@ class DmListPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(ThemeState themeState) {
+  /// On a phone this list is the whole surface, so its header is the only bar
+  /// on screen and has to carry the way back to the drawer. [HeaderSidebarButton]
+  /// renders nothing where the sidebar is docked, so the wide layout is
+  /// unchanged and keeps its tighter lead-in.
+  Widget _buildHeader(BuildContext context, ThemeState themeState) {
+    final hasMenu = context.layoutMode.sidebarIsOverlay;
+
     return Container(
       height: ChatHeader.height,
-      padding: const EdgeInsets.fromLTRB(14, 0, 8, 0),
+      padding: EdgeInsets.fromLTRB(hasMenu ? 6 : 14, 0, 8, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
       ),
       // No "+": the search field below is the way to start a conversation,
       // and a button whose only job is to point at a field already on screen
       // is one control too many.
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        spacing: hasMenu ? 8 : 0,
         children: [
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.row.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: themeState.textPrimary,
+          const HeaderSidebarButton(),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.row.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: themeState.textPrimary,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.meta.copyWith(
+                      color: themeState.textQuaternary,
+                    ),
+                  ),
+              ],
             ),
           ),
-          if (subtitle != null)
-            Text(
-              subtitle!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.meta.copyWith(color: themeState.textQuaternary),
-            ),
         ],
       ),
     );

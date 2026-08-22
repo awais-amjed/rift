@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 
 /// The two-column layout a DM surface uses: conversation list on the chrome
@@ -10,13 +11,20 @@ import '../../../../theme/app_text.dart';
 /// The same split as the sidebar and chat panel outside it, one level in —
 /// which is what keeps a DM surface reading as part of the app rather than a
 /// screen of its own.
+///
+/// A phone has no room for one column inside another: 280px of list against a
+/// 393px screen left the conversation a gutter to live in. So the split
+/// collapses there into the ordinary phone pattern — the list *is* the resting
+/// state, and opening a conversation replaces it. There is no "pick a
+/// conversation" panel in that mode because you would be reading it instead of
+/// the list it is telling you to use.
 class DmSurface extends StatelessWidget {
   final Widget list;
 
   /// The open conversation, or null for the resting state.
   final Widget? conversation;
 
-  /// Shown when nothing is open.
+  /// Shown when nothing is open. Wide layouts only — see the class comment.
   final String emptyTitle;
   final String emptyMessage;
   final IconData emptyIcon;
@@ -34,6 +42,8 @@ class DmSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.layoutMode.isCompact) return conversation ?? list;
+
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return Row(

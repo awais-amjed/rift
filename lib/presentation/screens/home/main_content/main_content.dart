@@ -88,27 +88,30 @@ class MainContent extends StatelessWidget {
           final compact = context.layoutMode.isCompact;
 
           if (appState.surface.isDms) {
-            final central = appState.surface == HomeSurface.centralDms;
-            final conversationOpen = central
-                ? context.select<CentralDmCubit, bool>(
-                    (c) => c.state.openPeerId != null,
-                  )
-                : context.select<DmCubit, bool>(
-                    (c) => c.state.openPeerId != null,
-                  );
+            // Server DMs keep their own list inside the pane, so on a phone
+            // they are already somewhere you can stand and [HomeView] would
+            // put the server's channels where the conversations should be.
+            // Central's list is in the sidebar, so its pane has nothing to
+            // rest on and HomeView is what it rests on.
+            if (appState.surface == HomeSurface.serverDms) {
+              return const _ContentPanel(
+                child: _WithMenuWhenHeaderless(
+                  hasOwnHeader: _ServerDmHasHeader(),
+                  child: ServerDmView(),
+                ),
+              );
+            }
+            final conversationOpen = context.select<CentralDmCubit, bool>(
+              (c) => c.state.openPeerId != null,
+            );
             if (compact && !conversationOpen) {
               return const _ContentPanel(child: HomeView());
             }
-            return _ContentPanel(
-              child: central
-                  ? const _WithMenuWhenHeaderless(
-                      hasOwnHeader: _CentralDmOpen(),
-                      child: CentralDmView(),
-                    )
-                  : const _WithMenuWhenHeaderless(
-                      hasOwnHeader: _ServerDmOpen(),
-                      child: ServerDmView(),
-                    ),
+            return const _ContentPanel(
+              child: _WithMenuWhenHeaderless(
+                hasOwnHeader: _CentralDmOpen(),
+                child: CentralDmView(),
+              ),
             );
           }
           // Overlaid, the member list is mounted by the shell so it can float
@@ -227,12 +230,19 @@ class _CentralDmOpen extends StatelessWidget {
   }
 }
 
-/// The drawer button, unless a server conversation is open.
-class _ServerDmOpen extends StatelessWidget {
-  const _ServerDmOpen();
+/// The drawer button, unless the server-DM surface already has a header.
+///
+/// On a phone it always does: an open conversation brings a [DmChatHeader] and
+/// the resting state is the conversation list, whose own header carries the
+/// button. Only the wide layout's empty panel is bare, and there the sidebar is
+/// docked and [HeaderSidebarButton] is empty anyway — so this is nothing on
+/// every path but the one it exists for.
+class _ServerDmHasHeader extends StatelessWidget {
+  const _ServerDmHasHeader();
 
   @override
   Widget build(BuildContext context) {
+    if (context.layoutMode.isCompact) return const SizedBox.shrink();
     final open = context.select<DmCubit, bool>(
       (cubit) => cubit.state.openPeerId != null,
     );
