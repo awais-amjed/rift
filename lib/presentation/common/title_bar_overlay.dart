@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/app/app_cubit.dart';
+import '../../logic/services/host_platform.dart';
 import 'title_bar/app_title_bar.dart';
 
 /// Wraps the entire app (above the Navigator) so the title bar always renders
@@ -91,7 +91,8 @@ class _TitleBarOverlayState extends State<TitleBarOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) return widget.child;
+    // Not just web: a phone has its own status bar and no window to drag.
+    if (!HostPlatform.drawsOwnWindowChrome) return widget.child;
 
     return MouseRegion(
       onHover: (e) {

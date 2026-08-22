@@ -64,6 +64,53 @@ void main() {
     });
   });
 
+  // Overlaid, the sidebar is covering the content rather than sitting beside
+  // it, so the half-the-window rule that protects the content no longer has
+  // anything to protect — and on a phone it would spend most of the screen on
+  // scrim. A fixed peek is held back instead.
+  group('overlaid', () {
+    const phone = 390.0;
+
+    test('runs wider than the docked share would allow', () {
+      expect(
+        SidebarSizing.maxFor(phone, overlay: true),
+        phone - K.sidebarOverlayPeek,
+      );
+      expect(
+        SidebarSizing.maxFor(phone, overlay: true),
+        greaterThan(SidebarSizing.maxFor(phone)),
+      );
+    });
+
+    test('always leaves content showing to dismiss it with', () {
+      for (final width in [320.0, 360.0, phone, 430.0, 600.0]) {
+        expect(
+          SidebarSizing.maxFor(width, overlay: true),
+          lessThanOrEqualTo(width - K.sidebarOverlayPeek),
+          reason: 'a ${width}px window would be covered edge to edge',
+        );
+      }
+    });
+
+    test('is still held to the drag ceiling on a wide window', () {
+      expect(SidebarSizing.maxFor(2000, overlay: true), K.sidebarMaxWidth);
+    });
+
+    test('the floor still outranks the peek', () {
+      // A 200px window cannot honour both. Which one gives is the difference
+      // between a panel that runs off the edge and one too narrow to read.
+      expect(SidebarSizing.maxFor(200, overlay: true), K.sidebarMinWidth);
+    });
+
+    test('a docked width is not carried into the overlay unchanged', () {
+      // Same stored preference, two different windows to satisfy.
+      expect(
+        SidebarSizing.clamp(K.sidebarWidth, windowWidth: phone, overlay: true),
+        phone - K.sidebarOverlayPeek,
+      );
+    });
+  });
+
   // The stored value comes back through JSON, and a corrupt one shouldn't
   // leave the layout with a NaN width to lay out.
   test('a nonsense stored width falls back to the default', () {

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +9,8 @@ import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../common/app_panel.dart';
 import '../../common/canvas_backdrop.dart';
+import '../../../logic/services/host_platform.dart';
+import '../../responsive/shell_scope.dart';
 import '../../common/confirm_dialog.dart';
 import '../../common/icon_tile.dart';
 import '../../theme/app_text.dart';
@@ -34,6 +35,17 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   SettingsTab _activeTab = SettingsTab.appearance;
+
+  /// Whether a tab's contents are showing, on the widths where the nav and the
+  /// contents cannot both be.
+  ///
+  /// Settings is two panels side by side, and neither survives being halved:
+  /// the nav is a list of labels and the contents are full of controls with
+  /// their own minimum widths. So on a phone they become a list and a detail
+  /// page, which is what every settings screen on a phone already is, and this
+  /// says which of the two is showing. Ignored entirely at wider sizes, where
+  /// both are on screen and there is nothing to be in front of anything else.
+  bool _detailOpen = false;
 
   String get _tabTitle => switch (_activeTab) {
     SettingsTab.appearance => 'Appearance',
@@ -73,12 +85,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     context.read<VaultCubit>().resetVault();
   }
 
-  Widget _buildHeader(ThemeState themeState) {
+  void _selectTab(SettingsTab tab, {required bool compact}) {
+    setState(() {
+      _activeTab = tab;
+      if (compact) _detailOpen = true;
+    });
+  }
+
+  Widget _buildHeader(ThemeState themeState, {required bool showBack}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 16),
+      padding: EdgeInsets.fromLTRB(showBack ? 12 : 24, 18, 24, 16),
       child: Row(
         spacing: 12,
         children: [
+          // The way back to the list. The nav panel's own back arrow leaves
+          // Settings altogether, and is not on screen here anyway.
+          if (showBack)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              color: themeState.textSecondary,
+              tooltip: 'All settings',
+              onPressed: () => setState(() => _detailOpen = false),
+            ),
           // The tab's own mark, so the content panel says which section you
           // are in as loudly as the nav row you clicked to get here.
           IconTile(
@@ -122,65 +150,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
             buildWhen: (prev, curr) =>
                 prev.titleBarVisible != curr.titleBarVisible,
             builder: (context, appState) {
-              final topOffset = kIsWeb
+              final compact = context.layoutMode.isCompact;
+              final topOffset = !HostPlatform.drawsOwnWindowChrome
                   ? 0.0
                   : (appState.titleBarVisible ? K.titleBarHeight : 0.0);
               return CanvasBackdrop(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    K.panelGutter,
-                    topOffset == 0 ? K.panelGutter : topOffset,
-                    K.panelGutter,
-                    K.panelGutter,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // ── Left nav panel ───────────────────────────
-                      AppPanel(
-                        width: K.settingsNavWidth,
-                        child: SettingsSidebar(
-                          activeTab: _activeTab,
-                          onTabSelected: (tab) =>
-                              setState(() => _activeTab = tab),
-                          themeState: themeState,
-                          onBack: () => context.pop(),
-                          onResetVault: _resetVault,
-                        ),
-                      ),
-                      const SizedBox(width: K.panelGutter),
-                      // ── Right content panel ──────────────────────
-                      Expanded(
-                        child: AppPanel(
-                          color: themeState.bgContent,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildHeader(themeState),
-                              Divider(
-                                height: 1,
-                                color: themeState.borderPrimary,
-                              ),
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  padding: const EdgeInsets.all(24),
-                                  child: switch (_activeTab) {
-                                    SettingsTab.appearance => AppearanceContent(
-                                      themeState: themeState,
-                                    ),
-                                    SettingsTab.voiceAndAudio =>
-                                      VoiceAudioContent(themeState: themeState),
-                                    SettingsTab.backup => BackupContent(
-                                      themeState: themeState,
-                                    ),
-                                  },
-                                ),
-                              ),
-                            ],
+                child: SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      K.panelGutter,
+                      topOffset == 0 ? K.panelGutter : topOffset,
+                      K.panelGutter,
+                      K.panelGutter,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // ── Left nav panel ───────────────────────────
+                        // Full width on a phone, where it is the list half of a
+                        // list-and-detail pair rather than a column beside one.
+                        if (!compact || !_detailOpen)
+                          _NavPanel(
+                            expand: compact,
+                            child: SettingsSidebar(
+                              activeTab: _activeTab,
+                              onTabSelected: (tab) =>
+                                  _selectTab(tab, compact: compact),
+                              themeState: themeState,
+                              onBack: () => context.pop(),
+                              onResetVault: _resetVault,
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
+                        if (!compact) const SizedBox(width: K.panelGutter),
+                        // ── Right content panel ──────────────────────
+                        if (!compact || _detailOpen)
+                          Expanded(
+                            child: AppPanel(
+                              color: themeState.bgContent,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildHeader(
+                                    themeState,
+                                    showBack: compact && _detailOpen,
+                                  ),
+                                  Divider(
+                                    height: 1,
+                                    color: themeState.borderPrimary,
+                                  ),
+                                  Expanded(
+                                    child: SingleChildScrollView(
+                                      padding: EdgeInsets.all(
+                                        compact ? 16 : 24,
+                                      ),
+                                      child: switch (_activeTab) {
+                                        SettingsTab.appearance =>
+                                          AppearanceContent(
+                                            themeState: themeState,
+                                          ),
+                                        SettingsTab.voiceAndAudio =>
+                                          VoiceAudioContent(
+                                            themeState: themeState,
+                                          ),
+                                        SettingsTab.backup => BackupContent(
+                                          themeState: themeState,
+                                        ),
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -189,5 +232,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       },
     );
+  }
+}
+
+/// The settings nav, at its fixed width beside the contents or filling the
+/// window when it is the only thing on it.
+///
+/// [AppPanel] takes a width, not a flex, so the two cases cannot be expressed
+/// by passing it a different number — an [Expanded] has to wrap it instead.
+class _NavPanel extends StatelessWidget {
+  final bool expand;
+  final Widget child;
+
+  const _NavPanel({required this.expand, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    if (expand) return Expanded(child: AppPanel(child: child));
+    return AppPanel(width: K.settingsNavWidth, child: child);
   }
 }

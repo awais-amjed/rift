@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,6 +11,7 @@ import '../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
+import '../../../logic/services/host_platform.dart';
 import '../../common/app_modal.dart';
 import '../../common/canvas_backdrop.dart';
 import '../../common/overlay_scrim.dart';
@@ -176,7 +176,8 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, appState) {
             final mode = context.layoutMode;
             final titleBarVisible = appState.titleBarVisible;
-            final topPadding = kIsWeb
+            final chrome = HostPlatform.drawsOwnWindowChrome;
+            final topPadding = !chrome
                 ? 0.0
                 : (titleBarVisible ? 0.0 : K.titleBarHiddenSidebarPadding);
             return ShellScope(
@@ -192,66 +193,75 @@ class _HomeScreenState extends State<HomeScreen> {
               dismissOverlays: _dismissOverlays,
               child: _QuickSwitcherShortcut(
                 child: CanvasBackdrop(
-                  child: Padding(
-                    // The title bar is painted above the whole app, so the
-                    // workspace steps out from under it; the gutter takes over
-                    // when it's hidden.
-                    padding: EdgeInsets.only(
-                      top: kIsWeb
-                          ? K.panelGutter
-                          : (titleBarVisible ? _titleBarHeight : K.panelGutter),
-                      left: K.panelGutter,
-                      right: K.panelGutter,
-                      bottom: K.panelGutter,
-                    ),
-                    child: Stack(
-                      children: [
-                        Row(
-                          children: [
-                            // Docked, the sidebar takes its width out of the
-                            // row. Overlaid it is mounted further down this
-                            // stack instead, so the content runs full width
-                            // underneath it rather than beside it.
-                            if (!mode.sidebarIsOverlay)
-                              Sidebar(
-                                open: appState.sidebarOpen,
+                  // Inside the backdrop so the canvas still paints behind the
+                  // status bar and the home indicator, rather than leaving
+                  // bands of window colour at the ends of the screen. A no-op
+                  // wherever the insets are zero, which is everywhere but a
+                  // phone.
+                  child: SafeArea(
+                    child: Padding(
+                      // The title bar is painted above the whole app, so the
+                      // workspace steps out from under it; the gutter takes over
+                      // when it's hidden.
+                      padding: EdgeInsets.only(
+                        top: !chrome
+                            ? K.panelGutter
+                            : (titleBarVisible
+                                  ? _titleBarHeight
+                                  : K.panelGutter),
+                        left: K.panelGutter,
+                        right: K.panelGutter,
+                        bottom: K.panelGutter,
+                      ),
+                      child: Stack(
+                        children: [
+                          Row(
+                            children: [
+                              // Docked, the sidebar takes its width out of the
+                              // row. Overlaid it is mounted further down this
+                              // stack instead, so the content runs full width
+                              // underneath it rather than beside it.
+                              if (!mode.sidebarIsOverlay)
+                                Sidebar(
+                                  open: appState.sidebarOpen,
+                                  topPadding: topPadding,
+                                ),
+                              const Expanded(child: MainContent()),
+                            ],
+                          ),
+                          // One scrim for both drawers — only ever one is open.
+                          OverlayScrim(
+                            visible: _sidebarOverlayOpen || _membersOverlayOpen,
+                            onTap: _dismissOverlays,
+                          ),
+                          if (mode.sidebarIsOverlay)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Sidebar(
+                                open: _sidebarOverlayOpen,
                                 topPadding: topPadding,
+                                floating: true,
                               ),
-                            const Expanded(child: MainContent()),
-                          ],
-                        ),
-                        // One scrim for both drawers — only ever one is open.
-                        OverlayScrim(
-                          visible: _sidebarOverlayOpen || _membersOverlayOpen,
-                          onTap: _dismissOverlays,
-                        ),
-                        if (mode.sidebarIsOverlay)
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Sidebar(
-                              open: _sidebarOverlayOpen,
-                              topPadding: topPadding,
-                              floating: true,
                             ),
-                          ),
-                        if (mode.membersIsOverlay)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: MembersSidebar(
-                              open: _membersOverlayOpen,
-                              floating: true,
+                          if (mode.membersIsOverlay)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: MembersSidebar(
+                                open: _membersOverlayOpen,
+                                floating: true,
+                              ),
                             ),
-                          ),
-                        // The edge tabs are the way back to a *docked* pane. On
-                        // a phone the same job is done by the buttons in the
-                        // chat header, where a thumb can reach them.
-                        if (!mode.isCompact)
-                          const Positioned(
-                            top: 12,
-                            left: 0,
-                            child: SidebarTab(),
-                          ),
-                      ],
+                          // The edge tabs are the way back to a *docked* pane. On
+                          // a phone the same job is done by the buttons in the
+                          // chat header, where a thumb can reach them.
+                          if (!mode.isCompact)
+                            const Positioned(
+                              top: 12,
+                              left: 0,
+                              child: SidebarTab(),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
