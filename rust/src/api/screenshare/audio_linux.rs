@@ -18,6 +18,9 @@ use pulse::stream::{FlagSet as StreamFlagSet, PeekResult, Stream};
 
 #[cfg(target_os = "linux")]
 use livekit::options::TrackPublishOptions;
+// Only for `Room`, which comes from a crate this build has
+// only on the desktop — see Cargo.toml.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::prelude::*;
 #[cfg(target_os = "linux")]
 use livekit::track::{LocalAudioTrack, LocalTrack, TrackSource};
@@ -452,7 +455,7 @@ pub async fn start_audio_capture(
 }
 
 #[flutter_rust_bridge::frb(ignore)]
-#[cfg(not(target_os = "linux"))]
+#[cfg(all(any(target_os = "windows", target_os = "linux", target_os = "macos"), not(target_os = "linux")))]
 pub async fn start_audio_capture(
     _room: &Room,
     _sink_input_idx: u32,

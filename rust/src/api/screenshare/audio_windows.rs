@@ -16,6 +16,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 #[cfg(target_os = "windows")]
 use livekit::options::TrackPublishOptions;
+// Only for `Room`, which comes from a crate this build has
+// only on the desktop — see Cargo.toml.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::prelude::*;
 #[cfg(target_os = "windows")]
 use livekit::track::{LocalAudioTrack, LocalTrack, TrackSource};
@@ -298,7 +301,7 @@ pub async fn start_audio_capture(room: &Room, pid: Option<u32>) -> Option<AudioC
 }
 
 #[flutter_rust_bridge::frb(ignore)]
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(any(target_os = "windows", target_os = "linux", target_os = "macos"), not(target_os = "windows")))]
 pub async fn start_audio_capture(_room: &Room, _pid: Option<u32>) -> Option<AudioCaptureHandle> {
     None
 }

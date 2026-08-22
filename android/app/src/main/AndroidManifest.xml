@@ -1,6 +1,42 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Everything the app does is over the network: Supabase for the server,
+         LiveKit for the call. Without this it builds and then reaches nothing,
+         which looks exactly like every server being offline. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- Voice and video. RECORD_AUDIO also arrives from the `record` plugin's
+         own manifest, but it is stated here because it belongs to the app
+         rather than to a dependency — dropping voice notes one day must not
+         silently take the microphone with them. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+
+    <!-- Routing a call to a Bluetooth headset. API 31 split this out of the
+         legacy pair, which older devices still need. This set is the one
+         LiveKit's own Flutter example declares. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30"/>
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30"/>
+
+    <!-- WebRTC reacts to the network moving under a live call. -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+
+    <!-- So a call survives the screen going off. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!-- Declared not-required so the app still installs on hardware without
+         them: a tablet with no camera can still read and type. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.microphone" android:required="false"/>
+
     <application
-        android:label="rift"
+        android:label="Rift"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

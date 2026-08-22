@@ -1,10 +1,17 @@
+//! Screenshare API for LiveKit integration.
+//!
+//! Receives configuration from Flutter and manages the LiveKit session.
+//!
+//! Every function Dart can call exists on every platform, because the bridge
+//! is generated once and its bindings are not conditional. What varies is
+//! whether there is anything behind them: capturing a desktop needs
+//! libwebrtc's `desktop_capturer`, which exists only on the three targets
+//! below, so a phone gets the same API answering "there is no desktop here"
+//! and shares its screen through the Dart SDK instead.
 pub mod audio_linux;
 pub mod audio_windows;
-/// Screenshare API for LiveKit integration
-///
-/// This module handles screen sharing functionality by receiving
-/// configuration from Flutter and managing the LiveKit session.
 pub mod capture;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub mod track;
 pub mod types;
 
@@ -13,16 +20,25 @@ pub use audio_windows::{list_audio_sources_windows, AudioSourceWindows};
 pub use types::CaptureSource;
 pub use types::ScreenShareConfig;
 
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use capture::{list_capture_sources as list_capture_sources_impl, spawn_capture_thread};
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use track::publish_video_track;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use types::{CaptureCommand, ScreenShareSession, SESSION};
 
 use crate::frb_generated::StreamSink;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::prelude::*;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::webrtc::prelude::VideoResolution;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::webrtc::video_source::native::NativeVideoSource;
-use std::sync::{Arc, Condvar, Mutex};
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+use std::sync::{Arc, Condvar};
+use std::sync::Mutex;
 
 /// Lifecycle events pushed from the Rust screenshare layer up to Flutter.
 pub enum ScreenshareEvent {
@@ -50,8 +66,17 @@ pub fn emit_screenshare_event(event: ScreenshareEvent) {
     }
 }
 
+/// There is no desktop to capture here. Reported rather than ignored: the
+/// caller is about to show a "sharing" state for a stream that will never
+/// arrive, and mobile is meant to take the Dart SDK's path instead.
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+pub async fn start_screenshare(_config: ScreenShareConfig) -> Result<String, String> {
+    Err("Screen sharing from Rust is desktop-only on this build".to_string())
+}
+
 /// Start screen sharing with the given configuration.
 /// Connects to LiveKit room with the provided token.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, String> {
     println!("=== SCREENSHARE DATA RECEIVED IN RUST ===");
     println!("LiveKit URL: {}", config.livekit_url);
@@ -233,7 +258,15 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     Ok(format!("Connected to room: {} ({})", room_name, room_sid))
 }
 
+/// Nothing was ever started, so stopping succeeds — a teardown path that
+/// errors would make every disconnect look like a failure.
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+pub async fn stop_screenshare() -> Result<String, String> {
+    Ok("No active session".to_string())
+}
+
 /// Stop screen sharing and disconnect from LiveKit.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub async fn stop_screenshare() -> Result<String, String> {
     println!("=== STOPPING SCREENSHARE IN RUST ===");
 
@@ -288,6 +321,7 @@ pub async fn stop_screenshare() -> Result<String, String> {
 }
 
 /// Wait for the capture thread to signal the first captured resolution.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 fn wait_for_resolution(signal: &Arc<(Mutex<Option<VideoResolution>>, Condvar)>) -> VideoResolution {
     let (lock, cvar) = &**signal;
     let mut guard = lock.lock().unwrap();
@@ -298,6 +332,13 @@ fn wait_for_resolution(signal: &Arc<(Mutex<Option<VideoResolution>>, Condvar)>) 
 }
 
 /// List desktop capture sources for either full-screen or window sharing.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
     list_capture_sources_impl(capture_full_screen)
+}
+
+/// Nothing to enumerate. See the module doc.
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+pub fn list_capture_sources(_capture_full_screen: bool) -> Vec<CaptureSource> {
+    Vec::new()
 }

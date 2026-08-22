@@ -9,8 +9,22 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 flutter_rust_bridge = "=2.11.1"
 tokio = { version = "1.49.0", features = ["full"] }
-livekit = { version = "0.7.32", features = ["rustls-tls-native-roots"] }
 log = "0.4.29"
+
+# Desktop only, and deliberately so.
+#
+# This crate wants livekit for one thing: capturing a screen and publishing it
+# as a track from Rust. libwebrtc gates `desktop_capturer` on exactly these
+# three targets, so on Android and iOS that pipeline cannot be compiled at all
+# — and a phone shares its screen through the *Dart* SDK's
+# `setScreenShareEnabled`, which needs nothing from here.
+#
+# Leaving it in the general table meant Android built webrtc-sys anyway: a
+# whole static libwebrtc, plus an NDK toolchain hunt that fails unless
+# ANDROID_NDK_HOME happens to be set, to link code that could never run. Now
+# the mobile build never sees it.
+[target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
+livekit = { version = "0.7.32", features = ["rustls-tls-native-roots"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libpulse-binding = "2.30.1"

@@ -1,24 +1,44 @@
-/// Video capture thread management
-use super::types::CaptureCommand;
+//! Desktop screen capture.
+//!
+//! The pipeline below is desktop-only, and not by choice: libwebrtc gates
+//! `desktop_capturer` on exactly these three targets, so on Android and iOS
+//! the module it lives in does not exist and none of this can be compiled at
+//! all. Sharing a screen from a phone goes through LiveKit's own Dart SDK
+//! rather than this, so the whole pipeline is left out there and the two
+//! functions Dart calls answer "nothing to capture".
 use super::types::CaptureSource;
+
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+use super::types::CaptureCommand;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::webrtc::desktop_capturer::{
     CaptureError, DesktopCaptureSourceType, DesktopCapturer, DesktopCapturerOptions, DesktopFrame,
 };
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::webrtc::native::yuv_helper;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::webrtc::prelude::{
     I420Buffer, VideoBuffer, VideoFrame, VideoResolution, VideoRotation,
 };
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::webrtc::video_source::native::NativeVideoSource;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use std::sync::{Arc, Condvar, Mutex};
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use std::thread;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use std::time::{Duration, Instant};
 
 #[cfg(target_os = "windows")]
 use std::collections::HashMap;
 
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 struct SendableFrame(DesktopFrame);
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 unsafe impl Send for SendableFrame {}
 
 /// RAII guard that raises the Windows timer resolution to 1 ms on creation
@@ -45,6 +65,7 @@ impl Drop for WindowsTimerResolutionGuard {
 /// Spawn the video capture thread.
 /// Returns a command sender and the thread handle.
 #[flutter_rust_bridge::frb(ignore)]
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub fn spawn_capture_thread(
     capture_cursor: bool,
     source_type: DesktopCaptureSourceType,
@@ -70,6 +91,7 @@ pub fn spawn_capture_thread(
     (command_tx, handle)
 }
 
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 fn run_capture_loop(
     capture_cursor: bool,
     source_type: DesktopCaptureSourceType,
@@ -381,7 +403,14 @@ fn encode_thumbnail(frame: &livekit::webrtc::desktop_capturer::DesktopFrame) -> 
     Some(jpeg_bytes)
 }
 
+/// Nothing to enumerate where there is no desktop to capture.
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+pub fn list_capture_sources(_capture_full_screen: bool) -> Vec<CaptureSource> {
+    Vec::new()
+}
+
 /// List available capture sources for the requested source type.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
     let source_type = if capture_full_screen {
         DesktopCaptureSourceType::Screen

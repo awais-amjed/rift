@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'app_bootstrap.dart';
+import 'logic/services/host_platform.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/vault/vault_cubit.dart';
@@ -45,7 +45,8 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb) {
+    // See AppBootstrap.run: these two plugins exist on desktop only.
+    if (HostPlatform.drawsOwnWindowChrome) {
       windowManager.addListener(this);
       trayManager.addListener(this);
     }
@@ -55,7 +56,7 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
 
   @override
   void dispose() {
-    if (!kIsWeb) {
+    if (HostPlatform.drawsOwnWindowChrome) {
       windowManager.removeListener(this);
       trayManager.removeListener(this);
     }

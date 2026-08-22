@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'data/repositories/secure_storage_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
+import 'logic/services/host_platform.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'src/rust/frb_generated.dart';
@@ -34,7 +35,13 @@ class AppBootstrap {
     await _initHydratedStorage(storageSuffix);
 
     final appCubit = AppCubit();
-    if (!kIsWeb) {
+    // Desktop, not "not web". window_manager and tray_manager ship no Android
+    // or iOS implementation at all, so every one of these is a method channel
+    // with nothing on the other end — a MissingPluginException thrown before
+    // the first frame. Notifications are here too: the service is initialised
+    // with Linux and Windows settings only, and mobile wants its own channel
+    // and permission flow rather than a silent failure.
+    if (HostPlatform.drawsOwnWindowChrome) {
       await windowManager.ensureInitialized();
       await NotificationService.instance.init();
       WindowsAudioDucking.apply(disable: appCubit.state.disableAudioDucking);
