@@ -105,8 +105,12 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: 520,
-              constraints: const BoxConstraints(maxHeight: 420),
+              // A cap, not a width. 520 is wider than a phone, and a Container
+              // given a fixed width takes it whatever the window says — the
+              // one shape in the app that overflowed rather than shrinking.
+              // The margin keeps it off the edges once it does shrink.
+              margin: const EdgeInsets.symmetric(horizontal: K.panelGutter),
+              constraints: const BoxConstraints(maxWidth: 520, maxHeight: 420),
               decoration: BoxDecoration(
                 color: themeState.bgElevated,
                 borderRadius: BorderRadius.circular(K.radiusDialog),

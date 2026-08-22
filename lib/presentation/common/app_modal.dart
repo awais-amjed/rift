@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../responsive/shell_scope.dart';
 import 'app_modal_header.dart';
 import 'context_menu_region.dart';
 
@@ -114,6 +115,14 @@ class AppModal extends StatelessWidget {
           // doing the lifting — elevated is reserved for menus and popovers,
           // which open on top of dialogs and need to out-rank them.
           backgroundColor: themeState.bgSecondary,
+          // Flutter's default inset is 40 a side, which is a tenth of a phone
+          // spent on margin before the dialog's own padding starts. [maxWidth]
+          // still decides the size wherever there is room for it; this only
+          // changes what "no room" leaves behind.
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: context.layoutMode.isCompact ? K.panelGutter * 1.6 : 40,
+            vertical: 24,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(K.radiusDialog),
             side: BorderSide(color: themeState.borderElevated),

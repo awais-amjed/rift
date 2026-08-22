@@ -87,8 +87,10 @@ class WelcomeStep extends StatelessWidget {
 
           // Both CTAs share one width so they read as a stack of choices
           // rather than two buttons that happen to sit above each other.
-          SizedBox(
-            width: 340,
+          // A cap rather than a width: on a phone 340 is wider than what is
+          // left after the page's own padding.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 340),
             child: Column(
               spacing: 10,
               children: [
