@@ -61,6 +61,16 @@ class K {
   /// still happens, correctly, on a narrow window.
   static const double dialogWidthWidest = 1040;
 
+  // ── Touch ─────────────────────────────────────────────────
+  /// The shortest a row may be where a finger is the pointer.
+  ///
+  /// Both Material and HIG put the floor around here, and the app's rows sit
+  /// well under it: a [NavRow] is about 32px, which is a comfortable mouse
+  /// target and a fiddly thumb one. Applied by padding rather than by a fixed
+  /// height, so a row that is naturally taller — one with a subtitle — is
+  /// left alone rather than squashed to this.
+  static const double touchTargetMin = 44;
+
   // ── Layout breakpoints ────────────────────────────────────
   /// Where the member list stops being worth 232px of a shrinking window.
   ///

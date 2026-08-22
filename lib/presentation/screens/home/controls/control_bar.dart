@@ -14,6 +14,7 @@ import '../../../theme/app_shadows.dart';
 import '../../../theme/custom_colors.dart';
 import '../screenshare/screen_share_settings_dialog.dart';
 import '../../../theme/app_text.dart';
+import '../../../responsive/shell_scope.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 ///
@@ -134,6 +135,7 @@ class _ControlBarContent extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         final bgColor = themeState.bgElevated;
+        final compact = context.layoutMode.isCompact;
 
         final radius = BorderRadius.circular(K.radiusVoicePill);
 
@@ -204,7 +206,9 @@ class _ControlBarContent extends StatelessWidget {
                     ),
                     // Divider
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 10),
+                      margin: EdgeInsets.symmetric(
+                        horizontal: compact ? 6 : 10,
+                      ),
                       width: 1,
                       height: 30,
                       color: themeState.borderElevated,
@@ -220,8 +224,8 @@ class _ControlBarContent extends StatelessWidget {
                         hoverColor: CustomColors.errorDark,
                         onTap: () => _leave(context),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 12 : 20,
                             vertical: 12,
                           ),
                           child: Row(
@@ -232,13 +236,19 @@ class _ControlBarContent extends StatelessWidget {
                                 size: 19,
                                 color: Colors.white,
                               ),
-                              Text(
-                                'Leave',
-                                style: AppText.row.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                              // The word goes on a phone. The pill is a
+                              // min-width row of five fixed controls and no
+                              // flex, so anything it cannot fit it overflows
+                              // — and the red circle-with-a-handset is not a
+                              // symbol anyone needs the caption for.
+                              if (!compact)
+                                Text(
+                                  'Leave',
+                                  style: AppText.row.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),

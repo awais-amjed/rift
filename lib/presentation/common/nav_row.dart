@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../responsive/shell_scope.dart';
 import '../theme/app_text.dart';
 
 /// The sidebar's one row shape — channels, DM entries, anything navigable.
@@ -47,7 +48,13 @@ class NavRow extends StatelessWidget {
             hoverColor: themeState.bgHover,
             onTap: onTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+              // Taller under a finger. 7 either side of a 16px icon is 32px
+              // of row, which is fine for a cursor and misses badly for a
+              // thumb — and these are the rows the app is navigated with.
+              padding: EdgeInsets.symmetric(
+                horizontal: 9,
+                vertical: context.layoutMode.isCompact ? 13 : 7,
+              ),
               decoration: BoxDecoration(
                 borderRadius: radius,
                 // The gradient fades left-to-right so the row reads as lit
