@@ -17,9 +17,11 @@ import 'widgets/mic_test_controls.dart';
 /// Where the level comes from depends on whether a call already owns the
 /// microphone:
 ///
-/// - **In a call, mic live** — it reads [LiveKitCubit.micLevels], the tap
+/// - **In a call with the mic on** — it reads [LiveKitCubit.micLevels], the tap
 ///   already running for the speaking indicator. No second capture, so nothing
-///   to hand back, and the meter shows the very signal being published.
+///   to hand back, and the meter shows the very signal being published. Under
+///   push-to-talk that means the meter sits at silence between presses, which
+///   is the truth: nothing is being captured then either.
 /// - **Otherwise** — no call, or muted, so nothing holds the device — it opens
 ///   its own microphone through [MicTestCapture] and releases it when the test
 ///   stops or the screen is disposed.
@@ -77,10 +79,10 @@ class _MicTestSectionState extends State<MicTestSection> {
   Future<void> _start() async {
     setState(() => _error = null);
 
-    // The call already has the microphone open — read its tap rather than
+    // The call has the microphone, or is about to — read its tap rather than
     // fighting it for the device.
     final livekit = _livekit;
-    if (livekit != null && livekit.isMicLevelAvailable) {
+    if (livekit != null && livekit.isCallHoldingMic) {
       _borrowedLevels = livekit.micLevels.listen(_onLevel);
       setState(() {
         _testing = true;

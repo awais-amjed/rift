@@ -57,9 +57,22 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   /// the app for a number one settings widget wants.
   Stream<double> get micLevels => _micLevelController.stream;
 
-  /// Whether [micLevels] is currently carrying anything — i.e. the call is
-  /// capturing, so a meter can read it instead of opening its own microphone.
-  bool get isMicLevelAvailable => _monitorActive && _vadRendererCancel != null;
+  /// Whether a meter should read [micLevels] rather than open a microphone of
+  /// its own, because this call will be capturing the device while it runs.
+  ///
+  /// Deliberately **not** [_monitorActive]: that follows what is being
+  /// transmitted, and under push-to-talk the answer flips with every keypress.
+  /// A meter that asked it would open its own capture during a gap and then
+  /// find the call taking the device back the moment the key went down —
+  /// which on a Bluetooth headset, with its single HFP stream, is the fight
+  /// [micLevels] exists to avoid. The mic being *muted* is different: nothing
+  /// is holding the device and nothing is about to, so a meter is welcome to
+  /// open it.
+  bool get isCallHoldingMic {
+    if (state.connectionState != LiveKitConnectionState.connected) return false;
+    if (!state.isMicEnabled) return false;
+    return !state.isDeafenedEffective && !state.isServerMuted;
+  }
 
   /// Thins [micLevels] down to a paintable rate. The speaking detector still
   /// sees every frame.
@@ -169,5 +182,8 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     await cancel?.call();
     // A muted mic must not leave the glow stuck on.
     if (_speechDetector.reset()) _syncParticipants();
+    // Nor a borrowed meter stuck wherever the last frame left it. No more
+    // frames are coming, so silence has to be said rather than measured.
+    if (!_micLevelController.isClosed) _micLevelController.add(0);
   }
 }
