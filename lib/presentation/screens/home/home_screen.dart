@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/auth_status.dart';
 import '../../../data/enums/layout_mode.dart';
+import '../../../data/invite_link.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
@@ -12,6 +13,7 @@ import '../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../logic/services/host_platform.dart';
+import '../../../logic/services/invite_link_listener.dart';
 import '../../common/app_modal.dart';
 import '../../common/canvas_backdrop.dart';
 import '../../common/overlay_scrim.dart';
@@ -74,6 +76,31 @@ class _HomeScreenState extends State<HomeScreen> {
       // Re-authenticate the active server; other servers authenticate lazily.
       await context.read<ServerCubit>().loginSelectedServer();
     }
+
+    // After the vault has settled, not before: joining needs a signed-in
+    // account, and a link that arrived at launch is held until something is
+    // listening rather than dropped.
+    if (!mounted) return;
+    await InviteLinkListener.instance.start(_onInvite);
+  }
+
+  @override
+  void dispose() {
+    InviteLinkListener.instance.detach();
+    super.dispose();
+  }
+
+  /// An invite tapped outside the app.
+  ///
+  /// Straight into the join step with the link in hand. Rebuilt into its
+  /// canonical form rather than passed through: the link may have arrived
+  /// wrapped in `rift://join#…`, and the join step wants an invite, not the
+  /// envelope it came in.
+  void _onInvite(InviteLink invite) {
+    if (!mounted) return;
+    _openAddServer(
+      inviteLink: InviteLink.build(invite.serverUrl, invite.inviteCode),
+    );
   }
 
   /// Opening one drawer closes the other: they overlap, and two at once on a
@@ -111,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// No servers — on a first run, or after leaving the last one. Straight to
   /// join-or-create: there is nothing to select from.
-  void _openAddServer() {
+  void _openAddServer({String? inviteLink}) {
     showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
@@ -119,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<VaultCubit>()),
         ],
-        child: const AddServerDialog(),
+        child: AddServerDialog(inviteLink: inviteLink),
       ),
     );
   }

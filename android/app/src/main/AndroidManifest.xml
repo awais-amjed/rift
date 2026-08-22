@@ -80,6 +80,25 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- An invite, arriving from outside the app.
+
+                 The scheme is the app's own rather than the server's URL: a
+                 client joins servers it has never heard of, and an https
+                 filter has to name one host and prove it owns it
+                 (assetlinks.json). No client can do that for an arbitrary
+                 self-hosted address, which is why a plain invite link opens a
+                 browser instead of Rift.
+
+                 So this is the half that needs nothing: `rift://` is claimed
+                 locally by whoever is installed. The clickable https half
+                 wants one domain the project controls, and a second filter
+                 here once there is one — see TODO.md. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="rift" android:host="join"/>
+            </intent-filter>
         </activity>
         <!-- Name fixed by flutter_foreground_task. stopWithTask, because a
              call cannot outlive the app: without it, swiping the app away

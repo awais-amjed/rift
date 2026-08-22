@@ -26,11 +26,16 @@ class JoinServerModal extends StatefulWidget {
   /// The server picked in the browser, or null when the link is typed.
   final PublicServer? listing;
 
+  /// An invite that arrived from outside the app — a tapped link. Same
+  /// standing as a listing: something already chosen, so the field goes away.
+  final String? inviteLink;
+
   const JoinServerModal({
     super.key,
     required this.onSuccess,
     required this.onCancel,
     this.listing,
+    this.inviteLink,
   });
 
   @override
@@ -48,7 +53,23 @@ class _JoinServerModalState extends State<JoinServerModal> {
   /// The listing's link, when we arrived from the browser. Held rather than
   /// put in the field: it is not something to edit, and showing an invite code
   /// in a box invites someone to try.
-  String? get _prefilled => widget.listing?.inviteLink;
+  String? get _prefilled => widget.inviteLink ?? widget.listing?.inviteLink;
+
+  /// The host the invite points at.
+  ///
+  /// The one line of provenance someone should see before handing over a
+  /// username: a listing names itself, and a tapped link has to be read for
+  /// it. Null when the link is still to be typed — there is nothing to say yet.
+  String? get _host {
+    final listing = widget.listing;
+    if (listing != null) return listing.host;
+
+    final link = widget.inviteLink;
+    if (link == null) return null;
+    final parsed = InviteLink.parse(link);
+    if (parsed == null) return null;
+    return Uri.tryParse(parsed.serverUrl)?.host ?? parsed.serverUrl;
+  }
 
   bool get _canSubmit =>
       (_prefilled != null || _inviteLinkCtrl.text.trim().isNotEmpty) &&
@@ -121,12 +142,15 @@ class _JoinServerModalState extends State<JoinServerModal> {
   @override
   Widget build(BuildContext context) {
     final listing = widget.listing;
+    // Chosen already — from the browser, or by tapping an invite. Either way
+    // the link is not something to ask for or to edit.
+    final chosen = _prefilled != null;
 
     return AppModal(
       title: listing == null ? 'Join Server' : 'Join ${listing.name}',
-      subtitle: listing == null
-          ? 'Join a server with an invite link'
-          : 'Pick how you will appear on ${listing.host}',
+      subtitle: chosen
+          ? 'Pick how you will appear on ${_host ?? 'this server'}'
+          : 'Join a server with an invite link',
       maxWidth: K.dialogWidth,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,7 +165,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
               ),
             ),
 
-          if (listing == null) ...[
+          if (!chosen) ...[
             AppTextField(
               controller: _inviteLinkCtrl,
               label: 'Invite Link',
@@ -158,7 +182,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
             label: 'Username',
             hint: 'myusername',
             enabled: !_isLoading,
-            autofocus: listing != null,
+            autofocus: chosen,
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),

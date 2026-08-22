@@ -22,14 +22,21 @@ enum _Step { pick, browse, join, create, publish }
 /// holding them here meant a set of each per step in a widget that only tracks
 /// which one you're on.
 class AddServerDialog extends StatefulWidget {
-  const AddServerDialog({super.key});
+  /// An invite that came from outside the app, if that is why this opened.
+  ///
+  /// Skips straight to the join step with the link already in hand: someone
+  /// who tapped an invite has said which server they mean, and asking them to
+  /// pick "join" from a menu first is asking a question they just answered.
+  final String? inviteLink;
+
+  const AddServerDialog({super.key, this.inviteLink});
 
   @override
   State<AddServerDialog> createState() => _AddServerDialogState();
 }
 
 class _AddServerDialogState extends State<AddServerDialog> {
-  _Step _step = _Step.pick;
+  late _Step _step = widget.inviteLink == null ? _Step.pick : _Step.join;
 
   /// The listing picked in the browser, carried into the join step so it can
   /// skip the invite field. Null when the link was typed.
@@ -64,6 +71,7 @@ class _AddServerDialogState extends State<AddServerDialog> {
       ),
       _Step.join => JoinServerModal(
         listing: _picked,
+        inviteLink: widget.inviteLink,
         onSuccess: _handleSuccess,
         // Back where you came from: the browser if you picked a server there,
         // the picker if you typed a link.
