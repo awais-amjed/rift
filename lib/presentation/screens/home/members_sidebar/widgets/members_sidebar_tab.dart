@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../common/edge_tab.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_motion.dart';
 
 /// Brings the member list back once it has been hidden.
@@ -20,9 +19,8 @@ class MembersSidebarTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final open = context.select<AppCubit, bool>(
-      (cubit) => cubit.state.membersSidebarOpen,
-    );
+    final shell = ShellScope.of(context);
+    final open = shell.membersOpen;
 
     return IgnorePointer(
       ignoring: open,
@@ -37,7 +35,7 @@ class MembersSidebarTab extends StatelessWidget {
           child: EdgeTab(
             side: EdgeTabSide.right,
             tooltip: 'Show members',
-            onTap: () => context.read<AppCubit>().toggleMembersSidebar(),
+            onTap: shell.toggleMembers,
           ),
         ),
       ),

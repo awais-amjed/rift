@@ -7,7 +7,9 @@ import '../../../../common/status_chip.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../chat/widgets/chat_header.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../chat/widgets/chat_header_button.dart';
+import '../../chat/widgets/header_pane_buttons.dart';
 
 /// Header of an open DM conversation.
 ///
@@ -40,15 +42,18 @@ class DmChatHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
 
+    final compact = context.layoutMode.isCompact;
+
     return Container(
       height: ChatHeader.height,
-      padding: const EdgeInsets.fromLTRB(18, 0, 10, 0),
+      padding: EdgeInsets.fromLTRB(compact ? 6 : 18, 0, compact ? 6 : 10, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
       ),
       child: Row(
         spacing: 10,
         children: [
+          const HeaderSidebarButton(),
           // The identity is one flexible group, so the close button sits hard
           // against the panel edge. A `Flexible` title beside a `Spacer`
           // splits the free space with it instead: the title takes only what
@@ -69,16 +74,21 @@ class DmChatHeader extends StatelessWidget {
                     ),
                   ),
                 ),
+                // The tier chip stays even on a phone: it says whether this
+                // conversation is quota-limited, which changes what you do
+                // next. The encryption chip does not — it is true of every
+                // conversation — so that is the one to spend the width on.
                 StatusChip(
                   icon: tierIcon,
                   label: tierLabel,
                   color: themeState.accentBright,
                 ),
-                const StatusChip(
-                  icon: Icons.lock_outline,
-                  label: 'Encrypted',
-                  color: CustomColors.success,
-                ),
+                if (!compact)
+                  const StatusChip(
+                    icon: Icons.lock_outline,
+                    label: 'Encrypted',
+                    color: CustomColors.success,
+                  ),
               ],
             ),
           ),

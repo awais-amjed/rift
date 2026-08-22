@@ -61,6 +61,21 @@ class K {
   /// still happens, correctly, on a narrow window.
   static const double dialogWidthWidest = 1040;
 
+  // ── Layout breakpoints ────────────────────────────────────
+  /// Where the member list stops being worth 232px of a shrinking window.
+  ///
+  /// Below this the sidebar and the content between them already have less
+  /// than [sidebarMinWidth] + a readable measure, so the member list — the
+  /// least-consulted of the three panes — is the first to become an overlay.
+  static const double breakpointExpanded = 1100;
+
+  /// Where a docked sidebar stops fitting at all.
+  ///
+  /// [sidebarMinWidth] plus a chat column narrow enough to still hold a
+  /// message row lands just under 700, so below this the sidebar overlays too
+  /// and the content runs edge to edge.
+  static const double breakpointMedium = 700;
+
   // ── Panel workspace ───────────────────────────────────────
   /// Gap between the floating panels, and between them and the window edge.
   static const double panelGutter = 10;
@@ -91,6 +106,11 @@ class K {
   /// [sidebarMaxWindowFraction], so it can never crowd out the content.
   static const double sidebarMaxWidth = 560;
   static const double sidebarMaxWindowFraction = 0.5;
+
+  /// How much content an overlaid sidebar leaves showing beside it. Small
+  /// enough not to waste a phone's width, wide enough to be a comfortable tap
+  /// target for dismissing the drawer.
+  static const double sidebarOverlayPeek = 56;
 
   /// The grab strip between the sidebar and the content. It occupies the
   /// gutter that used to be an empty [panelGutter] gap, so making the sidebar

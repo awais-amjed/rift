@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../common/edge_tab.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_motion.dart';
 
 /// Brings the left sidebar back once it has been hidden.
@@ -20,9 +19,8 @@ class SidebarTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final open = context.select<AppCubit, bool>(
-      (cubit) => cubit.state.sidebarOpen,
-    );
+    final shell = ShellScope.of(context);
+    final open = shell.sidebarOpen;
 
     return IgnorePointer(
       ignoring: open,
@@ -37,7 +35,7 @@ class SidebarTab extends StatelessWidget {
           child: EdgeTab(
             side: EdgeTabSide.left,
             tooltip: 'Show sidebar',
-            onTap: () => context.read<AppCubit>().toggleSidebar(),
+            onTap: shell.toggleSidebar,
           ),
         ),
       ),

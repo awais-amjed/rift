@@ -11,6 +11,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster.dart';
 import '../../../common/app_panel.dart';
 import '../../../theme/app_motion.dart';
+import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
 import '../channels/channel_list/widgets/section_header.dart';
 import '../chat/widgets/chat_header.dart';
@@ -23,8 +24,19 @@ import 'widgets/member_row.dart';
 /// refetches whenever a `users` row changes, so someone joining on an invite
 /// appears without a reselect; *presence* comes from the Realtime presence
 /// channel and decides which group they land in.
+///
+/// [open] is passed in rather than read from [AppCubit] because where this is
+/// mounted decides what openness means — a saved preference while docked, and
+/// throwaway drawer state while overlaid. See `ShellScope`.
 class MembersSidebar extends StatefulWidget {
-  const MembersSidebar({super.key});
+  /// Whether the panel is showing. Animating, not mounting: see below.
+  final bool open;
+
+  /// Floating above the content rather than sitting beside it. Takes a shadow,
+  /// and keeps a gutter on both sides instead of only the one facing the chat.
+  final bool floating;
+
+  const MembersSidebar({super.key, required this.open, this.floating = false});
 
   @override
   State<MembersSidebar> createState() => _MembersSidebarState();
@@ -36,8 +48,10 @@ class _MembersSidebarState extends State<MembersSidebar> {
 
   /// The panel and the gutter that separates it from the content, which has to
   /// go with it — a 10px gap left hanging off the right of the window is the
-  /// tell that something used to be there.
-  static const double _fullWidth = K.membersSidebarWidth + K.panelGutter;
+  /// tell that something used to be there. Floating, there is content on both
+  /// sides of it, so it takes a gutter on both.
+  double get _fullWidth =>
+      K.membersSidebarWidth + K.panelGutter * (widget.floating ? 2 : 1);
 
   /// Whether the contents are built. Dropped once a close has finished, and
   /// seeded from the launch state, because starting closed runs no animation
@@ -47,33 +61,32 @@ class _MembersSidebarState extends State<MembersSidebar> {
   @override
   void initState() {
     super.initState();
-    _showContent = context.read<AppCubit>().state.membersSidebarOpen;
+    _showContent = widget.open;
+  }
+
+  @override
+  void didUpdateWidget(MembersSidebar old) {
+    super.didUpdateWidget(old);
+    // Back before the opening animation runs, or the panel would widen around
+    // nothing.
+    if (widget.open && !_showContent) {
+      setState(() => _showContent = true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return BlocConsumer<AppCubit, AppState>(
-          listenWhen: (a, b) => a.membersSidebarOpen != b.membersSidebarOpen,
-          listener: (context, appState) {
-            // Back before the opening animation runs, or the panel would widen
-            // around nothing.
-            if (appState.membersSidebarOpen && !_showContent) {
-              setState(() => _showContent = true);
-            }
-          },
-          buildWhen: (a, b) =>
-              a.membersSidebarOpen != b.membersSidebarOpen ||
-              a.participantSettings != b.participantSettings,
+        return BlocBuilder<AppCubit, AppState>(
+          buildWhen: (a, b) => a.participantSettings != b.participantSettings,
           builder: (context, appState) {
-            final open = appState.membersSidebarOpen;
             return AnimatedContainer(
               duration: K.sidebarMotion,
               curve: AppMotion.panel,
-              width: open ? _fullWidth : 0,
+              width: widget.open ? _fullWidth : 0,
               onEnd: () {
-                if (!appState.membersSidebarOpen && _showContent) {
+                if (!widget.open && _showContent) {
                   setState(() => _showContent = false);
                 }
               },
@@ -98,6 +111,9 @@ class _MembersSidebarState extends State<MembersSidebar> {
                               // the left sidebar, floating beside the content
                               // rather than bordering it.
                               child: AppPanel(
+                                shadow: widget.floating
+                                    ? AppShadows.overlayPane
+                                    : null,
                                 child: _buildList(
                                   context,
                                   themeState,
@@ -105,6 +121,8 @@ class _MembersSidebarState extends State<MembersSidebar> {
                                 ),
                               ),
                             ),
+                            if (widget.floating)
+                              const SizedBox(width: K.panelGutter),
                           ],
                         ),
                       ),

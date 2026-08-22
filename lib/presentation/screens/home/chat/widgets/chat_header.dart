@@ -7,7 +7,9 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/status_chip.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../responsive/shell_scope.dart';
 import 'chat_header_button.dart';
+import 'header_pane_buttons.dart';
 
 /// The chat panel's top bar: which channel you're in, that it's encrypted, and
 /// the controls that change what the panel shows.
@@ -31,15 +33,20 @@ class ChatHeader extends StatelessWidget {
         .map((c) => c.name)
         .firstOrNull;
 
+    // The drawer button takes the place of the leading padding, so the title
+    // starts where it always did rather than being pushed along by it.
+    final compact = context.layoutMode.isCompact;
+
     return Container(
       height: height,
-      padding: const EdgeInsets.fromLTRB(18, 0, 10, 0),
+      padding: EdgeInsets.fromLTRB(compact ? 6 : 18, 0, compact ? 6 : 10, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
       ),
       child: Row(
         spacing: 10,
         children: [
+          const HeaderSidebarButton(),
           // The identity is one flexible group, so the controls sit hard
           // against the panel edge. A `Flexible` title beside a `Spacer`
           // splits the free space with it instead: the title takes only what
@@ -64,19 +71,24 @@ class ChatHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                const StatusChip(
-                  icon: Icons.lock_outline,
-                  label: 'Encrypted',
-                  color: CustomColors.success,
-                ),
+                // Dropped on a phone. It is the product's central claim, but
+                // it is a claim about every channel equally, and spending 90px
+                // restating it leaves the one thing that differs between them
+                // — the channel's name — squeezed to nothing.
+                if (!compact)
+                  const StatusChip(
+                    icon: Icons.lock_outline,
+                    label: 'Encrypted',
+                    color: CustomColors.success,
+                  ),
               ],
             ),
           ),
-          // No members toggle here: the members sidebar carries its own, and
-          // shows one in either state — a chevron in its header when open, a
-          // people icon in the collapsed strip when closed. A third control for
-          // the same flag only made it ambiguous which one you were meant to
-          // reach for.
+          // No members toggle here at the sizes where the list has an edge tab
+          // — a third control for the same flag only made it ambiguous which
+          // one you were meant to reach for. On a phone there is no edge tab,
+          // so this is the only one.
+          const HeaderMembersButton(),
           ChatHeaderButton(
             icon: Icons.close_rounded,
             tooltip: 'Close chat',

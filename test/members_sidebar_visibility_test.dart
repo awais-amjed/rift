@@ -66,7 +66,11 @@ class _StubMembersCubit extends Cubit<ServerMembersState>
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Future<void> _pump(WidgetTester tester, AppCubit appCubit) async {
+Future<void> _pump(
+  WidgetTester tester,
+  AppCubit appCubit, {
+  bool floating = false,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -82,11 +86,18 @@ Future<void> _pump(WidgetTester tester, AppCubit appCubit) async {
               create: (_) => _StubMembersCubit(),
             ),
           ],
-          child: const Row(
-            children: [
-              Expanded(child: SizedBox()),
-              MembersSidebar(),
-            ],
+          // Openness is passed in rather than read by the panel, so the
+          // harness has to do what the shell does: hand it the flag.
+          child: BlocBuilder<AppCubit, AppState>(
+            builder: (context, appState) => Row(
+              children: [
+                const Expanded(child: SizedBox()),
+                MembersSidebar(
+                  open: appState.membersSidebarOpen,
+                  floating: floating,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -152,5 +163,26 @@ void main() {
     appCubit.toggleMembersSidebar();
     await tester.pumpAndSettle();
     expect(panelWidth(), K.membersSidebarWidth + K.panelGutter);
+  });
+
+  // Overlaid, the panel has content on both sides of it rather than only the
+  // chat to its left, so it carries a gutter on both. Getting this wrong is
+  // not a crash but a panel welded to the window edge, which is exactly the
+  // sort of thing that survives a review.
+  testWidgets('floating reserves a gutter on both sides', (tester) async {
+    final appCubit = AppCubit();
+    addTearDown(appCubit.close);
+    await _pump(tester, appCubit, floating: true);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(find.byType(MembersSidebar)).width,
+      K.membersSidebarWidth + K.panelGutter * 2,
+    );
+
+    appCubit.toggleMembersSidebar();
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(MembersSidebar)).width, 0);
+    expect(tester.takeException(), isNull);
   });
 }

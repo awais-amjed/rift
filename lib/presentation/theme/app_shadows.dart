@@ -14,6 +14,14 @@ class AppShadows {
     BoxShadow(color: Color(0x99000000), blurRadius: 70, offset: Offset(0, 24)),
   ];
 
+  /// A side pane overlaid on the content instead of docked beside it. Sits
+  /// between [dialog] and [popover]: it covers most of the window like a
+  /// dialog, but it is chrome rather than something you have to answer, so it
+  /// should not read as heavily.
+  static const List<BoxShadow> overlayPane = [
+    BoxShadow(color: Color(0x94000000), blurRadius: 60, offset: Offset(0, 20)),
+  ];
+
   /// Popovers and context menus.
   static const List<BoxShadow> popover = [
     BoxShadow(color: Color(0x8C000000), blurRadius: 50, offset: Offset(0, 16)),

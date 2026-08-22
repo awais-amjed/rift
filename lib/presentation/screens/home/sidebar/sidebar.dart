@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/sidebar_sizing.dart';
 import '../../../common/app_panel.dart';
 import '../../../theme/app_motion.dart';
+import '../../../theme/app_shadows.dart';
 import 'widgets/sidebar_content.dart';
 import 'widgets/sidebar_resize_handle.dart';
 
@@ -21,10 +22,27 @@ import 'widgets/sidebar_resize_handle.dart';
 /// [AppCubit] when the drag ends. Emitting per frame would be a persisted write
 /// per frame, since AppCubit is hydrated, to store a value that is about to
 /// change again anyway.
+///
+/// [open] is passed in rather than read from [AppCubit] because where this is
+/// mounted decides what openness means — a saved preference while docked, and
+/// throwaway drawer state while overlaid. See `ShellScope`.
 class Sidebar extends StatefulWidget {
   final double topPadding;
 
-  const Sidebar({super.key, this.topPadding = 0});
+  /// Whether the panel is showing. Animating, not mounting: see the class doc.
+  final bool open;
+
+  /// Floating above the content rather than sitting beside it. Takes a shadow,
+  /// may run wider relative to the window, and drops the resize handle —
+  /// there is nothing beside it to trade width with.
+  final bool floating;
+
+  const Sidebar({
+    super.key,
+    required this.open,
+    this.topPadding = 0,
+    this.floating = false,
+  });
 
   @override
   State<Sidebar> createState() => _SidebarState();
@@ -42,7 +60,17 @@ class _SidebarState extends State<Sidebar> {
   @override
   void initState() {
     super.initState();
-    _showContent = context.read<AppCubit>().state.sidebarOpen;
+    _showContent = widget.open;
+  }
+
+  @override
+  void didUpdateWidget(Sidebar old) {
+    super.didUpdateWidget(old);
+    // Back in the tree before the opening animation runs, or there would be
+    // nothing inside the panel while it widens.
+    if (widget.open && !_showContent) {
+      setState(() => _showContent = true);
+    }
   }
 
   void _onDrag(double delta, double stored, double windowWidth) {
@@ -69,25 +97,20 @@ class _SidebarState extends State<Sidebar> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<AppCubit, AppState>(
-      listenWhen: (prev, curr) => prev.sidebarOpen != curr.sidebarOpen,
-      listener: (context, appState) {
-        // Back in the tree before the opening animation runs, or there would be
-        // nothing inside the panel while it widens.
-        if (appState.sidebarOpen && !_showContent) {
-          setState(() => _showContent = true);
-        }
-      },
-      buildWhen: (prev, curr) =>
-          prev.sidebarOpen != curr.sidebarOpen ||
-          prev.sidebarWidth != curr.sidebarWidth,
+    return BlocBuilder<AppCubit, AppState>(
+      buildWhen: (prev, curr) => prev.sidebarWidth != curr.sidebarWidth,
       builder: (context, appState) {
         final windowWidth = MediaQuery.sizeOf(context).width;
         final width = SidebarSizing.clamp(
           _dragWidth ?? appState.sidebarWidth,
           windowWidth: windowWidth,
+          overlay: widget.floating,
         );
-        final full = width + K.sidebarResizeHandleWidth;
+        // Floating, the gutter is on both sides and the handle is gone, so the
+        // panel is all there is to reserve.
+        final full = widget.floating
+            ? width + K.panelGutter * 2
+            : width + K.sidebarResizeHandleWidth;
 
         return AnimatedContainer(
           // A drag is not a transition. Animating it would leave the panel a
@@ -95,9 +118,9 @@ class _SidebarState extends State<Sidebar> {
           // polish — so while the pointer is down, the width tracks it exactly.
           duration: _dragWidth != null ? Duration.zero : K.sidebarMotion,
           curve: AppMotion.panel,
-          width: appState.sidebarOpen ? full : 0,
+          width: widget.open ? full : 0,
           onEnd: () {
-            if (!appState.sidebarOpen && _showContent) {
+            if (!widget.open && _showContent) {
               setState(() => _showContent = false);
             }
           },
@@ -115,19 +138,27 @@ class _SidebarState extends State<Sidebar> {
                     maxWidth: full,
                     child: Row(
                       children: [
+                        if (widget.floating)
+                          const SizedBox(width: K.panelGutter),
                         AppPanel(
                           width: width,
+                          shadow: widget.floating
+                              ? AppShadows.overlayPane
+                              : null,
                           child: SidebarContent(topPadding: widget.topPadding),
                         ),
-                        SidebarResizeHandle(
-                          onDrag: (delta) => _onDrag(
-                            delta,
-                            appState.sidebarWidth,
-                            windowWidth,
+                        if (widget.floating)
+                          const SizedBox(width: K.panelGutter)
+                        else
+                          SidebarResizeHandle(
+                            onDrag: (delta) => _onDrag(
+                              delta,
+                              appState.sidebarWidth,
+                              windowWidth,
+                            ),
+                            onDragEnd: _onDragEnd,
+                            onReset: _reset,
                           ),
-                          onDragEnd: _onDragEnd,
-                          onReset: _reset,
-                        ),
                       ],
                     ),
                   ),
