@@ -27,7 +27,7 @@ class _PingGraphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (samples.length < 2) return;
+    if (samples.isEmpty) return;
 
     final now = DateTime.now();
     const windowMs = 5 * 60 * 1000.0; // 5 minutes in ms
@@ -69,11 +69,20 @@ class _PingGraphPainter extends CustomPainter {
       }
     }
 
-    // Close fill to baseline
-    final last = samples.last;
-    final lastAge = now.difference(last.time).inMilliseconds.toDouble();
-    final lastX = size.width - (lastAge / windowMs) * size.width;
-    fillPath.lineTo(lastX, size.height);
+    // Carry the newest reading along to the right edge.
+    //
+    // Samples are only recorded when the measurement actually changes — ICE
+    // refreshes the round trip every few seconds while the poll runs every
+    // second, so appending every poll would invent resolution the data never
+    // had. The cost is that the newest sample can be well to the left of now,
+    // and on a connection steady enough to produce one reading for five
+    // minutes there was a single point and, with the old two-sample minimum,
+    // nothing drawn at all. The last reading still stands until another one
+    // replaces it, so extending it is what the numbers actually say.
+    final lastY = size.height - (samples.last.rttMs / maxRtt) * size.height;
+    linePath.lineTo(size.width, lastY);
+    fillPath.lineTo(size.width, lastY);
+    fillPath.lineTo(size.width, size.height);
     fillPath.close();
 
     // Gradient fill

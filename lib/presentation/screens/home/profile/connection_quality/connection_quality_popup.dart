@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../data/enums/voice_quality.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
 import '../../../../common/popover_surface.dart';
 import '../../../../theme/custom_colors.dart';
+import 'connection_quality_style.dart';
 import 'ping_graph.dart';
 import '../../../../theme/app_text.dart';
 
@@ -40,11 +40,14 @@ class ConnectionQualityPopup extends StatelessWidget {
                         Icon(
                           stats.isAlone
                               ? Icons.person_outline
-                              : _qualityIcon(stats.quality),
+                              : ConnectionQualityStyle.icon(stats.quality),
                           size: 13,
                           color: stats.isAlone
                               ? themeState.textQuaternary
-                              : _qualityColor(stats.quality, themeState),
+                              : ConnectionQualityStyle.color(
+                                  stats.quality,
+                                  themeState,
+                                ),
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -62,13 +65,19 @@ class ConnectionQualityPopup extends StatelessWidget {
                     Text(
                       stats.isAlone
                           ? 'Waiting for others'
-                          : _qualityLabel(stats.quality),
+                          : ConnectionQualityStyle.label(
+                              stats.quality,
+                              unknown: 'Connecting…',
+                            ),
                       style: AppText.row.copyWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: stats.isAlone
                             ? themeState.textTertiary
-                            : _qualityColor(stats.quality, themeState),
+                            : ConnectionQualityStyle.color(
+                                stats.quality,
+                                themeState,
+                              ),
                       ),
                     ),
 
@@ -133,33 +142,6 @@ class ConnectionQualityPopup extends StatelessWidget {
       },
     );
   }
-
-  IconData _qualityIcon(VoiceQuality quality) => switch (quality) {
-    VoiceQuality.excellent => Icons.signal_cellular_4_bar,
-    VoiceQuality.good => Icons.signal_cellular_alt,
-    VoiceQuality.fair => Icons.signal_cellular_alt_2_bar,
-    VoiceQuality.poor => Icons.signal_cellular_0_bar,
-    VoiceQuality.unknown => Icons.signal_cellular_null,
-  };
-
-  /// Unknown takes a themed neutral rather than a fixed grey, so it recedes
-  /// against whichever palette is running instead of fighting it.
-  Color _qualityColor(VoiceQuality quality, ThemeState themeState) =>
-      switch (quality) {
-        VoiceQuality.excellent => CustomColors.success,
-        VoiceQuality.good => CustomColors.success,
-        VoiceQuality.fair => CustomColors.warning,
-        VoiceQuality.poor => CustomColors.error,
-        VoiceQuality.unknown => themeState.textQuaternary,
-      };
-
-  String _qualityLabel(VoiceQuality quality) => switch (quality) {
-    VoiceQuality.excellent => 'Excellent',
-    VoiceQuality.good => 'Good',
-    VoiceQuality.fair => 'Fair',
-    VoiceQuality.poor => 'Poor',
-    VoiceQuality.unknown => 'Connecting…',
-  };
 }
 
 class _StatRow extends StatelessWidget {

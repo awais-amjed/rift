@@ -186,8 +186,8 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
   /// Outbound packet loss, as a percentage.
   ///
   /// Null while the mic is muted: with no RTP going out there are no receiver
-  /// reports coming back and nothing to measure. [_calcQuality] treats that as
-  /// no evidence of loss rather than as zero loss observed.
+  /// reports coming back and nothing to measure. See [_calcQuality] for what
+  /// that null then counts as.
   double? _readPacketLoss(List<StatsReport> sender) {
     for (final s in sender) {
       if (s.type != 'remote-inbound-rtp') continue;
@@ -211,6 +211,13 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
   /// Grading reads the latest measurement, so the badge follows the connection
   /// as it changes rather than lagging behind a run of older readings.
   /// [VoiceStatsState.avgRttMs] is there to be shown, not to grade on.
+  ///
+  /// Unmeasurable loss counts as none. It is null whenever the mic is muted,
+  /// which under push-to-talk is most of the time, so the alternative — refuse
+  /// to grade without it — would leave the badge stuck below its real grade
+  /// for exactly the users who rely on it. Round-trip time is measured either
+  /// way, and it is the reading that moves first when a connection turns bad;
+  /// loss sharpens the grade when it is there rather than gating it.
   VoiceQuality _calcQuality(double? rttMs, double? lossPercent) {
     if (rttMs == null) return VoiceQuality.unknown;
     final loss = lossPercent ?? 0;
