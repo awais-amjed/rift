@@ -12,6 +12,7 @@ import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
 import '../token/token_cubit.dart';
 import '../../helper_methods.dart';
+import '../../services/audio_devices.dart';
 import '../../services/connection_failure.dart';
 import '../../services/level_throttle.dart';
 import '../../services/mic_tap_format.dart';
@@ -272,6 +273,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// a live call. WebRTC bakes these constraints in at track creation, so the
   /// track must be recreated — stop it, then let the normal transmission sync
   /// bring it back with the new options.
+  @override
   Future<void> _refreshMicrophoneCapture() async {
     final room = state.room;
     if (room == null) return;

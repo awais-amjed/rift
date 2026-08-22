@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -11,7 +10,6 @@ import 'package:window_manager/window_manager.dart';
 
 import 'data/repositories/secure_storage_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
-import 'logic/services/audio_devices.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'src/rust/frb_generated.dart';
@@ -37,17 +35,6 @@ class AppBootstrap {
 
     final appCubit = AppCubit();
     if (!kIsWeb) {
-      // Before any call can open a device. The saved choice used to be applied
-      // only by the settings section, so joining a call without opening
-      // settings first ran on whatever the platform picked.
-      unawaited(
-        AudioDevices.applySaved(
-          inputId: appCubit.state.inputDeviceId,
-          outputId: appCubit.state.outputDeviceId,
-        ).catchError((Object e) {
-          debugPrint('AppBootstrap: could not apply saved audio devices – $e');
-        }),
-      );
       await windowManager.ensureInitialized();
       await NotificationService.instance.init();
       WindowsAudioDucking.apply(disable: appCubit.state.disableAudioDucking);

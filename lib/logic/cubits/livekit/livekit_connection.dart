@@ -23,8 +23,35 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
   Future<void> _stopVoiceActivityMonitor();
 
   Future<void> _syncMicrophoneTransmission();
+  Future<void> _refreshMicrophoneCapture();
   bool _shouldTransmitMic({bool? micEnabled});
   AudioCaptureOptions _buildAudioCaptureOptions();
+
+  /// Puts the user's saved input and output devices in force for this call,
+  /// and reports whether the input moved.
+  ///
+  /// This belongs to joining and nowhere else. WebRTC's audio device module
+  /// neither enumerates nor accepts a selection until it is running, which it
+  /// only is once a room is connected — so applying the choice at app startup,
+  /// as this used to, ran before there was anything to apply it to and left
+  /// every call on whatever the platform picked.
+  ///
+  /// A device that cannot be opened is not a reason to fail the join. It is
+  /// reported and the call continues on the platform default, which is audible
+  /// and recoverable; the picker in settings says the same thing in the UI
+  /// when the choice is made by hand.
+  Future<bool> _applySavedAudioDevices() async {
+    try {
+      final applied = await AudioDevices.applySaved(
+        inputId: _appCubit.state.inputDeviceId,
+        outputId: _appCubit.state.outputDeviceId,
+      );
+      return applied.input;
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] saved audio device refused: $e');
+      return false;
+    }
+  }
 
   /// Connects to a LiveKit channel. Server context is resolved internally via
   /// [_serverCubit]; callers only supply the channel and media preferences.
@@ -125,7 +152,16 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
         ),
       );
 
-      await _syncMicrophoneTransmission();
+      // Only now can the saved devices be applied — see
+      // [_applySavedAudioDevices]. If the input moved, the mic track the
+      // connect above raised is still bound to the device that was current
+      // when it was created, so it has to be rebuilt rather than merely
+      // resynced.
+      if (await _applySavedAudioDevices()) {
+        await _refreshMicrophoneCapture();
+      } else {
+        await _syncMicrophoneTransmission();
+      }
       SoundService.instance.playJoin();
       _syncParticipants();
       _applyStoredSettings();
