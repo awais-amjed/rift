@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../../data/participant_identity.dart';
+import '../../../../../logic/services/voice_tiles.dart';
 import '../participants_tile/participant_tile.dart';
+import '../../../../responsive/shell_scope.dart';
 
 /// Grid view displaying all participants with adaptive column count.
 class ParticipantGridLayout extends StatefulWidget {
@@ -20,87 +22,126 @@ class ParticipantGridLayout extends StatefulWidget {
 }
 
 class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
-  String? _expandedParticipantIdentity;
+  /// Which cell is expanded, by [_keyOf] rather than by identity — one person
+  /// sharing from a phone owns two cells under the same identity, and an
+  /// identity alone cannot say which of them was tapped.
+  String? _expandedKey;
 
-  Widget _buildTile(Participant p) {
+  static String _keyOf(VoiceTile<Participant> tile) =>
+      '${tile.participant.identity}${tile.isScreenshare ? '#share' : ''}';
+
+  /// The cells to draw. A share is a cell, not a participant — see
+  /// [voiceTilesFor].
+  List<VoiceTile<Participant>> get _tiles => voiceTilesFor(
+    widget.participants,
+    hasScreenshareIdentity: (p) =>
+        ParticipantIdentity.isScreenshare(p.identity),
+    publishesScreenshare: (p) => p.videoTrackPublications.any(
+      (pub) => pub.source == TrackSource.screenShareVideo,
+    ),
+  );
+
+  Widget _buildTile(VoiceTile<Participant> tile) {
     final setting =
-        widget.participantSettings[ParticipantIdentity.userIdOf(p.identity)];
+        widget.participantSettings[ParticipantIdentity.userIdOf(
+          tile.participant.identity,
+        )];
     final isMuted = (setting as dynamic)?.muted ?? false;
     return ParticipantTileWidget(
-      participant: p,
+      participant: tile.participant,
+      isScreenshare: tile.isScreenshare,
       isMuted: isMuted,
-      onTap: () => _onTileTapped(p.identity),
+      onTap: () => _onTileTapped(_keyOf(tile)),
     );
   }
 
-  void _onTileTapped(String identity) {
+  void _onTileTapped(String key) {
     setState(() {
-      if (_expandedParticipantIdentity == identity) {
-        // Collapse if already expanded
-        _expandedParticipantIdentity = null;
-      } else {
-        // Expand this tile
-        _expandedParticipantIdentity = identity;
-      }
+      // Collapse if already expanded, otherwise expand this one.
+      _expandedKey = _expandedKey == key ? null : key;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final tiles = _tiles;
+
     // If a tile is expanded, show only that tile in full view
-    if (_expandedParticipantIdentity != null) {
-      final expandedParticipant = widget.participants.firstWhere(
-        (p) => p.identity == _expandedParticipantIdentity,
-        orElse: () {
-          // If participant no longer exists, reset expanded state
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              _expandedParticipantIdentity = null;
-            });
-          });
-          return widget.participants.first;
-        },
-      );
+    if (_expandedKey != null) {
+      final expanded = tiles
+          .where((t) => _keyOf(t) == _expandedKey)
+          .firstOrNull;
+      if (expanded == null) {
+        // The cell went away — the sharer stopped, or the participant left.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _expandedKey = null);
+        });
+      } else {
+        final setting =
+            widget.participantSettings[ParticipantIdentity.userIdOf(
+              expanded.participant.identity,
+            )];
+        final isMuted = (setting as dynamic)?.muted ?? false;
 
-      final setting =
-          widget.participantSettings[ParticipantIdentity.userIdOf(
-            expandedParticipant.identity,
-          )];
-      final isMuted = (setting as dynamic)?.muted ?? false;
-
-      return ParticipantTileWidget(
-        participant: expandedParticipant,
-        isMuted: isMuted,
-        onTap: () => _onTileTapped(expandedParticipant.identity),
-        isExpanded: true,
-      );
+        return ParticipantTileWidget(
+          participant: expanded.participant,
+          isScreenshare: expanded.isScreenshare,
+          isMuted: isMuted,
+          onTap: () => _onTileTapped(_keyOf(expanded)),
+          isExpanded: true,
+        );
+      }
     }
 
     // Screenshares get a hero layout: the share fills most of the width and
     // camera tiles collapse into a scrollable rail on the right.
-    final shares = widget.participants
-        .where((p) => ParticipantIdentity.isScreenshare(p.identity))
-        .toList();
-    if (shares.isNotEmpty && widget.participants.length > shares.length) {
-      final cameras = widget.participants
-          .where((p) => !ParticipantIdentity.isScreenshare(p.identity))
-          .toList();
+    final shares = tiles.where((t) => t.isScreenshare).toList();
+    final cameras = tiles.where((t) => !t.isScreenshare).toList();
+    if (shares.isNotEmpty && cameras.isNotEmpty) {
+      final shareStack = Column(
+        children: [
+          for (var i = 0; i < shares.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            Expanded(child: _buildTile(shares[i])),
+          ],
+        ],
+      );
+
+      // A phone is tall and narrow, so the rail goes underneath rather than
+      // beside: a quarter of a 390px screen is not a camera tile, it is a
+      // sliver, and it would take that quarter away from the thing everyone
+      // is actually looking at.
+      if (context.layoutMode.isCompact) {
+        return Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: shareStack),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 84,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: cameras.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) => AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: _buildTile(cameras[index]),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
       return Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              flex: 4,
-              child: Column(
-                children: [
-                  for (var i = 0; i < shares.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 8),
-                    Expanded(child: _buildTile(shares[i])),
-                  ],
-                ],
-              ),
-            ),
+            Expanded(flex: 4, child: shareStack),
             const SizedBox(width: 8),
             Expanded(
               flex: 1,
@@ -118,15 +159,15 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       );
     }
 
-    // Compute grid columns based on participant count
+    // Compute grid columns based on how many cells there are
     int cols = 1;
-    if (widget.participants.length >= 2) cols = 2;
-    if (widget.participants.length >= 5) cols = 3;
+    if (tiles.length >= 2) cols = 2;
+    if (tiles.length >= 5) cols = 3;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         // Calculate max width regarding the aspect ratio to ensure the grid fits vertically
-        final int rows = (widget.participants.length / cols).ceil();
+        final int rows = (tiles.length / cols).ceil();
         const double gridPadding = 12.0;
         const double gridSpacing = 8.0;
 
@@ -164,20 +205,8 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
                 mainAxisSpacing: gridSpacing,
                 childAspectRatio: 16 / 9,
               ),
-              itemCount: widget.participants.length,
-              itemBuilder: (context, index) {
-                final p = widget.participants[index];
-                final setting =
-                    widget.participantSettings[ParticipantIdentity.userIdOf(
-                      p.identity,
-                    )];
-                final isMuted = (setting as dynamic)?.muted ?? false;
-                return ParticipantTileWidget(
-                  participant: p,
-                  isMuted: isMuted,
-                  onTap: () => _onTileTapped(p.identity),
-                );
-              },
+              itemCount: tiles.length,
+              itemBuilder: (context, index) => _buildTile(tiles[index]),
             ),
           ),
         );

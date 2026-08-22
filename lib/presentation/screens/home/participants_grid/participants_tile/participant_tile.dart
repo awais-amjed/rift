@@ -24,6 +24,13 @@ import 'expanded_participant_tile.dart';
 /// [ExpandedParticipantTile].
 class ParticipantTileWidget extends StatefulWidget {
   final Participant participant;
+
+  /// Whether this cell shows the participant's *screen* rather than the
+  /// participant. Passed in rather than read off the identity: a phone
+  /// publishes its screen on the connection it already has, so one identity
+  /// can own both kinds of cell. See `voiceTilesFor`.
+  final bool isScreenshare;
+
   final bool isMuted;
   final VoidCallback? onTap;
   final bool isExpanded;
@@ -31,6 +38,7 @@ class ParticipantTileWidget extends StatefulWidget {
   const ParticipantTileWidget({
     super.key,
     required this.participant,
+    required this.isScreenshare,
     this.isMuted = false,
     this.onTap,
     this.isExpanded = false,
@@ -49,8 +57,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   bool _statsPinned = false;
   Timer? _hideTimer;
 
-  bool get _isScreenshare =>
-      ParticipantIdentity.isScreenshare(widget.participant.identity);
+  bool get _isScreenshare => widget.isScreenshare;
 
   @override
   void initState() {
@@ -60,7 +67,9 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
 
     if (widget.isExpanded) _scheduleHide();
 
-    if (_isScreenshare) {
+    // Nothing to arrange for your own screen: the track is local, already in
+    // hand, and there is no subscription to hold off.
+    if (_isScreenshare && widget.participant is! LocalParticipant) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final livekitCubit = context.read<LiveKitCubit>();
@@ -152,9 +161,14 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
       builder: (context, livekitState) {
-        // Camera tiles are always "subscribed"; only screenshares are opt-in.
+        // Camera tiles are always "subscribed"; only *remote* screenshares
+        // are opt-in. Your own screen is a local track — offering to fetch it
+        // would be offering to fetch something already here, and on a phone,
+        // where the share rides the same connection as everything else, it
+        // put a Watch Stream button over the screen you had just shared.
         final isSubscribed =
             !_isScreenshare ||
+            widget.participant is LocalParticipant ||
             livekitState.subscribedScreenshares.contains(
               widget.participant.identity,
             );
@@ -163,8 +177,15 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           builder: (context, themeState) {
             final track = isSubscribed ? _videoPub?.track : null;
             final videoTrack = track is VideoTrack ? track : null;
+            // Only over someone *else's* share. "Stop watching" your own
+            // screen would unsubscribe from a local track, which does nothing
+            // — and the control that does mean something, stop sharing, is
+            // the one already in the call pill.
             final showStopButton =
-                _isScreenshare && isSubscribed && videoTrack != null;
+                _isScreenshare &&
+                isSubscribed &&
+                videoTrack != null &&
+                widget.participant is! LocalParticipant;
             // The identity carries a device segment (and a screenshare
             // suffix), so everything about the *person* — their name, their
             // gradient — keys off the user id inside it instead.
