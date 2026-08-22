@@ -23,6 +23,10 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
   Future<void> _stopVoiceActivityMonitor();
 
   Future<void> _syncMicrophoneTransmission();
+
+  /// Implemented by [_MediaControlsMixin]; needed here so the call
+  /// notification's Mute button has something to press.
+  Future<void> toggleMicrophone();
   Future<void> _refreshMicrophoneCapture();
   bool _shouldTransmitMic({bool? micEnabled});
   AudioCaptureOptions _buildAudioCaptureOptions();
@@ -187,8 +191,19 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
         await _syncMicrophoneTransmission();
       }
       // Android evicts a backgrounded process; LiveKit does nothing about
-      // that, so the call gets a foreground service to stand on.
-      unawaited(CallForegroundService.callStarted());
+      // that, so the call gets a foreground service to stand on. Its
+      // notification is also the only part of the call still on screen once
+      // the app is put away, so it is told what to say and what its buttons
+      // do.
+      unawaited(
+        CallForegroundService.callStarted(
+          channelName: _channelName(server.channels, channelId),
+          serverName: server.name,
+          micEnabled: state.isMicEnabled,
+          onToggleMute: toggleMicrophone,
+          onLeave: disconnect,
+        ),
+      );
       SoundService.instance.playJoin();
       _syncParticipants();
       _applyStoredSettings();
@@ -203,6 +218,15 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
       await room.disconnect();
       await room.dispose();
     }
+  }
+
+  /// The channel's name for the notification. A plain loop rather than a
+  /// lookup: this runs once per join, over a handful of channels.
+  String _channelName(List<Channel> channels, String channelId) {
+    for (final channel in channels) {
+      if (channel.id == channelId) return channel.name;
+    }
+    return 'Voice';
   }
 
   /// Runs the failed join again, against the channel that failed.

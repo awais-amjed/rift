@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'call_notification_content.dart';
+import 'call_notification_task.dart';
 import 'host_platform.dart';
 
 /// The Android foreground service that keeps a call alive, and the one that
@@ -33,6 +35,11 @@ import 'host_platform.dart';
 /// once the app is in the background. Without `camera` a backgrounded video
 /// call keeps its audio and loses its picture.
 ///
+/// The notification it posts is not only the price of admission: once the app
+/// is put away it is the whole of the call's user interface, so it names the
+/// channel and carries the two controls worth having there — see
+/// [callNotificationTask] for how a press gets back here.
+///
 /// A no-op off Android. Desktops do not evict a running app, and iOS wants a
 /// different mechanism entirely.
 class CallForegroundService {
@@ -48,8 +55,24 @@ class CallForegroundService {
   /// the service for nothing.
   static List<ForegroundServiceTypes>? _applied;
 
+  /// What the notification is about: which call, and whether the mic is on.
+  static String? _channelName;
+  static String? _serverName;
+  static bool _micEnabled = true;
+
+  /// What its buttons do. Held here rather than passed through the service
+  /// because a press arrives long after the call was joined, from an isolate
+  /// that knows nothing but a button id.
+  static VoidCallback? _onToggleMute;
+  static VoidCallback? _onLeave;
+
   static void _ensureInitialised() {
     if (_initialised) return;
+    // The port a button press comes back on. Opened here rather than in main
+    // because nothing can send on it until a service exists, and this runs
+    // before the first one does.
+    FlutterForegroundTask.initCommunicationPort();
+    FlutterForegroundTask.addTaskDataCallback(_onTaskData);
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'rift_call',
@@ -60,6 +83,9 @@ class CallForegroundService {
         // must exist and must not buzz.
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,
+        // The one notification the app posts more than once. Re-announcing it
+        // on every mute would make a control feel like an alert.
+        onlyAlertOnce: true,
       ),
       iosNotificationOptions: const IOSNotificationOptions(),
       foregroundTaskOptions: ForegroundTaskOptions(
@@ -74,6 +100,40 @@ class CallForegroundService {
     );
     _initialised = true;
   }
+
+  /// A button pressed in the shade, forwarded from the handler isolate.
+  ///
+  /// Anything else on the port is not ours and is ignored rather than guessed
+  /// at — the port is shared by whatever else the app might one day run.
+  static void _onTaskData(Object data) {
+    switch (data) {
+      case kCallMuteButtonId:
+        _onToggleMute?.call();
+      case kCallLeaveButtonId:
+        _onLeave?.call();
+    }
+  }
+
+  /// What the shade should be saying right now — see [callNotificationContent],
+  /// which is where the wording lives.
+  static CallNotificationContent get _content => callNotificationContent(
+    channelName: _channelName,
+    serverName: _serverName,
+    micEnabled: _micEnabled,
+    sharing: _sharing,
+  );
+
+  /// Mute and leave: the two things you do to a call you are not looking at.
+  static List<NotificationButton> _buttons(CallNotificationContent content) => [
+    NotificationButton(
+      id: CallNotificationContent.muteId,
+      text: content.muteLabel,
+    ),
+    const NotificationButton(
+      id: CallNotificationContent.leaveId,
+      text: CallNotificationContent.leaveLabel,
+    ),
+  ];
 
   /// What the service may claim right now.
   ///
@@ -107,21 +167,49 @@ class CallForegroundService {
     if (await FlutterForegroundTask.isRunningService) {
       await FlutterForegroundTask.stopService();
     }
+    final content = _content;
     await FlutterForegroundTask.startService(
       serviceTypes: types,
-      notificationTitle: _sharing ? 'Sharing your screen' : 'In a call',
-      notificationText: _sharing
-          ? 'Your screen is visible to everyone in the call.'
-          : 'Rift is keeping your call connected.',
+      notificationTitle: content.title,
+      notificationText: content.text,
+      notificationButtons: _buttons(content),
+      callback: callNotificationTask,
     );
     _applied = types;
   }
 
-  /// Holds the process up for the duration of a call.
-  static Future<void> callStarted() async {
+  /// Rewrites the notification in place.
+  ///
+  /// Not [_apply]: that restarts the service, which would take
+  /// `mediaProjection` away for an instant and end a running capture. Muting
+  /// must not stop a screen share.
+  static Future<void> _refresh() async {
+    if (!await FlutterForegroundTask.isRunningService) return;
+    final content = _content;
+    await FlutterForegroundTask.updateService(
+      notificationTitle: content.title,
+      notificationText: content.text,
+      notificationButtons: _buttons(content),
+    );
+  }
+
+  /// Holds the process up for the duration of a call, and says in the shade
+  /// which call it is.
+  static Future<void> callStarted({
+    required String channelName,
+    String? serverName,
+    required bool micEnabled,
+    required VoidCallback onToggleMute,
+    required VoidCallback onLeave,
+  }) async {
     if (!HostPlatform.isMobile) return;
     try {
       _sharing = false;
+      _channelName = channelName;
+      _serverName = serverName;
+      _micEnabled = micEnabled;
+      _onToggleMute = onToggleMute;
+      _onLeave = onLeave;
       await _apply(force: true);
     } catch (e) {
       // A call that runs without the service is still a call — it is only
@@ -158,6 +246,19 @@ class CallForegroundService {
     }
   }
 
+  /// The mic has been muted or unmuted, from anywhere — the app, the shade,
+  /// or a moderator. The notification says so and its button flips to the
+  /// other verb.
+  static Future<void> micChanged(bool enabled) async {
+    if (!HostPlatform.isMobile || _micEnabled == enabled) return;
+    _micEnabled = enabled;
+    try {
+      await _refresh();
+    } catch (e) {
+      debugPrint('CallForegroundService: could not follow the mic – $e');
+    }
+  }
+
   /// The camera has been switched on or off.
   ///
   /// Only the first switch-on usually matters: that is when CAMERA is granted
@@ -181,6 +282,12 @@ class CallForegroundService {
     if (!HostPlatform.isMobile) return;
     _sharing = false;
     _applied = null;
+    _channelName = null;
+    _serverName = null;
+    // Dropped so a press that raced the hang-up cannot reach a call that has
+    // already gone.
+    _onToggleMute = null;
+    _onLeave = null;
     try {
       if (await FlutterForegroundTask.isRunningService) {
         await FlutterForegroundTask.stopService();

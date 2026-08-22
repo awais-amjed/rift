@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../data/classes/channel.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/participant_identity.dart';
 import '../app/app_cubit.dart';
@@ -70,6 +71,21 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
   void setScreenshareCubit(ScreenshareCubit cubit) {
     _screenshareCubit = cubit;
+  }
+
+  /// Keeps the call notification's mute button honest.
+  ///
+  /// Here rather than in [toggleMicrophone] because the mic is muted from more
+  /// than one place — the toggle, deafen, a moderator — and the shade should
+  /// say the same thing as the app whichever it was.
+  @override
+  void onChange(Change<LiveKitState> change) {
+    super.onChange(change);
+    if (change.currentState.isMicEnabled != change.nextState.isMicEnabled) {
+      unawaited(
+        CallForegroundService.micChanged(change.nextState.isMicEnabled),
+      );
+    }
   }
   // ──────────────────────────────────────────────────────────
   // Internal helpers
