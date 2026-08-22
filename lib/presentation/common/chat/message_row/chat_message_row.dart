@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,7 +7,9 @@ import '../../../../data/constants.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/host_platform.dart';
 import '../../../../logic/services/message_permissions.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../confirm_dialog.dart';
 import '../../emoji_text.dart';
 import '../attachments/attachment_loader.dart';
@@ -94,6 +98,16 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
   void _pickReaction(BuildContext anchorContext) =>
       showReactionPicker(anchorContext, themeState, _toggle);
 
+  /// The touch way in. A long press is a right-click without a right button,
+  /// and the buzz is the only sign it has registered — the menu opens after
+  /// the press is held, so without it the finger spends half a second on a
+  /// screen that looks like it is ignoring it.
+  void _openContextMenuByTouch(Offset position) {
+    if (message.isPending) return;
+    if (HostPlatform.isMobile) HapticFeedback.mediumImpact();
+    unawaited(_openContextMenu(position));
+  }
+
   Future<void> _openContextMenu(Offset position) async {
     if (message.isPending) return;
     final action = await showMessageContextMenu(
@@ -101,11 +115,16 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       position: position,
       themeState: themeState,
       message: message,
+      canReact: _canReact,
       canEdit: _canEdit,
       canDelete: _canDelete,
     );
     if (!mounted || action == null) return;
     switch (action) {
+      case MessageMenuAction.react:
+        // Anchored to the row rather than to the menu entry, which is gone by
+        // the time this runs.
+        _pickReaction(context);
       case MessageMenuAction.copy:
         await _copy();
       case MessageMenuAction.edit:
@@ -142,6 +161,10 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       onExit: (_) => setState(() => _hovering = false),
       child: GestureDetector(
         onSecondaryTapDown: (d) => _openContextMenu(d.globalPosition),
+        // Without this a message has no reachable actions at all on a phone:
+        // the toolbar above waits for a hover that never comes, and the line
+        // above waits for a mouse button that isn't there.
+        onLongPressStart: (d) => _openContextMenuByTouch(d.globalPosition),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -245,8 +268,8 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
             onCancel: () => setState(() => _editing = false),
           )
         else if (message.text.isNotEmpty)
-          SelectableText.rich(
-            TextSpan(
+          _MessageText(
+            span: TextSpan(
               children: [
                 emojiTextSpan(
                   message.text,
@@ -277,5 +300,30 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
           ),
       ],
     );
+  }
+}
+
+/// The message body: selectable where there is a cursor, plain where there is
+/// a finger.
+///
+/// [SelectableText] installs its own long-press recognizer, and it wins the
+/// gesture arena against the row's. On a phone that means long-pressing a
+/// message starts a text selection instead of opening the menu — and since
+/// long-press *is* the touch right-click, that took every action a message has
+/// with it.
+///
+/// Dropping selection on touch loses very little. Dragging selection handles
+/// around a chat bubble is fiddly on the best day, and the thing it is nearly
+/// always in service of — copying the message — is the first entry in the menu
+/// that now opens instead.
+class _MessageText extends StatelessWidget {
+  final TextSpan span;
+
+  const _MessageText({required this.span});
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.layoutMode.isCompact) return Text.rich(span);
+    return SelectableText.rich(span);
   }
 }

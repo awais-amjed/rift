@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../logic/services/host_platform.dart';
 import 'app_palette.dart';
 import 'app_text.dart';
 import 'custom_colors.dart';
@@ -25,6 +26,18 @@ class AppTheme {
         surfaceContainerHighest: colors.bgTertiary,
         error: CustomColors.error,
       ),
+      // A tooltip explains a control you are pointing at, and on a touchscreen
+      // there is no pointing — so it fires on a long press instead, which is
+      // the gesture the context menus want. Tooltip's recognizer sits *inside*
+      // ContextMenuRegion's and wins the arena, so long-pressing a server chip
+      // showed the server's name where its menu should have been, and every
+      // tooltipped control inside a menu region was quietly the same.
+      //
+      // Manual means it never fires by itself. Nothing is lost: the label it
+      // would have shown is on a control the user is already touching.
+      tooltipTheme: HostPlatform.isMobile
+          ? const TooltipThemeData(triggerMode: TooltipTriggerMode.manual)
+          : null,
       // The scaffold is the canvas the floating panels sit on, in both modes —
       // panels paint their own background over it.
       scaffoldBackgroundColor: colors.bgPrimary,

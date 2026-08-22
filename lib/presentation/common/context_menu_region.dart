@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../logic/services/host_platform.dart';
 
 /// Lets menu content close the menu it lives in.
 ///
@@ -79,11 +82,21 @@ class _ContextMenuRegionState extends State<ContextMenuRegion> {
     super.dispose();
   }
 
+  /// A long press is the touch equivalent of a right-click, and the only
+  /// signal that it has registered is the buzz — the menu opens *after* the
+  /// press is held, so without it the finger spends half a second on a screen
+  /// that appears to be ignoring it. Mobile only: a desktop has no vibrator,
+  /// and long-press there is a fallback for a right-click that already worked.
+  void _openByTouch(Offset position) {
+    if (HostPlatform.isMobile) HapticFeedback.mediumImpact();
+    _show(position);
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onSecondaryTapDown: (details) => _show(details.globalPosition),
-      onLongPressStart: (details) => _show(details.globalPosition),
+      onLongPressStart: (details) => _openByTouch(details.globalPosition),
       child: widget.child,
     );
   }

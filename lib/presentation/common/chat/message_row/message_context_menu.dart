@@ -6,10 +6,18 @@ import '../../../theme/custom_colors.dart';
 import '../../../theme/app_text.dart';
 
 /// What a message context-menu entry asked for.
-enum MessageMenuAction { copy, edit, delete }
+enum MessageMenuAction { react, copy, edit, delete }
 
-/// Right-click menu for one message. Entries are filtered by what the caller
-/// says is allowed, so a menu never offers an action the server would refuse.
+/// Right-click — and long-press — menu for one message. Entries are filtered
+/// by what the caller says is allowed, so a menu never offers an action the
+/// server would refuse.
+///
+/// **React is in here as well as in the hover toolbar**, which is not a
+/// duplicate so much as the only way to reach it at all without a mouse: the
+/// toolbar appears on hover, and a finger never hovers. Right-clicking to
+/// react is a reasonable path on a desktop too, so it is offered everywhere
+/// rather than only on a phone — a menu whose entries move around depending
+/// on the window is worse than one entry more than strictly needed.
 ///
 /// Anchored at the pointer via [position] (global coordinates) rather than to
 /// the row, so it opens where the user actually clicked — the row spans the
@@ -19,6 +27,7 @@ Future<MessageMenuAction?> showMessageContextMenu({
   required Offset position,
   required ThemeState themeState,
   required ChatMessage message,
+  required bool canReact,
   required bool canEdit,
   required bool canDelete,
 }) async {
@@ -26,7 +35,7 @@ Future<MessageMenuAction?> showMessageContextMenu({
   if (overlay == null) return null;
 
   final canCopy = message.text.isNotEmpty;
-  if (!canCopy && !canEdit && !canDelete) return null;
+  if (!canReact && !canCopy && !canEdit && !canDelete) return null;
 
   return showMenu<MessageMenuAction>(
     context: context,
@@ -44,6 +53,13 @@ Future<MessageMenuAction?> showMessageContextMenu({
     ),
     constraints: const BoxConstraints(minWidth: 172),
     items: [
+      if (canReact)
+        _item(
+          MessageMenuAction.react,
+          Icons.add_reaction_outlined,
+          'Add Reaction',
+          themeState.textSecondary,
+        ),
       if (canCopy)
         _item(
           MessageMenuAction.copy,
