@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../../data/participant_identity.dart';
+import '../../../../../logic/services/room_tiles.dart';
 import '../../../../../logic/services/voice_tiles.dart';
 import '../participants_tile/participant_tile.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -32,14 +33,8 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
 
   /// The cells to draw. A share is a cell, not a participant — see
   /// [voiceTilesFor].
-  List<VoiceTile<Participant>> get _tiles => voiceTilesFor(
-    widget.participants,
-    hasScreenshareIdentity: (p) =>
-        ParticipantIdentity.isScreenshare(p.identity),
-    publishesScreenshare: (p) => p.videoTrackPublications.any(
-      (pub) => pub.source == TrackSource.screenShareVideo,
-    ),
-  );
+  List<VoiceTile<Participant>> get _tiles =>
+      roomVoiceTiles(widget.participants);
 
   Widget _buildTile(VoiceTile<Participant> tile) {
     final setting =

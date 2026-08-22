@@ -19,7 +19,11 @@ import '../../services/connection_failure.dart';
 import '../../services/level_throttle.dart';
 import '../../services/mic_tap_format.dart';
 import '../../services/participant_roster.dart';
+import '../../services/participant_video.dart';
 import '../../services/pcm_level.dart';
+import '../../services/pip_focus.dart';
+import '../../services/pip_service.dart';
+import '../../services/room_tiles.dart';
 import '../../services/serial_queue.dart';
 import '../../services/sound_service.dart';
 import '../../services/speech_detector.dart';
@@ -86,7 +90,35 @@ class LiveKitCubit extends Cubit<LiveKitState>
         CallForegroundService.micChanged(change.nextState.isMicEnabled),
       );
     }
+    _syncPictureInPicture(change.nextState);
   }
+
+  /// Tells Android whether leaving the app should shrink it to a floating
+  /// window rather than put the call away.
+  ///
+  /// Armed on what there is to *see*, not on being in a call: a window with
+  /// nothing in it is a black rectangle over whatever the user left to do, and
+  /// an audio call is already represented in the notification shade. Cheap
+  /// enough to recompute on every emit — a call is a handful of participants —
+  /// and [PipService.setArmed] drops the ones that change nothing.
+  void _syncPictureInPicture(LiveKitState state) {
+    final connected = state.connectionState == LiveKitConnectionState.connected;
+    final focus = connected
+        ? pipFocus(
+            roomVoiceTiles(state.participants),
+            isLocal: (p) => p is LocalParticipant,
+            isSpeaking: (p) => p.isSpeaking,
+            hasVideo: (tile) =>
+                ParticipantVideo.activePublication(
+                  tile.participant.videoTrackPublications,
+                  isScreenshare: tile.isScreenshare,
+                )?.track !=
+                null,
+          )
+        : null;
+    unawaited(PipService.instance.setArmed(focus != null));
+  }
+
   // ──────────────────────────────────────────────────────────
   // Internal helpers
   // ──────────────────────────────────────────────────────────

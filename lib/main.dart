@@ -19,6 +19,7 @@ import 'logic/services/window_focus_service.dart';
 import 'presentation/app_providers.dart';
 import 'presentation/common/title_bar_overlay.dart';
 import 'presentation/routing/app_routes.dart';
+import 'presentation/screens/pip/pip_overlay.dart';
 import 'presentation/theme/app_theme.dart';
 
 void main() async {
@@ -142,7 +143,7 @@ class _MyAppState extends State<MyApp>
                       themeMode: themeState.themeMode,
                       builder: EasyLoading.init(
                         builder: (context, child) =>
-                            TitleBarOverlay(child: child!),
+                            PipOverlay(child: TitleBarOverlay(child: child!)),
                       ),
                     ),
                   );
