@@ -224,3 +224,10 @@ setting `request.jwt.claims` and `SET LOCAL ROLE authenticated`, so it exercises
 same path PostgREST takes; both files run in one transaction ending in `ROLLBACK`.
 Run it after touching any migration, and add a case whenever you add a policy, a
 grant or a `SECURITY DEFINER` function.
+
+**Live behaviour is recorded in `MANUAL_TESTING.md`.** Realtime delivery, cross-device
+key distribution, presence, LiveKit, the Android foreground service and per-width
+layout cannot be covered by either suite, so what has actually been driven through the
+real UI — and what has *not* — is logged there, along with how to drive the Linux and
+Android clients (`GDK_BACKEND=x11` + `xdotool`, and `adb`). Read it before assuming
+something is untested, and add to it whenever you verify something live.
