@@ -32,6 +32,10 @@ class _MemoryStorage implements Storage {
 const _channelId = 'vc-1';
 const _supabaseUrl = 'https://example.supabase.co';
 
+/// The account a cached token belongs to. The cache is scoped per user, so a
+/// read has to name one — see `token_cache_identity_test.dart` for why.
+const _userId = 'user-1';
+
 /// Built with no [ServerCubit], so every join fails at the first check. That is
 /// enough to exercise the retry path itself without a live room.
 LiveKitCubit _buildCubit(TokenCubit tokenCubit) =>
@@ -87,8 +91,11 @@ void main() {
       'drops the cached token so the retry cannot reuse a refused one',
       () async {
         final tokenCubit = TokenCubit();
-        tokenCubit.saveToken(_supabaseUrl, _channelId, 'stale-token');
-        expect(tokenCubit.getValidToken(_supabaseUrl, _channelId), isNotNull);
+        tokenCubit.saveToken(_supabaseUrl, _channelId, _userId, 'stale-token');
+        expect(
+          tokenCubit.getValidToken(_supabaseUrl, _channelId, _userId),
+          isNotNull,
+        );
 
         final cubit = _buildCubit(tokenCubit);
         await cubit.connectToChannel(channelId: _channelId);
@@ -96,7 +103,10 @@ void main() {
 
         // Without this, retrying an auth failure would fail identically forever
         // — which is what made rejoining via another channel the only cure.
-        expect(tokenCubit.getValidToken(_supabaseUrl, _channelId), isNull);
+        expect(
+          tokenCubit.getValidToken(_supabaseUrl, _channelId, _userId),
+          isNull,
+        );
         await cubit.close();
       },
     );

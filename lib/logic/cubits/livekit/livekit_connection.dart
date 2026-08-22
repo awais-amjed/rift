@@ -100,8 +100,27 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
       return;
     }
 
+    // A cached token belongs to the account it was minted for, and this
+    // device may have been signed into more than one. Without the user in the
+    // lookup, signing in as someone else reuses the previous account's token
+    // and joins the room as them.
+    final userId = server.user?.id;
+    if (userId == null) {
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          failure: const ConnectionFailure.noServer(),
+        ),
+      );
+      return;
+    }
+
     String livekitToken;
-    final cached = _tokenCubit.getValidToken(server.supabaseUrl, channelId);
+    final cached = _tokenCubit.getValidToken(
+      server.supabaseUrl,
+      channelId,
+      userId,
+    );
     if (cached != null) {
       livekitToken = cached.token;
     } else {
@@ -117,7 +136,12 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
         return;
       }
       livekitToken = response.data['token'] as String;
-      _tokenCubit.saveToken(server.supabaseUrl, channelId, livekitToken);
+      _tokenCubit.saveToken(
+        server.supabaseUrl,
+        channelId,
+        userId,
+        livekitToken,
+      );
     }
 
     final room = Room(

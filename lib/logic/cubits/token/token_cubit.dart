@@ -5,6 +5,14 @@ part 'token_state.dart';
 /// Caches LiveKit tokens per channel so they can be reused within their
 /// 1-hour TTL. Tokens are considered valid for 55 minutes to give a safety
 /// margin before expiry.
+///
+/// **Scoped to the user, not just the channel.** The cache is keyed by
+/// channel and survives a restart, so signing out and signing back in as
+/// someone else used to hand the new account the old one's token — and a
+/// LiveKit token is an identity, not a credential to a shared room. The
+/// symptom was a voice tile labelled with the previous account's name; the
+/// cause was that the connection really was theirs, on the same device, with
+/// their moderation grant. Every read now has to name the user it is for.
 class TokenCubit extends HydratedCubit<TokenState> {
   TokenCubit() : super(const TokenState());
 
@@ -13,12 +21,23 @@ class TokenCubit extends HydratedCubit<TokenState> {
   // ──────────────────────────────────────────────────────────
 
   /// Returns a cached token for [channelId] if one exists, belongs to
-  /// [supabaseUrl], and was created within the last 55 minutes.
-  /// Returns `null` if no valid token is cached.
-  CachedToken? getValidToken(String supabaseUrl, String channelId) {
+  /// [supabaseUrl] *and to [userId]*, and was created within the last 55
+  /// minutes. Returns `null` if no valid token is cached.
+  CachedToken? getValidToken(
+    String supabaseUrl,
+    String channelId,
+    String userId,
+  ) {
     final cached = state.tokens[channelId];
     if (cached == null) return null;
     if (cached.supabaseUrl != supabaseUrl) return null;
+    // Another account's token, or one from before this was recorded. Evicted
+    // rather than merely refused: it will never match again, and leaving it
+    // there keeps another user's identity on disk.
+    if (cached.userId != userId) {
+      _evict(channelId);
+      return null;
+    }
     if (!cached.isValid) {
       // Evict expired entry
       _evict(channelId);
@@ -27,12 +46,19 @@ class TokenCubit extends HydratedCubit<TokenState> {
     return cached;
   }
 
-  /// Stores a newly fetched token for [channelId].
-  void saveToken(String supabaseUrl, String channelId, String token) {
+  /// Stores a newly fetched token for [channelId], against the user it was
+  /// minted for.
+  void saveToken(
+    String supabaseUrl,
+    String channelId,
+    String userId,
+    String token,
+  ) {
     final updated = Map<String, CachedToken>.from(state.tokens);
     updated[channelId] = CachedToken(
       supabaseUrl: supabaseUrl,
       channelId: channelId,
+      userId: userId,
       token: token,
       createdAt: DateTime.now(),
     );
