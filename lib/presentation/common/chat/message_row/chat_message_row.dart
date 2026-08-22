@@ -9,7 +9,6 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/host_platform.dart';
 import '../../../../logic/services/message_permissions.dart';
-import '../../../responsive/shell_scope.dart';
 import '../../confirm_dialog.dart';
 import '../../emoji_text.dart';
 import '../attachments/attachment_loader.dart';
@@ -21,6 +20,7 @@ import 'message_edit_field.dart';
 import 'message_hover_toolbar.dart';
 import 'message_row_avatar.dart';
 import 'message_row_header.dart';
+import 'message_text.dart';
 import '../../../theme/app_text.dart';
 
 /// One message in the chat list — flat Discord-style row, not a bubble.
@@ -268,7 +268,8 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
             onCancel: () => setState(() => _editing = false),
           )
         else if (message.text.isNotEmpty)
-          _MessageText(
+          MessageText(
+            onSecondaryTap: _openContextMenu,
             span: TextSpan(
               children: [
                 emojiTextSpan(
@@ -300,30 +301,5 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
           ),
       ],
     );
-  }
-}
-
-/// The message body: selectable where there is a cursor, plain where there is
-/// a finger.
-///
-/// [SelectableText] installs its own long-press recognizer, and it wins the
-/// gesture arena against the row's. On a phone that means long-pressing a
-/// message starts a text selection instead of opening the menu — and since
-/// long-press *is* the touch right-click, that took every action a message has
-/// with it.
-///
-/// Dropping selection on touch loses very little. Dragging selection handles
-/// around a chat bubble is fiddly on the best day, and the thing it is nearly
-/// always in service of — copying the message — is the first entry in the menu
-/// that now opens instead.
-class _MessageText extends StatelessWidget {
-  final TextSpan span;
-
-  const _MessageText({required this.span});
-
-  @override
-  Widget build(BuildContext context) {
-    if (context.layoutMode.isCompact) return Text.rich(span);
-    return SelectableText.rich(span);
   }
 }
