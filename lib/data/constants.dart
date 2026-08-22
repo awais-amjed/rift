@@ -94,6 +94,16 @@ class K {
   /// and the content runs edge to edge.
   static const double breakpointMedium = 700;
 
+  /// How wide a DM conversation header must be before each status chip earns
+  /// its place.
+  ///
+  /// Keyed off the header's *own* width rather than the window's `LayoutMode`.
+  /// A medium window docks the sidebar **and** the DM list, so the conversation
+  /// beside them is narrower than the whole content column is on a phone —
+  /// sizing the chips by window mode is exactly what let the header overflow.
+  static const double dmHeaderTierChipMin = 300;
+  static const double dmHeaderEncryptedChipMin = 460;
+
   // ── Panel workspace ───────────────────────────────────────
   /// Gap between the floating panels, and between them and the window edge.
   static const double panelGutter = 10;
