@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/participant_identity.dart';
+import '../../services/host_platform.dart';
+import '../../services/screen_capture_session.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../livekit/livekit_cubit.dart';
@@ -12,8 +14,17 @@ import '../server/server_cubit.dart';
 
 part 'screenshare_state.dart';
 
-/// Cubit managing screen sharing via the Rust LiveKit integration.
+/// Cubit managing screen sharing.
+///
+/// Two implementations behind one state. On a desktop the capture, encoding
+/// and publishing all happen in Rust, against libwebrtc's desktop capturer.
+/// On web and on a phone the SDK does it: the browser has its own picker, and
+/// Android has MediaProjection, which libwebrtc does not expose a desktop
+/// capturer for at all — [_sdkCapturesScreen] is which of the two applies.
 class ScreenshareCubit extends Cubit<ScreenshareState> {
+  /// Whether the LiveKit SDK captures the screen here, rather than Rust.
+  static bool get _sdkCapturesScreen => kIsWeb || HostPlatform.isMobile;
+
   final ServerCubit _serverCubit;
   final LiveKitCubit? _livekitCubit;
 
@@ -27,7 +38,8 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
        super(const ScreenshareState()) {
     // Desktop screen sharing runs in Rust; listen for its lifecycle events
     // (e.g. the shared window being closed) so we can stop and update the UI.
-    if (!kIsWeb) {
+    // Nothing to listen to where the SDK is doing the capturing.
+    if (!_sdkCapturesScreen) {
       _eventSub = screenshareEventStream().listen(_onRustScreenshareEvent);
     }
   }
@@ -45,8 +57,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     emit(state.copyWith(status: ScreenshareStatus.connecting));
 
     try {
-      // On web, use LiveKit's native screen sharing
-      if (kIsWeb) {
+      // Hand to the SDK wherever it can do the job itself. On web the browser
+      // owns the picker; on a phone LiveKit drives MediaProjection, which is
+      // the only way in — the Rust pipeline below captures a *desktop*, and
+      // libwebrtc does not build its capturer for Android at all.
+      if (_sdkCapturesScreen) {
         if (_livekitCubit == null) {
           emit(
             state.copyWith(
@@ -65,6 +80,14 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
               error: 'Not connected to a channel',
             ),
           );
+          return;
+        }
+
+        // Consent and the foreground service, on the platform that wants
+        // them. A refusal here is the user saying no to the system dialog,
+        // which needs no error of ours on top of it.
+        if (!await ScreenCaptureSession.prepare()) {
+          emit(state.copyWith(status: ScreenshareStatus.idle));
           return;
         }
 
@@ -196,11 +219,17 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     emit(state.copyWith(status: ScreenshareStatus.stopping));
 
     try {
-      // On web, use LiveKit's native screen sharing
-      if (kIsWeb) {
+      // Hand to the SDK wherever it can do the job itself. On web the browser
+      // owns the picker; on a phone LiveKit drives MediaProjection, which is
+      // the only way in — the Rust pipeline below captures a *desktop*, and
+      // libwebrtc does not build its capturer for Android at all.
+      if (_sdkCapturesScreen) {
         if (_livekitCubit != null) {
           await _livekitCubit.toggleScreenShare();
         }
+        // The capture has stopped, so the service that was holding it up has
+        // no reason to keep a notification on screen.
+        await ScreenCaptureSession.release();
 
         emit(
           state.copyWith(

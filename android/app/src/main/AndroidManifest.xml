@@ -30,6 +30,14 @@
     <!-- So a call survives the screen going off. -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
+    <!-- Screen sharing. MediaProjection has to run under a foreground service
+         that declares the mediaProjection type, or from Android 14 the capture
+         is refused outright. The service itself comes from flutter_background,
+         which is what LiveKit's own Flutter example uses for this. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
+
     <!-- Declared not-required so the app still installs on hardware without
          them: a tablet with no camera can still read and type. -->
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
@@ -61,6 +69,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <service
+            android:name="de.julianassmann.flutter_background.IsolateHolderService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection"/>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

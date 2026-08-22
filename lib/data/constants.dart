@@ -71,6 +71,14 @@ class K {
   /// left alone rather than squashed to this.
   static const double touchTargetMin = 44;
 
+  /// The slot the floating pane-menu button occupies at the top-left of a
+  /// content pane that has no header of its own — the voice area.
+  ///
+  /// It floats over the content rather than sitting in a row, so anything that
+  /// *does* draw across the top has to leave this much clear or it lands
+  /// underneath: the button's 10px offset, its 32px box, and a gap after it.
+  static const double paneMenuButtonSlot = 48;
+
   // ── Layout breakpoints ────────────────────────────────────
   /// Where the member list stops being worth 232px of a shrinking window.
   ///

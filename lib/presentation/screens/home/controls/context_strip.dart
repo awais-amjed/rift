@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/participant_identity.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import '../../../responsive/shell_scope.dart';
 
 /// Slim strip above the participant grid: channel name, live participant
 /// count, and session timer. Keeps chrome to one row so the video area stays
@@ -79,9 +81,16 @@ class _ContextStripState extends State<ContextStrip> {
                         .toSet()
                         .length;
 
+                    // The drawer button floats over this strip's leading edge
+                    // on a phone, so the channel name starts after it rather
+                    // than underneath it.
+                    final menuSlot = context.layoutMode.sidebarIsOverlay;
                     return Container(
                       height: 44,
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      padding: EdgeInsets.only(
+                        left: menuSlot ? K.paneMenuButtonSlot : 18,
+                        right: 18,
+                      ),
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(color: themeState.borderPrimary),

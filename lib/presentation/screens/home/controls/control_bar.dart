@@ -9,6 +9,7 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/services/host_platform.dart';
 import '../../../common/app_modal.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/custom_colors.dart';
@@ -96,9 +97,14 @@ class _ControlBarContent extends StatelessWidget {
       return;
     }
 
-    // On web the browser handles source selection; skip the settings dialog.
+    // The settings dialog is a *desktop* capture dialog — capture type,
+    // window list, bitrate, codec, system-audio toggle. None of it exists
+    // where the SDK does the capturing: a browser shows its own picker, and
+    // Android shows the MediaProjection consent sheet, which is the picker.
+    // Putting ours in front of either would be asking twice, the first time
+    // about things that cannot be chosen.
     final ScreenShareSettings settings;
-    if (kIsWeb) {
+    if (kIsWeb || HostPlatform.isMobile) {
       settings = const ScreenShareSettings();
     } else {
       final dialogSettings = await showCustomDialog<ScreenShareSettings>(
