@@ -2,11 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/participant_identity.dart';
+import '../../services/call_foreground_service.dart';
 import '../../services/host_platform.dart';
-import '../../services/screen_capture_session.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../livekit/livekit_cubit.dart';
@@ -83,12 +84,16 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
           return;
         }
 
-        // Consent and the foreground service, on the platform that wants
-        // them. A refusal here is the user saying no to the system dialog,
-        // which needs no error of ours on top of it.
-        if (!await ScreenCaptureSession.prepare()) {
-          emit(state.copyWith(status: ScreenshareStatus.idle));
-          return;
+        // Android wants consent, and then a foreground service declaring
+        // mediaProjection running *before* the capture starts. A refusal at
+        // the consent sheet is the user saying no, which needs no error of
+        // ours on top of it.
+        if (HostPlatform.isMobile) {
+          if (!await Helper.requestCapturePermission() ||
+              !await CallForegroundService.screenShareStarting()) {
+            emit(state.copyWith(status: ScreenshareStatus.idle));
+            return;
+          }
         }
 
         await _livekitCubit.toggleScreenShare();
@@ -227,9 +232,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         if (_livekitCubit != null) {
           await _livekitCubit.toggleScreenShare();
         }
-        // The capture has stopped, so the service that was holding it up has
-        // no reason to keep a notification on screen.
-        await ScreenCaptureSession.release();
+        // The capture has stopped, so the service drops back to the plain
+        // call type — the call is still running and still needs holding up.
+        await CallForegroundService.screenShareStopped();
 
         emit(
           state.copyWith(

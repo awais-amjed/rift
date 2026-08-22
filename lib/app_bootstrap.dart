@@ -38,16 +38,17 @@ class AppBootstrap {
     // Desktop, not "not web". window_manager and tray_manager ship no Android
     // or iOS implementation at all, so every one of these is a method channel
     // with nothing on the other end — a MissingPluginException thrown before
-    // the first frame. Notifications are here too: the service is initialised
-    // with Linux and Windows settings only, and mobile wants its own channel
-    // and permission flow rather than a silent failure.
+    // the first frame.
     if (HostPlatform.drawsOwnWindowChrome) {
       await windowManager.ensureInitialized();
-      await NotificationService.instance.init();
       WindowsAudioDucking.apply(disable: appCubit.state.disableAudioDucking);
       _restoreWindow(appCubit);
       await _initTray();
     }
+    // Not desktop-only any more: Android posts these too, and asking for the
+    // permission at startup beats a system dialog appearing on top of the
+    // first message it is about.
+    if (!kIsWeb) await NotificationService.instance.init();
     return appCubit;
   }
 

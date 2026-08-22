@@ -6,12 +6,19 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../data/classes/dm_conversation.dart';
 import 'window_focus_service.dart';
 
-/// Desktop (Linux + Windows) local notifications for incoming chat messages.
+/// Local notifications for incoming chat messages, on Linux, Windows and
+/// Android.
 ///
 /// Notifications are only surfaced while the window is unfocused — the trigger
 /// sites in the chat cubits gate on [WindowFocusService.isFocused] before
 /// calling [showMessage]. The service itself is a thin wrapper around
 /// `flutter_local_notifications`; a no-op on web and before [init] completes.
+///
+/// Android differs from the desktops in three ways, all of them the
+/// platform's: every notification belongs to a **channel**, which is what the
+/// user silences rather than the app as a whole; posting them needs a runtime
+/// **permission** from API 33; and "unfocused" means the app is not on screen
+/// at all rather than merely behind another window.
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -36,14 +43,52 @@ class NotificationService {
         appUserModelId: 'CodingFries.Rift',
         guid: '919df387-f79b-5d74-bee3-b08f176b2a14',
       );
+      // The launcher icon rather than a dedicated one: Android tints a
+      // notification icon to a flat silhouette, so a detailed mark would come
+      // out as a blob either way.
+      const android = AndroidInitializationSettings('@mipmap/ic_launcher');
       await _plugin.initialize(
-        settings: InitializationSettings(linux: linux, windows: windows),
+        settings: InitializationSettings(
+          linux: linux,
+          windows: windows,
+          android: android,
+        ),
       );
+      await _requestAndroidPermission();
       _ready = true;
     } catch (e) {
       debugPrint('NotificationService: init failed – $e');
     }
   }
+
+  /// Asks for permission to post, which Android has required since API 33.
+  ///
+  /// Asked at startup rather than at the first message, deliberately: the
+  /// alternative is a system dialog appearing the instant someone messages
+  /// you, on top of the very thing it is about. A refusal is final and needs
+  /// no handling here — [showMessage] simply has no effect afterwards.
+  Future<void> _requestAndroidPermission() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await android?.requestNotificationsPermission();
+  }
+
+  /// The channel every message notification is posted to.
+  ///
+  /// One channel, not one per server: a channel is what the user silences,
+  /// and "messages" is the grain they think in. Its name and importance are
+  /// fixed at creation — Android ignores later changes — so this is the only
+  /// place they can be chosen.
+  static const _androidDetails = AndroidNotificationDetails(
+    'rift_messages',
+    'Messages',
+    channelDescription: 'New direct messages and channel mentions.',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
 
   /// Show a "new message" notification. Title is typically the sender/context
   /// (e.g. "Alice in #general"), body the message preview.
@@ -63,6 +108,7 @@ class NotificationService {
         notificationDetails: const NotificationDetails(
           linux: LinuxNotificationDetails(),
           windows: WindowsNotificationDetails(),
+          android: _androidDetails,
         ),
       );
     } catch (e) {

@@ -162,6 +162,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
       } else {
         await _syncMicrophoneTransmission();
       }
+      // Android evicts a backgrounded process; LiveKit does nothing about
+      // that, so the call gets a foreground service to stand on.
+      unawaited(CallForegroundService.callStarted());
       SoundService.instance.playJoin();
       _syncParticipants();
       _applyStoredSettings();
@@ -231,6 +234,11 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
   }
 
   Future<void> _cleanupRoom() async {
+    // Nothing left to hold the process up for. Unconditional: this is the one
+    // path every teardown goes through, and a notification for a call that
+    // has ended is worse than one that is a moment late.
+    unawaited(CallForegroundService.callEnded());
+
     // Claim the room and its listeners before the first await. Connecting and
     // disconnecting both land here, so two teardowns can otherwise overlap and
     // disconnect and dispose the same Room twice over.

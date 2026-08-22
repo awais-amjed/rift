@@ -39,7 +39,8 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
+class _MyAppState extends State<MyApp>
+    with WindowListener, TrayListener, WidgetsBindingObserver {
   late final GoRouter _router = AppRoutes.router(widget.vaultCubit);
 
   @override
@@ -50,12 +51,18 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
       windowManager.addListener(this);
       trayManager.addListener(this);
     }
+    // A phone has no window to lose focus, so the same question — is the user
+    // looking at this? — is answered by the app lifecycle instead. Without
+    // this the focus service stays true forever there and a notification is
+    // never worth showing.
+    WidgetsBinding.instance.addObserver(this);
     HelperMethods.initEasyLoading();
     widget.vaultCubit.checkVaultStatus();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (HostPlatform.drawsOwnWindowChrome) {
       windowManager.removeListener(this);
       trayManager.removeListener(this);
@@ -80,6 +87,18 @@ class _MyAppState extends State<MyApp> with WindowListener, TrayListener {
 
   // Focus tracking drives whether incoming messages raise an OS notification —
   // we only notify while the user isn't looking at the app.
+  /// Resumed is the only state that means "on screen and interactive";
+  /// inactive covers a half-swiped app switcher and a notification shade, and
+  /// paused and hidden are plainly away. Desktop keeps using the window
+  /// events, which are more precise than the lifecycle is there.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    if (HostPlatform.drawsOwnWindowChrome) return;
+    WindowFocusService.instance.setFocused(
+      lifecycle == AppLifecycleState.resumed,
+    );
+  }
+
   @override
   void onWindowFocus() => WindowFocusService.instance.setFocused(true);
 

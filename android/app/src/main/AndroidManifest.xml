@@ -30,11 +30,16 @@
     <!-- So a call survives the screen going off. -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
-    <!-- Screen sharing. MediaProjection has to run under a foreground service
-         that declares the mediaProjection type, or from Android 14 the capture
-         is refused outright. The service itself comes from flutter_background,
-         which is what LiveKit's own Flutter example uses for this. -->
+    <!-- A foreground service is what keeps a call alive once the app is in
+         the background — LiveKit's SDK does not run one — and from Android 14
+         it is also what MediaProjection refuses to start without.
+         The two want different declared types, so the service below lists
+         both as what it *may* be and each start picks which it actually is:
+         a plain call cannot satisfy mediaProjection's prerequisites, so it
+         must not claim that type. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
 
@@ -69,11 +74,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Name fixed by flutter_foreground_task. stopWithTask, because a
+             call cannot outlive the app: without it, swiping the app away
+             leaves a notification for a call that is over. -->
         <service
-            android:name="de.julianassmann.flutter_background.IsolateHolderService"
-            android:enabled="true"
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:exported="false"
-            android:foregroundServiceType="mediaProjection"/>
+            android:stopWithTask="true"
+            android:foregroundServiceType="microphone|mediaProjection"/>
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
