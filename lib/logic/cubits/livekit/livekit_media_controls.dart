@@ -151,5 +151,11 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     _appCubit.setVideoEnabled(next);
     emit(state.copyWith(isCameraEnabled: next));
     _syncParticipants();
+    // After the track, not before: switching on is what prompts for CAMERA,
+    // and the foreground service may only claim the camera type once that has
+    // been granted. Without the type Android cuts the picture the moment the
+    // app goes to the background, leaving a video call that is audio-only to
+    // everyone else.
+    unawaited(CallForegroundService.cameraChanged());
   }
 }

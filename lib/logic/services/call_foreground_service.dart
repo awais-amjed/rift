@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'host_platform.dart';
 
@@ -17,16 +18,20 @@ import 'host_platform.dart';
 /// unless a foreground service declaring `mediaProjection` is *already*
 /// running, which is why sharing and calling cannot share one declaration:
 ///
-/// - a call can satisfy `microphone` (RECORD_AUDIO is granted) and nothing
-///   else, so that is all it may declare;
-/// - a capture can satisfy `mediaProjection` only after the user has answered
-///   the system consent sheet.
+/// - a call can satisfy `microphone`, because RECORD_AUDIO is granted;
+/// - `camera` only once CAMERA has been granted, which does not happen until
+///   the camera is first switched on;
+/// - `mediaProjection` only after the user has answered the consent sheet.
 ///
-/// Declare both at once and every plain call would be starting a service
-/// whose `mediaProjection` prerequisite is unmet. So the manifest lists both
-/// types as what this service *may* be, and each start says which of them it
-/// actually is. The service is restarted rather than amended when sharing
-/// begins, because the type is fixed at `startForeground`.
+/// Declare all three at once and every plain call would be starting a service
+/// with two unmet prerequisites. So the manifest lists them as what this
+/// service *may* be, and each start says which of them it actually is — see
+/// [_types]. The service is restarted rather than amended when that set
+/// changes, because the type is fixed at `startForeground`.
+///
+/// A type left out is not cosmetic: Android cuts off the hardware it names
+/// once the app is in the background. Without `camera` a backgrounded video
+/// call keeps its audio and loses its picture.
 ///
 /// A no-op off Android. Desktops do not evict a running app, and iOS wants a
 /// different mechanism entirely.
@@ -38,6 +43,10 @@ class CallForegroundService {
   /// Whether a share is running, so stopping one knows whether to drop the
   /// service or fall back to the call's own.
   static bool _sharing = false;
+
+  /// The last set applied, so a change that does not move it does not restart
+  /// the service for nothing.
+  static List<ForegroundServiceTypes>? _applied;
 
   static void _ensureInitialised() {
     if (_initialised) return;
@@ -66,8 +75,35 @@ class CallForegroundService {
     _initialised = true;
   }
 
-  static Future<void> _restart(List<ForegroundServiceTypes> types) async {
+  /// What the service may claim right now.
+  ///
+  /// `camera` is conditional on the permission rather than on the camera
+  /// being *on*: the prerequisite Android checks is the grant, and asking for
+  /// the type while the camera happens to be off costs nothing while saving a
+  /// restart at the moment it is switched on. It is absent until the camera
+  /// has been used once, because that is when the grant happens.
+  static Future<List<ForegroundServiceTypes>> _types() async {
+    return [
+      ForegroundServiceTypes.microphone,
+      if (await Permission.camera.isGranted) ForegroundServiceTypes.camera,
+      if (_sharing) ForegroundServiceTypes.mediaProjection,
+    ];
+  }
+
+  /// Brings the service in line with what is running, restarting it only when
+  /// the set of types has actually moved.
+  static Future<void> _apply({bool force = false}) async {
     _ensureInitialised();
+    final types = await _types();
+    final applied = _applied;
+    if (!force &&
+        applied != null &&
+        applied.length == types.length &&
+        applied.toSet().containsAll(types) &&
+        await FlutterForegroundTask.isRunningService) {
+      return;
+    }
+
     if (await FlutterForegroundTask.isRunningService) {
       await FlutterForegroundTask.stopService();
     }
@@ -78,6 +114,7 @@ class CallForegroundService {
           ? 'Your screen is visible to everyone in the call.'
           : 'Rift is keeping your call connected.',
     );
+    _applied = types;
   }
 
   /// Holds the process up for the duration of a call.
@@ -85,7 +122,7 @@ class CallForegroundService {
     if (!HostPlatform.isMobile) return;
     try {
       _sharing = false;
-      await _restart([ForegroundServiceTypes.microphone]);
+      await _apply(force: true);
     } catch (e) {
       // A call that runs without the service is still a call — it is only
       // less likely to survive the app being put away. Not worth refusing to
@@ -101,10 +138,7 @@ class CallForegroundService {
     if (!HostPlatform.isMobile) return true;
     try {
       _sharing = true;
-      await _restart([
-        ForegroundServiceTypes.mediaProjection,
-        ForegroundServiceTypes.microphone,
-      ]);
+      await _apply();
       return true;
     } catch (e) {
       _sharing = false;
@@ -118,9 +152,27 @@ class CallForegroundService {
     if (!HostPlatform.isMobile || !_sharing) return;
     _sharing = false;
     try {
-      await _restart([ForegroundServiceTypes.microphone]);
+      await _apply();
     } catch (e) {
       debugPrint('CallForegroundService: could not drop back – $e');
+    }
+  }
+
+  /// The camera has been switched on or off.
+  ///
+  /// Only the first switch-on usually matters: that is when CAMERA is granted
+  /// and the service can start claiming the type. Skipped entirely while
+  /// sharing — restarting the service would take `mediaProjection` away for
+  /// an instant, and Android ends a capture whose service has gone. Losing
+  /// the camera in the background for the rest of a share is much the smaller
+  /// problem, and the share ending re-applies the set anyway.
+  static Future<void> cameraChanged() async {
+    if (!HostPlatform.isMobile || _sharing) return;
+    if (!await FlutterForegroundTask.isRunningService) return;
+    try {
+      await _apply();
+    } catch (e) {
+      debugPrint('CallForegroundService: could not follow the camera – $e');
     }
   }
 
@@ -128,6 +180,7 @@ class CallForegroundService {
   static Future<void> callEnded() async {
     if (!HostPlatform.isMobile) return;
     _sharing = false;
+    _applied = null;
     try {
       if (await FlutterForegroundTask.isRunningService) {
         await FlutterForegroundTask.stopService();
