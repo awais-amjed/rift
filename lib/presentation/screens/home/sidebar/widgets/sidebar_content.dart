@@ -38,7 +38,7 @@ class SidebarContent extends StatelessWidget {
                   Expanded(
                     child: appState.surface == HomeSurface.centralDms
                         ? const CentralDmListPanel()
-                        : const _ServerColumn(),
+                        : const ServerNavColumn(),
                   ),
                   const UserDock(),
                 ],
@@ -57,13 +57,24 @@ class SidebarContent extends StatelessWidget {
 /// server as a whole (invite, settings, manage members, leave) live on the
 /// rail chip's context menu, on the chip they act on. A toolbar here would be
 /// a second home for them that every member pays for in vertical space.
-class _ServerColumn extends StatelessWidget {
-  const _ServerColumn();
+///
+/// Also used by the content pane on a phone, where the sidebar is a drawer
+/// and "the server" has to be somewhere you can stand rather than something
+/// you hold open. [inSidebar] is what tells the header there is no sidebar to
+/// collapse in that case.
+class ServerNavColumn extends StatelessWidget {
+  final bool inSidebar;
+
+  const ServerNavColumn({super.key, this.inSidebar = true});
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      children: [SidebarHeader(), ServerDmsRow(), SidebarChannelList()],
+    return Column(
+      children: [
+        SidebarHeader(showHideButton: inSidebar),
+        const ServerDmsRow(),
+        const SidebarChannelList(),
+      ],
     );
   }
 }

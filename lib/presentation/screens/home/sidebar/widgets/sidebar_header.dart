@@ -19,7 +19,10 @@ import 'server_header.dart';
 /// The top of the sidebar column: which server you are in, and the way to get
 /// somewhere else inside it.
 class SidebarHeader extends StatelessWidget {
-  const SidebarHeader({super.key});
+  /// Passed through to [ServerHeader] — see its doc.
+  final bool showHideButton;
+
+  const SidebarHeader({super.key, this.showHideButton = true});
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +39,7 @@ class SidebarHeader extends StatelessWidget {
           children: [
             ServerHeader(
               server: server,
+              showHideButton: showHideButton,
               onOpenSettings: isAdmin
                   ? () => _openServerSettings(context, server)
                   : null,

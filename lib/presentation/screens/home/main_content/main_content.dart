@@ -12,6 +12,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_panel.dart';
 import '../../../responsive/shell_scope.dart';
 import '../chat/channel_chat_view.dart';
+import 'home_view.dart';
 import '../chat/widgets/header_pane_buttons.dart';
 import '../dms/central_dm_view.dart';
 import '../dms/server_dm_view.dart';
@@ -72,13 +73,34 @@ class MainContent extends StatelessWidget {
         );
       },
       child: BlocBuilder<AppCubit, AppState>(
-        buildWhen: (prev, curr) => prev.surface != curr.surface,
+        // The channel matters here as well as the surface: on a phone the
+        // pane swaps between the server's list and a live call, and joining a
+        // call changes only the channel.
+        buildWhen: (prev, curr) =>
+            prev.surface != curr.surface ||
+            prev.selectedChannelId != curr.selectedChannelId,
         builder: (context, appState) {
           // Neither DM surface is channel-scoped, so the server member list
           // has nothing to say on either.
+          // On a phone the pane shows where you *are* until you open
+          // something in it — see [HomeView]. A conversation or a channel
+          // takes over the moment there is one.
+          final compact = context.layoutMode.isCompact;
+
           if (appState.surface.isDms) {
+            final central = appState.surface == HomeSurface.centralDms;
+            final conversationOpen = central
+                ? context.select<CentralDmCubit, bool>(
+                    (c) => c.state.openPeerId != null,
+                  )
+                : context.select<DmCubit, bool>(
+                    (c) => c.state.openPeerId != null,
+                  );
+            if (compact && !conversationOpen) {
+              return const _ContentPanel(child: HomeView());
+            }
             return _ContentPanel(
-              child: appState.surface == HomeSurface.centralDms
+              child: central
                   ? const _WithMenuWhenHeaderless(
                       hasOwnHeader: _CentralDmOpen(),
                       child: CentralDmView(),
@@ -109,10 +131,15 @@ class MainContent extends StatelessWidget {
                           if (chatState.channelId != null) {
                             return const ChannelChatView();
                           }
+                          // The voice grid is for a call in progress. Until
+                          // there is one, a phone shows the server rather
+                          // than a sentence about the sidebar it cannot see.
+                          if (compact && appState.selectedChannelId == null) {
+                            return const HomeView();
+                          }
                           // The voice area has no header of its own, so on a
                           // phone there would be nothing anywhere on screen
-                          // that opens the channel list — and with no channel
-                          // picked yet, this is the first thing you see.
+                          // that opens the channel list.
                           return const _HeaderlessMenu(
                             child: ParticipantsGrid(),
                           );

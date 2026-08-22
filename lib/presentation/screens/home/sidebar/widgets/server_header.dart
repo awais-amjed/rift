@@ -22,10 +22,21 @@ import '../../../../theme/custom_colors.dart';
 class ServerHeader extends StatelessWidget {
   final Server server;
 
+  /// Whether to offer the collapse chevron. False where this heads the
+  /// *content* pane rather than the sidebar — there is no sidebar there to
+  /// collapse, and a chevron that did something else would be a third meaning
+  /// for the same mark.
+  final bool showHideButton;
+
   /// Admin-only. Null hides the gear.
   final VoidCallback? onOpenSettings;
 
-  const ServerHeader({super.key, required this.server, this.onOpenSettings});
+  const ServerHeader({
+    super.key,
+    required this.server,
+    this.onOpenSettings,
+    this.showHideButton = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +68,7 @@ class ServerHeader extends StatelessWidget {
                 ),
                 Expanded(child: _buildIdentity(themeState)),
                 if (onOpenSettings != null) _buildSettingsButton(themeState),
-                _buildHideButton(context, themeState),
+                if (showHideButton) _buildHideButton(context, themeState),
               ],
             ),
           ),
