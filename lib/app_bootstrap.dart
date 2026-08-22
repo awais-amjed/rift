@@ -11,7 +11,9 @@ import 'package:window_manager/window_manager.dart';
 import 'data/repositories/secure_storage_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/services/host_platform.dart';
+import 'logic/services/browser_apis.dart';
 import 'logic/services/notification_service.dart';
+import 'logic/services/window_focus_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'src/rust/frb_generated.dart';
 import 'supabase_config.dart';
@@ -45,10 +47,18 @@ class AppBootstrap {
       _restoreWindow(appCubit);
       await _initTray();
     }
-    // Not desktop-only any more: Android posts these too, and asking for the
+    // Not desktop-only any more: Android posts these too, and the web posts
+    // them through the browser's own Notification API. Asking for the
     // permission at startup beats a system dialog appearing on top of the
     // first message it is about.
-    if (!kIsWeb) await NotificationService.instance.init();
+    await NotificationService.instance.init();
+    // The web's stand-in for the WindowListener callbacks in main.dart, which
+    // window_manager supplies everywhere else. Without it the tab is focused
+    // forever and nothing ever notifies, because every trigger site gates on
+    // the window being *un*focused.
+    if (kIsWeb) {
+      startBrowserFocusTracking(WindowFocusService.instance.setFocused);
+    }
     return appCubit;
   }
 

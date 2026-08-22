@@ -73,6 +73,10 @@ dependencies:
   flutter_foreground_task: ^11.0.1
   emoji_picker_flutter: ^4.5.3
   app_links: ^7.2.1
+  # Browser APIs (Notification, document focus) for the web build. Used only
+  # through the `browser_apis_web.dart` half of a conditional export, so it is
+  # never reached on native.
+  web: ^1.1.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

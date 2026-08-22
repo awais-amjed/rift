@@ -1,18 +1,26 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../data/classes/dm_conversation.dart';
+import 'browser_apis.dart';
 import 'window_focus_service.dart';
 
-/// Local notifications for incoming chat messages, on Linux, Windows and
-/// Android.
+/// Local notifications for incoming chat messages, on Linux, Windows, Android
+/// and the web.
 ///
 /// Notifications are only surfaced while the window is unfocused — the trigger
 /// sites in the chat cubits gate on [WindowFocusService.isFocused] before
 /// calling [showMessage]. The service itself is a thin wrapper around
-/// `flutter_local_notifications`; a no-op on web and before [init] completes.
+/// `flutter_local_notifications`, and a no-op before [init] completes.
+///
+/// The web goes through the browser's own `Notification` API instead
+/// (`browser_apis.dart`), because `flutter_local_notifications` has no web
+/// support. That is a *page* notification, not a push one: it exists only while
+/// the tab does, which is the intended scope — nothing is registered with a
+/// push service and nothing arrives while the app is closed.
 ///
 /// Android differs from the desktops in three ways, all of them the
 /// platform's: every notification belongs to a **channel**, which is what the
@@ -28,9 +36,20 @@ class NotificationService {
   bool _ready = false;
   int _nextId = 0;
 
-  /// Initialize once, before `runApp`. Safe to call on web (does nothing).
+  /// Initialize once, before `runApp`. Safe on every platform.
   Future<void> init() async {
-    if (_ready || kIsWeb) return;
+    if (_ready) return;
+    if (kIsWeb) {
+      // Deliberately not awaited. The browser's permission promise does not
+      // settle until the user answers the prompt, so awaiting it here holds
+      // the app on its splash screen for as long as the prompt goes ignored —
+      // which is exactly what happened the first time this shipped. Posting is
+      // gated on the permission at the call site instead, so an unanswered or
+      // refused prompt costs notifications, not the whole app.
+      unawaited(requestBrowserNotificationPermission());
+      _ready = true;
+      return;
+    }
     try {
       final linux = LinuxInitializationSettings(
         defaultActionName: 'Open',
@@ -96,7 +115,11 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
-    if (!_ready || kIsWeb) return;
+    if (!_ready) return;
+    if (kIsWeb) {
+      showBrowserNotification(title: title, body: body);
+      return;
+    }
     // Windows has no concept of "any listener" — guard platform anyway so a
     // stray call on an unsupported target is a silent no-op.
     if (!Platform.isLinux && !Platform.isWindows) return;
