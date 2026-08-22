@@ -72,34 +72,40 @@ Future<void> _pump(
   WidgetTester tester,
   AppCubit appCubit, {
   bool floating = false,
+  double windowWidth = 1400,
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: MultiBlocProvider(
-          providers: [
-            BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
-            BlocProvider<AppCubit>.value(value: appCubit),
-            BlocProvider<ChannelPresenceCubit>(
-              create: (_) => _StubPresenceCubit(),
-            ),
-            BlocProvider<ServerCubit>(create: (_) => _StubServerCubit()),
-            BlocProvider<ServerMembersCubit>(
-              create: (_) => _StubMembersCubit(),
-            ),
-          ],
-          // Openness is passed in rather than read by the panel, so the
-          // harness has to do what the shell does: hand it the flag.
-          child: withShellScope(
-            BlocBuilder<AppCubit, AppState>(
-              builder: (context, appState) => Row(
-                children: [
-                  const Expanded(child: SizedBox()),
-                  MembersSidebar(
-                    open: appState.membersSidebarOpen,
-                    floating: floating,
-                  ),
-                ],
+    MediaQuery(
+      // Width is what picks the layout mode, and the mode decides whether the
+      // panel carries gutters. Defaults to a desktop.
+      data: MediaQueryData(size: Size(windowWidth, 800)),
+      child: MaterialApp(
+        home: Scaffold(
+          body: MultiBlocProvider(
+            providers: [
+              BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+              BlocProvider<AppCubit>.value(value: appCubit),
+              BlocProvider<ChannelPresenceCubit>(
+                create: (_) => _StubPresenceCubit(),
+              ),
+              BlocProvider<ServerCubit>(create: (_) => _StubServerCubit()),
+              BlocProvider<ServerMembersCubit>(
+                create: (_) => _StubMembersCubit(),
+              ),
+            ],
+            // Openness is passed in rather than read by the panel, so the
+            // harness has to do what the shell does: hand it the flag.
+            child: withShellScope(
+              BlocBuilder<AppCubit, AppState>(
+                builder: (context, appState) => Row(
+                  children: [
+                    const Expanded(child: SizedBox()),
+                    MembersSidebar(
+                      open: appState.membersSidebarOpen,
+                      floating: floating,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -173,6 +179,25 @@ void main() {
   // chat to its left, so it carries a gutter on both. Getting this wrong is
   // not a crash but a panel welded to the window edge, which is exactly the
   // sort of thing that survives a review.
+  // The panel's declared width and what its Row actually lays out have to
+  // agree, and they are computed in two different places. When the gutters
+  // went away on a phone, one of the two kept them: the box stayed the width
+  // of the panel while the Row inside still asked for the panel plus 20px,
+  // which is an overflow stripe down the middle of the drawer.
+  testWidgets('a phone drawer is the panel and nothing else', (tester) async {
+    final appCubit = AppCubit();
+    addTearDown(appCubit.close);
+    await _pump(tester, appCubit, floating: true, windowWidth: 390);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(find.byType(MembersSidebar)).width,
+      K.membersSidebarWidth,
+      reason: 'no gutters survive on a phone',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('floating reserves a gutter on both sides', (tester) async {
     final appCubit = AppCubit();
     addTearDown(appCubit.close);

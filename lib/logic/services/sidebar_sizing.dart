@@ -23,12 +23,14 @@ class SidebarSizing {
   /// a phone half of 390 is a channel list squeezed to nothing for the sake of
   /// a scrim nobody needs that much of. [K.sidebarOverlayPeek] is what is held
   /// back instead: enough content left showing to tap on, and to say what the
-  /// drawer is sitting in front of. [K.sidebarOverlayChrome] comes off too —
-  /// the gutters and workspace padding are between the panel and that peek,
-  /// not part of it.
+  /// drawer is sitting in front of.
+  ///
+  /// Nothing is subtracted for gutters. A sidebar is only ever overlaid on a
+  /// phone, and a phone has none — the panels are the screen there, so the
+  /// peek is the whole of what is left beside the drawer.
   static double maxFor(double windowWidth, {bool overlay = false}) {
     final share = overlay
-        ? windowWidth - K.sidebarOverlayPeek - K.sidebarOverlayChrome
+        ? windowWidth - K.sidebarOverlayPeek
         : windowWidth * K.sidebarMaxWindowFraction;
     return math.max(K.sidebarMinWidth, math.min(K.sidebarMaxWidth, share));
   }

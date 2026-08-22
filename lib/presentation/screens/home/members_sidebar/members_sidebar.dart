@@ -50,9 +50,10 @@ class _MembersSidebarState extends State<MembersSidebar> {
   /// The panel and the gutter that separates it from the content, which has to
   /// go with it — a 10px gap left hanging off the right of the window is the
   /// tell that something used to be there. Floating, there is content on both
-  /// sides of it, so it takes a gutter on both.
-  double get _fullWidth =>
-      K.membersSidebarWidth + K.panelGutter * (widget.floating ? 2 : 1);
+  /// sides of it, so it takes a gutter on both — and on a phone there are no
+  /// gutters at all, so it is just the panel.
+  double _fullWidth(double gutter) =>
+      K.membersSidebarWidth + gutter * (widget.floating ? 2 : 1);
 
   /// Whether the contents are built. Dropped once a close has finished, and
   /// seeded from the launch state, because starting closed runs no animation
@@ -82,10 +83,13 @@ class _MembersSidebarState extends State<MembersSidebar> {
         return BlocBuilder<AppCubit, AppState>(
           buildWhen: (a, b) => a.participantSettings != b.participantSettings,
           builder: (context, appState) {
+            final mode = context.layoutMode;
+            final gutter = mode.panelGutter;
+            final fullWidth = _fullWidth(gutter);
             return AnimatedContainer(
               duration: K.sidebarMotion,
               curve: AppMotion.panel,
-              width: widget.open ? _fullWidth : 0,
+              width: widget.open ? fullWidth : 0,
               onEnd: () {
                 if (!widget.open && _showContent) {
                   setState(() => _showContent = false);
@@ -101,11 +105,11 @@ class _MembersSidebarState extends State<MembersSidebar> {
                   : ClipRect(
                       child: OverflowBox(
                         alignment: Alignment.centerLeft,
-                        minWidth: _fullWidth,
-                        maxWidth: _fullWidth,
+                        minWidth: fullWidth,
+                        maxWidth: fullWidth,
                         child: Row(
                           children: [
-                            const SizedBox(width: K.panelGutter),
+                            SizedBox(width: gutter),
                             SizedBox(
                               width: K.membersSidebarWidth,
                               // A panel in its own right — the same chrome as
@@ -115,6 +119,14 @@ class _MembersSidebarState extends State<MembersSidebar> {
                                 shadow: widget.floating
                                     ? AppShadows.overlayPane
                                     : null,
+                                // Mirrors the left drawer: square against the
+                                // screen edge, rounded on the content side.
+                                borderRadius:
+                                    widget.floating && !mode.panelsAreIslands
+                                    ? const BorderRadius.horizontal(
+                                        left: Radius.circular(K.radiusPanel),
+                                      )
+                                    : null,
                                 child: _buildList(
                                   context,
                                   themeState,
@@ -122,8 +134,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
                                 ),
                               ),
                             ),
-                            if (widget.floating)
-                              const SizedBox(width: K.panelGutter),
+                            if (widget.floating) SizedBox(width: gutter),
                           ],
                         ),
                       ),

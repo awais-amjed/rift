@@ -154,76 +154,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final topOffset = !HostPlatform.drawsOwnWindowChrome
                   ? 0.0
                   : (appState.titleBarVisible ? K.titleBarHeight : 0.0);
+              final gutter = context.layoutMode.panelGutter;
               return CanvasBackdrop(
-                child: SafeArea(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      K.panelGutter,
-                      topOffset == 0 ? K.panelGutter : topOffset,
-                      K.panelGutter,
-                      K.panelGutter,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ── Left nav panel ───────────────────────────
-                        // Full width on a phone, where it is the list half of a
-                        // list-and-detail pair rather than a column beside one.
-                        if (!compact || !_detailOpen)
-                          _NavPanel(
-                            expand: compact,
-                            child: SettingsSidebar(
-                              activeTab: _activeTab,
-                              onTabSelected: (tab) =>
-                                  _selectTab(tab, compact: compact),
-                              themeState: themeState,
-                              onBack: () => context.pop(),
-                              onResetVault: _resetVault,
-                            ),
+                child: Padding(
+                  // No gutter on a phone: the panel is the screen there and
+                  // holds its own content clear of the cutouts. See
+                  // `LayoutMode.panelsAreIslands`.
+                  padding: EdgeInsets.fromLTRB(
+                    gutter,
+                    topOffset == 0 ? gutter : topOffset,
+                    gutter,
+                    gutter,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ── Left nav panel ───────────────────────────
+                      // Full width on a phone, where it is the list half of a
+                      // list-and-detail pair rather than a column beside one.
+                      if (!compact || !_detailOpen)
+                        _NavPanel(
+                          expand: compact,
+                          child: SettingsSidebar(
+                            activeTab: _activeTab,
+                            onTabSelected: (tab) =>
+                                _selectTab(tab, compact: compact),
+                            themeState: themeState,
+                            onBack: () => context.pop(),
+                            onResetVault: _resetVault,
                           ),
-                        if (!compact) const SizedBox(width: K.panelGutter),
-                        // ── Right content panel ──────────────────────
-                        if (!compact || _detailOpen)
-                          Expanded(
-                            child: AppPanel(
-                              color: themeState.bgContent,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildHeader(
-                                    themeState,
-                                    showBack: compact && _detailOpen,
-                                  ),
-                                  Divider(
-                                    height: 1,
-                                    color: themeState.borderPrimary,
-                                  ),
-                                  Expanded(
-                                    child: SingleChildScrollView(
-                                      padding: EdgeInsets.all(
-                                        compact ? 16 : 24,
-                                      ),
-                                      child: switch (_activeTab) {
-                                        SettingsTab.appearance =>
-                                          AppearanceContent(
-                                            themeState: themeState,
-                                          ),
-                                        SettingsTab.voiceAndAudio =>
-                                          VoiceAudioContent(
-                                            themeState: themeState,
-                                          ),
-                                        SettingsTab.backup => BackupContent(
+                        ),
+                      if (!compact) SizedBox(width: gutter),
+                      // ── Right content panel ──────────────────────
+                      if (!compact || _detailOpen)
+                        Expanded(
+                          child: AppPanel(
+                            color: themeState.bgContent,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildHeader(
+                                  themeState,
+                                  showBack: compact && _detailOpen,
+                                ),
+                                Divider(
+                                  height: 1,
+                                  color: themeState.borderPrimary,
+                                ),
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    padding: EdgeInsets.all(compact ? 16 : 24),
+                                    child: switch (_activeTab) {
+                                      SettingsTab.appearance =>
+                                        AppearanceContent(
                                           themeState: themeState,
                                         ),
-                                      },
-                                    ),
+                                      SettingsTab.voiceAndAudio =>
+                                        VoiceAudioContent(
+                                          themeState: themeState,
+                                        ),
+                                      SettingsTab.backup => BackupContent(
+                                        themeState: themeState,
+                                      ),
+                                    },
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               );

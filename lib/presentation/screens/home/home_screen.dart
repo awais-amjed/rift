@@ -191,27 +191,34 @@ class _HomeScreenState extends State<HomeScreen> {
               toggleSidebar: () => _toggleSidebar(mode),
               toggleMembers: () => _toggleMembers(mode),
               dismissOverlays: _dismissOverlays,
-              child: _QuickSwitcherShortcut(
-                child: CanvasBackdrop(
-                  // Inside the backdrop so the canvas still paints behind the
-                  // status bar and the home indicator, rather than leaving
-                  // bands of window colour at the ends of the screen. A no-op
-                  // wherever the insets are zero, which is everywhere but a
-                  // phone.
-                  child: SafeArea(
+              child: PopScope(
+                // Back closes the drawer before it closes anything else. A
+                // drawer is a layer over this screen, and on a phone the
+                // system back gesture is how a layer is dismissed — without
+                // this it skips straight past the open drawer and leaves the
+                // app, which is the single most jarring thing a drawer can do.
+                canPop: !_sidebarOverlayOpen && !_membersOverlayOpen,
+                onPopInvokedWithResult: (didPop, _) {
+                  if (!didPop) _dismissOverlays();
+                },
+                child: _QuickSwitcherShortcut(
+                  child: CanvasBackdrop(
                     child: Padding(
-                      // The title bar is painted above the whole app, so the
-                      // workspace steps out from under it; the gutter takes over
-                      // when it's hidden.
+                      // The gutter that makes the panels islands, and which a
+                      // phone does not get — the panels are the screen there,
+                      // and each holds its own content clear of the display's
+                      // cutouts. The title bar is painted above the whole app,
+                      // so the workspace steps out from under it; the gutter
+                      // takes over when it's hidden.
                       padding: EdgeInsets.only(
                         top: !chrome
-                            ? K.panelGutter
+                            ? mode.panelGutter
                             : (titleBarVisible
                                   ? _titleBarHeight
                                   : K.panelGutter),
-                        left: K.panelGutter,
-                        right: K.panelGutter,
-                        bottom: K.panelGutter,
+                        left: mode.panelGutter,
+                        right: mode.panelGutter,
+                        bottom: mode.panelGutter,
                       ),
                       child: Stack(
                         children: [
@@ -232,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           // One scrim for both drawers — only ever one is open.
                           OverlayScrim(
                             visible: _sidebarOverlayOpen || _membersOverlayOpen,
-                            onTap: _dismissOverlays,
+                            onDismiss: _dismissOverlays,
                           ),
                           if (mode.sidebarIsOverlay)
                             Align(
@@ -251,6 +258,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 floating: true,
                               ),
                             ),
+                          // There is deliberately no swipe-in-from-the-edge to
+                          // *open* a drawer. Both screen edges belong to
+                          // Android's back gesture, and an app that also
+                          // claims them wins the race only sometimes — tried
+                          // here, and the swipe left the app instead. Getting
+                          // out of that would mean carving a gesture exclusion
+                          // out of the OS's own navigation for one shortcut.
+                          // The header button opens a drawer; back and the
+                          // scrim close it, and the scrim takes a fling as
+                          // well as a tap, because by then it owns the middle
+                          // of the screen rather than its edge.
+                          //
                           // The edge tabs are the way back to a *docked* pane. On
                           // a phone the same job is done by the buttons in the
                           // chat header, where a thumb can reach them.

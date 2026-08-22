@@ -125,13 +125,6 @@ class K {
   /// is dark on dark and does almost none of that work, so the gap has to.
   static const double sidebarOverlayPeek = 72;
 
-  /// The chrome an overlaid sidebar sits inside, which [sidebarOverlayPeek]
-  /// has to clear as well as the panel: the workspace padding at both ends of
-  /// the window, and the panel's own gutter on each side. Counting only the
-  /// panel left a 420px window showing a 34px sliver instead of the intended
-  /// peek, which read as a squeezed three-column layout.
-  static const double sidebarOverlayChrome = panelGutter * 4;
-
   /// The grab strip between the sidebar and the content. It occupies the
   /// gutter that used to be an empty [panelGutter] gap, so making the sidebar
   /// resizable cost no layout width.

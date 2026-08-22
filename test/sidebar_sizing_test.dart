@@ -71,12 +71,11 @@ void main() {
   group('overlaid', () {
     const phone = 390.0;
 
-    /// What is actually left beside the panel once the gutters and the
-    /// workspace padding are taken out — the gap a thumb has to land in.
+    /// What is left beside the panel — the gap a thumb has to land in. No
+    /// gutters come off it: a sidebar is only overlaid on a phone, where the
+    /// panels are the screen and there are none.
     double peekAt(double windowWidth) =>
-        windowWidth -
-        SidebarSizing.maxFor(windowWidth, overlay: true) -
-        K.sidebarOverlayChrome;
+        windowWidth - SidebarSizing.maxFor(windowWidth, overlay: true);
 
     test('runs wider than the docked share would allow', () {
       expect(
@@ -85,10 +84,7 @@ void main() {
       );
     });
 
-    test('leaves the whole peek showing, not what the gutters left over', () {
-      // Counting only the panel is the bug this pins: the four gutters around
-      // it ate most of the gap, and a 420px window showed a 34px sliver that
-      // read as a squeezed column rather than as content behind a drawer.
+    test('leaves the whole peek showing', () {
       expect(peekAt(phone), K.sidebarOverlayPeek);
       for (final width in [phone, 430.0, 600.0]) {
         expect(
@@ -100,12 +96,11 @@ void main() {
     });
 
     test('below the floor the peek gives way, but never vanishes', () {
-      // A 360px window cannot afford both the minimum panel and the full peek.
+      // A 320px window cannot afford both the minimum panel and the full peek.
       // The floor wins — a panel too narrow to read is worse than a thin gap —
       // but there is still something left to tap, which is the part that would
       // strand you if it went to zero.
-      expect(SidebarSizing.maxFor(360, overlay: true), K.sidebarMinWidth);
-      expect(peekAt(360), greaterThan(0));
+      expect(SidebarSizing.maxFor(320, overlay: true), K.sidebarMinWidth);
       expect(peekAt(320), greaterThan(0));
     });
 

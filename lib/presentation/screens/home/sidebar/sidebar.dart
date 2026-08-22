@@ -9,6 +9,7 @@ import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
 import 'widgets/sidebar_content.dart';
 import 'widgets/sidebar_resize_handle.dart';
+import '../../../responsive/shell_scope.dart';
 
 /// The left sidebar, and the strip you drag to resize it.
 ///
@@ -34,7 +35,10 @@ class Sidebar extends StatefulWidget {
 
   /// Floating above the content rather than sitting beside it. Takes a shadow,
   /// may run wider relative to the window, and drops the resize handle —
-  /// there is nothing beside it to trade width with.
+  /// there is nothing beside it to trade width with. On a phone it is also
+  /// flush against the screen edge, square there and rounded only on the side
+  /// facing the content, the way a sheet that slid in from off-screen would
+  /// be.
   final bool floating;
 
   const Sidebar({
@@ -100,6 +104,8 @@ class _SidebarState extends State<Sidebar> {
     return BlocBuilder<AppCubit, AppState>(
       buildWhen: (prev, curr) => prev.sidebarWidth != curr.sidebarWidth,
       builder: (context, appState) {
+        final mode = context.layoutMode;
+        final gutter = mode.panelGutter;
         final windowWidth = MediaQuery.sizeOf(context).width;
         final width = SidebarSizing.clamp(
           _dragWidth ?? appState.sidebarWidth,
@@ -107,9 +113,10 @@ class _SidebarState extends State<Sidebar> {
           overlay: widget.floating,
         );
         // Floating, the gutter is on both sides and the handle is gone, so the
-        // panel is all there is to reserve.
+        // panel plus its gutters is all there is to reserve — and on a phone
+        // there are no gutters, so it is just the panel.
         final full = widget.floating
-            ? width + K.panelGutter * 2
+            ? width + gutter * 2
             : width + K.sidebarResizeHandleWidth;
 
         return AnimatedContainer(
@@ -138,17 +145,25 @@ class _SidebarState extends State<Sidebar> {
                     maxWidth: full,
                     child: Row(
                       children: [
-                        if (widget.floating)
-                          const SizedBox(width: K.panelGutter),
+                        if (widget.floating) SizedBox(width: gutter),
                         AppPanel(
                           width: width,
                           shadow: widget.floating
                               ? AppShadows.overlayPane
                               : null,
+                          // Square against the screen edge it is pinned to,
+                          // rounded on the edge the content is behind — the
+                          // shape a sheet that slid in from off-screen has.
+                          borderRadius:
+                              widget.floating && !mode.panelsAreIslands
+                              ? const BorderRadius.horizontal(
+                                  right: Radius.circular(K.radiusPanel),
+                                )
+                              : null,
                           child: SidebarContent(topPadding: widget.topPadding),
                         ),
                         if (widget.floating)
-                          const SizedBox(width: K.panelGutter)
+                          SizedBox(width: gutter)
                         else
                           SidebarResizeHandle(
                             onDrag: (delta) => _onDrag(
