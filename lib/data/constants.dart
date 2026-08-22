@@ -107,10 +107,20 @@ class K {
   static const double sidebarMaxWidth = 560;
   static const double sidebarMaxWindowFraction = 0.5;
 
-  /// How much content an overlaid sidebar leaves showing beside it. Small
-  /// enough not to waste a phone's width, wide enough to be a comfortable tap
-  /// target for dismissing the drawer.
-  static const double sidebarOverlayPeek = 56;
+  /// How much content an overlaid sidebar leaves showing beside it.
+  ///
+  /// Wide enough to be a comfortable tap target for dismissing the drawer, and
+  /// — the part that decides the number — wide enough to read as content
+  /// behind a panel rather than as a docked column. On a dark theme the scrim
+  /// is dark on dark and does almost none of that work, so the gap has to.
+  static const double sidebarOverlayPeek = 72;
+
+  /// The chrome an overlaid sidebar sits inside, which [sidebarOverlayPeek]
+  /// has to clear as well as the panel: the workspace padding at both ends of
+  /// the window, and the panel's own gutter on each side. Counting only the
+  /// panel left a 420px window showing a 34px sliver instead of the intended
+  /// peek, which read as a squeezed three-column layout.
+  static const double sidebarOverlayChrome = panelGutter * 4;
 
   /// The grab strip between the sidebar and the content. It occupies the
   /// gutter that used to be an empty [panelGutter] gap, so making the sidebar

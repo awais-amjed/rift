@@ -71,25 +71,42 @@ void main() {
   group('overlaid', () {
     const phone = 390.0;
 
+    /// What is actually left beside the panel once the gutters and the
+    /// workspace padding are taken out — the gap a thumb has to land in.
+    double peekAt(double windowWidth) =>
+        windowWidth -
+        SidebarSizing.maxFor(windowWidth, overlay: true) -
+        K.sidebarOverlayChrome;
+
     test('runs wider than the docked share would allow', () {
-      expect(
-        SidebarSizing.maxFor(phone, overlay: true),
-        phone - K.sidebarOverlayPeek,
-      );
       expect(
         SidebarSizing.maxFor(phone, overlay: true),
         greaterThan(SidebarSizing.maxFor(phone)),
       );
     });
 
-    test('always leaves content showing to dismiss it with', () {
-      for (final width in [320.0, 360.0, phone, 430.0, 600.0]) {
+    test('leaves the whole peek showing, not what the gutters left over', () {
+      // Counting only the panel is the bug this pins: the four gutters around
+      // it ate most of the gap, and a 420px window showed a 34px sliver that
+      // read as a squeezed column rather than as content behind a drawer.
+      expect(peekAt(phone), K.sidebarOverlayPeek);
+      for (final width in [phone, 430.0, 600.0]) {
         expect(
-          SidebarSizing.maxFor(width, overlay: true),
-          lessThanOrEqualTo(width - K.sidebarOverlayPeek),
-          reason: 'a ${width}px window would be covered edge to edge',
+          peekAt(width),
+          greaterThanOrEqualTo(K.sidebarOverlayPeek),
+          reason: 'a ${width}px window would be covered nearly edge to edge',
         );
       }
+    });
+
+    test('below the floor the peek gives way, but never vanishes', () {
+      // A 360px window cannot afford both the minimum panel and the full peek.
+      // The floor wins — a panel too narrow to read is worse than a thin gap —
+      // but there is still something left to tap, which is the part that would
+      // strand you if it went to zero.
+      expect(SidebarSizing.maxFor(360, overlay: true), K.sidebarMinWidth);
+      expect(peekAt(360), greaterThan(0));
+      expect(peekAt(320), greaterThan(0));
     });
 
     test('is still held to the drag ceiling on a wide window', () {
@@ -106,8 +123,9 @@ void main() {
       // Same stored preference, two different windows to satisfy.
       expect(
         SidebarSizing.clamp(K.sidebarWidth, windowWidth: phone, overlay: true),
-        phone - K.sidebarOverlayPeek,
+        lessThan(K.sidebarWidth),
       );
+      expect(peekAt(phone), K.sidebarOverlayPeek);
     });
   });
 

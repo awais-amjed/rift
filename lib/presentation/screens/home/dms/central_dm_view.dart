@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
 import 'central_dm_chat_view.dart';
 
@@ -32,6 +33,14 @@ class _RestingState extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
 
+    // Where the conversation list is depends on how much window there is, and
+    // copy that says "on the left" is simply wrong on a phone, where the panel
+    // it points at is a drawer that has to be opened first — the one thing the
+    // reader needs to be told.
+    final listLocation = context.layoutMode.sidebarIsOverlay
+        ? 'in the menu'
+        : 'in the panel on the left';
+
     final (title, message) = switch (status) {
       CentralDmStatus.signedOut => (
         'Central DMs need an account',
@@ -40,7 +49,7 @@ class _RestingState extends StatelessWidget {
       ),
       CentralDmStatus.needsHandle => (
         'Pick a handle',
-        'Claim a handle in the panel on the left so people can find you.',
+        'Claim a handle $listLocation so people can find you.',
       ),
       _ => (
         'Your central DMs',

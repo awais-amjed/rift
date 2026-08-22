@@ -5,6 +5,7 @@ import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/squircle_avatar.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
@@ -116,11 +117,15 @@ class ServerHeader extends StatelessWidget {
   /// unpinned any more, just shown and hidden, and [SidebarTab] is what brings
   /// it back. A button that changed into a pin depending on a mode you couldn't
   /// see was describing a distinction that no longer exists.
+  ///
+  /// Through the shell rather than straight to [AppCubit]: overlaid, this is
+  /// the drawer's own close button and has to shut the drawer, not quietly
+  /// rewrite the docking preference for windows wide enough to have one.
   Widget _buildHideButton(BuildContext context, ThemeState themeState) {
     return IconButton(
       tooltip: 'Hide sidebar',
       visualDensity: VisualDensity.compact,
-      onPressed: () => context.read<AppCubit>().toggleSidebar(),
+      onPressed: ShellScope.of(context).toggleSidebar,
       icon: Icon(
         Icons.chevron_left_rounded,
         size: 18,

@@ -7,6 +7,8 @@ import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/sidebar/widgets/server_header.dart';
 
+import 'shell_scope_harness.dart';
+
 /// In-memory stand-in so the hydrated cubits can be built in tests.
 class _MemoryStorage implements Storage {
   final Map<String, dynamic> _data = {};
@@ -46,9 +48,8 @@ Future<int Function()> _pumpHeader(WidgetTester tester) async {
         child: Scaffold(
           body: SizedBox(
             width: 288,
-            child: ServerHeader(
-              server: _server(),
-              onOpenSettings: () => opened++,
+            child: withShellScope(
+              ServerHeader(server: _server(), onOpenSettings: () => opened++),
             ),
           ),
         ),
@@ -120,7 +121,10 @@ void main() {
             BlocProvider(create: (_) => AppCubit()),
           ],
           child: Scaffold(
-            body: SizedBox(width: 288, child: ServerHeader(server: _server())),
+            body: SizedBox(
+              width: 288,
+              child: withShellScope(ServerHeader(server: _server())),
+            ),
           ),
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 
 /// View shown when no voice channel is selected.
@@ -30,7 +31,11 @@ class NoChannelView extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Select a voice channel from the sidebar to join',
+                  // "the sidebar" is a drawer on a phone, and pointing at a
+                  // panel that is not on screen is worse than not pointing.
+                  context.layoutMode.sidebarIsOverlay
+                      ? 'Open the menu and pick a voice channel to join'
+                      : 'Select a voice channel from the sidebar to join',
                   style: AppText.rowQuiet.copyWith(
                     fontSize: 14,
                     color: themeState.textTertiary,

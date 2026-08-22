@@ -11,6 +11,8 @@ import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/members_sidebar/members_sidebar.dart';
 
+import 'shell_scope_harness.dart';
+
 /// In-memory stand-in so the HydratedCubits can be built in tests.
 class _MemoryStorage implements Storage {
   final Map<String, dynamic> _data = {};
@@ -88,15 +90,17 @@ Future<void> _pump(
           ],
           // Openness is passed in rather than read by the panel, so the
           // harness has to do what the shell does: hand it the flag.
-          child: BlocBuilder<AppCubit, AppState>(
-            builder: (context, appState) => Row(
-              children: [
-                const Expanded(child: SizedBox()),
-                MembersSidebar(
-                  open: appState.membersSidebarOpen,
-                  floating: floating,
-                ),
-              ],
+          child: withShellScope(
+            BlocBuilder<AppCubit, AppState>(
+              builder: (context, appState) => Row(
+                children: [
+                  const Expanded(child: SizedBox()),
+                  MembersSidebar(
+                    open: appState.membersSidebarOpen,
+                    floating: floating,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

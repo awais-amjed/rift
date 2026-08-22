@@ -10,6 +10,7 @@ import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster.dart';
 import '../../../common/app_panel.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
@@ -195,6 +196,9 @@ class _MembersSidebarState extends State<MembersSidebar> {
                 color: themeState.textQuaternary,
               ),
             ),
+          // Through the shell rather than straight to AppCubit: overlaid,
+          // this is the drawer's own close button and has to shut the drawer,
+          // not quietly rewrite the docking preference for wider windows.
           IconButton(
             tooltip: 'Hide members',
             visualDensity: VisualDensity.compact,
@@ -203,7 +207,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
               size: 18,
               color: themeState.textQuaternary,
             ),
-            onPressed: () => context.read<AppCubit>().toggleMembersSidebar(),
+            onPressed: ShellScope.of(context).toggleMembers,
           ),
         ],
       ),

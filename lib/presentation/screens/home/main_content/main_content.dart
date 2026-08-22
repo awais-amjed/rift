@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/enums/home_surface.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
@@ -77,8 +79,14 @@ class MainContent extends StatelessWidget {
           if (appState.surface.isDms) {
             return _ContentPanel(
               child: appState.surface == HomeSurface.centralDms
-                  ? const CentralDmView()
-                  : const ServerDmView(),
+                  ? const _WithMenuWhenHeaderless(
+                      hasOwnHeader: _CentralDmOpen(),
+                      child: CentralDmView(),
+                    )
+                  : const _WithMenuWhenHeaderless(
+                      hasOwnHeader: _ServerDmOpen(),
+                      child: ServerDmView(),
+                    ),
             );
           }
           // Overlaid, the member list is mounted by the shell so it can float
@@ -105,15 +113,8 @@ class MainContent extends StatelessWidget {
                           // phone there would be nothing anywhere on screen
                           // that opens the channel list — and with no channel
                           // picked yet, this is the first thing you see.
-                          return const Stack(
-                            children: [
-                              ParticipantsGrid(),
-                              Positioned(
-                                top: 10,
-                                left: 10,
-                                child: HeaderSidebarButton(),
-                              ),
-                            ],
+                          return const _HeaderlessMenu(
+                            child: ParticipantsGrid(),
                           );
                         },
                       ),
@@ -135,5 +136,79 @@ class MainContent extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+/// Puts the drawer button over content that has no header to carry it.
+///
+/// Three of the content pane's states are bare — the voice area, and each DM
+/// surface before a conversation is opened. On a phone the sidebar is a
+/// drawer, so a state with no way to open it is a dead end: the resting
+/// central-DM screen even says "find someone in the panel on the left", with
+/// no panel and no way to summon one. Two of those three are what you see
+/// first, before anything has been picked.
+///
+/// Renders nothing but its child at wider sizes, where the sidebar is docked
+/// and [HeaderSidebarButton] returns an empty box anyway.
+class _HeaderlessMenu extends StatelessWidget {
+  final Widget child;
+
+  const _HeaderlessMenu({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        const Positioned(top: 10, left: 10, child: HeaderSidebarButton()),
+      ],
+    );
+  }
+}
+
+/// [_HeaderlessMenu], but only while [hasOwnHeader] says the surface is in a
+/// state that doesn't already have one — an open conversation brings a
+/// [DmChatHeader] with the button already in it, and two would be one too many.
+class _WithMenuWhenHeaderless extends StatelessWidget {
+  final Widget hasOwnHeader;
+  final Widget child;
+
+  const _WithMenuWhenHeaderless({
+    required this.hasOwnHeader,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      child,
+      Positioned(top: 10, left: 10, child: hasOwnHeader),
+    ],
+  );
+}
+
+/// The drawer button, unless a central conversation is open.
+class _CentralDmOpen extends StatelessWidget {
+  const _CentralDmOpen();
+
+  @override
+  Widget build(BuildContext context) {
+    final open = context.select<CentralDmCubit, bool>(
+      (cubit) => cubit.state.openPeerId != null,
+    );
+    return open ? const SizedBox.shrink() : const HeaderSidebarButton();
+  }
+}
+
+/// The drawer button, unless a server conversation is open.
+class _ServerDmOpen extends StatelessWidget {
+  const _ServerDmOpen();
+
+  @override
+  Widget build(BuildContext context) {
+    final open = context.select<DmCubit, bool>(
+      (cubit) => cubit.state.openPeerId != null,
+    );
+    return open ? const SizedBox.shrink() : const HeaderSidebarButton();
   }
 }
