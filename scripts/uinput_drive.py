@@ -6,6 +6,15 @@ the refusal is silent: `mousemove` returns success and the pointer does not
 move. A uinput device is not synthetic input as far as the compositor is
 concerned, it is a *device*, so it is honoured on Wayland and XWayland alike.
 
+The pointer reports *relative* motion, like an ordinary mouse. Absolute axes
+look reasonable and do not work: a device carrying ABS_X/ABS_Y without the
+BTN_TOUCH or BTN_TOOL_PEN that would mark it a touchscreen or a tablet is bound
+by the kernel as a joystick (it shows up as `jsN` in /proc/bus/input/devices),
+and libinput ignores joysticks — so the device is created, the writes succeed,
+and the pointer never moves. Absolute placement is done by slamming to the
+top-left corner with one large negative delta and stepping back out from there,
+which is what the compositor clamping the pointer to the screen gives us.
+
 Needs membership of the `input` group for /dev/uinput; no root, no X.
 
     python3 scripts/uinput_drive.py move 400 300
@@ -14,17 +23,56 @@ Needs membership of the `input` group for /dev/uinput; no root, no X.
     python3 scripts/uinput_drive.py type 'hello world'
     python3 scripts/uinput_drive.py key enter
     python3 scripts/uinput_drive.py scroll -5
+
+A device is added to the session asynchronously, and until libinput has picked
+it up its events go nowhere. Creating one per command is therefore a coin flip:
+it works, then silently stops, and the failure looks like the app has hung. Run
+a long-lived device instead and send commands to it —
+
+    python3 scripts/uinput_drive.py serve &      # hold the device open
+    python3 scripts/uinput_drive.py send click 400 300
+    python3 scripts/uinput_drive.py send type 'hello'
+    python3 scripts/uinput_drive.py send quit
+
+`send` falls back to a one-shot device when no server is listening, so existing
+callers keep working.
 """
-import fcntl, os, struct, sys, time
+import fcntl, os, struct, subprocess, sys, time
 
 UINPUT = '/dev/uinput'
+FIFO = os.environ.get('RIFT_UINPUT_FIFO', '/tmp/rift-uinput.fifo')
+
+# Long enough for udev to tag the new device and libinput to add it to the
+# seat. Below about a second the first events are routinely lost.
+SETTLE_AFTER_CREATE = 1.6
 SCREEN_W, SCREEN_H = 1920, 1080
 
 EV_SYN, EV_KEY, EV_REL, EV_ABS = 0, 1, 2, 3
 SYN_REPORT = 0
 ABS_X, ABS_Y = 0, 1
-REL_WHEEL = 8
+REL_X, REL_Y, REL_WHEEL = 0, 1, 8
 BTN_LEFT, BTN_RIGHT = 0x110, 0x111
+
+# Small enough that pointer acceleration stays out of the way, and a handful of
+# correction rounds to absorb whatever it still applies.
+_MOVE_STEP = 6
+_MOVE_CORRECTIONS = 14
+
+
+def pointer_position():
+    """Where the pointer actually is, or None if X cannot say.
+
+    XWayland only tracks the pointer while it is over an X window, and reports
+    a stale position otherwise — so this can lie, and a caller that needs the
+    truth should keep the pointer over the window it is driving.
+    """
+    try:
+        out = subprocess.run(['xdotool', 'getmouselocation'],
+                             capture_output=True, text=True, timeout=2).stdout
+        parts = dict(p.split(':') for p in out.split() if ':' in p)
+        return int(parts['x']), int(parts['y'])
+    except Exception:
+        return None
 
 
 def _iow(nr, size):
@@ -73,8 +121,8 @@ class Device:
     def __init__(self, keyboard_only=False):
         self.keyboard_only = keyboard_only
         self.fd = os.open(UINPUT, os.O_WRONLY | os.O_NONBLOCK)
-        events = (EV_KEY, EV_SYN) if keyboard_only else (EV_KEY, EV_ABS,
-                                                         EV_REL, EV_SYN)
+        events = (EV_KEY, EV_SYN) if keyboard_only else (EV_KEY, EV_REL,
+                                                         EV_SYN)
         for ev in events:
             fcntl.ioctl(self.fd, UI_SET_EVBIT, ev)
         codes = set(KEY.values()) | {KEY_LEFTSHIFT, KEY_LEFTCTRL, KEY_LEFTALT}
@@ -83,9 +131,8 @@ class Device:
         for code in codes:
             fcntl.ioctl(self.fd, UI_SET_KEYBIT, code)
         if not keyboard_only:
-            for axis in (ABS_X, ABS_Y):
-                fcntl.ioctl(self.fd, UI_SET_ABSBIT, axis)
-            fcntl.ioctl(self.fd, UI_SET_RELBIT, REL_WHEEL)
+            for axis in (REL_X, REL_Y, REL_WHEEL):
+                fcntl.ioctl(self.fd, UI_SET_RELBIT, axis)
 
         absmax = [0] * 64
         absmax[ABS_X], absmax[ABS_Y] = SCREEN_W - 1, SCREEN_H - 1
@@ -97,9 +144,9 @@ class Device:
         dev += struct.pack('64i', *([0] * 64))      # absflat
         os.write(self.fd, dev)
         fcntl.ioctl(self.fd, UI_DEV_CREATE)
-        # The compositor has to notice the new device and settle before it
-        # will route anything from it; without this the first event is lost.
-        time.sleep(0.35)
+        # The compositor has to notice the new device and settle before it will
+        # route anything from it; without this the first events are dropped.
+        time.sleep(SETTLE_AFTER_CREATE)
 
     def emit(self, type_, code, value):
         os.write(self.fd, struct.pack('llHHi', 0, 0, type_, code, value))
@@ -108,10 +155,53 @@ class Device:
         self.emit(EV_SYN, SYN_REPORT, 0)
 
     def move(self, x, y):
-        self.emit(EV_ABS, ABS_X, int(x))
-        self.emit(EV_ABS, ABS_Y, int(y))
-        self.syn()
+        """Put the pointer at an absolute screen position.
+
+        Relative motion has no origin, so one is made: a delta far larger than
+        any screen drives the pointer into the top-left corner, where the
+        compositor clamps it.
+
+        Stepping back out is done in small increments and then *checked*,
+        because pointer acceleration is applied to synthetic motion exactly as
+        it is to a real mouse: one large delta lands well past where it was
+        aimed, and the click that follows goes to whatever is there — often
+        another window, which takes the keyboard focus with it. Small steps
+        keep the velocity low enough that acceleration is roughly 1:1, and the
+        closed loop corrects whatever is left over.
+        """
+        self._corner()
+        for _ in range(_MOVE_CORRECTIONS):
+            at = pointer_position()
+            if at is None:
+                # No X window under the pointer to ask — fall back to open
+                # loop and accept the error rather than spinning.
+                self._nudge(int(x), int(y))
+                break
+            dx, dy = int(x) - at[0], int(y) - at[1]
+            if abs(dx) <= 1 and abs(dy) <= 1:
+                break
+            self._nudge(dx, dy)
         time.sleep(0.05)
+
+    def _corner(self):
+        for _ in range(4):
+            self.emit(EV_REL, REL_X, -SCREEN_W)
+            self.emit(EV_REL, REL_Y, -SCREEN_H)
+            self.syn()
+            time.sleep(0.004)
+        time.sleep(0.02)
+
+    def _nudge(self, dx, dy):
+        """Travel (dx, dy) in steps small enough not to be accelerated."""
+        while dx or dy:
+            sx = max(-_MOVE_STEP, min(_MOVE_STEP, dx))
+            sy = max(-_MOVE_STEP, min(_MOVE_STEP, dy))
+            self.emit(EV_REL, REL_X, sx)
+            self.emit(EV_REL, REL_Y, sy)
+            self.syn()
+            time.sleep(0.002)
+            dx -= sx
+            dy -= sy
 
     def click(self, button=BTN_LEFT):
         self.emit(EV_KEY, button, 1)
@@ -169,40 +259,89 @@ class Device:
         os.close(self.fd)
 
 
+def run(dev, cmd, args):
+    if cmd == 'move':
+        dev.move(int(args[0]), int(args[1]))
+    elif cmd in ('click', 'rclick', 'dclick'):
+        if len(args) >= 2:
+            dev.move(int(args[0]), int(args[1]))
+            time.sleep(0.12)
+        button = BTN_RIGHT if cmd == 'rclick' else BTN_LEFT
+        dev.click(button)
+        if cmd == 'dclick':
+            time.sleep(0.06)
+            dev.click(button)
+    elif cmd == 'type':
+        dev.clear_mods()
+        dev.type(args[0])
+    elif cmd == 'key':
+        for spec in args:
+            parts = spec.lower().split('+')
+            mods = tuple(MODS[p] for p in parts[:-1])
+            dev.tap(KEY[parts[-1]], mods)
+    elif cmd == 'clearmods':
+        dev.clear_mods()
+    elif cmd == 'scroll':
+        dev.scroll(int(args[0]))
+    else:
+        raise SystemExit(f'unknown command {cmd}')
+
+
+def serve():
+    """Hold one device open and run whatever is written to the FIFO."""
+    if os.path.exists(FIFO):
+        os.unlink(FIFO)
+    os.mkfifo(FIFO, 0o600)
+    dev = Device()
+    print(f'ready {FIFO}', flush=True)
+    try:
+        while True:
+            with open(FIFO) as fifo:
+                for line in fifo:
+                    parts = line.rstrip('\n').split('\t')
+                    if not parts or not parts[0]:
+                        continue
+                    if parts[0] == 'quit':
+                        return
+                    try:
+                        run(dev, parts[0], parts[1:])
+                    except Exception as err:
+                        print(f'error: {err}', file=sys.stderr, flush=True)
+    finally:
+        dev.close()
+        if os.path.exists(FIFO):
+            os.unlink(FIFO)
+
+
+def send(cmd, args):
+    """Hand one command to a running server, or do it one-shot if none is up."""
+    if os.path.exists(FIFO):
+        try:
+            fd = os.open(FIFO, os.O_WRONLY | os.O_NONBLOCK)
+            os.write(fd, ('\t'.join([cmd, *args]) + '\n').encode())
+            os.close(fd)
+            return
+        except OSError:
+            pass  # nobody reading — fall through to a one-shot device
+    dev = Device(keyboard_only=False)
+    try:
+        run(dev, cmd, args)
+    finally:
+        time.sleep(0.1)
+        dev.close()
+
+
 def main():
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
     cmd, args = sys.argv[1], sys.argv[2:]
-    dev = Device(keyboard_only=cmd in ('type', 'key', 'clearmods'))
-    try:
-        if cmd == 'move':
-            dev.move(int(args[0]), int(args[1]))
-        elif cmd in ('click', 'rclick', 'dclick'):
-            if len(args) >= 2:
-                dev.move(int(args[0]), int(args[1]))
-                time.sleep(0.12)
-            button = BTN_RIGHT if cmd == 'rclick' else BTN_LEFT
-            dev.click(button)
-            if cmd == 'dclick':
-                time.sleep(0.06)
-                dev.click(button)
-        elif cmd == 'type':
-            dev.clear_mods()
-            dev.type(args[0])
-        elif cmd == 'key':
-            for spec in args:
-                parts = spec.lower().split('+')
-                mods = tuple(MODS[p] for p in parts[:-1])
-                dev.tap(KEY[parts[-1]], mods)
-        elif cmd == 'clearmods':
-            dev.clear_mods()
-        elif cmd == 'scroll':
-            dev.scroll(int(args[0]))
-        else:
-            raise SystemExit(f'unknown command {cmd}')
-    finally:
-        time.sleep(0.1)
-        dev.close()
+    if cmd == 'serve':
+        serve()
+        return
+    if cmd == 'send':
+        send(args[0], args[1:])
+        return
+    send(cmd, args)
 
 
 if __name__ == '__main__':
