@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 
-import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/app_text.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/custom_colors.dart';
 
-/// The reset-vault action, parked at the bottom of the settings nav.
+/// The reset-vault action, at the end of the Cloud Backup tab.
 ///
-/// A bordered danger card rather than a text button in a footer: this wipes
-/// an identity that cannot be recovered without a backup, and it should look
-/// like the one thing on the screen you can't undo.
+/// It used to sit at the bottom of the settings *nav*, which is the same
+/// corner the gear that opens settings occupies on the screen behind — so a
+/// second click, or one arriving after the screen had changed, landed on
+/// wiping the identity. Anyone reaching for the gear again to close settings
+/// hits it. Only the confirm dialog stood in the way.
+///
+/// Here it is unreachable until you have chosen the one tab it belongs with,
+/// and it reads in the right order: back up your vault, restore your vault,
+/// destroy your vault. That also answers the original objection to putting it
+/// in the content pane — it is no longer sitting under whatever tab happened
+/// to be open.
+///
+/// A bordered danger card rather than a text button: this wipes an identity
+/// that cannot be recovered without a backup, and it should look like the one
+/// thing on the screen you can't undo.
 class ResetVaultCard extends StatelessWidget {
   final ThemeState themeState;
   final VoidCallback onTap;

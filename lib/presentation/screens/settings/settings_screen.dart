@@ -181,7 +181,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _selectTab(tab, compact: compact),
                             themeState: themeState,
                             onBack: () => context.pop(),
-                            onResetVault: _resetVault,
                           ),
                         ),
                       if (!compact) SizedBox(width: gutter),
@@ -215,6 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         ),
                                       SettingsTab.backup => BackupContent(
                                         themeState: themeState,
+                                        onResetVault: _resetVault,
                                       ),
                                     },
                                   ),

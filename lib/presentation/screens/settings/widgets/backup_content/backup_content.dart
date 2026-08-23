@@ -8,30 +8,40 @@ import 'auth_panel.dart';
 import 'confirm_email_panel.dart';
 import 'conflict_panel.dart';
 import 'file_backup_panel.dart';
+import 'reset_vault_card.dart';
 import 'signed_in_panel.dart';
 import 'vault_password_panel.dart';
 
 /// Backup tab content rendered inside the settings dialog.
 ///
-/// Provides:
-/// - Sign up / sign in to the central Supabase server
-/// - Save current encrypted backup to the cloud
+/// Everything that decides which identity this device holds, in the order you
+/// would do it: sign in to the central account, save or restore the encrypted
+/// backup, and — last, because it is the one step with no way back — wipe the
+/// vault (see [ResetVaultCard] for why that lives here rather than in the nav).
 class BackupContent extends StatelessWidget {
   final ThemeState themeState;
 
-  const BackupContent({super.key, required this.themeState});
+  /// Wipes the vault. Confirmed by the caller before anything is destroyed.
+  final VoidCallback onResetVault;
+
+  const BackupContent({
+    super.key,
+    required this.themeState,
+    required this.onResetVault,
+  });
 
   @override
   Widget build(BuildContext context) {
     // Uses the app-global SupabaseBackupCubit provided in main.dart.
-    return _BackupBody(themeState: themeState);
+    return _BackupBody(themeState: themeState, onResetVault: onResetVault);
   }
 }
 
 class _BackupBody extends StatelessWidget {
   final ThemeState themeState;
+  final VoidCallback onResetVault;
 
-  const _BackupBody({required this.themeState});
+  const _BackupBody({required this.themeState, required this.onResetVault});
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +69,8 @@ class _BackupBody extends StatelessWidget {
             cloudPanel,
             const SizedBox(height: 28),
             FileBackupPanel(themeState: themeState),
+            const SizedBox(height: 28),
+            ResetVaultCard(themeState: themeState, onTap: onResetVault),
           ],
         );
       },

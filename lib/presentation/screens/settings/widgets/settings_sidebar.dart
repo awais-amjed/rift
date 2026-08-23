@@ -4,7 +4,6 @@ import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/nav_row.dart';
 import '../../../theme/app_text.dart';
-import 'reset_vault_card.dart';
 import 'settings_tab.dart';
 
 class SettingsSidebar extends StatelessWidget {
@@ -13,17 +12,12 @@ class SettingsSidebar extends StatelessWidget {
   final ThemeState themeState;
   final VoidCallback onBack;
 
-  /// Wipes the vault. Lives at the bottom of the nav rather than in a footer
-  /// under the content, where it sat next to whatever tab you had open.
-  final VoidCallback onResetVault;
-
   const SettingsSidebar({
     super.key,
     required this.activeTab,
     required this.onTabSelected,
     required this.themeState,
     required this.onBack,
-    required this.onResetVault,
   });
 
   @override
@@ -83,8 +77,6 @@ class SettingsSidebar extends StatelessWidget {
           'Voice & Audio',
         ),
         _tab(SettingsTab.backup, Icons.cloud_outlined, 'Cloud Backup'),
-        const Spacer(),
-        ResetVaultCard(themeState: themeState, onTap: onResetVault),
       ],
     );
   }

@@ -29,7 +29,6 @@ class _MemoryStorage implements Storage {
 /// Records what the sidebar's callbacks fired, so a stray tap is visible.
 class _Taps {
   int back = 0;
-  int reset = 0;
   SettingsTab? tab;
 }
 
@@ -48,7 +47,6 @@ Future<_Taps> _pumpSidebar(WidgetTester tester) async {
               onTabSelected: (tab) => taps.tab = tab,
               themeState: ThemeState(),
               onBack: () => taps.back++,
-              onResetVault: () => taps.reset++,
             ),
           ),
         ),
@@ -105,5 +103,15 @@ void main() {
 
     expect(taps.tab, SettingsTab.backup);
     expect(taps.back, 0);
+  });
+
+  testWidgets('nothing destructive lives in the nav', (tester) async {
+    await _pumpSidebar(tester);
+
+    // "Reset vault" used to sit at the bottom of this nav — the same corner
+    // the gear that opens settings occupies on the screen behind, so a second
+    // click landed on wiping the identity. It belongs with the backup tab it
+    // is the opposite of.
+    expect(find.text('Reset vault'), findsNothing);
   });
 }
