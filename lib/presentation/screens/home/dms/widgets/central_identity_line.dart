@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
-import 'change_handle_dialog.dart';
 
 /// Who you are on central, under the panel title — and the way to change it.
 ///
@@ -21,7 +19,15 @@ import 'change_handle_dialog.dart';
 class CentralIdentityLine extends StatelessWidget {
   final String? handle;
 
-  const CentralIdentityLine({super.key, required this.handle});
+  /// Asked for when the line is tapped. There is nothing to tap without a
+  /// handle, so this is only ever called with one already claimed.
+  final VoidCallback onChangeHandle;
+
+  const CentralIdentityLine({
+    super.key,
+    required this.handle,
+    required this.onChangeHandle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -55,30 +61,17 @@ class CentralIdentityLine extends StatelessWidget {
       ],
     );
 
-    final current = handle;
-    if (current == null) return line;
+    if (handle == null) return line;
 
     return Tooltip(
       message: 'Change handle',
       child: InkWell(
-        onTap: () => _open(context, current),
+        onTap: onChangeHandle,
         borderRadius: BorderRadius.circular(K.radiusRow),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
           child: line,
         ),
-      ),
-    );
-  }
-
-  void _open(BuildContext context, String current) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => BlocProvider.value(
-        // The dialog claims through the same cubit this line reads, so the new
-        // handle is on screen behind it the moment it closes.
-        value: context.read<CentralDmCubit>(),
-        child: ChangeHandleDialog(currentHandle: current),
       ),
     );
   }

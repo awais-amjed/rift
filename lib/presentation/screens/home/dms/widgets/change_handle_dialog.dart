@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/central_handle.dart';
 import '../../../../common/app_button.dart';
@@ -22,7 +21,17 @@ import '../../../../theme/app_text.dart';
 class ChangeHandleDialog extends StatefulWidget {
   final String currentHandle;
 
-  const ChangeHandleDialog({super.key, required this.currentHandle});
+  /// Claims [handle], answering with the reason it failed — or null if it
+  /// worked. Passed in rather than reached for through the context so this
+  /// stays a dialog about a handle, with no opinion about where handles are
+  /// kept, and can be exercised without standing up the central stack.
+  final Future<String?> Function(String handle) onSubmit;
+
+  const ChangeHandleDialog({
+    super.key,
+    required this.currentHandle,
+    required this.onSubmit,
+  });
 
   @override
   State<ChangeHandleDialog> createState() => _ChangeHandleDialogState();
@@ -57,15 +66,12 @@ class _ChangeHandleDialogState extends State<ChangeHandleDialog> {
       _error = null;
     });
 
-    final cubit = context.read<CentralDmCubit>();
-    final ok = await cubit.claimHandle(_controller.text);
+    final failure = await widget.onSubmit(_controller.text);
     if (!mounted) return;
 
-    if (!ok) {
-      // The cubit puts the reason on its own state — a taken handle, a failed
-      // request — so take it from there rather than guessing at one here.
+    if (failure != null) {
       setState(() {
-        _error = cubit.state.error ?? 'Could not change your handle.';
+        _error = failure;
         _isLoading = false;
       });
       return;

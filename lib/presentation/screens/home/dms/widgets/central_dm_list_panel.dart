@@ -9,6 +9,7 @@ import '../../../../theme/app_text.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import 'central_handle_panel.dart';
 import 'central_identity_line.dart';
+import 'change_handle_dialog.dart';
 import 'dm_conversation_tile.dart';
 import 'handle_search_field.dart';
 
@@ -105,8 +106,31 @@ class _CentralDmListPanelState extends State<CentralDmListPanel> {
             style: AppText.panelTitle.copyWith(color: themeState.textPrimary),
           ),
           const SizedBox(height: 1),
-          CentralIdentityLine(handle: state.myHandle),
+          CentralIdentityLine(
+            handle: state.myHandle,
+            onChangeHandle: () => _changeHandle(state.myHandle!),
+          ),
         ],
+      ),
+    );
+  }
+
+  /// The claim is an upsert, so re-claiming is the same call that made the
+  /// handle; the dialog only has to ask for one and report what came back.
+  void _changeHandle(String handle) {
+    final cubit = context.read<CentralDmCubit>();
+    showDialog<void>(
+      context: context,
+      builder: (_) => ChangeHandleDialog(
+        currentHandle: handle,
+        onSubmit: (next) async {
+          final ok = await cubit.claimHandle(next);
+          // The cubit puts the reason on its own state — a taken handle, a
+          // failed request — so take it from there rather than inventing one.
+          return ok
+              ? null
+              : (cubit.state.error ?? 'Could not change your handle.');
+        },
       ),
     );
   }
