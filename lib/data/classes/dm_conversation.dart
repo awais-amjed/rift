@@ -23,4 +23,21 @@ class DmConversation {
     this.peerSigningPublicKey,
     this.lastMessage,
   });
+
+  /// One row of the central directory (`users` on the central tier).
+  ///
+  /// Lives here rather than in the cubit that calls it because the column
+  /// names are the thing worth pinning down: the August rewrite renamed
+  /// central's `user_id` to `id`, the repository followed and this mapping did
+  /// not, so every handle search threw on the cast and the drop-down sat on
+  /// "Searching…" forever. A row shape with no test is a rename away from
+  /// doing that again.
+  factory DmConversation.fromDirectoryRow(Map<String, dynamic> row) {
+    return DmConversation(
+      peerId: row['id'] as String,
+      peerName: row['handle'] as String,
+      peerChatPublicKey: row['chat_public_key'] as String?,
+      peerSigningPublicKey: row['signing_public_key'] as String?,
+    );
+  }
 }

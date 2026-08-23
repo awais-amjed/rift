@@ -271,14 +271,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
     final response = await _repo.searchHandles(normalized);
     if (!response.success) return const [];
     return ((response.data as List).cast<Map<String, dynamic>>())
-        .map(
-          (row) => DmConversation(
-            peerId: row['user_id'] as String,
-            peerName: row['handle'] as String,
-            peerChatPublicKey: row['chat_public_key'] as String?,
-            peerSigningPublicKey: row['signing_public_key'] as String?,
-          ),
-        )
+        .map(DmConversation.fromDirectoryRow)
         .toList();
   }
 
