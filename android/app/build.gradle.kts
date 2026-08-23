@@ -1,9 +1,28 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Release signing, loaded from a properties file that is never in the repo.
+//
+// `android/key.properties` is gitignored; keep the real one wherever the
+// keystore lives and symlink it in, so the secret has exactly one home:
+//
+//   ln -s /path/to/keystore/key.properties android/key.properties
+//
+// Absent, the release build falls back to the debug key so `flutter run
+// --release` still works on a machine that has no keystore. That fallback is
+// deliberate but it is not shippable: a debug-signed APK will not verify
+// against assetlinks.json, so every invite opens a browser instead of the app.
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "com.codingfries.rift"
@@ -38,11 +57,28 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "No android/key.properties - signing release with the DEBUG key. " +
+                    "This build cannot be shipped: App Links will not verify."
+                )
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

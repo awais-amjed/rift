@@ -59,3 +59,17 @@ auth.md
 
 # Short cargo target dir, kept near the root to stay under MAX_PATH on Windows
 /ck/
+
+# Credentials. Never committed, and listed by shape rather than by name so the
+# next one to arrive is covered before somebody has to remember.
+#
+# rift-service-key.json is the Firebase service account that signs FCM sends.
+# google-services.json is per-project too. Keystores sign releases; losing one
+# means never updating that app again, and leaking one means anyone can.
+*service-key*.json
+*service-account*.json
+google-services.json
+GoogleService-Info.plist
+*.jks
+*.keystore
+key.properties
