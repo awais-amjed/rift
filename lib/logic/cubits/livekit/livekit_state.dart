@@ -59,6 +59,28 @@ class LiveKitState {
   /// the local controls unusable rather than merely off.
   bool get isModerated => isServerMuted || isServerDeafened;
 
+  /// Why the voice controls won't move, or null when nothing is holding them.
+  ///
+  /// The button already carries this as a tooltip, which is no use at all on a
+  /// phone: there is no hover, so a moderated user taps mute, watches nothing
+  /// happen, and has been given no reason to think anything other than that
+  /// the app is broken. The control bar shows this on tap instead.
+  ///
+  /// Deafen is reported ahead of mute because it is the stronger of the two
+  /// and it takes the mic with it — saying "muted" to someone who also can't
+  /// hear anything answers the smaller half of their question.
+  String? get moderationNotice {
+    if (isServerDeafened) {
+      return 'A moderator has deafened you on this server. You can\'t turn '
+          'your mic or sound back on until they undo it.';
+    }
+    if (isServerMuted) {
+      return 'A moderator has muted you on this server. You can\'t unmute '
+          'yourself until they undo it.';
+    }
+    return null;
+  }
+
   LiveKitState copyWith({
     LiveKitConnectionState? connectionState,
     Room? room,

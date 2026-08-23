@@ -98,4 +98,56 @@ void main() {
       expect(const LiveKitState(isServerDeafened: true).isModerated, isTrue);
     });
   });
+
+  group('LiveKitState.moderationNotice', () {
+    test('says nothing when nothing is holding the controls', () {
+      expect(const LiveKitState().moderationNotice, isNull);
+    });
+
+    test('muting or deafening yourself is not worth explaining', () {
+      // These buttons work. Explaining them would be explaining the user's
+      // own last action back to them.
+      expect(const LiveKitState(isDeafened: true).moderationNotice, isNull);
+      expect(const LiveKitState(isMicEnabled: false).moderationNotice, isNull);
+    });
+
+    test('a server mute names the mute', () {
+      final notice = const LiveKitState(isServerMuted: true).moderationNotice;
+      expect(notice, contains('muted'));
+      expect(notice, contains('moderator'));
+    });
+
+    test('a server deafen names the deafen', () {
+      final notice = const LiveKitState(
+        isServerDeafened: true,
+      ).moderationNotice;
+      expect(notice, contains('deafened'));
+    });
+
+    test('deafened and muted at once reports the deafen', () {
+      // Deafen is the stronger of the two and takes the mic with it, so
+      // "muted" would answer the smaller half of the question.
+      final notice = const LiveKitState(
+        isServerMuted: true,
+        isServerDeafened: true,
+      ).moderationNotice;
+      expect(notice, contains('deafened'));
+    });
+
+    test('a notice exists for exactly the states that block the buttons', () {
+      for (final state in const [
+        LiveKitState(),
+        LiveKitState(isDeafened: true),
+        LiveKitState(isServerMuted: true),
+        LiveKitState(isServerDeafened: true),
+        LiveKitState(isServerMuted: true, isServerDeafened: true),
+      ]) {
+        expect(
+          state.moderationNotice != null,
+          state.isModerated,
+          reason: 'notice and isModerated must not drift apart',
+        );
+      }
+    });
+  });
 }

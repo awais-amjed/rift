@@ -3,12 +3,14 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:toastification/toastification.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../common/app_modal.dart';
 import '../../../theme/app_shadows.dart';
@@ -121,11 +123,33 @@ class _ControlBarContent extends StatelessWidget {
   }
 
   Future<void> _toggleMic(BuildContext context) async {
-    await context.read<LiveKitCubit>().toggleMicrophone();
+    final cubit = context.read<LiveKitCubit>();
+    if (_announceModeration(cubit)) return;
+    await cubit.toggleMicrophone();
   }
 
   Future<void> _toggleDeafen(BuildContext context) async {
-    await context.read<LiveKitCubit>().toggleDeafen();
+    final cubit = context.read<LiveKitCubit>();
+    if (_announceModeration(cubit)) return;
+    await cubit.toggleDeafen();
+  }
+
+  /// Says why the control won't move, and reports whether it said anything.
+  ///
+  /// The cubit already refuses these while moderated, and the tooltip already
+  /// explains it — but a tooltip needs a pointer to hover, and the platform
+  /// where this matters most has none. Without this a moderated phone user
+  /// taps mute, sees nothing at all happen, and reasonably concludes the app
+  /// is broken.
+  bool _announceModeration(LiveKitCubit cubit) {
+    final notice = cubit.state.moderationNotice;
+    if (notice == null) return false;
+    HelperMethods.showToast(
+      title: 'Held by a moderator',
+      description: notice,
+      type: ToastificationType.warning,
+    );
+    return true;
   }
 
   Future<void> _toggleCamera(BuildContext context) async {
