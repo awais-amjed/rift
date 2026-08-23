@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/chat_failure.dart';
 import '../../../common/chat/composer/chat_composer.dart';
@@ -83,6 +84,17 @@ class _ChannelChatViewState extends State<ChannelChatView>
         (permissions?.isServerAdmin ?? false);
   }
 
+  /// Everyone an `@mention` can reach in this channel: the server's roster, by
+  /// username.
+  ///
+  /// Usernames rather than display names, because a display name can be
+  /// changed by its owner at any time and can collide with another member's —
+  /// neither of which is a property you want deciding who got pinged.
+  Set<String> _mentionable(BuildContext context) {
+    final members = context.watch<ServerMembersCubit>().state.members;
+    return {for (final m in members ?? const []) m.username.toLowerCase()};
+  }
+
   Widget _buildBody(BuildContext context, ChannelChatState chatState) {
     switch (chatState.status) {
       case ChannelChatStatus.ready:
@@ -96,6 +108,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
           onDelete: context.read<ChannelChatCubit>().deleteMessage,
           // Channel managers and admins may remove anyone's message.
           isModerator: _isModerator(context),
+          mentionable: _mentionable(context),
         );
       case ChannelChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

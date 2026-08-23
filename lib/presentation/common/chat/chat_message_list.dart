@@ -41,6 +41,14 @@ class ChatMessageList extends StatefulWidget {
   /// (channel manager / server admin). Always false in DMs.
   final bool isModerator;
 
+  /// Lower-cased names an `@mention` can reach on this surface.
+  ///
+  /// Supplied by the surface rather than looked up here, because only the
+  /// surface knows who is reachable: a channel has a roster, and a central DM
+  /// has one other person. Empty means every `@name` stays plain text, which
+  /// is the honest default — a highlight promises somebody was pinged.
+  final Set<String> mentionable;
+
   const ChatMessageList({
     super.key,
     required this.messages,
@@ -50,6 +58,7 @@ class ChatMessageList extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.isModerator = false,
+    this.mentionable = const {},
   });
 
   @override
@@ -185,6 +194,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               onEdit: widget.onEdit,
               onDelete: widget.onDelete,
               isModerator: widget.isModerator,
+              mentionable: widget.mentionable,
               animateIn: _animating.contains(msg.id),
             );
           },

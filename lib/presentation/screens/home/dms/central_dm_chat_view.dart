@@ -69,6 +69,12 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           // kept deliberately thin — reactions live on servers.
           onEdit: context.read<CentralDmCubit>().editMessage,
           onDelete: context.read<CentralDmCubit>().deleteMessage,
+          // The only two people who will ever read this. Naming anyone else
+          // would light up a mention that cannot reach them.
+          mentionable: {
+            for (final handle in [state.myHandle, state.openPeerHandle])
+              if (handle != null) handle.toLowerCase(),
+          },
         );
       case DmChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

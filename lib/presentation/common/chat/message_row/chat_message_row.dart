@@ -10,7 +10,7 @@ import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/host_platform.dart';
 import '../../../../logic/services/message_permissions.dart';
 import '../../confirm_dialog.dart';
-import '../../emoji_text.dart';
+import '../../message_markup_text.dart';
 import '../attachments/attachment_loader.dart';
 import '../attachments/message_attachments.dart';
 import '../reactions/message_reactions_bar.dart';
@@ -51,6 +51,9 @@ class ChatMessageRow extends StatefulWidget {
   /// Whether the local user may delete *other* people's messages here.
   final bool isModerator;
 
+  /// Lower-cased names an `@mention` can reach — see [ChatMessageList].
+  final Set<String> mentionable;
+
   /// When true, the row fades + slides in once on first build (a freshly
   /// arrived incoming message). Continuation of existing rows never animates.
   final bool animateIn;
@@ -65,6 +68,7 @@ class ChatMessageRow extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.isModerator = false,
+    this.mentionable = const {},
     this.animateIn = false,
   });
 
@@ -272,9 +276,11 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
             onSecondaryTap: _openContextMenu,
             span: TextSpan(
               children: [
-                emojiTextSpan(
+                messageMarkupSpan(
                   message.text,
-                  style: AppText.body.copyWith(color: themeState.textSecondary),
+                  base: AppText.body.copyWith(color: themeState.textSecondary),
+                  theme: themeState,
+                  mentionable: widget.mentionable,
                 ),
                 if (message.isEdited)
                   TextSpan(

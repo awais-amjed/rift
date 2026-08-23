@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
@@ -66,6 +67,26 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
               ServerLimits.defaults)
           .maxAttachmentBytes;
 
+  /// The two people in this conversation, by username.
+  ///
+  /// Not the whole server roster, even though it is right there: a DM reaches
+  /// two people, so lighting up a third member's name would promise a ping
+  /// that nobody will ever receive.
+  Set<String> _mentionable(DmState state) {
+    final me = context.read<ServerCubit>().state.selectedServer?.user?.username;
+    final peer = state.openPeerId == null
+        ? null
+        : context
+              .read<ServerMembersCubit>()
+              .state
+              .byId[state.openPeerId]
+              ?.username;
+    return {
+      for (final name in [me, peer])
+        if (name != null) name.toLowerCase(),
+    };
+  }
+
   Widget _buildBody(DmState state, ThemeState themeState) {
     switch (state.chatStatus) {
       case DmChatStatus.ready:
@@ -77,6 +98,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           onToggleReaction: context.read<DmCubit>().toggleReaction,
           onEdit: context.read<DmCubit>().editMessage,
           onDelete: context.read<DmCubit>().deleteMessage,
+          mentionable: _mentionable(state),
         );
       case DmChatStatus.loading:
         return const Center(child: CircularProgressIndicator());
