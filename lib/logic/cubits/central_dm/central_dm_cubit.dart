@@ -119,35 +119,63 @@ class CentralDmCubit extends Cubit<CentralDmState>
 
   bool _settingUp = false;
 
+  /// A readiness request that arrived while one was already running.
+  ///
+  /// Dropping it used to lose the session. The constructor runs a pass
+  /// immediately, at which point GoTrue has usually not finished restoring —
+  /// so that pass correctly decides there is no user and settles on
+  /// `signedOut`. The restore then lands *during* it, the guard turned that
+  /// event away, and nothing ever asked again: Cloud Backup showed the account
+  /// signed in while central DMs showed "sign in to your Rift account", until
+  /// some unrelated vault change happened to re-trigger a pass. Whether it
+  /// broke came down to which finished first, which is why it only bit
+  /// sometimes.
+  bool _setupRequested = false;
+
+  /// Runs a readiness pass, and runs another if anything asked while it was
+  /// busy. Coalescing rather than queueing: the passes are idempotent, so the
+  /// only thing that matters is that the *last* request is honoured.
   Future<void> _ensureReady() async {
-    if (_settingUp || isClosed) return;
+    if (isClosed) return;
+    if (_settingUp) {
+      _setupRequested = true;
+      return;
+    }
     _settingUp = true;
     try {
-      final user = _repo.currentUser;
-      if (user == null || _vaultCubit.state.masterSeed == null) {
-        await _teardown();
-        emit(const CentralDmState(status: CentralDmStatus.signedOut));
-        return;
-      }
-      if (state.status == CentralDmStatus.ready && _incoming != null) return;
-
-      final profileResponse = await _repo.getMyProfile();
-      if (isClosed) return;
-      if (!profileResponse.success) {
-        emit(state.copyWith(status: CentralDmStatus.error));
-        return;
-      }
-
-      final profile = profileResponse.data as Map<String, dynamic>?;
-      if (profile == null) {
-        emit(state.copyWith(status: CentralDmStatus.needsHandle));
-        return;
-      }
-
-      await _activateProfile(profile['handle'] as String);
+      do {
+        _setupRequested = false;
+        await _readyPass();
+      } while (_setupRequested && !isClosed);
     } finally {
       _settingUp = false;
     }
+  }
+
+  /// One pass: session, vault, then the directory profile behind them.
+  Future<void> _readyPass() async {
+    final user = _repo.currentUser;
+    if (user == null || _vaultCubit.state.masterSeed == null) {
+      await _teardown();
+      emit(const CentralDmState(status: CentralDmStatus.signedOut));
+      return;
+    }
+    if (state.status == CentralDmStatus.ready && _incoming != null) return;
+
+    final profileResponse = await _repo.getMyProfile();
+    if (isClosed) return;
+    if (!profileResponse.success) {
+      emit(state.copyWith(status: CentralDmStatus.error));
+      return;
+    }
+
+    final profile = profileResponse.data as Map<String, dynamic>?;
+    if (profile == null) {
+      emit(state.copyWith(status: CentralDmStatus.needsHandle));
+      return;
+    }
+
+    await _activateProfile(profile['handle'] as String);
   }
 
   /// Claim (or re-claim) a handle and publish the central chat identity.
