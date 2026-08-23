@@ -136,9 +136,26 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  /// Whether an [AddServerDialog] is currently up, and which one.
+  ///
+  /// A first run with no servers opens one, and an invite arriving moments
+  /// later opens another — so two stacked, the join popped the top, and the
+  /// new member's first sight of the app was an offer to add the server they
+  /// had just joined. The counter is what makes replacing one safe: the
+  /// outgoing dialog's `whenComplete` runs after the incoming one is already
+  /// registered, and without it that late callback would clear the flag for a
+  /// dialog still on screen.
+  bool _addServerOpen = false;
+  int _addServerGeneration = 0;
+
   /// No servers — on a first run, or after leaving the last one. Straight to
   /// join-or-create: there is nothing to select from.
   void _openAddServer({String? inviteLink}) {
+    if (_addServerOpen) Navigator.of(context).pop();
+
+    final generation = ++_addServerGeneration;
+    _addServerOpen = true;
+
     showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
@@ -148,7 +165,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
         child: AddServerDialog(inviteLink: inviteLink),
       ),
-    );
+    ).whenComplete(() {
+      if (generation == _addServerGeneration) _addServerOpen = false;
+    });
   }
 
   @override
