@@ -16,6 +16,7 @@ import '../../../data/repositories/crypto_repository.dart';
 import '../../../supabase_config.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../helper_methods.dart';
+import '../../services/central_handle.dart';
 import '../../services/attachment_cache.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
@@ -179,15 +180,14 @@ class CentralDmCubit extends Cubit<CentralDmState>
   }
 
   /// Claim (or re-claim) a handle and publish the central chat identity.
-  Future<void> claimHandle(String handle) async {
-    final normalized = handle.trim().toLowerCase();
-    if (!RegExp(r'^[a-z0-9_]{3,20}$').hasMatch(normalized)) {
-      emit(
-        state.copyWith(
-          error: 'Handles are 3–20 characters: a–z, 0–9, underscore.',
-        ),
-      );
-      return;
+  ///
+  /// Reports whether the handle is now ours, so a caller that opened a dialog
+  /// knows whether to close it or leave the error on screen.
+  Future<bool> claimHandle(String handle) async {
+    final normalized = CentralHandle.normalize(handle);
+    if (!CentralHandle.isValid(normalized)) {
+      emit(state.copyWith(error: CentralHandle.rule));
+      return false;
     }
     emit(state.copyWith(claiming: true, clearError: true));
 
@@ -198,14 +198,15 @@ class CentralDmCubit extends Cubit<CentralDmState>
       chatPublicKey: chat.publicKeyBase64,
       signingPublicKey: signing.publicKeyBase64,
     );
-    if (isClosed) return;
+    if (isClosed) return false;
 
     if (!response.success) {
       emit(state.copyWith(claiming: false, error: response.error));
-      return;
+      return false;
     }
     emit(state.copyWith(claiming: false));
     await _activateProfile(normalized);
+    return true;
   }
 
   Future<void> _activateProfile(String handle) async {

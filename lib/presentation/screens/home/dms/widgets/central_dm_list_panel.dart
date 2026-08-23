@@ -8,6 +8,7 @@ import '../../../../common/hint_card.dart';
 import '../../../../theme/app_text.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import 'central_handle_panel.dart';
+import 'central_identity_line.dart';
 import 'dm_conversation_tile.dart';
 import 'handle_search_field.dart';
 
@@ -104,39 +105,9 @@ class _CentralDmListPanelState extends State<CentralDmListPanel> {
             style: AppText.panelTitle.copyWith(color: themeState.textPrimary),
           ),
           const SizedBox(height: 1),
-          _buildIdentity(themeState, state),
+          CentralIdentityLine(handle: state.myHandle),
         ],
       ),
-    );
-  }
-
-  Widget _buildIdentity(ThemeState themeState, CentralDmState state) {
-    final handle = state.myHandle;
-    return Row(
-      spacing: 5,
-      children: [
-        Icon(Icons.public, size: 11, color: themeState.accentBright),
-        if (handle != null)
-          Flexible(
-            child: Text(
-              '@$handle',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              // Mono: a handle is an identifier, and it reads as one.
-              style: AppText.figure.copyWith(
-                fontWeight: FontWeight.w400,
-                color: themeState.textTertiary,
-              ),
-            ),
-          ),
-        Text(
-          handle == null ? 'central account' : '· central account',
-          style: AppText.label.copyWith(
-            fontWeight: FontWeight.w400,
-            color: themeState.textQuaternary,
-          ),
-        ),
-      ],
     );
   }
 
