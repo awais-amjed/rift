@@ -99,7 +99,9 @@ class _ChangeHandleDialogState extends State<ChangeHandleDialog> {
                 hint: widget.currentHandle,
                 enabled: !_isLoading,
                 autofocus: true,
-                onChanged: (_) => setState(() {}),
+                // Editing retracts the last refusal: it described the handle
+                // that was submitted, not the one being typed now.
+                onChanged: (_) => setState(() => _error = null),
               ),
               const SizedBox(height: 8),
               Text(

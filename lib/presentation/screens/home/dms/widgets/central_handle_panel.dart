@@ -42,7 +42,11 @@ class _CentralHandlePanelState extends State<CentralHandlePanel> {
             style: AppText.secondary.copyWith(color: themeState.textTertiary),
           ),
           const SizedBox(height: 8),
-          AppTextField(controller: _controller, hint: 'your_handle'),
+          AppTextField(
+            controller: _controller,
+            hint: 'your_handle',
+            onChanged: (_) => context.read<CentralDmCubit>().dismissError(),
+          ),
           const SizedBox(height: 6),
           Text(
             CentralHandle.rule,

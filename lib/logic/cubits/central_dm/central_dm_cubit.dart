@@ -179,6 +179,16 @@ class CentralDmCubit extends Cubit<CentralDmState>
     await _activateProfile(profile['handle'] as String);
   }
 
+  /// Drop an error the user has moved on from.
+  ///
+  /// A refusal describes one attempt, not the field it came from. Left up
+  /// while the next handle is being typed it reads as a verdict on what is on
+  /// screen now — "already taken" under a handle nobody has yet — and the only
+  /// way to clear it was to submit and be refused again.
+  void dismissError() {
+    if (state.error != null) emit(state.copyWith(clearError: true));
+  }
+
   /// Claim (or re-claim) a handle and publish the central chat identity.
   ///
   /// Reports whether the handle is now ours, so a caller that opened a dialog

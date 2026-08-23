@@ -135,6 +135,24 @@ void main() {
       expect(_submitEnabled(tester), isTrue);
     });
 
+    testWidgets('retracts the refusal as soon as the handle is edited', (
+      tester,
+    ) async {
+      // The reason described the handle that was submitted. Leaving it up
+      // while the next one is typed reads as a verdict on what is on screen.
+      await _pumpDialog(
+        tester,
+        onSubmit: (_) async => 'That handle is already taken',
+      );
+      await _enter(tester, 'noor_92');
+      await tester.tap(_submitButton);
+      await tester.pumpAndSettle();
+      expect(find.text('That handle is already taken'), findsOneWidget);
+
+      await _enter(tester, 'noor_93');
+      expect(find.text('That handle is already taken'), findsNothing);
+    });
+
     testWidgets('warns that the old handle stops finding you', (tester) async {
       // The consequence belongs on screen before the button, not in a toast
       // after it — by then the handle is already gone.
