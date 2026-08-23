@@ -6,6 +6,7 @@ import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/custom_colors.dart';
 import 'app_button.dart';
 import 'app_modal.dart';
+import 'context_menu_region.dart';
 import '../theme/app_text.dart';
 
 /// Ask the user to confirm one action, and answer `true` only if they did.
@@ -14,6 +15,13 @@ import '../theme/app_text.dart';
 /// write `if (!await showConfirmDialog(...)) return;`. Set [isDestructive] for
 /// anything that deletes or signs out — it turns the badge and the confirm
 /// button red.
+///
+/// Safe to call from inside a context menu. The menu has to be dismissed
+/// before the dialog opens — it is an overlay entry, and it takes the dialog
+/// down with it otherwise — so this detects the menu and steps out to the
+/// navigator first, which is what `showDialogFromMenu` does by hand. Callers
+/// don't have to know which case they are in; the guarantee is only useful if
+/// it is the default.
 Future<bool> showConfirmDialog({
   required BuildContext context,
   required String title,
@@ -23,8 +31,14 @@ Future<bool> showConfirmDialog({
   IconData icon = Icons.help_outline_rounded,
   bool isDestructive = false,
 }) async {
+  final dismissMenu = ContextMenuScope.of(context);
+  final dialogContext = dismissMenu == null
+      ? context
+      : Navigator.of(context).context;
+  dismissMenu?.call();
+
   final confirmed = await showCustomDialog<bool>(
-    context: context,
+    context: dialogContext,
     builder: (_) => _ConfirmDialog(
       title: title,
       message: message,
