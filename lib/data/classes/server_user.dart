@@ -10,20 +10,34 @@ class ServerUser {
   /// for no avatar (render initials). Not a URL — see migration 014.
   final String? avatarPath;
 
+  /// Whether this server has banned us.
+  ///
+  /// Read from our own row, which stays selectable while banned precisely so
+  /// this can be answered — every other read returns empty, because
+  /// `app.server_id()` is null for a banned member, and "empty" is not
+  /// something a client can tell apart from "nothing here yet".
+  final bool isBanned;
+
   const ServerUser({
     required this.id,
     required this.username,
     required this.displayName,
     required this.permissions,
     this.avatarPath,
+    this.isBanned = false,
   });
 
-  ServerUser copyWith({String? displayName, String? avatarPath}) => ServerUser(
+  ServerUser copyWith({
+    String? displayName,
+    String? avatarPath,
+    bool? isBanned,
+  }) => ServerUser(
     id: id,
     username: username,
     displayName: displayName ?? this.displayName,
     permissions: permissions,
     avatarPath: avatarPath ?? this.avatarPath,
+    isBanned: isBanned ?? this.isBanned,
   );
 
   factory ServerUser.fromJson(Map<String, dynamic> json) {
@@ -37,6 +51,9 @@ class ServerUser {
             )
           : const UserPermissions(),
       avatarPath: json['avatar_path'] as String?,
+      // Deliberately not persisted (see toJson): a ban read at launch has to
+      // come from the server, not from what we believed last time.
+      isBanned: json['is_banned'] as bool? ?? false,
     );
   }
 

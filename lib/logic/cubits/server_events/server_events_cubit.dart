@@ -37,6 +37,17 @@ class ServerEventsCubit extends Cubit<int> {
   /// half: a rename or a deletion reaches everyone whatever the actor did.
   late final ServerTableWatcher _channelsWatcher;
 
+  /// Our own membership row, which is the only thing a banned member can still
+  /// read (`users_select_self`).
+  ///
+  /// A ban is a structural change like any other here, and the response is the
+  /// same one: re-read the server. The difference is what comes back — no
+  /// channels, and a user row saying `is_banned`, which is what the UI needs
+  /// to say something rather than going quietly inert. Lifting the ban arrives
+  /// through the same subscription, so a client comes back on its own instead
+  /// of needing a restart.
+  late final ServerTableWatcher _membershipWatcher;
+
   ServerEventsCubit({
     required ServerCubit serverCubit,
     required LiveKitCubit livekitCubit,
@@ -53,6 +64,24 @@ class ServerEventsCubit extends Cubit<int> {
       onChanged: () => unawaited(_onChannelsChanged()),
       onServerChanged: (_) {},
     );
+    _membershipWatcher = ServerTableWatcher(
+      serverCubit: serverCubit,
+      table: 'users',
+      onChanged: () => unawaited(_onMembershipChanged()),
+      // Selecting a server re-reads it anyway; this only has to keep up with
+      // changes after that.
+      onServerChanged: (_) {},
+    );
+  }
+
+  /// Someone's `users` row moved — possibly ours.
+  ///
+  /// The watcher can't tell us whose, and doesn't need to: re-reading the
+  /// server is cheap, idempotent, and is what makes `user.isBanned` current.
+  /// A ban that arrives while we're in a call is left to `moderate_user`,
+  /// which removes us from LiveKit itself.
+  Future<void> _onMembershipChanged() async {
+    await _serverCubit.refreshServerDetails();
   }
 
   Future<void> _onChannelsChanged() async {
@@ -139,6 +168,7 @@ class ServerEventsCubit extends Cubit<int> {
   Future<void> close() async {
     await _serverSub?.cancel();
     await _channelsWatcher.dispose();
+    await _membershipWatcher.dispose();
     _teardown();
     return super.close();
   }

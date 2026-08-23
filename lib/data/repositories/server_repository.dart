@@ -156,6 +156,32 @@ class ServerRepository
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      // Our own row first, because it is the only one a banned member can
+      // still read (`users_select_self`) and it decides whether the rest is
+      // worth asking for.
+      final user = await db
+          .from('users')
+          .select(
+            'id, username, display_name, avatar_path, is_muted, is_deafened, '
+            'is_banned, is_server_admin, is_channel_manager, can_create_tokens',
+          )
+          .eq('id', _uidOf(bearerToken) ?? '')
+          .maybeSingle();
+
+      // A ban makes `app.server_id()` null, so every other policy on the
+      // server stops matching — including the one over `servers` itself. Read
+      // in the old order that came back as "Server not found", the refresh
+      // failed, and the client was left with stale channels and no idea why
+      // nothing worked. It isn't missing; we are barred from it, which is the
+      // one answer worth returning, and it is in the row we can still read.
+      if (user != null && user['is_banned'] == true) {
+        return {
+          'supabase_key': anonKey,
+          'channels': const <Map<String, dynamic>>[],
+          'user': _userRow(user),
+        };
+      }
+
       final server = await db
           .from('servers')
           .select('id, name, icon_url, livekit_url, $_limitColumns')
@@ -168,14 +194,6 @@ class ServerRepository
           .from('channels')
           .select('id, name, channel_type, retention_days, history_cap')
           .order('name');
-      final user = await db
-          .from('users')
-          .select(
-            'id, username, display_name, avatar_path, is_muted, is_deafened, '
-            'is_server_admin, is_channel_manager, can_create_tokens',
-          )
-          .eq('id', _uidOf(bearerToken) ?? '')
-          .maybeSingle();
 
       return {
         'server_id': server['id'],

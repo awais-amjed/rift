@@ -18,6 +18,7 @@ import '../dms/central_dm_view.dart';
 import '../dms/server_dm_view.dart';
 import '../members_sidebar/members_sidebar.dart';
 import '../members_sidebar/widgets/members_sidebar_tab.dart';
+import 'widgets/banned_notice.dart';
 import '../participants_grid/participants_grid.dart';
 
 /// The centre pane's panel. Content panels sit one rung above the canvas on
@@ -86,6 +87,23 @@ class MainContent extends StatelessWidget {
           // something in it — see [HomeView]. A conversation or a channel
           // takes over the moment there is one.
           final compact = context.layoutMode.isCompact;
+
+          // A ban empties every read on the server, so without this the pane
+          // would show an empty channel that never loads. Central DMs are a
+          // different tier and keep working, which is worth leaving reachable
+          // — it is how you'd reach whoever banned you.
+          final bannedFrom = context.select<ServerCubit, String?>((cubit) {
+            final server = cubit.state.selectedServer;
+            return (server?.user?.isBanned ?? false) ? server!.name : null;
+          });
+          if (bannedFrom != null &&
+              appState.surface != HomeSurface.centralDms) {
+            return _ContentPanel(
+              child: _HeaderlessMenu(
+                child: BannedNotice(serverName: bannedFrom),
+              ),
+            );
+          }
 
           if (appState.surface.isDms) {
             // Server DMs keep their own list inside the pane, so on a phone

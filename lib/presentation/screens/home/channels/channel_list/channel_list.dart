@@ -36,16 +36,15 @@ class ChannelList extends StatelessWidget {
         .where((c) => c.channelType == ChannelType.voice)
         .toList();
 
+    final me = context.watch<ServerCubit>().state.selectedServer?.user;
+
+    // A ban leaves your permissions untouched — it only stops any of them
+    // working — so a banned channel manager was still being offered the "+"
+    // and a "Create the first one" button that could not succeed.
+    final banned = me?.isBanned ?? false;
+
     // Only channel managers get the "+" on a section header.
-    final canCreate =
-        context
-            .watch<ServerCubit>()
-            .state
-            .selectedServer
-            ?.user
-            ?.permissions
-            .isChannelManager ??
-        false;
+    final canCreate = !banned && (me?.permissions.isChannelManager ?? false);
     void openCreateChannel() => showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
@@ -60,6 +59,10 @@ class ChannelList extends StatelessWidget {
     // Computed before this branch, not after it: the empty state needs the
     // same button the headers carry, and a new server starts here.
     if (channels.isEmpty) {
+      // Nothing at all when banned: the empty state talks about channels
+      // arriving, and the pane beside it has already said why none will. Two
+      // explanations, one of them wrong, is worse than one.
+      if (banned) return const Expanded(child: SizedBox.shrink());
       return Expanded(
         child: EmptyChannelsView(
           onCreate: canCreate ? openCreateChannel : null,
