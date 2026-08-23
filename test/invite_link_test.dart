@@ -71,15 +71,15 @@ void main() {
   });
 
   group('build', () {
-    test('round trips through the plain form', () {
-      final link = InviteLink.parse(InviteLink.build(server, code));
+    test('round trips through the app link', () {
+      final link = InviteLink.parse(InviteLink.buildAppLink(server, code));
 
       expect(link?.serverUrl, server);
       expect(link?.inviteCode, code);
     });
 
-    test('round trips through the app link', () {
-      final link = InviteLink.parse(InviteLink.buildAppLink(server, code));
+    test('round trips through the plain form', () {
+      final link = InviteLink.parse(InviteLink.buildPlain(server, code));
 
       expect(link?.serverUrl, server);
       expect(link?.inviteCode, code);
@@ -88,7 +88,8 @@ void main() {
     test('a trailing slash is not carried into the link', () {
       // '<url>/#<code>' and '<url>#<code>' would be two spellings of one
       // invite, and the server URL is a cache key elsewhere.
-      expect(InviteLink.build('$server/', code), '$server#$code');
+      expect(InviteLink.buildPlain('$server/', code), '$server#$code');
+      expect(InviteLink.build('$server/', code), endsWith('$server#$code'));
       expect(
         InviteLink.buildAppLink('$server//', code),
         endsWith('$server#$code'),
@@ -100,6 +101,36 @@ void main() {
 
       expect(uri.scheme, InviteLink.appScheme);
       expect(uri.host, InviteLink.joinHost);
+    });
+
+    test('what people share is the clickable one', () {
+      final uri = Uri.parse(InviteLink.build(server, code));
+
+      expect(uri.scheme, 'https');
+      expect(uri.host, InviteLink.inviteHost);
+      // The path Android's intent filter names. If these drift apart, every
+      // invite opens a browser and nothing says why.
+      expect(uri.path, '/${InviteLink.joinHost}');
+    });
+
+    test('the payload rides in the fragment, where the host cannot see it', () {
+      // The whole reason a third-party domain is acceptable in the middle of
+      // an invite: browsers never put a fragment on the wire, so joinrift.app
+      // learns neither which server the invite is for nor its code.
+      final uri = Uri.parse(InviteLink.build(server, code));
+
+      expect(uri.query, isEmpty);
+      expect(uri.fragment, contains(code));
+      expect(uri.fragment, contains(server));
+    });
+
+    test('a clickable link still parses on a machine that cannot open it', () {
+      // Pasting has to keep working when the domain is unreachable, or an
+      // outage takes every invite in circulation with it.
+      final link = InviteLink.parse(InviteLink.build(server, code));
+
+      expect(link?.serverUrl, server);
+      expect(link?.inviteCode, code);
     });
   });
 }

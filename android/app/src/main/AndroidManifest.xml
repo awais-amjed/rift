@@ -99,6 +99,28 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="rift" android:host="join"/>
             </intent-filter>
+            <!-- The clickable half. Android fetches
+                 https://joinrift.app/.well-known/assetlinks.json and opens
+                 this app instead of a browser only if the file names the
+                 certificate that signed the installed copy.
+
+                 Both signatures have to be listed there: the release keystore
+                 for a downloaded APK, and Play's own app signing certificate
+                 for an install from the store, because Play re-signs. Listing
+                 only the upload key is the classic mistake — verification then
+                 fails silently and every invite opens a browser instead, with
+                 nothing anywhere saying why.
+
+                 autoVerify is on this filter and off the rift:// one above,
+                 which needs no proof because the scheme is the app's own. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"
+                      android:host="joinrift.app"
+                      android:path="/join"/>
+            </intent-filter>
         </activity>
         <!-- Name fixed by flutter_foreground_task. stopWithTask, because a
              call cannot outlive the app: without it, swiping the app away

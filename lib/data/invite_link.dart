@@ -29,8 +29,40 @@ class InviteLink {
   /// The path both wrapper forms use, so one router entry answers for both.
   static const String joinHost = 'join';
 
+  /// The one host the project owns, and the only reason a link can be
+  /// *clicked* rather than pasted.
+  ///
+  /// A self-hosted server's own address can't do this: Android verifies an
+  /// https filter against `assetlinks.json` on the host, and no client can
+  /// produce that for an address it has never seen. So every invite is wrapped
+  /// in this one domain, whichever server it is actually for.
+  ///
+  /// It learns nothing by being in the middle. The server URL and the code
+  /// ride in the fragment, which browsers never put on the wire — the landing
+  /// page reads them in the visitor's own browser or not at all.
+  ///
+  /// A fork that would rather not point at this domain changes this one string
+  /// and hosts the same two files. Links already handed out keep working
+  /// either way: [parse] reads the plain form, and the fragment is read
+  /// locally, so even an unreachable domain still pastes.
+  static const String inviteHost = 'joinrift.app';
+
   /// Combines a server URL and invite code into a single shareable link.
+  ///
+  /// The clickable form. It opens the installed app directly on Android — the
+  /// intent filter for [inviteHost] is verified against the site — and the
+  /// landing page catches everyone else.
   static String build(String serverUrl, String inviteCode) {
+    return 'https://$inviteHost/$joinHost'
+        '#${_trim(serverUrl)}#${inviteCode.trim()}';
+  }
+
+  /// The bare `<server-url>#<code>` pair, with nothing in front of it.
+  ///
+  /// What invites looked like before there was a domain, and still the honest
+  /// answer for anyone who would rather their invite not mention a host they
+  /// don't run. Pastes into the join field; never opens the app by itself.
+  static String buildPlain(String serverUrl, String inviteCode) {
     return '${_trim(serverUrl)}#${inviteCode.trim()}';
   }
 
