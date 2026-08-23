@@ -154,6 +154,37 @@ the `key_version ≤ current+1` race (first writer wins, losers refetch and re-w
 getting them wrong breaks decryption silently rather than loudly, so they were left on the
 service role until they can be moved with care.
 
+### Push runs on central, for everyone
+
+`push_send` lives on the central project (`central_edge_functions/`) and is the
+only thing holding FCM credentials. It has to be: registration tokens are scoped
+to the Firebase project an app was built against, so only the holder of Rift's
+credentials can wake a Rift install — and self-hosted operators cannot be handed
+those keys. Their servers ask central to forward instead.
+
+What it learns is a device token and a moment. Not who sent the message, not what
+it said, not which server or channel. The payload is empty and sent as `data`
+rather than `notification`, so the app's handler draws the notification instead of
+the system — which is what keeps the sender and the text out of a payload Google
+can read, and lets the phone say something true about a message it decrypts
+itself.
+
+Callers authenticate with `x-push-secret`; on central the trigger reads it from
+`push_config`, a table with RLS and no policy at all, reachable only by the
+SECURITY DEFINER trigger. Bodies are `{recipient}` (look the tokens up here) or
+`{tokens: [...]}` (a relaying server already holds them). Tokens FCM reports as
+`UNREGISTERED`/`INVALID_ARGUMENT` are deleted; anything else is treated as
+transient and the token is kept.
+
+Deploying it needs `TMPDIR` pointed somewhere Docker Desktop shares — `/tmp` is
+not, and the bundler fails with "path is not shared from the host":
+
+```
+cd central_edge_functions
+TMPDIR=$HOME/tmp supabase functions deploy push_send \
+  --project-ref <ref> --no-verify-jwt     # the DB trigger calls it without a JWT
+```
+
 ### Response format (edge functions only)
 
 ```jsonc
