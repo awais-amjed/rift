@@ -4,10 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/search_dropdown_field.dart';
-import '../../../../common/squircle_avatar.dart';
-import '../../../../theme/app_text.dart';
+import '../../../../common/search_result_row.dart';
 
 /// Finds people in the central directory by handle.
 ///
@@ -32,7 +30,7 @@ class HandleSearchField extends StatelessWidget {
       hintText: 'Find by handle…',
       emptyMessage: 'Nobody found with that handle.',
       onSearch: context.read<CentralDmCubit>().searchHandles,
-      itemBuilder: (context, result, dismiss) => _ResultRow(
+      itemBuilder: (context, result, dismiss) => SearchResultRow(
         name: '@${result.peerName}',
         seed: result.peerId,
         onTap: () {
@@ -46,55 +44,6 @@ class HandleSearchField extends StatelessWidget {
             peerSigningKey: result.peerSigningPublicKey,
           );
         },
-      ),
-    );
-  }
-}
-
-/// One person in a DM search drop-down.
-class _ResultRow extends StatelessWidget {
-  final String name;
-  final String seed;
-  final VoidCallback onTap;
-
-  const _ResultRow({
-    required this.name,
-    required this.seed,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
-    final radius = BorderRadius.circular(9);
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: radius,
-      child: InkWell(
-        borderRadius: radius,
-        hoverColor: themeState.bgHover,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          child: Row(
-            spacing: 9,
-            children: [
-              SquircleAvatar(name: name, seed: seed, size: 26),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.row.copyWith(
-                    fontSize: 13,
-                    color: themeState.textPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

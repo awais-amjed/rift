@@ -37,11 +37,9 @@ class SearchDropdownField<T> extends StatefulWidget {
 
   /// Fires when the drop-down opens and closes.
   ///
-  /// The panel behind needs it: a drop-down anchored under the field lands on
-  /// whatever the list is showing, and an empty state is the worst thing for
-  /// it to land on — two rounded cards of nearly the same colour, one sliced
-  /// through a line of text by the other's bottom edge. It also contradicts
-  /// the drop-down, saying there is nobody here over a list of people.
+  /// The results float over whatever is behind the field, so the panel below
+  /// gets a say in what it shows underneath them — see `ServerDmView` for the
+  /// case this exists for.
   final ValueChanged<bool>? onOpenChanged;
 
   /// Supply both to drive the field from outside — to pre-fill it, or to

@@ -10,8 +10,8 @@ import 'package:window_manager/window_manager.dart';
 
 import 'data/repositories/secure_storage_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
-import 'logic/services/host_platform.dart';
 import 'logic/services/browser_apis.dart';
+import 'logic/services/host_platform.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/window_focus_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';

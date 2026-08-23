@@ -6,7 +6,7 @@ import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/search_dropdown_field.dart';
-import 'member_row.dart';
+import '../../../../common/search_result_row.dart';
 
 /// Starts a DM with a member of the selected server.
 ///
@@ -71,8 +71,11 @@ class _MemberSearchFieldState extends State<MemberSearchField> {
       emptyMessage: 'No members match that name.',
       openOnFocus: true,
       onSearch: _search,
-      itemBuilder: (context, member, dismiss) => MemberRow(
-        member: member,
+      itemBuilder: (context, member, dismiss) => SearchResultRow(
+        name: member.displayName,
+        seed: member.id,
+        imageUrl: member.avatarPath,
+        trailingNote: 'no keys yet',
         // Someone who has never opened the app has published no chat key, so
         // there is nothing to encrypt to yet.
         onTap: member.chatPublicKey == null
