@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_submenu_item.dart';
 import 'participant_move_menu.dart';
+import 'participant_removal_items.dart';
 import 'participant_roles_menu.dart';
 
 /// The part of a participant's context menu that only staff see.
@@ -22,6 +23,9 @@ import 'participant_roles_menu.dart';
 ///   another channel is most of the point.
 /// * **Roles** is for server admins, and works whether or not they're in a
 ///   call, because the roster carries permissions either way.
+/// * **Disconnect and Ban** come last, in that order, because they are the two
+///   biggest things on here and the list should not start with them. Their own
+///   reaches differ again — see [ParticipantRemovalItems].
 class ParticipantAdminSection extends StatelessWidget {
   /// A live LiveKit identity, or a bare user id — moderation resolves the user
   /// out of it either way.
@@ -39,6 +43,13 @@ class ParticipantAdminSection extends StatelessWidget {
   /// not in a call, in which case there is nothing to move.
   final String? voiceChannelId;
 
+  /// Shown beside the removal items, which name the person they act on.
+  final String name;
+
+  /// Whether the target is a server admin, in which case neither removal is
+  /// offered — the server refuses both.
+  final bool targetIsAdmin;
+
   final bool isServerMuted;
   final bool isServerDeafened;
 
@@ -50,11 +61,17 @@ class ParticipantAdminSection extends StatelessWidget {
     required this.isServerAdmin,
     required this.isLive,
     required this.voiceChannelId,
+    required this.name,
+    required this.targetIsAdmin,
     required this.isServerMuted,
     required this.isServerDeafened,
   });
 
   bool get _canMove => isModerator && voiceChannelId != null;
+
+  /// Same reach as a move: staff, and only into a call that exists — but not
+  /// against an admin, who `kick_user` refuses.
+  bool get _canDisconnect => _canMove && !targetIsAdmin;
 
   bool get _showsAnything =>
       (isModerator && isLive) || _canMove || isServerAdmin;
@@ -121,6 +138,14 @@ class ParticipantAdminSection extends StatelessWidget {
                   child: ParticipantRolesMenu(userId: targetUserId),
                 ),
               ),
+            ParticipantRemovalItems(
+              targetUserId: targetUserId,
+              name: name,
+              canDisconnect: _canDisconnect,
+              // Admin only, matching `moderate_user`'s own `app.is_admin()`,
+              // and never against another admin, which it also refuses.
+              canBan: isServerAdmin && !targetIsAdmin,
+            ),
             Divider(height: 9, color: themeState.borderPrimary),
           ],
         );

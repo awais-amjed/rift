@@ -7,6 +7,7 @@ import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
@@ -110,6 +111,21 @@ class ParticipantContextMenu extends StatelessWidget {
             // their moderation state is unknown here.
             final isLive = targetInfo != null;
 
+            // An admin is not a moderation target for another admin — the
+            // server says so, and the menu should agree rather than offering
+            // a button that comes back "cannot_moderate_admin". Unknown
+            // resolves to false on purpose: the member list may not have
+            // loaded yet, and hiding the controls from everyone until it does
+            // would be the worse failure.
+            final targetIsAdmin =
+                context
+                    .watch<ServerMembersCubit>()
+                    .state
+                    .byId[targetUserId]
+                    ?.permissions
+                    .isServerAdmin ??
+                false;
+
             // Which call they're in, if any: ours when they're on the roster,
             // otherwise whatever presence says. Only "Move to" needs it — and
             // only to leave out the channel they're already in.
@@ -174,9 +190,11 @@ class ParticipantContextMenu extends StatelessWidget {
                     target: identity,
                     targetUserId: targetUserId,
                     isModerator: isModerator,
+                    name: name,
                     isServerAdmin: isServerAdmin,
                     isLive: isLive,
                     voiceChannelId: voiceChannelId,
+                    targetIsAdmin: targetIsAdmin,
                     isServerMuted: isServerMuted,
                     isServerDeafened: isServerDeafened,
                   ),

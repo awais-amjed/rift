@@ -92,12 +92,14 @@ class _MembersModalState extends State<MembersModal> {
     ServerMember member, {
     bool? muted,
     bool? deafened,
+    bool? banned,
   }) async {
     setState(() => _busyId = member.id);
     final response = await context.read<ServerCubit>().moderateUser(
       userId: member.id,
       isMuted: muted,
       isDeafened: deafened,
+      isBanned: banned,
       serverId: widget.server.id,
     );
     if (!mounted) return;
@@ -107,7 +109,11 @@ class _MembersModalState extends State<MembersModal> {
         _members = _members!
             .map(
               (m) => m.id == member.id
-                  ? m.copyWith(isMuted: muted, isDeafened: deafened)
+                  ? m.copyWith(
+                      isMuted: muted,
+                      isDeafened: deafened,
+                      isBanned: banned,
+                    )
                   : m,
             )
             .toList();

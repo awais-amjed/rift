@@ -51,7 +51,7 @@ Future<void> _pumpRow(WidgetTester tester) async {
             onTap: () {},
             onPermissionChanged:
                 ({isServerAdmin, isChannelManager, canCreateTokens}) {},
-            onModerate: ({muted, deafened}) {},
+            onModerate: ({muted, deafened, banned}) {},
           ),
         ),
       ),

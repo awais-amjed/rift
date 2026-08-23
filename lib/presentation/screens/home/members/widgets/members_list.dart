@@ -30,7 +30,12 @@ class MembersList extends StatelessWidget {
     bool? canCreateTokens,
   })
   onPermissionChanged;
-  final void Function(ServerMember member, {bool? muted, bool? deafened})
+  final void Function(
+    ServerMember member, {
+    bool? muted,
+    bool? deafened,
+    bool? banned,
+  })
   onModerate;
 
   const MembersList({
@@ -76,8 +81,12 @@ class MembersList extends StatelessWidget {
                     isChannelManager: isChannelManager,
                     canCreateTokens: canCreateTokens,
                   ),
-          onModerate: ({muted, deafened}) =>
-              onModerate(member, muted: muted, deafened: deafened),
+          onModerate: ({muted, deafened, banned}) => onModerate(
+            member,
+            muted: muted,
+            deafened: deafened,
+            banned: banned,
+          ),
         );
       },
     );

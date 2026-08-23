@@ -1,0 +1,118 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
+import '../../../../common/confirm_dialog.dart';
+import '../../../../common/context_menu/context_menu_item.dart';
+import '../../../../common/context_menu_region.dart';
+
+/// The two ways to remove someone, which are not the same tool.
+///
+/// **Disconnect** ends their connections to this call and nothing else. They
+/// may walk straight back in; nothing is written down. It is for defusing a
+/// moment — a hot mic in an empty room — and it deliberately does not ask for
+/// confirmation, because the worst case is that someone rejoins.
+///
+/// **Ban** is the persistent one: RLS refuses them everything on the server
+/// afterwards, and they are removed from every live call on the way out. It
+/// asks first, because nothing about it is a small mistake.
+///
+/// Only banning is admin-only. Disconnect follows "Move to" — the same staff
+/// authority over a call — because it is the same size of act.
+///
+/// There is no unban here on purpose. A banned member cannot be a live
+/// participant, so this menu can only ever be looking at someone who isn't
+/// banned; showing them a toggle would be showing them a constant. Unbanning
+/// lives in the Members dialog, which reads the real state.
+class ParticipantRemovalItems extends StatelessWidget {
+  final String targetUserId;
+  final String name;
+
+  /// May disconnect: staff, and only when there is a call to remove them from.
+  final bool canDisconnect;
+
+  /// May ban: server admins, matching `moderate_user`'s own rule.
+  final bool canBan;
+
+  const ParticipantRemovalItems({
+    super.key,
+    required this.targetUserId,
+    required this.name,
+    required this.canDisconnect,
+    required this.canBan,
+  });
+
+  Future<void> _disconnect(BuildContext context) async {
+    // Dismissed up front: the menu is about a participant who is about to stop
+    // being one, and leaving it open over an empty tile reads as a no-op.
+    ContextMenuScope.of(context)?.call();
+    final response = await context.read<ServerCubit>().kickUser(
+      userId: targetUserId,
+    );
+    if (response.success) return;
+    HelperMethods.showToast(
+      title: 'Could not disconnect',
+      description: '${response.error}',
+    );
+  }
+
+  Future<void> _ban(BuildContext context) async {
+    // Reads before the await: confirming dismisses the menu this widget lives
+    // in, so the cubit has to be in hand before the tree goes.
+    final serverCubit = context.read<ServerCubit>();
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Ban $name?',
+      message:
+          'They lose access to this server immediately, including anything '
+          'they are in the middle of. Their messages stay. You can lift it '
+          'again from the Members dialog.',
+      confirmLabel: 'Ban',
+      icon: Icons.gavel_rounded,
+      isDestructive: true,
+    );
+    if (!confirmed) return;
+
+    final response = await serverCubit.moderateUser(
+      userId: targetUserId,
+      isBanned: true,
+    );
+    if (response.success) {
+      HelperMethods.showToast(title: 'Banned', description: '$name is out.');
+      return;
+    }
+    HelperMethods.showToast(
+      title: 'Could not ban',
+      description: '${response.error}',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!canDisconnect && !canBan) return const SizedBox.shrink();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (canDisconnect)
+          ContextMenuItem(
+            icon: Icons.call_end_rounded,
+            label: 'Disconnect',
+            isDangerous: true,
+            onTap: () => _disconnect(context),
+          ),
+        if (canBan)
+          ContextMenuItem(
+            icon: Icons.gavel_rounded,
+            label: 'Ban from server',
+            isDangerous: true,
+            // Nothing dismisses here — showConfirmDialog does it on the way in,
+            // and doing it twice would take the dialog down with the menu.
+            onTap: () => _ban(context),
+          ),
+      ],
+    );
+  }
+}

@@ -26,7 +26,7 @@ class MemberRow extends StatelessWidget {
     bool? canCreateTokens,
   })
   onPermissionChanged;
-  final void Function({bool? muted, bool? deafened}) onModerate;
+  final void Function({bool? muted, bool? deafened, bool? banned}) onModerate;
 
   const MemberRow({
     super.key,
