@@ -120,9 +120,14 @@ class NotificationService {
       showBrowserNotification(title: title, body: body);
       return;
     }
-    // Windows has no concept of "any listener" — guard platform anyway so a
-    // stray call on an unsupported target is a silent no-op.
-    if (!Platform.isLinux && !Platform.isWindows) return;
+    // Android was missing from this list, which quietly cost the platform that
+    // needs notifications most every message notification it should have had:
+    // [init] configures and asks permission for it, and then nothing was ever
+    // posted. macOS and iOS are genuinely not set up in [init] yet, so they
+    // stay out until they are.
+    if (!Platform.isLinux && !Platform.isWindows && !Platform.isAndroid) {
+      return;
+    }
     try {
       await _plugin.show(
         id: _nextId++,

@@ -8,6 +8,7 @@ import 'attachment_repository.dart';
 
 part 'central_dm_repository_attachments.dart';
 part 'central_dm_repository_directory.dart';
+part 'central_dm_repository_push.dart';
 part 'central_dm_repository_read_state.dart';
 
 /// Central-server DM I/O (Stage 3 — the discovery/first-contact tier,
@@ -18,6 +19,7 @@ part 'central_dm_repository_read_state.dart';
 class CentralDmRepository
     with
         _CentralDmAttachmentsMixin,
+        _CentralDmPushMixin,
         _CentralDmDirectoryMixin,
         _CentralDmReadStateMixin {
   @override

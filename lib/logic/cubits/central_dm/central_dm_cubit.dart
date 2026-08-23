@@ -17,6 +17,7 @@ import '../../../supabase_config.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../helper_methods.dart';
 import '../../services/central_handle.dart';
+import '../../services/push_service.dart';
 import '../../services/attachment_cache.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
@@ -219,6 +220,28 @@ class CentralDmCubit extends Cubit<CentralDmState>
     return true;
   }
 
+  /// Tell central where to ring this device, and keep telling it.
+  ///
+  /// The token is not available at a fixed moment — it arrives asynchronously
+  /// on first run and FCM can replace it at any time afterwards — so this
+  /// registers whatever is there now and subscribes to whatever comes next.
+  /// A phone whose rotated token was never re-registered is a phone that has
+  /// silently stopped ringing, which is the failure worth designing against.
+  Future<void> _registerDevice() async {
+    if (!PushService.isSupported) return;
+    PushService.instance.token.removeListener(_onPushToken);
+    PushService.instance.token.addListener(_onPushToken);
+    await _onPushTokenAsync();
+  }
+
+  void _onPushToken() => unawaited(_onPushTokenAsync());
+
+  Future<void> _onPushTokenAsync() async {
+    final token = PushService.instance.token.value;
+    if (token == null || isClosed) return;
+    await _repo.registerDevice(token: token, platform: PushService.platform);
+  }
+
   Future<void> _activateProfile(String handle) async {
     // Keep the published keys in sync with the seed-derived identity (a
     // restored seed on a new device re-derives the same keys, so this is
@@ -233,6 +256,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
       ),
     );
 
+    unawaited(_registerDevice());
     _incoming ??= _repo.subscribeIncoming(
       _onIncoming,
       onUpdate: _onMessageUpdated,
@@ -344,6 +368,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
 
   @override
   Future<void> close() async {
+    PushService.instance.token.removeListener(_onPushToken);
     WindowFocusService.instance.focused.removeListener(_onFocusChanged);
     await _authSub?.cancel();
     await _vaultSub?.cancel();

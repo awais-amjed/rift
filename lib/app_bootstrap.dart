@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,7 @@ import 'logic/cubits/app/app_cubit.dart';
 import 'logic/services/browser_apis.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/notification_service.dart';
+import 'logic/services/push_service.dart';
 import 'logic/services/window_focus_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'src/rust/frb_generated.dart';
@@ -52,6 +54,9 @@ class AppBootstrap {
     // permission at startup beats a system dialog appearing on top of the
     // first message it is about.
     await NotificationService.instance.init();
+    // After the local notifications it depends on: a push that arrives during
+    // startup is handled by showing one.
+    unawaited(PushService.instance.init());
     // The web's stand-in for the WindowListener callbacks in main.dart, which
     // window_manager supplies everywhere else. Without it the tab is focused
     // forever and nothing ever notifies, because every trigger site gates on

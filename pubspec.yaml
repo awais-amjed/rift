@@ -77,6 +77,8 @@ dependencies:
   # through the `browser_apis_web.dart` half of a conditional export, so it is
   # never reached on native.
   web: ^1.1.1
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
