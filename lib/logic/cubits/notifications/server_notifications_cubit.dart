@@ -149,19 +149,25 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     if (row['sender_id'] == _subs[serverId]?.userId) return;
 
     final focused = WindowFocusService.instance.isFocused;
-
-    // Looking at this exact channel → it's read; don't badge or notify.
-    if (focused &&
+    final isOpenChannel =
         _channelOnScreen &&
         serverId == _openServerId &&
-        channelId == _openChannelId) {
+        channelId == _openChannelId;
+
+    // Looking at this exact channel → it's read; don't badge or notify.
+    if (focused && isOpenChannel) {
       markChannelRead(serverId, channelId);
       return;
     }
 
     emit(state.incremented(serverId, channelId));
 
-    if (!focused) {
+    // The open channel's notification belongs to ChannelChatCubit, which holds
+    // that channel's key. This row is ciphertext, so the best it could say is
+    // "new message"; that one can name the sender, quote the message, and tell
+    // a mention from an ordinary line. Whoever can read it should be the one
+    // describing it — and only one of us may, or it arrives twice.
+    if (!focused && !isOpenChannel) {
       final server = _serverById(serverId);
       String? channelName;
       for (final c in server?.channels ?? const []) {

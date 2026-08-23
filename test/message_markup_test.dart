@@ -126,6 +126,36 @@ void main() {
     });
   });
 
+  group('mentionsAnyOf', () {
+    // The same answer decides whether a name lights up and whether it is worth
+    // a notification. One function, so the highlight and the badge cannot
+    // disagree about who was pinged.
+    test('finds a name it was given', () {
+      expect(mentionsAnyOf('ping @noor please', {'noor'}), isTrue);
+    });
+
+    test('is case insensitive on both sides', () {
+      expect(mentionsAnyOf('hey @Noor', {'noor'}), isTrue);
+    });
+
+    test('a name nobody has is not a mention', () {
+      expect(mentionsAnyOf('hey @someone', {'noor'}), isFalse);
+    });
+
+    test('an empty roster reaches nobody', () {
+      expect(mentionsAnyOf('hey @noor', {}), isFalse);
+    });
+
+    test('a name inside code does not ping', () {
+      // Talking *about* a mention is not making one.
+      expect(mentionsAnyOf('type `@noor` to ping', {'noor'}), isFalse);
+    });
+
+    test('an email address does not ping its domain', () {
+      expect(mentionsAnyOf('mail a@noor.com', {'noor'}), isFalse);
+    });
+  });
+
   group('mentions', () {
     test('an at-name is carried out separately', () {
       final spans = parse('ping @noor about it');

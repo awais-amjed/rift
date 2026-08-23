@@ -8,6 +8,7 @@ import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
+import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
@@ -16,7 +17,10 @@ import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_failure.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/message_markup.dart';
+import '../../services/notification_service.dart';
 import '../../services/reaction_ops.dart';
+import '../../services/window_focus_service.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -296,12 +300,46 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   @override
   void _onFreshIncoming(List<ChatMessage> incoming) {
-    // Clear the sender's typing indicator. OS notifications for every channel
-    // (including this one) are raised by ServerNotificationsCubit from the
-    // notifications table, so we don't fire them here — avoids double-notify.
     for (final m in incoming) {
       _removeTyping(m.authorId);
     }
+    _notify(incoming);
+  }
+
+  /// Raise notifications for messages that arrived in the channel on screen.
+  ///
+  /// Every other channel is `ServerNotificationsCubit`'s, which sees only
+  /// ciphertext and can say no more than "new message in #general". This one
+  /// holds the key, so it can name the sender, quote the line, and — the point
+  /// of the exercise — tell being mentioned from being in the room. The two
+  /// divide by who can read the message so that exactly one of them speaks.
+  ///
+  /// Unfocused only, same as everywhere else: a notification for something you
+  /// are looking at is noise.
+  void _notify(List<ChatMessage> incoming) {
+    if (incoming.isEmpty || WindowFocusService.instance.isFocused) return;
+
+    final server = _serverCubit.state.selectedServer;
+    final me = server?.user?.username.toLowerCase();
+    final channelName = _openChannelName(server);
+    final mentionable = me == null ? const <String>{} : {me};
+
+    for (final message in incoming) {
+      final mentioned = mentionsAnyOf(message.text, mentionable);
+      NotificationService.instance.showMessage(
+        title: mentioned
+            ? '${message.authorName} mentioned you in #$channelName'
+            : '${message.authorName} in #$channelName',
+        body: message.text.isNotEmpty ? message.text : 'Sent an attachment',
+      );
+    }
+  }
+
+  String _openChannelName(Server? server) {
+    for (final c in server?.channels ?? const <Channel>[]) {
+      if (c.id == state.channelId) return c.name;
+    }
+    return 'channel';
   }
 
   /// Notify other members that a new row exists. Fire-and-forget: the row in

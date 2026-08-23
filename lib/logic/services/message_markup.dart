@@ -224,3 +224,17 @@ List<MarkupSpan> _merge(List<MarkupSpan> spans) {
   }
   return out;
 }
+
+/// Whether [text] names somebody in [mentionable].
+///
+/// Separate from rendering because the same question decides whether a message
+/// is worth a notification, and answering it twice in two places is how the
+/// highlight and the badge end up disagreeing.
+bool mentionsAnyOf(String text, Set<String> names) {
+  if (names.isEmpty) return false;
+  for (final span in parseMessageMarkup(text)) {
+    final mention = span.mention;
+    if (mention != null && names.contains(mention.toLowerCase())) return true;
+  }
+  return false;
+}
