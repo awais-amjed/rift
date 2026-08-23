@@ -86,7 +86,8 @@ class PushService {
 @pragma('vm:entry-point')
 Future<void> pushBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  await NotificationService.instance.init();
+  // No Activity here, so nothing to hang a permission dialog on.
+  await NotificationService.instance.init(askForPermission: false);
   await NotificationService.instance.showMessage(
     title: 'Rift',
     body: 'You have a new message',

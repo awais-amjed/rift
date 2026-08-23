@@ -37,7 +37,12 @@ class NotificationService {
   int _nextId = 0;
 
   /// Initialize once, before `runApp`. Safe on every platform.
-  Future<void> init() async {
+  ///
+  /// [askForPermission] exists for the push background isolate, which has no
+  /// Activity behind it: asking there throws on a null context, and asking is
+  /// pointless anyway because the permission is a property of the app, already
+  /// settled by the UI. See [_requestAndroidPermission].
+  Future<void> init({bool askForPermission = true}) async {
     if (_ready) return;
     if (kIsWeb) {
       // Deliberately not awaited. The browser's permission promise does not
@@ -73,8 +78,12 @@ class NotificationService {
           android: android,
         ),
       );
-      await _requestAndroidPermission();
+      // Ready before the permission is asked for, and the ask cannot unset it.
+      // A refused or unavailable permission costs notifications; it must not
+      // cost the plugin's initialization, or a failure to *ask* silently
+      // disables posting even where permission was granted long ago.
       _ready = true;
+      if (askForPermission) await _requestAndroidPermission();
     } catch (e) {
       debugPrint('NotificationService: init failed – $e');
     }
@@ -88,11 +97,18 @@ class NotificationService {
   /// no handling here — [showMessage] simply has no effect afterwards.
   Future<void> _requestAndroidPermission() async {
     if (kIsWeb || !Platform.isAndroid) return;
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    await android?.requestNotificationsPermission();
+    try {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      await android?.requestNotificationsPermission();
+    } catch (e) {
+      // Throws where there is no Activity to attach a dialog to — a background
+      // isolate woken by a push, most of all. Nothing to do about it there and
+      // nothing worth failing over.
+      debugPrint('NotificationService: permission request skipped – $e');
+    }
   }
 
   /// The channel every message notification is posted to.
