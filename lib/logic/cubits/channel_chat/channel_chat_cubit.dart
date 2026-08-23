@@ -118,6 +118,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     );
 
     final server = _serverCubit.state.selectedServer;
+    _openServerId = server?.id;
     if (server == null || server.user == null) {
       emit(
         state.copyWith(
@@ -162,6 +163,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   Future<void> closeChannel() async {
     _openGeneration++;
+    _openServerId = null;
     await _teardownRealtime();
     _keys.clear();
     _currentKeyVersion = 0;
@@ -179,10 +181,23 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   bool _isStale(int generation) => isClosed || generation != _openGeneration;
 
+  /// The server the open channel belongs to.
+  ///
+  /// Not `_rtServerId`, which this used to compare against: that is realtime
+  /// bookkeeping, and it is null for the whole of [openChannel] between the
+  /// teardown at the top and the subscribe at the bottom — two network round
+  /// trips later. Any `ServerCubit` emission in that window read as "the
+  /// server changed" and closed the channel that was still opening, so the
+  /// click did nothing and nothing was logged. Rare until something started
+  /// refreshing server details more often, and then it was every time.
+  String? _openServerId;
+
   void _onServerChanged(ServerState serverState) {
     // Switching (or losing) the server closes the open chat.
     final serverId = serverState.selectedServer?.id;
-    if (state.channelId != null && serverId != _rtServerId) {
+    if (state.channelId != null &&
+        _openServerId != null &&
+        serverId != _openServerId) {
       closeChannel();
     }
     _ensureServerChatReady();
@@ -203,7 +218,13 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// construction, server change, and vault unlock.
   Future<void> _ensureServerChatReady() async {
     final server = _serverCubit.state.selectedServer;
-    if (server == null || server.user == null) {
+    // A ban counts as having no server here. Without this the setup still ran
+    // — publishing a key, sweeping, subscribing — and every call quietly
+    // failed against RLS, but `_readyServerId` was set all the same. Lifting
+    // the ban then changed nothing, because readiness was already "done": the
+    // channel list came back and opening a channel did nothing at all. Being
+    // unready is the honest state, and it is what makes the unban re-run this.
+    if (server == null || server.user == null || server.user!.isBanned) {
       await _teardownSweepRealtime();
       _readyServerId = null;
       return;

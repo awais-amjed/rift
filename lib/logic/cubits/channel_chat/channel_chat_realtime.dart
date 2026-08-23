@@ -19,10 +19,6 @@ mixin _ChannelChatRealtimeMixin
   SupabaseClient? _rtClient;
   RealtimeChannel? _rtChannel;
 
-  /// The server the open topic belongs to, so a server switch can tell that
-  /// the channel it is holding is no longer this one's.
-  String? _rtServerId;
-
   /// Per-user expiry timers for typing indicators (removed when they lapse).
   final Map<String, Timer> _typingTimers = {};
 
@@ -38,7 +34,6 @@ mixin _ChannelChatRealtimeMixin
 
   void _setupRealtime(Server server, String channelId) {
     if (server.supabaseKey == null) return;
-    _rtServerId = server.id;
     _rtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
     _rtChannel = _rtClient!.channel('chat:$channelId')
       ..onBroadcast(event: 'new_message', callback: (_) => _onDoorbell())
@@ -53,7 +48,6 @@ mixin _ChannelChatRealtimeMixin
     final client = _rtClient;
     _rtChannel = null;
     _rtClient = null;
-    _rtServerId = null;
     _lastTypingSent = null;
     for (final timer in _typingTimers.values) {
       timer.cancel();
