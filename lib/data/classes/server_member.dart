@@ -52,6 +52,7 @@ class ServerMember {
     UserPermissions? permissions,
     bool? isMuted,
     bool? isDeafened,
+    bool? isBanned,
   }) {
     return ServerMember(
       id: id,
@@ -60,7 +61,7 @@ class ServerMember {
       permissions: permissions ?? this.permissions,
       isMuted: isMuted ?? this.isMuted,
       isDeafened: isDeafened ?? this.isDeafened,
-      isBanned: isBanned,
+      isBanned: isBanned ?? this.isBanned,
       chatPublicKey: chatPublicKey,
       avatarPath: avatarPath,
     );

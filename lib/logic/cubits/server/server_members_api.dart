@@ -108,12 +108,22 @@ mixin _ServerMembersApiMixin on Cubit<ServerState> {
     );
   }
 
-  /// Persistently mutes/deafens a user server-wide on [serverId], or on the
-  /// selected server (requires channel manager or server admin).
+  /// Persistently mutes/deafens/bans a user server-wide on [serverId], or on
+  /// the selected server (requires channel manager or server admin).
+  ///
+  /// Omitted flags are left as they are — the endpoint reads the row back and
+  /// reports the whole state, so a caller changing one thing never has to know
+  /// the others.
+  ///
+  /// A ban is the persistent end of moderation: it removes them from every
+  /// live call immediately and RLS refuses them everything afterwards. Setting
+  /// [isBanned] false lets them back in; nothing else about them changed while
+  /// they were out.
   Future<APIResponse> moderateUser({
     required String userId,
     bool? isMuted,
     bool? isDeafened,
+    bool? isBanned,
     String? serverId,
   }) {
     final server = _target(serverId);
@@ -128,6 +138,7 @@ mixin _ServerMembersApiMixin on Cubit<ServerState> {
         userId: userId,
         isMuted: isMuted,
         isDeafened: isDeafened,
+        isBanned: isBanned,
       ),
     );
   }

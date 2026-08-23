@@ -70,6 +70,18 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     ),
   );
 
+  /// Disconnects a member from the voice channel they're in (requires channel
+  /// manager or server admin). They have to be in a call for there to be
+  /// anything to end, and nothing stops them rejoining — see `kick_user`.
+  Future<APIResponse> kickUser({required String userId}) =>
+      _callWithAutoRefresh(
+        (token) => _repository.kickUser(
+          state.selectedServer!.supabaseUrl,
+          bearerToken: token,
+          userId: userId,
+        ),
+      );
+
   /// Who is in which voice channel on the selected server, straight from
   /// LiveKit: `{roster: {userId: channelId}}`.
   Future<APIResponse> voiceRoster() => _callWithAutoRefresh(

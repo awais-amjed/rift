@@ -626,6 +626,23 @@ class ServerRepository
     }, bearerToken: bearerToken);
   }
 
+  /// Disconnect a member from the voice channel they're in (channel manager
+  /// or admin).
+  ///
+  /// The transient half of moderation: nothing is written down and they may
+  /// rejoin immediately. Like [moveUser] it needs the LiveKit API secret, and
+  /// like it there is no table call to make — the difference is that this ends
+  /// every connection they hold here, screen share included.
+  Future<APIResponse> kickUser(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String userId,
+  }) {
+    return _post(supabaseUrl, 'kick_user', {
+      'target_user_id': userId,
+    }, bearerToken: bearerToken);
+  }
+
   /// Who is in which voice channel right now, as LiveKit sees it:
   /// `{roster: {userId: channelId}}`.
   ///
