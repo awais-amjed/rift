@@ -12,6 +12,55 @@ void main() {
     tokenIssuedAt: DateTime.now(),
   );
 
+  group('Server.copyWith as a partial update', () {
+    // What `refreshServerDetails` relies on: it hands over whatever the server
+    // reply contained and nothing else, so every field it omits has to survive
+    // untouched. Before it passed `name`, a rename by another admin reached
+    // only the client that made it — everyone else kept the old one until they
+    // rejoined, and nothing looked wrong.
+    Server full() => Server(
+      id: 'srv1',
+      name: 'Cartography Club',
+      iconUrl: 'https://example.test/icon.png',
+      supabaseUrl: 'http://localhost:8000',
+      supabaseKey: 'anon-key',
+      livekitUrl: 'ws://192.168.1.6:7880',
+      token: 'tok1',
+      tokenIssuedAt: DateTime.now(),
+      channels: const [],
+    );
+
+    test('an all-null update changes nothing', () {
+      final before = full();
+      final after = before.copyWith();
+
+      expect(after.name, before.name);
+      expect(after.iconUrl, before.iconUrl);
+      expect(after.supabaseKey, before.supabaseKey);
+      expect(after.livekitUrl, before.livekitUrl);
+      expect(after.token, before.token);
+    });
+
+    test('renaming leaves the rest of the server alone', () {
+      final after = full().copyWith(name: 'Weekend Crew');
+
+      expect(after.name, 'Weekend Crew');
+      expect(after.livekitUrl, 'ws://192.168.1.6:7880');
+      expect(after.supabaseKey, 'anon-key');
+      expect(after.iconUrl, 'https://example.test/icon.png');
+    });
+
+    test('a reply that omits the name does not blank it', () {
+      // The banned-member path returns a user row and no server identity at
+      // all. Passing those nulls through must not erase what we already knew.
+      final after = full().copyWith(name: null, iconUrl: null, limits: null);
+
+      expect(after.name, 'Cartography Club');
+      expect(after.iconUrl, 'https://example.test/icon.png');
+      expect(after.limits, isNotNull);
+    });
+  });
+
   group('Server token freshness', () {
     test('a freshly issued token is not near expiry', () {
       expect(base().isTokenNearExpiry, isFalse);

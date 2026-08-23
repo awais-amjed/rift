@@ -245,8 +245,26 @@ mixin _ServerApiMixin on Cubit<ServerState> {
           ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
           : null;
 
+      // Only when the response carries them. `ServerLimits.fromJson` fills in
+      // defaults for anything missing, which is right for a real payload and
+      // wrong for one that never mentioned limits — it would quietly reset an
+      // operator's caps to the defaults. The banned-member reply is exactly
+      // that shape.
+      final limits = data.containsKey('max_attachment_bytes')
+          ? ServerLimits.fromJson(data)
+          : null;
+
       updateServer(
         server.id,
+        // The identity of the server, not just its contents. These were
+        // fetched and then dropped on the floor, so a rename, a new icon or a
+        // moved LiveKit URL reached only the client that made the change —
+        // everyone else kept the old one until they rejoined. `copyWith`
+        // leaves a null alone, so a reply that omits them changes nothing.
+        name: data['name'] as String?,
+        iconUrl: data['icon_url'] as String?,
+        livekitUrl: data['livekit_url'] as String?,
+        limits: limits,
         channels: channels,
         supabaseKey: supabaseKey,
         user: user,
