@@ -1,10 +1,11 @@
 part of 'channel_chat_cubit.dart';
 
 /// Phase-2 key distribution: one sweep pass performs every wrap the local
-/// user can do — bootstrapping version-0 channels and healing members who
-/// lack a current-version entry. Runs on server-ready and whenever the
-/// key-sweep doorbell rings (a member published a new chat key, or another
-/// client just healed someone).
+/// user can do — bootstrapping version-0 channels, healing members who lack a
+/// current-version entry, and rotating a channel whose key was sealed to
+/// somebody since banned. Runs on server-ready and whenever the key-sweep
+/// doorbell rings (a member published a new chat key, or another client just
+/// healed someone).
 mixin _ChatSweepMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
   CryptoRepository get _crypto;
@@ -54,12 +55,16 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
         .cast<Map<String, dynamic>>();
     if (missing.isEmpty) return false;
 
+    // Bootstrapping an empty channel and rotating a compromised one are the
+    // same act — mint a key nobody has yet and seal it to the people entitled
+    // to it. Only the version differs, and both are one past what is there.
+    final rotate = job['rotate'] == true;
+
     final Uint8List channelKey;
     final int postVersion;
-    if (version == 0) {
-      // Fresh channel — bootstrap v1.
+    if (version == 0 || rotate) {
       channelKey = _crypto.generateChannelKey();
-      postVersion = 1;
+      postVersion = version + 1;
     } else {
       channelKey = await _crypto.unwrapKey(
         wrapped: WrappedKey.fromJson(job['my_key'] as Map<String, dynamic>),

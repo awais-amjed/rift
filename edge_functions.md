@@ -135,6 +135,19 @@ to be in is left properly and a chat whose channel is gone is closed. It never
 acts on a *failed* refresh, or the first network blip would evict everyone from
 everything.
 
+**A ban rotates the channel key.** The server can stop serving a banned member,
+but it cannot take back a key they already unwrapped — so everything sent from
+then on has to move to a new one. `sweep_channel_keys` offers the job to any
+member who holds the current version: they mint the next one and seal it to the
+people still here, which heals anyone missing an entry in the same pass.
+
+The signal is that the current version's keyring covers somebody now banned, and
+it clears itself — the next version is sealed only to the eligible, so the check
+comes back false once the rotation lands, and an unban afterwards heals that
+member into the current key rather than triggering another rotation. There is no
+flag to set and nothing to reset. Old versions stay in the ring, so scrollback
+written under them is still readable by everyone who could read it before.
+
 **The key-distribution trio is a deliberate deferral, not a rule.** `post_channel_keys` enforces
 the `key_version ≤ current+1` race (first writer wins, losers refetch and re-wrap) and
 `sweep_channel_keys` computes healing sets across channels. Both are expressible as RPCs, but

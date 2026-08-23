@@ -1,33 +1,5 @@
 part of 'channel_chat_cubit.dart';
 
-enum _KeyringStatus { ready, waiting, error }
-
-/// How a keyring load ended, and — when it failed — why.
-///
-/// The reason travels with the outcome rather than being logged and dropped:
-/// nearly every failure here is really "the server didn't answer", and the
-/// person waiting on the channel deserves to be told that instead of being
-/// pointed at the encryption.
-class _KeyringResult {
-  final _KeyringStatus status;
-
-  /// Set only when [status] is [_KeyringStatus.error].
-  final ChatFailure? failure;
-
-  const _KeyringResult.ready() : status = _KeyringStatus.ready, failure = null;
-
-  const _KeyringResult.waiting()
-    : status = _KeyringStatus.waiting,
-      failure = null;
-
-  const _KeyringResult.failed(ChatFailure this.failure)
-    : status = _KeyringStatus.error;
-
-  bool get isReady => status == _KeyringStatus.ready;
-  bool get isWaiting => status == _KeyringStatus.waiting;
-  bool get isFailed => status == _KeyringStatus.error;
-}
-
 /// Keyring handling: publish our chat key, unwrap ours, bootstrap a channel's
 /// first key, and heal members missing current-version entries.
 mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
@@ -38,6 +10,7 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
   Set<String> get _publishedChatKey;
   String? get _publishedChatKeySeed;
   void _setPublishedChatKeySeed(String seed);
+  int get _currentKeyVersion;
   void _setCurrentKeyVersion(int version);
   void _ringKeySweepDoorbell();
 
@@ -80,6 +53,53 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
     _publishedChatKey.add(server.id);
     final data = response.data as Map<String, dynamic>?;
     return data?['newly_published'] == true;
+  }
+
+  /// Pick up key versions minted since this channel was opened.
+  ///
+  /// Before rotation existed, a channel's current version could not change
+  /// while you sat in it, so a client that already held a key had no reason to
+  /// look again. A rotation breaks that: another member mints the next version
+  /// and, until this client notices, it keeps sealing messages with a key the
+  /// rest of the channel has moved off and cannot read what they send back.
+  ///
+  /// Deliberately additive, unlike [_loadOrBootstrapKeyring], which clears the
+  /// ring before refilling it. That is right when opening a channel and wrong
+  /// here: this runs on a doorbell, against a client that is working, and a
+  /// momentary network failure must not cost it the keys it already holds.
+  Future<void> _absorbNewKeyVersions(String channelId) async {
+    final server = _serverCubit.state.selectedServer;
+    if (server == null) return;
+    final identity = await _chatIdentity(server);
+    if (identity == null) return;
+
+    final response = await _serverCubit.getChannelKey(channelId);
+    if (!response.success || isClosed) return;
+
+    final data = response.data as Map<String, dynamic>;
+    final currentVersion = data['current_version'] as int;
+    if (currentVersion <= _currentKeyVersion) return;
+
+    for (final entry
+        in (data['my_keys'] as List).cast<Map<String, dynamic>>()) {
+      final version = entry['key_version'] as int;
+      if (_keys.containsKey(version)) continue;
+      try {
+        _keys[version] = await _crypto.unwrapKey(
+          wrapped: WrappedKey.fromJson(entry),
+          myKeyPair: identity.keyPair,
+        );
+      } catch (e) {
+        HelperMethods.printDebug('[Chat] unwrap failed: $e');
+      }
+    }
+
+    // Only move up once the new key is actually in hand. Announcing a version
+    // we cannot seal with would break sending outright, where staying put
+    // leaves the client working until the rotation reaches it.
+    if (_keys.containsKey(currentVersion)) {
+      _setCurrentKeyVersion(currentVersion);
+    }
   }
 
   /// Fetch + unwrap the keyring for [channelId]; bootstrap v1 when the
