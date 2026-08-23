@@ -2,10 +2,11 @@ part of 'server_notifications_cubit.dart';
 
 /// One authenticated Realtime + REST connection per joined server, and the
 /// bookkeeping that keeps the set of them matching the server list.
-mixin _SubscriptionsMixin on Cubit<NotificationsState> {
+mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   ServerCubit get _serverCubit;
 
   /// Per-server live subscription + authenticated client, keyed by server id.
+  @override
   Map<String, _ServerSub> get _subs;
 
   Future<void> _seed(String serverId);
@@ -101,6 +102,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState> {
   void _teardownServer(String serverId) {
     final sub = _subs.remove(serverId);
     if (sub == null) return;
+    _forgetPeerNames(serverId);
     if (!isClosed) emit(state.clearedServer(serverId));
     unawaited(() async {
       try {

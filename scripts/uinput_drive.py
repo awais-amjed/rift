@@ -65,20 +65,32 @@ SHIFTED = {
 
 
 class Device:
-    def __init__(self):
+    # A device that declares pointer axes is classified as a pointer, and a
+    # pointer's key events are not routed to the focused window — they simply
+    # vanish, with clicks still working, which makes it look like the app has
+    # stopped accepting text. So the keyboard is a separate device that
+    # declares no axes and no buttons at all.
+    def __init__(self, keyboard_only=False):
+        self.keyboard_only = keyboard_only
         self.fd = os.open(UINPUT, os.O_WRONLY | os.O_NONBLOCK)
-        for ev in (EV_KEY, EV_ABS, EV_REL, EV_SYN):
+        events = (EV_KEY, EV_SYN) if keyboard_only else (EV_KEY, EV_ABS,
+                                                         EV_REL, EV_SYN)
+        for ev in events:
             fcntl.ioctl(self.fd, UI_SET_EVBIT, ev)
-        for code in set(KEY.values()) | {KEY_LEFTSHIFT, KEY_LEFTCTRL,
-                                         KEY_LEFTALT, BTN_LEFT, BTN_RIGHT}:
+        codes = set(KEY.values()) | {KEY_LEFTSHIFT, KEY_LEFTCTRL, KEY_LEFTALT}
+        if not keyboard_only:
+            codes |= {BTN_LEFT, BTN_RIGHT}
+        for code in codes:
             fcntl.ioctl(self.fd, UI_SET_KEYBIT, code)
-        for axis in (ABS_X, ABS_Y):
-            fcntl.ioctl(self.fd, UI_SET_ABSBIT, axis)
-        fcntl.ioctl(self.fd, UI_SET_RELBIT, REL_WHEEL)
+        if not keyboard_only:
+            for axis in (ABS_X, ABS_Y):
+                fcntl.ioctl(self.fd, UI_SET_ABSBIT, axis)
+            fcntl.ioctl(self.fd, UI_SET_RELBIT, REL_WHEEL)
 
         absmax = [0] * 64
         absmax[ABS_X], absmax[ABS_Y] = SCREEN_W - 1, SCREEN_H - 1
-        dev = struct.pack('80sHHHHi', b'rift-test-input', 3, 0x1234, 0x5678, 1, 0)
+        name = b'rift-test-keyboard' if keyboard_only else b'rift-test-input'
+        dev = struct.pack('80sHHHHi', name, 3, 0x1234, 0x5678, 1, 0)
         dev += struct.pack('64i', *absmax)          # absmax
         dev += struct.pack('64i', *([0] * 64))      # absmin
         dev += struct.pack('64i', *([0] * 64))      # absfuzz
@@ -139,6 +151,19 @@ class Device:
             self.syn()
             time.sleep(0.03)
 
+    def clear_mods(self):
+        """Release every modifier, in case one was left logically held.
+
+        A device that dies mid-chord — a crash between key-down and key-up —
+        leaves the compositor believing the modifier is still held, and every
+        later keystroke silently becomes a shortcut instead of a character.
+        Nothing on screen says so: typing simply stops working.
+        """
+        for code in (KEY_LEFTSHIFT, KEY_LEFTCTRL, KEY_LEFTALT):
+            self.emit(EV_KEY, code, 0)
+        self.syn()
+        time.sleep(0.05)
+
     def close(self):
         fcntl.ioctl(self.fd, UI_DEV_DESTROY)
         os.close(self.fd)
@@ -148,7 +173,7 @@ def main():
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
     cmd, args = sys.argv[1], sys.argv[2:]
-    dev = Device()
+    dev = Device(keyboard_only=cmd in ('type', 'key', 'clearmods'))
     try:
         if cmd == 'move':
             dev.move(int(args[0]), int(args[1]))
@@ -162,12 +187,15 @@ def main():
                 time.sleep(0.06)
                 dev.click(button)
         elif cmd == 'type':
+            dev.clear_mods()
             dev.type(args[0])
         elif cmd == 'key':
             for spec in args:
                 parts = spec.lower().split('+')
                 mods = tuple(MODS[p] for p in parts[:-1])
                 dev.tap(KEY[parts[-1]], mods)
+        elif cmd == 'clearmods':
+            dev.clear_mods()
         elif cmd == 'scroll':
             dev.scroll(int(args[0]))
         else:

@@ -16,6 +16,7 @@ import '../server/server_cubit.dart';
 part 'server_notifications_state.dart';
 part 'server_notifications_subscriptions.dart';
 part 'server_notifications_read.dart';
+part 'server_notifications_names.dart';
 
 /// One authenticated Realtime + REST connection **per joined server** to its
 /// `notifications` table (RLS-scoped to `auth.uid()`), so unread badges and OS
@@ -38,7 +39,7 @@ part 'server_notifications_read.dart';
 ///   expire (via [ServerCubit.reAuthenticateServer]) so their subscriptions
 ///   don't lapse while another server is in focus.
 class ServerNotificationsCubit extends Cubit<NotificationsState>
-    with _SubscriptionsMixin, _ReadMarkingMixin {
+    with _PeerNamesMixin, _SubscriptionsMixin, _ReadMarkingMixin {
   @override
   final ServerCubit _serverCubit;
   final AppCubit _appCubit;
@@ -185,10 +186,17 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     }
   }
 
-  /// Badge an incoming DM. No OS notification here: [DmCubit] raises those off
-  /// the conversation list, where it can decrypt a preview and name the sender
-  /// — this row is ciphertext without the key. (It only does so for the
-  /// selected server, so a DM on a background server badges without notifying.)
+  /// Badge an incoming DM, and notify for it if no one else will.
+  ///
+  /// [DmCubit] raises the notification for the **selected** server, off the
+  /// conversation list, where it holds the keys and can quote the message. It
+  /// is connected to one server at a time, though, so a DM arriving on any
+  /// other server used to badge in silence — the one place a message can
+  /// arrive with nobody able to speak for it.
+  ///
+  /// This covers exactly that gap. The row is ciphertext, so it names the
+  /// sender and stops there rather than inventing a preview. The split is by
+  /// server, not by surface, so precisely one of the two speaks for any DM.
   @override
   void _onDmMessage(String serverId, Map<String, dynamic> row) {
     if (isClosed) return;
@@ -203,6 +211,25 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
       return;
     }
     emit(state.incrementedDm(serverId, peerId));
+
+    if (!WindowFocusService.instance.isFocused &&
+        serverId != _serverCubit.state.selectedServerId) {
+      unawaited(_notifyBackgroundDm(serverId, peerId));
+    }
+  }
+
+  /// Announce a DM from a server the user isn't currently on.
+  ///
+  /// Re-checks focus after the name lookup: the user may well have come back to
+  /// the window while it was in flight, and a notification for a window being
+  /// looked at is the noise this whole tier exists to avoid.
+  Future<void> _notifyBackgroundDm(String serverId, String peerId) async {
+    final name = await _peerDisplayName(serverId, peerId);
+    if (isClosed || WindowFocusService.instance.isFocused) return;
+    NotificationService.instance.showMessage(
+      title: _serverById(serverId)?.name ?? 'Rift',
+      body: name != null ? '$name sent you a message' : 'New direct message',
+    );
   }
 
   // ── Read tracking ─────────────────────────────────────────────
