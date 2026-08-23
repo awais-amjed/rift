@@ -11,6 +11,7 @@ import os
 import socket
 import struct
 import sys
+import time
 import urllib.request
 
 MASK = 0x80
@@ -90,6 +91,19 @@ class WS:
                     raise RuntimeError(f"{method}: {msg['error']}")
                 return msg.get("result", {})
 
+    def wait_event(self, method, timeout=15):
+        """Block until an event arrives. `call` throws events away."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            self.sock.settimeout(max(0.5, deadline - time.time()))
+            try:
+                msg = self.recv()
+            except OSError:
+                continue
+            if msg.get("method") == method:
+                return msg.get("params", {})
+        raise SystemExit(f"timed out waiting for {method}")
+
 
 def page_ws(port, match="localhost"):
     """The app's tab, not merely the first one.
@@ -153,6 +167,48 @@ def key(ws, name):
                                        "key": k, "nativeVirtualKeyCode": code})
 
 
+def attach_file(ws, x, y, path):
+    """Put a real file into the app's file input without the OS dialog.
+
+    Clicking the composer's + opens a native chooser that no automation here
+    can reach — on Linux it is a GTK window belonging to the browser. Chrome
+    will hand the chooser over instead: with interception on, the dialog never
+    opens and the page reports which input asked for it, which is the node
+    `DOM.setFileInputFiles` needs.
+    """
+    ws.call("Page.enable")
+    ws.call("DOM.enable")
+    ws.call("Page.setInterceptFileChooserDialog", {"enabled": True})
+    try:
+        click(ws, x, y)
+        event = ws.wait_event("Page.fileChooserOpened")
+        node = event.get("backendNodeId")
+        if node is None:
+            raise SystemExit("file chooser carried no backendNodeId")
+        ws.call("DOM.setFileInputFiles",
+                {"files": [os.path.abspath(path)], "backendNodeId": node})
+    finally:
+        ws.call("Page.setInterceptFileChooserDialog", {"enabled": False})
+
+
+def set_file_input(ws, path, selector="input[type=file]"):
+    """Hand a file to an input that is already in the DOM.
+
+    The companion to `attach_file`: Flutter's file_picker inserts the input and
+    clicks it in one go, so by the time interception is armed the chooser has
+    often already been asked for. The input is still there, and setting its
+    files fires the same change event the picker is waiting on.
+    """
+    ws.call("DOM.enable")
+    doc = ws.call("DOM.getDocument", {"depth": 1})
+    node = ws.call("DOM.querySelector",
+                   {"nodeId": doc["root"]["nodeId"], "selector": selector})
+    if not node.get("nodeId"):
+        raise SystemExit(f"no node matching {selector}")
+    ws.call("DOM.setFileInputFiles",
+            {"files": [os.path.abspath(path)], "nodeId": node["nodeId"]})
+
+
 def shot(ws, path):
     r = ws.call("Page.captureScreenshot", {"format": "png"})
     with open(path, "wb") as f:
@@ -174,6 +230,10 @@ if __name__ == "__main__":
         type_text(ws, sys.argv[3])
     elif cmd == "key":
         key(ws, sys.argv[3])
+    elif cmd == "attach":
+        attach_file(ws, float(sys.argv[3]), float(sys.argv[4]), sys.argv[5])
+    elif cmd == "setfile":
+        set_file_input(ws, sys.argv[3])
     elif cmd == "eval":
         print(ws.call("Runtime.evaluate",
                       {"expression": sys.argv[3], "returnByValue": True}))
