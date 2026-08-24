@@ -37,6 +37,7 @@ An endpoint earns its place only if it holds a secret, or runs before the caller
 | `delete_channel` | Bearer + `channels_delete_managers` (checked by the policy) | Deletes the row with the caller's JWT, and the LiveKit room with the API secret. Rooms are named by channel id, so without the second half everyone carries on talking in a room whose channel is gone. Deleting a room disconnects its participants — that **is** the kick |
 | `move_user` | Bearer + `is_server_admin` / `is_channel_manager` (checked here — nothing is written down, so there is no RPC to defer to) | Pulls a member from the call they're in into another voice channel, by sending their connections a "join this channel" packet with the API secret. See below |
 | `voice_roster` | Bearer | Who is in which voice channel right now, `{userId: channelId}`, read off LiveKit. The snapshot a client starts from before the `voice:<serverId>` broadcasts can tell it anything — see ARCHITECTURE.md §5 |
+| `configure_push` | Bearer + `is_server_admin` | Writes `push_config`, a table with no grant and no policy — the secret in it is what proves a forward request came from this server, and nothing a client can read back may hold it. `{status:true}` answers whether push is on and with which relay id (never the secret); `{endpoint, relay_id, secret}` turns it on; `{disable:true}` turns it off and hands the relay id back so the admin's client can revoke it on central |
 | `get_channel_key` | Bearer | Channel-key distribution (below) |
 | `post_channel_keys` | Bearer | Channel-key distribution (below) |
 | `sweep_channel_keys` | Bearer | Channel-key distribution (below) |
@@ -169,12 +170,57 @@ the system — which is what keeps the sender and the text out of a payload Goog
 can read, and lets the phone say something true about a message it decrypts
 itself.
 
-Callers authenticate with `x-push-secret`; on central the trigger reads it from
-`push_config`, a table with RLS and no policy at all, reachable only by the
-SECURITY DEFINER trigger. Bodies are `{recipient}` (look the tokens up here) or
-`{tokens: [...]}` (a relaying server already holds them). Tokens FCM reports as
-`UNREGISTERED`/`INVALID_ARGUMENT` are deleted; anything else is treated as
-transient and the token is kept.
+**Two callers, two credentials.** Central's own `dm_messages` trigger presents the
+deployment secret in `x-push-secret` and names a `{recipient}`, whose devices are
+looked up here. A self-hosted server presents a **relay credential** its admin
+enrolled (central migration 010) and supplies `{relay_id, tokens: [...]}` — the
+tokens it already holds for its own member, so central never learns who that is.
+Both secrets live in tables with RLS and no policy at all, read only by the
+SECURITY DEFINER trigger that sends.
+
+A relay credential is verified and metered in one statement (`claim_relay_push`),
+so two forwards that each see room under the day's ceiling cannot both be let
+through. It is minted by `enroll_push_relay` from a signed-in central account —
+the server's admin — which gives every forward an owner, a daily cap and a revoke
+button; an account may hold a small number at a time. Without that this would be
+an open FCM proxy for Rift's project.
+
+Tokens FCM reports as `UNREGISTERED`/`INVALID_ARGUMENT` are deleted **from
+central's own registry only**. A relayed token lives in a database central holds
+no credentials for, and reporting the dead ones back would tell it which of a
+server's members had uninstalled the app — so that side sweeps on staleness
+instead (self-hosted migration 010).
+
+**Ringing is gated on the unread transition**, on both tiers. A doorbell says
+*look again*; it says nothing new when the badge is already lit, and the phone
+reads everything unread when it wakes. So a message only rings if its
+conversation had nothing unread before it — per conversation, so a first message
+from someone new still rings while an unread thread with somebody else sits
+there. The consequence worth knowing: a member who has never opened a channel
+that already had messages is permanently in the "unread" state there, and is
+never rung for it.
+
+### What the phone does with an empty doorbell
+
+`PushWakeService` (`lib/logic/services/push_wake/`) runs in the background
+isolate. It reads the master seed from secure storage, and from that alone:
+
+* **self-hosted servers** — a *fresh* SIWS login per server (stateless: sign a
+  message with a derived key, one round trip, nothing shared left behind),
+  `unread_counts()`, the newest message in each unread conversation, and the
+  channel key unwrapped from that member's keyring entry;
+* **central** — the session the app already persisted, used **inertly**: the
+  stored access token if it has not expired, never refreshed and never written
+  back. Refreshing would rotate a refresh token the still-running app is holding.
+  Past an hour central simply contributes nothing, and the doorbell falls back to
+  saying that something arrived.
+
+Which servers this device is on comes from a small `push_wake.json` the app
+writes beside its hydrated state — the isolate cannot ask the app, and reading
+the app's own Hive box from a second isolate is a lock, not a read. A second
+file remembers the newest message already announced per conversation, so a later
+doorbell does not repeat it. One notification per conversation, posted under a
+stable id derived from the scope, so it updates in place rather than stacking.
 
 Deploying it needs `TMPDIR` pointed somewhere Docker Desktop shares — `/tmp` is
 not, and the bundler fails with "path is not shared from the host":

@@ -243,6 +243,32 @@ New members are seeded at registration with a cursor per channel at the current 
 otherwise joining a server would show every channel screaming with unread counts for history they
 cannot decrypt anyway.
 
+### device_tokens / push_config (migration 010)
+
+Where a member's phones can be reached, and the credential this server rings them over.
+
+A row in `device_tokens` is a **device, not a person**: the same account on a phone and a tablet
+is two rows and both should ring. `token` is the primary key because FCM hands the same one back
+to a reinstalled app, so a device that changes hands must replace the previous owner's row rather
+than accumulate beside it. `user_id` is stamped from `auth.uid()` by a BEFORE trigger — a client
+that could name the owner could register its token against somebody else's account and be woken
+for their messages. A nightly job drops rows nobody has refreshed in 60 days; the client
+re-registers on every session, so that is a device that has not opened Rift in 60 days.
+
+`push_config` is one row **per server** (one Supabase project can host several), and has RLS with
+no policy and no grant at all. It holds the relay endpoint, the relay id, and the secret that
+proves a forward request came from this server. The ring triggers read it as SECURITY DEFINER;
+no session ever can — not even the admin who set it, who held the secret once, in transit.
+
+**This server cannot send a push itself.** An FCM registration token is scoped to the Firebase
+project the *app* was built against, so waking a Rift install needs Rift's credentials, which an
+operator does not have and must not be given. `ring_devices()` posts to central's `push_send`
+with `pg_net`, which queues and returns immediately: a delivered message with no doorbell is a far
+smaller problem than a message that could not be sent because a push gateway was down.
+
+Who gets rung is decided by `has_unread_before()` — only the transition from "nothing unread here"
+to "something unread here", per conversation. See `edge_functions.md` for the reasoning.
+
 ## Functions and jobs (self-hosted)
 
 Most of what a client does is a policy-checked table call; these are the exceptions worth
@@ -372,6 +398,41 @@ Same columns as their self-hosted counterparts. Differences that matter:
   when no row existed: "permission denied for table users" on a first claim. The RPCs spell the
   same upsert without touching the key. **Any future upsert against a column-granted table has
   this problem**; write it as an RPC.
+
+### push_relays (central, migration 010)
+
+The credential a self-hosted server forwards its pushes over, because it cannot reach a phone by
+itself. Minted by `enroll_push_relay()` from a signed-in account — the server's admin — and spent
+by `claim_relay_push()`, which verifies the secret, rolls the daily window and increments the
+count in one statement, so two forwards that each see room under the ceiling cannot both be let
+through.
+
+Only the digest of the secret is stored: it is shown once, at enrolment, and written straight into
+the asking server's `push_config`. A leak of this table forwards nothing.
+
+There is deliberately **no uniqueness** on `(supabase_url, server_id)`. A unique key would let the
+first account to name somebody else's server hold the only slot for it, and central cannot check
+who really administers a database it has never heard of. A second credential for the same server
+is harmless — it is only usable by whoever holds its secret, and the server itself stores one.
+
+| Column       | Type        | Constraints                     | Description                                          |
+|--------------|-------------|---------------------------------|------------------------------------------------------|
+| id           | uuid        | PK                              | Named in every forward request                       |
+| owner_id     | uuid        | FK → users.id, cascade          | The account that enrolled it; deleting it revokes    |
+| supabase_url | text        | http(s) URL, ≤ 200              | Recorded so a revoke list reads as names, not ids    |
+| server_id    | uuid        | Required                        | Same — nothing here trusts either                    |
+| label        | text        | ≤ 64                            | The server's name at enrolment                       |
+| secret_hash  | text        | Required                        | SHA-256 hex. The secret itself is never stored       |
+| daily_cap    | integer     | > 0, default 20000              | Devices per UTC day                                  |
+| rung_today   | integer     | Default 0                       | Rolled by `claim_relay_push`                         |
+| window_date  | date        | Default current_date            | Which day `rung_today` counts                        |
+| is_disabled  | boolean     | Default false                   | Kill switch that leaves the row for the audit trail  |
+
+Owners may SELECT (on named columns — not `secret_hash`, not the counters) and DELETE their own
+rows, and nothing else.
+
+`device_tokens` and `push_config` exist here too (migration 009), the same shape as the
+self-hosted pair except that `push_config` is a singleton — central is one deployment.
 
 ## Enums
 
