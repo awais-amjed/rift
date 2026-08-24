@@ -17,4 +17,19 @@ class SupabaseConfig {
   /// It only grants access to public data and operations allowed for unauthenticated users.
   static const String supabaseKey =
       'sb_publishable_QIg5M_Ca1LfqDTWjzQIsEQ_Pwll01AC';
+
+  /// Where a self-hosted server sends a push it cannot send itself.
+  ///
+  /// **A hostname we own, never a vendor URL.** This address is written into
+  /// every self-hosted server's `push_config` at the moment its admin turns
+  /// notifications on, so changing it is not a private decision — it costs
+  /// every operator a re-enable. Behind this name the relay can move between
+  /// Supabase, a Worker, Fly.io or a plain VPS as often as it likes, and no
+  /// operator ever learns that it did.
+  ///
+  /// **It must resolve before push is enabled anywhere.** See
+  /// `relay/README.md` for what has to exist behind it; the client checks it
+  /// answers before writing it into a server, so a missing record is a
+  /// sentence rather than a silence.
+  static const String pushRelayEndpoint = 'https://push.joinrift.app';
 }

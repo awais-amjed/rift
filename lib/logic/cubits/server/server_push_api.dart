@@ -24,10 +24,26 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
     Future<APIResponse> Function(String token) call,
   );
 
-  /// Where a self-hosted server sends a forward request. Central's address is
-  /// compiled into the app, so an operator never types it.
-  static String get _relayEndpoint =>
-      '${SupabaseConfig.supabaseUrl}/functions/v1/push_send';
+  /// How long to wait for the relay to say it is alive before giving up on it.
+  static const _probeTimeout = Duration(seconds: 8);
+
+  /// Whether the relay is reachable at all.
+  ///
+  /// Checked before writing the address into a server, because the address is
+  /// compiled into the app and the thing behind it can move. A relay that has
+  /// been repointed and not yet re-pointed *back* would otherwise be a server
+  /// that quietly stops waking anyone — the failure would show up as missing
+  /// notifications days later, which is the worst way to learn it.
+  Future<bool> _relayAlive() async {
+    try {
+      final response = await http
+          .get(Uri.parse(SupabaseConfig.pushRelayEndpoint))
+          .timeout(_probeTimeout);
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 
   // ──────────────────────────────────────────────────────────
   // What the isolate wakes up into
@@ -147,6 +163,14 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
     final server = _target(serverId);
     if (server == null) return APIResponse.error(_noTarget(serverId));
 
+    if (!await _relayAlive()) {
+      return APIResponse.error(
+        'The notification relay at ${Uri.parse(SupabaseConfig.pushRelayEndpoint).host} '
+        "isn't answering, so this server would have nowhere to send its pings. "
+        'Try again in a moment.',
+      );
+    }
+
     final enrolled = await _central.enrollPushRelay(
       supabaseUrl: server.supabaseUrl,
       serverId: server.id,
@@ -166,7 +190,7 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
       (bearer) => _repository.configurePush(
         server.supabaseUrl,
         bearerToken: bearer,
-        endpoint: _relayEndpoint,
+        endpoint: SupabaseConfig.pushRelayEndpoint,
         relayId: relayId,
         secret: secret,
       ),
