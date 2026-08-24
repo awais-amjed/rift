@@ -10,6 +10,7 @@ import '../server_limits_controllers.dart';
 import 'server_connection_section.dart';
 import 'server_discovery_section.dart';
 import 'server_limits_section.dart';
+import 'server_push_section.dart';
 
 /// The three groups of server settings, side by side: what the server connects
 /// to, what it will keep, and who can find it.
@@ -41,6 +42,14 @@ class ServerSettingsForm extends StatelessWidget {
 
   final VoidCallback onRemoveListing;
 
+  /// Whether this server may wake its members' phones, or null while the
+  /// server is still being asked. Owned by the dialog because it is not part
+  /// of Save — the toggle acts immediately, since turning it on has to mint a
+  /// credential on central and hand it over, and half of that is not a state
+  /// worth keeping in a form.
+  final bool? pushEnabled;
+  final ValueChanged<bool> onPushChanged;
+
   const ServerSettingsForm({
     super.key,
     required this.nameCtrl,
@@ -54,6 +63,8 @@ class ServerSettingsForm extends StatelessWidget {
     required this.enabled,
     required this.onChanged,
     required this.onRemoveListing,
+    required this.pushEnabled,
+    required this.onPushChanged,
   });
 
   @override
@@ -85,14 +96,31 @@ class ServerSettingsForm extends StatelessWidget {
               themeState: themeState,
               enabled: enabled,
             ),
-            ServerDiscoverySection(
-              draft: listing,
-              signedIn: signedIn,
-              memberCount: memberCount,
-              onChanged: onChanged,
-              onRemove: onRemoveListing,
-              themeState: themeState,
-              enabled: enabled,
+            // Discovery and notifications share a column because they are the
+            // same kind of setting — the two things this server asks central
+            // for, and the two an operator can withdraw.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ServerDiscoverySection(
+                  draft: listing,
+                  signedIn: signedIn,
+                  memberCount: memberCount,
+                  onChanged: onChanged,
+                  onRemove: onRemoveListing,
+                  themeState: themeState,
+                  enabled: enabled,
+                ),
+                const SizedBox(height: 22),
+                ServerPushSection(
+                  enabled: pushEnabled,
+                  signedIn: signedIn,
+                  onChanged: onPushChanged,
+                  themeState: themeState,
+                  interactive: enabled,
+                ),
+              ],
             ),
           ],
         ),

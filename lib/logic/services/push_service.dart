@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:ui' show DartPluginRegistrant;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import 'host_platform.dart';
 import 'notification_service.dart';
+import 'push_wake/push_wake_service.dart';
 
 /// Waking the app for a message that arrived while it was suspended.
 ///
@@ -78,18 +81,21 @@ class PushService {
 /// into a fresh isolate that has none of the app's state — no cubits, no open
 /// database connections, nothing that was in memory a moment ago.
 ///
-/// It says only that something arrived. The isolate could in principle read
-/// the seed, re-open the connections and decrypt the message to say who sent
-/// it and what they said — everything needed is on the device — but that is a
-/// second piece of work, and a doorbell that rings is worth more than one that
-/// waits for it.
+/// The doorbell says nothing, so this is where the notification is *earned*:
+/// [PushWakeService] reads the seed, asks each server what is unread and
+/// decrypts the newest message in each conversation, so the shade can name the
+/// sender and quote the line. Everything it needs is already on the device,
+/// which is exactly why the payload could be empty.
+///
+/// [DartPluginRegistrant.ensureInitialized] because this isolate is not the
+/// one `main` set up: without it, secure storage, shared preferences and the
+/// notifications plugin are all method channels with nothing on the other end.
 @pragma('vm:entry-point')
 Future<void> pushBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
   await Firebase.initializeApp();
   // No Activity here, so nothing to hang a permission dialog on.
   await NotificationService.instance.init(askForPermission: false);
-  await NotificationService.instance.showMessage(
-    title: 'Rift',
-    body: 'You have a new message',
-  );
+  await PushWakeService.run();
 }

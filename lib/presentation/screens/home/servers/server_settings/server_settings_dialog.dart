@@ -12,6 +12,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import 'listing_actions.dart';
 import 'listing_draft.dart';
+import 'push_toggle.dart';
 import 'server_limits_controllers.dart';
 import 'server_settings_save.dart';
 import 'widgets/server_settings_form.dart';
@@ -64,6 +65,10 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
   /// selected server. Null until it arrives, or if it doesn't.
   int? _memberCount;
 
+  /// Whether this server may wake its members' phones. Null until the server
+  /// has been asked — the toggle is inert rather than lying about being off.
+  bool? _pushEnabled;
+
   bool _isLoading = false;
   String? _error;
 
@@ -77,6 +82,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
     _limits.seed(_initialLimits);
     _loadListing();
     _loadMemberCount();
+    _loadPushStatus();
   }
 
   @override
@@ -112,6 +118,42 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
     );
     if (!mounted || result.members == null) return;
     setState(() => _memberCount = result.members!.length);
+  }
+
+  /// Also non-blocking, for the same reason as the two above.
+  Future<void> _loadPushStatus() async {
+    final enabled = await PushToggle.status(
+      context.read<ServerCubit>(),
+      widget.server.id,
+    );
+    if (!mounted || enabled == null) return;
+    setState(() => _pushEnabled = enabled);
+  }
+
+  Future<void> _setPush(bool enabled) async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    final error = await PushToggle.set(
+      context.read<ServerCubit>(),
+      widget.server.id,
+      enabled: enabled,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+      _error = error;
+      if (error == null) _pushEnabled = enabled;
+    });
+    if (error == null) {
+      HelperMethods.showSuccess(
+        message: enabled
+            ? 'Push notifications are on for this server'
+            : 'Push notifications are off for this server',
+      );
+    }
   }
 
   Future<void> _submit() async {
@@ -197,6 +239,8 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
         enabled: !_isLoading,
         onChanged: () => setState(() {}),
         onRemoveListing: _removeListing,
+        pushEnabled: _pushEnabled,
+        onPushChanged: _setPush,
       ),
       actions: [
         AppButton(

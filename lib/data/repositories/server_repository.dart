@@ -14,6 +14,7 @@ import 'server_db.dart';
 
 part 'server_repository_chat.dart';
 part 'server_repository_chat_reads.dart';
+part 'server_repository_push.dart';
 part 'server_repository_reactions.dart';
 
 /// All I/O against a self-hosted server.
@@ -36,7 +37,7 @@ part 'server_repository_reactions.dart';
 /// trusted with the database — which was never a decision, just a consequence
 /// of tables without policies.
 class ServerRepository
-    with _ChatApiMixin, _ChatReadApiMixin, _ReactionApiMixin {
+    with _ChatApiMixin, _ChatReadApiMixin, _PushApiMixin, _ReactionApiMixin {
   @override
   final ServerDb _db = ServerDb();
 

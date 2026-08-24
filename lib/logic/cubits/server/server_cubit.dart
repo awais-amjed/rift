@@ -13,8 +13,12 @@ import '../../../data/classes/server_user.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/avatar_repository.dart';
+import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/server_repository.dart';
+import '../../../supabase_config.dart';
 import '../../services/avatar_cache.dart';
+import '../../services/push_service.dart';
+import '../../services/push_wake/wake_index.dart';
 import '../vault/vault_cubit.dart';
 
 part 'server_cubit.g.dart';
@@ -27,6 +31,7 @@ part 'server_members_api.dart';
 part 'server_channels_api.dart';
 part 'server_chat_api.dart';
 part 'server_profile_api.dart';
+part 'server_push_api.dart';
 
 class ServerCubit extends HydratedCubit<ServerState>
     with
@@ -36,7 +41,8 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerMembersApiMixin,
         _ServerChannelsApiMixin,
         _ServerChatApiMixin,
-        _ServerProfileApiMixin {
+        _ServerProfileApiMixin,
+        _ServerPushApiMixin {
   @override
   final ServerRepository _repository = ServerRepository();
 
@@ -47,6 +53,18 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// Avatar upload/download — plaintext, unlike attachments (migration 014).
   @override
   final AvatarRepository _avatars = AvatarRepository();
+
+  /// Central, for one thing only: minting and revoking the credential a
+  /// self-hosted server forwards its pushes over. A server cannot reach a
+  /// phone without one — see [_ServerPushApiMixin] — so the enrolment is part
+  /// of what "turn on notifications for this server" means.
+  @override
+  final CentralDmRepository _central = CentralDmRepository();
+
+  /// Keeps the snapshot the push background isolate wakes up into in step with
+  /// the server list. See [_ServerPushApiMixin.refreshWakeIndex].
+  @override
+  final WakeIndexWriter _wakeIndex = WakeIndexWriter();
 
   /// Injected after construction — allows re-authentication without a circular dependency.
   @override
@@ -123,7 +141,33 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// SIWS re-login and all observe its result.
   final Map<String, Future<String?>> _refreshing = {};
 
-  ServerCubit() : super(const ServerState());
+  ServerCubit() : super(const ServerState()) {
+    if (PushService.isSupported) {
+      PushService.instance.token.addListener(_onPushToken);
+      _onPushToken();
+      // Hydration is not a change, so the first snapshot has to be written
+      // here or a launch that changes nothing would leave the isolate with
+      // whatever an older run left behind.
+      refreshWakeIndex(state);
+    }
+  }
+
+  /// FCM hands the token over asynchronously and replaces it whenever it
+  /// pleases, so registration is driven by the token rather than by startup —
+  /// a stale one is a phone that has gone quiet without anyone noticing.
+  void _onPushToken() => unawaited(registerPushDevices());
+
+  @override
+  void onChange(Change<ServerState> change) {
+    super.onChange(change);
+    refreshWakeIndex(change.nextState);
+  }
+
+  @override
+  Future<void> close() {
+    PushService.instance.token.removeListener(_onPushToken);
+    return super.close();
+  }
 
   void injectVaultCubit(VaultCubit vaultCubit) {
     _vaultCubit = vaultCubit;
