@@ -17,7 +17,7 @@ import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_failure.dart';
 import '../../services/chat_message_ops.dart';
-import '../../services/message_markup.dart';
+import '../../services/chat_notice.dart';
 import '../../services/notification_service.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/window_focus_service.dart';

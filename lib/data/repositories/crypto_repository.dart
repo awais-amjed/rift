@@ -29,6 +29,15 @@ part 'crypto_repository_identity.dart';
 /// `_IdentityCryptoMixin` must come first: it supplies the concrete
 /// `hmacSha256` that `_ChatCryptoMixin` declares abstract.
 class CryptoRepository with _IdentityCryptoMixin, _ChatCryptoMixin {
+  /// The derivation version of the X25519 chat identity, everywhere.
+  ///
+  /// Pinned at v1 and deliberately *not* following the Ed25519 auth key's
+  /// rotation version: rotating the chat identity would make every channel key
+  /// ever wrapped to the old one unreadable. Extending rotation to chat keys is
+  /// a designed flow of its own (re-wrap on rotate), never an implicit
+  /// consequence of rotating the login key.
+  static const String chatIdentityVersion = 'v1';
+
   // ──────────────────────────────────────────────────────────
   // Random generation
   // ──────────────────────────────────────────────────────────

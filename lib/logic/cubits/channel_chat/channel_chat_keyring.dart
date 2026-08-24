@@ -14,18 +14,13 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
   void _setCurrentKeyVersion(int version);
   void _ringKeySweepDoorbell();
 
-  /// The chat identity is pinned to v1 for now: the auth key's rotation
-  /// version must NOT rotate the chat identity, or every wrapped channel key
-  /// would become unreadable. Extending rotation to chat keys is a separate,
-  /// designed flow (re-wrap on rotate) — not implicit.
-  static const _chatIdentityVersion = 'v1';
 
   Future<ChatIdentity?> _chatIdentity(Server server) async {
     if (_vaultCubit.state.masterSeed == null) return null;
     final host = Uri.parse(server.supabaseUrl).host;
     return _vaultCubit.getChatIdentityForHost(
       host,
-      version: _chatIdentityVersion,
+      version: CryptoRepository.chatIdentityVersion,
     );
   }
 

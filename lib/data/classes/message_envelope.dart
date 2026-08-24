@@ -47,4 +47,17 @@ class MessageEnvelope {
     required String nonce,
     required String ciphertext,
   }) => 'chatmsg:v1:$contextId:$keyVersion:$nonce:$ciphertext';
+
+  /// The signed context for a one-to-one conversation.
+  ///
+  /// Order-independent, so both parties derive the same id without agreeing on
+  /// anything first — and so an envelope cannot be replayed into a different
+  /// conversation. It lives here rather than in a cubit because three places
+  /// derive it (server DMs, central DMs, and the push isolate that opens both
+  /// while the app is asleep), and a fourth spelling of it would be a
+  /// conversation that silently fails to verify.
+  static String conversationContext(String userA, String userB) {
+    final ids = [userA, userB]..sort();
+    return 'dm:${ids[0]}:${ids[1]}';
+  }
 }

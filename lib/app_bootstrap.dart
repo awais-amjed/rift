@@ -4,17 +4,16 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
-import 'data/repositories/secure_storage_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/services/browser_apis.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/push_service.dart';
+import 'logic/services/storage_namespace.dart';
 import 'logic/services/window_focus_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'src/rust/frb_generated.dart';
@@ -67,23 +66,10 @@ class AppBootstrap {
     return appCubit;
   }
 
-  /// Independent identities on one machine are kept apart by namespacing every
-  /// storage axis (secure storage, HydratedBloc directory, central session
-  /// key). This follows the build flavor by default (release = none, debug =
-  /// "dev"), but `RIFT_PROFILE` overrides it so several same-mode instances can
-  /// run side by side — `RIFT_PROFILE=a ./rift` and `RIFT_PROFILE=b ./rift`.
-  ///
-  /// Returns the suffix; an empty string is the release default, which keeps
-  /// existing installs on their original paths.
-  static String _applyStorageNamespace() {
-    final suffix = SecureStorageRepository.resolveSuffix(
-      envProfile: kIsWeb ? null : Platform.environment['RIFT_PROFILE'],
-      releaseMode: kReleaseMode,
-    );
-    SecureStorageRepository.namespacePrefix =
-        SecureStorageRepository.prefixForSuffix(suffix);
-    return suffix;
-  }
+  /// Namespaces this instance's storage. See [StorageNamespace] — the push
+  /// background isolate has to reach the same answer, so the rule lives where
+  /// both can read it rather than here.
+  static String _applyStorageNamespace() => StorageNamespace.apply();
 
   /// Supabase, for cloud-backup session persistence. A non-empty suffix gives
   /// this instance its own session key so it doesn't share the account session
@@ -110,9 +96,8 @@ class AppBootstrap {
     if (kIsWeb) {
       directory = HydratedStorageDirectory.web;
     } else {
-      final base = (await getApplicationDocumentsDirectory()).path;
       directory = HydratedStorageDirectory(
-        storageSuffix.isEmpty ? base : '$base/rift_$storageSuffix',
+        await StorageNamespace.profileDirectory(storageSuffix),
       );
     }
     HydratedBloc.storage = await HydratedStorage.build(

@@ -122,10 +122,8 @@ class DmCubit extends Cubit<DmState>
 
   /// Signed context for a DM conversation — order-independent, so both
   /// parties derive the same id and envelopes can't cross conversations.
-  static String conversationContext(String userA, String userB) {
-    final ids = [userA, userB]..sort();
-    return 'dm:${ids[0]}:${ids[1]}';
-  }
+  static String conversationContext(String userA, String userB) =>
+      MessageEnvelope.conversationContext(userA, userB);
 
   String _hostOf(Server server) => Uri.parse(server.supabaseUrl).host;
 

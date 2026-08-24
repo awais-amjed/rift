@@ -13,12 +13,12 @@ mixin _CentralDmDecryptMixin on Cubit<CentralDmState> {
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
   Future<ServerIdentity> _signingIdentity();
 
-  /// The DM context both sides derive independently — order-independent so
-  /// each peer computes the same string.
-  static String _context(String a, String b) {
-    final ids = [a, b]..sort();
-    return 'dm:${ids[0]}:${ids[1]}';
-  }
+  /// The DM context both sides derive independently. The rule is
+  /// [MessageEnvelope.conversationContext]'s — server DMs and the push isolate
+  /// derive the same string, and a second spelling of it would be a
+  /// conversation that silently fails to verify.
+  static String _context(String a, String b) =>
+      MessageEnvelope.conversationContext(a, b);
 
   Future<List<ChatMessage>> _decryptRows(
     String peerId,

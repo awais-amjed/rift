@@ -127,9 +127,17 @@ class NotificationService {
 
   /// Show a "new message" notification. Title is typically the sender/context
   /// (e.g. "Alice in #general"), body the message preview.
+  ///
+  /// [id] lets a caller decide what this notification *replaces*. Posting
+  /// under the same id twice updates the one already in the shade rather than
+  /// stacking a second — which is what the push background isolate wants, one
+  /// notification per conversation. The default keeps every call distinct,
+  /// which is right for the in-app paths: they fire once per message, in a
+  /// process that is alive to keep counting.
   Future<void> showMessage({
     required String title,
     required String body,
+    int? id,
   }) async {
     if (!_ready) return;
     if (kIsWeb) {
@@ -146,7 +154,7 @@ class NotificationService {
     }
     try {
       await _plugin.show(
-        id: _nextId++,
+        id: id ?? _nextId++,
         title: title,
         body: body,
         notificationDetails: const NotificationDetails(

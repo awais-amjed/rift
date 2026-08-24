@@ -28,12 +28,18 @@ mixin _ChatNotifyMixin on Cubit<ChannelChatState> {
     final mentionable = me == null ? const <String>{} : {me};
 
     for (final message in incoming) {
-      final mentioned = mentionsAnyOf(message.text, mentionable);
+      // The wording is [ChatNotice]'s rather than this file's, because the
+      // push isolate says the same sentence about the same message and the two
+      // must not drift apart.
+      final notice = ChatNotice.channel(
+        author: message.authorName,
+        channel: channelName,
+        text: message.text,
+        mentionable: mentionable,
+      );
       NotificationService.instance.showMessage(
-        title: mentioned
-            ? '${message.authorName} mentioned you in #$channelName'
-            : '${message.authorName} in #$channelName',
-        body: message.text.isNotEmpty ? message.text : 'Sent an attachment',
+        title: notice.title,
+        body: notice.body,
       );
     }
   }
