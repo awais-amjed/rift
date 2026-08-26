@@ -125,6 +125,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     int? maxUses = 1,
     int? expiresInSeconds,
     String? serverId,
+    bool isBot = false,
   }) async {
     final server = _target(serverId);
     if (server == null) {
@@ -141,6 +142,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
         bearerToken: token,
         maxUses: maxUses,
         expiresInSeconds: expiresInSeconds,
+        isBot: isBot,
       ),
     );
 

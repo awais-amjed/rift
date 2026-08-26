@@ -73,9 +73,39 @@ two people, and neither of them should be deciding how long the other's messages
 | is_server_admin    | boolean     | Default: false                     | Whether user has server admin privileges         |
 | is_channel_manager | boolean     | Default: false                     | Whether user can manage channels                 |
 | can_create_tokens  | boolean     | Default: false                     | Whether user can create invites                  |
+| is_bot             | boolean     | Required, default `false`            | A program, not a person (migration 014). Pinned after registration |
 | is_muted           | boolean     | Default: false                     | Moderation: enforced in get_channel_token grants  |
 | is_deafened        | boolean     | Default: false                     | Moderation: enforced in get_channel_token grants  |
 | chat_public_key    | text        | Nullable                           | X25519 chat identity (base64); published by the client after login |
+
+### Bots (migration 014)
+
+`users.is_bot` and `invites.is_bot`. A bot is the same `users` row as a person — same SIWS login,
+same JWT, same RLS — so almost nothing is added. What matters is the one thing that is:
+
+**A bot can never hold a channel key.** `channel_keyring` has a BEFORE trigger
+(`refuse_bot_keyring`) that raises `bot_cannot_hold_channel_key` for a bot `user_id`. That is the
+boundary; the filters in `get_channel_key`, `sweep_channel_keys` and `post_channel_keys` are an
+optimisation on top of it.
+
+The reason it is a trigger and not three filters is the failure it prevents, which is not an
+attacker: `get_channel_key` returns `members_missing`, and **any member's client heals them
+automatically**. A bot publishes a chat key like everybody else, so the first member to open a
+channel would have wrapped it for the bot as a courtesy, silently. Three filters is three places
+to forget; the fourth thing to read `users` would not know it was supposed to have one.
+
+`users.is_bot` is pinned by `pin_is_bot` on UPDATE — no client has a column grant for it, but
+`SECURITY DEFINER` functions run as the owner, and turning a person into a bot changes who may
+hold the keys to a room.
+
+`invites.is_bot` is chosen when the link is minted and cannot be changed (no UPDATE grant), so one
+link never becomes the other kind. `invites_insert` refuses a bot invite that also carries
+`is_server_admin`. `register_user` copies the flag onto the new row and, for a bot only, stops
+granting `can_create_tokens` unconditionally — a program that can hand out membership of somebody
+else's server is not a sensible default.
+
+Phase 5 (moderation bots, BOTS.md §6) is the one case that needs the opposite, and arrives as an
+explicit per-channel grant the trigger consults instead of refusing outright.
 
 ### channels
 

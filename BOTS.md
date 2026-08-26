@@ -1,8 +1,9 @@
 # BOTS.md — Bots, commands & webhooks
 
-Design reference for third-party integrations. **Webhooks (§3, §7) are implemented** — migration
-013, the `webhook` edge function, and the badge in the chat list. Everything else is **[Planned]**.
-Sections are marked as they land, the same way `ARCHITECTURE.md` marks its own.
+Design reference for third-party integrations. **Webhooks (§3, §7) and bot identity (§1, §2, §9)
+are implemented** — migrations 013 and 014. Commands, replies, the SDK and moderation grants are
+still **[Planned]**. Sections are marked as they land, the same way `ARCHITECTURE.md` marks its
+own.
 
 Read `ARCHITECTURE.md` §2 (auth) and §4 (chat encryption) first. This document assumes both, and
 where it departs from them it says so.
@@ -23,7 +24,7 @@ hold channel keys**, and everything below is the machinery that makes bots usefu
 
 ---
 
-## 1. What a bot is
+## 1. What a bot is — [Implemented]
 
 **A bot is a user whose seed lives in a config file instead of on a phone.** There is no separate
 bot API, no bot token format, no second auth path. It is the same `users` row, the same SIWS
@@ -58,7 +59,7 @@ gateway wins at that scale, and that is an accepted difference rather than a pro
 
 ---
 
-## 2. Why bots do not get channel keys
+## 2. Why bots do not get channel keys — [Implemented]
 
 Two reasons, and only the second is the real one.
 
@@ -212,7 +213,7 @@ already expressible.
 
 Four rules make it safe enough to offer.
 
-### Bots are excluded from the healing sweep
+### Bots are excluded from the healing sweep — [Implemented as a refusal, migration 014]
 
 `get_channel_key` returns `members_missing` — members with a published chat key and no entry at the
 current version — and any member's client heals them. That is how people get keys without anyone
@@ -301,7 +302,7 @@ message either way; what the user needs is to know it before typing.
 
 ---
 
-## 9. Where bots live in the UI
+## 9. Where bots live in the UI — [Implemented]
 
 A **separate section in the right sidebar, above people.**
 
@@ -381,7 +382,10 @@ badge. Both are fixed; both have tests.
 
 **Then bots**, in this order:
 
-1. `is_bot`, bot invites, the sidebar section — a bot that exists and does nothing
+1. ~~`is_bot`, bot invites, the sidebar section — a bot that exists and does nothing~~ **done**
+   (migration 014). The sweep exclusion landed as a *refusal on the row* rather than only a
+   filter in the three edge functions that walk the member list: filters are the half that gets
+   forgotten, and the fourth thing to read `users` will not know it was supposed to have one.
 2. Commands: `to_bot`, `/` completion, the right-click menu, the composer marker
 3. Replies: channel message, then ephemeral, then panels
 4. The Dart SDK, extracted from what the first three needed

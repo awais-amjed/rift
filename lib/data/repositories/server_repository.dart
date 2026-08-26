@@ -279,6 +279,7 @@ class ServerRepository
     'is_muted': u['is_muted'],
     'is_deafened': u['is_deafened'],
     'is_banned': u['is_banned'],
+    'is_bot': u['is_bot'],
     'permissions': {
       'is_server_admin': u['is_server_admin'],
       'is_channel_manager': u['is_channel_manager'],
@@ -370,6 +371,7 @@ class ServerRepository
     String? bearerToken,
     int? maxUses = 1,
     int? expiresInSeconds,
+    bool isBot = false,
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
@@ -379,6 +381,10 @@ class ServerRepository
             'server_id': serverId,
             'created_by': userId,
             'max_uses': maxUses,
+            // Decided when the link is minted and never afterwards — there is
+            // no UPDATE grant on invites, so one link cannot quietly become the
+            // other kind (migration 014).
+            'is_bot': isBot,
             if (expiresInSeconds != null)
               'expires_at': DateTime.now()
                   .toUtc()
@@ -436,7 +442,7 @@ class ServerRepository
           .from('users')
           .select(
             'id, username, display_name, avatar_path, chat_public_key, '
-            'is_muted, is_deafened, is_banned, '
+            'is_muted, is_deafened, is_banned, is_bot, '
             'is_server_admin, is_channel_manager, can_create_tokens',
           )
           .order('username');

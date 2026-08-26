@@ -11,6 +11,14 @@ class ServerMember {
   final bool isDeafened;
   final bool isBanned;
 
+  /// A program, not a person (migration 014). Set at registration from the
+  /// invite and never afterwards.
+  ///
+  /// It changes more than a label: a bot is listed apart from the members
+  /// (BOTS.md §9) and can never be handed a channel key, so anything that
+  /// reasons about "who can read this room" has to know the difference.
+  final bool isBot;
+
   /// X25519 chat key (base64) — null until the member publishes one. Needed
   /// to start an E2E DM with them.
   final String? chatPublicKey;
@@ -26,6 +34,7 @@ class ServerMember {
     this.isMuted = false,
     this.isDeafened = false,
     this.isBanned = false,
+    this.isBot = false,
     this.chatPublicKey,
     this.avatarPath,
   });
@@ -43,6 +52,7 @@ class ServerMember {
       isMuted: json['is_muted'] == true,
       isDeafened: json['is_deafened'] == true,
       isBanned: json['is_banned'] == true,
+      isBot: json['is_bot'] == true,
       chatPublicKey: json['chat_public_key'] as String?,
       avatarPath: json['avatar_path'] as String?,
     );
@@ -62,6 +72,10 @@ class ServerMember {
       isMuted: isMuted ?? this.isMuted,
       isDeafened: isDeafened ?? this.isDeafened,
       isBanned: isBanned ?? this.isBanned,
+      // Not a parameter: `is_bot` is pinned server-side (migration 014) and a
+      // copyWith that could change it would be the one place in the client
+      // where a person turns into a program.
+      isBot: isBot,
       chatPublicKey: chatPublicKey,
       avatarPath: avatarPath,
     );

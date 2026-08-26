@@ -236,12 +236,24 @@ class _MembersSidebarState extends State<MembersSidebar> {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       children: [
+        // Above the people, and in a section of their own: a bot is not a
+        // quiet member, it is a program that hears only what it is told
+        // (BOTS.md §9). Each row still shows whether it is connected — for a
+        // bot that is "is it running", which is worth seeing.
+        ..._group(
+          themeState,
+          appState,
+          label: 'Bots',
+          members: split.bots,
+          onlineIds: presence.onlineUserIds,
+          myId: myId,
+        ),
         ..._group(
           themeState,
           appState,
           label: 'Online',
           members: split.online,
-          isOnline: true,
+          onlineIds: presence.onlineUserIds,
           myId: myId,
         ),
         ..._group(
@@ -249,7 +261,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
           appState,
           label: 'Offline',
           members: split.offline,
-          isOnline: false,
+          onlineIds: presence.onlineUserIds,
           myId: myId,
         ),
         const SizedBox(height: 12),
@@ -257,14 +269,18 @@ class _MembersSidebarState extends State<MembersSidebar> {
     );
   }
 
-  /// One presence group: the shared [SectionHeader] plus its rows. Empty groups
-  /// render nothing rather than a lone "Offline — 0".
+  /// One group: the shared [SectionHeader] plus its rows. Empty groups render
+  /// nothing rather than a lone "Offline — 0".
+  ///
+  /// Takes the online set rather than a flag, because the Bots group holds
+  /// both — its rows are grouped by *being a bot* and lit by whether that bot
+  /// is currently connected.
   List<Widget> _group(
     ThemeState themeState,
     AppState appState, {
     required String label,
     required List<ServerMember> members,
-    required bool isOnline,
+    required Set<String> onlineIds,
     required String? myId,
   }) {
     if (members.isEmpty) return const [];
@@ -274,7 +290,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
         MemberRow(
           member: member,
           themeState: themeState,
-          isOnline: isOnline,
+          isOnline: onlineIds.contains(member.id),
           isMe: member.id == myId,
           setting: appState.participantSettings[member.id],
         ),

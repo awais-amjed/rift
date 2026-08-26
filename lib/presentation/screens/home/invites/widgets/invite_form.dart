@@ -7,6 +7,7 @@ import 'copyable_field.dart';
 import 'field_label.dart';
 import 'invite_options.dart';
 import '../../../../theme/app_text.dart';
+import '../../../settings/widgets/setting_toggle_row.dart';
 
 /// The body of the invite modal: the two pickers and the generated link.
 ///
@@ -17,6 +18,10 @@ class InviteForm extends StatelessWidget {
   final int usesIndex;
   final ValueChanged<int> onExpirySelected;
   final ValueChanged<int> onUsesSelected;
+
+  /// Whether this link will mint a bot rather than a member.
+  final bool isBot;
+  final ValueChanged<bool> onIsBotChanged;
 
   final String? inviteLink;
   final bool isGenerating;
@@ -31,6 +36,8 @@ class InviteForm extends StatelessWidget {
     required this.usesIndex,
     required this.onExpirySelected,
     required this.onUsesSelected,
+    required this.isBot,
+    required this.onIsBotChanged,
     required this.inviteLink,
     required this.isGenerating,
     required this.copied,
@@ -58,6 +65,23 @@ class InviteForm extends StatelessWidget {
           options: inviteUsesOptions.map((e) => e.label).toList(),
           selectedIndex: usesIndex,
           onSelected: onUsesSelected,
+        ),
+        const SizedBox(height: 16),
+
+        // A decision, not a setting: `is_bot` is fixed when the link is minted
+        // and there is no UPDATE grant on invites, so one link can never
+        // quietly become the other kind (migration 014). The description says
+        // what actually differs, because "it's a bot" tells somebody nothing
+        // about what the thing will and will not be able to read.
+        SettingToggleRow(
+          themeState: themeState,
+          title: 'This invite is for a bot',
+          description:
+              'Bots are listed separately and can never be given a '
+              'channel\u2019s encryption key — they only see messages sent '
+              'to them.',
+          value: isBot,
+          onChanged: onIsBotChanged,
         ),
         const SizedBox(height: 16),
 

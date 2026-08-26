@@ -36,6 +36,10 @@ class _InviteModalState extends State<InviteModal> {
   // Max uses — default: 1 (index 0)
   int _usesIndex = 0;
 
+  /// Whether the link being minted makes a bot. Off by default: the common
+  /// case is inviting a person, and a bot invite is the deliberate one.
+  bool _isBot = false;
+
   void _resetToken() {
     _inviteToken = null;
     _copiedLink = false;
@@ -53,6 +57,7 @@ class _InviteModalState extends State<InviteModal> {
       maxUses: inviteUsesOptions[_usesIndex].value,
       expiresInSeconds: inviteExpiryOptions[_expiryIndex].seconds,
       serverId: widget.server.id,
+      isBot: _isBot,
     );
 
     if (!mounted) return;
@@ -120,6 +125,13 @@ class _InviteModalState extends State<InviteModal> {
             }),
             onUsesSelected: (i) => setState(() {
               _usesIndex = i;
+              _resetToken();
+            }),
+            isBot: _isBot,
+            onIsBotChanged: (value) => setState(() {
+              _isBot = value;
+              // A link already on screen was minted as the other kind, so it
+              // no longer matches what the switch says.
               _resetToken();
             }),
             inviteLink: inviteLink,
