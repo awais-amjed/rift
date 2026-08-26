@@ -48,9 +48,11 @@ class MessageOriginBadge extends StatelessWidget {
 
   String get _tooltip => switch (message.origin) {
     MessageOrigin.webhook =>
+      // The break is at the sentence, not left to the wrap: two facts, one a
+      // line. The width cap in `tooltipTheme` is the backstop, not the shape.
       'Posted by an integration, not a member.\n'
-          'Unencrypted — the server can read this message.',
-    MessageOrigin.member => 'Unencrypted — the server can read this message.',
+          'Unencrypted — the server can read it.',
+    MessageOrigin.member => 'Unencrypted — the server can read it.',
   };
 
   @override

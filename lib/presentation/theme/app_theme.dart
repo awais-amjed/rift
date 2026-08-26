@@ -48,6 +48,12 @@ class AppTheme {
       tooltipTheme: TooltipThemeData(
         triggerMode: HostPlatform.isMobile ? TooltipTriggerMode.manual : null,
         waitDuration: const Duration(milliseconds: 150),
+        // Flutter sizes a tooltip to its text and never wraps, so one long
+        // sentence becomes a 540px strip laid across whatever it is anchored
+        // near — the "Encrypted" chip's ran from the channel header over the
+        // sidebar. A ceiling turns those into a block; short ones are
+        // unaffected, since this is a max and not a width.
+        constraints: const BoxConstraints(maxWidth: 300),
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
         margin: const EdgeInsets.all(6),
         decoration: BoxDecoration(

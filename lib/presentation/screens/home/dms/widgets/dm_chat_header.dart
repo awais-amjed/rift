@@ -104,6 +104,7 @@ class DmChatHeader extends StatelessWidget {
                         icon: Icons.lock_outline,
                         label: 'Encrypted',
                         color: CustomColors.success,
+                        tooltip: StatusChip.encryptedTooltip,
                       ),
                   ],
                 ),

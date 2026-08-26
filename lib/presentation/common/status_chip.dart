@@ -8,20 +8,51 @@ import '../theme/app_text.dart';
 ///
 /// Tinted from one colour rather than taking separate fill/border/text values,
 /// so every chip in the app is the same recipe at a different hue.
+///
+/// [tooltip] belongs here rather than at each call site because a chip is a
+/// *claim*, and a one-word claim is the kind most worth being able to check.
+/// "Encrypted" is the product's central promise compressed to nine letters;
+/// somebody who does not already know what it covers has nowhere else to ask.
 class StatusChip extends StatelessWidget {
+  /// What the "Encrypted" chip means, wherever it appears.
+  ///
+  /// Kept as a constant because two headers show that chip — a channel's and a
+  /// DM's — and the encryption claim is the last thing that should say two
+  /// slightly different things in two places.
+  ///
+  /// Deliberately about *content*: metadata is visible to the operator
+  /// (ARCHITECTURE.md §6), so a tooltip promising more than content would be
+  /// the app overstating its own guarantee.
+  static const String encryptedTooltip =
+      'Messages here are encrypted on your device. The server stores them and '
+      'cannot read them.';
+
   final IconData icon;
   final String label;
   final Color color;
+
+  /// What the chip's one word actually means. Null for a chip whose label
+  /// already says everything it claims.
+  final String? tooltip;
 
   const StatusChip({
     super.key,
     required this.icon,
     required this.label,
     required this.color,
+    this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
+    final chip = _chip();
+    final message = tooltip;
+    // Look and delay come from `tooltipTheme`, so this matches every other
+    // tooltip in the app.
+    return message == null ? chip : Tooltip(message: message, child: chip);
+  }
+
+  Widget _chip() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(

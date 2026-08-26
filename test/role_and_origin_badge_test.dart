@@ -7,6 +7,8 @@ import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/data/enums/message_origin.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/server_role.dart';
+import 'package:rift/presentation/common/status_chip.dart';
+import 'package:rift/presentation/theme/custom_colors.dart';
 import 'package:rift/presentation/theme/app_theme.dart';
 import 'package:rift/presentation/common/chat/message_row/message_origin_badge.dart';
 import 'package:rift/presentation/screens/home/members_sidebar/widgets/role_chip.dart';
@@ -66,7 +68,7 @@ void main() {
       );
 
       final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
-      expect(tooltip.message, contains('the server can read this message'));
+      expect(tooltip.message, contains('the server can read it'));
       expect(tooltip.message, contains('not a member'));
     });
 
@@ -93,6 +95,10 @@ void main() {
       );
       expect(theme.tooltipTheme.decoration, isNotNull);
       expect(theme.tooltipTheme.textStyle, isNotNull);
+      // Flutter never wraps a tooltip, so a long one becomes a strip laid
+      // across the window unless something caps it.
+      expect(theme.tooltipTheme.constraints?.maxWidth, isNotNull);
+      expect(theme.tooltipTheme.constraints!.maxWidth, lessThanOrEqualTo(360));
 
       // ...and the badge does not override either of them locally.
       final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
@@ -141,6 +147,47 @@ void main() {
       );
       expect(ServerRole.channelManager.isHeldBy(manager), isTrue);
       expect(ServerRole.admin.isHeldBy(manager), isFalse);
+    });
+  });
+
+  group('the Encrypted chip', () {
+    testWidgets('explains what the claim covers', (tester) async {
+      await pump(
+        tester,
+        const StatusChip(
+          icon: Icons.lock_outline,
+          label: 'Encrypted',
+          color: CustomColors.success,
+          tooltip: StatusChip.encryptedTooltip,
+        ),
+      );
+
+      final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+      expect(tooltip.message, contains('cannot read them'));
+    });
+
+    test('and never promises more than content', () {
+      // Metadata is visible to the operator — who, when, where, how much
+      // (ARCHITECTURE.md §6). A chip claiming the server sees "nothing" would
+      // be the app overstating its own guarantee in its most prominent place.
+      final text = StatusChip.encryptedTooltip.toLowerCase();
+      expect(text.contains('nothing'), isFalse);
+      expect(text.contains('anonymous'), isFalse);
+      expect(text.contains('messages'), isTrue);
+    });
+
+    testWidgets('a chip with nothing to add carries no tooltip', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const StatusChip(
+          icon: Icons.tag_rounded,
+          label: 'Central',
+          color: CustomColors.success,
+        ),
+      );
+      expect(find.byType(Tooltip), findsNothing);
     });
   });
 }
