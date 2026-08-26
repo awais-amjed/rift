@@ -357,6 +357,47 @@ away from this one. The fix was known; nothing looked for a second instance of t
 `ring_channel_members` also stops waking bots (they have no phone and would be rung for rooms they
 cannot read) and, for an ephemeral reply, wakes only the member it is for.
 
+### bot_channel_keys (migration 017)
+
+The one bot grant that spends the trust model. A moderation bot has to read every message, and
+there is no cryptographic middle ground — it holds the channel key or it does not. So this is an
+explicit, per-channel, **admin-only** grant (not channel manager: it is the same weight as a ban,
+because it changes what somebody else's messages mean).
+
+| Column | Note |
+|---|---|
+| `channel_id`, `bot_id` | the pair is the primary key |
+| `granted_by`, `granted_at` | so the notice can say who decided |
+| `from_key_version` | the first version this bot may hold — **one past** the current one at grant time |
+
+Four rules make it offerable rather than regrettable:
+
+1. **Bots are still refused by default.** 014's trigger now consults this table instead of refusing
+   outright, so the only way a bot is ever keyed is somebody deciding it should be.
+2. **Forward-only**, enforced on the row: `refuse_bot_keyring` raises
+   `bot_key_version_before_grant` below `from_key_version`. A member joining gets full scrollback;
+   a bot gets what is said after somebody chose to let it listen.
+3. **Revoking rotates.** `revoke_bot_channel_key` drops the grant and the bot's keyring rows; the
+   sweep then sees a bot sealed into the current version with no grant and rotates.
+4. **The channel says who is listening.** `bot_channel_keys` is `SELECT`-able by every member —
+   the admin grants, and every member's future messages pay for it, so a notice only the admin sees
+   reaches the wrong audience. `channel_bot_listeners` is the view clients read.
+
+There is no INSERT, UPDATE or DELETE grant: both writes go through the two `SECURITY DEFINER`
+functions, so "who may listen" cannot be changed by anything that skipped the check.
+
+#### Three self-clearing rotation signals
+
+`sweep_channel_keys` already rotated on one: a banned member still sealed into the current version.
+It is a good signal because it clears itself — the next version is sealed only to whoever is
+eligible then. Both new ones are built the same way, so nothing has a flag to set or reset:
+
+| Signal | Means |
+|---|---|
+| banned member sealed into current | the original |
+| **revoked bot** sealed into current | same shape, same reason |
+| **grant `from_key_version` above current** | a grant just made; the rotation is what makes it forward-only |
+
 ### users.manifest (migration 015)
 
 A bot's published command list and data declaration (BOTS.md §4, §8). `JSONB`, null for a person

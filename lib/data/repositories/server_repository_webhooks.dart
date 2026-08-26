@@ -65,4 +65,27 @@ mixin _WebhookApiMixin {
       return {'deleted': true};
     });
   }
+
+  /// Which bots hold a key to [channelId] — the channel's standing notice.
+  ///
+  /// Every member may read this, and that is rule 4 of BOTS.md §6 rather than
+  /// an oversight. The admin grants; **every member's future messages pay for
+  /// it**, so a warning that lived only in the admin's dialog would reach the
+  /// wrong audience entirely.
+  Future<APIResponse> listChannelListeners(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String channelId,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final rows = await db
+          .from('channel_bot_listeners')
+          .select('bot_id, username, display_name, granted_by_name, granted_at')
+          .eq('channel_id', channelId)
+          .order('display_name');
+      return {'listeners': (rows as List).cast<Map<String, dynamic>>()};
+    });
+  }
 }

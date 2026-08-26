@@ -202,7 +202,7 @@ demand.
 
 ---
 
-## 6. Moderation bots — the one real exception
+## 6. Moderation bots — the one real exception — [Implemented, migration 017]
 
 A moderation bot has to read everything. There is no cryptographic middle ground: it either holds
 the channel key or it does not.
@@ -393,7 +393,7 @@ badge. Both are fixed; both have tests.
    verified and is never shown as a person; a command is attributed to one, so it has to be.
 3. ~~Replies: channel message, then ephemeral~~ **done** (migration 016). Panels still planned.
 4. ~~The Dart SDK, extracted from what the first three needed~~ **done** (`bot_sdk/`). Polls rather than subscribing: no reconnect logic to get wrong, and nothing spent from the server-wide event budget. Realtime, voice and DMs are listed in its README as not-yet.
-5. Moderation grants — last, deliberately, because it is the only part that spends the trust model
+5. ~~Moderation grants~~ **done** (migration 017). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see.
 
 Games are not on this list. Discord's run in a browser already, Linux desktop has no usable web
 view, and the sandboxing is a project of its own.

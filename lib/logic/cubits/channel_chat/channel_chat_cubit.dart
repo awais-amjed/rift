@@ -189,6 +189,12 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
     _setupRealtime(server, channelId);
 
+    // Who is listening, before the messages. A member is entitled to know a
+    // bot holds this channel's key *while reading it*, not a moment after.
+    final listeners = await _serverCubit.channelListeners(channelId);
+    if (_isStale(generation)) return;
+    emit(state.copyWith(botListeners: listeners));
+
     // The history is fetched either way, including when no key was found.
     // Without a key most of it comes back as locked rows and any webhook
     // message comes back readable — which is the difference between a channel

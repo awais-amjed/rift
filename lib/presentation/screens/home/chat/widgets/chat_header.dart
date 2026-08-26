@@ -5,6 +5,7 @@ import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/status_chip.dart';
+import 'channel_listeners_chip.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -93,6 +94,16 @@ class ChatHeader extends StatelessWidget {
                       color: CustomColors.success,
                       tooltip: StatusChip.encryptedTooltip,
                     ),
+                  // Shown at every width, including the one where "Encrypted"
+                  // is dropped for room. That chip restates something true of
+                  // every channel; this one is true of *this* channel and
+                  // nobody would think to look for it.
+                  ChannelListenersChip(
+                    listeners: context
+                        .watch<ChannelChatCubit>()
+                        .state
+                        .botListeners,
+                  ),
                 ],
               ),
             ),

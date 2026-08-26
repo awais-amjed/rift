@@ -43,6 +43,13 @@ class ChannelChatState {
   final bool hasMoreHistory;
   final bool isLoadingMore;
 
+  /// Display names of the bots holding a key to the open channel.
+  ///
+  /// In cubit state rather than fetched by the header, because it has to be
+  /// there the moment the channel is: a marker that appears a beat after the
+  /// messages is one people scroll past (BOTS.md §6, rule 4).
+  final List<String> botListeners;
+
   /// Members currently typing in the open channel, by user id → display name
   /// (excludes us). Backed by short-lived expiry timers in the cubit.
   final Map<String, String> typingUsers;
@@ -58,6 +65,7 @@ class ChannelChatState {
     this.hasMoreHistory = false,
     this.isLoadingMore = false,
     this.typingUsers = const {},
+    this.botListeners = const [],
     this.failure,
   });
 
@@ -68,6 +76,7 @@ class ChannelChatState {
     bool? hasMoreHistory,
     bool? isLoadingMore,
     Map<String, String>? typingUsers,
+    List<String>? botListeners,
     ChatFailure? failure,
     bool clearFailure = false,
   }) {
@@ -78,6 +87,7 @@ class ChannelChatState {
       hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       typingUsers: typingUsers ?? this.typingUsers,
+      botListeners: botListeners ?? this.botListeners,
       failure: clearFailure ? null : (failure ?? this.failure),
     );
   }
