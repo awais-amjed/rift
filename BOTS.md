@@ -1,8 +1,8 @@
 # BOTS.md — Bots, commands & webhooks
 
-Design reference for third-party integrations. **Webhooks (§3, §7) and bot identity (§1, §2, §9)
-are implemented** — migrations 013 and 014. Commands, replies, the SDK and moderation grants are
-still **[Planned]**. Sections are marked as they land, the same way `ARCHITECTURE.md` marks its
+Design reference for third-party integrations. **Webhooks (§3, §7), bot identity (§1, §2, §9) and
+commands (§4) are implemented** — migrations 013, 014 and 015. Replies (§5), the SDK (§11) and
+moderation grants (§6) are still **[Planned]**. Sections are marked as they land, the same way `ARCHITECTURE.md` marks its
 own.
 
 Read `ARCHITECTURE.md` §2 (auth) and §4 (chat encryption) first. This document assumes both, and
@@ -129,7 +129,7 @@ leans on.
 
 ---
 
-## 4. Commands — [Server implemented, migration 015]
+## 4. Commands — [Implemented]
 
 Two entry points, one mechanism.
 
@@ -386,7 +386,11 @@ badge. Both are fixed; both have tests.
    (migration 014). The sweep exclusion landed as a *refusal on the row* rather than only a
    filter in the three edge functions that walk the member list: filters are the half that gets
    forgotten, and the fourth thing to read `users` will not know it was supposed to have one.
-2. Commands: `to_bot`, `/` completion, the right-click menu, the composer marker
+2. ~~Commands: `to_bot`, `/` completion, the right-click menu, the composer marker~~ **done**
+   (migration 015), except the right-click menu — the `/` list covers discovery for now and the
+   sidebar entry is the next cheap win. One thing the design did not anticipate: a command is
+   *signed* though not sealed, and the read path verifies it. A webhook's message cannot be
+   verified and is never shown as a person; a command is attributed to one, so it has to be.
 3. Replies: channel message, then ephemeral, then panels
 4. The Dart SDK, extracted from what the first three needed
 5. Moderation grants — last, deliberately, because it is the only part that spends the trust model

@@ -200,4 +200,50 @@ void main() {
       );
     });
   });
+
+  group('a command you just sent', () {
+    // Found by sending one in the real app: the badge logic and the parse
+    // logic were both right, and the row in between was built with the default
+    // `isEncrypted: true`. So the one message whose sender *chose* plaintext
+    // was the one that did not say so — until a reload, which is the worst
+    // possible timing for that admission.
+    ChatMessage sentCommand({required bool pending}) => ChatMessage(
+      id: pending ? 'pending-0' : '99',
+      authorId: 'me',
+      authorName: 'Me',
+      text: '/play rick astley',
+      sentAt: base,
+      isMine: true,
+      isPending: pending,
+      isEncrypted: false,
+    );
+
+    test('is badged while it is still in flight', () {
+      expect(
+        MessageOriginBadge.isNeededFor(sentCommand(pending: true)),
+        isTrue,
+      );
+    });
+
+    test('and still badged once the server answers', () {
+      expect(
+        MessageOriginBadge.isNeededFor(sentCommand(pending: false)),
+        isTrue,
+      );
+    });
+
+    test('but it is still mine, and still from a member', () {
+      // Unencrypted does not mean unattributed: a command carries the sender's
+      // name, unlike a webhook's message.
+      final sent = sentCommand(pending: false);
+      expect(sent.isMine, isTrue);
+      expect(sent.origin, MessageOrigin.member);
+      expect(sent.authorId, isNotEmpty);
+    });
+
+    testWidgets('the badge is on the row', (tester) async {
+      await pump(tester, [sentCommand(pending: false)]);
+      expect(find.byType(MessageOriginBadge), findsOneWidget);
+    });
+  });
 }

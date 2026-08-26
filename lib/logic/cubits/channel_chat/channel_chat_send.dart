@@ -60,6 +60,12 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
             sentAt: DateTime.now(),
             isMine: true,
             isPending: true,
+            // The badge has to be on the row from the moment it appears. This
+            // is the one message whose *sender* chose to send it in the clear,
+            // and the send is exactly when they want to see that confirmed —
+            // waiting for a reload to admit it would be the worst timing
+            // available.
+            isEncrypted: command == null,
           ),
         ],
       ),
@@ -144,6 +150,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
               attachments: uploaded,
               sentAt: DateTime.parse(data['created_at'] as String),
               isMine: true,
+              isEncrypted: command == null,
             ),
           ),
         ),
