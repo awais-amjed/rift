@@ -4,18 +4,23 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/server_role.dart';
 import '../../../../theme/app_text.dart';
 
-/// A member's standing in the server: ADMIN, MANAGER.
+/// A member's standing in the server: ADMIN, MOD.
 ///
 /// Words rather than the icons this used to use — a shield and a wrench mean
 /// nothing until someone tells you, and there is room on the row for the
 /// letters.
 ///
-/// It used to say `MOD`, which was the wrong word twice over. It implied the
-/// powers people expect of a moderator — ban, mute — which a channel manager
-/// does not have (those are `moderate_user`, admin-only), and it was a third
-/// name for a role the Members dialog and the participant menu both call
-/// "Channel Manager". [ServerRole] exists so those surfaces cannot drift; this
-/// one had drifted.
+/// `MOD` is short for the role [ServerRole.channelManager], which the Members
+/// dialog and the participant menu both spell out as "Channel Manager". The
+/// abbreviation is deliberate — there is room on a member row for three
+/// letters and not for two words.
+///
+/// **It does not mean what "mod" means elsewhere.** A channel manager creates
+/// and deletes channels, removes anyone's message, and disconnects people from
+/// a call. Muting, deafening and banning are `moderate_user`, which checks
+/// `app.is_admin()`, so a MOD can do none of them. The full grant is spelled
+/// out in [ServerRole.channelManager] and shown wherever the role is handed
+/// out; do not re-derive it from this word.
 ///
 /// Deliberately not interactive. The label is the whole message, and a chip
 /// that opens something is a chip people have to try before they know it does
@@ -32,7 +37,7 @@ class RoleChip extends StatelessWidget {
 
   String get _label => switch (role) {
     ServerRole.admin => 'ADMIN',
-    ServerRole.channelManager => 'MANAGER',
+    ServerRole.channelManager => 'MOD',
     ServerRole.invites => 'INVITES',
   };
 

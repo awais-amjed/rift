@@ -108,10 +108,7 @@ void main() {
   });
 
   group('the role chip', () {
-    testWidgets('a channel manager is not called MOD', (tester) async {
-      // It implied ban and mute, which `moderate_user` reserves for admins,
-      // and it was a third name for a role two other surfaces already call
-      // "Channel Manager".
+    testWidgets('a channel manager is labelled MOD', (tester) async {
       await pump(
         tester,
         Builder(
@@ -122,8 +119,25 @@ void main() {
         ),
       );
 
+      expect(find.text('MOD'), findsOneWidget);
+    });
+
+    testWidgets('an admin is labelled ADMIN, not MOD', (tester) async {
+      // `app.can_manage_channels()` is `is_server_admin OR is_channel_manager`,
+      // so an admin already holds everything a manager does. Two chips would
+      // read as two grants rather than one that subsumes the other.
+      await pump(
+        tester,
+        Builder(
+          builder: (context) => RoleChip(
+            role: ServerRole.admin,
+            themeState: context.read<ThemeCubit>().state,
+          ),
+        ),
+      );
+
+      expect(find.text('ADMIN'), findsOneWidget);
       expect(find.text('MOD'), findsNothing);
-      expect(find.text('MANAGER'), findsOneWidget);
     });
   });
 
