@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../logic/services/host_platform.dart';
 import 'app_palette.dart';
+import 'app_shadows.dart';
 import 'app_text.dart';
 import 'custom_colors.dart';
 
@@ -35,9 +36,28 @@ class AppTheme {
       //
       // Manual means it never fires by itself. Nothing is lost: the label it
       // would have shown is on a control the user is already touching.
-      tooltipTheme: HostPlatform.isMobile
-          ? const TooltipThemeData(triggerMode: TooltipTriggerMode.manual)
-          : null,
+      //
+      // The look is set here rather than left to Material, which paints a
+      // light pill with dark text — correct for a light app and glaringly
+      // wrong in this one, which is why every tooltip in Rift looked like it
+      // belonged to a different program. These match [PopoverSurface], because
+      // a tooltip is the smallest thing in that family.
+      //
+      // `waitDuration` is short on purpose: a small target with a long delay
+      // is indistinguishable from one that has no tooltip at all.
+      tooltipTheme: TooltipThemeData(
+        triggerMode: HostPlatform.isMobile ? TooltipTriggerMode.manual : null,
+        waitDuration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        margin: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: colors.bgElevated,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: colors.borderElevated),
+          boxShadow: AppShadows.popover,
+        ),
+        textStyle: AppText.meta.copyWith(color: colors.textSecondary),
+      ),
       // The scaffold is the canvas the floating panels sit on, in both modes —
       // panels paint their own background over it.
       scaffoldBackgroundColor: colors.bgPrimary,

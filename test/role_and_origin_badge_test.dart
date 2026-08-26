@@ -7,27 +7,38 @@ import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/data/enums/message_origin.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/server_role.dart';
+import 'package:rift/presentation/theme/app_theme.dart';
 import 'package:rift/presentation/common/chat/message_row/message_origin_badge.dart';
 import 'package:rift/presentation/screens/home/members_sidebar/widgets/role_chip.dart';
 
 import 'support/memory_storage.dart';
 
-/// A badge that carries a consequence has to be able to explain itself.
+/// What the badges say, and what they must never claim.
 ///
-/// Both of these are opaque three-to-seven letter chips that are obvious to
-/// whoever added them and meaningless to everybody else, and a tooltip only
-/// half-answers it — it needs a mouse, so a phone never sees one.
+/// Both are small chips carrying real consequences, and both explain
+/// themselves the cheap way — a tooltip on the message badge, and nothing at
+/// all on the role chip, because the word is the whole message.
 void main() {
   setUpAll(() => HydratedBloc.storage = MemoryStorage());
 
-  Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
-    BlocProvider<ThemeCubit>(
-      create: (_) => ThemeCubit(),
-      child: MaterialApp(
-        home: Scaffold(body: Center(child: child)),
+  /// Pumps with the app's *real* ThemeData, not a bare MaterialApp — the
+  /// tooltip's look and delay live in `tooltipTheme`, so a default theme here
+  /// would be testing something the app never renders.
+  Future<void> pump(WidgetTester tester, Widget child) {
+    final themeCubit = ThemeCubit();
+    return tester.pumpWidget(
+      BlocProvider<ThemeCubit>.value(
+        value: themeCubit,
+        child: MaterialApp(
+          theme: AppTheme.fromPalette(
+            themeCubit.state.palette,
+            Brightness.dark,
+          ),
+          home: Scaffold(body: Center(child: child)),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   ChatMessage hook() => ChatMessage(
     id: '1',
@@ -41,29 +52,9 @@ void main() {
   );
 
   group('the unencrypted badge', () {
-    testWidgets('tapping it explains what unencrypted means', (tester) async {
-      await pump(
-        tester,
-        Builder(
-          builder: (context) => MessageOriginBadge(
-            message: hook(),
-            themeState: context.read<ThemeCubit>().state,
-          ),
-        ),
-      );
-
-      await tester.tap(find.byType(MessageOriginBadge));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Posted by an integration'), findsOneWidget);
-      expect(find.textContaining('the server can read it'), findsOneWidget);
-    });
-
-    testWidgets('and says the rest of the channel is still safe', (
+    testWidgets('carries a tooltip saying the server can read it', (
       tester,
     ) async {
-      // A warning that overstates itself is one people learn to skip. This one
-      // must not imply the whole channel is readable.
       await pump(
         tester,
         Builder(
@@ -74,10 +65,39 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byType(MessageOriginBadge));
-      await tester.pumpAndSettle();
+      final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+      expect(tooltip.message, contains('the server can read this message'));
+      expect(tooltip.message, contains('not a member'));
+    });
 
-      expect(find.textContaining('still end-to-end encrypted'), findsOneWidget);
+    testWidgets('and takes its look and delay from the app theme', (
+      tester,
+    ) async {
+      // It was first reported as "there is no tooltip". Material's default is
+      // a light pill with a 500ms wait — wrong colours for this app, and long
+      // enough on a target this small to read as nothing being there.
+      await pump(
+        tester,
+        Builder(
+          builder: (context) => MessageOriginBadge(
+            message: hook(),
+            themeState: context.read<ThemeCubit>().state,
+          ),
+        ),
+      );
+
+      final theme = Theme.of(tester.element(find.byType(MessageOriginBadge)));
+      expect(
+        theme.tooltipTheme.waitDuration!.inMilliseconds,
+        lessThanOrEqualTo(200),
+      );
+      expect(theme.tooltipTheme.decoration, isNotNull);
+      expect(theme.tooltipTheme.textStyle, isNotNull);
+
+      // ...and the badge does not override either of them locally.
+      final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+      expect(tooltip.waitDuration, isNull);
+      expect(tooltip.decoration, isNull);
     });
   });
 
@@ -99,33 +119,14 @@ void main() {
       expect(find.text('MOD'), findsNothing);
       expect(find.text('MANAGER'), findsOneWidget);
     });
-
-    testWidgets('tapping it lists what the role actually grants', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        Builder(
-          builder: (context) => RoleChip(
-            role: ServerRole.channelManager,
-            themeState: context.read<ThemeCubit>().state,
-          ),
-        ),
-      );
-
-      await tester.tap(find.byType(RoleChip));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Channel Manager'), findsOneWidget);
-      expect(find.textContaining('delete channels'), findsOneWidget);
-    });
   });
 
   group('what the description claims', () {
     test('a channel manager is never described as moderating members', () {
       // Muting, deafening and banning all go through `moderate_user`, which
-      // checks `app.is_admin()`. Claiming otherwise in the permissions dialog
-      // would have an admin hand out a power believing it were smaller.
+      // checks `app.is_admin()`. This text is what an admin reads while
+      // deciding whether to grant the role, so it must not promise more than
+      // the role holds.
       final text = ServerRole.channelManager.description.toLowerCase();
       expect(text.contains('moderate members'), isFalse);
       expect(text.contains('ban'), isFalse);

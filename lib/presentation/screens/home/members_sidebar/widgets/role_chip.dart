@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../common/badge_explainer.dart';
 import '../../../../common/server_role.dart';
 import '../../../../theme/app_text.dart';
 
@@ -18,9 +17,9 @@ import '../../../../theme/app_text.dart';
 /// "Channel Manager". [ServerRole] exists so those surfaces cannot drift; this
 /// one had drifted.
 ///
-/// **Tappable**, for the same reason the unencrypted-message badge is: a chip
-/// that grants real power over a channel should be able to say what it grants,
-/// on the row where you see it, without a trip to a settings dialog.
+/// Deliberately not interactive. The label is the whole message, and a chip
+/// that opens something is a chip people have to try before they know it does
+/// nothing useful.
 class RoleChip extends StatelessWidget {
   final ServerRole role;
   final ThemeState themeState;
@@ -39,31 +38,18 @@ class RoleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _isPrimary
-        ? themeState.accentBright
-        : themeState.textTertiary;
-
-    return Builder(
-      builder: (chipContext) => MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: () => showBadgeExplainer(
-            chipContext,
-            icon: role.icon,
-            iconColor: color,
-            title: role.label,
-            body: '${role.description}.',
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(
-              color: _isPrimary
-                  ? themeState.primary.withValues(alpha: 0.14)
-                  : themeState.bgHover,
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: Text(_label, style: AppText.roleChip.copyWith(color: color)),
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: _isPrimary
+            ? themeState.primary.withValues(alpha: 0.14)
+            : themeState.bgHover,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        _label,
+        style: AppText.roleChip.copyWith(
+          color: _isPrimary ? themeState.accentBright : themeState.textTertiary,
         ),
       ),
     );

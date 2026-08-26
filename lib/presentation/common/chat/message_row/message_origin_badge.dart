@@ -5,7 +5,6 @@ import '../../../../data/enums/message_origin.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
-import '../../badge_explainer.dart';
 
 /// Says a message was not encrypted, and that no person sent it.
 ///
@@ -18,10 +17,10 @@ import '../../badge_explainer.dart';
 ///
 /// It cannot be turned off, and there is deliberately no setting for it.
 ///
-/// **Tappable**, because the pill on its own only works for somebody who
-/// already knows what it means. A tooltip does not close that gap either: it
-/// needs a mouse, so a phone never sees one, and it needs you to already
-/// suspect there is something to find.
+/// The tooltip is the explanation, and it is short on purpose: the pill is
+/// already the signal, and a paragraph is something people learn to dismiss
+/// without reading. It surfaces fast — a long wait on a small target reads as
+/// nothing being there at all.
 class MessageOriginBadge extends StatelessWidget {
   final ChatMessage message;
   final ThemeState themeState;
@@ -47,66 +46,40 @@ class MessageOriginBadge extends StatelessWidget {
     MessageOrigin.member => 'NOT ENCRYPTED',
   };
 
-  String get _title => switch (message.origin) {
-    MessageOrigin.webhook => 'Posted by an integration',
-    MessageOrigin.member => 'Not encrypted',
-  };
-
-  /// What it means *for this message*. It never says the channel is unsafe,
-  /// because it isn't — everything else in it is still sealed, and a warning
-  /// that overstates itself is one people learn to skip past.
-  String get _body => switch (message.origin) {
+  String get _tooltip => switch (message.origin) {
     MessageOrigin.webhook =>
-      'An outside service posted this through a webhook, so it is not '
-          'encrypted and the server can read it. Nobody in this server sent '
-          'it. Every other message here is still end-to-end encrypted.',
-    MessageOrigin.member =>
-      'This message is not encrypted, so the server can read it. Every other '
-          'message here is still end-to-end encrypted.',
+      'Posted by an integration, not a member.\n'
+          'Unencrypted — the server can read this message.',
+    MessageOrigin.member => 'Unencrypted — the server can read this message.',
   };
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'What does this mean?',
-      waitDuration: const Duration(milliseconds: 400),
-      child: Builder(
-        // Its own context, so the popover anchors to the pill rather than to
-        // whatever ancestor happened to build this row.
-        builder: (badgeContext) => MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () => showBadgeExplainer(
-              badgeContext,
-              icon: Icons.lock_open_rounded,
-              iconColor: _color,
-              title: _title,
-              body: _body,
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: _color.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 3,
-                children: [
-                  Icon(Icons.lock_open_rounded, size: 10, color: _color),
-                  Text(
-                    _label,
-                    style: AppText.meta.copyWith(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                      color: _color,
-                    ),
-                  ),
-                ],
+      // Look and delay both come from `tooltipTheme` in AppTheme, so this
+      // matches every other tooltip in the app rather than setting its own.
+      message: _tooltip,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        decoration: BoxDecoration(
+          color: _color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 3,
+          children: [
+            Icon(Icons.lock_open_rounded, size: 10, color: _color),
+            Text(
+              _label,
+              style: AppText.meta.copyWith(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: _color,
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
