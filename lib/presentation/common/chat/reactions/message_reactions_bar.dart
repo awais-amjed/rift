@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/message_reaction.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/app_text.dart';
-import '../../emoji_text.dart';
+import 'reaction_chip.dart';
 
 /// The row of emoji-reaction chips shown under a message, plus a small "add
 /// reaction" button. Tapping a chip toggles the local user's reaction; the "+"
 /// opens the quick picker, anchored to the button that was tapped.
-class MessageReactionsBar extends StatelessWidget {
+///
+/// Stateful only to remember which chips it has already shown. A reaction
+/// arriving is worth a small pop — it is the only sign anything happened to a
+/// message already on screen — but scrolling a chat backwards past a hundred
+/// old reactions must not set them all off. So the first build primes: whatever
+/// is on the message when the bar appears is simply there, and only what turns
+/// up afterwards animates.
+class MessageReactionsBar extends StatefulWidget {
   final List<MessageReaction> reactions;
   final ThemeState themeState;
   final void Function(String emoji) onToggle;
@@ -23,6 +29,40 @@ class MessageReactionsBar extends StatelessWidget {
   });
 
   @override
+  State<MessageReactionsBar> createState() => _MessageReactionsBarState();
+}
+
+class _MessageReactionsBarState extends State<MessageReactionsBar> {
+  /// What was on the message last time. Whatever is here on the first build is
+  /// the backlog; a reaction taken off the message leaves, so if it comes back
+  /// it is an arrival again — which it is, by any reading somebody watching
+  /// would give it.
+  Set<String> _shown = const {};
+
+  /// Emoji that were not here a build ago. Only has to be right on the build
+  /// that creates the chip — [ReactionChip] captures the answer once and stops
+  /// asking, so this going empty on the next rebuild cannot cut a pop short.
+  Set<String> _arrived = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Primed here rather than in a `late` field initialiser. A `late` field is
+    // built on first *access*, and the first access is the `didUpdateWidget`
+    // below — by which point `widget` already holds the new list, so the
+    // priming would swallow the very first arrival it exists to let through.
+    _shown = {for (final r in widget.reactions) r.emoji};
+  }
+
+  @override
+  void didUpdateWidget(MessageReactionsBar old) {
+    super.didUpdateWidget(old);
+    final now = {for (final r in widget.reactions) r.emoji};
+    _arrived = now.difference(_shown);
+    _shown = now;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 5),
@@ -31,67 +71,22 @@ class MessageReactionsBar extends StatelessWidget {
         runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          for (final r in reactions)
-            _ReactionChip(
+          for (final r in widget.reactions)
+            ReactionChip(
+              // Keyed by emoji so a chip's state follows its own reaction when
+              // one before it is removed — without this the pop and the bump
+              // would land on whichever chip shuffled into that slot.
+              key: ValueKey(r.emoji),
               reaction: r,
-              themeState: themeState,
-              onTap: () => onToggle(r.emoji),
+              themeState: widget.themeState,
+              onTap: () => widget.onToggle(r.emoji),
+              isNew: _arrived.contains(r.emoji),
             ),
-          _AddReactionButton(themeState: themeState, onTap: onAdd),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReactionChip extends StatelessWidget {
-  final MessageReaction reaction;
-  final ThemeState themeState;
-  final VoidCallback onTap;
-
-  const _ReactionChip({
-    required this.reaction,
-    required this.themeState,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final mine = reaction.mine;
-    return Material(
-      color: mine
-          ? themeState.primary.withValues(alpha: 0.14)
-          : themeState.bgHover,
-      shape: StadiumBorder(
-        side: BorderSide(
-          // Your own reactions are ringed in the accent; everyone else's get
-          // a hairline, so a glance says which ones you already pressed.
-          color: mine
-              ? themeState.primary.withValues(alpha: 0.35)
-              : themeState.borderElevated,
-        ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(reaction.emoji, style: emojiRunStyle.copyWith(fontSize: 13)),
-              const SizedBox(width: 5),
-              Text(
-                '${reaction.count}',
-                style: AppText.figure.copyWith(
-                  color: mine
-                      ? themeState.accentBright
-                      : themeState.textSecondary,
-                ),
-              ),
-            ],
+          _AddReactionButton(
+            themeState: widget.themeState,
+            onTap: widget.onAdd,
           ),
-        ),
+        ],
       ),
     );
   }

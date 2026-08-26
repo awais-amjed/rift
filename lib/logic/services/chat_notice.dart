@@ -1,3 +1,4 @@
+import '../../data/enums/notification_level.dart';
 import 'message_markup.dart';
 
 /// What a notification about a chat message says.
@@ -11,7 +12,21 @@ class ChatNotice {
   final String title;
   final String body;
 
-  const ChatNotice({required this.title, required this.body});
+  /// Whether the message named the person this is for — by username or by
+  /// `@all`.
+  ///
+  /// Carried rather than recomputed because the caller that has to act on it
+  /// is not always the one that could work it out. A push isolate under
+  /// [NotificationLevel.mentions] has to drop everything that is not a
+  /// mention, and it holds the plaintext for exactly as long as it takes to
+  /// build one of these.
+  final bool mentioned;
+
+  const ChatNotice({
+    required this.title,
+    required this.body,
+    this.mentioned = false,
+  });
 
   /// What to show where the message itself has no text.
   ///
@@ -36,7 +51,11 @@ class ChatNotice {
     final base = mentioned
         ? '$author mentioned you in #$channel'
         : '$author in #$channel';
-    return ChatNotice(title: _counted(base, unread), body: preview(text));
+    return ChatNotice(
+      title: _counted(base, unread),
+      body: preview(text),
+      mentioned: mentioned,
+    );
   }
 
   /// A direct message, on a server or on central. The sender is the whole of

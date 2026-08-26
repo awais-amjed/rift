@@ -10,9 +10,21 @@ enum ChannelChatStatus {
   /// Chat is usable.
   ready,
 
-  /// The keyring has no entry sealed to us yet — waiting for another member's
-  /// client to heal us (they wrap the channel key on their next channel open).
+  /// The keyring has no entry sealed to us yet **and there is nothing here we
+  /// can read either** — waiting for another member's client to heal us (they
+  /// wrap the channel key on their next channel open).
   waitingForKey,
+
+  /// No key, but the channel still has something worth showing: unencrypted
+  /// messages we can read, locked rows for the ones we cannot, or both.
+  ///
+  /// Distinct from [waitingForKey] because that state used to swallow this one.
+  /// A member with no key saw a full-screen "waiting" panel over a channel that
+  /// might contain build alerts they could read perfectly well, and always
+  /// contained a history whose *size* was worth knowing. Reading is the only
+  /// thing missing here — sending still needs a key, so the composer stays
+  /// away.
+  readOnly,
 
   error,
 }

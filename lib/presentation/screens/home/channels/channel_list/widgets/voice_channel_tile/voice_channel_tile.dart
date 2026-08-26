@@ -153,33 +153,40 @@ class VoiceChannelTile extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, ThemeState themeState) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(K.radiusRow),
-      onTap: onTap,
-      child: Row(
-        spacing: 9,
-        children: [
-          Icon(
-            Icons.volume_up_rounded,
-            size: 16,
-            color: isSelected
-                ? themeState.accentBright
-                : themeState.textTertiary,
-          ),
-          Expanded(
-            child: Text(
-              channel.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.row.copyWith(
-                color: isSelected
-                    ? themeState.channelActiveText
-                    : themeState.textSecondary,
+    // The tile paints its own card, so the ink needs a surface inside it —
+    // otherwise the highlight lands on the sidebar behind and the card covers
+    // it, and the one row you can click looks exactly like the roster rows
+    // under it, which you cannot.
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(K.radiusRow),
+        onTap: onTap,
+        child: Row(
+          spacing: 9,
+          children: [
+            Icon(
+              Icons.volume_up_rounded,
+              size: 16,
+              color: isSelected
+                  ? themeState.accentBright
+                  : themeState.textTertiary,
+            ),
+            Expanded(
+              child: Text(
+                channel.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.row.copyWith(
+                  color: isSelected
+                      ? themeState.channelActiveText
+                      : themeState.textSecondary,
+                ),
               ),
             ),
-          ),
-          if (isSelected) const LiveBadge(),
-        ],
+            if (isSelected) const LiveBadge(),
+          ],
+        ),
       ),
     );
   }

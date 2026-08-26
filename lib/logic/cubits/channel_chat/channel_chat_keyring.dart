@@ -14,7 +14,6 @@ mixin _ChatKeyringMixin on Cubit<ChannelChatState> {
   void _setCurrentKeyVersion(int version);
   void _ringKeySweepDoorbell();
 
-
   Future<ChatIdentity?> _chatIdentity(Server server) async {
     if (_vaultCubit.state.masterSeed == null) return null;
     final host = Uri.parse(server.supabaseUrl).host;

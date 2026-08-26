@@ -11,6 +11,7 @@ import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/channel_search.dart';
+import '../../../../common/tap_to_focus.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
 import 'widgets/quick_switcher_row.dart';
@@ -132,7 +133,17 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
     );
   }
 
+  /// Tapping the header anywhere puts the caret back in the box. It opens
+  /// focused, so this is for getting focus *back* after a click landed on the
+  /// results list or the magnifier.
   Widget _buildField(ThemeState themeState) {
+    return TapToFocus(
+      focusNode: _focusNode,
+      child: _buildFieldRow(themeState),
+    );
+  }
+
+  Widget _buildFieldRow(ThemeState themeState) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Row(

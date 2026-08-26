@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/dm_conversation.dart';
+import '../../../../../data/enums/notification_level.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
@@ -37,6 +38,14 @@ class DmListPanel extends StatelessWidget {
   /// has no unread information — every row then shows none.
   final int Function(String peerId)? unreadFor;
 
+  /// How much a peer's conversation may interrupt, for the row's right-click
+  /// menu. Null means the caller has nowhere to store an answer, and no menu
+  /// is offered.
+  final NotificationLevel Function(String peerId)? levelFor;
+
+  /// Called when a row's menu picks a level.
+  final void Function(String peerId, NotificationLevel level)? onLevelChanged;
+
   const DmListPanel({
     super.key,
     required this.title,
@@ -47,6 +56,8 @@ class DmListPanel extends StatelessWidget {
     this.search,
     this.emptyState,
     this.unreadFor,
+    this.levelFor,
+    this.onLevelChanged,
   });
 
   @override
@@ -139,11 +150,18 @@ class DmListPanel extends StatelessWidget {
           return const SectionHeader(label: 'Conversations');
         }
         final conversation = conversations[index - 1];
+        final onLevelChanged = this.onLevelChanged;
         return DmConversationTile(
           conversation: conversation,
           isSelected: conversation.peerId == openPeerId,
           themeState: themeState,
           unreadCount: unreadFor?.call(conversation.peerId) ?? 0,
+          level:
+              levelFor?.call(conversation.peerId) ??
+              NotificationLevel.dmDefault,
+          onLevelChanged: onLevelChanged == null
+              ? null
+              : (level) => onLevelChanged(conversation.peerId, level),
           onTap: () => onOpen(conversation),
         );
       },

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/attachment.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_motion.dart';
 import 'attachment_image_viewer.dart';
 import 'attachment_loader.dart';
 
@@ -122,23 +123,33 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
             ),
           );
         }
-        return GestureDetector(
-          onTap: () =>
-              showAttachmentImageViewer(context, widget.attachment.name, bytes),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            // `cover` only where the box is known to be the image's own
-            // aspect ratio. Without dimensions the box is a guess, and
-            // cropping to a guess would cut the picture.
-            child: box == null
-                ? ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: AttachmentImageThumb.maxSize,
-                      maxHeight: AttachmentImageThumb.maxSize,
-                    ),
-                    child: Image.memory(bytes),
-                  )
-                : Image.memory(bytes, fit: BoxFit.cover),
+        // Faded up from the placeholder rather than swapped for it. An
+        // attachment is decrypted and decoded before it can be shown, so the
+        // swap lands at an unpredictable moment — and a picture appearing
+        // instantly mid-scroll reads as a glitch rather than as a load
+        // finishing.
+        return _FadeIn(
+          child: GestureDetector(
+            onTap: () => showAttachmentImageViewer(
+              context,
+              widget.attachment.name,
+              bytes,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              // `cover` only where the box is known to be the image's own
+              // aspect ratio. Without dimensions the box is a guess, and
+              // cropping to a guess would cut the picture.
+              child: box == null
+                  ? ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: AttachmentImageThumb.maxSize,
+                        maxHeight: AttachmentImageThumb.maxSize,
+                      ),
+                      child: Image.memory(bytes),
+                    )
+                  : Image.memory(bytes, fit: BoxFit.cover),
+            ),
           ),
         );
       },
@@ -159,6 +170,28 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: widget.themeState.borderPrimary),
       ),
+      child: child,
+    );
+  }
+}
+
+/// Fades its child up once, on first build.
+///
+/// Deliberately one-shot: the tween's end value never changes, so a rebuild
+/// for any other reason — the row re-laying out, a theme change — cannot
+/// replay it and make a picture already on screen flicker.
+class _FadeIn extends StatelessWidget {
+  final Widget child;
+
+  const _FadeIn({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: AppMotion.enter,
+      curve: AppMotion.settle,
+      builder: (context, t, child) => Opacity(opacity: t, child: child),
       child: child,
     );
   }

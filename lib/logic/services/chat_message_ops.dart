@@ -69,7 +69,10 @@ class ChatMessageOps {
     required ChatMessage acked,
   }) => [
     for (final m in messages)
-      if (m.id != pendingId) m else acked,
+      // The acked row remembers the id it was drawn under, so the swap is a
+      // row changing rather than one row leaving and another arriving. See
+      // [ChatMessage.sentAsId].
+      if (m.id != pendingId) m else acked.copyWith(sentAsId: pendingId),
   ];
 
   /// Apply an edit locally: swap [text] in and stamp [editedAt] on one row.

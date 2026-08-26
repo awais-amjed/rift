@@ -45,6 +45,45 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
     _latestInbound.clear();
   }
 
+  /// Load how much each conversation may interrupt.
+  ///
+  /// Its own read rather than a field on the conversation list, because it is
+  /// the caller's private opinion of the other person and has nothing to do
+  /// with what the conversation contains — and because `refreshConversations`
+  /// runs on every incoming message, where re-reading a setting nobody changed
+  /// would be a request per message for no reason.
+  Future<void> _loadNotificationLevels() async {
+    final response = await _repo.listNotificationLevels();
+    if (isClosed || !response.success) return;
+    emit(
+      state.copyWith(
+        levelsByPeer: response.data as Map<String, NotificationLevel>,
+      ),
+    );
+  }
+
+  /// How much [peerId] may interrupt. Applied locally first: the change is the
+  /// user's own preference rather than a claim about the world, and the menu
+  /// is closing under the pointer.
+  Future<void> setNotificationLevel(
+    String peerId,
+    NotificationLevel level,
+  ) async {
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        levelsByPeer: Map.of(state.levelsByPeer)..[peerId] = level,
+      ),
+    );
+    final response = await _repo.setNotificationLevel(
+      peerId: peerId,
+      level: level,
+    );
+    // Put back what the server actually thinks, rather than leaving a setting
+    // on screen that is in force nowhere.
+    if (!response.success) unawaited(_loadNotificationLevels());
+  }
+
   /// Per-peer unread counts for one batch of raw rows, and the cursors a read
   /// would write. Called by the conversation refresh, which has the rows.
   ///

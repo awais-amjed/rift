@@ -21,7 +21,7 @@ mixin _ChatReadApiMixin {
   /// standalone read, so this widens nothing.
   static const _messageColumns =
       'id, created_at, channel_id, sender_id, ciphertext, nonce, signature, '
-      'key_version, edited_at, '
+      'key_version, edited_at, webhook_id, origin_name, '
       'sender:users!messages_sender_id_fkey(display_name, public_key, avatar_path), '
       'message_reactions(user_id, emoji)';
 
@@ -41,11 +41,17 @@ mixin _ChatReadApiMixin {
     final sender = row['sender'] as Map<String, dynamic>?;
     final reactions = (row[reactionsKey] as List? ?? const [])
         .cast<Map<String, dynamic>>();
+    // A webhook's message has no sender row to embed — `origin_name` is the
+    // name, frozen on the message itself (migration 013). Taking it here rather
+    // than in each cubit keeps every reader on the same answer, and keeps the
+    // 'Unknown' fallback for what it is actually for: a member whose row is
+    // gone.
+    final originName = row['origin_name'] as String?;
     return {
       ...row
         ..remove('sender')
         ..remove(reactionsKey),
-      'sender_name': sender?['display_name'] ?? 'Unknown',
+      'sender_name': originName ?? sender?['display_name'] ?? 'Unknown',
       'sender_public_key': sender?['public_key'],
       'sender_avatar_path': sender?['avatar_path'],
       'reactions': ReactionOps.aggregate(reactions, userId: userId),

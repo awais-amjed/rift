@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../theme/app_motion.dart';
 import '../../theme/app_text.dart';
 
 /// A slim "… is typing" strip shown just above the composer. Renders nothing
@@ -34,7 +35,20 @@ class TypingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (names.isEmpty) return const SizedBox.shrink();
+    // Grows and collapses rather than appearing and vanishing. It sits between
+    // the message list and the composer, so every time somebody started or
+    // stopped typing the whole conversation jumped by the height of this row —
+    // motion nobody asked for, caused by having none. Anchored to the bottom,
+    // so it slides out from behind the composer and back under it.
+    return AnimatedSize(
+      duration: AppMotion.state,
+      curve: AppMotion.settle,
+      alignment: Alignment.bottomLeft,
+      child: names.isEmpty ? const SizedBox(width: double.infinity) : _row(),
+    );
+  }
+
+  Widget _row() {
     final (who, phrase) = _parts;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 16, 4),

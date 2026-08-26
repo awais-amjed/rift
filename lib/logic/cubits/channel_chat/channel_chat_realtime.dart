@@ -123,7 +123,12 @@ mixin _ChannelChatRealtimeMixin
   void _onDoorbell() {
     if (isClosed) return;
     switch (state.status) {
+      // Read-only reads the same way: this doorbell means a *message*, and a
+      // webhook's is readable without any key at all. A heal is a different
+      // doorbell (`_onKeySweepDoorbell`), and re-opening the whole channel on
+      // every message would be a heavy answer to the wrong signal.
       case ChannelChatStatus.ready:
+      case ChannelChatStatus.readOnly:
         unawaited(_fetchAfterLatest());
       case ChannelChatStatus.waitingForKey:
         // A member came online and may have healed our keyring entry.

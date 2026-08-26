@@ -202,7 +202,9 @@ class _HomeScreenState extends State<HomeScreen> {
           listener: (context, _) => _dismissOverlays(),
         ),
         BlocListener<CentralDmCubit, CentralDmState>(
-          listenWhen: (prev, curr) => prev.openPeerId != curr.openPeerId,
+          listenWhen: (prev, curr) =>
+              prev.openPeerId != curr.openPeerId ||
+              prev.friendsOpen != curr.friendsOpen,
           listener: (context, _) => _dismissOverlays(),
         ),
         BlocListener<DmCubit, DmState>(

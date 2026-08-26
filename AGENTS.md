@@ -91,6 +91,17 @@ edge_functions.md   # Edge Function API doc — update when functions change
 
 ## Presentation
 
+- **"Cannot read it" and "must not show it" are different, and must never share a branch.**
+  A message sealed under a key this device lacks is *locked* — render a placeholder with its
+  author and time, because nothing is wrong and it opens when the key arrives. A message whose
+  signature fails is *dropped*, silently and completely, because a placeholder there would let a
+  forger prove a message existed. Collapsing the two is what made a channel with no key look
+  empty. Same rule for any surface that decrypts: `ARCHITECTURE.md` §4, *Three things a client can
+  do with a row*.
+- **An unencrypted message is badged, always.** Webhooks (and later bot commands) write bodies the
+  server can read, in channels where everything else is sealed. `MessageOriginBadge` says so and
+  has no off switch — and the *grouping* rule has to agree, or a badge-less row tucks under a
+  badged one. Group by `ChatMessage.groupKey`, never by `authorId`.
 - **Keep widget files small — one widget per file wherever possible.** A component gets its own
   folder containing its main file plus one file per helper widget (e.g.
   `invite_modal/invite_modal.dart` + `invite_modal/permission_row.dart`). Helper widgets that are
@@ -116,9 +127,46 @@ edge_functions.md   # Edge Function API doc — update when functions change
   `.copyWith(color: themeState.textSecondary)`. Geist for UI; `AppText.meta`/`figure`/`kbd` are
   mono, reserved for figures that line up or tick in place and for keyboard chips.
 - **Depth:** elevated chrome reads its shadow from `AppShadows`, never a hand-rolled `BoxShadow`.
+- **A field's tap target is the box it looks like, not the strip of text inside it.** A bare
+  `TextField` only hit-tests its own decoration, so one drawn inside a taller bar — the
+  composer, a search pill with a magnifier beside it — leaves the padding, the icon and the
+  gaps between controls inert, and the only way to get a caret is to aim at the placeholder.
+  Wrap the painted box in `TapToFocus` (`presentation/common/tap_to_focus.dart`); buttons
+  inside keep their own taps and cursors. `AppTextField` needs nothing — Material's own
+  decoration is the target — but its label is wrapped, so clicking the label focuses the
+  field. `test/field_hit_area_test.dart` taps the corners of each bar on every platform.
+- **Motion has a vocabulary — use it, don't invent a duration.** `AppMotion` (`theme/`)
+  names three lengths by job: `react` for a control answering the pointer, `state` for one
+  changing under your hand, `enter` for something arriving that the user did not do. The
+  rule they encode: **nothing the user is waiting on runs longer than `state`.** Two things
+  moving over the same duration on different curves still read as two animations, so take
+  the curve from there too (`settle`, `arrive`, `pop`, `panel`). Panel travel times stay in
+  `K`, beside the geometry they move.
+- **An arrival animates once, and only for what actually arrived.** Anything that animates
+  on first build animates a whole backlog the moment a list is reopened — so the list primes
+  (`ChatMessageList._seen`, `MessageReactionsBar._shown`) and only what turns up afterwards
+  moves. Prime in `initState`, never a `late` field: a `late` initialiser runs on first
+  *access*, which is the first `didUpdateWidget`, by which point `widget` already holds the
+  new list and the priming swallows the arrival it exists to let through. The animating
+  widget then captures the answer in its own `initState` and stops asking, or the next
+  rebuild tears the animation out mid-flight.
+- **Animate what changed, not what happens to be on the same widget.** An `AnimatedContainer`
+  animates *every* property it is given — handed a padding that is really a layout mode, a
+  window crossing the breakpoint gets the wrong density for 140ms (`NavRow` keeps its padding
+  in a plain `Padding` inside). And `AnimatedDefaultTextStyle` *replaces* the ambient style
+  rather than merging, unlike `Text(style:)` — merge explicitly or `AppText`'s inherited
+  metrics quietly go missing.
+- **An `InkWell` inside a box that paints its own background needs a `Material` inside that
+  box.** Ink is drawn on the nearest `Material` *above* the well, so a highlight under an
+  opaque fill is painted and then covered — the button works, nothing lights up, and the tap
+  target is invisible until you click it. `PopoverSurface` puts its `Material` inside its
+  fill for this reason, and `ComposerIconButton` carries one. A control whose *child* is
+  opaque (a gradient, an avatar) can't be fixed this way at all and must lift itself —
+  see `ComposerSendButton`. `test/hover_feedback_test.dart` renders the pixels with the
+  pointer on and off, because this is a bug you cannot see by reading the widget tree.
 - **Shared UI to reuse before hand-rolling:** `AppPanel` (a floating panel), `CanvasBackdrop`
   (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` / `UserAvatar`,
-  `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`. Avatar gradients come
+  `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`. Avatar gradients come
   from `IdentityGradients` and are deliberately *not* palette-derived, so a person looks the
   same to everyone in a channel whatever theme each is running.
 - Layout constants (widths, heights, paddings, radii reused across files) go in `K`

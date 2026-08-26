@@ -149,15 +149,20 @@ class _TagChip extends StatelessWidget {
               color: themeState.primary,
             ),
           ),
-          InkWell(
-            onTap: onRemove,
-            borderRadius: BorderRadius.circular(K.radiusPill),
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: Icon(
-                Icons.close_rounded,
-                size: 13,
-                color: themeState.primary,
+          // The chip's tint is its own fill, so the ink for the one hit target
+          // on it needs a surface above that fill rather than behind it.
+          Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onRemove,
+              borderRadius: BorderRadius.circular(K.radiusPill),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 13,
+                  color: themeState.primary,
+                ),
               ),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:cryptography/cryptography.dart' show SimpleKeyPair;
 
+import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../chat_notice.dart';
 import 'wake_envelope.dart';
@@ -15,13 +16,22 @@ import 'wake_marks.dart';
 class WakeDmScan {
   final CryptoRepository _crypto;
 
-  WakeDmScan({CryptoRepository? crypto}) : _crypto = crypto ?? CryptoRepository();
+  WakeDmScan({CryptoRepository? crypto})
+    : _crypto = crypto ?? CryptoRepository();
 
   /// One item per unread conversation, newest message quoted.
   ///
   /// [scopePrefix] separates the two tiers and the several servers within one:
   /// a peer id is only unique next to the place it came from, and the scope is
   /// what decides which notification this replaces.
+  ///
+  /// [levels] mutes conversations, and [serverLevel] is what one falls back to
+  /// when it has no level of its own — muting a server quiets its DMs too. A
+  /// DM has nobody in it to be named among, so only [NotificationLevel.none]
+  /// means anything here: a level of `mentions` on one reads as `all`, the same
+  /// way the ring trigger reads it, because the alternative is silently losing
+  /// somebody every message they send. Central passes no [serverLevel] — it
+  /// has no servers.
   Future<List<WakeItem>> scan({
     required List<Map<String, dynamic>> conversations,
     required Map<String, int> unread,
@@ -30,6 +40,8 @@ class WakeDmScan {
     required String scopePrefix,
     required WakeMarks marks,
     required int limit,
+    Map<String, NotificationLevel> levels = const {},
+    NotificationLevel? serverLevel,
   }) async {
     final items = <WakeItem>[];
     for (final convo in conversations) {
@@ -47,6 +59,13 @@ class WakeDmScan {
           peerSigningKey == null) {
         continue;
       }
+
+      final level = NotificationLevel.resolve(
+        scope: levels[peerId],
+        server: serverLevel,
+        fallback: NotificationLevel.dmDefault,
+      );
+      if (level.isMuted) continue;
 
       final scope = '$scopePrefix:$peerId';
       final id = row['id'] as int?;

@@ -11,7 +11,9 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/attachment_staging.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
+import '../../../theme/app_motion.dart';
 import '../../emoji_text.dart';
+import '../../tap_to_focus.dart';
 import 'composer_icon_button.dart';
 import 'composer_recording_bar.dart';
 import 'composer_send_button.dart';
@@ -243,12 +245,22 @@ class _ChatComposerState extends State<ChatComposer> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_staged.isNotEmpty)
-                ComposerStagedRow(
-                  staged: _staged,
-                  themeState: themeState,
-                  onRemove: _removeStaged,
-                ),
+              // Grown into rather than snapped in. The strip appears above the
+              // bar, so attaching the first file used to shove the whole
+              // conversation up by the height of a row of chips, and removing
+              // the last one dropped it back.
+              AnimatedSize(
+                duration: AppMotion.state,
+                curve: AppMotion.settle,
+                alignment: Alignment.bottomLeft,
+                child: _staged.isEmpty
+                    ? const SizedBox(width: double.infinity)
+                    : ComposerStagedRow(
+                        staged: _staged,
+                        themeState: themeState,
+                        onRemove: _removeStaged,
+                      ),
+              ),
               _buildBar(themeState),
               if (widget.footer != null) ...[
                 const SizedBox(height: 6),
@@ -263,7 +275,20 @@ class _ChatComposerState extends State<ChatComposer> {
 
   /// The bar itself — one container whose height never changes between the
   /// input row and the recording row.
+  ///
+  /// The whole bar focuses the field, not only the line of text in the middle
+  /// of it. The field is one line tall inside a 34px control row inside 6px of
+  /// padding, so aiming at the bar and missing was the normal outcome — see
+  /// [TapToFocus]. Not while recording: there is no field on the bar then.
   Widget _buildBar(ThemeState themeState) {
+    return TapToFocus(
+      focusNode: _focusNode,
+      enabled: widget.enabled && !_isRecording,
+      child: _buildBarBox(themeState),
+    );
+  }
+
+  Widget _buildBarBox(ThemeState themeState) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 140),
       padding: const EdgeInsets.fromLTRB(8, 6, 6, 6),

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/enums/notification_level.dart';
 import 'package:rift/logic/cubits/notifications/server_notifications_cubit.dart';
 
 void main() {
@@ -147,7 +148,13 @@ void main() {
       final state = const NotificationsState()
           .incremented('s1', 'stale')
           .incrementedDm('s1', 'stalePeer')
-          .withServerCounts('s1', channels: {'c1': 7}, dms: {'peer1': 2});
+          .withServerCounts(
+            's1',
+            channels: {'c1': 7},
+            dms: {'peer1': 2},
+            channelPrefs: const {},
+            dmPrefs: const {},
+          );
       expect(state.unreadForChannel('s1', 'stale'), 0);
       expect(state.unreadForDm('s1', 'stalePeer'), 0);
       expect(state.unreadForChannel('s1', 'c1'), 7);
@@ -159,7 +166,13 @@ void main() {
           .incremented('s1', 'c1')
           .incrementedDm('s1', 'peer1')
           .incremented('s2', 'c2')
-          .withServerCounts('s1', channels: const {}, dms: const {});
+          .withServerCounts(
+            's1',
+            channels: const {},
+            dms: const {},
+            channelPrefs: const {},
+            dmPrefs: const {},
+          );
       expect(state.unreadByServer.containsKey('s1'), isFalse);
       expect(state.dmUnreadByServer.containsKey('s1'), isFalse);
       expect(state.unreadForServer('s2'), 1);
@@ -192,10 +205,158 @@ void main() {
       original.incrementedDm('s1', 'peer1');
       original.clearedChannel('s1', 'c1');
       original.clearedDm('s1', 'peer1');
-      original.withServerCounts('s1', channels: {'c9': 9}, dms: {'p9': 9});
+      original.withServerCounts(
+        's1',
+        channels: {'c9': 9},
+        dms: {'p9': 9},
+        channelPrefs: const {},
+        dmPrefs: const {},
+      );
       expect(original.unreadForChannel('s1', 'c1'), 1);
       expect(original.unreadForDm('s1', 'peer1'), 1);
       expect(original.unreadForServer('s1'), 2);
+    });
+  });
+
+  group('NotificationsState levels', () {
+    const muted = NotificationsState(
+      unreadByServer: {
+        's1': {'loud': 3, 'quiet': 40},
+      },
+      dmUnreadByServer: {
+        's1': {'peer1': 2, 'peer2': 5},
+      },
+      channelLevels: {
+        's1': {'quiet': NotificationLevel.none},
+      },
+      dmLevels: {
+        's1': {'peer2': NotificationLevel.none},
+      },
+    );
+
+    test('a scope nobody has an opinion about answers with the default', () {
+      expect(
+        muted.channelLevel('s1', 'loud'),
+        NotificationLevel.channelDefault,
+      );
+      expect(muted.dmLevel('s1', 'peer1'), NotificationLevel.dmDefault);
+      expect(muted.channelLevel('nope', 'nope'), NotificationLevel.mentions);
+    });
+
+    test('a muted scope keeps its own count', () {
+      expect(muted.unreadForChannel('s1', 'quiet'), 40);
+      expect(muted.unreadForDm('s1', 'peer2'), 5);
+    });
+
+    test('but is left out of every total that adds several together', () {
+      expect(muted.unreadForServer('s1'), 5);
+      expect(muted.dmUnreadForServer('s1'), 2);
+      expect(muted.totalUnreadExcept(null), 5);
+      expect(muted.totalUnreadExcept('s1'), 0);
+    });
+
+    test('setting a level does not touch the counts', () {
+      final next = muted.withLevel(
+        's1',
+        'loud',
+        NotificationLevel.none,
+        isChannel: true,
+      );
+      expect(next.unreadForChannel('s1', 'loud'), 3);
+      expect(next.unreadForServer('s1'), 2);
+      // And the state it came from is untouched.
+      expect(muted.unreadForServer('s1'), 5);
+    });
+
+    test('a channel level and a DM level do not collide on one id', () {
+      final next = const NotificationsState()
+          .withLevel('s1', 'x', NotificationLevel.none, isChannel: true)
+          .withLevel('s1', 'x', NotificationLevel.all, isChannel: false);
+      expect(next.channelLevel('s1', 'x'), NotificationLevel.none);
+      expect(next.dmLevel('s1', 'x'), NotificationLevel.all);
+    });
+
+    test('leaving a server drops its levels too', () {
+      final next = muted.clearedServer('s1');
+      expect(
+        next.channelLevel('s1', 'quiet'),
+        NotificationLevel.channelDefault,
+      );
+      expect(next.dmLevel('s1', 'peer2'), NotificationLevel.dmDefault);
+    });
+  });
+
+  group('NotificationsState server level', () {
+    const state = NotificationsState(
+      unreadByServer: {
+        's1': {'loud': 3, 'ordinary': 7},
+      },
+      dmUnreadByServer: {
+        's1': {'peer1': 2},
+      },
+      serverLevels: {'s1': NotificationLevel.none},
+      channelLevels: {
+        's1': {'loud': NotificationLevel.all},
+      },
+    );
+
+    test('a muted server answers for everything with no level of its own', () {
+      expect(state.channelLevel('s1', 'ordinary'), NotificationLevel.none);
+      expect(state.dmLevel('s1', 'peer1'), NotificationLevel.none);
+    });
+
+    test('a channel turned up inside it keeps what it was given', () {
+      expect(state.channelLevel('s1', 'loud'), NotificationLevel.all);
+    });
+
+    test('so only the channel that was turned up counts on the outside', () {
+      expect(state.unreadForServer('s1'), 3);
+      expect(state.dmUnreadForServer('s1'), 0);
+      expect(state.totalUnreadExcept(null), 3);
+    });
+
+    test('every count is still its own count', () {
+      expect(state.unreadForChannel('s1', 'ordinary'), 7);
+      expect(state.unreadForDm('s1', 'peer1'), 2);
+    });
+
+    test('a server nobody has an opinion about quiets nothing', () {
+      const untouched = NotificationsState(
+        unreadByServer: {
+          's1': {'c': 4},
+        },
+      );
+      expect(untouched.serverLevel('s1'), NotificationLevel.serverDefault);
+      expect(untouched.channelLevel('s1', 'c'), NotificationLevel.mentions);
+      expect(untouched.unreadForServer('s1'), 4);
+    });
+
+    test(
+      'clearing the server level puts the scopes back on their defaults',
+      () {
+        final next = state.withServerLevel('s1', null);
+        expect(next.channelLevel('s1', 'ordinary'), NotificationLevel.mentions);
+        expect(next.dmLevel('s1', 'peer1'), NotificationLevel.all);
+        expect(next.channelLevel('s1', 'loud'), NotificationLevel.all);
+      },
+    );
+
+    test('clearing a channel level falls back to the server again', () {
+      final next = state.withoutLevel('s1', 'loud', isChannel: true);
+      expect(next.channelLevel('s1', 'loud'), NotificationLevel.none);
+    });
+
+    test('clearing something that had no level changes nothing', () {
+      expect(
+        state.withoutLevel('s1', 'ordinary', isChannel: true),
+        same(state),
+      );
+    });
+
+    test('leaving a server drops its server level too', () {
+      final next = state.clearedServer('s1');
+      expect(next.serverLevel('s1'), NotificationLevel.serverDefault);
+      expect(next.channelLevel('s1', 'ordinary'), NotificationLevel.mentions);
     });
   });
 }

@@ -68,17 +68,23 @@ class ParticipantContextMenu extends StatelessWidget {
     appCubit.setSurface(HomeSurface.serverDms);
   }
 
-  /// Open the central DM search, prefilled with this member's name.
+  /// Open the friends page with the add-friend field prefilled with this
+  /// member's name.
   ///
-  /// It can only be a *search*: a central account is a separate identity from a
-  /// server membership and nothing links the two, so their server name is a
-  /// guess at their handle, not a lookup.
+  /// It can only ever be a *guess*: a central account is a separate identity
+  /// from a server membership and nothing links the two, so their server name
+  /// is a suggestion at their handle rather than a lookup. It arrives selected
+  /// so that typing over it is one keystroke.
+  ///
+  /// It used to seed a search, and picking a name from the results messaged
+  /// them. There is no messaging a stranger on central now — the most this can
+  /// do is offer to ask.
   void _openCentralDm(BuildContext context) {
     ContextMenuScope.of(context)?.call();
     // Central DMs are their own surface now, so switch to it — otherwise the
-    // conversation opens behind whatever server pane you were looking at.
+    // friends page opens behind whatever server pane you were looking at.
     context.read<AppCubit>().setSurface(HomeSurface.centralDms);
-    // Seeds the panel's search field, which focuses itself in response.
+    // Seeds the add-friend field, which focuses itself in response.
     context.read<CentralDmCubit>().setHandleQuery(name);
   }
 
@@ -163,7 +169,7 @@ class ParticipantContextMenu extends StatelessWidget {
                   ),
                   ContextMenuItem(
                     icon: Icons.public_rounded,
-                    label: 'Message on Central',
+                    label: 'Add on Central',
                     onTap: () => _openCentralDm(context),
                   ),
                   Divider(height: 9, color: borderColor),

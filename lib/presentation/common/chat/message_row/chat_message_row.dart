@@ -19,8 +19,10 @@ import 'message_context_menu.dart';
 import 'message_edit_field.dart';
 import 'message_hover_toolbar.dart';
 import 'message_row_avatar.dart';
+import 'message_locked_body.dart';
 import 'message_row_header.dart';
 import 'message_text.dart';
+import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 
 /// One message in the chat list — flat Discord-style row, not a bubble.
@@ -77,13 +79,26 @@ class ChatMessageRow extends StatefulWidget {
 }
 
 class _ChatMessageRowState extends State<ChatMessageRow> {
+  /// Whether to play the entrance, decided once when the row is created.
+  ///
+  /// Read here rather than from `widget` at build time: your own message is
+  /// told it is new while it is pending and not once it is acked, and a row
+  /// that re-read the answer would snap to the end of its own entrance the
+  /// moment the server replied.
+  late final bool _entering = widget.animateIn;
+
   bool _hovering = false;
   bool _editing = false;
 
   ChatMessage get message => widget.message;
   ThemeState get themeState => widget.themeState;
 
-  bool get _canReact => widget.onToggleReaction != null && !message.isPending;
+  bool get _canReact =>
+      widget.onToggleReaction != null &&
+      !message.isPending &&
+      // Reacting to a message you cannot read is a mis-click waiting to
+      // happen, and the tally would be visible to everyone who can.
+      !message.isLocked;
   bool get _canCopy => message.text.isNotEmpty;
   bool get _canEdit =>
       widget.onEdit != null && MessagePermissions.canEdit(message);
@@ -180,14 +195,32 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                 // floating between it and the one above.
                 top: -12,
                 right: K.messageRowHPad,
-                child: MessageHoverToolbar(
-                  themeState: themeState,
-                  onReact: _canReact ? _pickReaction : null,
-                  onCopy: _canCopy ? (_) => _copy() : null,
-                  onEdit: _canEdit
-                      ? (_) => setState(() => _editing = true)
-                      : null,
-                  onDelete: _canDelete ? (_) => _confirmDelete() : null,
+                // Rises the last few pixels into place rather than appearing
+                // fully formed. Only on the way in: it leaves the moment the
+                // pointer does, because a toolbar fading out under a cursor
+                // that has already moved on is something to wait for, and the
+                // one thing motion here must never be is something to wait
+                // for.
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: AppMotion.react,
+                  curve: AppMotion.settle,
+                  builder: (context, t, child) => Opacity(
+                    opacity: t,
+                    child: Transform.translate(
+                      offset: Offset(0, (1 - t) * 4),
+                      child: child,
+                    ),
+                  ),
+                  child: MessageHoverToolbar(
+                    themeState: themeState,
+                    onReact: _canReact ? _pickReaction : null,
+                    onCopy: _canCopy ? (_) => _copy() : null,
+                    onEdit: _canEdit
+                        ? (_) => setState(() => _editing = true)
+                        : null,
+                    onDelete: _canDelete ? (_) => _confirmDelete() : null,
+                  ),
                 ),
               ),
           ],
@@ -195,14 +228,14 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       ),
     );
 
-    if (!widget.animateIn) return content;
+    if (!_entering) return content;
     // One-shot entrance: fade up over a short slide. TweenAnimationBuilder only
     // runs on first build (the end value never changes), so a later rebuild of
     // the same row — theme change, list scroll — won't replay it.
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+      duration: AppMotion.enter,
+      curve: AppMotion.arrive,
       builder: (context, t, child) => Opacity(
         opacity: t,
         child: Transform.translate(
@@ -261,7 +294,9 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       children: [
         if (widget.showHeader)
           MessageRowHeader(message: message, themeState: themeState),
-        if (_editing)
+        if (message.isLocked)
+          MessageLockedBody(themeState: themeState)
+        else if (_editing)
           MessageEditField(
             initialText: message.text,
             themeState: themeState,

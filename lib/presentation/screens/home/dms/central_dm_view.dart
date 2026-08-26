@@ -6,13 +6,19 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
 import 'central_dm_chat_view.dart';
+import 'central_friends_view.dart';
 
-/// Home's content panel: the open central conversation, or the resting state.
+/// Home's content panel: the open central conversation, or your friends.
 ///
 /// The conversation list is not here — it lives in the sidebar column, where
 /// a server's channels would be (see `CentralDmListPanel`). This panel is the
 /// exact counterpart of a channel's chat, and holding only the conversation is
 /// what makes the two tiers feel like the same app.
+///
+/// With nothing open it shows the friends page rather than a line of copy.
+/// Home is a tier you stand on, and a tier whose resting state is an
+/// apology for being empty is one people leave. The signed-out and
+/// no-handle states keep theirs: there is genuinely nothing behind them yet.
 class CentralDmView extends StatelessWidget {
   const CentralDmView({super.key});
 
@@ -20,6 +26,9 @@ class CentralDmView extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<CentralDmCubit>().state;
     if (state.openPeerId != null) return const CentralDmChatView();
+    if (state.status == CentralDmStatus.ready) {
+      return const CentralFriendsView();
+    }
     return _RestingState(status: state.status);
   }
 }
@@ -51,9 +60,11 @@ class _RestingState extends StatelessWidget {
         'Pick a handle',
         'Claim a handle $listLocation so people can find you.',
       ),
+      // Reached only while a readiness pass is still running, or after one
+      // failed — `ready` is answered by the friends page above.
       _ => (
         'Your central DMs',
-        'Find someone by handle to start a conversation.',
+        'Finding your account…',
       ),
     };
 

@@ -60,7 +60,7 @@ class ServerRail extends StatelessWidget {
 
   Widget _buildHomeButton(BuildContext context) {
     final unread = context.select<CentralDmCubit, int>(
-      (c) => c.state.totalUnread,
+      (c) => c.state.homeBadge,
     );
     return BlocBuilder<AppCubit, AppState>(
       buildWhen: (a, b) => a.surface != b.surface,

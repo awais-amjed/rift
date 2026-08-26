@@ -25,6 +25,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
 
     emit(
       state.copyWith(
+        friendsOpen: false,
         openPeerId: peerId,
         openPeerHandle: peerHandle,
         chatStatus: DmChatStatus.loading,
@@ -54,7 +55,15 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
   }
 
   void closeConversation() {
-    emit(state.copyWith(closeConversation: true));
+    emit(state.copyWith(closeConversation: true, friendsOpen: false));
+  }
+
+  /// Show the friends page, closing whatever conversation is open.
+  ///
+  /// The only navigation on this tier that is not "open a person", and the
+  /// only way back to friends from inside a conversation.
+  void openFriends() {
+    emit(state.copyWith(closeConversation: true, friendsOpen: true));
   }
 
   Future<void> _fetchLatest(String peerId) async {

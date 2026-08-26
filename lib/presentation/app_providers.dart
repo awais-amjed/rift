@@ -76,6 +76,8 @@ class AppProviders extends StatelessWidget {
         BlocProvider(
           create: (context) => ChannelChatCubit(
             serverCubit: context.read<ServerCubit>(),
+            // For resolving `@name` to a user id when a message is sent.
+            membersCubit: context.read<ServerMembersCubit>(),
             vaultCubit: vaultCubit,
           ),
         ),

@@ -56,6 +56,14 @@ class _ServerDmViewState extends State<ServerDmView> {
         unreadFor: server == null
             ? null
             : (peerId) => notifications.unreadForDm(server.id, peerId),
+        levelFor: server == null
+            ? null
+            : (peerId) => notifications.dmLevel(server.id, peerId),
+        onLevelChanged: server == null
+            ? null
+            : (peerId, level) => context
+                  .read<ServerNotificationsCubit>()
+                  .setDmLevel(server.id, peerId, level),
         search: server != null
             ? MemberSearchField(
                 onOpenChanged: (open) {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import 'message_origin_badge.dart';
 
 /// The author + timestamp line that opens a group of messages. While a message
 /// is still in flight the timestamp is replaced by a "Sending…" spinner.
@@ -44,6 +45,13 @@ class MessageRowHeader extends StatelessWidget {
               ),
             ),
           ),
+          // Between the name and the time, so a skim down the left edge of the
+          // list cannot miss it — a badge at the end of the row would sit
+          // wherever the name happened to end.
+          if (MessageOriginBadge.isNeededFor(message)) ...[
+            const SizedBox(width: 6),
+            MessageOriginBadge(message: message, themeState: themeState),
+          ],
           const SizedBox(width: 8),
           if (message.isPending)
             _sendingLabel()

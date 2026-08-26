@@ -1,15 +1,18 @@
 import 'dart:typed_data';
 
 import '../../../data/classes/api_response.dart';
+import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../chat_notice.dart';
+import '../mentions.dart';
 import 'wake_dm_scan.dart';
 import 'wake_envelope.dart';
 import 'wake_index.dart';
 import 'wake_item.dart';
 import 'wake_marks.dart';
 
+part 'wake_channel_keys.dart';
 part 'wake_server_channels.dart';
 
 /// Reading one self-hosted server from the push background isolate.
@@ -24,7 +27,7 @@ part 'wake_server_channels.dart';
 /// derived key costs one round trip and leaves nothing shared behind. Reusing
 /// the app's session would mean refreshing it, and a refresh token rotated by
 /// an isolate is one the still-running app is about to be logged out by.
-class WakeServerReader with _WakeChannelsMixin {
+class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
   @override
   final CryptoRepository _crypto;
   @override
@@ -61,6 +64,19 @@ class WakeServerReader with _WakeChannelsMixin {
     final counts = unread.data as Map<String, dynamic>?;
     if (!unread.success || counts == null) return failedHarvest;
 
+    // `unread_counts()` answers with the levels beside the counts (migration
+    // 012), so the isolate learns what may interrupt in the same round trip
+    // that tells it what is waiting — and cannot end up drawing on one and
+    // deciding on the other.
+    final prefs = counts['prefs'];
+    // The server's own level, where it has one. Everything inside it falls
+    // back to this before its own default — `NotificationLevel.resolve` is the
+    // one copy of that order on the client, and `app.notify_level` is the one
+    // copy on the server.
+    final serverLevel = NotificationLevel.mapFrom(
+      prefs is Map ? prefs['servers'] : null,
+      fallback: null,
+    )[server.id];
     return (
       items: [
         ...await _channelItems(
@@ -69,6 +85,11 @@ class WakeServerReader with _WakeChannelsMixin {
           marks,
           token,
           positiveCounts(counts, 'channels'),
+          NotificationLevel.mapFrom(
+            prefs is Map ? prefs['channels'] : null,
+            fallback: NotificationLevel.channelDefault,
+          ),
+          serverLevel,
         ),
         ...await _dmItems(
           server,
@@ -76,6 +97,11 @@ class WakeServerReader with _WakeChannelsMixin {
           marks,
           token,
           positiveCounts(counts, 'dms'),
+          NotificationLevel.mapFrom(
+            prefs is Map ? prefs['dms'] : null,
+            fallback: NotificationLevel.dmDefault,
+          ),
+          serverLevel,
         ),
       ],
       failed: false,
@@ -148,6 +174,8 @@ class WakeServerReader with _WakeChannelsMixin {
     WakeMarks marks,
     String token,
     Map<String, int> unread,
+    Map<String, NotificationLevel> levels,
+    NotificationLevel? serverLevel,
   ) async {
     if (unread.isEmpty) return const [];
     final identity = await _chatIdentity(server, seed);
@@ -170,14 +198,17 @@ class WakeServerReader with _WakeChannelsMixin {
       myChatKeyPair: identity.keyPair,
       scopePrefix: 'dm:${server.id}',
       marks: marks,
+      levels: levels,
+      serverLevel: serverLevel,
       limit: maxScopes,
     );
   }
 
-  static Map<String, dynamic>? firstMessage(APIResponse response) {
-    if (!response.success) return null;
+  /// A `list_messages` page, newest first, or empty when the read failed.
+  static List<Map<String, dynamic>> messagesOf(APIResponse response) {
+    if (!response.success) return const [];
     final rows = (response.data as Map<String, dynamic>?)?['messages'] as List?;
-    if (rows == null || rows.isEmpty) return null;
-    return rows.first as Map<String, dynamic>;
+    if (rows == null) return const [];
+    return rows.cast<Map<String, dynamic>>();
   }
 }

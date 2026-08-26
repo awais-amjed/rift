@@ -123,12 +123,16 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   Future<APIResponse> sendChatMessage({
     required String channelId,
     required Map<String, dynamic> envelope,
+    List<String> mentions = const [],
+    bool mentionsAll = false,
   }) => _callWithAutoRefresh(
     (token) => _repository.sendMessage(
       state.selectedServer!.supabaseUrl,
       anonKey: _anonKey,
       channelId: channelId,
       envelope: envelope,
+      mentions: mentions,
+      mentionsAll: mentionsAll,
       bearerToken: token,
     ),
   );

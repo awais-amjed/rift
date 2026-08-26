@@ -5,9 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import 'tap_to_focus.dart';
 
 /// Themed text field used throughout the app.
-class AppTextField extends StatelessWidget {
+class AppTextField extends StatefulWidget {
   final TextEditingController controller;
   final String? label;
   final String? hint;
@@ -19,6 +20,17 @@ class AppTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
   final VoidCallback? onEditingComplete;
+
+  /// Called when the field is submitted — Enter on a desktop, the keyboard's
+  /// action key on a phone. For a field whose whole content is one value that
+  /// a button then acts on, this is the same decision as pressing the button.
+  final ValueChanged<String>? onSubmitted;
+
+  /// Passed in when something outside has to focus the field — a page that
+  /// seeds it, a form that moves between fields. Left null the field manages
+  /// its own.
+  final FocusNode? focusNode;
+
   final bool autofocus;
 
   /// More than one turns the field into a box that grows to this many lines
@@ -41,10 +53,29 @@ class AppTextField extends StatelessWidget {
     this.inputFormatters,
     this.onChanged,
     this.onEditingComplete,
+    this.onSubmitted,
+    this.focusNode,
     this.autofocus = false,
     this.maxLines = 1,
     this.maxLength,
   });
+
+  @override
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  /// Kept whether or not it is used, so a caller that starts passing its own
+  /// node — or stops — doesn't leave this field wired to a dead one.
+  final FocusNode _own = FocusNode();
+
+  FocusNode get _node => widget.focusNode ?? _own;
+
+  @override
+  void dispose() {
+    _own.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,34 +89,44 @@ class AppTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (label != null) ...[
-          Text(
-            label!.toUpperCase(),
-            style: AppText.sectionLabel.copyWith(
-              fontSize: 10.5,
-              letterSpacing: 1.2,
-              color: themeState.textTertiary,
+        if (widget.label != null) ...[
+          // The label answers for the field, the way a web label does. It sits
+          // seven pixels above a box people already aim at loosely, and a click
+          // that lands on the word rather than under it should still put the
+          // caret where the click was clearly meant to go.
+          TapToFocus(
+            focusNode: _node,
+            enabled: widget.enabled,
+            child: Text(
+              widget.label!.toUpperCase(),
+              style: AppText.sectionLabel.copyWith(
+                fontSize: 10.5,
+                letterSpacing: 1.2,
+                color: themeState.textTertiary,
+              ),
             ),
           ),
           const SizedBox(height: 7),
         ],
         TextField(
-          controller: controller,
-          obscureText: obscureText,
-          enabled: enabled,
-          keyboardType: keyboardType,
-          inputFormatters: inputFormatters,
-          onChanged: onChanged,
-          onEditingComplete: onEditingComplete,
-          autofocus: autofocus,
-          maxLines: obscureText ? 1 : maxLines,
-          maxLength: maxLength,
+          controller: widget.controller,
+          obscureText: widget.obscureText,
+          enabled: widget.enabled,
+          keyboardType: widget.keyboardType,
+          inputFormatters: widget.inputFormatters,
+          onChanged: widget.onChanged,
+          onEditingComplete: widget.onEditingComplete,
+          onSubmitted: widget.onSubmitted,
+          focusNode: _node,
+          autofocus: widget.autofocus,
+          maxLines: widget.obscureText ? 1 : widget.maxLines,
+          maxLength: widget.maxLength,
           style: AppText.body.copyWith(
             fontSize: 13.5,
             color: themeState.textPrimary,
           ),
           decoration: InputDecoration(
-            hintText: hint,
+            hintText: widget.hint,
             hintStyle: AppText.body.copyWith(
               fontSize: 13.5,
               color: themeState.textQuaternary,

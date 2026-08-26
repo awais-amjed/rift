@@ -5,6 +5,7 @@ import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../logic/services/mentions.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/chat_failure.dart';
 import '../../../common/chat/composer/chat_composer.dart';
@@ -12,6 +13,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/typing_indicator.dart';
 import 'widgets/chat_header.dart';
+import 'widgets/chat_read_only_banner.dart';
 import 'widgets/chat_status_view.dart';
 
 /// Center-pane chat for the open text channel: header, message history,
@@ -43,6 +45,11 @@ class _ChannelChatViewState extends State<ChannelChatView>
                 children: [
                   const ChatHeader(),
                   Expanded(child: _buildBody(context, chatState)),
+                  // Sending needs the key too, so read-only gets the banner
+                  // in the composer's place rather than a composer that would
+                  // refuse every message typed into it.
+                  if (chatState.status == ChannelChatStatus.readOnly)
+                    const ChatReadOnlyBanner(),
                   if (chatState.status == ChannelChatStatus.ready) ...[
                     TypingIndicator(
                       names: chatState.typingUsers.values.toList(),
@@ -92,12 +99,23 @@ class _ChannelChatViewState extends State<ChannelChatView>
   /// neither of which is a property you want deciding who got pinged.
   Set<String> _mentionable(BuildContext context) {
     final members = context.watch<ServerMembersCubit>().state.members;
-    return {for (final m in members ?? const []) m.username.toLowerCase()};
+    return {
+      // `@all` reaches everybody in the room, so it is a name that reaches
+      // somebody and gets lit like one. Nobody can be called this — see
+      // `users_username_not_reserved` in migration 012 — so it is never
+      // ambiguous between the room and a person.
+      Mentions.everyone,
+      for (final m in members ?? const []) m.username.toLowerCase(),
+    };
   }
 
   Widget _buildBody(BuildContext context, ChannelChatState chatState) {
     switch (chatState.status) {
+      // Read-only renders the same list. What it can open, it opens; what it
+      // cannot comes back as a locked row, so the history is visible as
+      // history rather than as an absence.
       case ChannelChatStatus.ready:
+      case ChannelChatStatus.readOnly:
         return ChatMessageList(
           key: ValueKey(chatState.channelId),
           messages: chatState.messages,

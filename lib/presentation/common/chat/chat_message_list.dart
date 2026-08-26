@@ -49,8 +49,15 @@ class ChatMessageList extends StatefulWidget {
   /// is the honest default — a highlight promises somebody was pinged.
   final Set<String> mentionable;
 
+  /// What an empty conversation says. The default invites the first message,
+  /// which is right almost everywhere — but a central request has no composer
+  /// under it, and "say hi" printed above a note explaining that you cannot is
+  /// the screen arguing with itself.
+  final String emptyMessage;
+
   const ChatMessageList({
     super.key,
+    this.emptyMessage = 'No messages yet — say hi!',
     required this.messages,
     this.controller,
     this.attachmentLoader,
@@ -90,7 +97,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
       // When it's not a new day, prev is guaranteed non-null (newDay covers it).
       final showHeader =
           newDay ||
-          prev.authorId != cur.authorId ||
+          prev.groupKey != cur.groupKey ||
           cur.sentAt.difference(prev.sentAt) > ChatMessageList.groupWindow;
       items.add(_MsgItem(cur, showHeader));
     }
@@ -132,9 +139,19 @@ class _ChatMessageListState extends State<ChatMessageList> {
     }
   }
 
-  /// Newly-seen incoming messages, but only once the list has been populated at
-  /// least once (so opening a chat doesn't animate the whole backlog). Also
-  /// records every current id as seen.
+  /// Messages that have just turned up, but only once the list has been
+  /// populated at least once (so opening a chat doesn't animate the whole
+  /// backlog). Also records every current id as seen.
+  ///
+  /// Two ways in, because there are two ways a message appears. One is
+  /// somebody else's arriving at the live tail. The other is your own going up
+  /// the moment you press enter — optimistically, before the server has said
+  /// anything — which has no latency to cover but is still a row coming out of
+  /// nothing, and read exactly like the pop it is.
+  ///
+  /// The acked copy that lands a moment later is deliberately not a third way:
+  /// it is the same row getting its real id, and animating it would replay an
+  /// arrival that already happened.
   Set<String> _computeAnimating() {
     final animate = <String>{};
     final primed = _seen.isNotEmpty;
@@ -143,14 +160,14 @@ class _ChatMessageListState extends State<ChatMessageList> {
       final isNew = _seen.add(m.id);
       final numericId = int.tryParse(m.id);
       if (numericId != null && numericId > _maxSeenId) _maxSeenId = numericId;
-      // Animate only genuinely-new incoming messages at the live tail.
-      if (isNew &&
-          primed &&
-          !m.isMine &&
-          numericId != null &&
-          numericId > prevMax) {
-        animate.add(m.id);
-      }
+      if (!isNew || !primed) continue;
+
+      final mineGoingUp = m.isMine && m.isPending;
+      // Numeric and past the high-water mark: at the live tail, rather than a
+      // page of history scrolled in from above.
+      final theirsArriving =
+          !m.isMine && numericId != null && numericId > prevMax;
+      if (mineGoingUp || theirsArriving) animate.add(m.id);
     }
     return animate;
   }
@@ -162,7 +179,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
         if (widget.messages.isEmpty) {
           return Center(
             child: Text(
-              'No messages yet — say hi!',
+              widget.emptyMessage,
               style: AppText.body.copyWith(
                 fontSize: 14,
                 color: themeState.textTertiary,
@@ -185,7 +202,10 @@ class _ChatMessageListState extends State<ChatMessageList> {
             }
             final msg = (item as _MsgItem).message;
             return ChatMessageRow(
-              key: ValueKey(msg.id),
+              // Not `msg.id`: your own message is drawn under a local id and
+              // then handed the server's, and keying by that would make the
+              // ack destroy the row mid-entrance. See [ChatMessage.rowId].
+              key: ValueKey(msg.rowId),
               message: msg,
               showHeader: item.showHeader,
               themeState: themeState,

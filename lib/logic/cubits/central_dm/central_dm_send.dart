@@ -12,6 +12,9 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   /// Implemented by the conversations mixin.
   Future<void> refreshConversations();
 
+  /// Implemented by the friends mixin.
+  Future<void> loadFriends();
+
   int _pendingCounter = 0;
 
   Future<void> refreshQuota() async {
@@ -109,6 +112,14 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
           remaining: data['remaining'] as int?,
         ),
       );
+      // A send cannot move the relationship any more — being friends is what
+      // made it possible — but it can *reveal* that this device was wrong
+      // about it. The server always answers `friends`, so a disagreement here
+      // means the local graph is stale, and re-reading it is cheaper than
+      // waiting for something else to ask.
+      if (FriendshipState.parse(data['state']) != state.stateFor(peerId)) {
+        unawaited(loadFriends());
+      }
       unawaited(refreshConversations());
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[CentralDM] attachment upload failed: $e');
@@ -126,16 +137,32 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   }
 
   void _reportSendFailure(APIResponse response) {
-    if (response.errorCode == 'quota_exceeded') {
-      emit(state.copyWith(remaining: 0));
-      HelperMethods.showError(
-        error:
-            'Daily central DM limit reached — continue on a shared '
-            'server, or try again tomorrow.',
-      );
-      return;
+    switch (response.errorCode) {
+      case 'quota_exceeded':
+        emit(state.copyWith(remaining: 0));
+        HelperMethods.showError(
+          error:
+              'Daily central DM limit reached — continue on a shared '
+              'server, or try again tomorrow.',
+        );
+      // The composer should not have existed. Reaching here means this
+      // device's graph was stale — they unfriended or blocked while the
+      // message was being typed — so re-read it and let the UI close itself.
+      //
+      // One sentence for every way of not being friends, because the server
+      // gives one code for all of them on purpose: which of the two blocked
+      // the other, or whether anybody did, is not the sender's to learn from
+      // a bounce.
+      case 'not_friends':
+        unawaited(loadFriends());
+        HelperMethods.showError(
+          error: 'You can only message people you are friends with.',
+        );
+      default:
+        HelperMethods.showError(
+          error: response.error ?? 'Failed to send message',
+        );
     }
-    HelperMethods.showError(error: response.error ?? 'Failed to send message');
   }
 
   void _removePending(String pendingId) {

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/logic/services/chat_notice.dart';
+import 'package:rift/logic/services/mentions.dart';
 
 /// One wording for every path that raises a notification. The point of the
 /// class is that the open channel, the DM scan and the push isolate cannot
@@ -86,6 +87,43 @@ void main() {
 
     test('text is passed through untouched', () {
       expect(ChatNotice.preview('  spaced  '), '  spaced  ');
+    });
+  });
+
+  group('mentioned', () {
+    test(
+      'is carried, so a level can be applied without re-reading the text',
+      () {
+        final plain = ChatNotice.channel(
+          author: 'Alice',
+          channel: 'general',
+          text: 'morning',
+          mentionable: Mentions.mentionableFor('bob'),
+        );
+        final named = ChatNotice.channel(
+          author: 'Alice',
+          channel: 'general',
+          text: 'morning @bob',
+          mentionable: Mentions.mentionableFor('bob'),
+        );
+        expect(plain.mentioned, isFalse);
+        expect(named.mentioned, isTrue);
+      },
+    );
+
+    test('@all names everybody in the room', () {
+      final notice = ChatNotice.channel(
+        author: 'Alice',
+        channel: 'general',
+        text: '@all standup',
+        mentionable: Mentions.mentionableFor('bob'),
+      );
+      expect(notice.mentioned, isTrue);
+      expect(notice.title, 'Alice mentioned you in #general');
+    });
+
+    test('a DM has nobody to be named among', () {
+      expect(ChatNotice.direct(author: 'noor', text: 'hi').mentioned, isFalse);
     });
   });
 }

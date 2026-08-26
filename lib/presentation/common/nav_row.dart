@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../responsive/shell_scope.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_text.dart';
 
 /// The sidebar's one row shape — channels, DM entries, anything navigable.
@@ -47,14 +48,14 @@ class NavRow extends StatelessWidget {
             borderRadius: radius,
             hoverColor: themeState.bgHover,
             onTap: onTap,
-            child: Container(
-              // Taller under a finger. 7 either side of a 16px icon is 32px
-              // of row, which is fine for a cursor and misses badly for a
-              // thumb — and these are the rows the app is navigated with.
-              padding: EdgeInsets.symmetric(
-                horizontal: 9,
-                vertical: context.layoutMode.isCompact ? 13 : 7,
-              ),
+            // Lights up over [AppMotion.state] rather than switching. Nothing
+            // waits on it — the row you picked is already the selected one the
+            // moment you press — but selection moving between two rows is the
+            // app's most-repeated change, and a hard cut there is what makes a
+            // sidebar feel like a list of links instead of a place.
+            child: AnimatedContainer(
+              duration: AppMotion.state,
+              curve: AppMotion.settle,
               decoration: BoxDecoration(
                 borderRadius: radius,
                 // The gradient fades left-to-right so the row reads as lit
@@ -64,20 +65,54 @@ class NavRow extends StatelessWidget {
                     ? Border.all(color: themeState.channelActiveBorder)
                     : null,
               ),
-              child: Row(
-                spacing: 9,
-                children: [
-                  Icon(icon, size: 16, color: _iconColor(themeState)),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _labelStyle(themeState),
+              // Padding sits inside, so only the fill animates. Handed to the
+              // AnimatedContainer it would animate too — and this padding is a
+              // *layout mode*, not a state: a window crossing the breakpoint
+              // has to be the right density on the frame it crosses, not 140ms
+              // later.
+              child: Padding(
+                // Taller under a finger. 7 either side of a 16px icon is 32px
+                // of row, which is fine for a cursor and misses badly for a
+                // thumb — and these are the rows the app is navigated with.
+                padding: EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: context.layoutMode.isCompact ? 13 : 7,
+                ),
+                child: Row(
+                  spacing: 9,
+                  children: [
+                    // The glyph and the label carry as much of the selected
+                    // state as the fill does, so they travel with it. A row
+                    // whose background fades while its text snaps looks like
+                    // two things happening rather than one.
+                    TweenAnimationBuilder<Color?>(
+                      tween: ColorTween(end: _iconColor(themeState)),
+                      duration: AppMotion.state,
+                      curve: AppMotion.settle,
+                      builder: (context, color, _) =>
+                          Icon(icon, size: 16, color: color),
                     ),
-                  ),
-                  ?trailing,
-                ],
+                    Expanded(
+                      child: AnimatedDefaultTextStyle(
+                        duration: AppMotion.state,
+                        curve: AppMotion.settle,
+                        // Merged onto what is already in scope, because that
+                        // is what `Text(style:)` did here before. This widget
+                        // *replaces* the ambient style rather than merging,
+                        // and `AppText.row` inherits its metrics — so setting
+                        // it bare cost the row 2px of height and dropped it
+                        // under the touch minimum on a phone.
+                        style: DefaultTextStyle.of(
+                          context,
+                        ).style.merge(_labelStyle(themeState)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        child: Text(label),
+                      ),
+                    ),
+                    ?trailing,
+                  ],
+                ),
               ),
             ),
           ),

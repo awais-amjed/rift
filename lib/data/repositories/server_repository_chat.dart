@@ -40,18 +40,33 @@ mixin _ChatApiMixin {
   }
 
   /// Store one E2E message envelope. Returns the server-attested id and time.
+  ///
+  /// [mentions] and [mentionsAll] ride beside the envelope in the clear, and
+  /// are the only part of a message that does. The server cannot open the
+  /// envelope, so they are the only way it can tell a message that named
+  /// somebody from one that did not — which is what a mentions-only channel
+  /// turns on (migration 012, which argues the trade at length). They are
+  /// validated there, not trusted: ids that aren't live members are dropped
+  /// and the array is capped.
   Future<APIResponse> sendMessage(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
     required String channelId,
     required Map<String, dynamic> envelope,
+    List<String> mentions = const [],
+    bool mentionsAll = false,
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       return db
           .from('messages')
-          .insert({'channel_id': channelId, ...envelope})
+          .insert({
+            'channel_id': channelId,
+            ...envelope,
+            'mentions': mentions,
+            'mentions_all': mentionsAll,
+          })
           .select('id, created_at, channel_id, sender_id')
           .single();
     });

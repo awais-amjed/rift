@@ -3,6 +3,7 @@ part of 'channel_chat_cubit.dart';
 /// Sending into a channel, and fetching attachment bytes back for rendering.
 mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  ServerMembersCubit get _membersCubit;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
@@ -74,9 +75,24 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         keyVersion: _currentKeyVersion,
       );
 
+      // The one part of a message that travels in the clear. See
+      // `ServerRepository.sendMessage` for what that costs and buys.
+      // Empty while the roster is still loading, which costs the message its
+      // pings rather than its delivery — the right way round. The alternative
+      // is blocking a send on a fetch only needed to decide whose phone buzzes.
+      final named = Mentions.resolve(
+        trimmed,
+        idsByUsername: Mentions.rosterOf(
+          _membersCubit.state.members ?? const [],
+        ),
+        excludeUserId: user.id,
+      );
+
       final response = await _serverCubit.sendChatMessage(
         channelId: channelId,
         envelope: envelope.toJson(),
+        mentions: named.userIds,
+        mentionsAll: named.all,
       );
       if (state.channelId != channelId) return;
 

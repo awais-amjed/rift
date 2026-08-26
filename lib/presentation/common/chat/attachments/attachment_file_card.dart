@@ -51,33 +51,43 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
   Widget build(BuildContext context) {
     final theme = widget.themeState;
     final radius = BorderRadius.circular(K.radiusAttachment);
-    return InkWell(
-      onTap: _download,
-      borderRadius: radius,
-      child: Container(
-        width: _width,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        decoration: BoxDecoration(
-          color: theme.bgTertiary,
+    // Card outside, ink inside. With the InkWell wrapping the card its hover
+    // was painted on whatever Material was under the message row and then
+    // covered by the card's own fill, so a control the size of a paragraph
+    // gave no sign it was one. The padding moves in with it, so the whole card
+    // lights rather than just the strip its contents occupy.
+    return Container(
+      width: _width,
+      decoration: BoxDecoration(
+        color: theme.bgTertiary,
+        borderRadius: radius,
+        border: Border.all(color: theme.borderElevated),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: _download,
           borderRadius: radius,
-          border: Border.all(color: theme.borderElevated),
-        ),
-        child: Row(
-          spacing: 10,
-          children: [
-            // The glyph sits on its own accent tile rather than loose on the
-            // card, which is what makes the card read as a file rather than a
-            // row of text with an icon in front of it.
-            IconTile(
-              icon: Icons.description_outlined,
-              color: theme.accentBright,
-              size: 38,
-              radius: K.radiusRow,
-              iconSize: 19,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            child: Row(
+              spacing: 10,
+              children: [
+                // The glyph sits on its own accent tile rather than loose on
+                // the card, which is what makes the card read as a file rather
+                // than a row of text with an icon in front of it.
+                IconTile(
+                  icon: Icons.description_outlined,
+                  color: theme.accentBright,
+                  size: 38,
+                  radius: K.radiusRow,
+                  iconSize: 19,
+                ),
+                Expanded(child: _details(theme)),
+                _trailing(theme),
+              ],
             ),
-            Expanded(child: _details(theme)),
-            _trailing(theme),
-          ],
+          ),
         ),
       ),
     );

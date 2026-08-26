@@ -59,9 +59,8 @@ class WakeServer {
       userId: user,
       username: json['username'] as String? ?? '',
       keyVersion: json['version'] as String? ?? 'v1',
-      channels: (json['channels'] as Map?)?.map(
-            (k, v) => MapEntry('$k', '$v'),
-          ) ??
+      channels:
+          (json['channels'] as Map?)?.map((k, v) => MapEntry('$k', '$v')) ??
           const {},
     );
   }

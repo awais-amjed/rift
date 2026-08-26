@@ -83,6 +83,24 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
         ),
         callback: (payload) => _onDmMessage(server.id, payload.newRecord),
       )
+      // A level changed somewhere else — the phone, another desktop. Without
+      // this the setting is per-device in everything but storage: written to
+      // the server, read at sign-in, and never looked at again, so the window
+      // you left open goes on notifying you about a channel you muted an hour
+      // ago. Every event re-seeds rather than being applied on its own,
+      // because the answer is a chain across three scopes and a re-seed is one
+      // round trip that already returns all of it.
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'notification_prefs',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: server.user!.id,
+        ),
+        callback: (_) => unawaited(_seed(server.id)),
+      )
       ..subscribe();
     _subs[server.id] = _ServerSub(
       client: client,

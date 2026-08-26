@@ -135,6 +135,19 @@ def click(ws, x, y):
         )
 
 
+def move(ws, x, y):
+    """Park the pointer, so hover states can be read off a screenshot.
+
+    The compositor is not involved — the event is dispatched inside the
+    renderer — which is the whole reason this harness survives when the
+    desktop one cannot inject input at all.
+    """
+    ws.call(
+        "Input.dispatchMouseEvent",
+        {"type": "mouseMoved", "x": x, "y": y, "buttons": 0},
+    )
+
+
 def rclick(ws, x, y):
     for kind in ("mousePressed", "mouseReleased"):
         ws.call(
@@ -224,6 +237,8 @@ if __name__ == "__main__":
         print(shot(ws, sys.argv[3]))
     elif cmd == "click":
         click(ws, float(sys.argv[3]), float(sys.argv[4]))
+    elif cmd == "move":
+        move(ws, float(sys.argv[3]), float(sys.argv[4]))
     elif cmd == "rclick":
         rclick(ws, float(sys.argv[3]), float(sys.argv[4]))
     elif cmd == "type":

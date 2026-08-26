@@ -6,7 +6,9 @@ import 'package:supabase/supabase.dart';
 
 import '../../../data/classes/server.dart';
 import '../../../data/enums/home_surface.dart';
+import '../../../data/enums/notification_level.dart';
 import '../../services/notification_service.dart';
+import '../../services/per_server_map.dart';
 import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';
 import '../channel_chat/channel_chat_cubit.dart';
@@ -17,6 +19,7 @@ part 'server_notifications_state.dart';
 part 'server_notifications_subscriptions.dart';
 part 'server_notifications_read.dart';
 part 'server_notifications_names.dart';
+part 'server_notifications_levels.dart';
 
 /// One authenticated Realtime + REST connection **per joined server** to its
 /// `notifications` table (RLS-scoped to `auth.uid()`), so unread badges and OS
@@ -39,7 +42,7 @@ part 'server_notifications_names.dart';
 ///   expire (via [ServerCubit.reAuthenticateServer]) so their subscriptions
 ///   don't lapse while another server is in focus.
 class ServerNotificationsCubit extends Cubit<NotificationsState>
-    with _PeerNamesMixin, _SubscriptionsMixin, _ReadMarkingMixin {
+    with _PeerNamesMixin, _SubscriptionsMixin, _ReadMarkingMixin, _LevelsMixin {
   @override
   final ServerCubit _serverCubit;
   final AppCubit _appCubit;
@@ -79,6 +82,17 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
        super(const NotificationsState()) {
     _serverSub = serverCubit.stream.listen((_) => _sync());
     _chatSub = chatCubit.stream.listen(_onChatChanged);
+    // The open channel's notification is raised over there, because only that
+    // side holds the key and can tell a mention from an ordinary line. The
+    // *level* is here, with every other server's. Handing it over as a lookup
+    // rather than duplicating the fetch is what keeps one answer to "may this
+    // channel interrupt" instead of two that drift.
+    chatCubit.setNotificationLevelSource(
+      (channelId) => state.channelLevel(
+        _serverCubit.state.selectedServerId ?? '',
+        channelId,
+      ),
+    );
     _dmSub = dmCubit.stream.listen(_onDmChanged);
     _appSub = appCubit.stream.listen(_onAppStateChanged);
     WindowFocusService.instance.focused.addListener(_onFocusChanged);
@@ -98,10 +112,13 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   /// Ask a server what is unread and fold the answer into state.
   ///
   /// One RPC per server — `unread_counts()` counts messages above each read
-  /// cursor and returns `{channels: {...}, dms: {...}}` — where this used to
-  /// fetch every unread notification row and tally them here. Whatever the user
-  /// is looking at is then marked read, which is what stops a badge appearing
-  /// for the channel already on screen.
+  /// cursor and returns `{channels, dms, prefs}` — where this used to fetch
+  /// every unread notification row and tally them here. The levels ride along
+  /// with the counts because drawing a badge and deciding whether it may
+  /// interrupt are the same question asked twice, and asking them a round trip
+  /// apart is how a muted channel gets one notification anyway. Whatever the
+  /// user is looking at is then marked read, which is what stops a badge
+  /// appearing for the channel already on screen.
   @override
   Future<void> _seed(String serverId) async {
     final sub = _subs[serverId];
@@ -111,11 +128,28 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
       if (isClosed || !_subs.containsKey(serverId)) return;
       if (data is! Map) return;
 
+      final prefs = data['prefs'];
+      final servers = NotificationLevel.mapFrom(
+        prefs is Map ? prefs['servers'] : null,
+        // No fallback to drop against: an absent server row is "no opinion",
+        // and the level that would mean that is never stored, so anything
+        // here is a real answer somebody gave.
+        fallback: null,
+      );
       emit(
         state.withServerCounts(
           serverId,
+          serverPref: servers[serverId],
           channels: _countsOf(data['channels']),
           dms: _countsOf(data['dms']),
+          channelPrefs: NotificationLevel.mapFrom(
+            prefs is Map ? prefs['channels'] : null,
+            fallback: NotificationLevel.channelDefault,
+          ),
+          dmPrefs: NotificationLevel.mapFrom(
+            prefs is Map ? prefs['dms'] : null,
+            fallback: NotificationLevel.dmDefault,
+          ),
         ),
       );
       _markOnScreenRead(onlyServerId: serverId);
@@ -168,7 +202,10 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     // "new message"; that one can name the sender, quote the message, and tell
     // a mention from an ordinary line. Whoever can read it should be the one
     // describing it — and only one of us may, or it arrives twice.
-    if (!focused && !isOpenChannel) {
+    final level = state.channelLevel(serverId, channelId);
+    if (!focused &&
+        !isOpenChannel &&
+        level.announces(mentioned: _rowNamesMe(serverId, row))) {
       final server = _serverById(serverId);
       String? channelName;
       for (final c in server?.channels ?? const []) {
@@ -212,7 +249,10 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     }
     emit(state.incrementedDm(serverId, peerId));
 
+    // A DM has nobody else in it to be named among, so `mentions` reads as
+    // `all` here — the same answer the server's ring trigger gives it.
     if (!WindowFocusService.instance.isFocused &&
+        !state.dmLevel(serverId, peerId).isMuted &&
         serverId != _serverCubit.state.selectedServerId) {
       unawaited(_notifyBackgroundDm(serverId, peerId));
     }

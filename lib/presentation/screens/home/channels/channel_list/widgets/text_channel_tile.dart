@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/enums/home_surface.dart';
+import '../../../../../../data/enums/notification_level.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
@@ -34,6 +35,11 @@ class TextChannelTile extends StatelessWidget {
             : context.select<ServerNotificationsCubit, int>(
                 (c) => c.state.unreadForChannel(serverId, channel.id),
               );
+        final level = serverId == null
+            ? NotificationLevel.channelDefault
+            : context.select<ServerNotificationsCubit, NotificationLevel>(
+                (c) => c.state.channelLevel(serverId, channel.id),
+              );
 
         return ChannelContextMenu.wrap(
           context: context,
@@ -42,11 +48,21 @@ class TextChannelTile extends StatelessWidget {
             icon: Icons.tag_rounded,
             label: channel.name,
             isSelected: isSelected,
+            // A muted channel is still unread — the name stays lifted, so it
+            // is visible that something is in there. What it loses is the
+            // loud pill, which is the part that reads as "you are wanted".
             isUnread: unread > 0,
             trailing: unread > 0
                 ? UnreadBadge(
                     count: unread,
                     themeState: context.watch<ThemeCubit>().state,
+                    isMuted: level.isMuted,
+                  )
+                : level.isMuted
+                ? Icon(
+                    Icons.notifications_off_outlined,
+                    size: 13,
+                    color: context.watch<ThemeCubit>().state.textTertiary,
                   )
                 : null,
             onTap: () {

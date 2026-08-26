@@ -127,11 +127,49 @@ E2E chat envelopes (ARCHITECTURE.md §4) — the server only ever stores ciphert
 | id          | bigserial   | Primary Key                         | Monotonic message id — used for pagination + live after-fetch  |
 | created_at  | timestamptz | Auto-created                        | Server-assigned send time                                      |
 | channel_id  | uuid        | Required, Foreign Key → channels.id | Channel the message belongs to                                 |
-| sender_id   | uuid        | Required, Foreign Key → users.id    | Author (server-attested)                                       |
-| ciphertext  | text        | Required                            | AES-256-GCM ciphertext + tag, base64                           |
-| nonce       | text        | Required                            | AES-GCM nonce, base64                                          |
-| signature   | text        | Required                            | Sender's Ed25519 signature over the canonical payload, base64  |
-| key_version | integer     | Required                            | Channel-key version that encrypted this message                |
+| sender_id   | uuid        | Foreign Key → users.id              | Author (server-attested). NULL when no member sent it          |
+| ciphertext  | text        | Required                            | AES-256-GCM ciphertext + tag, base64 — or plain text at v0     |
+| nonce       | text        | Required at key_version ≥ 1         | AES-GCM nonce, base64                                          |
+| signature   | text        | Required at key_version ≥ 1         | Sender's Ed25519 signature over the canonical payload, base64  |
+| key_version | integer     | Required, ≥ 0                       | Channel-key version — **0 means not encrypted** (migration 013)|
+| webhook_id  | uuid        | Foreign Key → webhooks.id, SET NULL | Which webhook posted it, for management. Not what it renders as|
+| origin_name | text        | 1–80 chars                          | Display name when no member sent it. Frozen at insert          |
+| mentions    | uuid[]      | Required, default `{}`              | User ids this message names — **plaintext** (migration 012)    |
+| mentions_all| boolean     | Required, default `false`           | The `@all` flag                                                |
+
+**`key_version = 0` is a body the server can read** (migration 013, BOTS.md §3). It exists so an
+incoming webhook can post — GitHub holds no Rift key, so nothing it sends could ever be sealed.
+Four CHECKs keep the two shapes from blurring into each other:
+
+| Constraint | Says |
+|---|---|
+| `messages_one_origin` | exactly one of `sender_id` / `origin_name` — a message from nobody is not a message |
+| `messages_origin_is_plain` | a non-member message is always `key_version = 0` |
+| `messages_plain_is_origin` | and, for now, the converse — a *member* may not write in the clear. Bot commands (BOTS.md §4) will relax this half |
+| `messages_envelope_complete` | `nonce`/`signature` are present exactly when there is an envelope |
+
+`origin_name` is denormalised rather than read through `webhook_id` on purpose: revoking a webhook
+must not rewrite the history it posted, and `ON DELETE SET NULL` would otherwise leave rows with no
+name and no sender. **Clients read the origin from `origin_name`, never from `webhook_id`.**
+
+The signature rule in ARCHITECTURE.md §4 — unverifiable messages are never rendered — is unchanged
+**for `key_version ≥ 1`**. At 0 there is no signer, so a client must render the message with its
+origin visible and must never attribute it to a person.
+
+`mentions` and `mentions_all` are the only part of a message that is not sealed, and they
+exist for one reason: the server cannot open the envelope, so without them it cannot tell a
+message that named somebody from one that did not — which is exactly what a mentions-only
+channel turns on. **The operator learns who was addressed; never what was said.** That is the
+same class of metadata already in the open for `dm_messages.recipient_id` and for reactions.
+
+They are written by the sender and **validated, not trusted**: a BEFORE trigger
+(`validate_message_mentions`) drops ids that aren't live members of this channel's server,
+drops the sender, dedupes, and caps the array at 50. They are insert-only — the UPDATE grant
+names four columns and none of them are these — because an edit rings nobody, so rewriting the
+array could only change who a later reader thinks was addressed.
+
+The phone still decrypts before it says anything, so a client that lies about who it mentioned
+buys a silent wake and never a false "mentioned you".
 
 ### dm_messages
 
@@ -217,6 +255,34 @@ no ON CONFLICT: first writer wins, losers re-wrap the winner's key.
 
 Unique: `(channel_id, key_version, user_id)`.
 
+### webhooks (migration 013)
+
+Incoming webhooks: a secret URL an outside service posts to, which lands in a channel as an
+unencrypted message. The point of one is that **nobody runs anything** — a bot is a program
+somebody hosts, and this exists for the case where there is no program.
+
+| Column       | Type        | Constraints                          | Description                                            |
+|--------------|-------------|--------------------------------------|--------------------------------------------------------|
+| id           | uuid        | Primary Key                          |                                                        |
+| created_at   | timestamptz | Auto-created                         |                                                        |
+| server_id    | uuid        | Required, Foreign Key → servers.id   |                                                        |
+| channel_id   | uuid        | Required, Foreign Key → channels.id  | One webhook posts to one channel                       |
+| created_by   | uuid        | Foreign Key → users.id, SET NULL     | The integration outlives whoever set it up             |
+| name         | text        | Required, 1–80 chars                 | Shown as the message's author                          |
+| secret_hash  | text        | Required, Unique                     | SHA-256 hex of the URL secret. **The secret is never stored** |
+| last_used_at | timestamptz |                                      | So a dead integration is visible                       |
+| rate_window  | timestamptz |                                      | Fixed one-minute window                                |
+| rate_count   | integer     | Required, default 0                  | Posts in that window; 30 is the cap                    |
+
+**The URL is the credential.** That is what makes a webhook usable by a service that cannot log
+in, and it is also its weakness — a URL ends up in CI config, in a screenshot, in a paste. So it
+is hashed, shown exactly once at creation, and rate-limited.
+
+`secret_hash` has **no column grant at all**, so it never leaves the database, not even to the
+admin who made it. `SELECT` and `DELETE` are granted to `authenticated` and gated by
+`app.can_manage_channels()`; there is no `INSERT` or `UPDATE` grant, because minting the secret is
+the operation and a secret the caller chose is not a secret.
+
 ### read_state
 
 One cursor per conversation: the newest message this member has read. It is what every unread
@@ -266,8 +332,69 @@ operator does not have and must not be given. `ring_devices()` posts to central'
 with `pg_net`, which queues and returns immediately: a delivered message with no doorbell is a far
 smaller problem than a message that could not be sent because a push gateway was down.
 
-Who gets rung is decided by `has_unread_before()` — only the transition from "nothing unread here"
-to "something unread here", per conversation. See `edge_functions.md` for the reasoning.
+Who gets rung is decided by `has_unread_before()` together with each member's
+`notification_prefs` level — see below.
+
+### notification_prefs (migration 012; central migration 011)
+
+How much a server, a channel or a conversation is allowed to interrupt one member. Keyed like
+`read_state`, and for the same reason: the question is identical whichever of the three it is
+about, so one table answers it for all of them and one client path reads it.
+
+| Column     | Type         | Constraints                              | Description                                        |
+|------------|--------------|------------------------------------------|----------------------------------------------------|
+| user_id    | uuid         | PK part, FK → users.id, stamped          | Whose setting this is (`auth.uid()`)               |
+| scope      | notify_scope | PK part                                  | `server`, `channel` or `dm`                        |
+| scope_id   | uuid         | PK part                                  | Server id, channel id, or the other person's id    |
+| level      | notify_level | Required                                 | `all` / `mentions` / `none`                        |
+| updated_at | timestamptz  | Auto                                     | Last change                                        |
+
+Its own `notify_scope` rather than `read_scope`: a read cursor cannot point at a server —
+there is nothing to be "read up to" — so adding the value there would make that type's name a
+lie and permit a `read_state` row nothing could interpret.
+
+**A row exists only where somebody has changed something.** Channels default to `mentions`
+and DMs to `all`; choosing the default *deletes* the row rather than storing it, so what a
+default means stays one decision instead of a copy in everybody's table. A server has no
+default of its own — no row means no opinion, and each scope inside falls through to its
+own — so the client shows an untouched server as `mentions`, the level its channels are
+actually at, and writes a `server` row only for `all` or `none`. RLS is own-row and
+`user_id` is stamped by a BEFORE trigger — a client that could name the owner could mute
+somebody else's conversations, which is a quiet way of making sure a person never hears from
+anyone again.
+
+**The scopes are a fallback chain, not a fight.** `app.notify_level(user, scope, scope_id)`
+(self-hosted) and `notify_level_for(...)` (central) resolve it in one place, in this order:
+
+1. what this exact channel or conversation is set to;
+2. failing that, what the **server** it belongs to is set to;
+3. failing that, the scope's default (`mentions` for a channel, `all` for a DM).
+
+So muting a server quiets everything you have not spoken about individually, and a channel you
+deliberately set to `all` stays loud inside a muted server. Discord resolves it the other way
+and then needs per-channel overrides to climb back out; this order is the one you can predict
+from the menu in front of you, because a channel showing an explicit level is telling you it is
+in force. `NotificationLevel.resolve` is the only copy of the order on the client.
+
+Both functions are SECURITY DEFINER, because the ring triggers ask them about *other people*,
+whose rows no session may read.
+
+What the ring triggers do with it:
+
+| Level      | When it rings                                                              |
+|------------|----------------------------------------------------------------------------|
+| `none`     | never                                                                      |
+| `all`      | on the 0→1 unread transition, **or** whenever the message names you        |
+| `mentions` | whenever the message names you, gate or no gate                            |
+
+A mention is not "one more unread" — it is the message the level exists for, so suppressing it
+because something else was already unread would make the setting useless. A DM has nobody in it
+to be named among, so `mentions` there reads as `all`; the UI does not offer it.
+
+`unread_counts()` returns the levels beside the counts, as
+`{channels, dms, prefs: {servers, channels, dms}}`. Every caller of one wants the other — the desktop
+app draws badges and decides what may interrupt, the push isolate decides what is worth a
+notification — and asking a round trip apart is how a muted channel gets one notification anyway.
 
 ## Functions and jobs (self-hosted)
 
@@ -315,6 +442,31 @@ that stands between a member and a history sweep, so `tests/policies_test.sql` a
 Returns `{orphans: [names]}`, capped. The edge function deletes them through the Storage API,
 which is the only thing that frees bytes: `storage.protect_delete()` refuses a direct DELETE on
 `storage.objects`.
+
+### create_webhook(p_channel_id uuid, p_name text) — migration 013
+
+Mints a webhook and **returns its secret once**. `SECURITY DEFINER`, granted to `authenticated`,
+and it checks `app.can_manage_channels()` itself rather than leaning on a policy — there is no
+INSERT grant on `webhooks` for a policy to apply to. Caps a channel at 10, so a compromised admin
+account cannot quietly leave a hundred ways back in.
+
+Returns `{reason}` where reason is `ok` (plus `id`, `secret`), `forbidden`, `no_such_channel`,
+`bad_name` or `too_many`.
+
+### post_webhook_message(p_secret text, p_text text) — migration 013
+
+The lookup, the rate check and the insert in one statement, so nothing can sit between them.
+Hashes the secret, finds the webhook `FOR UPDATE`, enforces 30 posts per minute and the 16 KB body
+cap, inserts a `key_version = 0` row carrying the webhook's name, and stamps `last_used_at`.
+
+Granted to **`service_role` only** — never `authenticated`, never PUBLIC. Its one caller is the
+`webhook` edge function, which is the part that can be reached without a JWT. A member able to call
+this could post under any name in any channel by guessing a secret, with the rate limit never
+having to be right.
+
+Returns `{reason}`: `ok` (plus `message_id`, `channel_id`, `server_id`), `no_such_webhook`,
+`empty`, `too_long` or `rate_limited`. Every refusal looks the same from outside — a caller with a
+wrong secret learns that it is wrong and nothing else.
 
 ## Tables (central)
 
@@ -399,6 +551,87 @@ Same columns as their self-hosted counterparts. Differences that matter:
   same upsert without touching the key. **Any future upsert against a column-granted table has
   this problem**; write it as an RPC.
 
+### friendships / blocks (central, migration 012)
+
+The central gate: who may reach whom. See ARCHITECTURE §4 for the argument; what matters here is
+the shape.
+
+`friendships` is **one row per pair**, not per direction — a friendship is symmetric, and two
+rows for one relationship is two chances to disagree about it. `low_id < high_id` is a CHECK, so
+"are these two related" is a primary-key lookup rather than an OR over two columns.
+
+| Column       | Type          | Constraints                            | Description                                                  |
+|--------------|---------------|----------------------------------------|--------------------------------------------------------------|
+| low_id       | uuid          | PK part, FK → users.id, `< high_id`    | The lower of the two ids                                     |
+| high_id      | uuid          | PK part, FK → users.id                 | The higher                                                   |
+| requester_id | uuid          | FK → users.id, IN (low_id, high_id)    | Who asked. The one asymmetry that is real                    |
+| status       | friend_status | Required                               | `pending` until answered, then `accepted`                    |
+| requested_at | timestamptz   | Default now()                          | When the **current** request began. Survives an unfriend-and-ask-again, where `updated_at` would not |
+| updated_at   | timestamptz   | Default now()                          | When it was last answered                                    |
+
+| Column     | Type        | Constraints                         | Description                              |
+|------------|-------------|-------------------------------------|------------------------------------------|
+| blocker_id | uuid        | PK part, FK → users.id, `<> blocked`| Who blocked                              |
+| blocked_id | uuid        | PK part, FK → users.id              | Who was blocked. **Never readable by them** |
+| created_at | timestamptz | Default now()                       | When                                     |
+
+- **SELECT only, and own-row.** `friendships` where you are either side; `blocks` where you are
+  the *blocker* — there is no policy anywhere that lets the blocked side read the row. Every
+  change goes through an RPC: `friend_request`, `friend_request_by_handle`,
+  `respond_friend_request`, `unfriend`, `block_user`, `unblock_user`. Each carries a rule (a
+  request may not be accepted by whoever sent it; a block tears the friendship down with it) that
+  a policy would force every later reader to re-derive.
+- **Revoke from `authenticated`, not just `anon`.** Supabase ships `ALTER DEFAULT PRIVILEGES …
+  GRANT ALL ON TABLES TO anon, authenticated`, so a table created in `public` arrives with
+  `arwdDxtm` for both. Revoking only `anon` — as the first version of 012 did — leaves
+  `authenticated` holding INSERT/UPDATE/DELETE on the whole graph, stopped by nothing but RLS
+  having no write policy. That does deny, but it is one layer where the design claims two.
+  **The same applies to functions**: the default is EXECUTE for PUBLIC, and 003's blanket revoke
+  only covers what already existed.
+- **`send_dm` is the gate, in one line.** `IF NOT are_friends(…) THEN RAISE 'not_friends'`. One
+  code for every way of not being friends — stranger, pending either direction, unfriended,
+  blocked either direction — because which of those it is, a block especially, is not the
+  sender's to learn from a bounce. The RPC returns `state` alongside `id`/`created_at`/`quota`;
+  it is always `friends`, and a client that disagrees knows its graph is stale.
+- **`friend_request_by_handle(text)` is the only handle lookup on the server.** It resolves and
+  asks in the same statement, so there is no endpoint that answers "does this handle exist"
+  without also knocking. `no_such_user` covers a handle nobody owns, a malformed one, *and* one
+  whose owner has blocked the caller — the third must be indistinguishable from the first.
+  `blocked` means the caller blocked *them*, which is their own undoable decision, so it is said
+  plainly.
+- **The directory policy is relationship-scoped.** `users_select_directory` was `USING (true)`;
+  it is now `id = auth.uid() OR knows_user(id)`, where `knows_user` is true for a friendship or
+  request in either direction, or any message between the two. This is what ends handle search:
+  a stranger's row is not filtered out, it is not returned.
+  - It is deliberately "we have history", not "we are still speaking". A DM key is derived from
+    the peer's published X25519 key and re-read on every launch, so hiding a blocked account from
+    the person it blocked would quietly make *their* copy of the conversation undecryptable.
+  - `knows_user` **must** be granted to `authenticated`: a policy is evaluated as the querying
+    role, so a policy built on a function the role cannot execute fails with "permission denied"
+    on every read, own row included. It is safe to grant — everything it reads is already
+    readable by the caller, and it reports only about the caller's own relationships. Its
+    predecessor `blocked_between` was **not**, and is dropped: it answered "is there a block
+    between us", which told a blocked account it had been blocked.
+  - `dm_conversations()` (003) is SECURITY INVOKER and joins `users`; every peer it names is one
+    messages have passed with, so the policy admits all of them.
+  - `claim_handle` (003) is SECURITY INVOKER and upserts on conflict, which needs the existing
+    row visible — `id = auth.uid()` is first, and unconditional, for that reason.
+- **`ring_recipient` checks `are_friends` first**, above the notification level. `send_dm`
+  already refuses a non-friend, so this is belt and braces — but the trigger fires on an INSERT
+  rather than on the RPC, and it is the loudest thing the server can do.
+- Both tables are `REPLICA IDENTITY FULL` and published to `supabase_realtime` — declining,
+  withdrawing, unfriending and unblocking are DELETEs, and the default replica identity ships a
+  key the subscriber cannot match against its own id. A client binds `friendships` twice
+  (`low_id`, `high_id`) because a Realtime filter is one column and the table is keyed by a pair.
+- **`directory_profiles(uuid[])`** is how a client resolves the peers of its own conversation
+  list: SECURITY DEFINER, gated on there being a message between the caller and each id. It
+  answers what the policy would for the same ids — the message half of `knows_user` — and exists
+  as its own function so the client has one call rather than a table read whose result silently
+  depends on a policy. It cannot be used to browse.
+- `friend_list()` answers all four buckets in one call. It is SECURITY DEFINER specifically so
+  the blocked bucket carries handles: blocking deletes the friendship, so the policy above stops
+  admitting them, and a blocked list of bare UUIDs cannot be unblocked from.
+
 ### push_relays (central, migration 010)
 
 The credential a self-hosted server forwards its pushes over, because it cannot reach a phone by
@@ -445,6 +678,25 @@ self-hosted pair except that `push_config` is a singleton — central is one dep
 
 - `channel` - a read cursor pointing at a channel
 - `dm` - a read cursor pointing at the other person in a conversation
+
+### notify_level
+
+- `all` - every message rings
+- `mentions` - only a message naming you, or `@all`
+- `none` - nothing rings (still counted as unread)
+
+### notify_scope
+
+- `server` - the fallback for everything on one server
+- `channel` - one channel
+- `dm` - the other person in a conversation
+
+### friend_status (central)
+
+- `pending` - somebody asked; `requester_id` says who. Nothing may be sent
+  between the two while a row is in this state
+- `accepted` - answered. There is no `declined`: declining deletes the row, so
+  an absent row means exactly one thing
 
 ## Storage Buckets
 

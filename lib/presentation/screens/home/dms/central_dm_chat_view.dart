@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/server_limits.dart';
+import '../../../../data/enums/friendship_state.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import 'widgets/dm_chat_header.dart';
+import 'widgets/friends/friend_request_bar.dart';
+import 'widgets/friends/not_friends_note.dart';
+import 'widgets/friends/pending_request_note.dart';
 import 'widgets/quota_meter.dart';
 import '../../../theme/app_text.dart';
 
@@ -30,6 +34,11 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     final themeState = context.watch<ThemeCubit>().state;
     final state = context.watch<CentralDmCubit>().state;
     final quotaEmpty = state.remaining != null && state.remaining! <= 0;
+    final peerId = state.openPeerId;
+    final handle = state.openPeerHandle ?? '';
+    final friendship = peerId == null
+        ? FriendshipState.none
+        : state.stateFor(peerId);
 
     return Column(
       children: [
@@ -41,18 +50,42 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           onClose: () => context.read<CentralDmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),
-        if (state.chatStatus == DmChatStatus.ready)
-          ChatComposer(
-            hintText: quotaEmpty
-                ? 'Daily limit reached — continue on a shared server'
-                : 'Message @${state.openPeerHandle ?? ''}',
-            enabled: !quotaEmpty,
-            maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
-            footer: const QuotaMeter(),
-            onSend: (text, attachments) => context
-                .read<CentralDmCubit>()
-                .sendDm(text, attachments: attachments),
-          ),
+        // There is a composer here for exactly one of the five states, and
+        // every other branch is a sentence saying what would have to change.
+        // None of them is a disabled field: a greyed composer with a hint in
+        // it reads as something that has broken, and people retype into it.
+        if (state.chatStatus == DmChatStatus.ready && peerId != null)
+          switch (friendship) {
+            FriendshipState.friends => ChatComposer(
+              hintText: quotaEmpty
+                  ? 'Daily limit reached — continue on a shared server'
+                  : 'Message @$handle',
+              enabled: !quotaEmpty,
+              maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
+              footer: const QuotaMeter(),
+              onSend: (text, attachments) => context
+                  .read<CentralDmCubit>()
+                  .sendDm(text, attachments: attachments),
+            ),
+            FriendshipState.incoming => FriendRequestBar(
+              peerId: peerId,
+              peerHandle: handle,
+            ),
+            FriendshipState.outgoing => PendingRequestNote(
+              peerId: peerId,
+              peerHandle: handle,
+            ),
+            // A conversation you can read and not add to: somebody unfriended,
+            // or blocked and not yet cleared off this screen. Both are old
+            // history with a closed door on it, and the note offers the way
+            // back through.
+            FriendshipState.none ||
+            FriendshipState.blocked => NotFriendsNote(
+              peerId: peerId,
+              peerHandle: handle,
+              isBlocked: friendship == FriendshipState.blocked,
+            ),
+          },
       ],
     );
   }
@@ -63,6 +96,12 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
         return ChatMessageList(
           key: ValueKey(state.openPeerId),
           messages: state.messages,
+          // The default invites the first message. There is nowhere to type it
+          // unless the two of you are friends, and an invitation printed above
+          // the note explaining that is the screen arguing with itself.
+          emptyMessage: state.canSendToOpen
+              ? 'No messages yet — say hi!'
+              : 'Nothing here yet.',
           controller: scrollController,
           attachmentLoader: context.read<CentralDmCubit>().loadAttachment,
           // No onToggleReaction: central DMs are the first-contact tier and are

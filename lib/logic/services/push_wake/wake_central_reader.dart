@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase/supabase.dart';
 
+import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../../supabase_config.dart';
 import 'wake_dm_scan.dart';
@@ -71,8 +72,18 @@ class WakeCentralReader {
       },
     );
     try {
-      final unread = _unreadDms(await client.rpc('unread_counts'));
+      final counts = await client.rpc('unread_counts');
+      final unread = _unreadDms(counts);
       if (unread.isEmpty) return emptyHarvest;
+
+      // Levels arrive with the counts (central migration 011), so a muted
+      // conversation is dropped here as well as at the ring trigger — a wake
+      // caused by somebody else must not speak for it on the way past.
+      final prefs = counts is Map ? counts['prefs'] : null;
+      final levels = NotificationLevel.mapFrom(
+        prefs is Map ? prefs['dms'] : null,
+        fallback: NotificationLevel.dmDefault,
+      );
 
       final conversations = await client.rpc('dm_conversations');
       if (conversations is! List) return failedHarvest;
@@ -91,6 +102,7 @@ class WakeCentralReader {
           myChatKeyPair: identity.keyPair,
           scopePrefix: 'central',
           marks: marks,
+          levels: levels,
           limit: maxScopes,
         ),
         failed: false,

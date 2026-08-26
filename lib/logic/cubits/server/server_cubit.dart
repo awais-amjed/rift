@@ -11,6 +11,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
+import '../../../data/classes/webhook.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/avatar_repository.dart';
@@ -33,6 +34,7 @@ part 'server_channels_api.dart';
 part 'server_chat_api.dart';
 part 'server_profile_api.dart';
 part 'server_push_api.dart';
+part 'server_webhooks_api.dart';
 
 class ServerCubit extends HydratedCubit<ServerState>
     with
@@ -43,7 +45,8 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerChannelsApiMixin,
         _ServerChatApiMixin,
         _ServerProfileApiMixin,
-        _ServerPushApiMixin {
+        _ServerPushApiMixin,
+        _ServerWebhooksApiMixin {
   @override
   final ServerRepository _repository = ServerRepository();
 

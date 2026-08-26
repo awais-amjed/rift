@@ -10,6 +10,8 @@ import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/enums/message_origin.dart';
+import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/crypto_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/broadcast_payload.dart';
@@ -18,16 +20,20 @@ import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_failure.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/chat_notice.dart';
+import '../../services/mentions.dart';
 import '../../services/notification_service.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/window_focus_service.dart';
 import '../server/server_cubit.dart';
+import '../server_members/server_members_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'channel_chat_state.dart';
 part 'channel_chat_keyring.dart';
 part 'channel_chat_keyring_result.dart';
 part 'channel_chat_notify.dart';
+part 'channel_chat_ready.dart';
+part 'channel_chat_rows.dart';
 part 'channel_chat_history.dart';
 part 'channel_chat_send.dart';
 part 'channel_chat_edit.dart';
@@ -51,15 +57,27 @@ part 'channel_chat_sweep.dart';
 class ChannelChatCubit extends Cubit<ChannelChatState>
     with
         _ChatKeyringMixin,
+        _ChannelChatRowsMixin,
         _ChannelChatHistoryMixin,
         _ChannelChatSendMixin,
         _ChannelChatEditMixin,
         _ChannelChatReactionsMixin,
         _ChannelChatRealtimeMixin,
         _ChatSweepMixin,
+        _ChatReadyMixin,
         _ChatNotifyMixin {
   @override
   final ServerCubit _serverCubit;
+
+  /// The roster, for turning an `@name` into the user id the server rings.
+  ///
+  /// Resolution happens on the way out rather than on the way in because only
+  /// the sender's client can do it at all: the server cannot read the message
+  /// to find the names, and the recipients cannot be told which of them was
+  /// meant without being told first.
+  @override
+  final ServerMembersCubit _membersCubit;
+
   @override
   final VaultCubit _vaultCubit;
   @override
@@ -94,13 +112,29 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// Guards against a stale async continuation writing into a newer channel.
   int _openGeneration = 0;
 
+  /// How much the open channel may interrupt, asked of whoever keeps that.
+  ///
+  /// [ServerNotificationsCubit] holds every server's levels and sets this on
+  /// construction. Null before it has, and until then the default answers —
+  /// which is the right way round: a chat that started before the levels
+  /// arrived should behave like an unconfigured one, not a silent one.
+  @override
+  NotificationLevel Function(String channelId)? _notificationLevelFor;
+
+  /// Called by [ServerNotificationsCubit]. See [_notificationLevelFor].
+  void setNotificationLevelSource(
+    NotificationLevel Function(String channelId) source,
+  ) => _notificationLevelFor = source;
+
   StreamSubscription<VaultState>? _vaultSub;
 
   ChannelChatCubit({
     required ServerCubit serverCubit,
+    required ServerMembersCubit membersCubit,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
   }) : _serverCubit = serverCubit,
+       _membersCubit = membersCubit,
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        super(const ChannelChatState()) {
@@ -154,17 +188,32 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
     _setupRealtime(server, channelId);
 
+    // The history is fetched either way, including when no key was found.
+    // Without a key most of it comes back as locked rows and any webhook
+    // message comes back readable — which is the difference between a channel
+    // that looks empty and one that looks like what it is.
+    await _fetchLatest(channelId);
+    if (_isStale(generation)) return;
+
     if (keyring.isWaiting) {
       // No entry sealed to us yet — another member's client will heal us.
       // Ring the sweep doorbell so online members re-check right away, even
       // if the original "newly published" ring was lost.
-      emit(state.copyWith(status: ChannelChatStatus.waitingForKey));
+      //
+      // The full-screen wait is kept for the one case it is still the honest
+      // answer: nothing came back at all, so there is no list to show and
+      // nothing to say but why.
+      emit(
+        state.copyWith(
+          status: state.messages.isEmpty
+              ? ChannelChatStatus.waitingForKey
+              : ChannelChatStatus.readOnly,
+        ),
+      );
       _ringKeySweepDoorbell();
       return;
     }
 
-    await _fetchLatest(channelId);
-    if (_isStale(generation)) return;
     emit(state.copyWith(status: ChannelChatStatus.ready));
   }
 
@@ -210,95 +259,11 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     _ensureServerChatReady();
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Server chat readiness: key publish + sweep + doorbell
-  // ──────────────────────────────────────────────────────────
-
-  /// The server we've completed chat setup for this run (published our chat
-  /// key, subscribed the key-sweep topic, ran the initial sweep).
-  String? _readyServerId;
-  SupabaseClient? _sweepRtClient;
-  RealtimeChannel? _sweepRtChannel;
-
-  /// Idempotent: brings chat readiness in line with the selected server.
-  /// Requires a logged-in server user and an unlocked vault; called on
-  /// construction, server change, and vault unlock.
-  Future<void> _ensureServerChatReady() async {
-    final server = _serverCubit.state.selectedServer;
-    // A ban counts as having no server here. Without this the setup still ran
-    // — publishing a key, sweeping, subscribing — and every call quietly
-    // failed against RLS, but `_readyServerId` was set all the same. Lifting
-    // the ban then changed nothing, because readiness was already "done": the
-    // channel list came back and opening a channel did nothing at all. Being
-    // unready is the honest state, and it is what makes the unban re-run this.
-    if (server == null || server.user == null || server.user!.isBanned) {
-      await _teardownSweepRealtime();
-      _readyServerId = null;
-      return;
-    }
-    if (_vaultCubit.state.masterSeed == null) return;
-    if (server.id == _readyServerId) return;
-    _readyServerId = server.id;
-
-    await _teardownSweepRealtime();
-    _setupSweepRealtime(server);
-
-    final newlyPublished = await _ensureChatKeyPublished(server);
-    // A newly keyed member: tell online members to wrap for us right away.
-    if (newlyPublished) _ringKeySweepDoorbell();
-    // If the publish didn't stick (locked vault, network/auth failure), leave
-    // readiness unset so the next server/vault event retries the whole setup.
-    if (!_publishedChatKey.contains(server.id)) _readyServerId = null;
-    unawaited(_runKeySweep());
-    // Housekeeping, not chat: applies the operator's retention settings and
-    // removes attachment blobs whose messages are gone. It rides along here
-    // because this is the app's once-per-server-ready hook, and because a
-    // server whose members never open it never gets swept — the pg_cron job
-    // trims message rows but cannot touch storage.
-    unawaited(_serverCubit.sweepAttachments());
-  }
-
-  void _setupSweepRealtime(Server server) {
-    if (server.supabaseKey == null) return;
-    _sweepRtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    _sweepRtChannel = _sweepRtClient!.channel('keysweep:${server.id}')
-      ..onBroadcast(event: 'sweep', callback: (_) => _onKeySweepDoorbell())
-      ..subscribe();
-  }
-
-  Future<void> _teardownSweepRealtime() async {
-    final channel = _sweepRtChannel;
-    final client = _sweepRtClient;
-    _sweepRtChannel = null;
-    _sweepRtClient = null;
-    try {
-      await channel?.unsubscribe();
-      client?.removeAllChannels();
-      await client?.dispose();
-    } catch (_) {}
-  }
-
   @override
   void _ringKeySweepDoorbell() {
     try {
       _sweepRtChannel?.sendBroadcastMessage(event: 'sweep', payload: {});
     } catch (_) {}
-  }
-
-  void _onKeySweepDoorbell() {
-    if (isClosed) return;
-    // Someone published a key or healed entries: do our share of wrapping,
-    // and if we're the one waiting for access, refetch our keyring.
-    unawaited(_runKeySweep());
-    if (state.status == ChannelChatStatus.waitingForKey) {
-      unawaited(retry());
-      return;
-    }
-    // Already reading this channel: the doorbell may be announcing a rotation
-    // rather than a heal, and the new version has to be picked up or this
-    // client keeps sealing with a key the others have moved off.
-    final channelId = state.channelId;
-    if (channelId != null) unawaited(_absorbNewKeyVersions(channelId));
   }
 
   // ──────────────────────────────────────────────────────────
@@ -312,7 +277,10 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     for (final m in incoming) {
       _removeTyping(m.authorId);
     }
-    _notify(incoming);
+    // A locked row has no text, so a notification for one would be an empty
+    // quote under somebody's name. Being unable to read it is exactly the
+    // reason not to speak for it.
+    _notify(incoming.where((m) => !m.isLocked).toList());
   }
 
   /// Notify other members that a new row exists. Fire-and-forget: the row in

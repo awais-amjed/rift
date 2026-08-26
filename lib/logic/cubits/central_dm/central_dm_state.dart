@@ -28,9 +28,30 @@ class CentralDmState {
   /// `unreadByPeer[id] ?? 0` is the only correct way to read it.
   final Map<String, int> unreadByPeer;
 
+  /// peer id → how much that conversation may interrupt. A peer nobody has an
+  /// opinion about is absent, and [NotificationLevel.dmDefault] answers for
+  /// them — which is what lets the default be changed later without touching
+  /// anybody's stored rows.
+  final Map<String, NotificationLevel> levelsByPeer;
+
+  /// Friends, the requests waiting in both directions, and the block list.
+  ///
+  /// What it gates is the whole point of the central tier having a gate at
+  /// all: a conversation with somebody you are not friends with is a
+  /// *request*, and it is drawn, counted and composed into differently.
+  final FriendDirectory graph;
+
   /// Daily-quota meter (null until first fetched).
   final int? quota;
   final int? remaining;
+
+  /// Whether the content pane is showing the friends page.
+  ///
+  /// Only a phone needs to be told. On a desktop the friends page *is* the
+  /// resting state, so "no conversation open" says it — but on a phone the
+  /// pane with nothing open is the conversation list itself (`HomeView`), and
+  /// without a flag there would be no way to navigate to friends at all.
+  final bool friendsOpen;
 
   final String? openPeerId;
   final String? openPeerHandle;
@@ -40,10 +61,10 @@ class CentralDmState {
   final bool isLoadingMore;
   final String? error;
 
-  /// Text to seed the handle-search field with. Set when arriving from a
-  /// member's context menu, where their server display name is the best guess
-  /// at a handle — central accounts are separate identities, so nothing links
-  /// the two and it can only ever be a search, not a lookup.
+  /// Text to seed the add-friend field with. Set when arriving from a member's
+  /// context menu, where their server display name is the best guess at a
+  /// handle — central accounts are separate identities, so nothing links the
+  /// two and the name is a suggestion the user has to confirm or correct.
   final String? handleQuery;
 
   const CentralDmState({
@@ -53,8 +74,11 @@ class CentralDmState {
     this.conversations = const [],
     this.conversationsLoading = false,
     this.unreadByPeer = const {},
+    this.levelsByPeer = const {},
+    FriendDirectory? graph,
     this.quota,
     this.remaining,
+    this.friendsOpen = false,
     this.openPeerId,
     this.openPeerHandle,
     this.chatStatus = DmChatStatus.closed,
@@ -63,7 +87,7 @@ class CentralDmState {
     this.isLoadingMore = false,
     this.error,
     this.handleQuery,
-  });
+  }) : graph = graph ?? const FriendDirectory.empty();
 
   CentralDmState copyWith({
     CentralDmStatus? status,
@@ -72,8 +96,11 @@ class CentralDmState {
     List<DmConversation>? conversations,
     bool? conversationsLoading,
     Map<String, int>? unreadByPeer,
+    Map<String, NotificationLevel>? levelsByPeer,
+    FriendDirectory? graph,
     int? quota,
     int? remaining,
+    bool? friendsOpen,
     String? openPeerId,
     String? openPeerHandle,
     DmChatStatus? chatStatus,
@@ -93,8 +120,14 @@ class CentralDmState {
       conversations: conversations ?? this.conversations,
       conversationsLoading: conversationsLoading ?? this.conversationsLoading,
       unreadByPeer: unreadByPeer ?? this.unreadByPeer,
+      levelsByPeer: levelsByPeer ?? this.levelsByPeer,
+      graph: graph ?? this.graph,
       quota: quota ?? this.quota,
       remaining: remaining ?? this.remaining,
+      // Deliberately untouched by [closeConversation]: opening friends *is*
+      // closing the conversation, and clearing it here would make the two
+      // arguments fight in the one call that passes both.
+      friendsOpen: friendsOpen ?? this.friendsOpen,
       openPeerId: closeConversation ? null : (openPeerId ?? this.openPeerId),
       openPeerHandle: closeConversation
           ? null
@@ -112,6 +145,41 @@ class CentralDmState {
     );
   }
 
-  /// Every unread central DM — the badge on the rail's Home chip.
-  int get totalUnread => unreadByPeer.values.fold<int>(0, (sum, n) => sum + n);
+  NotificationLevel levelFor(String peerId) =>
+      levelsByPeer[peerId] ?? NotificationLevel.dmDefault;
+
+  /// Where the caller stands with one person — see [FriendshipState].
+  FriendshipState stateFor(String peerId) => graph.stateFor(peerId);
+
+  /// Whether the open conversation can be typed into — which is to say
+  /// whether the two of you are friends. Nothing else opens a composer.
+  bool get canSendToOpen {
+    final peerId = openPeerId;
+    return peerId == null || stateFor(peerId).canSend;
+  }
+
+  /// Every unread central DM, **minus muted conversations and minus blocked
+  /// peers**.
+  ///
+  /// A muted conversation keeps its own count: it still shows that something
+  /// arrived in it. What muting buys is that it stops adding to the number on
+  /// the outside, which is a claim that somebody wants you.
+  ///
+  /// Blocked is left out for a different reason: their old messages are still
+  /// rows, and their conversation is not in the list, so anything they left
+  /// unread would be a number pointing at nothing.
+  int get totalUnread {
+    var total = 0;
+    for (final entry in unreadByPeer.entries) {
+      if (levelFor(entry.key).isMuted) continue;
+      if (graph.isBlocked(entry.key)) continue;
+      total += entry.value;
+    }
+    return total;
+  }
+
+  /// What the rail's Home chip shows: unread messages plus people waiting for
+  /// an answer. Somebody who has asked to reach you is exactly as worth
+  /// surfacing as somebody who already can.
+  int get homeBadge => totalUnread + graph.requestCount;
 }

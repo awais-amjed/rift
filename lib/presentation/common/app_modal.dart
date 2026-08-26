@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../responsive/shell_scope.dart';
+import '../theme/app_motion.dart';
 import 'app_modal_header.dart';
 import 'context_menu_region.dart';
 
@@ -23,9 +24,39 @@ Future<T?> showCustomDialog<T>({
         SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(ctx).pop(),
       },
-      child: Focus(autofocus: true, child: builder(ctx)),
+      child: Focus(autofocus: true, child: _Entrance(child: builder(ctx))),
     ),
   );
+}
+
+/// The last few percent of a dialog's arrival.
+///
+/// The route already fades the dialog in; this adds the scale, which is what
+/// makes it read as opening *over* the app rather than being cross-faded with
+/// it. Small on purpose — a dialog is something you are about to type into, so
+/// the whole move has to be over before you could have reached it.
+///
+/// One-shot, and only on the way in. Dismissal is the route's fade alone: you
+/// have already decided to close it, and watching it shrink is watching
+/// nothing.
+class _Entrance extends StatelessWidget {
+  final Widget child;
+
+  const _Entrance({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.96, end: 1),
+      duration: AppMotion.state,
+      // Settling, not [AppMotion.pop] — an overshoot on something this large
+      // reads as a wobble rather than as a pop.
+      curve: AppMotion.settle,
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+      child: child,
+    );
+  }
 }
 
 /// Helper to show an AppModal as a dialog.

@@ -6,6 +6,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../emoji_text.dart';
+import '../../tap_to_focus.dart';
 
 /// The emoji picker's contents: a search row, a flat row of category icons,
 /// and the grid.
@@ -44,6 +45,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
   };
 
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
   final ScrollController _scrollController = ScrollController();
 
   List<CategoryEmoji> _set = const [];
@@ -59,6 +61,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocus.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -162,7 +165,16 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
   Widget _divider(ThemeState themeState) =>
       Container(height: 1, color: themeState.borderElevated);
 
+  /// The row is 20px taller than the text on it, and the magnifier is part of
+  /// it — so the row takes the tap, not just the glyphs.
   Widget _buildSearchRow(ThemeState themeState) {
+    return TapToFocus(
+      focusNode: _searchFocus,
+      child: _buildSearchRowBox(themeState),
+    );
+  }
+
+  Widget _buildSearchRowBox(ThemeState themeState) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
@@ -176,6 +188,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
           Expanded(
             child: TextField(
               controller: _searchController,
+              focusNode: _searchFocus,
               onChanged: _onSearch,
               style: AppText.secondary.copyWith(
                 fontSize: 12.5,

@@ -233,6 +233,79 @@ conversations to a self-hosted server they share (or any messenger they like).
   toward a shared server ("Continue on <server>" when one exists).
 - Privacy-mode users (no central account) simply have no central DMs; server DMs still work.
 
+### Friends, requests and blocks — the central gate [Implemented August 2026]
+
+Central's directory used to be readable row-by-row by every signed-in account, on the reasoning
+that you cannot message somebody you cannot find. What that had silently come to mean was that
+the whole membership was *enumerable* — three letters into a search box returned strangers — and
+that anyone who appeared there could be messaged, without limit, forever. The directory was the
+product; the open inbox behind it was an accident.
+
+The rule now is one sentence:
+
+> **You cannot send anything to somebody who is not your friend.**
+
+Not one message, not a message that doubles as a request. Contact begins with a friend request,
+and a friend request carries no payload — so there is no channel to abuse and nothing to
+withdraw-and-resend. Accepting is what opens the composer, and it is the only thing that does.
+
+**Finding somebody means typing their handle in full.** There is no prefix search: `users` is
+relationship-scoped (your own row, plus anyone you have a friendship, a request or a message
+with), and the only way to turn a handle into a person is `friend_request_by_handle`, which
+resolves and asks in the same statement. You learn that a handle exists by successfully asking
+its owner to be friends — a fact they are told at the same moment, and one that costs you a
+visible row in their Pending list.
+
+That is the whole trade, and it is worth being precise about: an exact-handle endpoint is still
+an existence oracle for handles you can *guess*. What it is not is a list. It cannot be walked,
+sampled, or watched, and a handle nobody told you is 20 characters of `[a-z0-9_]`.
+
+| Table | Shape | Why |
+|---|---|---|
+| `friendships` | one row per **pair**, canonical `low_id < high_id`, plus `requester_id`, `status`, `requested_at` | A friendship is symmetric. Two rows for one relationship is two chances to disagree about it, and a pair that is friends from one side and pending from the other has no meaning and no repair. |
+| `blocks` | directed `(blocker_id, blocked_id)` | Ends the relationship both ways *and* stops the handle resolving — a block that only bounced messages leaves a second account as the obvious next move. |
+
+Every state change is an RPC (`friend_request`, `friend_request_by_handle`,
+`respond_friend_request`, `unfriend`, `block_user`, `unblock_user`); there is **no
+INSERT/UPDATE/DELETE grant on either table**. Each change carries a rule with it — a request may
+not be accepted by whoever sent it, a block has to tear the friendship down with it — and a rule
+spelled in a policy has to be re-derived by every policy that reads the table afterwards.
+`friend_list()` answers the whole graph in one call, because everything on screen is drawn from
+all of it at once.
+
+**Four consequences worth stating:**
+
+- **Nothing here deletes a message.** Declining removes the request, unfriending removes the
+  friendship, blocking removes both and adds a row. All three leave the conversation where it
+  was: a request arrives empty, so there is nothing of the sender's to throw away, and a
+  conversation two people already had is not something one of them gets to erase from the other.
+  Unfriend, re-request, accept — the history is where they left it.
+- **A block is invisible from the side it lands on.** No policy lets you read a row where you
+  are `blocked_id`, and there is no function granted to `authenticated` that will answer the
+  question either. From the blocked side the handle simply stops resolving: `no_such_user`, the
+  same refusal a handle nobody owns gets. `send_dm` says `not_friends` for every way of not
+  being friends — stranger, pending, unfriended, blocked — so a bounce reveals nothing.
+- **The directory predicate is "we have history", not "we are still speaking."** A DM key is
+  derived from the peer's published X25519 key and re-read on every launch, so a policy that hid
+  a blocked account from the person it blocked would quietly make *their* copy of the
+  conversation undecryptable. Nothing deleted; it just stops opening. Blocking takes away reach
+  and discoverability — it does not reach into somebody else's device.
+- **A request does not ring.** `send_dm` already refuses it, but `ring_recipient()` checks
+  `are_friends` *above* the notification level anyway: waking a phone is the loudest thing this
+  tier can do, this trigger fires on an INSERT rather than on the RPC, and a future path into
+  `dm_messages` that forgets the gate should not also get to wake somebody.
+
+**Server DMs are deliberately not gated.** An invite already let that person in, and
+`app.can_receive_dm` already scopes DMs to fellow members of that server. Membership *is* the
+relationship there. Gating them would also mean every self-hosted server knowing your central
+friends list — and central identities and server identities are unlinked on purpose (§2), so
+that is a leak, not a feature.
+
+Existing conversations were backfilled as accepted: applying the gate retroactively would turn
+every one of them into a pair who can read their history and not add to it, waiting on a request
+neither of them sent.
+
+
 ### Operator limits on a self-hosted server [Implemented August 2026]
 
 Self-hosted used to impose nothing, on the reasoning that a server is somebody's own disk and
@@ -355,6 +428,36 @@ central attachment is only ever freed by the client that deletes its message.
 - **Kick/ban**: rotate to a new channel key version for subsequent messages.
 - **Seed-loss recovery**: re-invite + re-wrap restores history access without touching messages.
 
+### Three things a client can do with a row [Implemented August 2026]
+
+Reading a message has three outcomes, and for a long time two of them shared a line.
+
+| Outcome | When | What the reader sees |
+|---|---|---|
+| **Opened** | decrypted and verified, or never sealed (a webhook, `key_version 0`) | the message |
+| **Locked** | sealed under a key version this device does not hold | a placeholder row: author, time, and a lock |
+| **Dropped** | the signature does not verify, or the sender's key is gone so it cannot be checked | nothing, ever, and no hint that anything was there |
+
+The middle row used to be the last one. A member nobody had wrapped for yet had every message
+dropped by the same `continue` that drops a forgery, so a busy channel came back empty — and the
+UI, seeing no key, covered it with a full-screen *Waiting for channel access* that hid whatever
+**could** be read. Once webhooks arrived that included messages needing no key at all.
+
+**A missing key is not a failure.** It is the ordinary state of a new member for as long as it
+takes another client to come online and wrap for them, and the message is real, its author is
+real, and it opens by itself when the key lands. A bad signature is somebody forging a message,
+and it must leave no trace at all — a placeholder there would let a forger prove a message
+existed. Same line of code, opposite requirements.
+
+So a channel with no key now renders what it has: locked rows in place, webhook messages readable
+among them, and the composer replaced by a banner — sending needs the same key, so there is no
+half-open state to offer. The full-screen wait survives for the one case where it is still the
+honest answer: nothing came back at all, so there is no list to show and nothing to say but why.
+
+The locked row carries the author and the timestamp, which are columns the server already keeps in
+the clear (§6, *metadata is visible*). Showing them reveals nothing a member without the key could
+not read off the table directly, and without them the row says nothing about whose history this is.
+
 ### Rich messages — structured body + attachments [Implemented July 2026]
 
 A message's encrypted plaintext is no longer a bare string but a small **tagged
@@ -433,6 +536,75 @@ What the client still has to decide is *when* a badge clears: when the surface
 holding it is on screen **and** the window is focused, not merely when a cubit
 still has the conversation open behind another view.
 
+### Notification levels, and the one thing that leaks [Implemented August 2026]
+
+Unread is a fact; being interrupted is a choice. `notification_prefs` holds the
+second one, in the same `(user_id, scope, scope_id)` shape as `read_state`:
+**all**, **mentions**, or **none**, at three scopes — the **server**, one
+**channel**, one **conversation**. Channels default to `mentions`, DMs to `all`,
+and a server to no opinion at all — which the menu shows as `mentions`, because
+that is what the rooms inside it are actually at. Picking `mentions` on a server
+clears its row; picking `all` stores one, and really does turn every channel
+with no level of its own up to every message.
+
+It rides along with `unread_counts()` because every reader of one wants the
+other, and asking a round trip apart is how a muted channel gets one
+notification anyway.
+
+The scopes are a fallback chain, not a fight: **the conversation's own level if
+it has one, else the server's if it has one, else the default.** Muting a server
+therefore quiets everything you have not spoken about individually, while a
+channel you deliberately set to `all` stays loud inside it. Discord resolves
+this the other way — a server mute wins over the channels inside it — and then
+needs overrides to climb back out. One ordering has to be picked; this is the
+one you can predict from the menu in front of you, since a channel showing an
+explicit level is telling you it is in force. `app.notify_level` holds the only
+copy on the server and `NotificationLevel.resolve` the only copy on the client.
+
+One setting, four readers that must agree: the ring trigger on the server, the
+desktop app's OS notifications, the badge it draws, and the background isolate a
+push wakes. They agree by all spelling it the same way — `NotificationLevel` in
+Dart, `notify_level` in both schemas.
+
+The hard part is that **the server cannot read a message**, so it cannot tell
+whether one names you — which is the whole question `mentions` asks. Three ways
+out were on the table:
+
+- ring for every message and let the phone decide after decrypting. Private and
+  instant, but a 20-member channel at 200 messages a day is ~190 pointless wakes
+  per device per day.
+- ring on a cooldown and let the phone decide. Private and cheap, but an
+  @mention can arrive minutes late, which is the one notification nobody will
+  accept being late.
+- have the sender's client say who it named.
+
+Rift takes the third. `messages.mentions` is a plaintext `uuid[]` and
+`messages.mentions_all` is the `@all` flag. **The operator learns who was
+addressed in a message; never what was said** — the same class of metadata this
+schema already keeps in the open for `dm_messages.recipient_id` and for
+reactions, and it is listed under *Accepted limitations* below with them.
+
+Two things keep it honest. The column is **validated, not trusted**: ids that
+aren't live members of the channel's server are dropped, the sender is dropped,
+and the array is capped at 50, so a modified client can cause a wake but not a
+hundred. And **the phone decrypts before it says anything** — the notification's
+wording comes from the plaintext or from nothing, so a client that lies about
+who it mentioned buys a silent wake and never a false "mentioned you". The one
+place that cannot decrypt, the desktop app's subscription to a *background*
+channel, therefore stays on its generic "new message in #general" rather than
+claiming a mention on somebody else's say-so.
+
+`@all` is a boolean rather than every member listed, because listing them is
+exactly the abuse the cap exists to stop. Nobody may be called `all`
+(`users_username_not_reserved`), so it is never ambiguous between the room and a
+person.
+
+Muting is not amnesia. A muted conversation still counts what arrived in it and
+still shows it — what it loses is the loud pill and any claim on the totals that
+add several conversations together. That is where Discord puts the difference
+too, and it is the difference between "I don't want to be interrupted" and
+"pretend this didn't happen".
+
 ### Decisions locked in for day one
 1. **Every message is Ed25519-signed by the sender** — a shared channel key must not allow
    member/server forgery. Unsigned history can't be retro-signed, so this ships with message v1.
@@ -443,8 +615,9 @@ still has the conversation open behind another view.
 4. Messages table carries an `encryption`/key-version column from the start.
 
 ### Accepted limitations (document honestly, do not "fix")
-- **Metadata is visible** to the server admin and host: who, when, where, how much. E2E covers
-  content only.
+- **Metadata is visible** to the server admin and host: who, when, where, how much — and, since
+  August 2026, **who a message named** (`messages.mentions`). E2E covers content only. See
+  "Notification levels" above for why that column exists and what bounds it.
 - **No forward secrecy — deliberate.** Static keys are what make "recover seed → recover history"
   possible; ratcheting would destroy that. This is a product choice, not an oversight.
 - Search becomes a client-side index; automod is metadata-only; link previews are generated by

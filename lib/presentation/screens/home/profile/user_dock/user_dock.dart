@@ -6,11 +6,10 @@ import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
-import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
-import '../../../../theme/custom_colors.dart';
 import '../connection_quality/connection_quality_indicator.dart';
 import '../edit/profile_edit_modal.dart';
+import 'widgets/dock_avatar_button.dart';
 import 'widgets/dock_icon_button.dart';
 
 /// You, at the bottom of the sidebar: who you are, how your connection is
@@ -42,7 +41,14 @@ class UserDock extends StatelessWidget {
               child: Row(
                 spacing: 9,
                 children: [
-                  _buildAvatar(context, themeState, user),
+                  DockAvatarButton(
+                    user: user,
+                    themeState: themeState,
+                    onTap: () => showAppModal<bool>(
+                      context: context,
+                      modal: const ProfileEditModal(),
+                    ),
+                  ),
                   Expanded(child: _buildIdentity(themeState, user)),
                   _buildControls(context),
                 ],
@@ -51,46 +57,6 @@ class UserDock extends StatelessWidget {
           },
         );
       },
-    );
-  }
-
-  Widget _buildAvatar(
-    BuildContext context,
-    ThemeState themeState,
-    ServerUser? user,
-  ) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(11),
-      onTap: () =>
-          showAppModal<bool>(context: context, modal: const ProfileEditModal()),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          UserAvatar(
-            avatarPath: user?.avatarPath,
-            name: user?.displayName ?? 'Guest',
-            size: 34,
-            themeState: themeState,
-          ),
-          Positioned(
-            right: -2,
-            bottom: -2,
-            child: Container(
-              width: 11,
-              height: 11,
-              decoration: BoxDecoration(
-                color: user != null
-                    ? CustomColors.userStatusOnline
-                    : themeState.textQuaternary,
-                shape: BoxShape.circle,
-                // Ringed in the panel colour, not the dock's, so the dot reads
-                // as punched through the avatar rather than stuck on it.
-                border: Border.all(color: themeState.bgSecondary, width: 2.5),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

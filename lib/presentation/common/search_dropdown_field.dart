@@ -7,6 +7,7 @@ import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_text.dart';
+import 'tap_to_focus.dart';
 
 /// A search field that drops its results directly underneath itself.
 ///
@@ -177,7 +178,17 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
     );
   }
 
+  /// The whole 32px pill focuses the field, magnifier included — the text
+  /// itself is only about half its height, and the icon reads as part of the
+  /// field to everyone who is not looking at the widget tree.
   Widget _buildField(ThemeState themeState) {
+    return TapToFocus(
+      focusNode: _focusNode,
+      child: _buildFieldBox(themeState),
+    );
+  }
+
+  Widget _buildFieldBox(ThemeState themeState) {
     return Container(
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 10),

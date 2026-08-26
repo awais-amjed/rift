@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../../data/classes/public_server.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../common/app_button.dart';
+import '../../../../../common/empty_state.dart';
 import '../../../../../common/hint_card.dart';
 import 'public_server_tile.dart';
 
@@ -58,14 +59,15 @@ class BrowseResults extends StatelessWidget {
 
     if (state.results.isEmpty) {
       final searching = state.query.trim().isNotEmpty || state.tag != null;
-      return Center(
-        child: HintCard(
-          icon: searching ? Icons.search_off_outlined : Icons.public_outlined,
-          text: searching
-              ? 'Nothing matches that. Try fewer words, or clear the tag.'
-              : 'No servers have been listed yet. Create one and list it '
-                    'under Discovery in its settings, and it shows up here.',
-        ),
+      // The same treatment the friends tabs use: a list body with nothing in
+      // it keeps its own background, rather than growing a card in the middle.
+      return EmptyState(
+        icon: searching ? Icons.search_off_outlined : Icons.public_outlined,
+        title: searching ? 'No matches' : 'Nothing listed yet',
+        message: searching
+            ? 'Try fewer words, or clear the tag.'
+            : 'Create a server and list it under Discovery in its settings, '
+                  'and it shows up here.',
       );
     }
 

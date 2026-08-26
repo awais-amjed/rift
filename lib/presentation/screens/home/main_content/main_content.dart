@@ -119,8 +119,11 @@ class MainContent extends StatelessWidget {
                 ),
               );
             }
+            // Friends counts as somewhere to stand: on a phone the pane with
+            // nothing open is the conversation list, so without this the
+            // friends page would be unreachable there.
             final conversationOpen = context.select<CentralDmCubit, bool>(
-              (c) => c.state.openPeerId != null,
+              (c) => c.state.openPeerId != null || c.state.friendsOpen,
             );
             if (compact && !conversationOpen) {
               return const _ContentPanel(child: HomeView());

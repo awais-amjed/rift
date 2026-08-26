@@ -58,6 +58,11 @@ BTN_LEFT, BTN_RIGHT = 0x110, 0x111
 _MOVE_STEP = 6
 _MOVE_CORRECTIONS = 14
 
+# How far from the corner a post-slam reading may be and still be believed.
+# The pointer is clamped hard into 0,0; anything further out is a stale report,
+# not a near miss.
+_CORNER_SLOP = 4
+
 
 def pointer_position():
     """Where the pointer actually is, or None if X cannot say.
@@ -170,11 +175,24 @@ class Device:
         closed loop corrects whatever is left over.
         """
         self._corner()
+        # After the slam the pointer is in the corner *by construction*. A
+        # reading that disagrees is not tracking — XWayland follows the pointer
+        # only while it is over an X window, and otherwise repeats the last
+        # place it saw it. That stale value is worse than no value: it is not
+        # None, so the loop below accepted it, computed the same wrong delta
+        # every pass, and drove the pointer further away fourteen times in a
+        # row. An open loop from a known origin beats a closed loop around a
+        # lie, so check the origin before trusting the eye.
+        origin = pointer_position()
+        if origin is None or origin[0] > _CORNER_SLOP or origin[1] > _CORNER_SLOP:
+            self._nudge(int(x), int(y))
+            time.sleep(0.05)
+            return
         for _ in range(_MOVE_CORRECTIONS):
             at = pointer_position()
             if at is None:
-                # No X window under the pointer to ask — fall back to open
-                # loop and accept the error rather than spinning.
+                # Tracking dropped mid-correction: take what is left open loop
+                # rather than spinning.
                 self._nudge(int(x), int(y))
                 break
             dx, dy = int(x) - at[0], int(y) - at[1]

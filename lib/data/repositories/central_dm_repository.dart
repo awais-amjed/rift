@@ -4,12 +4,36 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../logic/services/chat_message_ops.dart';
 import '../classes/api_response.dart';
+import '../classes/friend_directory.dart';
+import '../enums/friendship_state.dart';
+import '../enums/notification_level.dart';
 import 'attachment_repository.dart';
 
 part 'central_dm_repository_attachments.dart';
 part 'central_dm_repository_directory.dart';
+part 'central_dm_repository_friends.dart';
+part 'central_dm_repository_prefs.dart';
 part 'central_dm_repository_push.dart';
 part 'central_dm_repository_read_state.dart';
+
+/// Turns a Postgres error raised by an RPC into a failure carrying its *code*.
+///
+/// Central's RPCs signal by `RAISE EXCEPTION 'quota_exceeded'`, which arrives
+/// as prose with the name somewhere inside it. Matching for the name is how a
+/// caller tells a rule it broke from a network that fell over — and it lives
+/// here, once, because both the send path and every friends RPC need it and
+/// two copies of a list of error codes is two lists that drift.
+APIResponse _rpcFailure(PostgrestException e, List<String> known) {
+  final code = known.firstWhere(
+    (candidate) => e.message.contains(candidate),
+    orElse: () => '',
+  );
+  return APIResponse(
+    success: false,
+    error: code.isNotEmpty ? code : e.message,
+    errorCode: code.isNotEmpty ? code : null,
+  );
+}
 
 /// Central-server DM I/O (Stage 3 — the discovery/first-contact tier,
 /// ARCHITECTURE.md §4). Everything runs over the central Supabase client with
@@ -21,6 +45,8 @@ class CentralDmRepository
         _CentralDmAttachmentsMixin,
         _CentralDmPushMixin,
         _CentralDmDirectoryMixin,
+        _CentralDmFriendsMixin,
+        _CentralDmPrefsMixin,
         _CentralDmReadStateMixin {
   @override
   SupabaseClient get _client => Supabase.instance.client;
@@ -38,8 +64,19 @@ class CentralDmRepository
   // ──────────────────────────────────────────────────────────
 
   /// Send one envelope through the quota-enforcing RPC. Returns
-  /// `{id, created_at, remaining, quota}`; quota exhaustion surfaces as
+  /// `{id, created_at, state, remaining, quota}`; quota exhaustion surfaces as
   /// errorCode `quota_exceeded`.
+  ///
+  /// `not_friends` is the gate, and it is the only refusal the friendship can
+  /// produce: a stranger, an unanswered request in either direction, somebody
+  /// unfriended, somebody who blocked you and somebody you blocked all come
+  /// back the same way. Which of those it is — a block especially — is not the
+  /// sender's to learn from a bounce.
+  ///
+  /// `state` is where the pair stands after the send, and is always `friends`
+  /// because nothing else gets that far. The caller compares it with what this
+  /// device believes and re-reads the graph when they differ, which is how a
+  /// client that missed a Realtime frame notices.
   Future<APIResponse> sendDm({
     required String recipientId,
     required Map<String, dynamic> envelope,
@@ -57,18 +94,15 @@ class CentralDmRepository
       );
       return APIResponse.success(result);
     } on PostgrestException catch (e) {
-      final known = [
+      return _rpcFailure(e, const [
         'quota_exceeded',
         'recipient_has_no_profile',
         'sender_has_no_profile',
         'cannot_dm_self',
         'envelope_invalid',
-      ].firstWhere((code) => e.message.contains(code), orElse: () => '');
-      return APIResponse(
-        success: false,
-        error: known.isNotEmpty ? known : e.message,
-        errorCode: known.isNotEmpty ? known : null,
-      );
+        // The friends gate. One code for every way of not being friends.
+        'not_friends',
+      ]);
     } catch (e) {
       return APIResponse.error(e);
     }
@@ -205,6 +239,8 @@ class CentralDmRepository
   RealtimeChannel subscribeIncoming(
     void Function() onInsert, {
     required void Function(String messageId) onUpdate,
+    required void Function() onPrefsChanged,
+    required void Function() onGraphChanged,
   }) {
     final myId = _client.auth.currentUser!.id;
     final mine = PostgresChangeFilter(
@@ -229,6 +265,64 @@ class CentralDmRepository
           final id = payload.newRecord['id'];
           if (id != null) onUpdate('$id');
         },
+      )
+      // A level set on another device. Same channel rather than a second one:
+      // it is the same account watching its own rows, and a subscription costs
+      // a connection whether or not anything ever comes down it.
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'notification_prefs',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: myId,
+        ),
+        callback: (_) => onPrefsChanged(),
+      )
+      // A request answered on a phone has to reach the desktop, or the
+      // relationship is per-device state that happens to live on a server.
+      //
+      // Two bindings for one table because a Realtime filter is one column and
+      // `friendships` is keyed by a *pair* — the caller is `low_id` in half
+      // their rows and `high_id` in the other half. Both land on this channel:
+      // it is the same account watching its own rows, and a subscription costs
+      // a connection whether or not anything comes down it.
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'friendships',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'low_id',
+          value: myId,
+        ),
+        callback: (_) => onGraphChanged(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'friendships',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'high_id',
+          value: myId,
+        ),
+        callback: (_) => onGraphChanged(),
+      )
+      // Only our own blocks. There is no policy anywhere that lets the blocked
+      // side read the row, so a `blocked_id` binding would deliver nothing and
+      // advertise the attempt.
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'blocks',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'blocker_id',
+          value: myId,
+        ),
+        callback: (_) => onGraphChanged(),
       )
       ..subscribe();
     return channel;
