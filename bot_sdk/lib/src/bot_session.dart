@@ -107,6 +107,35 @@ class BotSession {
     _throwIfFailed(res);
   }
 
+  /// Tell anyone with [channelId] open that something arrived.
+  ///
+  /// The app's clients ring this for their own sends, and the `webhook` edge
+  /// function rings it for a webhook's. A bot inserting straight into
+  /// PostgREST rings nothing — so its reply was stored correctly and reached
+  /// nobody until they reopened the channel. Found by watching one not appear.
+  ///
+  /// Best-effort, and never allowed to fail the reply: the message is already
+  /// stored, every client re-reads on open, and the unread badge comes from
+  /// the row. A bot that threw because a doorbell did not ring would be
+  /// retried by its own error handling and answer twice.
+  Future<void> ringDoorbell(String channelId) async {
+    try {
+      await http.post(
+        Uri.parse('$url/realtime/v1/api/broadcast'),
+        headers: _headers,
+        body: jsonEncode({
+          'messages': [
+            {
+              'topic': 'chat:$channelId',
+              'event': 'new_message',
+              'payload': <String, dynamic>{},
+            },
+          ],
+        }),
+      );
+    } catch (_) {}
+  }
+
   Future<void> patch(String query, Map<String, dynamic> patch) async {
     final res = await http.patch(
       Uri.parse('$url/rest/v1/$query'),

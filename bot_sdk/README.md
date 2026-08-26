@@ -108,7 +108,10 @@ It is an advertisement, not evidence. Nothing is authorised by what it claims.
 
 ## What this package does not do yet
 
-- **Realtime.** `Bot.listen` polls, every two seconds by default. No reconnect
+- **Realtime for *reading*.** `Bot.listen` polls, every two seconds by default.
+  Replies do ring the channel's doorbell, so an answer appears immediately for
+  anyone with the channel open — a bot that only polled in both directions
+  answered correctly and invisibly until somebody reopened the room. No reconnect
   logic to get wrong, and nothing spent from the server's shared event budget
   (~100/second, which every member's unread badges also draw on). Realtime
   belongs here eventually; it did not belong in the version that had to prove

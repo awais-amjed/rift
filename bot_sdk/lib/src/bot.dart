@@ -151,6 +151,10 @@ class Bot {
       'reply_to': to.id,
       if (ephemeralFor != null) 'ephemeral_for': ephemeralFor,
     });
+    // Without this the reply is stored and nobody with the channel open hears
+    // about it until they reopen — which for an answer to a question somebody
+    // just asked is the same as not answering.
+    await session.ringDoorbell(to.channelId);
   }
 }
 
