@@ -21,13 +21,14 @@ enum ServerRole {
   ),
   channelManager(
     label: 'Channel Manager',
-    // "Moderate members" was wrong and flattered the role. Muting, deafening
-    // and banning are `moderate_user`, which checks `app.is_admin()` — a
-    // channel manager cannot do any of them, and cannot change anyone's
-    // permissions either. What they *can* do is everything below.
+    // Checked against `moderate_user`, which splits on the verb rather than
+    // the role: banning takes `app.is_admin()`, everything else takes
+    // `app.can_manage_channels()`. So mute and deafen ARE a manager's, and ban
+    // is the one thing that is not. Naming the exclusion matters more than
+    // listing the grants — it is the half people get wrong.
     description:
-        'Create, rename and delete channels; remove anyone’s message; '
-        'disconnect people from a call',
+        'Manage channels, remove any message, and mute, deafen or '
+        'disconnect members — but not ban',
     icon: Icons.tune_outlined,
   ),
   invites(

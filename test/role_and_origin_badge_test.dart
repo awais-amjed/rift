@@ -142,15 +142,14 @@ void main() {
   });
 
   group('what the description claims', () {
-    test('a channel manager is never described as moderating members', () {
-      // Muting, deafening and banning all go through `moderate_user`, which
-      // checks `app.is_admin()`. This text is what an admin reads while
-      // deciding whether to grant the role, so it must not promise more than
-      // the role holds.
+    test('names the one thing a channel manager cannot do', () {
+      // `moderate_user` gates `p_banned` on `app.is_admin()` and every other
+      // verb on `app.can_manage_channels()`. Mute and deafen ARE a manager's;
+      // ban is not. This text is what an admin reads while deciding whether to
+      // grant the role, so the exclusion has to be in it.
       final text = ServerRole.channelManager.description.toLowerCase();
-      expect(text.contains('moderate members'), isFalse);
-      expect(text.contains('ban'), isFalse);
-      expect(text.contains('mute'), isFalse);
+      expect(text.contains('not ban'), isTrue);
+      expect(text.contains('mute'), isTrue);
     });
 
     test('and the role it describes is the one it checks', () {

@@ -15,16 +15,11 @@ import '../../../../theme/app_text.dart';
 /// abbreviation is deliberate — there is room on a member row for three
 /// letters and not for two words.
 ///
-/// **It does not mean what "mod" means elsewhere.** A channel manager creates
-/// and deletes channels, removes anyone's message, and disconnects people from
-/// a call. Muting, deafening and banning are `moderate_user`, which checks
-/// `app.is_admin()`, so a MOD can do none of them. The full grant is spelled
-/// out in [ServerRole.channelManager] and shown wherever the role is handed
-/// out; do not re-derive it from this word.
-///
-/// Deliberately not interactive. The label is the whole message, and a chip
-/// that opens something is a chip people have to try before they know it does
-/// nothing useful.
+/// The one thing it does *not* cover is banning: `moderate_user` gates
+/// `p_banned` on `app.is_admin()` and everything else on
+/// `app.can_manage_channels()`, so a MOD may mute, deafen, disconnect, remove
+/// any message and manage channels — but cannot end somebody's membership.
+/// [ServerRole.channelManager] carries the full sentence.
 class RoleChip extends StatelessWidget {
   final ServerRole role;
   final ThemeState themeState;
