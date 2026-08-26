@@ -129,7 +129,7 @@ leans on.
 
 ---
 
-## 4. Commands
+## 4. Commands — [Server implemented, migration 015]
 
 Two entry points, one mechanism.
 

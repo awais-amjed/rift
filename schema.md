@@ -164,6 +164,7 @@ E2E chat envelopes (ARCHITECTURE.md §4) — the server only ever stores ciphert
 | key_version | integer     | Required, ≥ 0                       | Channel-key version — **0 means not encrypted** (migration 013)|
 | webhook_id  | uuid        | Foreign Key → webhooks.id, SET NULL | Which webhook posted it, for management. Not what it renders as|
 | origin_name | text        | 1–80 chars                          | Display name when no member sent it. Frozen at insert          |
+| to_bot      | uuid        | Foreign Key → users.id, SET NULL    | The bot a `/` command is addressed to (migration 015)          |
 | mentions    | uuid[]      | Required, default `{}`              | User ids this message names — **plaintext** (migration 012)    |
 | mentions_all| boolean     | Required, default `false`           | The `@all` flag                                                |
 
@@ -175,7 +176,7 @@ Four CHECKs keep the two shapes from blurring into each other:
 |---|---|
 | `messages_one_origin` | exactly one of `sender_id` / `origin_name` — a message from nobody is not a message |
 | `messages_origin_is_plain` | a non-member message is always `key_version = 0` |
-| `messages_plain_is_origin` | and, for now, the converse — a *member* may not write in the clear. Bot commands (BOTS.md §4) will relax this half |
+| ~~`messages_plain_is_origin`~~ | **dropped in 015.** It said a member may not write in the clear; bot commands are exactly that. The rule did not disappear, it moved — see below |
 | `messages_envelope_complete` | `nonce`/`signature` are present exactly when there is an envelope |
 
 `origin_name` is denormalised rather than read through `webhook_id` on purpose: revoking a webhook
@@ -284,6 +285,52 @@ no ON CONFLICT: first writer wins, losers re-wrap the winner's key.
 | nonce                | text        | Required                                | AES-GCM nonce, base64                        |
 
 Unique: `(channel_id, key_version, user_id)`.
+
+### Bot commands (migration 015)
+
+`messages.to_bot` addresses a message to a bot. It is plaintext by necessity: the bot holds no
+channel key (014), so a sealed command is one it could never open.
+
+**The rule, as a policy:**
+
+```sql
+-- messages_select
+AND (NOT app.is_bot() OR to_bot = auth.uid() OR sender_id = auth.uid())
+```
+
+A bot reads the rows addressed to it and the rows it wrote. Nothing else — not the message before
+it, not the one that mentions it, not the rest of the channel it is sitting in. A *member's* view
+is unchanged: a command is an ordinary badged message and the room can see what was asked.
+
+`messages_insert` carries the other half: plaintext is a command or it is nothing
+(`key_version >= 1 OR to_bot IS NOT NULL`), the target must be an addressable bot on this server
+(`app.is_addressable_bot`), and a *sealed* message may not be addressed to a bot — that shape looks
+delivered and is unopenable.
+
+**Why the insert rule is a policy and not a CHECK.** 013's `messages_plain_is_origin` was a CHECK,
+and the obvious relaxation — `... OR to_bot IS NOT NULL` — would have broken the moment a bot was
+deleted: `ON DELETE SET NULL` is an UPDATE, and a row that satisfied the constraint at insert would
+stop satisfying it afterwards. That is the same shape as the trigger that made webhook deletion
+impossible in 013. So: **CHECKs guard the shape of a row; policies guard who may write one.**
+
+`app.can_see_message` — which the reaction policies consult, and which is `SECURITY DEFINER` so it
+reads past RLS — now applies the same bot rule. Without it a bot could read who reacted to
+conversations it cannot see: not content, but the shape of a room, one emoji at a time.
+
+`pin_bot_command` refuses an edit that changes a command's body, because a bot may already have
+acted on it. It deliberately does *not* pin `to_bot`, for the deletion reason above.
+
+### users.manifest (migration 015)
+
+A bot's published command list and data declaration (BOTS.md §4, §8). `JSONB`, null for a person
+(`users_manifest_is_bot`), capped at 8 KB, written by the bot itself through the existing
+`users_update_self` policy plus a column grant.
+
+Plaintext and readable by every member on purpose: it is an advertisement, the same way a public
+server listing is. It is also where a bot states what it does with what it is handed — worth more
+than any amount of key management, since the bot reads the command either way and what the user
+needs is to know that *before* typing. **Advertisement, not evidence:** a client renders it, and
+nothing is authorised by what it claims.
 
 ### webhooks (migration 013)
 
