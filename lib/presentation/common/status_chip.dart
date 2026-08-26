@@ -20,12 +20,20 @@ class StatusChip extends StatelessWidget {
   /// DM's — and the encryption claim is the last thing that should say two
   /// slightly different things in two places.
   ///
+  /// Leads with *who can read this*, because that is the question the word
+  /// "Encrypted" raises and the one a novice actually has. Saying how it works
+  /// — sealed on your device, opened on theirs — answers a question nobody
+  /// asked and leaves the first one hanging.
+  ///
   /// Deliberately about *content*: metadata is visible to the operator
   /// (ARCHITECTURE.md §6), so a tooltip promising more than content would be
   /// the app overstating its own guarantee.
+  ///
+  /// "in here" rather than "in this channel" because the DM header shows this
+  /// chip too, and one sentence that fits both beats two that can drift.
   static const String encryptedTooltip =
-      'Messages here are encrypted on your device. The server stores them and '
-      'cannot read them.';
+      'Only the people in here can read these messages. The server stores '
+      'them but cannot read them.';
 
   final IconData icon;
   final String label;

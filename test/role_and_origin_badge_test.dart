@@ -163,6 +163,7 @@ void main() {
       );
 
       final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+      expect(tooltip.message, contains('Only the people in here can read'));
       expect(tooltip.message, contains('cannot read them'));
     });
 
@@ -174,6 +175,8 @@ void main() {
       expect(text.contains('nothing'), isFalse);
       expect(text.contains('anonymous'), isFalse);
       expect(text.contains('messages'), isTrue);
+      // And it answers "who can read this", not "how does it work".
+      expect(text.contains('can read'), isTrue);
     });
 
     testWidgets('a chip with nothing to add carries no tooltip', (
