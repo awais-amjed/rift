@@ -132,7 +132,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
   ///     and an unverifiable one is dropped in the same silence. Being readable
   ///     is not a reason to let the server put words under a name.
   ///
-  /// A version 0 row that is neither cannot happen under 013/015's rules, so
+  /// A version 0 row with neither cannot happen under 013/015/016's rules, so
   /// reaching that branch means a newer server writing a shape this build has
   /// not learned. Dropping it is the same answer as anything else it cannot
   /// account for.
@@ -159,8 +159,11 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       );
     }
 
-    if (row['to_bot'] == null) return null;
-
+    // Everything else at version 0 has a sender: a member's command, or a
+    // bot's reply to one. Both carry a name, so both are verified — the branch
+    // is about *attribution*, not about which feature wrote the row. A bot
+    // that does not sign its replies has them dropped exactly like anybody
+    // else who doesn't, which is the SDK contract stated once.
     final senderKeyB64 = row['sender_public_key'] as String?;
     if (senderKeyB64 == null) return null;
     final verified = await _crypto.verifyPlaintext(
@@ -186,6 +189,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       editedAt: DateTime.tryParse('${row['edited_at']}'),
       reactions: ReactionOps.fromRow(row),
       isEncrypted: false,
+      isEphemeral: row['ephemeral_for'] != null,
     );
   }
 }

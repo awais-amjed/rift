@@ -63,11 +63,14 @@ class ChatMessage {
   /// first one's name with no header and therefore **no badge**. The one thing
   /// the badge exists to prevent, produced by the grouping rule.
   ///
-  /// [isEncrypted] is in the key for the same reason ahead of time: when a
-  /// member can send a plaintext bot command, it must not tuck silently under
-  /// the sealed message they sent a moment earlier.
-  String get groupKey =>
-      origin.isMember ? '$authorId:$isEncrypted' : '${origin.name}:$authorName';
+  /// [isEncrypted] is in the key for the same reason: a member's plaintext bot
+  /// command must not tuck silently under the sealed message they sent a
+  /// moment earlier. [isEphemeral] likewise — a bot's private reply grouping
+  /// under its public one would hide the badge that says only you can see it,
+  /// which is the whole thing that row has to communicate.
+  String get groupKey => origin.isMember
+      ? '$authorId:$isEncrypted:$isEphemeral'
+      : '${origin.name}:$authorName';
 
   /// When the author last edited this message, or null if never edited.
   /// Drives the "(edited)" marker.
@@ -86,6 +89,15 @@ class ChatMessage {
   /// commands land, where a member deliberately sends a plaintext message. The
   /// badge answers to this one; the attribution answers to [origin].
   final bool isEncrypted;
+
+  /// A bot's reply that only this reader can see (migration 016).
+  ///
+  /// Enforced by `messages_select`, not by clients agreeing to hide it — so
+  /// this flag is for *saying so*, not for keeping it. The row never reaches
+  /// anybody else, and the badge exists because a message that looks like it
+  /// is in the channel and is not would otherwise be the most confusing thing
+  /// on the screen: you would answer it, and nobody would know what you meant.
+  final bool isEphemeral;
 
   /// Sealed under a key version this device does not hold, so [text] is empty
   /// and there is nothing to render but the fact that it exists.
@@ -114,6 +126,7 @@ class ChatMessage {
     this.origin = MessageOrigin.member,
     this.isEncrypted = true,
     this.isLocked = false,
+    this.isEphemeral = false,
   });
 
   ChatMessage copyWith({
@@ -137,5 +150,6 @@ class ChatMessage {
     origin: origin,
     isEncrypted: isEncrypted,
     isLocked: isLocked,
+    isEphemeral: isEphemeral,
   );
 }

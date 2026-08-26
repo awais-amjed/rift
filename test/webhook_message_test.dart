@@ -246,4 +246,64 @@ void main() {
       expect(find.byType(MessageOriginBadge), findsOneWidget);
     });
   });
+
+  group('a reply only you can see', () {
+    ChatMessage private({String who = 'musicbot'}) => ChatMessage(
+      id: '50',
+      authorId: who,
+      authorName: who,
+      text: 'Nothing is playing.',
+      sentAt: base,
+      isMine: false,
+      isEncrypted: false,
+      isEphemeral: true,
+    );
+
+    ChatMessage publicReply({String who = 'musicbot'}) => ChatMessage(
+      id: '51',
+      authorId: who,
+      authorName: who,
+      text: 'Now playing: something',
+      sentAt: base.add(const Duration(seconds: 1)),
+      isMine: false,
+      isEncrypted: false,
+    );
+
+    test('is badged', () {
+      expect(MessageOriginBadge.isNeededFor(private()), isTrue);
+    });
+
+    testWidgets('and says who can see it, not just that it is plaintext', (
+      tester,
+    ) async {
+      // A private reply is unencrypted by construction. The surprising half —
+      // that nobody else in the channel has this row — is the one worth the
+      // pill, because a message that looks like it is in the channel and is
+      // not would be the most confusing thing on the screen.
+      await pump(tester, [private()]);
+      expect(find.text('ONLY YOU'), findsOneWidget);
+      expect(find.text('NOT ENCRYPTED'), findsNothing);
+    });
+
+    test('does not group with the same bot\'s public reply', () {
+      // Grouping them would hide the second header, and with it the badge that
+      // is the only thing distinguishing the two.
+      expect(private().groupKey, isNot(publicReply().groupKey));
+    });
+
+    testWidgets('so both keep their own header', (tester) async {
+      await pump(tester, [publicReply(), private()]);
+      expect(find.byType(MessageRowHeader), findsNWidgets(2));
+      expect(find.text('ONLY YOU'), findsOneWidget);
+    });
+
+    test('survives copyWith, like the other flags', () {
+      expect(private().copyWith(text: 'edited').isEphemeral, isTrue);
+    });
+
+    test('an ordinary message is never one', () {
+      expect(member('1').isEphemeral, isFalse);
+      expect(hook('1').isEphemeral, isFalse);
+    });
+  });
 }

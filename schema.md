@@ -165,6 +165,8 @@ E2E chat envelopes (ARCHITECTURE.md §4) — the server only ever stores ciphert
 | webhook_id  | uuid        | Foreign Key → webhooks.id, SET NULL | Which webhook posted it, for management. Not what it renders as|
 | origin_name | text        | 1–80 chars                          | Display name when no member sent it. Frozen at insert          |
 | to_bot      | uuid        | Foreign Key → users.id, SET NULL    | The bot a `/` command is addressed to (migration 015)          |
+| reply_to    | bigint      | Foreign Key → messages.id, CASCADE  | The command a bot reply answers (migration 016)                |
+| ephemeral_for| uuid       | Foreign Key → users.id, CASCADE     | A bot reply only this member may read (migration 016)          |
 | mentions    | uuid[]      | Required, default `{}`              | User ids this message names — **plaintext** (migration 012)    |
 | mentions_all| boolean     | Required, default `false`           | The `@all` flag                                                |
 
@@ -319,6 +321,41 @@ conversations it cannot see: not content, but the shape of a room, one emoji at 
 
 `pin_bot_command` refuses an edit that changes a command's body, because a bot may already have
 acted on it. It deliberately does *not* pin `to_bot`, for the deletion reason above.
+
+### Bot replies (migration 016)
+
+Two of the three shapes in BOTS.md §5. A **channel message** everyone sees, badged like a
+webhook's; an **ephemeral reply** only the asker sees. Panels are still planned — they need a
+declarative block set, which is a design rather than a column.
+
+`messages_insert` gains two clauses: a bot may write plaintext without addressing anybody (its
+reply is the answer, not the question), and a bot may never write `key_version >= 1` — it holds no
+channel key, so a sealed reply would be one its readers had to open. **Only a bot may set
+`ephemeral_for`:** a member able to write a message inside a channel that only one other member
+can see is a way to hold a conversation the room cannot audit and the operator's retention
+settings do not describe.
+
+`messages_select` and `app.can_see_message` both gain
+`ephemeral_for IS NULL OR ephemeral_for = auth.uid() OR sender_id = auth.uid()` — the sender clause
+is what lets a bot edit or withdraw its own answer.
+
+Both new columns are `ON DELETE CASCADE`, and that is deliberate rather than incidental. 013 and
+015 each had to route around `SET NULL` firing an UPDATE that a BEFORE trigger then fought. Here
+the row has no meaning without its referent — a reply to a deleted command, a private answer for a
+departed member — so it goes with it, and no trigger sees the update.
+
+#### The unread bug this fixed
+
+`unread_counts` filtered with `m.sender_id <> auth.uid()`. A webhook's sender is NULL, and
+`NULL <> uid` is NULL rather than true, so **every webhook message had been invisible to the unread
+badge since 013**: a channel of seven messages, four from webhooks, reported three. Now
+`IS DISTINCT FROM`.
+
+This is the same NULL that silenced `ring_channel_members`, which 013 caught and fixed one function
+away from this one. The fix was known; nothing looked for a second instance of the shape.
+
+`ring_channel_members` also stops waking bots (they have no phone and would be rung for rooms they
+cannot read) and, for an ephemeral reply, wakes only the member it is for.
 
 ### users.manifest (migration 015)
 

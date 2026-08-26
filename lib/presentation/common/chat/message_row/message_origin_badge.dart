@@ -34,17 +34,25 @@ class MessageOriginBadge extends StatelessWidget {
   /// Whether [message] needs one at all. A member's sealed message — every
   /// message before migration 013 — does not.
   static bool isNeededFor(ChatMessage message) =>
-      !message.isEncrypted || !message.origin.isMember;
+      !message.isEncrypted || !message.origin.isMember || message.isEphemeral;
 
   /// Amber rather than red. An integration posting build results is working
   /// exactly as intended; the badge is a label, not an alarm, and colouring it
   /// like an error would teach people to ignore it.
-  Color get _color => CustomColors.warning;
+  /// A private reply is not a caution, so it is not amber. It is a fact about
+  /// who is looking, and it reads as one.
+  Color get _color =>
+      message.isEphemeral ? themeState.textTertiary : CustomColors.warning;
 
-  String get _label => switch (message.origin) {
-    MessageOrigin.webhook => 'WEBHOOK',
-    MessageOrigin.member => 'NOT ENCRYPTED',
-  };
+  /// "Only you" comes first when both are true. A private reply is already
+  /// unencrypted by construction, and the surprising half — that nobody else
+  /// is seeing this — is the one worth the pill.
+  String get _label => message.isEphemeral
+      ? 'ONLY YOU'
+      : switch (message.origin) {
+          MessageOrigin.webhook => 'WEBHOOK',
+          MessageOrigin.member => 'NOT ENCRYPTED',
+        };
 
   String get _tooltip => switch (message.origin) {
     MessageOrigin.webhook =>

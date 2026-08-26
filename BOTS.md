@@ -169,7 +169,7 @@ the bot and both work while the bot is asleep.
 
 ---
 
-## 5. Replies
+## 5. Replies — [Channel + ephemeral implemented, migration 016; panels planned]
 
 Three shapes, because bot output is three different things and Discord flattens them all into
 chat messages for want of anywhere else to put them.
@@ -391,7 +391,7 @@ badge. Both are fixed; both have tests.
    sidebar entry is the next cheap win. One thing the design did not anticipate: a command is
    *signed* though not sealed, and the read path verifies it. A webhook's message cannot be
    verified and is never shown as a person; a command is attributed to one, so it has to be.
-3. Replies: channel message, then ephemeral, then panels
+3. ~~Replies: channel message, then ephemeral~~ **done** (migration 016). Panels still planned.
 4. The Dart SDK, extracted from what the first three needed
 5. Moderation grants — last, deliberately, because it is the only part that spends the trust model
 
