@@ -74,3 +74,7 @@ GoogleService-Info.plist
 *.keystore
 key.properties
 android/.kotlin/
+
+# Bot SDK build artifacts (the package itself is tracked)
+bot_sdk/.dart_tool/
+bot_sdk/pubspec.lock

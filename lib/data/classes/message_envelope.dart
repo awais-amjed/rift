@@ -22,11 +22,24 @@ class MessageEnvelope {
     required this.keyVersion,
   });
 
+  /// Reads a row.
+  ///
+  /// `nonce` and `signature` are nullable in the schema from migration 013
+  /// onward — an unencrypted body has no nonce, and a webhook has no signer —
+  /// so they arrive as null rather than as a string. Casting straight to
+  /// `String` threw on the first such row and, because this is called outside
+  /// the decrypt loop's try, took the **whole channel** down with it: one
+  /// message written by something that left the column null, and nobody could
+  /// open the room.
+  ///
+  /// Empty rather than nullable fields, because the canonical signed payload
+  /// interpolates both and an absent nonce has always been signed as the empty
+  /// string.
   factory MessageEnvelope.fromJson(Map<String, dynamic> json) {
     return MessageEnvelope(
-      ciphertext: json['ciphertext'] as String,
-      nonce: json['nonce'] as String,
-      signature: json['signature'] as String,
+      ciphertext: json['ciphertext'] as String? ?? '',
+      nonce: json['nonce'] as String? ?? '',
+      signature: json['signature'] as String? ?? '',
       keyVersion: json['key_version'] as int,
     );
   }

@@ -336,7 +336,7 @@ channel. Nothing else. That single rule is what "hears what you tell it" reduces
 
 ---
 
-## 11. The SDK
+## 11. The SDK — [Implemented, bot_sdk/]
 
 Small on purpose. Everything below already exists inside the app; the SDK is that code with the
 Flutter taken out.
@@ -392,7 +392,7 @@ badge. Both are fixed; both have tests.
    *signed* though not sealed, and the read path verifies it. A webhook's message cannot be
    verified and is never shown as a person; a command is attributed to one, so it has to be.
 3. ~~Replies: channel message, then ephemeral~~ **done** (migration 016). Panels still planned.
-4. The Dart SDK, extracted from what the first three needed
+4. ~~The Dart SDK, extracted from what the first three needed~~ **done** (`bot_sdk/`). Polls rather than subscribing: no reconnect logic to get wrong, and nothing spent from the server-wide event budget. Realtime, voice and DMs are listed in its README as not-yet.
 5. Moderation grants — last, deliberately, because it is the only part that spends the trust model
 
 Games are not on this list. Discord's run in a browser already, Linux desktop has no usable web

@@ -410,4 +410,57 @@ void main() {
       },
     );
   });
+
+  group('reading a row that is not a sealed envelope', () {
+    // Found by opening a channel that held one. A command written straight
+    // against the schema leaves `nonce` and `signature` null — both are
+    // nullable from migration 013 — and casting them to String threw. Because
+    // the throw happened outside the decrypt loop's try, it took the whole
+    // channel with it: no list, no error, a spinner forever.
+    test('a null nonce and signature read as empty, not as a crash', () {
+      final envelope = MessageEnvelope.fromJson({
+        'ciphertext': '/play something',
+        'nonce': null,
+        'signature': null,
+        'key_version': 0,
+      });
+      expect(envelope.nonce, isEmpty);
+      expect(envelope.signature, isEmpty);
+      expect(envelope.ciphertext, '/play something');
+      expect(envelope.keyVersion, 0);
+    });
+
+    test('missing keys read the same way', () {
+      final envelope = MessageEnvelope.fromJson({'key_version': 0});
+      expect(envelope.nonce, isEmpty);
+      expect(envelope.signature, isEmpty);
+      expect(envelope.ciphertext, isEmpty);
+    });
+
+    test('a sealed row still reads exactly as before', () {
+      final envelope = MessageEnvelope.fromJson({
+        'ciphertext': 'c',
+        'nonce': 'n',
+        'signature': 's',
+        'key_version': 3,
+      });
+      expect(envelope.nonce, 'n');
+      expect(envelope.signature, 's');
+      expect(envelope.keyVersion, 3);
+    });
+
+    test('an empty nonce is what the payload has always signed', () {
+      // So a command signed with `signPlaintext` and one read back from a row
+      // with a null nonce produce the same canonical string.
+      expect(
+        MessageEnvelope.signedPayload(
+          contextId: 'chan',
+          keyVersion: 0,
+          nonce: '',
+          ciphertext: '/play',
+        ),
+        'chatmsg:v1:chan:0::/play',
+      );
+    });
+  });
 }

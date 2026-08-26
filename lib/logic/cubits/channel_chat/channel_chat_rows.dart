@@ -45,8 +45,17 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       // be: it is rendered with its origin shown, and the badge is what says
       // the server could read it. See BOTS.md §3.
       if (keyVersion == 0) {
-        final plain = await _plainRow(row, channelId, localUserId);
-        if (plain != null) result.add(plain);
+        // Guarded like the sealed branch below, and for the reason that branch
+        // has always been: **one row must never cost the channel.** A single
+        // message with a shape this build did not expect used to throw out of
+        // here and leave the room stuck on its spinner — no list, no error,
+        // nothing to retry.
+        try {
+          final plain = await _plainRow(row, channelId, localUserId);
+          if (plain != null) result.add(plain);
+        } catch (e) {
+          HelperMethods.printDebug('[Chat] dropped row ${row['id']}: $e');
+        }
         continue;
       }
 
