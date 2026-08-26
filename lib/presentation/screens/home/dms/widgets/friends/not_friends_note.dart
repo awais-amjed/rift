@@ -61,12 +61,13 @@ class NotFriendsNote extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () => isBlocked
-                ? cubit.unblockPeer(peerId)
-                : cubit.addFriend(peerId),
+            onPressed: () =>
+                isBlocked ? cubit.unblockPeer(peerId) : cubit.addFriend(peerId),
             child: Text(
               isBlocked ? 'Unblock' : 'Add friend',
-              style: AppText.secondary.copyWith(color: themeState.textSecondary),
+              style: AppText.secondary.copyWith(
+                color: themeState.textSecondary,
+              ),
             ),
           ),
         ],

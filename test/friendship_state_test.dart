@@ -41,10 +41,9 @@ void main() {
     test('exactly one state opens a composer', () {
       // Written as a count rather than five expectations, so that adding a
       // state to the enum fails here rather than quietly getting a composer.
-      expect(
-        FriendshipState.values.where((s) => s.canSend).toList(),
-        [FriendshipState.friends],
-      );
+      expect(FriendshipState.values.where((s) => s.canSend).toList(), [
+        FriendshipState.friends,
+      ]);
     });
 
     test('only an incoming request is waiting on you', () {

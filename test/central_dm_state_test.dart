@@ -32,13 +32,16 @@ void main() {
       expect(state.totalUnread, 9); // u1's 3 + u2's 5 + u3's 1
     });
 
-    test('a muted conversation keeps its count and stops adding to the total', () {
-      final muted = state.copyWith(
-        levelsByPeer: const {'u1': NotificationLevel.none},
-      );
-      expect(muted.unreadByPeer['u1'], 3);
-      expect(muted.totalUnread, 6);
-    });
+    test(
+      'a muted conversation keeps its count and stops adding to the total',
+      () {
+        final muted = state.copyWith(
+          levelsByPeer: const {'u1': NotificationLevel.none},
+        );
+        expect(muted.unreadByPeer['u1'], 3);
+        expect(muted.totalUnread, 6);
+      },
+    );
 
     test('the Home badge adds the people waiting for an answer', () {
       // One per request, however long it has been waiting.
@@ -50,7 +53,9 @@ void main() {
       // is nothing unread anywhere and the only sign of it is this number.
       final only = CentralDmState(
         status: CentralDmStatus.ready,
-        graph: FriendDirectory(incoming: [friend('u2', FriendshipState.incoming)]),
+        graph: FriendDirectory(
+          incoming: [friend('u2', FriendshipState.incoming)],
+        ),
       );
       expect(only.totalUnread, 0);
       expect(only.homeBadge, 1);
@@ -77,15 +82,21 @@ void main() {
   });
 
   group('navigating to friends', () {
-    test('opening friends closes the conversation and survives the same call', () {
-      // Both arguments in one copyWith: closing must not clear the flag that
-      // the same call is setting.
-      final open = state.copyWith(openPeerId: 'u1');
-      final friends = open.copyWith(closeConversation: true, friendsOpen: true);
+    test(
+      'opening friends closes the conversation and survives the same call',
+      () {
+        // Both arguments in one copyWith: closing must not clear the flag that
+        // the same call is setting.
+        final open = state.copyWith(openPeerId: 'u1');
+        final friends = open.copyWith(
+          closeConversation: true,
+          friendsOpen: true,
+        );
 
-      expect(friends.openPeerId, isNull);
-      expect(friends.friendsOpen, isTrue);
-      expect(friends.chatStatus, DmChatStatus.closed);
-    });
+        expect(friends.openPeerId, isNull);
+        expect(friends.friendsOpen, isTrue);
+        expect(friends.chatStatus, DmChatStatus.closed);
+      },
+    );
   });
 }

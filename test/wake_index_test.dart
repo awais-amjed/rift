@@ -64,18 +64,12 @@ void main() {
   });
 
   test('a renamed channel is a change the isolate would notice', () {
-    expect(
-      server().sameAs(server(channels: const {'c1': 'lounge'})),
-      isFalse,
-    );
+    expect(server().sameAs(server(channels: const {'c1': 'lounge'})), isFalse);
     expect(server().sameAs(server(keyVersion: 'v2')), isFalse);
     expect(server().sameAs(server(username: 'sam')), isFalse);
   });
 
   test('a different number of servers is a change', () {
-    expect(
-      WakeIndex(servers: [server()]).sameAs(const WakeIndex()),
-      isFalse,
-    );
+    expect(WakeIndex(servers: [server()]).sameAs(const WakeIndex()), isFalse);
   });
 }

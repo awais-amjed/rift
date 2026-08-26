@@ -54,8 +54,10 @@ void main() {
         FriendDirectory.fromJson(json).stateFor('nobody'),
         FriendshipState.none,
       );
-      expect(const FriendDirectory.empty().stateFor('u1'),
-          FriendshipState.none);
+      expect(
+        const FriendDirectory.empty().stateFor('u1'),
+        FriendshipState.none,
+      );
     });
 
     test('the request count is incoming only', () {
@@ -92,19 +94,18 @@ void main() {
       // Their old messages are still rows on the server — blocking takes away
       // reach and discoverability, it does not erase what was said — so this
       // is the only thing keeping them off screen.
-      final visible = FriendDirectory.fromJson(json).visible([
-        conversation('u4'),
-        conversation('u1'),
-      ]);
+      final visible = FriendDirectory.fromJson(
+        json,
+      ).visible([conversation('u4'), conversation('u1')]);
       expect(visible.map((c) => c.peerId), ['u1']);
     });
 
     test('a stranger you have history with keeps their conversation', () {
       // Somebody who unfriended you leaves the row behind, readable and not
       // addable to. Hiding it would be a deletion nobody asked for.
-      final visible = FriendDirectory.fromJson(json).visible([
-        conversation('u9'),
-      ]);
+      final visible = FriendDirectory.fromJson(
+        json,
+      ).visible([conversation('u9')]);
       expect(visible.single.peerId, 'u9');
     });
 

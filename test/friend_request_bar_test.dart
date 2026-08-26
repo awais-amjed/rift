@@ -119,21 +119,22 @@ void main() {
     expect(cubit.declined, ['u2']);
   });
 
-  testWidgets('a request of your own says it is waiting, and can be taken back', (
-    tester,
-  ) async {
-    final cubit = await pump(
-      tester,
-      const PendingRequestNote(peerId: 'u3', peerHandle: 'cy'),
-    );
+  testWidgets(
+    'a request of your own says it is waiting, and can be taken back',
+    (tester) async {
+      final cubit = await pump(
+        tester,
+        const PendingRequestNote(peerId: 'u3', peerHandle: 'cy'),
+      );
 
-    expect(find.textContaining('Waiting for @cy'), findsOneWidget);
-    expect(find.textContaining('once they do'), findsOneWidget);
+      expect(find.textContaining('Waiting for @cy'), findsOneWidget);
+      expect(find.textContaining('once they do'), findsOneWidget);
 
-    await tester.tap(find.text('Withdraw'));
-    await tester.pump();
-    expect(cubit.withdrawn, ['u3']);
-  });
+      await tester.tap(find.text('Withdraw'));
+      await tester.pump();
+      expect(cubit.withdrawn, ['u3']);
+    },
+  );
 
   testWidgets('an ex-friend gets a readable conversation and a way back', (
     tester,

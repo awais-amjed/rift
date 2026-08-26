@@ -62,10 +62,7 @@ class _RestingState extends StatelessWidget {
       ),
       // Reached only while a readiness pass is still running, or after one
       // failed — `ready` is answered by the friends page above.
-      _ => (
-        'Your central DMs',
-        'Finding your account…',
-      ),
+      _ => ('Your central DMs', 'Finding your account…'),
     };
 
     return Center(

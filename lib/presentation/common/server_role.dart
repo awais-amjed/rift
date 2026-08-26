@@ -21,7 +21,13 @@ enum ServerRole {
   ),
   channelManager(
     label: 'Channel Manager',
-    description: 'Create channels and moderate members',
+    // "Moderate members" was wrong and flattered the role. Muting, deafening
+    // and banning are `moderate_user`, which checks `app.is_admin()` — a
+    // channel manager cannot do any of them, and cannot change anyone's
+    // permissions either. What they *can* do is everything below.
+    description:
+        'Create, rename and delete channels; remove anyone’s message; '
+        'disconnect people from a call',
     icon: Icons.tune_outlined,
   ),
   invites(

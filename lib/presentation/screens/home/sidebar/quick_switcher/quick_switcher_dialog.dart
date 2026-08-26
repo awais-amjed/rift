@@ -137,10 +137,7 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
   /// focused, so this is for getting focus *back* after a click landed on the
   /// results list or the magnifier.
   Widget _buildField(ThemeState themeState) {
-    return TapToFocus(
-      focusNode: _focusNode,
-      child: _buildFieldRow(themeState),
-    );
+    return TapToFocus(focusNode: _focusNode, child: _buildFieldRow(themeState));
   }
 
   Widget _buildFieldRow(ThemeState themeState) {

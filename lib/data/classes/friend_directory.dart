@@ -67,8 +67,7 @@ class FriendDirectory {
   FriendshipState stateFor(String peerId) =>
       _states[peerId] ?? FriendshipState.none;
 
-  bool isBlocked(String peerId) =>
-      _states[peerId] == FriendshipState.blocked;
+  bool isBlocked(String peerId) => _states[peerId] == FriendshipState.blocked;
 
   /// What the Requests badge counts. Outgoing requests are not in it: waiting
   /// for an answer is not something to be notified about.

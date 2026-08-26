@@ -100,10 +100,9 @@ void main() {
   });
 
   test('a conversation with nothing unread is not spoken about', () async {
-    final items = await scan(
-      [await conversation(text: 'hi')],
-      unread: const {},
-    );
+    final items = await scan([
+      await conversation(text: 'hi'),
+    ], unread: const {});
     expect(items, isEmpty);
   });
 

@@ -148,7 +148,8 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
     if (server == null) return APIResponse.error(_noTarget(serverId));
     return _callFor(
       server,
-      (bearer) => _repository.pushStatus(server.supabaseUrl, bearerToken: bearer),
+      (bearer) =>
+          _repository.pushStatus(server.supabaseUrl, bearerToken: bearer),
     );
   }
 

@@ -79,8 +79,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
             // or blocked and not yet cleared off this screen. Both are old
             // history with a closed door on it, and the note offers the way
             // back through.
-            FriendshipState.none ||
-            FriendshipState.blocked => NotFriendsNote(
+            FriendshipState.none || FriendshipState.blocked => NotFriendsNote(
               peerId: peerId,
               peerHandle: handle,
               isBlocked: friendship == FriendshipState.blocked,

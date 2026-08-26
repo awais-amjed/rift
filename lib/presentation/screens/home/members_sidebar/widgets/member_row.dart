@@ -8,6 +8,7 @@ import '../../../../common/user_avatar.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/app_text.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
+import '../../../../common/server_role.dart';
 import 'role_chip.dart';
 
 /// One member in the right-hand sidebar: avatar, name, role/state badges.
@@ -120,12 +121,14 @@ class MemberRow extends StatelessWidget {
 
   List<Widget> _badges(bool locallyMuted) {
     final badges = <Widget>[];
+    // One chip, not two: an admin holds everything a manager does, so showing
+    // both would read as two grants rather than one that subsumes the other.
     if (member.permissions.isServerAdmin) {
-      badges.add(
-        RoleChip(label: 'ADMIN', themeState: themeState, isPrimary: true),
-      );
+      badges.add(RoleChip(role: ServerRole.admin, themeState: themeState));
     } else if (member.permissions.isChannelManager) {
-      badges.add(RoleChip(label: 'MOD', themeState: themeState));
+      badges.add(
+        RoleChip(role: ServerRole.channelManager, themeState: themeState),
+      );
     }
     if (member.isMuted) {
       badges.add(

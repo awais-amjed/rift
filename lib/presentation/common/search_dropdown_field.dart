@@ -182,10 +182,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
   /// itself is only about half its height, and the icon reads as part of the
   /// field to everyone who is not looking at the widget tree.
   Widget _buildField(ThemeState themeState) {
-    return TapToFocus(
-      focusNode: _focusNode,
-      child: _buildFieldBox(themeState),
-    );
+    return TapToFocus(focusNode: _focusNode, child: _buildFieldBox(themeState));
   }
 
   Widget _buildFieldBox(ThemeState themeState) {

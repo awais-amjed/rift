@@ -137,7 +137,10 @@ void main() {
     test('your own is still yours to delete', () {
       // Not being able to read it does not make it somebody else's message.
       expect(
-        MessagePermissions.canDelete(locked('1', mine: true), isModerator: false),
+        MessagePermissions.canDelete(
+          locked('1', mine: true),
+          isModerator: false,
+        ),
         isTrue,
       );
     });
@@ -156,9 +159,7 @@ void main() {
       // be visible to everyone who *can* read it. A mis-click with an audience.
       await pump(tester, [locked('1')]);
       await tester.pumpAndSettle();
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await gesture.addPointer(location: Offset.zero);
       addTearDown(gesture.removePointer);
       await gesture.moveTo(tester.getCenter(find.byType(MessageLockedBody)));
@@ -175,7 +176,10 @@ void main() {
     });
 
     test('two authors are still two speakers when both are locked', () {
-      expect(locked('1', who: 'ana').groupKey, isNot(locked('2', who: 'bo').groupKey));
+      expect(
+        locked('1', who: 'ana').groupKey,
+        isNot(locked('2', who: 'bo').groupKey),
+      );
     });
   });
 }

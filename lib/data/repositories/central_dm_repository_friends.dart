@@ -92,10 +92,7 @@ mixin _CentralDmFriendsMixin {
   Future<APIResponse> respondToRequest({
     required String userId,
     required bool accept,
-  }) => _call('respond_friend_request', {
-    'p_user': userId,
-    'p_accept': accept,
-  });
+  }) => _call('respond_friend_request', {'p_user': userId, 'p_accept': accept});
 
   /// Ends the relationship in either state — unfriending a friend, or
   /// withdrawing a request. The conversation survives: it is not something one

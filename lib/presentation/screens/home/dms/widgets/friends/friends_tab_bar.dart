@@ -88,9 +88,7 @@ class _TabPill extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: radius,
             border: Border.all(
-              color: isSelected
-                  ? themeState.borderPrimary
-                  : Colors.transparent,
+              color: isSelected ? themeState.borderPrimary : Colors.transparent,
             ),
           ),
           child: Text(

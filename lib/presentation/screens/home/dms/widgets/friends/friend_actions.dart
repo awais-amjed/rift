@@ -126,15 +126,15 @@ class FriendActions {
   /// pressed.
   static Future<void> confirmBlock(BuildContext context, Friend friend) =>
       _confirmThen(
-    context: context,
-    title: 'Block @${friend.handle}?',
-    message:
-        'They will not be able to message you or find your handle, and any '
-        'friendship between you ends. They are not told.',
-    confirmLabel: 'Block',
-    icon: Icons.block_rounded,
-    action: () => context.read<CentralDmCubit>().blockPeer(friend.id),
-  );
+        context: context,
+        title: 'Block @${friend.handle}?',
+        message:
+            'They will not be able to message you or find your handle, and any '
+            'friendship between you ends. They are not told.',
+        confirmLabel: 'Block',
+        icon: Icons.block_rounded,
+        action: () => context.read<CentralDmCubit>().blockPeer(friend.id),
+      );
 
   static Future<void> _confirmThen({
     required BuildContext context,

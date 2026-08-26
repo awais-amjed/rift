@@ -53,11 +53,7 @@ class FriendRow extends StatelessWidget {
           child: Row(
             spacing: 11,
             children: [
-              SquircleAvatar(
-                name: friend.handle,
-                seed: friend.id,
-                size: 34,
-              ),
+              SquircleAvatar(name: friend.handle, seed: friend.id, size: 34),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

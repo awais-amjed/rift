@@ -66,10 +66,9 @@ void main() {
           BlocProvider<CentralDmCubit>.value(value: cubit),
         ],
         child: const MaterialApp(
-          home: Scaffold(body: Padding(
-            padding: EdgeInsets.all(8),
-            child: AddFriendField(),
-          )),
+          home: Scaffold(
+            body: Padding(padding: EdgeInsets.all(8), child: AddFriendField()),
+          ),
         ),
       ),
     );
@@ -82,7 +81,10 @@ void main() {
     // Not merely ignored — the button is off, so there is nothing to press
     // hopefully and nothing that looks like it might search.
     final button = tester.widget<InkWell>(
-      find.ancestor(of: find.text('Send request'), matching: find.byType(InkWell)),
+      find.ancestor(
+        of: find.text('Send request'),
+        matching: find.byType(InkWell),
+      ),
     );
     expect(button.onTap, isNull);
 

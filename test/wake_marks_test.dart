@@ -38,10 +38,7 @@ void main() {
     final pruned = pruned2(marks);
     expect(pruned.length, WakeMarks.maxEntries);
     expect(pruned.containsKey('scope:9'), isFalse);
-    expect(
-      pruned.containsKey('scope:${WakeMarks.maxEntries + 9}'),
-      isTrue,
-    );
+    expect(pruned.containsKey('scope:${WakeMarks.maxEntries + 9}'), isTrue);
   });
 
   test('a small set is left alone', () {

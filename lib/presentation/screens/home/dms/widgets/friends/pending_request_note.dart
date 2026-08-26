@@ -56,7 +56,9 @@ class PendingRequestNote extends StatelessWidget {
                 context.read<CentralDmCubit>().removeFriend(peerId),
             child: Text(
               'Withdraw',
-              style: AppText.secondary.copyWith(color: themeState.textSecondary),
+              style: AppText.secondary.copyWith(
+                color: themeState.textSecondary,
+              ),
             ),
           ),
         ],

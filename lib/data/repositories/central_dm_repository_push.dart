@@ -75,8 +75,10 @@ mixin _CentralDmPushMixin {
       );
       return APIResponse.success(result);
     } on PostgrestException catch (e) {
-      final known = ['too_many_relays', 'not_authenticated']
-          .firstWhere((code) => e.message.contains(code), orElse: () => '');
+      final known = [
+        'too_many_relays',
+        'not_authenticated',
+      ].firstWhere((code) => e.message.contains(code), orElse: () => '');
       return APIResponse(
         success: false,
         error: known.isNotEmpty ? known : e.message,
