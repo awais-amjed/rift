@@ -5,21 +5,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/attachment.dart';
+import '../../../../data/classes/server_member.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/attachment_staging.dart';
+import '../../../../logic/services/bot_command.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
 import '../../../theme/app_motion.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
-import 'composer_icon_button.dart';
+import 'composer_command_menu.dart';
+import 'composer_input_row.dart';
+import 'composer_plaintext_notice.dart';
 import 'composer_recording_bar.dart';
-import 'composer_send_button.dart';
 import 'composer_staged_row.dart';
-import 'composer_text_field.dart';
-import 'emoji_picker_popup.dart';
 
 /// Message input row: attach + emoji buttons, the text field, a mic and the
 /// send button, with a strip of staged-attachment chips above it once files
@@ -28,9 +29,19 @@ import 'emoji_picker_popup.dart';
 /// Enter sends, Shift+Enter inserts a newline (desktop convention). A message
 /// with neither text nor attachments never sends. [footer] is an optional slot
 /// below the bar — central DMs put the quota meter there.
+part 'chat_composer_attachments.dart';
+part 'chat_composer_recording.dart';
+
 class ChatComposer extends StatefulWidget {
   /// Called with the trimmed text and any staged attachments.
   final void Function(String text, List<PendingAttachment> attachments) onSend;
+
+  /// The bots on this server, for the `/` menu and the unencrypted warning.
+  ///
+  /// Empty everywhere bots cannot be addressed — DMs, central — which is also
+  /// what turns both off: no bots, no `/` handling, and a slash is just a
+  /// slash.
+  final List<ServerMember> bots;
 
   /// Called (throttled by the caller) as the user types, to broadcast a typing
   /// indicator to the other members. Fires only for non-empty edits.
@@ -55,25 +66,46 @@ class ChatComposer extends StatefulWidget {
     this.enabled = true,
     this.footer,
     this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
+    this.bots = const [],
   });
 
   @override
   State<ChatComposer> createState() => _ChatComposerState();
 }
 
-class _ChatComposerState extends State<ChatComposer> {
+class _ChatComposerState extends State<ChatComposer>
+    with _ComposerAttachmentsMixin, _ComposerRecordingMixin {
   // Colours emoji as they are typed, matching how they render once sent.
   final TextEditingController _controller = EmojiTextEditingController();
   final FocusNode _focusNode = FocusNode();
+  @override
   final List<PendingAttachment> _staged = [];
 
-  final VoiceNoteRecorder _recorder = VoiceNoteRecorder();
-  bool _isRecording = false;
-  Duration _elapsed = Duration.zero;
-  Timer? _recordTimer;
-
+  @override
   bool get _atAttachmentLimit =>
       _staged.length >= AttachmentStaging.maxPerMessage;
+
+  /// The bot this line will be sent to, or null when it is an ordinary
+  /// message. Recomputed on each build from the text — one source of truth, so
+  /// the warning above the bar and what actually gets sent cannot disagree.
+  ///
+  /// Attachments are excluded: a command carries no files (its body is the
+  /// line, in the clear), and a staged file silently turning a command back
+  /// into an ordinary message would be the worst kind of surprise.
+  BotCommand? get _command => _staged.isNotEmpty
+      ? null
+      : BotCommands.parse(_controller.text, widget.bots);
+
+  /// Replace the typed fragment with the chosen command and leave the caret
+  /// after it, ready for arguments.
+  void _pickCommand(String name) {
+    _controller.text = '/$name ';
+    _controller.selection = TextSelection.collapsed(
+      offset: _controller.text.length,
+    );
+    _focusNode.requestFocus();
+    setState(() {});
+  }
 
   @override
   void initState() {
@@ -88,8 +120,7 @@ class _ChatComposerState extends State<ChatComposer> {
 
   @override
   void dispose() {
-    _recordTimer?.cancel();
-    _recorder.dispose();
+    _disposeRecording();
     _controller.dispose();
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
@@ -111,126 +142,6 @@ class _ChatComposerState extends State<ChatComposer> {
     // Rebuild so the send button enables/disables.
     setState(() {});
     if (value.trim().isNotEmpty) widget.onTyping?.call();
-  }
-
-  Future<void> _pickFiles() async {
-    if (!widget.enabled) return;
-    try {
-      final files = await openFiles();
-      if (files.isEmpty) return;
-      for (final file in files) {
-        final bytes = await file.readAsBytes();
-        // One rejected file doesn't abandon the rest of the selection.
-        if (!_accepts(name: file.name, bytes: bytes.length)) continue;
-        _staged.add(
-          await AttachmentStaging.stage(
-            bytes: bytes,
-            name: file.name,
-            mimeType: file.mimeType,
-          ),
-        );
-      }
-      if (mounted) setState(() {});
-    } catch (e) {
-      HelperMethods.printDebug('[Composer] file pick failed: $e');
-      HelperMethods.showError(error: "Couldn't attach that file.");
-    }
-  }
-
-  /// True when the file fits; shows the reason and returns false when it
-  /// doesn't.
-  bool _accepts({required String name, required int bytes}) {
-    final rejection = AttachmentStaging.rejectionFor(
-      name: name,
-      bytes: bytes,
-      maxBytes: widget.maxAttachmentBytes,
-      alreadyStaged: _staged.length,
-    );
-    if (rejection == null) return true;
-    HelperMethods.showError(error: rejection);
-    return false;
-  }
-
-  void _removeStaged(int index) {
-    setState(() => _staged.removeAt(index));
-  }
-
-  Future<void> _openEmojiPicker(BuildContext anchorContext) async {
-    // Keep the field focused so inserted emoji land at the cursor.
-    _focusNode.requestFocus();
-    await showEmojiPickerPopup(
-      anchorContext,
-      controller: _controller,
-      onEmojiSelected: () => setState(() {}),
-    );
-  }
-
-  // ── Voice notes ───────────────────────────────────────────
-
-  Future<void> _startRecording() async {
-    if (!widget.enabled || _isRecording || _atAttachmentLimit) return;
-    try {
-      if (!await _recorder.hasPermission()) {
-        HelperMethods.showError(error: 'Microphone permission denied.');
-        return;
-      }
-      await _recorder.start();
-      if (!mounted) return;
-      setState(() {
-        _isRecording = true;
-        _elapsed = Duration.zero;
-      });
-      _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() => _elapsed += const Duration(seconds: 1));
-      });
-    } catch (e) {
-      HelperMethods.printDebug('[Composer] record start failed: $e');
-      HelperMethods.showError(
-        error: "Couldn't start recording — is a microphone available?",
-      );
-    }
-  }
-
-  /// Stop and stage the recording as an audio attachment.
-  Future<void> _stopRecording() async {
-    _recordTimer?.cancel();
-    final durationMs = _elapsed.inMilliseconds;
-    try {
-      final bytes = await _recorder.stop();
-      if (!mounted) return;
-      // A long enough recording outgrows the cap the same way a picked file
-      // does, and finding that out at upload time would lose the take.
-      if (bytes != null &&
-          !_accepts(name: 'That recording', bytes: bytes.length)) {
-        setState(() => _isRecording = false);
-        return;
-      }
-      setState(() {
-        _isRecording = false;
-        if (bytes != null) {
-          _staged.add(
-            PendingAttachment(
-              bytes: bytes,
-              name: 'Voice message.m4a',
-              mime: 'audio/mp4',
-              kind: AttachmentKind.audio,
-              durationMs: durationMs,
-            ),
-          );
-        }
-      });
-    } catch (e) {
-      HelperMethods.printDebug('[Composer] reading recording failed: $e');
-      if (mounted) setState(() => _isRecording = false);
-      HelperMethods.showError(error: "Couldn't save the recording.");
-    }
-  }
-
-  /// Discard the in-progress recording.
-  Future<void> _cancelRecording() async {
-    _recordTimer?.cancel();
-    await _recorder.cancel();
-    if (mounted) setState(() => _isRecording = false);
   }
 
   // ── Build ─────────────────────────────────────────────────
@@ -261,6 +172,19 @@ class _ChatComposerState extends State<ChatComposer> {
                         onRemove: _removeStaged,
                       ),
               ),
+              // Above the bar, because the point of it is to be read *before*
+              // the message goes.
+              if (_command != null)
+                ComposerPlaintextNotice(
+                  bot: _command!.bot,
+                  themeState: themeState,
+                ),
+              if (_suggestions.isNotEmpty)
+                ComposerCommandMenu(
+                  entries: _suggestions,
+                  themeState: themeState,
+                  onSelected: (_, name) => _pickCommand(name),
+                ),
               _buildBar(themeState),
               if (widget.footer != null) ...[
                 const SizedBox(height: 6),
@@ -272,6 +196,12 @@ class _ChatComposerState extends State<ChatComposer> {
       },
     );
   }
+
+  /// What the `/` menu should be offering, or empty when it should be closed.
+  List<({ServerMember bot, String name, String? description})>
+  get _suggestions => (!widget.enabled || _isRecording)
+      ? const []
+      : BotCommands.suggest(_controller.text, widget.bots);
 
   /// The bar itself — one container whose height never changes between the
   /// input row and the recording row.
@@ -310,64 +240,22 @@ class _ChatComposerState extends State<ChatComposer> {
               onCancel: _cancelRecording,
               onStop: _stopRecording,
             )
-          : _buildInputRow(themeState),
-    );
-  }
-
-  Widget _buildInputRow(ThemeState themeState) {
-    final canSend =
-        widget.enabled &&
-        (_controller.text.trim().isNotEmpty || _staged.isNotEmpty);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      // A hair apart, so the controls read as a row of separate targets
-      // rather than one welded strip.
-      spacing: 2,
-      children: [
-        // A plus rather than a paperclip: it opens the one "add something"
-        // affordance on the bar, and it is the only control left of the text.
-        ComposerIconButton(
-          icon: Icons.add_rounded,
-          tooltip: 'Attach files',
-          themeState: themeState,
-          onPressed: widget.enabled ? _pickFiles : null,
-        ),
-        Expanded(
-          child: ComposerTextField(
-            controller: _controller,
-            focusNode: _focusNode,
-            themeState: themeState,
-            enabled: widget.enabled,
-            hintText: widget.hintText,
-            onChanged: _onTextChanged,
-            onSubmit: _send,
-          ),
-        ),
-        // Builder so the popover can anchor to the button's own box.
-        Builder(
-          builder: (buttonContext) => ComposerIconButton(
-            icon: Icons.sentiment_satisfied_alt_rounded,
-            tooltip: 'Emoji',
-            themeState: themeState,
-            onPressed: widget.enabled
-                ? () => _openEmojiPicker(buttonContext)
-                : null,
-          ),
-        ),
-        ComposerIconButton(
-          icon: Icons.mic_none_rounded,
-          tooltip: 'Record a voice message',
-          themeState: themeState,
-          onPressed: (widget.enabled && !_atAttachmentLimit)
-              ? _startRecording
-              : null,
-        ),
-        ComposerSendButton(
-          themeState: themeState,
-          enabled: canSend,
-          onPressed: _send,
-        ),
-      ],
+          : ComposerInputRow(
+              controller: _controller,
+              focusNode: _focusNode,
+              themeState: themeState,
+              enabled: widget.enabled,
+              canSend:
+                  widget.enabled &&
+                  (_controller.text.trim().isNotEmpty || _staged.isNotEmpty),
+              atAttachmentLimit: _atAttachmentLimit,
+              hintText: widget.hintText,
+              onChanged: _onTextChanged,
+              onSubmit: _send,
+              onPickFiles: _pickFiles,
+              onStartRecording: _startRecording,
+              onEmojiInserted: () => setState(() {}),
+            ),
     );
   }
 }

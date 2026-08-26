@@ -45,7 +45,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       // be: it is rendered with its origin shown, and the badge is what says
       // the server could read it. See BOTS.md §3.
       if (keyVersion == 0) {
-        final plain = _plainRow(row);
+        final plain = await _plainRow(row, channelId, localUserId);
         if (plain != null) result.add(plain);
         continue;
       }
@@ -118,28 +118,73 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
         isLocked: true,
       );
 
-  /// An unencrypted row, or null if it is not one this build understands.
+  /// An unencrypted row, or null if it should not be shown.
   ///
-  /// A version 0 row with no `origin_name` cannot happen under 013's
-  /// constraints, so reaching that branch means either a newer server writing a
-  /// shape this build has not learned yet — bot commands are the next one — or
-  /// something wrong. Dropping it is the same answer either way, and quieter
-  /// than rendering a message from nobody.
-  ChatMessage? _plainRow(Map<String, dynamic> row) {
+  /// Two shapes arrive here and they are checked differently, which is the
+  /// whole point:
+  ///
+  ///   * **A webhook's message** (`origin_name`) has no signer — GitHub holds
+  ///     no Rift key — so there is nothing to verify. It is safe *because* it
+  ///     is never attributed to a person: the badge says an integration posted
+  ///     it, and no name in the room is put behind it.
+  ///   * **A member's `/` command** (`to_bot`) is attributed to somebody, in a
+  ///     room full of people. So it is verified exactly like a sealed message,
+  ///     and an unverifiable one is dropped in the same silence. Being readable
+  ///     is not a reason to let the server put words under a name.
+  ///
+  /// A version 0 row that is neither cannot happen under 013/015's rules, so
+  /// reaching that branch means a newer server writing a shape this build has
+  /// not learned. Dropping it is the same answer as anything else it cannot
+  /// account for.
+  Future<ChatMessage?> _plainRow(
+    Map<String, dynamic> row,
+    String channelId,
+    String? localUserId,
+  ) async {
     final originName = row['origin_name'] as String?;
-    if (originName == null) return null;
+    if (originName != null) {
+      return ChatMessage(
+        id: '${row['id']}',
+        // Not a person, so not a person's id. Nothing may resolve this to a
+        // profile, open a DM with it, or treat it as a member.
+        authorId: '',
+        authorName: originName,
+        text: row['ciphertext'] as String? ?? '',
+        sentAt: DateTime.parse(row['created_at'] as String),
+        isMine: false,
+        editedAt: DateTime.tryParse('${row['edited_at']}'),
+        reactions: ReactionOps.fromRow(row),
+        origin: MessageOrigin.webhook,
+        isEncrypted: false,
+      );
+    }
+
+    if (row['to_bot'] == null) return null;
+
+    final senderKeyB64 = row['sender_public_key'] as String?;
+    if (senderKeyB64 == null) return null;
+    final verified = await _crypto.verifyPlaintext(
+      envelope: MessageEnvelope.fromJson(row),
+      senderPublicKey: CryptoRepository.fromBase64(senderKeyB64),
+      contextId: channelId,
+    );
+    if (!verified) {
+      HelperMethods.printDebug(
+        '[Chat] dropped command ${row['id']}: bad signature',
+      );
+      return null;
+    }
+
     return ChatMessage(
       id: '${row['id']}',
-      // Not a person, so not a person's id. Nothing may resolve this to a
-      // profile, open a DM with it, or treat it as a member.
-      authorId: '',
-      authorName: originName,
+      authorId: row['sender_id'] as String? ?? '',
+      authorName: row['sender_name'] as String? ?? 'Unknown',
+      authorAvatarPath: row['sender_avatar_path'] as String?,
       text: row['ciphertext'] as String? ?? '',
       sentAt: DateTime.parse(row['created_at'] as String),
-      isMine: false,
+      isMine: row['sender_id'] == localUserId,
       editedAt: DateTime.tryParse('${row['edited_at']}'),
       reactions: ReactionOps.fromRow(row),
-      origin: MessageOrigin.webhook,
       isEncrypted: false,
     );
   }

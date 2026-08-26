@@ -125,6 +125,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     required Map<String, dynamic> envelope,
     List<String> mentions = const [],
     bool mentionsAll = false,
+    String? toBot,
   }) => _callWithAutoRefresh(
     (token) => _repository.sendMessage(
       state.selectedServer!.supabaseUrl,
@@ -133,6 +134,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
       envelope: envelope,
       mentions: mentions,
       mentionsAll: mentionsAll,
+      toBot: toBot,
       bearerToken: token,
     ),
   );

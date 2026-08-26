@@ -19,6 +19,7 @@ import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_failure.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/bot_command.dart';
 import '../../services/chat_notice.dart';
 import '../../services/mentions.dart';
 import '../../services/notification_service.dart';

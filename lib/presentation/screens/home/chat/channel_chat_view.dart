@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/server_limits.dart';
+import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
@@ -62,6 +63,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
+                      bots: _bots(context),
                     ),
                   ],
                 ],
@@ -72,6 +74,18 @@ class _ChannelChatViewState extends State<ChannelChatView>
       },
     );
   }
+
+  /// The bots on this server, for the composer's `/` menu.
+  ///
+  /// Banned ones are dropped here rather than in the composer: the server
+  /// refuses a command addressed to one (`app.is_addressable_bot`), so
+  /// offering it would be offering a send that comes back rejected.
+  List<ServerMember> _bots(BuildContext context) => [
+    for (final m
+        in context.watch<ServerMembersCubit>().state.members ??
+            const <ServerMember>[])
+      if (m.isBot && !m.isBanned) m,
+  ];
 
   /// The operator's per-file attachment cap for this server.
   int _maxAttachmentBytes(BuildContext context) =>

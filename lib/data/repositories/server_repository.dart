@@ -280,6 +280,7 @@ class ServerRepository
     'is_deafened': u['is_deafened'],
     'is_banned': u['is_banned'],
     'is_bot': u['is_bot'],
+    'manifest': u['manifest'],
     'permissions': {
       'is_server_admin': u['is_server_admin'],
       'is_channel_manager': u['is_channel_manager'],
@@ -442,7 +443,7 @@ class ServerRepository
           .from('users')
           .select(
             'id, username, display_name, avatar_path, chat_public_key, '
-            'is_muted, is_deafened, is_banned, is_bot, '
+            'is_muted, is_deafened, is_banned, is_bot, manifest, '
             'is_server_admin, is_channel_manager, can_create_tokens',
           )
           .order('username');

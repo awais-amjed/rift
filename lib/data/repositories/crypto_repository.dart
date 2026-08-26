@@ -16,6 +16,7 @@ export '../classes/server_identity.dart';
 export '../classes/wrapped_key.dart';
 
 part 'crypto_repository_chat.dart';
+part 'crypto_repository_command.dart';
 part 'crypto_repository_identity.dart';
 
 /// Repository wrapping all cryptographic operations.
@@ -28,7 +29,8 @@ part 'crypto_repository_identity.dart';
 ///
 /// `_IdentityCryptoMixin` must come first: it supplies the concrete
 /// `hmacSha256` that `_ChatCryptoMixin` declares abstract.
-class CryptoRepository with _IdentityCryptoMixin, _ChatCryptoMixin {
+class CryptoRepository
+    with _IdentityCryptoMixin, _ChatCryptoMixin, _CommandCryptoMixin {
   /// The derivation version of the X25519 chat identity, everywhere.
   ///
   /// Pinned at v1 and deliberately *not* following the Ed25519 auth key's

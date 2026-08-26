@@ -34,6 +34,18 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return;
 
+    // Decided once, here, before anything is sealed — because it decides
+    // *whether* anything is sealed. Unrecognised slashes are not commands and
+    // fall through to the ordinary encrypted path (see [BotCommands.parse]).
+    final command = attachments.isEmpty
+        ? BotCommands.parse(
+            trimmed,
+            (_membersCubit.state.members ?? const [])
+                .where((m) => m.isBot && !m.isBanned)
+                .toList(),
+          )
+        : null;
+
     final pendingId = 'pending-${_pendingCounter++}';
     // Show the text immediately; attachments appear once uploaded.
     emit(
@@ -67,13 +79,26 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         serverId: server.id,
         version: server.keyVersion,
       );
-      final envelope = await _crypto.sealMessage(
-        plaintext: MessageBody(text: trimmed, attachments: uploaded).encode(),
-        messageKey: key,
-        signingKeyPair: identity.keyPair,
-        contextId: channelId,
-        keyVersion: _currentKeyVersion,
-      );
+      // A command is stored in the clear: the bot holds no channel key, so a
+      // sealed one would be a message it could never open (BOTS.md §4). It is
+      // still signed — the signature is over the same canonical payload, and
+      // being readable is not a reason to be unattributable.
+      final envelope = command != null
+          ? await _crypto.signPlaintext(
+              plaintext: trimmed,
+              signingKeyPair: identity.keyPair,
+              contextId: channelId,
+            )
+          : await _crypto.sealMessage(
+              plaintext: MessageBody(
+                text: trimmed,
+                attachments: uploaded,
+              ).encode(),
+              messageKey: key,
+              signingKeyPair: identity.keyPair,
+              contextId: channelId,
+              keyVersion: _currentKeyVersion,
+            );
 
       // The one part of a message that travels in the clear. See
       // `ServerRepository.sendMessage` for what that costs and buys.
@@ -93,6 +118,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         envelope: envelope.toJson(),
         mentions: named.userIds,
         mentionsAll: named.all,
+        toBot: command?.bot.id,
       );
       if (state.channelId != channelId) return;
 

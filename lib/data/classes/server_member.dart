@@ -1,3 +1,4 @@
+import 'bot_manifest.dart';
 import 'user_permissions.dart';
 
 /// A member of a server as returned by the `list_users` edge function —
@@ -19,6 +20,10 @@ class ServerMember {
   /// reasons about "who can read this room" has to know the difference.
   final bool isBot;
 
+  /// What this bot says it can do (migration 015). [BotManifest.empty] for a
+  /// person, and for a bot that has published nothing.
+  final BotManifest manifest;
+
   /// X25519 chat key (base64) — null until the member publishes one. Needed
   /// to start an E2E DM with them.
   final String? chatPublicKey;
@@ -35,6 +40,7 @@ class ServerMember {
     this.isDeafened = false,
     this.isBanned = false,
     this.isBot = false,
+    this.manifest = BotManifest.empty,
     this.chatPublicKey,
     this.avatarPath,
   });
@@ -53,6 +59,7 @@ class ServerMember {
       isDeafened: json['is_deafened'] == true,
       isBanned: json['is_banned'] == true,
       isBot: json['is_bot'] == true,
+      manifest: BotManifest.fromJson(json['manifest'] as Map<String, dynamic>?),
       chatPublicKey: json['chat_public_key'] as String?,
       avatarPath: json['avatar_path'] as String?,
     );
@@ -76,6 +83,7 @@ class ServerMember {
       // copyWith that could change it would be the one place in the client
       // where a person turns into a program.
       isBot: isBot,
+      manifest: manifest,
       chatPublicKey: chatPublicKey,
       avatarPath: avatarPath,
     );

@@ -56,6 +56,7 @@ mixin _ChatApiMixin {
     required Map<String, dynamic> envelope,
     List<String> mentions = const [],
     bool mentionsAll = false,
+    String? toBot,
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
@@ -66,6 +67,11 @@ mixin _ChatApiMixin {
             ...envelope,
             'mentions': mentions,
             'mentions_all': mentionsAll,
+            // Set only for a `/` command, and the reason the envelope above is
+            // unsealed when it is. `messages_insert` refuses the two confusing
+            // shapes: plaintext addressed to nobody, and a sealed body
+            // addressed to a bot that could never open it (migration 015).
+            'to_bot': ?toBot,
           })
           .select('id, created_at, channel_id, sender_id')
           .single();
