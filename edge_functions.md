@@ -38,6 +38,7 @@ An endpoint earns its place only if it holds a secret, or runs before the caller
 | `move_user` | Bearer + `is_server_admin` / `is_channel_manager` (checked here — nothing is written down, so there is no RPC to defer to) | Pulls a member from the call they're in into another voice channel, by sending their connections a "join this channel" packet with the API secret. See below |
 | `voice_roster` | Bearer | Who is in which voice channel right now, `{userId: channelId}`, read off LiveKit. The snapshot a client starts from before the `voice:<serverId>` broadcasts can tell it anything — see ARCHITECTURE.md §5 |
 | `configure_push` | Bearer + `is_server_admin` | Writes `push_config`, a table with no grant and no policy — the secret in it is what proves a forward request came from this server, and nothing a client can read back may hold it. `{status:true}` answers whether push is on and with which relay id (never the secret); `{endpoint, relay_id, secret}` turns it on; `{disable:true}` turns it off and hands the relay id back so the admin's client can revoke it on central |
+| `webhook` | **none** | The one endpoint anybody may call. Deploy with `--no-verify-jwt`: the whole point of a webhook is that the caller cannot log in. `POST /functions/v1/webhook/<secret>` with `{text}` — or `{content}`, the field Discord's webhooks use, so anything already pointed at one works by changing the URL. A raw non-JSON body is taken as the text. Deliberately thin: the lookup, the rate check and the insert are one `post_webhook_message` statement in the database, and all that is left here is being reachable without a JWT and ringing the `chat:<channelId>` doorbell afterwards. See BOTS.md §7 |
 | `get_channel_key` | Bearer | Channel-key distribution (below) |
 | `post_channel_keys` | Bearer | Channel-key distribution (below) |
 | `sweep_channel_keys` | Bearer | Channel-key distribution (below) |
@@ -230,6 +231,24 @@ cd central_edge_functions
 TMPDIR=$HOME/tmp supabase functions deploy push_send \
   --project-ref <ref> --no-verify-jwt     # the DB trigger calls it without a JWT
 ```
+
+### A webhook rings its own doorbell
+
+The open-channel doorbell is a Realtime **broadcast**, sent by the client that just inserted a
+message — which is fine right up until the thing inserting the message is not a client. A webhook
+row would have been stored correctly and reached nobody with the channel open until they reopened
+it.
+
+So the `webhook` function sends the broadcast itself, on the same `chat:<channelId>` topic with the
+same empty `new_message` payload the app sends. It is **best-effort and never allowed to fail the
+request**: the message is already stored by the time it runs, every client re-reads on open, and
+the unread badge comes from the row itself. A webhook that got a 500 because a doorbell did not
+ring would be retried by its caller and post the message twice.
+
+The push half needed a fix rather than an addition. `ring_channel_members` excluded the sender with
+`u.id <> NEW.sender_id`, and against a NULL sender that comparison is NULL rather than true — so
+the `WHERE` dropped **every** row and a webhook message woke nobody at all, silently, and only for
+the messages a human did not send. Migration 013 makes it `IS DISTINCT FROM`.
 
 ### Response format (edge functions only)
 
