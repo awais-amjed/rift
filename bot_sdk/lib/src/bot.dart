@@ -79,6 +79,13 @@ class Bot {
   int _lastSeen = 0;
   Timer? _timer;
 
+  /// One tick at a time. [Timer.periodic] does not wait for the previous
+  /// callback, so a slow handler — or a slow network — lets two ticks run the
+  /// same query before either advances [_lastSeen], and the same message is
+  /// delivered twice. For a bot that echoes that is a duplicate; for one that
+  /// awards a point or plays a track it is a wrong answer.
+  bool _draining = false;
+
   /// Start answering. [onCommand] is called once per command, in id order.
   ///
   /// Starts from *now*: a bot restarting does not replay a backlog of commands
@@ -95,6 +102,8 @@ class Bot {
   }
 
   Future<void> _drain(FutureOr<void> Function(BotMessage) onCommand) async {
+    if (_draining) return;
+    _draining = true;
     try {
       final rows = await session.select(
         'messages?select=id,channel_id,sender_id,ciphertext,'
@@ -121,6 +130,8 @@ class Bot {
       // derives. Swallowing the tick is right — the next one retries, and the
       // commands are still in the database waiting.
       await session.login();
+    } finally {
+      _draining = false;
     }
   }
 

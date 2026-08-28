@@ -548,7 +548,20 @@ to come back.
    from "is this channel on my server" to `app.can_see_channel` — an administrator standing outside
    a private channel was able to key a bot into it. Still to do: the server-wide grant with the
    `is_private` carve-out, and the bot profile's channel list.
-10. **The TypeScript SDK** — auth, commands, replies, panels, voice.
+10. ~~The TypeScript SDK~~ **done** (`bot_sdk_ts/`) — auth, commands, replies and panels. No build
+    step and no dependencies: Node runs TypeScript by stripping types, and the four primitives a
+    bot needs are all in `node:crypto`. It proves itself against `test/wire_vectors.json`, the same
+    file the Dart implementation is checked against, reproducing one of its signatures byte for
+    byte — which is the whole reason item 7 came first.
+
+    Voice is still not wrapped, and the reason is now a choice rather than a limitation: a bot can
+    already get a LiveKit token, and the media itself belongs to `@livekit/rtc-node` rather than to
+    this package. A text bot should not pay for a media dependency it never loads.
+
+    Found by running it: both SDKs delivered the same message twice under load. `setInterval` and
+    `Timer.periodic` do not wait for the previous callback, so a slow handler lets two ticks run
+    the same query before either advances the cursor. One press counted as two votes. Both are
+    guarded now.
 
 Games are not on this list. Discord's run in a browser already, Linux desktop has no usable web
 view, and the sandboxing is a project of its own.
