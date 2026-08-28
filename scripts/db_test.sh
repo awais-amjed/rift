@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run both databases' policy tests.
+# Run the migration-path test and both databases' policy tests.
 #
 # The self-hosted suite runs against the local docker stack. The central suite
 # runs against a scratch database created in that same Postgres — not against
@@ -31,6 +31,10 @@ psql_migrate() {
     "$CONTAINER" psql -U postgres -q -v ON_ERROR_STOP=1 -d "$SCRATCH" "$@"
 }
 
+echo "── migration path ──────────────────────────────────────────"
+"$ROOT/scripts/migration_test.sh"
+
+echo
 echo "── self-hosted ─────────────────────────────────────────────"
 psql_main -f - < "$ROOT/self_hosted_server_migrations/tests/policies_test.sql" 2>&1 |
   sed 's/psql:<stdin>:[0-9]*: //'
