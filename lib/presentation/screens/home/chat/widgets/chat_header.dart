@@ -94,10 +94,18 @@ class ChatHeader extends StatelessWidget {
                       color: CustomColors.success,
                       tooltip: StatusChip.encryptedTooltip,
                     ),
-                  // Shown at every width, including the one where "Encrypted"
-                  // is dropped for room. That chip restates something true of
-                  // every channel; this one is true of *this* channel and
-                  // nobody would think to look for it.
+                  // Both of these are shown at every width, including the
+                  // one where "Encrypted" is dropped for room. That chip
+                  // restates something true of every channel; these two are
+                  // true of *this* one, and nobody would think to look for
+                  // them.
+                  if (channel?.isPrivate ?? false)
+                    const StatusChip(
+                      icon: Icons.group_rounded,
+                      label: 'Private',
+                      color: CustomColors.success,
+                      tooltip: StatusChip.privateTooltip,
+                    ),
                   ChannelListenersChip(
                     listeners: context
                         .watch<ChannelChatCubit>()

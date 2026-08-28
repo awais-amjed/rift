@@ -23,11 +23,7 @@ class ChannelLockBadge extends StatelessWidget {
         color: themeState.bgSecondary,
         shape: BoxShape.circle,
       ),
-      child: Icon(
-        Icons.lock_rounded,
-        size: 9,
-        color: themeState.textTertiary,
-      ),
+      child: Icon(Icons.lock_rounded, size: 9, color: themeState.textTertiary),
     );
   }
 }

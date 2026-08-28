@@ -35,10 +35,8 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   /// Somebody who may only make private channels gets one, with the switch
   /// held down rather than hidden — a control that is missing reads as a bug,
   /// and one that is fixed with a reason reads as a rule.
-  late final bool _mayMakePublic = _permissions?.can(
-        ServerPermission.manageChannels,
-      ) ??
-      false;
+  late final bool _mayMakePublic =
+      _permissions?.can(ServerPermission.manageChannels) ?? false;
   bool _isLoading = false;
   String? _error;
 
@@ -145,9 +143,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               const SizedBox(height: 8),
               ChannelTypeToggle(
                 value: _type,
-                onChanged: _isLoading
-                    ? null
-                    : (t) => setState(() => _type = t),
+                onChanged: _isLoading ? null : (t) => setState(() => _type = t),
               ),
               const SizedBox(height: 16),
               // The description says what actually differs, and says the part

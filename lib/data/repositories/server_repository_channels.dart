@@ -100,6 +100,24 @@ mixin _ChannelApiMixin {
     });
   }
 
+  /// Remove yourself from a private channel.
+  ///
+  /// Its own function rather than a `set_channel_members` with one name
+  /// missing: that one needs the manage bit, which is the right answer for who
+  /// *else* is in a room and the wrong one for whether you are. This takes no
+  /// target, which is what makes it safe for every member to hold.
+  Future<APIResponse> leaveChannel(
+    String supabaseUrl,
+    String channelId, {
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc('leave_channel', params: {'p_channel': channelId});
+    });
+  }
+
   /// Who is in a private channel. Empty for a public one, and for a private one
   /// the caller is not in — which are indistinguishable on purpose.
   Future<APIResponse> listChannelMembers(
@@ -159,7 +177,9 @@ mixin _ChannelApiMixin {
           .from('channels')
           .update(patch)
           .eq('id', channelId)
-          .select('id, name, channel_type, retention_days, history_cap, is_private');
+          .select(
+            'id, name, channel_type, retention_days, history_cap, is_private',
+          );
       if ((rows as List).isEmpty) {
         throw const PostgrestException(
           message: 'Channel not found, or not yours to change',

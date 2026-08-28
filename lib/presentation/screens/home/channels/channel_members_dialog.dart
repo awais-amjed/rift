@@ -43,8 +43,7 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
   String? get _me => context.read<ServerCubit>().state.selectedServer?.user?.id;
 
   bool get _changed =>
-      _selected.length != _original.length ||
-      !_selected.containsAll(_original);
+      _selected.length != _original.length || !_selected.containsAll(_original);
 
   @override
   void initState() {

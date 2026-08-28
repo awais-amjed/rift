@@ -59,6 +59,33 @@ Future<void> makeChannelPrivate(BuildContext context, Channel channel) async {
   if (context.mounted) openChannelMembers(context, channel);
 }
 
+/// Walk out of one.
+///
+/// The confirm says the two things that are true and unobvious: what you have
+/// already read stays read, because nobody can take back a decrypted message,
+/// and there is no way back in on your own.
+Future<void> leaveChannel(BuildContext context, Channel channel) async {
+  ContextMenuScope.of(context)?.call();
+  final serverCubit = context.read<ServerCubit>();
+
+  final confirmed = await showConfirmDialog(
+    context: context,
+    title: 'Leave #${channel.name}?',
+    message:
+        'You will stop seeing anything new in here, and only somebody already '
+        'in it can add you back. What you have already read stays readable.',
+    confirmLabel: 'Leave channel',
+    icon: Icons.logout_rounded,
+    isDestructive: true,
+  );
+  if (!confirmed) return;
+
+  final result = await serverCubit.leaveChannel(channel.id);
+  if (!result.success) {
+    HelperMethods.showError(error: result.error ?? 'Could not leave');
+  }
+}
+
 Future<void> openChannelUp(BuildContext context, Channel channel) async {
   ContextMenuScope.of(context)?.call();
   final serverCubit = context.read<ServerCubit>();

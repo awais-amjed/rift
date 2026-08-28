@@ -31,6 +31,13 @@ class StatusChip extends StatelessWidget {
   ///
   /// "in here" rather than "in this channel" because the DM header shows this
   /// chip too, and one sentence that fits both beats two that can drift.
+  /// Says the part of "private" that people get wrong. Not "only members can
+  /// see it" — that is what the word already means — but that the exception
+  /// they would assume exists does not.
+  static const String privateTooltip =
+      'Only the people in this channel can see it. Server admins are not an '
+      'exception: nobody outside holds a key to it.';
+
   static const String encryptedTooltip =
       'Only the people in here can read these messages. The server stores '
       'them but cannot read them.';

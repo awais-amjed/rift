@@ -138,7 +138,9 @@ class _MemberRow extends StatelessWidget {
                   ? Icons.check_circle_rounded
                   : Icons.radio_button_unchecked,
               size: 18,
-              color: checked ? themeState.accentBright : themeState.textTertiary,
+              color: checked
+                  ? themeState.accentBright
+                  : themeState.textTertiary,
             ),
           ],
         ),

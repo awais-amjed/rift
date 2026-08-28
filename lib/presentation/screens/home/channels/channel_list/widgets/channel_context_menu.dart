@@ -146,6 +146,15 @@ class ChannelContextMenu extends StatelessWidget {
             label: 'Open to everyone',
             onTap: () => openChannelUp(context, channel),
           ),
+          // Leaving is not a manager's act, so it is not behind the manager
+          // block: being able to walk out of a room you were put in needs
+          // nobody's permission.
+          ContextMenuItem(
+            icon: Icons.logout_rounded,
+            label: 'Leave channel',
+            isDangerous: true,
+            onTap: () => leaveChannel(context, channel),
+          ),
         ],
         if (canManage) ...[
           if (!channel.isPrivate)

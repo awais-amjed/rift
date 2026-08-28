@@ -7,6 +7,7 @@ import 'package:rift/data/classes/server_member.dart';
 import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/presentation/common/status_chip.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/channel_lock_badge.dart';
 import 'package:rift/presentation/screens/home/channels/widgets/channel_member_picker.dart';
 import 'package:rift/presentation/theme/app_theme.dart';
@@ -171,6 +172,17 @@ void main() {
     });
   });
 
+  test('the private chip answers the question nobody asks out loud', () {
+    // "Only members can see it" is what the word already means. The sentence
+    // that earns its place is the one about the exception people assume exists
+    // — and it is the first thing a later edit would trim for length.
+    expect(StatusChip.privateTooltip.toLowerCase(), contains('admin'));
+    expect(
+      StatusChip.privateTooltip.toLowerCase(),
+      contains('not an exception'),
+    );
+  });
+
   testWidgets('the lock is a lock', (tester) async {
     // Thin, but it is the one thing a member reads to know a room is not the
     // whole server, and it is drawn from one widget in two places.
@@ -179,9 +191,7 @@ void main() {
       BlocProvider<ThemeCubit>.value(
         value: themeCubit,
         child: MaterialApp(
-          home: Scaffold(
-            body: ChannelLockBadge(themeState: themeCubit.state),
-          ),
+          home: Scaffold(body: ChannelLockBadge(themeState: themeCubit.state)),
         ),
       ),
     );
