@@ -3,9 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../common/permission_toggle.dart';
 import '../../../../common/confirm_dialog.dart';
-import '../../../../common/server_role.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../roles/member_roles_dialog.dart';
 import 'member_moderation_row.dart';
@@ -23,12 +21,6 @@ class MemberManagePanel extends StatelessWidget {
   final bool isBusy;
   final bool canManagePermissions;
   final bool canModerate;
-  final void Function({
-    bool? isServerAdmin,
-    bool? isChannelManager,
-    bool? canCreateTokens,
-  })
-  onPermissionChanged;
   final void Function({bool? muted, bool? deafened, bool? banned}) onModerate;
 
   const MemberManagePanel({
@@ -37,7 +29,6 @@ class MemberManagePanel extends StatelessWidget {
     required this.isBusy,
     required this.canManagePermissions,
     required this.canModerate,
-    required this.onPermissionChanged,
     required this.onModerate,
   });
 
@@ -64,19 +55,6 @@ class MemberManagePanel extends StatelessWidget {
     if (confirmed) onModerate(banned: true);
   }
 
-  /// `set_user_permissions` takes the three as separate nullable booleans, so
-  /// the role picks which one to fill and the compiler checks the rest.
-  void _grant(ServerRole role, bool value) {
-    switch (role) {
-      case ServerRole.admin:
-        onPermissionChanged(isServerAdmin: value);
-      case ServerRole.channelManager:
-        onPermissionChanged(isChannelManager: value);
-      case ServerRole.invites:
-        onPermissionChanged(canCreateTokens: value);
-    }
-  }
-
   void _openRoles(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -100,23 +78,12 @@ class MemberManagePanel extends StatelessWidget {
           ),
           child: Column(
             children: [
-              if (canManagePermissions)
-                for (final role in ServerRole.values)
-                  PermissionToggle(
-                    icon: role.icon,
-                    label: role.label,
-                    description: role.description,
-                    value: role.isHeldBy(member.permissions),
-                    onChanged: isBusy ? null : (v) => _grant(role, v),
-                    themeState: themeState,
-                    isFirst: role == ServerRole.values.first,
-                  ),
-              // The three toggles above are the old shape of this, kept
-              // because they are the three most servers ever use. Anything
-              // else — a custom role, one of the other nineteen permissions —
-              // is behind this, which is where roles actually live now.
+              // The one way in. There used to be three toggles above this for
+              // admin, channel manager and invites — the three the old model
+              // had — and they wrote roles underneath, so they agreed with
+              // this. Two controls for one fact is one of them going stale the
+              // first time somebody edits a role.
               if (canManagePermissions) ...[
-                Divider(height: 1, color: themeState.borderPrimary),
                 InkWell(
                   onTap: isBusy ? null : () => _openRoles(context),
                   child: Padding(

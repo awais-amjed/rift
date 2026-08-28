@@ -11,6 +11,7 @@ import 'widgets/members_list.dart';
 import 'widgets/members_modal_header.dart';
 import '../../../theme/app_text.dart';
 import '../roles/roles_dialog.dart';
+import '../../../../data/classes/role.dart';
 
 /// Members dialog — lists everyone on [server] with their permissions and
 /// moderation state. Server admins manage permissions here (Discord-style:
@@ -32,6 +33,10 @@ class MembersModal extends StatefulWidget {
 
 class _MembersModalState extends State<MembersModal> {
   List<ServerMember>? _members;
+
+  /// Loaded alongside the roster, because a member row shows both and a second
+  /// spinner for the half that arrives later would be worse than one wait.
+  Map<String, List<Role>> _memberRoles = const {};
   String? _error;
   String? _expandedId;
 
@@ -45,47 +50,14 @@ class _MembersModalState extends State<MembersModal> {
   }
 
   Future<void> _load() async {
-    final result = await context.read<ServerCubit>().listMembers(
-      serverId: widget.server.id,
-    );
+    final cubit = context.read<ServerCubit>();
+    final result = await cubit.listMembers(serverId: widget.server.id);
+    final memberRoles = await cubit.listMemberRoles();
     if (!mounted) return;
     setState(() {
       _members = result.members;
+      _memberRoles = memberRoles;
       _error = result.error;
-    });
-  }
-
-  Future<void> _setPermission(
-    ServerMember member, {
-    bool? isServerAdmin,
-    bool? isChannelManager,
-    bool? canCreateTokens,
-  }) async {
-    setState(() => _busyId = member.id);
-    final response = await context.read<ServerCubit>().setUserPermissions(
-      userId: member.id,
-      isServerAdmin: isServerAdmin,
-      isChannelManager: isChannelManager,
-      canCreateTokens: canCreateTokens,
-      serverId: widget.server.id,
-    );
-    if (!mounted) return;
-    setState(() {
-      _busyId = null;
-      if (response.success) {
-        final updated = member.copyWith(
-          permissions: member.permissions.copyWith(
-            isServerAdmin: isServerAdmin,
-            isChannelManager: isChannelManager,
-            canCreateTokens: canCreateTokens,
-          ),
-        );
-        _members = _members!
-            .map((m) => m.id == member.id ? updated : m)
-            .toList();
-      } else {
-        _error = response.error;
-      }
     });
   }
 
@@ -195,6 +167,7 @@ class _MembersModalState extends State<MembersModal> {
                   Flexible(
                     child: MembersList(
                       members: _members!,
+                      memberRoles: _memberRoles,
                       viewerId: viewer?.id,
                       viewerIsAdmin: viewerIsAdmin,
                       viewerIsModerator: viewerIsModerator,
@@ -205,7 +178,6 @@ class _MembersModalState extends State<MembersModal> {
                             ? null
                             : member.id;
                       }),
-                      onPermissionChanged: _setPermission,
                       onModerate: _moderate,
                     ),
                   ),

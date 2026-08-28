@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../data/classes/role.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_member.dart';
 import '../../services/server_table_watcher.dart';
@@ -17,12 +18,21 @@ class ServerMembersState {
   /// members, not a pending load.
   final List<ServerMember>? members;
 
+  /// Every role on this server, most senior first. Empty until the first load
+  /// lands, and on a server too old to have any.
+  final List<Role> roles;
+
+  /// Which roles each member holds, most senior first.
+  final Map<String, List<Role>> memberRoles;
+
   final bool loading;
   final String? error;
 
   ServerMembersState({
     this.serverId,
     this.members,
+    this.roles = const [],
+    this.memberRoles = const {},
     this.loading = false,
     this.error,
   });
@@ -31,6 +41,23 @@ class ServerMembersState {
   late final Map<String, ServerMember> byId = {
     for (final member in members ?? const <ServerMember>[]) member.id: member,
   };
+
+  /// The most senior role [userId] holds that has a colour, or null.
+  ///
+  /// Colour rather than rank alone: a role that carries permissions and no
+  /// colour is deliberately invisible, and letting it override the one above it
+  /// that *was* given a colour would make the choice pointless.
+  Role? colourRoleFor(String userId) {
+    for (final role in memberRoles[userId] ?? const <Role>[]) {
+      if (role.displayColor != null) return role;
+    }
+    return null;
+  }
+
+  /// The most senior role [userId] holds at all — what a chip beside their name
+  /// says, colour or not.
+  Role? topRoleFor(String userId) =>
+      (memberRoles[userId] ?? const <Role>[]).firstOrNull;
 
   /// The current display name for [userId].
   ///
@@ -98,13 +125,21 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     if (serverId == null) return;
     final loadId = ++_loadId;
 
+    // Three calls where there was one, and they go together: a role rename or
+    // a grant reaches the sidebar through the same `users` row event that a
+    // display name does, so refetching the roster without the roles would show
+    // the new name beside the old colour.
     final result = await _serverCubit.listMembers();
+    final roles = await _serverCubit.listRoles();
+    final memberRoles = await _serverCubit.listMemberRoles();
     if (isClosed || loadId != _loadId || serverId != _watcher.serverId) return;
 
     final previous = state;
     final next = ServerMembersState(
       serverId: serverId,
       members: result.success ? result.members : state.members,
+      roles: roles,
+      memberRoles: memberRoles,
       error: result.success ? null : result.error,
     );
     emit(next);

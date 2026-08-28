@@ -9,7 +9,8 @@ import 'package:rift/presentation/common/context_menu/context_menu_item.dart';
 import 'package:rift/presentation/common/hint_card.dart';
 import 'package:rift/presentation/common/message_banner.dart';
 import 'package:rift/presentation/common/nav_row.dart';
-import 'package:rift/presentation/common/permission_toggle.dart';
+import 'package:rift/data/classes/role.dart';
+import 'package:rift/presentation/screens/home/members_sidebar/widgets/role_chip.dart';
 import 'package:rift/presentation/common/status_chip.dart';
 
 /// In-memory stand-in so [ThemeCubit] (a HydratedCubit) can be built in tests.
@@ -71,14 +72,11 @@ Map<String, Widget Function()> _cases() => {
   'HintCard': () => const HintCard(icon: Icons.info_outline, text: _longLabel),
   'MessageBanner': () =>
       const MessageBanner(message: _longLabel, kind: MessageBannerKind.error),
-  'PermissionToggle': () => PermissionToggle(
-    icon: Icons.shield_outlined,
-    label: _longLabel,
-    description: _longLabel,
-    value: true,
-    onChanged: (_) {},
+  // A role's name is whatever somebody typed, so this chip is the one shared
+  // widget whose content is entirely out of the app's hands.
+  'RoleChip': () => RoleChip(
+    role: const Role(id: 'r', name: _longLabel, position: 1, permissions: 0),
     themeState: ThemeCubit().state,
-    isFirst: true,
   ),
   'AppModalHeader': () =>
       const AppModalHeader(title: _longLabel, subtitle: _longLabel),

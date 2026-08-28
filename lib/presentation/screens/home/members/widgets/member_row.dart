@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/user_avatar.dart';
+import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../members_sidebar/widgets/role_chip.dart';
 import 'member_badge.dart';
 import 'member_manage_panel.dart';
-import '../../../../theme/app_text.dart';
 
 /// One member in the members dialog: avatar, names, permission/moderation
 /// badges — expandable into a [MemberManagePanel] when the viewer may manage
@@ -19,13 +21,12 @@ class MemberRow extends StatelessWidget {
   final bool isBusy;
   final bool canManagePermissions;
   final bool canModerate;
+
+  /// Every role this member holds, most senior first. This is the screen with
+  /// room for all of them — the sidebar shows one, because a row there is
+  /// already carrying a name, a presence dot and two moderation icons.
+  final List<Role> roles;
   final VoidCallback onTap;
-  final void Function({
-    bool? isServerAdmin,
-    bool? isChannelManager,
-    bool? canCreateTokens,
-  })
-  onPermissionChanged;
   final void Function({bool? muted, bool? deafened, bool? banned}) onModerate;
 
   const MemberRow({
@@ -36,8 +37,8 @@ class MemberRow extends StatelessWidget {
     required this.isBusy,
     required this.canManagePermissions,
     required this.canModerate,
+    this.roles = const [],
     required this.onTap,
-    required this.onPermissionChanged,
     required this.onModerate,
   });
 
@@ -102,23 +103,22 @@ class MemberRow extends StatelessWidget {
                           ],
                         ),
                       ),
-                      // Badges
+                      // The roles by name, not two icons standing in for the
+                      // three flags the old model had. A shield told you
+                      // somebody was an admin and nothing about the role
+                      // somebody actually made.
                       Wrap(
                         spacing: 4,
+                        runSpacing: 4,
                         children: [
-                          if (member.permissions.isServerAdmin)
-                            MemberBadge(
-                              icon: Icons.shield_outlined,
-                              tooltip: 'Server Admin',
-                              color: themeState.primary,
-                              themeState: themeState,
-                            ),
-                          if (member.permissions.isChannelManager)
-                            MemberBadge(
-                              icon: Icons.tune_outlined,
-                              tooltip: 'Channel Manager',
-                              color: themeState.textSecondary,
-                              themeState: themeState,
+                          for (final role in roles.take(3))
+                            RoleChip(role: role, themeState: themeState),
+                          if (roles.length > 3)
+                            Text(
+                              '+${roles.length - 3}',
+                              style: AppText.meta.copyWith(
+                                color: themeState.textTertiary,
+                              ),
                             ),
                           if (member.isMuted)
                             MemberBadge(
@@ -155,7 +155,6 @@ class MemberRow extends StatelessWidget {
                 isBusy: isBusy,
                 canManagePermissions: canManagePermissions,
                 canModerate: canModerate,
-                onPermissionChanged: onPermissionChanged,
                 onModerate: onModerate,
               ),
           ],

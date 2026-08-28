@@ -3,10 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/chat_message.dart';
-import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/data/enums/message_origin.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
-import 'package:rift/presentation/common/server_role.dart';
+import 'package:rift/data/classes/role.dart';
+import 'package:rift/data/enums/server_permission.dart';
 import 'package:rift/presentation/common/status_chip.dart';
 import 'package:rift/presentation/theme/custom_colors.dart';
 import 'package:rift/presentation/theme/app_theme.dart';
@@ -108,58 +108,93 @@ void main() {
   });
 
   group('the role chip', () {
-    testWidgets('a channel manager is labelled MOD', (tester) async {
+    testWidgets('shows the role by name, cut to fit the row', (tester) async {
+      // Names, not icons standing in for three fixed flags: a role is whatever
+      // somebody made, so the chip has to be able to say anything — and a chip
+      // that grew with it would push the name it annotates off the row.
       await pump(
         tester,
         Builder(
           builder: (context) => RoleChip(
-            role: ServerRole.channelManager,
+            role: const Role(
+              id: 'r',
+              name: 'Moderator',
+              position: 2,
+              permissions: 0,
+            ),
             themeState: context.read<ThemeCubit>().state,
           ),
         ),
       );
 
-      expect(find.text('MOD'), findsOneWidget);
+      expect(find.text('MODERATOR'), findsNothing);
+      expect(find.text('MODERAT\u2026'), findsOneWidget);
     });
 
-    testWidgets('an admin is labelled ADMIN, not MOD', (tester) async {
-      // `app.can_manage_channels()` is `is_server_admin OR is_channel_manager`,
-      // so an admin already holds everything a manager does. Two chips would
-      // read as two grants rather than one that subsumes the other.
+    testWidgets('takes its colour from the role, when it was given one', (
+      tester,
+    ) async {
       await pump(
         tester,
         Builder(
           builder: (context) => RoleChip(
-            role: ServerRole.admin,
+            role: const Role(
+              id: 'r',
+              name: 'Mods',
+              position: 2,
+              permissions: 0,
+              color: '#22C55E',
+            ),
             themeState: context.read<ThemeCubit>().state,
           ),
         ),
       );
 
-      expect(find.text('ADMIN'), findsOneWidget);
-      expect(find.text('MOD'), findsNothing);
+      final text = tester.widget<Text>(find.text('MODS'));
+      expect(text.style?.color, const Color(0xFF22C55E));
+    });
+
+    testWidgets('leaves an uncoloured role alone', (tester) async {
+      // Not being given a colour is a choice somebody made in the editor, so
+      // inventing one for them would undo it.
+      await pump(
+        tester,
+        Builder(
+          builder: (context) => RoleChip(
+            role: const Role(
+              id: 'r',
+              name: 'Mods',
+              position: 2,
+              permissions: 0,
+            ),
+            themeState: context.read<ThemeCubit>().state,
+          ),
+        ),
+      );
+
+      final themeState = ThemeCubit().state;
+      final text = tester.widget<Text>(find.text('MODS'));
+      expect(text.style?.color, themeState.textTertiary);
     });
   });
 
-  group('what the description claims', () {
-    test('names the one thing a channel manager cannot do', () {
-      // `moderate_user` gates `p_banned` on `app.is_admin()` and every other
-      // verb on `app.can_manage_channels()`. Mute and deafen ARE a manager's;
-      // ban is not. This text is what an admin reads while deciding whether to
-      // grant the role, so the exclusion has to be in it.
-      final text = ServerRole.channelManager.description.toLowerCase();
-      expect(text.contains('not ban'), isTrue);
-      expect(text.contains('mute'), isTrue);
+  group('what a permission claims', () {
+    test('manage-channels says where it stops', () {
+      // It used to be one of three fixed roles whose description had to spell
+      // out that a channel manager cannot ban. Now every permission is its own
+      // bit, and the line that matters is the boundary the name does not
+      // suggest: this one does not reach inside a private channel.
+      final text = ServerPermission.manageChannels.description.toLowerCase();
+      expect(text.contains('private'), isTrue);
     });
 
-    test('and the role it describes is the one it checks', () {
-      const manager = UserPermissions(
-        isServerAdmin: false,
-        isChannelManager: true,
-        canCreateTokens: false,
+    test('kicking and banning are not the same grant', () {
+      expect(
+        ServerPermission.kickMembers.bit,
+        isNot(ServerPermission.banMembers.bit),
       );
-      expect(ServerRole.channelManager.isHeldBy(manager), isTrue);
-      expect(ServerRole.admin.isHeldBy(manager), isFalse);
+      final kick = ServerPermission.kickMembers.mask;
+      expect(kick.has(ServerPermission.banMembers), isFalse);
     });
   });
 

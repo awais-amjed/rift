@@ -171,7 +171,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
                         )
                       : const SizedBox.shrink(),
                 )
-              : _roster(themeState, appState, members, presence, myId),
+              : _roster(themeState, appState, roster, presence, myId),
         ),
       ],
     );
@@ -228,10 +228,11 @@ class _MembersSidebarState extends State<MembersSidebar> {
   Widget _roster(
     ThemeState themeState,
     AppState appState,
-    List<ServerMember> members,
+    ServerMembersState roster,
     ChannelPresenceState presence,
     String? myId,
   ) {
+    final members = roster.members ?? const <ServerMember>[];
     final split = MemberRoster.split(members, presence.onlineUserIds);
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -247,6 +248,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
           members: split.bots,
           onlineIds: presence.onlineUserIds,
           myId: myId,
+          roster: roster,
         ),
         ..._group(
           themeState,
@@ -255,6 +257,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
           members: split.online,
           onlineIds: presence.onlineUserIds,
           myId: myId,
+          roster: roster,
         ),
         ..._group(
           themeState,
@@ -263,6 +266,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
           members: split.offline,
           onlineIds: presence.onlineUserIds,
           myId: myId,
+          roster: roster,
         ),
         const SizedBox(height: 12),
       ],
@@ -282,6 +286,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
     required List<ServerMember> members,
     required Set<String> onlineIds,
     required String? myId,
+    required ServerMembersState roster,
   }) {
     if (members.isEmpty) return const [];
     return [
@@ -293,6 +298,8 @@ class _MembersSidebarState extends State<MembersSidebar> {
           isOnline: onlineIds.contains(member.id),
           isMe: member.id == myId,
           setting: appState.participantSettings[member.id],
+          role: roster.topRoleFor(member.id),
+          colourRole: roster.colourRoleFor(member.id),
         ),
     ];
   }

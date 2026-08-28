@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/participant_setting.dart';
+import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
@@ -8,7 +9,6 @@ import '../../../../common/user_avatar.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/app_text.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
-import '../../../../common/server_role.dart';
 import 'role_chip.dart';
 
 /// One member in the right-hand sidebar: avatar, name, role/state badges.
@@ -23,6 +23,15 @@ class MemberRow extends StatelessWidget {
   final bool isMe;
   final ParticipantSetting? setting;
 
+  /// The most senior role this member holds, or null — what the chip says.
+  final Role? role;
+
+  /// The most senior role that was *given a colour*, which is not always the
+  /// same one. A role can carry permissions and no colour deliberately; letting
+  /// it hide the colour of the role beneath it would make that choice cost
+  /// something nobody intended.
+  final Role? colourRole;
+
   const MemberRow({
     super.key,
     required this.member,
@@ -30,6 +39,8 @@ class MemberRow extends StatelessWidget {
     required this.isOnline,
     this.isMe = false,
     this.setting,
+    this.role,
+    this.colourRole,
   });
 
   @override
@@ -75,7 +86,11 @@ class MemberRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppText.rowQuiet.copyWith(
                       fontSize: 13,
-                      color: themeState.textSecondary,
+                      // A role's colour is the point of giving it one, and the
+                      // name is the only thing on this row long enough to
+                      // carry it. Uncoloured roles leave the name alone.
+                      color:
+                          colourRole?.displayColor ?? themeState.textSecondary,
                     ),
                   ),
                 ),
@@ -121,14 +136,12 @@ class MemberRow extends StatelessWidget {
 
   List<Widget> _badges(bool locallyMuted) {
     final badges = <Widget>[];
-    // One chip, not two: an admin holds everything a manager does, so showing
-    // both would read as two grants rather than one that subsumes the other.
-    if (member.permissions.isServerAdmin) {
-      badges.add(RoleChip(role: ServerRole.admin, themeState: themeState));
-    } else if (member.permissions.isChannelManager) {
-      badges.add(
-        RoleChip(role: ServerRole.channelManager, themeState: themeState),
-      );
+    // One chip, not all of them. The row is already carrying a name, a
+    // presence dot and up to two moderation icons; every role somebody holds
+    // belongs in the members dialog, where there is room and where somebody
+    // has gone looking.
+    if (role case final role?) {
+      badges.add(RoleChip(role: role, themeState: themeState));
     }
     if (member.isMuted) {
       badges.add(

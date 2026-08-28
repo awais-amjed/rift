@@ -82,32 +82,6 @@ mixin _ServerMembersApiMixin on Cubit<ServerState> {
     return (success: true, members: members, error: null);
   }
 
-  /// Set a member's permission flags on [serverId], or on the selected server
-  /// (server admin only).
-  Future<APIResponse> setUserPermissions({
-    required String userId,
-    bool? isServerAdmin,
-    bool? isChannelManager,
-    bool? canCreateTokens,
-    String? serverId,
-  }) {
-    final server = _target(serverId);
-    if (server == null) return Future.value(_noTargetResponse(serverId));
-
-    return _callFor(
-      server,
-      (token) => _repository.setUserPermissions(
-        server.supabaseUrl,
-        anonKey: server.supabaseKey ?? '',
-        bearerToken: token,
-        userId: userId,
-        isServerAdmin: isServerAdmin,
-        isChannelManager: isChannelManager,
-        canCreateTokens: canCreateTokens,
-      ),
-    );
-  }
-
   /// Persistently mutes/deafens/bans a user server-wide on [serverId], or on
   /// the selected server (requires channel manager or server admin).
   ///

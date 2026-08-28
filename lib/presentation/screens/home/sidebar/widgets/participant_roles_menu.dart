@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/role.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
-import '../../../../common/server_role.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 
 /// The submenu behind "Roles" — one row per role, ticked when held.
 ///
-/// The ticks come from [ServerMembersCubit], which is live, so a grant made
-/// from the Members dialog (or by another admin) shows here without reopening
-/// the menu. Rows deliberately don't dismiss: granting two roles in a row is
-/// the common case, the same reason the mute toggle leaves the menu up.
+/// Everything it draws comes from [ServerMembersCubit], which is live: a role
+/// created in the roles editor, or handed out by another admin, shows here
+/// without reopening the menu. Rows deliberately don't dismiss — granting two
+/// roles in a row is the common case, the same reason the mute toggle leaves
+/// the menu up.
+///
+/// A role at or above the viewer's own rank is listed and inert rather than
+/// hidden. Leaving it out would suggest it does not exist; showing it greyed
+/// says the rule that is actually being applied.
 class ParticipantRolesMenu extends StatefulWidget {
   final String userId;
 
@@ -26,48 +31,55 @@ class ParticipantRolesMenu extends StatefulWidget {
 }
 
 class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
-  /// Which role is mid-flight — one at a time, since the three share a row in
-  /// the database and overlapping writes would race on the read-modify-write.
-  ServerRole? _pending;
+  /// Which role is mid-flight. One at a time: two overlapping writes against
+  /// the same member would race on the refresh that follows each of them.
+  String? _pendingId;
   String? _error;
 
-  Future<void> _toggle(ServerRole role, bool next) async {
-    if (_pending != null) return;
+  Future<void> _toggle(Role role, bool next) async {
+    if (_pendingId != null) return;
     setState(() {
-      _pending = role;
+      _pendingId = role.id;
       _error = null;
     });
 
     final serverCubit = context.read<ServerCubit>();
     final members = context.read<ServerMembersCubit>();
 
-    // `set_user_permissions` takes the three as separate nullable booleans,
-    // where null means "leave alone".
-    final response = await serverCubit.setUserPermissions(
+    final result = await serverCubit.setMemberRole(
       userId: widget.userId,
-      isServerAdmin: role == ServerRole.admin ? next : null,
-      isChannelManager: role == ServerRole.channelManager ? next : null,
-      canCreateTokens: role == ServerRole.invites ? next : null,
+      roleId: role.id,
+      held: next,
     );
 
-    // The `users` write reaches us over Realtime anyway, but that round trip is
-    // long enough to leave a stale tick under the pointer that just moved it.
-    if (response.success) await members.refresh();
+    // `member_roles` is not in the realtime publication — `users` is, and the
+    // trigger that moves the three cached booleans is what wakes the watcher.
+    // A role carrying none of those three would otherwise land silently.
+    if (result.success) await members.refresh();
     if (!mounted) return;
     setState(() {
-      _pending = null;
-      _error = response.success
-          ? null
-          : (response.error ?? 'Could not change that role');
+      _pendingId = null;
+      _error = result.success ? null : result.error;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final member = context
-        .watch<ServerMembersCubit>()
-        .state
-        .byId[widget.userId];
+    final roster = context.watch<ServerMembersCubit>().state;
+    final member = roster.byId[widget.userId];
+    final myId = context.read<ServerCubit>().state.selectedServer?.user?.id;
+
+    // Everything below the viewer's own highest role, which is the whole of
+    // the delegation rule (migration 018).
+    final myRank = (roster.memberRoles[myId] ?? const <Role>[]).fold<int>(
+      0,
+      (max, r) => r.position > max ? r.position : max,
+    );
+    final held = {
+      for (final role in roster.memberRoles[widget.userId] ?? const <Role>[])
+        role.id,
+    };
+    final assignable = roster.roles.where((r) => !r.isEveryone).toList();
 
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
@@ -77,18 +89,32 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
             children: [_note('Member list still loading.', themeState)],
           );
         }
+        if (assignable.isEmpty) {
+          return ContextMenuPanel(
+            heading: 'Roles',
+            children: [_note('No roles to hand out yet.', themeState)],
+          );
+        }
 
         return ContextMenuPanel(
           heading: 'Roles',
           children: [
-            for (final role in ServerRole.values)
+            for (final role in assignable)
               ContextMenuItem(
-                icon: role.icon,
-                label: role.label,
-                onTap: () => _toggle(role, !role.isHeldBy(member.permissions)),
+                icon: Icons.shield_outlined,
+                label: role.name,
+                // Inert rather than absent, so the rule is visible. Tapping a
+                // role you do not outrank does nothing, which is what the
+                // database would have said a round trip later.
+                onTap: () {
+                  if (role.position < myRank) {
+                    _toggle(role, !held.contains(role.id));
+                  }
+                },
                 trailing: _trailing(
                   role: role,
-                  isHeld: role.isHeldBy(member.permissions),
+                  isHeld: held.contains(role.id),
+                  outranked: role.position >= myRank,
                   themeState: themeState,
                 ),
               ),
@@ -101,13 +127,14 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
   }
 
   /// Fixed-size, so the labels stay on one column whether a role is held, in
-  /// flight, or neither.
+  /// flight, out of reach, or none of those.
   Widget _trailing({
-    required ServerRole role,
+    required Role role,
     required bool isHeld,
+    required bool outranked,
     required ThemeState themeState,
   }) {
-    if (_pending == role) {
+    if (_pendingId == role.id) {
       return const SizedBox(
         width: 16,
         height: 16,
@@ -117,7 +144,9 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
     return SizedBox(
       width: 16,
       height: 16,
-      child: isHeld
+      child: outranked
+          ? Icon(Icons.lock_rounded, size: 13, color: themeState.textQuaternary)
+          : isHeld
           ? Icon(Icons.check_rounded, size: 16, color: themeState.accentBright)
           : null,
     );

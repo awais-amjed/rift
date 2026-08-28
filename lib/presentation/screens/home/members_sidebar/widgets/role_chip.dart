@@ -1,55 +1,52 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/classes/role.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../common/server_role.dart';
 import '../../../../theme/app_text.dart';
 
-/// A member's standing in the server: ADMIN, MOD.
+/// A member's most senior role, beside their name.
 ///
-/// Words rather than the icons this used to use — a shield and a wrench mean
-/// nothing until someone tells you, and there is room on the row for the
-/// letters.
+/// Words rather than icons — a shield and a wrench mean nothing until somebody
+/// tells you, and there is room on the row for the letters.
 ///
-/// `MOD` is short for the role [ServerRole.channelManager], which the Members
-/// dialog and the participant menu both spell out as "Channel Manager". The
-/// abbreviation is deliberate — there is room on a member row for three
-/// letters and not for two words.
+/// It shows **one** role, not all of them. A member row is already carrying a
+/// name, a presence dot and up to two moderation icons; a list of every role
+/// somebody holds belongs in the members dialog, where there is room for it and
+/// where somebody has gone looking.
 ///
-/// The one thing it does *not* cover is banning: `moderate_user` gates
-/// `p_banned` on `app.is_admin()` and everything else on
-/// `app.can_manage_channels()`, so a MOD may mute, deafen, disconnect, remove
-/// any message and manage channels — but cannot end somebody's membership.
-/// [ServerRole.channelManager] carries the full sentence.
+/// Uppercased, and cut to eight characters. A role's name is whoever made it's
+/// to choose and can be anything; a chip that grew with it would push the name
+/// it is annotating off the row.
 class RoleChip extends StatelessWidget {
-  final ServerRole role;
+  final Role role;
   final ThemeState themeState;
 
   const RoleChip({super.key, required this.role, required this.themeState});
 
-  /// Admins get the accent; lesser roles get a neutral fill, so seniority is
-  /// visible without reading.
-  bool get _isPrimary => role == ServerRole.admin;
-
-  String get _label => switch (role) {
-    ServerRole.admin => 'ADMIN',
-    ServerRole.channelManager => 'MOD',
-    ServerRole.invites => 'INVITES',
-  };
+  String get _label {
+    final name = role.name.trim().toUpperCase();
+    return name.length <= 8 ? name : '${name.substring(0, 7)}…';
+  }
 
   @override
   Widget build(BuildContext context) {
+    // A role that was given no colour is drawn in the neutral fill this chip
+    // has always used, rather than being invented one: leaving it uncoloured is
+    // a choice somebody made in the editor.
+    final colour = role.displayColor;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: _isPrimary
-            ? themeState.primary.withValues(alpha: 0.14)
-            : themeState.bgHover,
+        color: colour == null
+            ? themeState.bgHover
+            : colour.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
         _label,
         style: AppText.roleChip.copyWith(
-          color: _isPrimary ? themeState.accentBright : themeState.textTertiary,
+          color: colour ?? themeState.textTertiary,
         ),
       ),
     );

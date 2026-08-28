@@ -21,6 +21,11 @@ class RoleRow extends StatelessWidget {
   final bool locked;
   final VoidCallback? onTap;
 
+  /// Null where moving is not offered — the baseline, a role out of reach, or
+  /// one already at the end of the ladder.
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
+
   const RoleRow({
     super.key,
     required this.themeState,
@@ -28,6 +33,8 @@ class RoleRow extends StatelessWidget {
     this.memberCount,
     this.locked = false,
     this.onTap,
+    this.onMoveUp,
+    this.onMoveDown,
   });
 
   String? get _subtitle {
@@ -92,8 +99,40 @@ class RoleRow extends StatelessWidget {
               'rank ${role.position}',
               style: AppText.meta.copyWith(color: themeState.textTertiary),
             ),
+            if (onMoveUp != null || onMoveDown != null) ...[
+              _Move(
+                icon: Icons.keyboard_arrow_up_rounded,
+                themeState: themeState,
+                onTap: onMoveUp,
+              ),
+              _Move(
+                icon: Icons.keyboard_arrow_down_rounded,
+                themeState: themeState,
+                onTap: onMoveDown,
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _Move extends StatelessWidget {
+  final IconData icon;
+  final ThemeState themeState;
+  final VoidCallback? onTap;
+
+  const _Move({required this.icon, required this.themeState, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: Icon(icon, size: 16, color: themeState.textTertiary),
       ),
     );
   }

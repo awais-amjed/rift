@@ -32,6 +32,7 @@ class _RolesDialogState extends State<RolesDialog> {
   /// is out of reach — administrators included, because nobody edits the role
   /// they are standing on.
   int _myRank = 0;
+  String? _movingId;
 
   int get _myPermissions =>
       context
@@ -76,22 +77,67 @@ class _RolesDialogState extends State<RolesDialog> {
     });
   }
 
+  /// Where a new role goes: one rung above the highest one already beneath the
+  /// viewer, so it lands at the top of what they can manage without landing on
+  /// anything. Capped one below their own rank, which is the only ceiling the
+  /// delegation rule allows.
+  int get _newPosition {
+    final below = _manageable.map((r) => r.position);
+    final top = below.isEmpty ? 0 : below.reduce((a, b) => a > b ? a : b);
+    return top + 1 < _myRank ? top + 1 : _myRank - 1;
+  }
+
+  /// Everything the viewer may reorder, most senior first. The baseline is not
+  /// in it: it is not a rung, it is the ground.
+  List<Role> get _manageable => [
+    for (final role in _roles)
+      if (!role.isEveryone && role.position < _myRank) role,
+  ];
+
   Future<void> _edit(Role? role) async {
     final changed = await showDialog<bool>(
       context: context,
       builder: (ctx) => BlocProvider.value(
         value: context.read<ServerCubit>(),
-        // One below the viewer's own rank, which is the only rank they could
-        // give a new role anyway. See RoleEditorDialog on why it is not a field.
-        child: RoleEditorDialog(role: role, newPosition: _myRank - 1),
+        child: RoleEditorDialog(role: role, newPosition: _newPosition),
       ),
     );
     if (changed == true) _load();
   }
 
+  /// Swap two adjacent roles' positions.
+  ///
+  /// A swap rather than a renumber, which is why 024 spaced the ladder out: two
+  /// roles sharing a rung cannot be ordered by swapping, and renumbering the
+  /// band would need more room below the viewer than a dense ladder has.
+  Future<void> _move(Role role, {required bool up}) async {
+    final ladder = _manageable;
+    final index = ladder.indexWhere((r) => r.id == role.id);
+    final neighbourIndex = up ? index - 1 : index + 1;
+    if (index < 0 || neighbourIndex < 0 || neighbourIndex >= ladder.length) {
+      return;
+    }
+    final neighbour = ladder[neighbourIndex];
+    if (neighbour.position == role.position) return;
+
+    setState(() => _movingId = role.id);
+    final cubit = context.read<ServerCubit>();
+    await cubit.updateRole(role.id, position: neighbour.position);
+    await cubit.updateRole(neighbour.id, position: role.position);
+    if (!mounted) return;
+    setState(() => _movingId = null);
+    await _load();
+  }
+
   /// Editable when the viewer may manage roles at all *and* outranks this one.
   /// The baseline is the exception: it is nobody's role to hold, so its rank is
   /// 0 and only the permission matters.
+  bool _mayMove(Role role) =>
+      _movingId == null &&
+      !role.isEveryone &&
+      !_locked(role) &&
+      _manageable.length > 1;
+
   bool _locked(Role role) =>
       !_mayManage || (!role.isEveryone && role.position >= _myRank);
 
@@ -129,6 +175,13 @@ class _RolesDialogState extends State<RolesDialog> {
                 memberCount: _counts[role.id] ?? 0,
                 locked: _locked(role),
                 onTap: () => _edit(role),
+                // Reordering is only offered where it means something: the
+                // baseline is not a rung on the ladder, it is the ground, and
+                // a role you cannot manage is not yours to move past another.
+                onMoveUp: _mayMove(role) ? () => _move(role, up: true) : null,
+                onMoveDown: _mayMove(role)
+                    ? () => _move(role, up: false)
+                    : null,
               ),
           ],
         ],
