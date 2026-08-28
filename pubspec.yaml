@@ -9,6 +9,12 @@ environment:
   sdk: ^3.11.1
 
 dependencies:
+  # The key ladder and the signing format, in a package with no Flutter in
+  # it — so a headless bot SDK can depend on the same copy the app uses
+  # rather than on a second implementation of it.
+  rift_crypto:
+    path: rift_crypto
+
   flutter:
     sdk: flutter
 

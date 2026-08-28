@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase/supabase.dart';
 
 import '../../../data/enums/notification_level.dart';
-import '../../../data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import '../../../supabase_config.dart';
 import 'wake_dm_scan.dart';
 import 'wake_item.dart';

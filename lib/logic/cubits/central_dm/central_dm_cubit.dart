@@ -13,7 +13,7 @@ import '../../../data/classes/friend_directory.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/repositories/central_dm_repository.dart';
-import '../../../data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import '../../../supabase_config.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/friendship_state.dart';

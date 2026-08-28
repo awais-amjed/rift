@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../classes/api_response.dart';
-import 'crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 
 /// An encrypted attachment blob ready to upload, plus the per-file key/nonce
 /// that must be stored (encrypted) inside the message body to decrypt it later.

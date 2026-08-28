@@ -7,7 +7,7 @@
 // the answer, and reply privately when it does not.
 import 'dart:io';
 
-import 'package:rift/data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import 'package:rift_bot/rift_bot.dart';
 
 Future<void> main(List<String> args) async {

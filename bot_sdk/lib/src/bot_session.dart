@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
-import 'package:rift/data/repositories/crypto_repository.dart';
-
+import 'package:rift_crypto/rift_crypto.dart';
 /// A bot's connection to one self-hosted Rift server.
 ///
 /// Everything a bot needs to exist: an identity derived from a seed, a session

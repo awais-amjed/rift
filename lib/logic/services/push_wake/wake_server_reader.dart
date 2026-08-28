@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/enums/notification_level.dart';
-import '../../../data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../chat_notice.dart';
 import '../mentions.dart';

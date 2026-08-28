@@ -1321,6 +1321,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.3"
+  rift_crypto:
+    dependency: "direct main"
+    description:
+      path: rift_crypto
+      relative: true
+    source: path
+    version: "0.1.0"
   rust_lib_rift:
     dependency: "direct main"
     description:

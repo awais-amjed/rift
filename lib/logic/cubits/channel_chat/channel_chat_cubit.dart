@@ -13,7 +13,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/classes/panel_block.dart';
 import '../../../data/enums/message_origin.dart';
 import '../../../data/enums/notification_level.dart';
-import '../../../data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import '../../helper_methods.dart';
 import '../../services/broadcast_payload.dart';
 import '../../services/attachment_cleanup.dart';

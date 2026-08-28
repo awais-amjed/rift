@@ -121,17 +121,16 @@ It is an advertisement, not evidence. Nothing is authorised by what it claims.
 - **Attachments.** A bot's reply is text.
 - **DMs.** A bot can be DM'd, and this SDK does not read them yet.
 
-## Depending on the app package
+## Depending on `rift_crypto`
 
-`rift_bot` has a path dependency on the Flutter app, which looks odd for
-something that runs headless. It is deliberate: everything under
-`lib/data/repositories/crypto_repository*.dart` is **Flutter-free**, and the
-alternative is a second implementation of the signing format. Two
-implementations of a canonical payload is two things that can disagree, and the
-disagreement shows up as messages silently not rendering.
+`rift_bot` depends on `rift_crypto`, which is the app's own key ladder and
+signing format in a package with no Flutter in it. Both the app and this SDK
+use that one copy.
 
-The right long-term shape is a `rift_crypto` package both sides depend on. Until
-then this costs a Flutter SDK on the machine running the bot.
+It used to depend on the whole Flutter app — a headless bot pulling in a Flutter
+SDK to sign a string. The alternative was worse: a second implementation of the
+canonical payload, and two implementations of that are two things that can
+disagree, with a disagreement that does not look like an error.
 
 ## The wire format
 

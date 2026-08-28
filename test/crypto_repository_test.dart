@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rift/data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 
 void main() {
   final crypto = CryptoRepository();

@@ -78,3 +78,14 @@ android/.kotlin/
 # Bot SDK build artifacts (the package itself is tracked)
 bot_sdk/.dart_tool/
 bot_sdk/pubspec.lock
+
+# Local scratch tooling — headless members, probes, one-off scripts. Never
+# tracked: it holds throwaway credentials paths and is written against whatever
+# was being debugged that day. Ignored rather than merely untracked, because a
+# `git add -A` catches it otherwise, and once did.
+tool/
+
+# Build artefacts of the packages that are tracked.
+rift_crypto/.dart_tool/
+rift_crypto/pubspec.lock
+bot_sdk_ts/node_modules/

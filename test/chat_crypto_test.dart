@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rift/data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 
 /// Exercises the E2E messaging crypto (ARCHITECTURE.md §4) end-to-end, in-process:
 /// chat-identity derivation, the symmetric DM key, channel-key wrap/unwrap, and

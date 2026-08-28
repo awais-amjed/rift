@@ -7,7 +7,7 @@
 // would be the log a panel exists to replace.
 import 'dart:io';
 
-import 'package:rift/data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import 'package:rift_bot/rift_bot.dart';
 
 void main(List<String> args) async {

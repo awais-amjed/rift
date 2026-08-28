@@ -5,15 +5,18 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
-import '../classes/chat_identity.dart';
-import '../classes/message_envelope.dart';
-import '../classes/server_identity.dart';
-import '../classes/wrapped_key.dart';
+import 'chat_identity.dart';
+import 'message_envelope.dart';
+import 'server_identity.dart';
+import 'wrapped_key.dart';
 
-export '../classes/chat_identity.dart';
-export '../classes/message_envelope.dart';
-export '../classes/server_identity.dart';
-export '../classes/wrapped_key.dart';
+// Re-exported so `import 'crypto_repository.dart'` still hands over the types
+// its methods return. `rift_crypto.dart` is the package's front door and
+// exports the same set; this keeps the file honest on its own.
+export 'chat_identity.dart';
+export 'message_envelope.dart';
+export 'server_identity.dart';
+export 'wrapped_key.dart';
 
 part 'crypto_repository_chat.dart';
 part 'crypto_repository_command.dart';

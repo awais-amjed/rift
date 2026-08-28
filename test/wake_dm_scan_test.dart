@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/message_body.dart';
-import 'package:rift/data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import 'package:rift/logic/services/push_wake/wake_dm_scan.dart';
 import 'package:rift/logic/services/push_wake/wake_marks.dart';
 

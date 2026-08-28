@@ -10,7 +10,7 @@ import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
-import '../../../data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';

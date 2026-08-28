@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rift/data/classes/message_envelope.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import 'package:rift/data/classes/user_permissions.dart';
-import 'package:rift/data/classes/wrapped_key.dart';
 
 void main() {
   group('MessageEnvelope JSON', () {

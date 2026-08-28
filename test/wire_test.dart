@@ -4,8 +4,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rift/data/classes/message_envelope.dart';
-import 'package:rift/data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 
 /// The formats a second implementation has to match, checked against numbers
 /// rather than against the code that produced them. See `WIRE.md`.

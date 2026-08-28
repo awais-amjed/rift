@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, User;
 
 import '../../../data/enums/auth_status.dart';
-import '../../../data/repositories/crypto_repository.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/repositories/supabase_backup_repository.dart';
 import '../../../logic/helper_methods.dart';
 import '../vault/vault_cubit.dart';

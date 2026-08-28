@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
-import '../repositories/crypto_repository.dart';
+import 'crypto_repository.dart';
 
 /// Result of deriving a host-specific chat encryption identity (X25519).
 ///

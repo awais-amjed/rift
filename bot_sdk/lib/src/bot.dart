@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:rift/data/classes/message_envelope.dart';
-
+import 'package:rift_crypto/rift_crypto.dart';
 import 'bot_session.dart';
 
 /// One command or one press, as the bot receives it.

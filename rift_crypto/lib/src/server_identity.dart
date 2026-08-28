@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
-import '../repositories/crypto_repository.dart';
+import 'crypto_repository.dart';
 
 /// Result of deriving a server-specific cryptographic identity.
 class ServerIdentity {

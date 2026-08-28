@@ -23,6 +23,11 @@ everything they store is encrypted client-side.
 Every user's entire identity derives from a single **256-bit master seed**, generated on-device at
 vault creation. Nothing about identity is ever created server-side.
 
+The whole of it lives in `rift_crypto/`, a package with no Flutter in it, so a
+headless bot SDK depends on the same copy the app does rather than on a second
+implementation. `WIRE.md` describes the formats and `test/wire_vectors.json`
+freezes them.
+
 ### Key derivation tree
 
 ```
