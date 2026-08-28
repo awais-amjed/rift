@@ -47,6 +47,8 @@ psql_migrate <<'SQL' >/dev/null
 -- The pieces of Supabase the central migrations lean on. `auth.uid()` is
 -- copied from Supabase's definition: policies are only as correct as this is.
 CREATE SCHEMA IF NOT EXISTS auth;
+-- 009 installs pg_net here, and 010-012 name it in their search_path.
+CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE TABLE IF NOT EXISTS auth.users (id UUID PRIMARY KEY);
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS UUID
   LANGUAGE sql STABLE AS $$
@@ -54,10 +56,14 @@ CREATE OR REPLACE FUNCTION auth.uid() RETURNS UUID
 $$;
 DO $$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-GRANT USAGE ON SCHEMA public, auth TO anon, authenticated;
+GRANT USAGE ON SCHEMA public, auth, extensions TO anon, authenticated;
+-- 011 publishes a table to Realtime. The publication is Supabase's, not the
+-- migrations', so the shim provides an empty one to add to.
+DO $$ BEGIN CREATE PUBLICATION supabase_realtime;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 SQL
 
-for f in 001_schema 002_security 003_api 007_public_servers; do
+for f in 001_schema 002_security 003_api 007_public_servers 009_push 010_push_relays 011_notifications 012_friends; do
   psql_migrate -f - < "$ROOT/central_server_migrations/$f.sql" >/dev/null
 done
 
