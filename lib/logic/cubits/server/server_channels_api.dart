@@ -24,9 +24,17 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
   Future<({bool success, String? error})> refreshServerDetails();
 
   /// Create a new channel in the selected server.
+  ///
+  /// [memberIds] is only read when [isPrivate]. The creator is always added to
+  /// it, whatever the caller passed: `set_channel_members` replaces the
+  /// membership with exactly the list it is given, and a private channel whose
+  /// last member leaves is deleted — so a list that forgot the creator would
+  /// make a channel and destroy it in the same breath.
   Future<({bool success, String? error})> createChannel({
     required String name,
     required String channelType,
+    bool isPrivate = false,
+    List<String> memberIds = const [],
   }) async {
     final server = state.selectedServer;
     if (server == null) {
@@ -41,6 +49,7 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
         bearerToken: token,
         name: name,
         channelType: channelType,
+        isPrivate: isPrivate,
       ),
     );
 
@@ -49,6 +58,17 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
         success: false,
         error: response.error ?? 'Failed to create channel',
       );
+    }
+
+    if (isPrivate) {
+      final me = server.user?.id;
+      final channelId = (response.data as Map<String, dynamic>?)?['id'] as String?;
+      if (channelId != null) {
+        await setChannelMembers(
+          channelId: channelId,
+          userIds: {?me, ...memberIds}.toList(),
+        );
+      }
     }
 
     // Refresh our own channel list to include the newly created one, and ping
@@ -96,6 +116,70 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
         ),
         failure: 'Failed to delete channel',
       );
+
+  /// Replace a private channel's membership with exactly [userIds].
+  ///
+  /// Removing the last member deletes the channel, and that is not an accident
+  /// to be guarded against here — nobody outside can see a private channel, so
+  /// nobody outside could be asked to tidy up an empty one.
+  Future<({bool success, String? error})> setChannelMembers({
+    required String channelId,
+    required List<String> userIds,
+  }) => _changeChannel(
+    (server, token) => _repository.setChannelMembers(
+      server.supabaseUrl,
+      channelId,
+      anonKey: _anonKey,
+      bearerToken: token,
+      userIds: userIds,
+    ),
+    failure: 'Failed to update who is in this channel',
+  );
+
+  /// Open a channel up, or close it.
+  ///
+  /// Closing seats everybody who is currently on the server, so the room does
+  /// not empty out under the people already talking in it; narrowing it down is
+  /// a second call to [setChannelMembers]. Opening leaves a rotation behind, so
+  /// the private history stays unreadable to whoever arrives next.
+  Future<({bool success, String? error})> setChannelPrivate({
+    required String channelId,
+    required bool isPrivate,
+  }) => _changeChannel(
+    (server, token) => _repository.setChannelPrivate(
+      server.supabaseUrl,
+      channelId,
+      anonKey: _anonKey,
+      bearerToken: token,
+      isPrivate: isPrivate,
+    ),
+    failure: isPrivate
+        ? 'Failed to make this channel private'
+        : 'Failed to open this channel up',
+  );
+
+  /// Who is in [channelId], by user id. Empty for a public channel — and for a
+  /// private one the caller cannot see, which is the same answer on purpose.
+  Future<Set<String>> channelMembers(String channelId) async {
+    final server = state.selectedServer;
+    if (server == null) return const {};
+
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.listChannelMembers(
+        server.supabaseUrl,
+        channelId,
+        anonKey: _anonKey,
+        bearerToken: token,
+      ),
+    );
+    if (!response.success) return const {};
+
+    final rows =
+        (response.data as Map<String, dynamic>)['members'] as List? ?? const [];
+    return {
+      for (final r in rows.cast<Map<String, dynamic>>()) r['user_id'] as String,
+    };
+  }
 
   /// Runs a channel mutation, then brings everyone's sidebar in line: our own
   /// list directly, and other members' through the `server_events` doorbell.

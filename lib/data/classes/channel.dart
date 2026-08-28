@@ -19,12 +19,21 @@ class Channel {
   /// inherits the server's `messageHistoryCap`; 0 explicitly means no cap.
   final int? historyCap;
 
+  /// Visible only to its members (`channel_members`, or a role granted access).
+  ///
+  /// Not a display flag. A private channel's key is sealed to a list of people,
+  /// so this is the one channel property that is arithmetic rather than a rule
+  /// — see ARCHITECTURE.md §4. A client that got it wrong would draw a lock on
+  /// a public room, not open a private one.
+  final bool isPrivate;
+
   const Channel({
     required this.id,
     required this.name,
     required this.channelType,
     this.retentionDays,
     this.historyCap,
+    this.isPrivate = false,
   });
 
   /// Whether this channel holds messages at all, and so whether the retention
@@ -40,6 +49,7 @@ class Channel {
       ),
       retentionDays: (json['retention_days'] as num?)?.toInt(),
       historyCap: (json['history_cap'] as num?)?.toInt(),
+      isPrivate: json['is_private'] == true,
     );
   }
 
@@ -49,5 +59,6 @@ class Channel {
     'channel_type': channelType.toJson(),
     'retention_days': retentionDays,
     'history_cap': historyCap,
+    'is_private': isPrivate,
   };
 }

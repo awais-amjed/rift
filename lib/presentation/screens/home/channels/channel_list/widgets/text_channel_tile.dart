@@ -12,6 +12,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/nav_row.dart';
 import '../../../../../common/unread_badge.dart';
 import 'channel_context_menu.dart';
+import 'channel_lock_badge.dart';
 
 /// Tile for a text channel. Tapping opens its E2E chat in the center pane
 /// (and tapping the open one closes it).
@@ -46,6 +47,11 @@ class TextChannelTile extends StatelessWidget {
           channel: channel,
           child: NavRow(
             icon: Icons.tag_rounded,
+            iconBadge: channel.isPrivate
+                ? ChannelLockBadge(
+                    themeState: context.watch<ThemeCubit>().state,
+                  )
+                : null,
             label: channel.name,
             isSelected: isSelected,
             // A muted channel is still unread — the name stays lifted, so it

@@ -23,6 +23,14 @@ class NavRow extends StatelessWidget {
   /// Trailing widget — an unread count, a member tally.
   final Widget? trailing;
 
+  /// A marker stacked on the corner of [icon] — the lock on a private channel.
+  ///
+  /// Separate from [icon] rather than folded into it, because the glyph carries
+  /// the selected-state colour animation and a private channel still has to say
+  /// which *kind* of channel it is. A lock that replaced the speaker would
+  /// answer the rarer question and lose the commoner one.
+  final Widget? iconBadge;
+
   final VoidCallback? onTap;
 
   const NavRow({
@@ -32,6 +40,7 @@ class NavRow extends StatelessWidget {
     this.isSelected = false,
     this.isUnread = false,
     this.trailing,
+    this.iconBadge,
     this.onTap,
   });
 
@@ -89,8 +98,25 @@ class NavRow extends StatelessWidget {
                       tween: ColorTween(end: _iconColor(themeState)),
                       duration: AppMotion.state,
                       curve: AppMotion.settle,
-                      builder: (context, color, _) =>
-                          Icon(icon, size: 16, color: color),
+                      builder: (context, color, _) {
+                        final glyph = Icon(icon, size: 16, color: color);
+                        if (iconBadge == null) return glyph;
+                        return SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              glyph,
+                              Positioned(
+                                right: -4,
+                                bottom: -3,
+                                child: iconBadge!,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                     Expanded(
                       child: AnimatedDefaultTextStyle(

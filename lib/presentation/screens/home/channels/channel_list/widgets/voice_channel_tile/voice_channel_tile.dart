@@ -13,6 +13,7 @@ import '../channel_context_menu.dart';
 import 'widgets/channel_drop_target.dart';
 import 'widgets/channel_roster.dart';
 import 'widgets/live_badge.dart';
+import '../channel_lock_badge.dart';
 
 /// A voice channel in the sidebar — Discord-style, showing who is in it.
 ///
@@ -165,12 +166,27 @@ class VoiceChannelTile extends StatelessWidget {
         child: Row(
           spacing: 9,
           children: [
-            Icon(
-              Icons.volume_up_rounded,
-              size: 16,
-              color: isSelected
-                  ? themeState.accentBright
-                  : themeState.textTertiary,
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    Icons.volume_up_rounded,
+                    size: 16,
+                    color: isSelected
+                        ? themeState.accentBright
+                        : themeState.textTertiary,
+                  ),
+                  if (channel.isPrivate)
+                    Positioned(
+                      right: -4,
+                      bottom: -3,
+                      child: ChannelLockBadge(themeState: themeState),
+                    ),
+                ],
+              ),
             ),
             Expanded(
               child: Text(

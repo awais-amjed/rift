@@ -12,6 +12,7 @@ import '../classes/server_limits.dart';
 import '../enums/error_code.dart';
 import 'server_db.dart';
 
+part 'server_repository_channels.dart';
 part 'server_repository_chat.dart';
 part 'server_repository_chat_reads.dart';
 part 'server_repository_push.dart';
@@ -39,6 +40,7 @@ part 'server_repository_webhooks.dart';
 /// of tables without policies.
 class ServerRepository
     with
+        _ChannelApiMixin,
         _ChatApiMixin,
         _ChatReadApiMixin,
         _PushApiMixin,
@@ -199,7 +201,7 @@ class ServerRepository
       }
       final channels = await db
           .from('channels')
-          .select('id, name, channel_type, retention_days, history_cap')
+          .select('id, name, channel_type, retention_days, history_cap, is_private')
           .order('name');
 
       return {
@@ -481,32 +483,8 @@ class ServerRepository
   }
 
   // ──────────────────────────────────────────────────────────
-  // Channels
+  // Channels — voice tokens. The CRUD is in the channels part.
   // ──────────────────────────────────────────────────────────
-
-  /// Create a new channel (channel manager or admin — enforced by policy).
-  Future<APIResponse> createChannel(
-    String supabaseUrl, {
-    required String anonKey,
-    required String serverId,
-    String? bearerToken,
-    required String name,
-    required String channelType,
-  }) {
-    return ServerDb.run(() async {
-      final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final row = await db
-          .from('channels')
-          .insert({
-            'server_id': serverId,
-            'name': name,
-            'channel_type': channelType,
-          })
-          .select('id, name, channel_type')
-          .single();
-      return row;
-    });
-  }
 
   /// Get a LiveKit JWT for joining a channel.
   Future<APIResponse> getChannelToken(
@@ -522,8 +500,6 @@ class ServerRepository
     }, bearerToken: bearerToken);
   }
 
-  /// Delete a channel (requires channel manager). Its messages and keyring go
-  /// with it by cascade.
   /// Apply the server's retention settings and remove the attachment blobs
   /// left behind (migration 007).
   ///
@@ -540,104 +516,6 @@ class ServerRepository
     const {},
     bearerToken: bearerToken,
   );
-
-  /// Update a channel's settings (requires channel manager).
-  ///
-  /// A plain update — the column grant covers only `name`, `retention_days`
-  /// and `history_cap`, and `channels_update_managers` decides who may.
-  /// Nothing else has to happen: a LiveKit room is named by the channel's
-  /// **id**, so renaming a voice channel doesn't touch the call inside it.
-  ///
-  /// The retention overrides are three-valued, which is why they aren't plain
-  /// `int?`s: omitted leaves the column alone, a value sets it, and the
-  /// matching `clear…` flag writes NULL to go back to inheriting the server's.
-  Future<APIResponse> updateChannel(
-    String supabaseUrl,
-    String channelId, {
-    required String anonKey,
-    String? bearerToken,
-    String? name,
-    int? retentionDays,
-    bool clearRetentionDays = false,
-    int? historyCap,
-    bool clearHistoryCap = false,
-  }) {
-    return ServerDb.run(() async {
-      final patch = <String, dynamic>{
-        'name': ?name,
-        if (clearRetentionDays)
-          'retention_days': null
-        else
-          'retention_days': ?retentionDays,
-        if (clearHistoryCap)
-          'history_cap': null
-        else
-          'history_cap': ?historyCap,
-      };
-      if (patch.isEmpty) {
-        throw const PostgrestException(message: 'Nothing to update');
-      }
-      final rows = await _db
-          .client(supabaseUrl, anonKey, bearerToken)
-          .from('channels')
-          .update(patch)
-          .eq('id', channelId)
-          .select('id, name, channel_type, retention_days, history_cap');
-      if ((rows as List).isEmpty) {
-        throw const PostgrestException(
-          message: 'Channel not found, or not yours to change',
-        );
-      }
-      return rows.first;
-    });
-  }
-
-  /// Delete a channel (requires channel manager), and the call inside it.
-  ///
-  /// An edge function rather than a table delete, because the row is only half
-  /// of it: the LiveKit room is named by the channel id, and dropping that room
-  /// is what disconnects everyone still talking in it. The function does the
-  /// delete with this same JWT, so the policy is still what decides.
-  Future<APIResponse> deleteChannel(
-    String supabaseUrl,
-    String channelId, {
-    String? bearerToken,
-  }) {
-    return _post(supabaseUrl, 'delete_channel', {
-      'channel_id': channelId,
-    }, bearerToken: bearerToken);
-  }
-
-  /// Persistently mute/unmute/deafen/undeafen a user (server admin). State is
-  /// stored server-side and enforced in LiveKit token grants, so it survives
-  /// rejoins and can't be self-reverted.
-  ///
-  /// An RPC rather than an update: RLS is row-level, so a policy that let an
-  /// admin write another member's moderation flags would let them write that
-  /// member's identity too.
-  /// Mute / deafen / ban a member (admin only).
-  ///
-  /// An edge function rather than the `moderate_user` RPC directly, because the
-  /// row write is only half the job: the other half is pushing the new state
-  /// onto the target's live LiveKit connections, which needs the API secret.
-  /// The function still calls that same RPC with the caller's JWT, so the
-  /// permission rules stay in the database.
-  Future<APIResponse> moderateUser(
-    String supabaseUrl, {
-    required String anonKey,
-    String? bearerToken,
-    required String userId,
-    bool? isMuted,
-    bool? isDeafened,
-    bool? isBanned,
-  }) {
-    return _post(supabaseUrl, 'moderate_user', {
-      'target_user_id': userId,
-      'muted': isMuted,
-      'deafened': isDeafened,
-      'banned': isBanned,
-    }, bearerToken: bearerToken);
-  }
 
   /// Pull a member from the voice channel they're in into [channelId]
   /// (channel manager or admin).

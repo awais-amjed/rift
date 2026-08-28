@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/constants.dart';
-import '../../../../../data/enums/channel_type.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../logic/helper_methods.dart';
+import '../../../../data/classes/server_member.dart';
+import '../../../../data/enums/channel_type.dart';
+import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/helper_methods.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/message_banner.dart';
-import '../../../common/selectable_surface.dart';
 import '../../../theme/app_text.dart';
+import '../../settings/widgets/setting_toggle_row.dart';
+import 'widgets/channel_member_picker.dart';
+import 'widgets/channel_type_toggle.dart';
 
 /// Dialog to create a new channel (text or voice) in the current server.
 class CreateChannelDialog extends StatefulWidget {
@@ -23,17 +25,47 @@ class CreateChannelDialog extends StatefulWidget {
 
 class _CreateChannelDialogState extends State<CreateChannelDialog> {
   final _nameCtrl = TextEditingController();
+  final _searchCtrl = TextEditingController();
 
   ChannelType _type = ChannelType.text;
+  bool _isPrivate = false;
   bool _isLoading = false;
   String? _error;
+
+  /// Everyone but this device's own member row and the bots — see
+  /// [ChannelMemberPicker] for why neither belongs in the list.
+  List<ServerMember> _members = const [];
+  final Set<String> _selected = {};
+  String _query = '';
 
   bool get _canSubmit => _nameCtrl.text.trim().isNotEmpty;
 
   @override
+  void initState() {
+    super.initState();
+    _loadMembers();
+  }
+
+  @override
   void dispose() {
     _nameCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
+  }
+
+  /// Loaded on open rather than when the toggle is flipped: the list is the
+  /// slowest thing in this dialog, and somebody who ticks "private" has already
+  /// decided — making them wait at that point would be the one moment it shows.
+  Future<void> _loadMembers() async {
+    final cubit = context.read<ServerCubit>();
+    final me = cubit.state.selectedServer?.user?.id;
+    final result = await cubit.listMembers();
+    if (!mounted || result.members == null) return;
+    setState(() {
+      _members = result.members!
+          .where((m) => !m.isBot && !m.isBanned && m.id != me)
+          .toList();
+    });
   }
 
   Future<void> _submit() async {
@@ -47,6 +79,8 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
     final result = await context.read<ServerCubit>().createChannel(
       name: _nameCtrl.text.trim(),
       channelType: _type.name,
+      isPrivate: _isPrivate,
+      memberIds: _isPrivate ? _selected.toList() : const [],
     );
 
     if (!mounted) return;
@@ -95,27 +129,44 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  _TypeButton(
-                    icon: Icons.tag,
-                    label: 'Text',
-                    selected: _type == ChannelType.text,
-                    onTap: _isLoading
-                        ? null
-                        : () => setState(() => _type = ChannelType.text),
-                  ),
-                  const SizedBox(width: 8),
-                  _TypeButton(
-                    icon: Icons.volume_up,
-                    label: 'Voice',
-                    selected: _type == ChannelType.voice,
-                    onTap: _isLoading
-                        ? null
-                        : () => setState(() => _type = ChannelType.voice),
-                  ),
-                ],
+              ChannelTypeToggle(
+                value: _type,
+                onChanged: _isLoading
+                    ? null
+                    : (t) => setState(() => _type = t),
               ),
+              const SizedBox(height: 16),
+              // The description says what actually differs, and says the part
+              // people get wrong: an admin is outside this too, because an
+              // admin holds no key to it either (ARCHITECTURE.md §4).
+              SettingToggleRow(
+                themeState: themeState,
+                title: 'Private channel',
+                description:
+                    'Only the people you pick can see it — server admins '
+                    'included. You can add or remove people later.',
+                value: _isPrivate,
+                onChanged: _isLoading
+                    ? null
+                    : (v) => setState(() => _isPrivate = v),
+              ),
+              if (_isPrivate) ...[
+                const SizedBox(height: 16),
+                ChannelMemberPicker(
+                  themeState: themeState,
+                  members: _members,
+                  selected: _selected,
+                  query: _query,
+                  queryController: _searchCtrl,
+                  enabled: !_isLoading,
+                  onQueryChanged: (q) => setState(() => _query = q),
+                  onToggle: (id) => setState(() {
+                    _selected.contains(id)
+                        ? _selected.remove(id)
+                        : _selected.add(id);
+                  }),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -132,47 +183,6 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
           ],
         );
       },
-    );
-  }
-}
-
-/// One half of the text/voice segmented control.
-class _TypeButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  const _TypeButton({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: SelectableSurface(
-        selected: selected,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(K.radiusButton),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          spacing: 7,
-          children: [
-            Icon(icon, size: 15),
-            Text(
-              label,
-              style: AppText.secondary.copyWith(
-                fontSize: 12.5,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
