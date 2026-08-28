@@ -88,4 +88,29 @@ mixin _WebhookApiMixin {
       return {'listeners': (rows as List).cast<Map<String, dynamic>>()};
     });
   }
+
+  /// Hand a bot the key to one channel, or take it back.
+  ///
+  /// RPCs, and they have to be. A grant decides which key version the bot
+  /// starts at — one past the current, which is the whole of forward-only —
+  /// and a revoke drops the sealed rows so the sweep sees a bot with no grant
+  /// and rotates. Neither is a fact a client could work out, and
+  /// `bot_channel_keys` has no write grant at all so neither can be faked
+  /// (migrations 017, 028).
+  Future<APIResponse> setBotChannelKey(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String channelId,
+    required String botId,
+    required bool granted,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc(
+        granted ? 'grant_bot_channel_key' : 'revoke_bot_channel_key',
+        params: {'p_bot': botId, 'p_channel': channelId},
+      );
+    });
+  }
 }

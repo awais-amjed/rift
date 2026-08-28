@@ -163,7 +163,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
         isMine: false,
         editedAt: DateTime.tryParse('${row['edited_at']}'),
         reactions: ReactionOps.fromRow(row),
-        origin: MessageOrigin.webhook,
+        origin: MessageOrigin.fromRow(row),
         isEncrypted: false,
       );
     }

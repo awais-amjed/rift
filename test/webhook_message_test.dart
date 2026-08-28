@@ -306,4 +306,35 @@ void main() {
       expect(hook('1').isEphemeral, isFalse);
     });
   });
+
+  group('a message the server wrote about itself', () {
+    // Same shape as a webhook's — an origin instead of a sender, unencrypted —
+    // and different in the one way a badge exists to be honest about: nothing
+    // outside the server is involved.
+    test('is its own origin, not a webhook', () {
+      expect(
+        MessageOrigin.fromRow({'origin_name': 'Rift', 'is_system': true}),
+        MessageOrigin.system,
+      );
+      expect(
+        MessageOrigin.fromRow({'origin_name': 'CI', 'is_system': false}),
+        MessageOrigin.webhook,
+      );
+    });
+
+    test('a row from a server too old to say is a webhook', () {
+      // `is_system` arrived in 028. Absent means the row predates it, and every
+      // row that predates it is a webhook's — reading absence as "system"
+      // would relabel every integration message ever posted.
+      expect(
+        MessageOrigin.fromRow({'origin_name': 'CI'}),
+        MessageOrigin.webhook,
+      );
+    });
+
+    test('is still not a member, whatever it is', () {
+      expect(MessageOrigin.system.isMember, isFalse);
+      expect(MessageOrigin.fromRow({'is_system': true}), MessageOrigin.member);
+    });
+  });
 }

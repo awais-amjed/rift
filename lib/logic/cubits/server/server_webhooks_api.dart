@@ -117,32 +117,4 @@ mixin _ServerWebhooksApiMixin on Cubit<ServerState> {
           : response.error ?? 'Could not delete that webhook',
     );
   }
-
-  /// The bots holding a key to [channelId], by display name.
-  ///
-  /// Read on channel open and shown in the header, not behind a menu: a
-  /// standing marker is the point (BOTS.md §6, rule 4). A dialog somebody has
-  /// to go looking for tells the people who already knew.
-  Future<List<String>> channelListeners(String channelId) async {
-    final server = state.selectedServer;
-    if (server == null) return const [];
-
-    final response = await _callWithAutoRefresh(
-      (token) => _repository.listChannelListeners(
-        server.supabaseUrl,
-        anonKey: _anonKey,
-        bearerToken: token,
-        channelId: channelId,
-      ),
-    );
-    if (!response.success) return const [];
-
-    final rows =
-        (response.data as Map<String, dynamic>)['listeners'] as List? ??
-        const [];
-    return [
-      for (final r in rows.cast<Map<String, dynamic>>())
-        (r['display_name'] as String?) ?? (r['username'] as String? ?? 'a bot'),
-    ];
-  }
 }

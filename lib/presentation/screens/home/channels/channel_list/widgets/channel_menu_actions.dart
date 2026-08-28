@@ -7,15 +7,17 @@ import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu_region.dart';
+import '../../bots/channel_bots_dialog.dart';
 import '../../channel_members_dialog.dart';
+import '../../channel_settings_dialog.dart';
+import '../../webhooks/channel_webhooks_dialog.dart';
 
-/// The three things you can do to a channel's privacy, out of the menu that
-/// offers them.
+/// Everything the channel menu opens or asks, out of the menu that offers it.
 ///
-/// Free functions rather than methods, because the same three belong in a
-/// channel's own header eventually and neither surface should own them. Each
-/// one says out loud the thing about an encrypted room that is not obvious:
-/// what a removed member keeps, and what a new one does not get.
+/// Free functions rather than methods, because the same set belongs in a
+/// channel's own header eventually and neither surface should own them. The
+/// privacy ones each say out loud the thing about an encrypted room that is not
+/// obvious: what a removed member keeps, and what a new one does not get.
 
 void openChannelMembers(BuildContext context, Channel channel) {
   showDialogFromMenu(
@@ -111,4 +113,35 @@ Future<void> openChannelUp(BuildContext context, Channel channel) async {
       error: result.error ?? 'Could not open that channel up',
     );
   }
+}
+
+void openChannelSettings(BuildContext context, Channel channel) {
+  showDialogFromMenu(
+    context: context,
+    build: (ctx) => BlocProvider.value(
+      value: ctx.read<ServerCubit>(),
+      child: ChannelSettingsDialog(channel: channel),
+    ),
+  );
+}
+
+void openChannelWebhooks(BuildContext context, Channel channel) {
+  showDialogFromMenu(
+    context: context,
+    build: (ctx) => BlocProvider.value(
+      value: ctx.read<ServerCubit>(),
+      child: ChannelWebhooksDialog(channel: channel),
+    ),
+  );
+}
+
+/// The one that gives something away permanently — see [ChannelBotsDialog].
+void openChannelBots(BuildContext context, Channel channel) {
+  showDialogFromMenu(
+    context: context,
+    build: (ctx) => BlocProvider.value(
+      value: ctx.read<ServerCubit>(),
+      child: ChannelBotsDialog(channel: channel),
+    ),
+  );
 }

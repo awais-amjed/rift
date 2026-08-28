@@ -342,4 +342,18 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     await _teardownSweepRealtime();
     return super.close();
   }
+
+  /// Re-read who holds this channel's key.
+  ///
+  /// The header chip is the standing marker BOTS.md §6 rule 4 asks for, and a
+  /// marker that is only correct at the moment a channel was opened is not a
+  /// standing one. Granting or revoking from the dialog calls this, so the
+  /// header stops saying a bot is reading a room it was just shut out of.
+  Future<void> refreshBotListeners() async {
+    final channelId = state.channelId;
+    if (channelId == null) return;
+    final listeners = await _serverCubit.channelListeners(channelId);
+    if (isClosed || state.channelId != channelId) return;
+    emit(state.copyWith(botListeners: listeners));
+  }
 }

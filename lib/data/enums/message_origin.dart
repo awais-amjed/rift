@@ -12,7 +12,16 @@ enum MessageOrigin {
   /// An incoming webhook — an outside service posting to a secret URL. Never
   /// signed, never encrypted, and never attributed to a person: `authorName`
   /// is the webhook's own name, frozen on the row when it posted.
-  webhook;
+  webhook,
+
+  /// The server saying something about itself — a bot being handed this
+  /// channel's key, or having it taken away (migration 028).
+  ///
+  /// Identical in shape to a webhook and different in the one way that
+  /// matters: nothing outside the server is involved. Badging it WEBHOOK told
+  /// people an integration somebody installed had posted, which is exactly the
+  /// thing a badge exists to be honest about.
+  system;
 
   /// Read from `origin_name`, never from `webhook_id`.
   ///
@@ -22,8 +31,15 @@ enum MessageOrigin {
   /// all. `origin_name` is frozen on the row at insert for exactly this reason,
   /// and migration 013 constrains it to be present precisely when `sender_id`
   /// is not.
-  static MessageOrigin fromRow(Map<String, dynamic> row) =>
-      row['origin_name'] != null ? MessageOrigin.webhook : MessageOrigin.member;
+  /// `is_system` is its own column for the same reason `origin_name` is frozen:
+  /// it cannot be inferred. A webhook's row keeps its origin after the webhook
+  /// is deleted, so "no `webhook_id`" does not mean "not a webhook".
+  static MessageOrigin fromRow(Map<String, dynamic> row) {
+    if (row['origin_name'] == null) return MessageOrigin.member;
+    return row['is_system'] == true
+        ? MessageOrigin.system
+        : MessageOrigin.webhook;
+  }
 
   bool get isMember => this == MessageOrigin.member;
 }

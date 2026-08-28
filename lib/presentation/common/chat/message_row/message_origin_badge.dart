@@ -51,6 +51,10 @@ class MessageOriginBadge extends StatelessWidget {
       ? 'ONLY YOU'
       : switch (message.origin) {
           MessageOrigin.webhook => 'WEBHOOK',
+          // Not the server's name — that is already the author line beside
+          // it, and a badge that repeats what it sits next to is spending the
+          // one glance this design gets on nothing.
+          MessageOrigin.system => 'SYSTEM',
           MessageOrigin.member => 'NOT ENCRYPTED',
         };
 
@@ -59,6 +63,9 @@ class MessageOriginBadge extends StatelessWidget {
       // The break is at the sentence, not left to the wrap: two facts, one a
       // line. The width cap in `tooltipTheme` is the backstop, not the shape.
       'Posted by an integration, not a member.\n'
+          'Unencrypted — the server can read it.',
+    MessageOrigin.system =>
+      'Written by this server, not by anybody in it.\n'
           'Unencrypted — the server can read it.',
     MessageOrigin.member => 'Unencrypted — the server can read it.',
   };

@@ -21,7 +21,7 @@ mixin _ChatReadApiMixin {
   /// standalone read, so this widens nothing.
   static const _messageColumns =
       'id, created_at, channel_id, sender_id, ciphertext, nonce, signature, '
-      'key_version, edited_at, webhook_id, origin_name, to_bot, '
+      'key_version, edited_at, webhook_id, origin_name, is_system, to_bot, '
       'reply_to, ephemeral_for, '
       'sender:users!messages_sender_id_fkey(display_name, public_key, avatar_path), '
       'message_reactions(user_id, emoji)';

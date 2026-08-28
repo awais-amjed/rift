@@ -525,8 +525,14 @@ to come back.
    there. This unblocks more of the popular-bot list than any SDK does, which is why it comes
    before one — and the SDK has to expose panels, so designing its API against a schema that does
    not exist yet means writing it twice.
-9. **The grant UI** (§6): per-channel and server-wide, the system message, and the bot profile's
-   channel list.
+9. ~~The grant UI~~ **done** (migration 028). "Bots reading this" on a text channel's menu, a
+   confirm that says what a key costs before it is handed over, and the system message rule 4 asked
+   for — which needed a `messages.is_system` column, because a system message and a webhook's are
+   the same shape and badging one WEBHOOK says an integration somebody installed is involved when
+   nothing outside the server is. The grant also moved from `app.is_admin()` to `MANAGE_BOTS`, and
+   from "is this channel on my server" to `app.can_see_channel` — an administrator standing outside
+   a private channel was able to key a bot into it. Still to do: the server-wide grant with the
+   `is_private` carve-out, and the bot profile's channel list.
 10. **The TypeScript SDK** — auth, commands, replies, panels, voice.
 
 Games are not on this list. Discord's run in a browser already, Linux desktop has no usable web

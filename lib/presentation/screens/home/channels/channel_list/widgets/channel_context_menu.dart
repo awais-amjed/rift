@@ -8,15 +8,12 @@ import '../../../../../../logic/cubits/notifications/server_notifications_cubit.
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
-import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
-import '../../channel_settings_dialog.dart';
-import 'channel_privacy_actions.dart';
-import '../../webhooks/channel_webhooks_dialog.dart';
+import 'channel_menu_actions.dart';
 
 /// Right-click menu for a channel in the sidebar — how loud it is, and, for
 /// whoever may manage it, settings and delete.
@@ -42,26 +39,6 @@ class ChannelContextMenu extends StatelessWidget {
     contextMenu: ChannelContextMenu(channel: channel),
     child: child,
   );
-
-  void _openSettings(BuildContext context) {
-    showDialogFromMenu(
-      context: context,
-      build: (ctx) => BlocProvider.value(
-        value: ctx.read<ServerCubit>(),
-        child: ChannelSettingsDialog(channel: channel),
-      ),
-    );
-  }
-
-  void _openWebhooks(BuildContext context) {
-    showDialogFromMenu(
-      context: context,
-      build: (ctx) => BlocProvider.value(
-        value: ctx.read<ServerCubit>(),
-        child: ChannelWebhooksDialog(channel: channel),
-      ),
-    );
-  }
 
   Future<void> _delete(BuildContext context) async {
     ContextMenuScope.of(context)?.call();
@@ -166,16 +143,24 @@ class ChannelContextMenu extends StatelessWidget {
           ContextMenuItem(
             icon: Icons.tune_rounded,
             label: 'Settings',
-            onTap: () => _openSettings(context),
+            onTap: () => openChannelSettings(context, channel),
           ),
           // Text channels only: a webhook posts a message, and a voice channel
           // has nowhere to put one.
-          if (!isVoice)
+          if (!isVoice) ...[
             ContextMenuItem(
               icon: Icons.webhook_rounded,
               label: 'Webhooks',
-              onTap: () => _openWebhooks(context),
+              onTap: () => openChannelWebhooks(context, channel),
             ),
+            // Also text only, and for the same reason inverted: the grant
+            // hands over a channel *key*, and a voice channel has none.
+            ContextMenuItem(
+              icon: Icons.hearing_rounded,
+              label: 'Bots reading this',
+              onTap: () => openChannelBots(context, channel),
+            ),
+          ],
           ContextMenuItem(
             icon: Icons.delete_outline_rounded,
             label: 'Delete channel',
