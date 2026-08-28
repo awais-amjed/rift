@@ -1,9 +1,10 @@
 # BOTS.md — Bots, commands & webhooks
 
-Design reference for third-party integrations. **Webhooks (§3, §7), bot identity (§1, §2, §9) and
-commands (§4) are implemented** — migrations 013, 014 and 015. Replies (§5), the SDK (§11) and
-moderation grants (§6) are still **[Planned]**. Sections are marked as they land, the same way `ARCHITECTURE.md` marks its
-own.
+Design reference for third-party integrations. **Webhooks (§3, §7), bot identity (§1, §2, §9),
+commands (§4), channel and ephemeral replies (§5) and the moderation grant (§6) are implemented** —
+migrations 013 through 017, plus the Dart SDK (§11). Still **[Planned]**: panels (§5), the
+server-wide grant and its UI (§6), and the TypeScript SDK (§11). Sections are marked as they land,
+the same way `ARCHITECTURE.md` marks its own.
 
 Read `ARCHITECTURE.md` §2 (auth) and §4 (chat encryption) first. This document assumes both, and
 where it departs from them it says so.
@@ -169,7 +170,7 @@ the bot and both work while the bot is asleep.
 
 ---
 
-## 5. Replies — [Channel + ephemeral implemented, migration 016; panels planned]
+## 5. Replies — [Channel + ephemeral implemented, migration 016; panels specified below, not built]
 
 Three shapes, because bot output is three different things and Discord flattens them all into
 chat messages for want of anywhere else to put them.
@@ -197,21 +198,50 @@ A declarative block set (Slack's Block Kit is the reference) means bots get real
 app keeps control of how it looks, every accent palette keeps working, and phone and desktop
 render identically for free.
 
-Start with the smallest useful set — text, key/value rows, buttons, a list, an image. Add on
-demand.
+Start with the smallest useful set and add on demand:
+
+| Block | Draws |
+|---|---|
+| `heading` | a title line |
+| `text` | a paragraph |
+| `fields` | key/value rows |
+| `progress` | a bar, `0.0`–`1.0` |
+| `image` | one picture, by URL |
+| `divider` | a rule |
+| `actions` | a row of `button`s |
+| `select` | a dropdown |
+
+The bot sends that as JSON and the app draws each block with its own widget. The vocabulary is
+fixed and versioned, because third-party bots make it public API — **anything not in the list
+cannot be drawn**, which is the safety property rather than a shortcoming of the first version.
+
+### The round trip
+
+A panel is a message the bot keeps editing.
+
+1. The bot posts a panel — a message row like any other, plaintext and badged, carrying blocks
+   instead of a body.
+2. Somebody presses a button. That writes a row addressed to the bot: the same `to_bot` path a
+   command takes, carrying an `action` id instead of typed text.
+3. The bot edits the panel in place.
+
+**Step 3 already works.** `messages` has `edited_at` and `messages_update_own` lets a sender rewrite
+its own envelope, so a bot editing its own panel needs no new policy. The work is the block schema,
+the widgets, and the button-press row.
 
 ---
 
-## 6. Moderation bots — the one real exception — [Implemented, migration 017]
+## 6. Moderation bots — the one real exception — [Grant implemented, migration 017; server-wide grant and UI planned]
 
 A moderation bot has to read everything. There is no cryptographic middle ground: it either holds
 the channel key or it does not.
 
-So this is an **explicit, per-channel grant**, and it needs no new tables — `channel_keyring` is
-already keyed on `(channel_id, key_version, user_id)`. Granting one channel and not another is
-already expressible.
+So this is an **explicit, admin-only grant**, recorded in `bot_channel_keys` as
+`(bot_id, channel_id, from_key_version)`. It is its own table rather than a flag on
+`channel_keyring` because the grant has to outlive any one key version — it must survive the
+rotations that are what make it forward-only.
 
-Four rules make it safe enough to offer.
+Five rules make it safe enough to offer.
 
 ### Bots are excluded from the healing sweep — [Implemented as a refusal, migration 014]
 
@@ -228,13 +258,20 @@ This is the single implementation detail that, missed, undoes the entire documen
 ### Forward-only
 
 Members get every historical key version — that is the full-scrollback decision in
-`ARCHITECTURE.md` §4. A bot gets the **current version only**. It has no business reading what was
-said before it arrived, and the difference costs one `WHERE`.
+`ARCHITECTURE.md` §4. A bot's grant records `from_key_version` as **one past the current one**, and
+granting is itself a rotation signal: the next version is the first the bot can ever hold. It reads
+nothing said before somebody chose to let it listen, and *we will rotate later* is not the same
+promise.
 
-### Removal rotates
+### Revoking rotates
 
-Removing a keyed bot rotates the channel key, exactly as kicking a member does. It keeps what it
-already saw and gets nothing further. This works today with no new code.
+Revoking rotates the channel key, exactly as kicking a member does. The bot keeps what it already
+saw — nobody can take back what has been unwrapped — and gets nothing further.
+
+Both signals are shaped so they **clear themselves**: a granted bot whose grant starts above the
+current version, and a revoked bot still sealed into the current one. The rotation makes each check
+false again, so there is no flag to set, and an admin who grants and revokes twice in a minute
+leaves nothing behind to reconcile.
 
 ### The channel says who is listening
 
@@ -246,6 +283,48 @@ recording light, visible to everyone in the room. Not a one-time dialog.
 
 A community-run bot on the operator's own machine and a public bot on a stranger's server are very
 different grants. Those two cases should not look the same when you are clicking the button.
+
+Three things carry the notice, not one:
+
+- **A standing marker in the channel header**, for people who arrive later. Like a recording light:
+  on for exactly as long as it is true, and not dismissible.
+- **A system message in the channel** when the grant is made, for people already in the room. A
+  header marker is easy to have never noticed; a line in the scrollback is not.
+- **The bot's profile lists every channel it can read**, so *what does this thing see?* has one
+  place to be answered instead of being discovered a channel at a time.
+
+Granting is **admin-only**. Channel managers run their channels but do not hand out keys. And DMs
+are never grantable — no path, no exception, no flag to get wrong.
+
+### Private channels are never granted in bulk
+
+Per-channel is the honest granularity and it is also unusable for the bots people actually want.
+By server count the top of Discord's list is almost entirely the read-everything kind: MEE6
+(~21M servers, XP per message), Carl-bot and Dyno (automod, logging), Pokétwo (spawns on chat
+activity). An admin granting one of those a channel at a time, thirty times, will ask for a button.
+Refusing to build it does not stop the button existing; it means the one somebody eventually builds
+gets no thought.
+
+So there is a **server-wide grant**, and one carve-out is what keeps it honest: it covers every
+channel where `is_private` is false, and **never a private one**. A private channel is always an
+explicit, individual decision.
+
+`channels.is_private` therefore exists from the start, defaulting to false, **written before
+private channels are built**. Today it excludes nothing. The alternative is a rule that lives in
+somebody's head until the day private channels ship, and rules that live in heads are the ones that
+ship without.
+
+The server-wide grant is stored as intent, not as a snapshot:
+
+- **A row in `bot_server_grants`** is what covers a channel created *next week*. Without it an
+  admin grants a bot the server, adds a channel, and the bot silently does not work there.
+- **Per-channel rows materialised from it** are the mechanism — they carry `from_key_version`,
+  drive the rotation sweep, and drive the header marker. A new public channel materialises one; a
+  new private channel does not.
+
+**Revoking one channel out of a server-wide grant downgrades it to explicit rows:** materialise all
+of them, drop the one. An exception list would also work, and would leave somebody a year later
+asking why one channel is not covered by a grant that says *whole server*.
 
 ### What metadata-only moderation can still do
 
@@ -328,7 +407,10 @@ Nothing here is final; it is the shape the sections above imply.
 | `messages.to_bot UUID REFERENCES users(id)` | which bot a command is addressed to |
 | `messages.webhook_id UUID` | origin for an unsigned row (§3) |
 | `webhooks` table | §7 |
-| `grant_channel_key(bot, channel)` RPC | the only path to §6; forward-only, admin-gated |
+| `bot_channel_keys` table | the §6 grant: `(bot_id, channel_id, from_key_version)`, admin-gated |
+| `bot_server_grants` table | a server-wide grant held as intent, materialised per public channel |
+| `channels.is_private BOOLEAN NOT NULL DEFAULT false` | written before private channels exist, so the bulk carve-out cannot be forgotten |
+| `messages.blocks JSONB` | a panel's body (§5); button presses come back through `to_bot` |
 
 **The policy that carries the design:** a bot may `SELECT` a message only where
 `to_bot = auth.uid()`, or where it is the sender, or where it holds a keyring entry for that
@@ -336,22 +418,50 @@ channel. Nothing else. That single rule is what "hears what you tell it" reduces
 
 ---
 
-## 11. The SDK — [Implemented, bot_sdk/]
-
-Small on purpose. Everything below already exists inside the app; the SDK is that code with the
-Flutter taken out.
+## 11. The SDK — [Dart implemented and text-only, `bot_sdk/`; TypeScript is the reference]
 
 - Derive an identity from a seed, SIWS login, keep the session refreshed
 - Join from an invite link
 - Subscribe to commands addressed to it, and to its DMs
 - Reply — channel, ephemeral, or panel
 - Publish a manifest
-- Optionally: publish audio into a voice channel (LiveKit; no crypto involved)
+- Publish audio into a voice channel (LiveKit; no crypto involved)
 
-Dart first, since it can share `CryptoRepository` directly and `tool/headless_member.dart` is
-already most of it. A second language only once the wire format is a stable, documented contract —
-`chatmsg:v1:…`, `wrap:v1`, the `rift.msg` body. **Third-party bots make that format public API**,
-and it should be written down before anyone depends on it.
+### The contract comes before the second implementation
+
+A bot needs four primitives and no more: HMAC-SHA256 for the seed ladder, an Ed25519 keypair from
+that seed, an Ed25519 signature, and base64. **No X25519, no AES-GCM, no Argon2id** — a bot never
+holds a channel key, so it never opens anything. That is a couple of hundred lines in any language,
+and all four are standard library everywhere.
+
+Which makes the SDK the cheap half and the *format* the expensive one. Two implementations of
+`chatmsg:v1:…` are two things that can disagree, and the disagreement does not look like an error:
+the message stores fine, verifies as false, and renders as nothing.
+
+So before there is a second SDK there is a **spec plus test vectors** — a fixed
+`(seed, host, serverId)` with its expected public key, a fixed `(text, contextId)` with its expected
+signature, in a JSON file any implementation proves itself against in one test. That is what makes
+*an SDK in every language* safe to want, and it is a day of work rather than a policy.
+
+### Why TypeScript is the reference
+
+Dart came first because it could share `CryptoRepository` directly, and it proved the rest of the
+design end to end. It cannot be the reference, for one hard reason: **it cannot publish audio.** The
+only Dart LiveKit client needs Flutter and `flutter_webrtc`, so a headless Dart bot cannot join a
+call — and music is the bot people ask for first.
+
+- `@livekit/rtc-node` is a genuine headless client: it publishes and subscribes.
+- Bot authors are, overwhelmingly, the discord.js population.
+- The edge functions are already TypeScript, so wire types are shared rather than mirrored.
+
+**Nothing on the Rift side blocks voice.** `get_channel_token` does not special-case bots — a bot
+gets a `canPublish` token like anyone else — and `voice_roster` reads participants from LiveKit by
+identity and never asks what they are. A bot in a call is a `users` row, so a mod can mute or
+disconnect it with the tools that already exist. The gap was Dart's, not Rift's.
+
+Python comes second, and only because LiveKit Agents is Python-first: an AI that listens and talks
+in a voice channel is a different ecosystem, not a different opinion. Anything after that is a
+community port, and the vectors are what make one trustworthy.
 
 ---
 
@@ -369,6 +479,10 @@ Documented honestly, not to be "fixed":
   tenant-wide, counted as deliveries. On Discord a bot costs the community nothing; here it does.
 - **Central has no bots.** Friend-gated, quota'd, 30-day TTL — that tier is first contact. Bots are
   a self-hosted feature, which matches the funnel/home split.
+- **The bots people actually use want the §6 grant.** The read-everything shape is most of the top
+  of Discord's list, so on a server running one the amber marker is the normal state rather than
+  the exception. That is the honest price of hosting the category at all. The alternative is not a
+  safer Rift; it is no leveling bot, ever, and a community that goes back to Discord for one.
 
 ---
 
@@ -393,7 +507,26 @@ badge. Both are fixed; both have tests.
    verified and is never shown as a person; a command is attributed to one, so it has to be.
 3. ~~Replies: channel message, then ephemeral~~ **done** (migration 016). Panels still planned.
 4. ~~The Dart SDK, extracted from what the first three needed~~ **done** (`bot_sdk/`). Polls rather than subscribing: no reconnect logic to get wrong, and nothing spent from the server-wide event budget. Realtime, voice and DMs are listed in its README as not-yet.
-5. ~~Moderation grants~~ **done** (migration 017). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see.
+5. ~~Moderation grants~~ **done** (migration 017). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see. What is *not* done is anything that calls them — `grant_bot_channel_key` and `revoke_bot_channel_key` appear only in the migration, so today an admin grants by writing SQL.
+
+**Then, in this order.** Private channels come first, and not because bots need them — they are a
+feature in their own right. But the server-wide grant in §6 is *defined* as "not private", and
+building the carve-out before the thing it carves out means writing it once instead of remembering
+to come back.
+
+6. **Private text and voice channels.** `channels.is_private`, membership, and the read policies.
+   One thing to fix on the way: `get_channel_token` checks that a channel belongs to your server
+   but **not that you are a member of it**. Harmless while every channel is public; a hole the
+   moment one is not — for people before bots.
+7. **The wire spec and test vectors** (§11). Small, and it wants to exist before there are two
+   implementations rather than after.
+8. **Panels** (§5). The block schema, the widgets, the button-press row; edit-in-place is already
+   there. This unblocks more of the popular-bot list than any SDK does, which is why it comes
+   before one — and the SDK has to expose panels, so designing its API against a schema that does
+   not exist yet means writing it twice.
+9. **The grant UI** (§6): per-channel and server-wide, the system message, and the bot profile's
+   channel list.
+10. **The TypeScript SDK** — auth, commands, replies, panels, voice.
 
 Games are not on this list. Discord's run in a browser already, Linux desktop has no usable web
 view, and the sandboxing is a project of its own.
