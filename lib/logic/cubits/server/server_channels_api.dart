@@ -158,11 +158,20 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
         : 'Failed to open this channel up',
   );
 
-  /// Who is in [channelId], by user id. Empty for a public channel — and for a
-  /// private one the caller cannot see, which is the same answer on purpose.
-  Future<Set<String>> channelMembers(String channelId) async {
+  /// Who is in [channelId], and whether this device may change that.
+  ///
+  /// Both answers come out of the same rows, which is the reason they are one
+  /// call: `can_manage` is a property of *my* membership, and a private
+  /// channel's manager is somebody inside it rather than whoever holds
+  /// `MANAGE_CHANNELS` on the server — those people cannot see the room at all.
+  ///
+  /// Empty for a public channel, and for a private one the caller cannot see.
+  /// Those are the same answer on purpose.
+  Future<({Set<String> memberIds, bool canManage})> channelMembers(
+    String channelId,
+  ) async {
     final server = state.selectedServer;
-    if (server == null) return const {};
+    if (server == null) return (memberIds: <String>{}, canManage: false);
 
     final response = await _callWithAutoRefresh(
       (token) => _repository.listChannelMembers(
@@ -172,13 +181,22 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
         bearerToken: token,
       ),
     );
-    if (!response.success) return const {};
+    if (!response.success) {
+      return (memberIds: <String>{}, canManage: false);
+    }
 
     final rows =
         (response.data as Map<String, dynamic>)['members'] as List? ?? const [];
-    return {
-      for (final r in rows.cast<Map<String, dynamic>>()) r['user_id'] as String,
-    };
+    final me = server.user?.id;
+    return (
+      memberIds: {
+        for (final r in rows.cast<Map<String, dynamic>>())
+          r['user_id'] as String,
+      },
+      canManage: rows.cast<Map<String, dynamic>>().any(
+        (r) => r['user_id'] == me && r['can_manage'] == true,
+      ),
+    );
   }
 
   /// Runs a channel mutation, then brings everyone's sidebar in line: our own

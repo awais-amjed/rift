@@ -15,6 +15,7 @@ import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
 import '../../channel_settings_dialog.dart';
+import 'channel_privacy_actions.dart';
 import '../../webhooks/channel_webhooks_dialog.dart';
 
 /// Right-click menu for a channel in the sidebar — how loud it is, and, for
@@ -131,7 +132,28 @@ class ChannelContextMenu extends StatelessWidget {
                 .channelLevel(serverId, channel.id),
             onSelected: (level) => _setLevel(context, level),
           ),
+        // Every member of a private channel may read its member list, not just
+        // whoever runs it: knowing who else can read what you are about to say
+        // is the point of the room being private.
+        if (channel.isPrivate) ...[
+          ContextMenuItem(
+            icon: Icons.group_outlined,
+            label: 'Who can see this',
+            onTap: () => openChannelMembers(context, channel),
+          ),
+          ContextMenuItem(
+            icon: Icons.lock_open_rounded,
+            label: 'Open to everyone',
+            onTap: () => openChannelUp(context, channel),
+          ),
+        ],
         if (canManage) ...[
+          if (!channel.isPrivate)
+            ContextMenuItem(
+              icon: Icons.lock_outline_rounded,
+              label: 'Make private',
+              onTap: () => makeChannelPrivate(context, channel),
+            ),
           ContextMenuItem(
             icon: Icons.tune_rounded,
             label: 'Settings',
