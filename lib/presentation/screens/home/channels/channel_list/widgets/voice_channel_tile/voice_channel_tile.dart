@@ -74,6 +74,13 @@ class VoiceChannelTile extends StatelessWidget {
                       channel: channel,
                       child: NavRow(
                         icon: Icons.volume_up_rounded,
+                        // An empty voice channel is a plain row, not the card
+                        // below, so the lock has to be put on twice. Missing
+                        // here is the case you would never notice by reading:
+                        // an empty channel is exactly the one nobody is in.
+                        iconBadge: channel.isPrivate
+                            ? ChannelLockBadge(themeState: themeState)
+                            : null,
                         label: channel.name,
                         onTap: onTap,
                         isSelected: isTargeted,
