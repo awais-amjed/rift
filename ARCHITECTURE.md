@@ -444,6 +444,14 @@ central attachment is only ever freed by the client that deletes its message.
   own, administrators included, or `MANAGE_ROLES` is `ADMINISTRATOR` with extra steps. *Subset*: a
   role may only carry permissions its author holds. Handing out a role is exempt from position for
   an administrator, or the only admin on a server could never make a second.
+- **A client reads its own bits from `my_permissions()`** (021) and names them in
+  `ServerPermission` with the same numbers the migration assigns. Drawing a button somebody may not
+  press is cosmetic — the policy still decides. Drawing *no* button for something they may press is
+  the failure that looks like the feature was never built, which is how the "+" for creating a
+  private channel stayed hidden from everyone it was for.
+- **Still on the three booleans**: the member panel's Server Admin / Channel Manager / Can Invite
+  toggles, and `roles.legacy_key`, which is what lets `set_user_permissions` find the role a
+  boolean became. Both go when nothing asks for a boolean any more.
 
 ### Private channels [Implemented August 2026]
 - **`VIEW_CHANNEL` is not like the other bits.** Every other permission is a rule the database
