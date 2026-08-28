@@ -135,12 +135,14 @@ then this costs a Flutter SDK on the machine running the bot.
 
 ## The wire format
 
-Third-party bots make this a public contract, so it is written down rather than
-implied:
+`../WIRE.md` is the contract, and `../test/wire_vectors.json` is the same
+contract as numbers a second implementation can check itself against. The short
+version:
 
 - messages are signed over `chatmsg:v1:<contextId>:<keyVersion>:<nonce>:<ciphertext>`
 - a bot's messages use `keyVersion` 0 and an empty nonce, and are **signed but
-  not sealed**
+  not sealed** — which leaves two colons together, and a port that drops the
+  empty field produces a signature nothing verifies
 - clients drop what they cannot verify, so an unsigned reply is an invisible one
 
 `Bot.reply` does all of that. Reach past it only if you mean to.

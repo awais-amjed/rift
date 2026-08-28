@@ -519,8 +519,13 @@ to come back.
    *who may add members*, and building those against three booleans would have been doing the work
    twice. `get_channel_token` now checks membership, which it never did — harmless while every
    channel was public, a hole the moment one is not. The app has no UI for any of it yet.
-7. **The wire spec and test vectors** (§11). Small, and it wants to exist before there are two
-   implementations rather than after.
+7. ~~The wire spec and test vectors~~ **done** — `WIRE.md`, `test/wire_vectors.json` and
+   `test/wire_test.dart`. The vectors were generated from the Dart implementation, so they catch
+   *drift*, not original error: they cannot say the format was right the day it was written, only
+   that it has not moved and that a second implementation agrees with the first — which is the
+   failure that actually happens. Red-checked by changing the payload separator and the identity
+   scope string; each is caught, and by nothing else in the suite, because everything else signs
+   and verifies with the same changed code and agrees with itself.
 8. **Panels** (§5). The block schema, the widgets, the button-press row; edit-in-place is already
    there. This unblocks more of the popular-bot list than any SDK does, which is why it comes
    before one — and the SDK has to expose panels, so designing its API against a schema that does
