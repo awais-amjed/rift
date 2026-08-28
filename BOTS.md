@@ -540,14 +540,23 @@ to come back.
    silently kept showing the state it had when the channel was opened. And the press rendered as a
    message to the person who pressed it: the policy hid it from everybody else, and "everybody
    else" was the wrong set.
-9. ~~The grant UI~~ **done** (migration 028). "Bots reading this" on a text channel's menu, a
+9. ~~The grant UI~~ **done** (migrations 028, 030). "Bots reading this" on a text channel's menu, a
    confirm that says what a key costs before it is handed over, and the system message rule 4 asked
    for — which needed a `messages.is_system` column, because a system message and a webhook's are
    the same shape and badging one WEBHOOK says an integration somebody installed is involved when
    nothing outside the server is. The grant also moved from `app.is_admin()` to `MANAGE_BOTS`, and
    from "is this channel on my server" to `app.can_see_channel` — an administrator standing outside
-   a private channel was able to key a bot into it. Still to do: the server-wide grant with the
-   `is_private` carve-out, and the bot profile's channel list.
+   a private channel was able to key a bot into it.
+
+   The server-wide grant landed in 030 with the `is_private` carve-out intact, and one thing the
+   design had not anticipated: the downgrade cannot be a trigger on `bot_channel_keys`. Every
+   deletion of that row looks the same to a trigger, and only one of them is somebody deciding — so
+   closing a channel, which drops the bot's row for it, would have cancelled the grant on all the
+   others. It lives in `revoke_bot_channel_key` instead. Red-checked by putting the trigger back.
+
+   The bot's own page answers "what does this thing see?" in one place: the server-wide toggle and
+   every channel it holds a key to. Before it, that was discoverable a channel at a time, which is
+   not an answer somebody can act on.
 10. ~~The TypeScript SDK~~ **done** (`bot_sdk_ts/`) — auth, commands, replies and panels. No build
     step and no dependencies: Node runs TypeScript by stripping types, and the four primitives a
     bot needs are all in `node:crypto`. It proves itself against `test/wire_vectors.json`, the same

@@ -51,6 +51,64 @@ mixin _ServerBotsApiMixin on Cubit<ServerState> {
     return (success: true, error: null);
   }
 
+  /// Hand a bot every public channel, or take it all back.
+  Future<({bool success, String? error})> setBotServerKey({
+    required String botId,
+    required bool granted,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) return (success: false, error: 'No server');
+
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.setBotServerKey(
+        server.supabaseUrl,
+        anonKey: _anonKey,
+        bearerToken: token,
+        botId: botId,
+        granted: granted,
+      ),
+    );
+    if (!response.success) {
+      return (success: false, error: response.error ?? 'Could not do that');
+    }
+    final reason = (response.data as Map<String, dynamic>?)?['reason'];
+    if (reason != 'ok') {
+      return (success: false, error: _grantFailure(reason as String?));
+    }
+    return (success: true, error: null);
+  }
+
+  /// What one bot can read: the channels, and whether it is server-wide.
+  Future<({Set<String> channelIds, bool serverWide})> botChannels(
+    String botId,
+  ) async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (channelIds: <String>{}, serverWide: false);
+    }
+
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.listBotChannels(
+        server.supabaseUrl,
+        anonKey: _anonKey,
+        bearerToken: token,
+        botId: botId,
+      ),
+    );
+    if (!response.success) {
+      return (channelIds: <String>{}, serverWide: false);
+    }
+
+    final data = response.data as Map<String, dynamic>;
+    return (
+      channelIds: {
+        for (final id in (data['channel_ids'] as List? ?? const []))
+          id as String,
+      },
+      serverWide: data['server_wide'] == true,
+    );
+  }
+
   static String _grantFailure(String? reason) => switch (reason) {
     'forbidden' => 'You cannot give bots access to channels here',
     'no_such_channel' => 'That channel is gone, or is not one you are in',

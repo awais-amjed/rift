@@ -7,6 +7,7 @@ import '../../../../common/confirm_dialog.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../roles/member_roles_dialog.dart';
 import 'member_moderation_row.dart';
+import '../../channels/bots/bot_access_dialog.dart';
 
 /// Expanded management controls under a member row: permission toggles
 /// (server admins only), mute/deafen moderation buttons (admins and channel
@@ -55,6 +56,16 @@ class MemberManagePanel extends StatelessWidget {
     if (confirmed) onModerate(banned: true);
   }
 
+  void _openBotAccess(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => BlocProvider.value(
+        value: context.read<ServerCubit>(),
+        child: BotAccessDialog(bot: member),
+      ),
+    );
+  }
+
   void _openRoles(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -78,43 +89,28 @@ class MemberManagePanel extends StatelessWidget {
           ),
           child: Column(
             children: [
+              // A bot's roles are beside the point — what it can *read* is the
+              // only grant anybody worries about, and it is the one that
+              // cannot be taken back.
+              if (member.isBot)
+                _PanelRow(
+                  themeState: themeState,
+                  icon: Icons.hearing_rounded,
+                  label: 'What it can read',
+                  onTap: isBusy ? null : () => _openBotAccess(context),
+                ),
               // The one way in. There used to be three toggles above this for
               // admin, channel manager and invites — the three the old model
               // had — and they wrote roles underneath, so they agreed with
               // this. Two controls for one fact is one of them going stale the
               // first time somebody edits a role.
-              if (canManagePermissions) ...[
-                InkWell(
+              if (canManagePermissions && !member.isBot)
+                _PanelRow(
+                  themeState: themeState,
+                  icon: Icons.shield_outlined,
+                  label: 'Roles',
                   onTap: isBusy ? null : () => _openRoles(context),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 11,
-                    ),
-                    child: Row(
-                      spacing: 9,
-                      children: [
-                        Icon(
-                          Icons.shield_outlined,
-                          size: 16,
-                          color: themeState.textTertiary,
-                        ),
-                        Expanded(
-                          child: Text(
-                            'Roles',
-                            style: TextStyle(color: themeState.textPrimary),
-                          ),
-                        ),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 16,
-                          color: themeState.textTertiary,
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
-              ],
               MemberModerationRow(
                 member: member,
                 themeState: themeState,
@@ -129,6 +125,54 @@ class MemberManagePanel extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// One tappable line in the panel — the two things it opens rather than
+/// toggles.
+class _PanelRow extends StatelessWidget {
+  final ThemeState themeState;
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _PanelRow({
+    required this.themeState,
+    required this.icon,
+    required this.label,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Divider(height: 1, color: themeState.borderPrimary),
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            child: Row(
+              spacing: 9,
+              children: [
+                Icon(icon, size: 16, color: themeState.textTertiary),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(color: themeState.textPrimary),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: themeState.textTertiary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

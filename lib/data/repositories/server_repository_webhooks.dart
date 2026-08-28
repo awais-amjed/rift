@@ -89,6 +89,59 @@ mixin _WebhookApiMixin {
     });
   }
 
+  /// Hand a bot the key to every public channel, or take it all back.
+  ///
+  /// One RPC rather than a loop of per-channel calls, and not for speed: the
+  /// grant is *standing*, so a channel created next week is covered too. A
+  /// client looping over today's channels would produce a bot that silently
+  /// stops working in tomorrow's (migration 030).
+  Future<APIResponse> setBotServerKey(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String botId,
+    required bool granted,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc(
+        granted ? 'grant_bot_server_key' : 'revoke_bot_server_key',
+        params: {'p_bot': botId},
+      );
+    });
+  }
+
+  /// Every channel this bot can read, and whether the grant is server-wide.
+  ///
+  /// The answer to "what does this thing see?", in one place. Before this it
+  /// was discoverable a channel at a time, which is not an answer somebody can
+  /// act on (BOTS.md §6).
+  Future<APIResponse> listBotChannels(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String botId,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final rows = await db
+          .from('bot_channel_keys')
+          .select('channel_id')
+          .eq('bot_id', botId);
+      final serverWide = await db
+          .from('bot_server_grants')
+          .select('bot_id')
+          .eq('bot_id', botId);
+      return {
+        'channel_ids': [
+          for (final r in (rows as List).cast<Map<String, dynamic>>())
+            r['channel_id'] as String,
+        ],
+        'server_wide': (serverWide as List).isNotEmpty,
+      };
+    });
+  }
+
   /// Hand a bot the key to one channel, or take it back.
   ///
   /// RPCs, and they have to be. A grant decides which key version the bot
