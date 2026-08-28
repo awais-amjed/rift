@@ -423,10 +423,54 @@ central attachment is only ever freed by the client that deletes its message.
 - Each channel has a random symmetric **channel key**; every message encrypted once with it.
 - The server stores a **keyring**: the channel key encrypted separately for each member's public
   key. The server can't read any entry.
-- **Join**: an existing member's client wraps the key for the newcomer → full history readable
-  (decision: wrap **all** historical key versions — full scrollback, Discord expectation).
+- **Join**: an existing member's client wraps the key for the newcomer. `get_channel_key` returns
+  **every version sealed to you**, so scrollback reaches back as far as your oldest entry.
+- **What that means in practice**: healing only ever seals the **current** version —
+  `members_missing` is computed at `current_version` and clients wrap that one. So a newcomer reads
+  everything in a channel that has never rotated, and nothing from before the last rotation in one
+  that has. "Full scrollback" is the common case, not a guarantee, and the difference is what makes
+  a private channel safe to open up (below).
 - **Kick/ban**: rotate to a new channel key version for subsequent messages.
 - **Seed-loss recovery**: re-invite + re-wrap restores history access without touching messages.
+
+### Roles and permissions [Implemented August 2026]
+- 22 named permission bits (`app.perm('BAN_MEMBERS')`), a `roles` table carrying a bitfield, and
+  `member_roles`. `@everyone` is implicit — folded into `app.permissions()` rather than assigned —
+  so there is only ever one answer to "what can everybody do".
+- `users.is_server_admin`, `is_channel_manager` and `can_create_tokens` still exist and are still
+  what every policy reads. Nothing writes them: a trigger keeps them equal to three bits. That is
+  what let roles land without touching a single caller.
+- **Delegation is two rules, not one.** *Position*: you may only touch a role ranked below your
+  own, administrators included, or `MANAGE_ROLES` is `ADMINISTRATOR` with extra steps. *Subset*: a
+  role may only carry permissions its author holds. Handing out a role is exempt from position for
+  an administrator, or the only admin on a server could never make a second.
+
+### Private channels [Implemented August 2026]
+- **`VIEW_CHANNEL` is not like the other bits.** Every other permission is a rule the database
+  applies to a request; this one is a key that was sealed to somebody. A rule can be changed and
+  the next request obeys it. A sealed key can only be rotated past.
+- So visibility resolves to **a list of people** (`channel_members`, plus `channel_role_access`
+  read through to its holders) before anything is encrypted, and the keyring refuses a row for
+  anyone outside it. Everything else about a channel — send, react, connect, speak — stays an
+  ordinary rule.
+- **No admin override, deliberately.** An admin holds no key either way, so a policy back door
+  would be a promise the crypto cannot keep. An admin does not see a private channel, its messages,
+  its keyring, or its membership.
+- **Public → private** rotates, because the excluded are sealed into the current version. They keep
+  what they already read; nobody can take that back.
+- **Private → public** needs `channels.rotate_from_key_version`. Healing seals the *current*
+  version, and the current version is the one the private conversation was written under — so the
+  sweep must rotate past the mark before anyone new is sealed in. Both markers are self-clearing:
+  they are compared against the version that passing them produces.
+- **Revocation is a rotation, and a rotation needs somebody online.** In practice the person doing
+  the removing is a member holding the current key, so it happens there and then. The exception is
+  an admin banning somebody from a private channel the admin is not in: no key, so it waits for a
+  member's client to sweep.
+- Four things ask "who may read this" from outside the database — the key sweep,
+  `get_channel_key`, `voice_roster` and `get_channel_token` — and all four run as the service role,
+  with RLS off. They read `channel_eligible_members`, which is the same answer the policies give.
+- A private channel tidies itself, since nobody else can see it to do so: the manage bit moves to
+  whoever has been there longest, and the last person out takes the room with them.
 
 ### Three things a client can do with a row [Implemented August 2026]
 

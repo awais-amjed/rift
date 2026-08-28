@@ -514,10 +514,11 @@ feature in their own right. But the server-wide grant in §6 is *defined* as "no
 building the carve-out before the thing it carves out means writing it once instead of remembering
 to come back.
 
-6. **Private text and voice channels.** `channels.is_private`, membership, and the read policies.
-   One thing to fix on the way: `get_channel_token` checks that a channel belongs to your server
-   but **not that you are a member of it**. Harmless while every channel is public; a hole the
-   moment one is not — for people before bots.
+6. ~~Private text and voice channels~~ **server side done** (migrations 018, 020, 021). Granular
+   permissions came with them rather than after: private channels need *who may create one* and
+   *who may add members*, and building those against three booleans would have been doing the work
+   twice. `get_channel_token` now checks membership, which it never did — harmless while every
+   channel was public, a hole the moment one is not. The app has no UI for any of it yet.
 7. **The wire spec and test vectors** (§11). Small, and it wants to exist before there are two
    implementations rather than after.
 8. **Panels** (§5). The block schema, the widgets, the button-press row; edit-in-place is already
