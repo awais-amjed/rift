@@ -7,6 +7,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
+import '../../../data/classes/role.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';
@@ -30,6 +31,7 @@ part 'server_crud.dart';
 part 'server_selection.dart';
 part 'server_api.dart';
 part 'server_members_api.dart';
+part 'server_roles_api.dart';
 part 'server_channels_api.dart';
 part 'server_private_channels_api.dart';
 part 'server_chat_api.dart';
@@ -43,6 +45,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerSelectionMixin,
         _ServerApiMixin,
         _ServerMembersApiMixin,
+        _ServerRolesApiMixin,
         _ServerChannelsApiMixin,
         _ServerPrivateChannelsApiMixin,
         _ServerChatApiMixin,

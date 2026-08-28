@@ -17,6 +17,7 @@ part 'server_repository_chat.dart';
 part 'server_repository_chat_reads.dart';
 part 'server_repository_push.dart';
 part 'server_repository_reactions.dart';
+part 'server_repository_roles.dart';
 part 'server_repository_webhooks.dart';
 
 /// All I/O against a self-hosted server.
@@ -45,6 +46,7 @@ class ServerRepository
         _ChatReadApiMixin,
         _PushApiMixin,
         _ReactionApiMixin,
+        _RoleApiMixin,
         _WebhookApiMixin {
   @override
   final ServerDb _db = ServerDb();

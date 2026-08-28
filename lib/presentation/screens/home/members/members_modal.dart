@@ -10,6 +10,7 @@ import '../../../theme/custom_colors.dart';
 import 'widgets/members_list.dart';
 import 'widgets/members_modal_header.dart';
 import '../../../theme/app_text.dart';
+import '../roles/roles_dialog.dart';
 
 /// Members dialog — lists everyone on [server] with their permissions and
 /// moderation state. Server admins manage permissions here (Discord-style:
@@ -123,6 +124,18 @@ class _MembersModalState extends State<MembersModal> {
     });
   }
 
+  /// The roles list, on top of this one rather than replacing it — you come
+  /// here to look at a person, and the roles are what explains them.
+  void _openRoles(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => BlocProvider.value(
+        value: context.read<ServerCubit>(),
+        child: const RolesDialog(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
@@ -157,6 +170,7 @@ class _MembersModalState extends State<MembersModal> {
                   count: _members?.length,
                   serverName: widget.server.name,
                   themeState: themeState,
+                  onOpenRoles: () => _openRoles(context),
                 ),
                 Divider(height: 1, color: themeState.borderPrimary),
 

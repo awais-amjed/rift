@@ -6,7 +6,9 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/permission_toggle.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/server_role.dart';
-import 'moderation_button.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../roles/member_roles_dialog.dart';
+import 'member_moderation_row.dart';
 
 /// Expanded management controls under a member row: permission toggles
 /// (server admins only), mute/deafen moderation buttons (admins and channel
@@ -75,6 +77,16 @@ class MemberManagePanel extends StatelessWidget {
     }
   }
 
+  void _openRoles(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => BlocProvider.value(
+        value: context.read<ServerCubit>(),
+        child: MemberRolesDialog(member: member),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
@@ -99,74 +111,53 @@ class MemberManagePanel extends StatelessWidget {
                     themeState: themeState,
                     isFirst: role == ServerRole.values.first,
                   ),
-              if (canModerate) ...[
-                if (canManagePermissions)
-                  Divider(height: 1, color: themeState.borderPrimary),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ModerationButton(
-                          icon: member.isMuted ? Icons.mic : Icons.mic_off,
-                          label: member.isMuted ? 'Unmute' : 'Server Mute',
-                          isActive: member.isMuted,
-                          themeState: themeState,
-                          onTap: isBusy
-                              ? null
-                              : () => onModerate(muted: !member.isMuted),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: ModerationButton(
-                          icon: member.isDeafened
-                              ? Icons.headset
-                              : Icons.headset_off,
-                          label: member.isDeafened
-                              ? 'Undeafen'
-                              : 'Server Deafen',
-                          isActive: member.isDeafened,
-                          themeState: themeState,
-                          onTap: isBusy
-                              ? null
-                              : () => onModerate(deafened: !member.isDeafened),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              // Admin-only, matching `moderate_user`'s own `app.is_admin()`,
-              // and never against another admin, which it also refuses —
-              // removing that standing is a permission change, and the
-              // toggles above are where that happens.
-              //
-              // The mute/deafen row above is offered more widely than the RPC
-              // actually allows; that mismatch predates this and is tracked in
-              // TODO.md rather than widened here.
-              if (canManagePermissions &&
-                  !member.permissions.isServerAdmin) ...[
+              // The three toggles above are the old shape of this, kept
+              // because they are the three most servers ever use. Anything
+              // else — a custom role, one of the other nineteen permissions —
+              // is behind this, which is where roles actually live now.
+              if (canManagePermissions) ...[
                 Divider(height: 1, color: themeState.borderPrimary),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  child: ModerationButton(
-                    icon: member.isBanned
-                        ? Icons.lock_open_rounded
-                        : Icons.gavel_rounded,
-                    label: member.isBanned ? 'Lift ban' : 'Ban from server',
-                    isActive: member.isBanned,
-                    themeState: themeState,
-                    onTap: isBusy ? null : () => _toggleBan(context),
+                InkWell(
+                  onTap: isBusy ? null : () => _openRoles(context),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 11,
+                    ),
+                    child: Row(
+                      spacing: 9,
+                      children: [
+                        Icon(
+                          Icons.shield_outlined,
+                          size: 16,
+                          color: themeState.textTertiary,
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Roles',
+                            style: TextStyle(color: themeState.textPrimary),
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: themeState.textTertiary,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
+              MemberModerationRow(
+                member: member,
+                themeState: themeState,
+                isBusy: isBusy,
+                canModerate: canModerate,
+                canBan: canManagePermissions,
+                dividerAbove: canManagePermissions,
+                onModerate: onModerate,
+                onToggleBan: () => _toggleBan(context),
+              ),
             ],
           ),
         );

@@ -1,0 +1,100 @@
+import 'package:flutter/material.dart';
+
+import '../../../../../data/classes/role.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
+
+/// One role in the list, with the dot that shows what colour it paints a name.
+///
+/// The rank is shown, not just implied by the order. Position is the whole of
+/// the delegation rule — you may only touch a role below your own — so a list
+/// that only sorted by it would leave somebody guessing why the row they want
+/// is refused.
+class RoleRow extends StatelessWidget {
+  final ThemeState themeState;
+  final Role role;
+
+  /// Null where the count is not the point — one member's own role list, where
+  /// "Nobody yet" beside a role they are about to be given is both wrong and
+  /// answering a question nobody asked.
+  final int? memberCount;
+  final bool locked;
+  final VoidCallback? onTap;
+
+  const RoleRow({
+    super.key,
+    required this.themeState,
+    required this.role,
+    this.memberCount,
+    this.locked = false,
+    this.onTap,
+  });
+
+  String? get _subtitle {
+    if (role.isEveryone) return 'Everybody, always';
+    return switch (memberCount) {
+      null => null,
+      0 => 'Nobody yet',
+      1 => '1 member',
+      _ => '$memberCount members',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          spacing: 10,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: role.displayColor ?? themeState.textTertiary,
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    role.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.row.copyWith(color: themeState.textPrimary),
+                  ),
+                  if (_subtitle case final subtitle?) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: AppText.secondary.copyWith(
+                        color: themeState.textTertiary,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Says which rows are out of reach before they are tapped, rather
+            // than letting the database say it afterwards.
+            if (locked)
+              Icon(
+                Icons.lock_rounded,
+                size: 13,
+                color: themeState.textTertiary,
+              ),
+            Text(
+              'rank ${role.position}',
+              style: AppText.meta.copyWith(color: themeState.textTertiary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

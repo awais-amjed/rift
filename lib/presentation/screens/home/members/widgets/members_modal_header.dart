@@ -21,11 +21,18 @@ class MembersModalHeader extends StatelessWidget {
 
   final ThemeState themeState;
 
+  /// Opens the roles list. Here rather than in server settings because a role
+  /// is a thing people hold, and this is the screen about people — and because
+  /// the question it answers, "why can they do that", is asked while looking at
+  /// somebody.
+  final VoidCallback? onOpenRoles;
+
   const MembersModalHeader({
     super.key,
     required this.count,
     required this.serverName,
     required this.themeState,
+    this.onOpenRoles,
   });
 
   @override
@@ -67,6 +74,16 @@ class MembersModalHeader extends StatelessWidget {
               ],
             ),
           ),
+          if (onOpenRoles != null)
+            IconButton(
+              onPressed: onOpenRoles,
+              tooltip: 'Roles',
+              icon: Icon(
+                Icons.shield_outlined,
+                size: 18,
+                color: themeState.textTertiary,
+              ),
+            ),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
             icon: Icon(Icons.close, size: 18, color: themeState.textTertiary),
