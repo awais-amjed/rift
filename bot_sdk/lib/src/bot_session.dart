@@ -98,6 +98,21 @@ class BotSession {
     return (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
   }
 
+  /// An insert that hands the row back — needed only where the bot has to
+  /// keep the id, which is panels and nothing else so far.
+  Future<List<Map<String, dynamic>>> insertReturning(
+    String table,
+    Map<String, dynamic> row,
+  ) async {
+    final res = await http.post(
+      Uri.parse('$url/rest/v1/$table'),
+      headers: {..._headers, 'Prefer': 'return=representation'},
+      body: jsonEncode(row),
+    );
+    _throwIfFailed(res);
+    return (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
+  }
+
   Future<void> insert(String table, Map<String, dynamic> row) async {
     final res = await http.post(
       Uri.parse('$url/rest/v1/$table'),
@@ -107,7 +122,14 @@ class BotSession {
     _throwIfFailed(res);
   }
 
-  /// Tell anyone with [channelId] open that something arrived.
+  /// Tell anyone with [channelId] open that something happened.
+  ///
+  /// `new_message` makes a client fetch what is newer than it has; a panel
+  /// being redrawn is not newer than anything, so an edit rings
+  /// `message_changed` with the row's id instead and the client re-reads that
+  /// one. Ringing the wrong one leaves the panel showing the state it had when
+  /// the channel was opened — which for the one feature whose entire point is
+  /// changing in place is the failure that looks most like it working.
   ///
   /// The app's clients ring this for their own sends, and the `webhook` edge
   /// function rings it for a webhook's. A bot inserting straight into
@@ -118,18 +140,18 @@ class BotSession {
   /// stored, every client re-reads on open, and the unread badge comes from
   /// the row. A bot that threw because a doorbell did not ring would be
   /// retried by its own error handling and answer twice.
-  Future<void> ringDoorbell(String channelId) async {
+  Future<void> ringDoorbell(
+    String channelId, {
+    String event = 'new_message',
+    Map<String, dynamic> payload = const {},
+  }) async {
     try {
       await http.post(
         Uri.parse('$url/realtime/v1/api/broadcast'),
         headers: _headers,
         body: jsonEncode({
           'messages': [
-            {
-              'topic': 'chat:$channelId',
-              'event': 'new_message',
-              'payload': <String, dynamic>{},
-            },
+            {'topic': 'chat:$channelId', 'event': event, 'payload': payload},
           ],
         }),
       );

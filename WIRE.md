@@ -121,6 +121,41 @@ you which site is asking — Rift has no wallet. The key is derived per
 vary per login, which is why this one has no vector — what is frozen is the
 template, and `wire_vectors.json` pins the address encoding it embeds.
 
+## 5. Panels
+
+`messages.blocks` holds `{"v":1,"blocks":[…]}`. Each block is an object with a
+`type`, and **anything not in this list is not drawn** — that is the safety
+property, not a limitation of the first version. A bot never controls a pixel,
+only a structure.
+
+| `type` | Fields | Draws |
+|---|---|---|
+| `heading` | `text` | a title line |
+| `text` | `text` | a paragraph |
+| `fields` | `items: [{label, value}]` | key/value rows |
+| `progress` | `value` (0–1, clamped), `text` | a bar with a caption |
+| `divider` | — | a rule |
+| `actions` | `items: [{label, action, style?}]` | a row of buttons |
+| `select` | `action`, `text?`, `options: [{label, value?}]` | a menu |
+
+`style` is `primary`, `danger`, or absent. It is a **weight, not a colour** —
+a bot cannot paint a button into looking like part of Rift's own chrome.
+
+A button with no `label` or no `action` is dropped rather than half-drawn, and
+a block with nothing in it is dropped too: an empty row reads as a bug.
+
+Pressing one writes a row addressed to the bot with `is_interaction` true,
+`reply_to` naming the panel, `action_id` the button's own id and `action_value`
+a menu option's value. It is signed like a command, because it is attributed —
+the bot is told who pressed. It is **not a message**: no view renders it, no
+phone rings for it, and it does not count as unread.
+
+The bot redraws by writing `blocks` again on the same row and ringing
+`message_changed` with its id. Ringing `new_message` makes clients fetch what is
+*newer* than they have, and a redraw is not newer than anything.
+
+`image` is deliberately absent from v1 — see BOTS.md §13 item 8.
+
 ---
 
 ## Out of scope

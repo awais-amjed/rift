@@ -139,6 +139,28 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     ),
   );
 
+  /// Press something on a bot's panel.
+  Future<APIResponse> sendPanelAction({
+    required String channelId,
+    required Map<String, dynamic> envelope,
+    required String toBot,
+    required int replyTo,
+    required String actionId,
+    String? actionValue,
+  }) => _callWithAutoRefresh(
+    (token) => _repository.sendPanelAction(
+      state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
+      channelId: channelId,
+      envelope: envelope,
+      toBot: toBot,
+      replyTo: replyTo,
+      actionId: actionId,
+      actionValue: actionValue,
+      bearerToken: token,
+    ),
+  );
+
   /// Replace one channel message's envelope (sender only).
   Future<APIResponse> editChatMessage({
     required String channelId,

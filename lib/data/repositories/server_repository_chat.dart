@@ -78,6 +78,41 @@ mixin _ChatApiMixin {
     });
   }
 
+  /// Press something on a bot's panel (migration 029).
+  ///
+  /// Not a message, and marked as one that isn't: `is_interaction` keeps the
+  /// row out of every view except the presser's own and the bot's, wakes
+  /// nobody's phone, and does not count as unread. Pressing skip forty times
+  /// leaves the channel looking exactly as it did — which is the whole reason
+  /// a panel exists rather than a line of chat per press.
+  ///
+  /// Signed like a command, because it is attributed: the bot is told who
+  /// pressed, and an unverifiable press is one anybody could have sent.
+  Future<APIResponse> sendPanelAction(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String channelId,
+    required Map<String, dynamic> envelope,
+    required String toBot,
+    required int replyTo,
+    required String actionId,
+    String? actionValue,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.from('messages').insert({
+        'channel_id': channelId,
+        ...envelope,
+        'to_bot': toBot,
+        'reply_to': replyTo,
+        'is_interaction': true,
+        'action_id': actionId,
+        'action_value': ?actionValue,
+      });
+    });
+  }
+
   /// Replace one channel message's envelope in place (sender only).
   Future<APIResponse> editMessage(
     String supabaseUrl, {

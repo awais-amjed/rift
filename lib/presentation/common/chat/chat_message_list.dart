@@ -37,6 +37,10 @@ class ChatMessageList extends StatefulWidget {
   /// Hard-delete a message. Null disables deletion on this surface.
   final void Function(String messageId)? onDelete;
 
+  /// Somebody pressed something on a bot's panel.
+  final void Function(String messageId, String action, String? value)?
+  onPanelAction;
+
   /// Whether the local user may delete other people's messages here
   /// (channel manager / server admin). Always false in DMs.
   final bool isModerator;
@@ -64,6 +68,7 @@ class ChatMessageList extends StatefulWidget {
     this.onToggleReaction,
     this.onEdit,
     this.onDelete,
+    this.onPanelAction,
     this.isModerator = false,
     this.mentionable = const {},
   });
@@ -213,6 +218,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               onToggleReaction: widget.onToggleReaction,
               onEdit: widget.onEdit,
               onDelete: widget.onDelete,
+              onPanelAction: widget.onPanelAction,
               isModerator: widget.isModerator,
               mentionable: widget.mentionable,
               animateIn: _animating.contains(msg.id),

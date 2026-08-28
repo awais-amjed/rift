@@ -4,11 +4,22 @@ import 'package:rift/data/classes/message_envelope.dart';
 
 import 'bot_session.dart';
 
-/// One command, as the bot receives it.
+/// One command or one press, as the bot receives it.
 class BotMessage {
   final int id;
   final String channelId;
   final String senderId;
+
+  /// Set when this is a **press on a panel**, not a typed command: the
+  /// button's own `action` id. [text] carries it too, so a bot that ignores
+  /// panels entirely still sees something it can switch on.
+  final String? actionId;
+
+  /// The chosen option's value, for a menu. Null for a button.
+  final String? actionValue;
+
+  /// The panel that was pressed, for editing it back.
+  final int? panelId;
 
   /// The whole line the member typed, slash included. The SDK does not split
   /// arguments, because only the bot knows what its arguments mean.
@@ -19,7 +30,13 @@ class BotMessage {
     required this.channelId,
     required this.senderId,
     required this.text,
+    this.actionId,
+    this.actionValue,
+    this.panelId,
   });
+
+  /// Whether somebody pressed something rather than typed something.
+  bool get isAction => actionId != null;
 
   /// The verb, lower-cased and without the slash — `/Play a song` → `play`.
   String get command {
@@ -80,7 +97,8 @@ class Bot {
   Future<void> _drain(FutureOr<void> Function(BotMessage) onCommand) async {
     try {
       final rows = await session.select(
-        'messages?select=id,channel_id,sender_id,ciphertext'
+        'messages?select=id,channel_id,sender_id,ciphertext,'
+        'action_id,action_value,reply_to'
         '&to_bot=eq.${session.userId}&id=gt.$_lastSeen&order=id.asc',
       );
       for (final row in rows) {
@@ -91,6 +109,9 @@ class Bot {
             channelId: row['channel_id'] as String,
             senderId: row['sender_id'] as String,
             text: row['ciphertext'] as String? ?? '',
+            actionId: row['action_id'] as String?,
+            actionValue: row['action_value'] as String?,
+            panelId: row['reply_to'] as int?,
           ),
         );
       }
@@ -126,6 +147,56 @@ class Bot {
   /// agreeing to hide it.
   Future<void> replyPrivately(BotMessage to, String text) =>
       _post(to, text, ephemeralFor: to.senderId);
+
+  /// Post a panel — a message the bot keeps editing (BOTS.md §5).
+  ///
+  /// Returns its id, which is what [editPanel] needs. Hold on to it: a queue
+  /// that posts a new panel per track is the log a panel exists to replace.
+  ///
+  /// [blocks] is the fixed vocabulary in `WIRE.md`. A block this client's
+  /// version does not know is dropped rather than drawn, so a bot can send a
+  /// newer one and lose only that block.
+  Future<int?> panel(
+    String channelId,
+    List<Map<String, dynamic>> blocks,
+  ) async {
+    final identity = await session.identity();
+    // Signed over the empty body, not over the blocks. The signature attests
+    // *who wrote the row*; the panel is structure the client validates itself,
+    // and signing a JSON encoding would make the format part of the signature.
+    final envelope = await session.crypto.signPlaintext(
+      plaintext: '',
+      signingKeyPair: identity.keyPair,
+      contextId: channelId,
+    );
+    final rows = await session.insertReturning('messages', {
+      'channel_id': channelId,
+      ...envelope.toJson(),
+      'blocks': {'v': 1, 'blocks': blocks},
+    });
+    await session.ringDoorbell(channelId);
+    return rows.isEmpty ? null : rows.first['id'] as int?;
+  }
+
+  /// Redraw a panel in place.
+  ///
+  /// The whole point: a queue that changes is one row that changes, not forty
+  /// rows saying what it changed to. Only the bot that posted it may — that is
+  /// `messages_update_own`, not this method being careful.
+  Future<void> editPanel(
+    String channelId,
+    int panelId,
+    List<Map<String, dynamic>> blocks,
+  ) async {
+    await session.patch('messages?id=eq.$panelId', {
+      'blocks': {'v': 1, 'blocks': blocks},
+    });
+    await session.ringDoorbell(
+      channelId,
+      event: 'message_changed',
+      payload: {'message_id': '$panelId'},
+    );
+  }
 
   /// Signed but not sealed, which is the whole shape of a bot's message.
   ///

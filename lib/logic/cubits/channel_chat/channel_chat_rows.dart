@@ -150,6 +150,12 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
     String channelId,
     String? localUserId,
   ) async {
+    // A press is not a message, including for the person who pressed. The
+    // policy already keeps it from everybody else (migration 029); this is the
+    // half that keeps the presser's own view from filling with the log a panel
+    // exists to replace.
+    if (row['is_interaction'] == true) return null;
+
     final originName = row['origin_name'] as String?;
     if (originName != null) {
       return ChatMessage(
@@ -199,6 +205,10 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       reactions: ReactionOps.fromRow(row),
       isEncrypted: false,
       isEphemeral: row['ephemeral_for'] != null,
+      // A bot's panel. Parsed after the signature check like everything else
+      // on this row: an interface drawn from an envelope nobody could verify
+      // is an interface anybody could have sent.
+      panel: Panel.tryParse(row['blocks']),
     );
   }
 }

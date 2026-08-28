@@ -1,6 +1,7 @@
 import '../enums/message_origin.dart';
 import 'attachment.dart';
 import 'message_reaction.dart';
+import 'panel_block.dart';
 
 /// One chat message as the cubits hold it and the chat UI kit renders it.
 ///
@@ -82,6 +83,13 @@ class ChatMessage {
   /// person sent.
   final MessageOrigin origin;
 
+  /// A bot's panel, or null for every message that is not one (migration 029).
+  ///
+  /// When it is set, it *replaces* the body rather than sitting beside it: a
+  /// panel's text lives in its blocks, and rendering `text` as well would show
+  /// whatever the bot happened to put in the column twice or not at all.
+  final Panel? panel;
+
   /// Whether the body was sealed on the way here.
   ///
   /// Kept separate from [origin] rather than derived from it. They agree today
@@ -124,6 +132,7 @@ class ChatMessage {
     this.sentAsId,
     this.editedAt,
     this.origin = MessageOrigin.member,
+    this.panel,
     this.isEncrypted = true,
     this.isLocked = false,
     this.isEphemeral = false,
@@ -148,6 +157,7 @@ class ChatMessage {
     sentAsId: sentAsId ?? this.sentAsId,
     editedAt: editedAt ?? this.editedAt,
     origin: origin,
+    panel: panel,
     isEncrypted: isEncrypted,
     isLocked: isLocked,
     isEphemeral: isEphemeral,

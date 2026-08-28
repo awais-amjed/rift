@@ -526,10 +526,20 @@ to come back.
    failure that actually happens. Red-checked by changing the payload separator and the identity
    scope string; each is caught, and by nothing else in the suite, because everything else signs
    and verifies with the same changed code and agrees with itself.
-8. **Panels** (§5). The block schema, the widgets, the button-press row; edit-in-place is already
-   there. This unblocks more of the popular-bot list than any SDK does, which is why it comes
-   before one — and the SDK has to expose panels, so designing its API against a schema that does
-   not exist yet means writing it twice.
+8. ~~Panels~~ **done** (migration 029). Seven block types, `Bot.panel` / `Bot.editPanel`, and a
+   press that is deliberately *not* a message: `is_interaction` keeps the row out of every view but
+   the presser's and the bot's, wakes nobody's phone, and does not count as unread — so pressing
+   skip forty times leaves the channel looking exactly as it did.
+
+   `image` is not in v1, and that is a decision rather than an omission: a URL a bot chose makes
+   every member's client fetch from it, which hands a third party the IP of everybody in the room
+   and a per-member read receipt. It comes back pointing at this server's own attachment bucket.
+
+   Two things found by pressing the button. A panel redraw rang `new_message`, which makes a client
+   fetch what is *newer* than it has — and a panel being redrawn is not newer than anything, so it
+   silently kept showing the state it had when the channel was opened. And the press rendered as a
+   message to the person who pressed it: the policy hid it from everybody else, and "everybody
+   else" was the wrong set.
 9. ~~The grant UI~~ **done** (migration 028). "Bots reading this" on a text channel's menu, a
    confirm that says what a key costs before it is handed over, and the system message rule 4 asked
    for — which needed a `messages.is_system` column, because a system message and a webhook's are

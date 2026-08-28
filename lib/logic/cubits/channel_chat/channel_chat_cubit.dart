@@ -10,6 +10,7 @@ import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/classes/panel_block.dart';
 import '../../../data/enums/message_origin.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/crypto_repository.dart';

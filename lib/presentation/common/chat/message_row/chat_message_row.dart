@@ -24,6 +24,7 @@ import 'message_row_header.dart';
 import 'message_text.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
+import '../panel/panel_view.dart';
 
 /// One message in the chat list — flat Discord-style row, not a bubble.
 ///
@@ -50,6 +51,12 @@ class ChatMessageRow extends StatefulWidget {
   /// Hard-delete this message. Null disables deletion.
   final void Function(String messageId)? onDelete;
 
+  /// Somebody pressed something on a bot's panel. Null where the surface has
+  /// no way to send one — a panel is still worth reading where it cannot be
+  /// touched, so the buttons are drawn and inert rather than hidden.
+  final void Function(String messageId, String action, String? value)?
+  onPanelAction;
+
   /// Whether the local user may delete *other* people's messages here.
   final bool isModerator;
 
@@ -69,6 +76,7 @@ class ChatMessageRow extends StatefulWidget {
     this.onToggleReaction,
     this.onEdit,
     this.onDelete,
+    this.onPanelAction,
     this.isModerator = false,
     this.mentionable = const {},
     this.animateIn = false,
@@ -296,6 +304,18 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
           MessageRowHeader(message: message, themeState: themeState),
         if (message.isLocked)
           MessageLockedBody(themeState: themeState)
+        // A panel replaces the body rather than sitting beside it: its text is
+        // in its blocks, and rendering `text` as well would show whatever the
+        // bot happened to leave in the column twice or not at all.
+        else if (message.panel case final panel?)
+          PanelView(
+            panel: panel,
+            themeState: themeState,
+            onAction: widget.onPanelAction == null
+                ? null
+                : (action, value) =>
+                      widget.onPanelAction!(message.id, action, value),
+          )
         else if (_editing)
           MessageEditField(
             initialText: message.text,
