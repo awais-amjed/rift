@@ -5,6 +5,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/role.dart';
 import 'package:rift/data/enums/server_permission.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/logic/services/role_ladder.dart';
 import 'package:rift/presentation/common/app_switch.dart';
 import 'package:rift/presentation/screens/home/roles/widgets/permission_matrix.dart';
 import 'package:rift/presentation/theme/app_theme.dart';
@@ -113,6 +114,76 @@ void main() {
         color: '#22C55E',
       );
       expect(role.displayColor, const Color(0xFF22C55E));
+    });
+  });
+
+  group('the ladder', () {
+    const everyone = Role(
+      id: 'e',
+      name: '@everyone',
+      position: 0,
+      permissions: 0,
+      isEveryone: true,
+    );
+    const members = Role(
+      id: 'm',
+      name: 'Members',
+      position: 100,
+      permissions: 0,
+    );
+    const mod = Role(id: 'o', name: 'Moderator', position: 200, permissions: 0);
+    const admin = Role(id: 'a', name: 'Admin', position: 300, permissions: 0);
+    const all = [admin, mod, members, everyone];
+
+    test('rank is the highest role actually held', () {
+      expect(
+        RoleLadder.rankOf({
+          'u': const [mod, members],
+        }, 'u'),
+        200,
+      );
+    });
+
+    test('holding nothing ranks zero, and reaches nothing', () {
+      // `@everyone` does not count: it is never assigned. Zero is right —
+      // nothing sits strictly below the ground.
+      expect(RoleLadder.rankOf(const {}, 'u'), 0);
+      expect(RoleLadder.below(all, 0), isEmpty);
+    });
+
+    test('a null user ranks zero rather than throwing', () {
+      expect(RoleLadder.rankOf(const {}, null), 0);
+    });
+
+    test('editing is strictly below, for everybody', () {
+      // Including an administrator: nobody rewrites the role they are standing
+      // on, or promotes another up to it.
+      expect(RoleLadder.below(all, 300), [mod, members]);
+      expect(RoleLadder.below(all, 200), [members]);
+    });
+
+    test('the baseline is never on the ladder', () {
+      expect(RoleLadder.below(all, 300), isNot(contains(everyone)));
+      expect(
+        RoleLadder.assignable(all, 300, isAdministrator: true),
+        isNot(contains(everyone)),
+      );
+    });
+
+    test('assigning is the same, unless you are an administrator', () {
+      // The exemption exists so the only admin on a server can make a second
+      // one. Without it that is impossible, and it stayed possible from 003
+      // through to 025 — so a screen that used the editing rule here would
+      // quietly take it away.
+      expect(RoleLadder.assignable(all, 300, isAdministrator: false), [
+        mod,
+        members,
+      ]);
+      expect(RoleLadder.assignable(all, 300, isAdministrator: true), [
+        admin,
+        mod,
+        members,
+      ]);
     });
   });
 

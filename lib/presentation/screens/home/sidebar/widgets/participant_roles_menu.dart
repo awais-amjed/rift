@@ -9,6 +9,8 @@ import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../../logic/services/role_ladder.dart';
+import '../../../../../data/enums/server_permission.dart';
 
 /// The submenu behind "Roles" — one row per role, ticked when held.
 ///
@@ -71,15 +73,28 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
 
     // Everything below the viewer's own highest role, which is the whole of
     // the delegation rule (migration 018).
-    final myRank = (roster.memberRoles[myId] ?? const <Role>[]).fold<int>(
-      0,
-      (max, r) => r.position > max ? r.position : max,
-    );
+    final myBits =
+        context
+            .read<ServerCubit>()
+            .state
+            .selectedServer
+            ?.user
+            ?.permissions
+            .bits ??
+        0;
+    final assignable = {
+      for (final role in RoleLadder.assignable(
+        roster.roles,
+        RoleLadder.rankOf(roster.memberRoles, myId),
+        isAdministrator: myBits.has(ServerPermission.administrator),
+      ))
+        role.id,
+    };
     final held = {
       for (final role in roster.memberRoles[widget.userId] ?? const <Role>[])
         role.id,
     };
-    final assignable = roster.roles.where((r) => !r.isEveryone).toList();
+    final listed = roster.roles.where((r) => !r.isEveryone).toList();
 
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
@@ -89,7 +104,7 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
             children: [_note('Member list still loading.', themeState)],
           );
         }
-        if (assignable.isEmpty) {
+        if (listed.isEmpty) {
           return ContextMenuPanel(
             heading: 'Roles',
             children: [_note('No roles to hand out yet.', themeState)],
@@ -99,7 +114,7 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
         return ContextMenuPanel(
           heading: 'Roles',
           children: [
-            for (final role in assignable)
+            for (final role in listed)
               ContextMenuItem(
                 icon: Icons.shield_outlined,
                 label: role.name,
@@ -107,14 +122,14 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
                 // role you do not outrank does nothing, which is what the
                 // database would have said a round trip later.
                 onTap: () {
-                  if (role.position < myRank) {
+                  if (assignable.contains(role.id)) {
                     _toggle(role, !held.contains(role.id));
                   }
                 },
                 trailing: _trailing(
                   role: role,
                   isHeld: held.contains(role.id),
-                  outranked: role.position >= myRank,
+                  outranked: !assignable.contains(role.id),
                   themeState: themeState,
                 ),
               ),

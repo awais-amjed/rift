@@ -10,6 +10,7 @@ import '../../../common/app_modal.dart';
 import '../../../common/hint_card.dart';
 import 'role_editor_dialog.dart';
 import 'widgets/role_row.dart';
+import '../../../../logic/services/role_ladder.dart';
 
 /// Every role on the server, most senior first.
 ///
@@ -69,10 +70,7 @@ class _RolesDialogState extends State<RolesDialog> {
     setState(() {
       _roles = roles;
       _counts = counts;
-      _myRank = (assignments[me] ?? const <Role>[]).fold(
-        0,
-        (max, r) => r.position > max ? r.position : max,
-      );
+      _myRank = RoleLadder.rankOf(assignments, me);
       _isLoading = false;
     });
   }
@@ -87,12 +85,8 @@ class _RolesDialogState extends State<RolesDialog> {
     return top + 1 < _myRank ? top + 1 : _myRank - 1;
   }
 
-  /// Everything the viewer may reorder, most senior first. The baseline is not
-  /// in it: it is not a rung, it is the ground.
-  List<Role> get _manageable => [
-    for (final role in _roles)
-      if (!role.isEveryone && role.position < _myRank) role,
-  ];
+  /// Everything the viewer may reorder, most senior first.
+  List<Role> get _manageable => RoleLadder.below(_roles, _myRank);
 
   Future<void> _edit(Role? role) async {
     final changed = await showDialog<bool>(

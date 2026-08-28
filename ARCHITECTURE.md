@@ -449,9 +449,16 @@ central attachment is only ever freed by the client that deletes its message.
   press is cosmetic — the policy still decides. Drawing *no* button for something they may press is
   the failure that looks like the feature was never built, which is how the "+" for creating a
   private channel stayed hidden from everyone it was for.
-- **Still on the three booleans**: the member panel's Server Admin / Channel Manager / Can Invite
-  toggles, and `roles.legacy_key`, which is what lets `set_user_permissions` find the role a
-  boolean became. Both go when nothing asks for a boolean any more.
+- **An invite names a role** (025), not three flags. `roles.is_default` is the one a *person* gets
+  for simply joining; `@everyone` cannot be it, because that one applies to bots too and 014
+  decided a bot holds only what its invite named. `set_user_permissions`, `roles.legacy_key` and
+  the three columns on `invites` are gone; the three on `users` remain as the trigger-kept cache
+  every pre-018 policy reads.
+- **Assigning a role and editing one are not the same rule.** Editing is strictly-below for
+  everybody, administrators included — nobody rewrites the role they are standing on. Assigning
+  exempts an administrator, or the only admin on a server could never make a second. Removing
+  follows assigning, minus your own: an admin who could take their own Admin role off would lock
+  the server out of ever having one again (026).
 
 ### Private channels [Implemented August 2026]
 - **`VIEW_CHANNEL` is not like the other bits.** Every other permission is a rule the database

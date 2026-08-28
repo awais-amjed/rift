@@ -9,6 +9,8 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/message_banner.dart';
 import 'widgets/role_row.dart';
+import '../../../../logic/services/role_ladder.dart';
+import '../../../../data/enums/server_permission.dart';
 
 /// Which roles one member holds.
 ///
@@ -28,7 +30,10 @@ class MemberRolesDialog extends StatefulWidget {
 class _MemberRolesDialogState extends State<MemberRolesDialog> {
   List<Role> _roles = const [];
   Set<String> _held = {};
-  int _myRank = 0;
+
+  /// Which of [_roles] this viewer may actually hand out. Not the same as the
+  /// ones they may *edit* — see [RoleLadder.assignable].
+  Set<String> _assignable = const {};
   bool _isLoading = true;
   String? _busyId;
   String? _error;
@@ -47,16 +52,21 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
     if (!mounted) return;
 
     setState(() {
-      // The baseline is not a role anybody holds — it is what holding nothing
-      // already gets you — so a switch for it would be one that cannot move.
       _roles = roles.where((r) => !r.isEveryone).toList();
+      _assignable = {
+        for (final role in RoleLadder.assignable(
+          roles,
+          RoleLadder.rankOf(assignments, me),
+          isAdministrator:
+              (cubit.state.selectedServer?.user?.permissions.bits ?? 0).has(
+                ServerPermission.administrator,
+              ),
+        ))
+          role.id,
+      };
       _held = {
         for (final r in assignments[widget.member.id] ?? const <Role>[]) r.id,
       };
-      _myRank = (assignments[me] ?? const <Role>[]).fold(
-        0,
-        (max, r) => r.position > max ? r.position : max,
-      );
       _isLoading = false;
     });
   }
@@ -126,15 +136,16 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
                       child: RoleRow(
                         themeState: themeState,
                         role: role,
-                        // Rank decides this, not the manage-roles bit alone:
-                        // handing out a role you do not outrank is the one
-                        // thing the delegation rule exists to stop.
-                        locked: role.position >= _myRank,
+                        // An administrator may hand out a role at their own
+                        // rank, which is how the only admin on a server makes
+                        // a second one. Everybody else is strictly below.
+                        locked: !_assignable.contains(role.id),
                       ),
                     ),
                     Checkbox(
                       value: _held.contains(role.id),
-                      onChanged: role.position >= _myRank || _busyId != null
+                      onChanged:
+                          !_assignable.contains(role.id) || _busyId != null
                           ? null
                           : (_) => _toggle(role),
                     ),

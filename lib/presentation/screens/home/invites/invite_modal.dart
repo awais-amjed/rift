@@ -6,10 +6,17 @@ import '../../../../../data/classes/server.dart';
 import '../../../../../data/invite_link.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../data/classes/role.dart';
+import '../../../../data/enums/server_permission.dart';
+import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
+import '../../../common/icon_tile.dart';
+import 'invite_summary.dart';
 import 'widgets/invite_form.dart';
 import 'widgets/invite_options.dart';
+
+part 'invite_modal_roles.dart';
 
 /// Modal to generate and copy an invite token for [server].
 ///
@@ -24,7 +31,7 @@ class InviteModal extends StatefulWidget {
   State<InviteModal> createState() => _InviteModalState();
 }
 
-class _InviteModalState extends State<InviteModal> {
+class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
   bool _isGenerating = false;
   String? _inviteToken;
   String? _error;
@@ -39,6 +46,12 @@ class _InviteModalState extends State<InviteModal> {
   /// Whether the link being minted makes a bot. Off by default: the common
   /// case is inviting a person, and a bot invite is the deliberate one.
   bool _isBot = false;
+
+  @override
+  void initState() {
+    super.initState();
+    loadRoles();
+  }
 
   void _resetToken() {
     _inviteToken = null;
@@ -58,6 +71,7 @@ class _InviteModalState extends State<InviteModal> {
       expiresInSeconds: inviteExpiryOptions[_expiryIndex].seconds,
       serverId: widget.server.id,
       isBot: _isBot,
+      roleId: roleId,
     );
 
     if (!mounted) return;
@@ -79,18 +93,6 @@ class _InviteModalState extends State<InviteModal> {
     if (mounted) setCopied(false);
   }
 
-  String _buildSummary() {
-    final expiry = inviteExpiryOptions[_expiryIndex];
-    final uses = inviteUsesOptions[_usesIndex];
-    final expiryText = expiry.seconds == null
-        ? 'Never expires'
-        : 'Expires in ${expiry.label}';
-    final usesText = uses.value == null
-        ? 'Unlimited uses'
-        : '${uses.label} use${uses.value == 1 ? '' : 's'}';
-    return '$expiryText · $usesText';
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
@@ -101,19 +103,17 @@ class _InviteModalState extends State<InviteModal> {
 
         return AppModal(
           title: 'Invite to ${widget.server.name}',
-          subtitle: _buildSummary(),
-          titleIcon: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: themeState.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.person_add_outlined,
-              size: 18,
-              color: themeState.primary,
-            ),
+          subtitle: InviteSummary.of(
+            expiryIndex: _expiryIndex,
+            usesIndex: _usesIndex,
+            role: selectedRole,
+          ),
+          titleIcon: IconTile(
+            icon: Icons.person_add_outlined,
+            color: themeState.primary,
+            size: 36,
+            radius: 10,
+            iconSize: 18,
           ),
           content: InviteForm(
             themeState: themeState,
@@ -125,6 +125,14 @@ class _InviteModalState extends State<InviteModal> {
             }),
             onUsesSelected: (i) => setState(() {
               _usesIndex = i;
+              _resetToken();
+            }),
+            roles: roles,
+            roleId: roleId,
+            onRoleSelected: (id) => setState(() {
+              roleId = id;
+              // A link already on screen was minted with the other role, so it
+              // no longer matches what the picker says.
               _resetToken();
             }),
             isBot: _isBot,

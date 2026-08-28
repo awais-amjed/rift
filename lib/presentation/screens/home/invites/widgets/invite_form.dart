@@ -8,6 +8,8 @@ import 'field_label.dart';
 import 'invite_options.dart';
 import '../../../../theme/app_text.dart';
 import '../../../settings/widgets/setting_toggle_row.dart';
+import '../../../../../data/classes/role.dart';
+import 'invite_role_picker.dart';
 
 /// The body of the invite modal: the two pickers and the generated link.
 ///
@@ -21,6 +23,12 @@ class InviteForm extends StatelessWidget {
 
   /// Whether this link will mint a bot rather than a member.
   final bool isBot;
+
+  /// Roles the minter may hand out — everything below their own rank. Empty
+  /// where they hold no `MANAGE_ROLES`, which hides the picker entirely.
+  final List<Role> roles;
+  final String? roleId;
+  final ValueChanged<String?> onRoleSelected;
   final ValueChanged<bool> onIsBotChanged;
 
   final String? inviteLink;
@@ -37,6 +45,9 @@ class InviteForm extends StatelessWidget {
     required this.onExpirySelected,
     required this.onUsesSelected,
     required this.isBot,
+    required this.roles,
+    required this.roleId,
+    required this.onRoleSelected,
     required this.onIsBotChanged,
     required this.inviteLink,
     required this.isGenerating,
@@ -73,6 +84,14 @@ class InviteForm extends StatelessWidget {
         // quietly become the other kind (migration 014). The description says
         // what actually differs, because "it's a bot" tells somebody nothing
         // about what the thing will and will not be able to read.
+        InviteRolePicker(
+          themeState: themeState,
+          roles: roles,
+          selectedId: roleId,
+          onSelected: onRoleSelected,
+        ),
+        if (roles.isNotEmpty) const SizedBox(height: 16),
+
         SettingToggleRow(
           themeState: themeState,
           title: 'This invite is for a bot',
@@ -86,8 +105,7 @@ class InviteForm extends StatelessWidget {
         const SizedBox(height: 16),
 
         // One field, server URL and code combined, so the invitee pastes a
-        // single thing. Invites are plain: members join with baseline
-        // permissions and an admin promotes them later from Members.
+        // single thing.
         FieldLabel(label: 'Invite Link', textColor: themeState.textTertiary),
         const SizedBox(height: 6),
         CopyableField(

@@ -401,6 +401,7 @@ class ServerRepository
     int? maxUses = 1,
     int? expiresInSeconds,
     bool isBot = false,
+    String? roleId,
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
@@ -414,6 +415,10 @@ class ServerRepository
             // no UPDATE grant on invites, so one link cannot quietly become the
             // other kind (migration 014).
             'is_bot': isBot,
+            // The role this link hands out, or nothing for a plain one. The
+            // policy refuses a role the minter does not outrank, so a link can
+            // still never carry more than its maker holds (migration 025).
+            'role_id': ?roleId,
             if (expiresInSeconds != null)
               'expires_at': DateTime.now()
                   .toUtc()
