@@ -81,8 +81,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   String get _anonKey => state.selectedServer?.supabaseKey ?? '';
   @override
-  String get _serverId => state.selectedServer?.id ?? '';
-  @override
   String get _userId => state.selectedServer?.user?.id ?? '';
 
   /// The server a call is about: [serverId] when the caller named one, the

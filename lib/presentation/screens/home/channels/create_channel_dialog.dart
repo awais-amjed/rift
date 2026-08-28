@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/server_member.dart';
+import '../../../../data/classes/user_permissions.dart';
 import '../../../../data/enums/channel_type.dart';
+import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
@@ -29,6 +31,14 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
 
   ChannelType _type = ChannelType.text;
   bool _isPrivate = false;
+
+  /// Somebody who may only make private channels gets one, with the switch
+  /// held down rather than hidden — a control that is missing reads as a bug,
+  /// and one that is fixed with a reason reads as a rule.
+  late final bool _mayMakePublic = _permissions?.can(
+        ServerPermission.manageChannels,
+      ) ??
+      false;
   bool _isLoading = false;
   String? _error;
 
@@ -38,11 +48,15 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   final Set<String> _selected = {};
   String _query = '';
 
+  UserPermissions? get _permissions =>
+      context.read<ServerCubit>().state.selectedServer?.user?.permissions;
+
   bool get _canSubmit => _nameCtrl.text.trim().isNotEmpty;
 
   @override
   void initState() {
     super.initState();
+    _isPrivate = !_mayMakePublic;
     _loadMembers();
   }
 
@@ -142,11 +156,14 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               SettingToggleRow(
                 themeState: themeState,
                 title: 'Private channel',
-                description:
-                    'Only the people you pick can see it — server admins '
-                    'included. You can add or remove people later.',
+                description: _mayMakePublic
+                    ? 'Only the people you pick can see it — server admins '
+                          'included. You can add or remove people later.'
+                    : 'Only the people you pick can see it. Making a channel '
+                          'the whole server can see needs the manage-channels '
+                          'permission.',
                 value: _isPrivate,
-                onChanged: _isLoading
+                onChanged: _isLoading || !_mayMakePublic
                     ? null
                     : (v) => setState(() => _isPrivate = v),
               ),

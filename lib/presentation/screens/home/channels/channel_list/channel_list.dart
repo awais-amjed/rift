@@ -13,6 +13,7 @@ import 'widgets/empty_channels_view.dart';
 import 'widgets/section_header.dart';
 import 'widgets/text_channel_tile.dart';
 import 'widgets/voice_channel_tile/voice_channel_tile.dart';
+import '../../../../../data/enums/server_permission.dart';
 
 /// Lists all channels grouped by type. Voice channels show live participants.
 class ChannelList extends StatelessWidget {
@@ -43,8 +44,15 @@ class ChannelList extends StatelessWidget {
     // and a "Create the first one" button that could not succeed.
     final banned = me?.isBanned ?? false;
 
-    // Only channel managers get the "+" on a section header.
-    final canCreate = !banned && (me?.permissions.isChannelManager ?? false);
+    // Channel managers get the "+", and so does anybody who may make a private
+    // one — which on a default server is everybody (migration 020). A private
+    // channel is how a handful of people talk without asking permission, so
+    // gating the button on `MANAGE_CHANNELS` would have meant asking.
+    final permissions = me?.permissions;
+    final canCreate =
+        !banned &&
+        (permissions?.can(ServerPermission.manageChannels) == true ||
+            permissions?.can(ServerPermission.createPrivateChannel) == true);
     void openCreateChannel() => showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(

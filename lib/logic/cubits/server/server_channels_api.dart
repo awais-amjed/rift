@@ -9,7 +9,6 @@ part of 'server_cubit.dart';
 mixin _ServerChannelsApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
   String get _anonKey;
-  String get _serverId;
 
   /// Ping the `server_events` doorbell after a structural change so other
   /// members refresh in realtime. Takes the server it happened on; channels are
@@ -25,11 +24,8 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
 
   /// Create a new channel in the selected server.
   ///
-  /// [memberIds] is only read when [isPrivate]. The creator is always added to
-  /// it, whatever the caller passed: `set_channel_members` replaces the
-  /// membership with exactly the list it is given, and a private channel whose
-  /// last member leaves is deleted — so a list that forgot the creator would
-  /// make a channel and destroy it in the same breath.
+  /// [memberIds] is only read when [isPrivate], and never has to include the
+  /// creator: `create_channel` seats them itself (migration 022).
   Future<({bool success, String? error})> createChannel({
     required String name,
     required String channelType,
@@ -45,11 +41,11 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
       (token) => _repository.createChannel(
         server.supabaseUrl,
         anonKey: _anonKey,
-        serverId: _serverId,
         bearerToken: token,
         name: name,
         channelType: channelType,
         isPrivate: isPrivate,
+        memberIds: isPrivate ? memberIds : const [],
       ),
     );
 
@@ -60,15 +56,9 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
       );
     }
 
-    if (isPrivate) {
-      final me = server.user?.id;
-      final channelId = (response.data as Map<String, dynamic>?)?['id'] as String?;
-      if (channelId != null) {
-        await setChannelMembers(
-          channelId: channelId,
-          userIds: {?me, ...memberIds}.toList(),
-        );
-      }
+    final reason = (response.data as Map<String, dynamic>?)?['reason'];
+    if (reason != 'ok') {
+      return (success: false, error: _createFailure(reason as String?));
     }
 
     // Refresh our own channel list to include the newly created one, and ping
@@ -116,6 +106,13 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
         ),
         failure: 'Failed to delete channel',
       );
+
+  static String _createFailure(String? reason) => switch (reason) {
+    'name_taken' => 'A channel already has that name',
+    'not_authorized' => 'You cannot create channels here',
+    'bad_name' => 'Give it a name',
+    _ => 'Failed to create channel',
+  };
 
   /// Replace a private channel's membership with exactly [userIds].
   ///

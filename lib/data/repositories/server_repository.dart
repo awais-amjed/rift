@@ -204,6 +204,14 @@ class ServerRepository
           .select('id, name, channel_type, retention_days, history_cap, is_private')
           .order('name');
 
+      // Best-effort: a server that predates 021 has no such function, and the
+      // three cached booleans on the user row still answer the three questions
+      // a client could ask before this existed.
+      int bits = 0;
+      try {
+        bits = (await db.rpc('my_permissions') as num?)?.toInt() ?? 0;
+      } catch (_) {}
+
       return {
         'server_id': server['id'],
         'name': server['name'],
@@ -211,7 +219,7 @@ class ServerRepository
         'livekit_url': server['livekit_url'],
         'supabase_key': anonKey,
         'channels': channels,
-        'user': user == null ? null : _userRow(user),
+        'user': user == null ? null : _withPermissionBits(_userRow(user), bits),
         // Flat, so ServerLimits.fromJson reads this map and the
         // update_server response with the same code.
         ...ServerLimits.fromJson(server).toJson(),
@@ -272,6 +280,20 @@ class ServerRepository
 
   /// Flattens a `users` row into the shape the client models expect, with
   /// permissions nested.
+  /// Folds the caller's own permission bits into the nested `permissions` map
+  /// `ServerUser` reads, so the three cached booleans and the twenty-two bits
+  /// arrive as one answer rather than two the client has to reconcile.
+  static Map<String, dynamic> _withPermissionBits(
+    Map<String, dynamic> row,
+    int bits,
+  ) => {
+    ...row,
+    'permissions': {
+      ...(row['permissions'] as Map<String, dynamic>),
+      'permission_bits': bits,
+    },
+  };
+
   static Map<String, dynamic> _userRow(Map<String, dynamic> u) => {
     'id': u['id'],
     'username': u['username'],

@@ -24,29 +24,38 @@ mixin _ChannelApiMixin {
     String? bearerToken,
   });
 
-  /// Create a new channel (channel manager or admin — enforced by policy).
+  /// Create a channel, and seat its members if it is private.
+  ///
+  /// An RPC rather than an insert, and not for the usual reason. `INSERT ...
+  /// RETURNING` applies the *select* policy to the row it hands back, and a
+  /// private channel's select policy asks whether the caller is in it — which
+  /// they are not until the after-insert trigger seats them, which has not run
+  /// yet. The insert succeeded and reading its own row did not (migration 022).
+  ///
+  /// Doing it in one statement also removes the mistake the two-call version
+  /// was one forgotten id away from: `set_channel_members` replaces a
+  /// membership with exactly what it is handed, and a private channel that
+  /// loses its last member is deleted.
   Future<APIResponse> createChannel(
     String supabaseUrl, {
     required String anonKey,
-    required String serverId,
     String? bearerToken,
     required String name,
     required String channelType,
     bool isPrivate = false,
+    List<String> memberIds = const [],
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final row = await db
-          .from('channels')
-          .insert({
-            'server_id': serverId,
-            'name': name,
-            'channel_type': channelType,
-            'is_private': isPrivate,
-          })
-          .select('id, name, channel_type, is_private')
-          .single();
-      return row;
+      return db.rpc(
+        'create_channel',
+        params: {
+          'p_name': name,
+          'p_type': channelType,
+          'p_private': isPrivate,
+          'p_members': memberIds,
+        },
+      );
     });
   }
 

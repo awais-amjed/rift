@@ -1,19 +1,47 @@
+import '../enums/server_permission.dart';
+
 class UserPermissions {
   final bool isServerAdmin;
   final bool isChannelManager;
   final bool canCreateTokens;
 
+  /// Everything this member holds, as `my_permissions()` returned it
+  /// (migration 021).
+  ///
+  /// The three booleans above are a *cache* of three of these bits, kept by a
+  /// trigger since 018. They stay because every policy and every older client
+  /// reads them; anything that needs one of the other nineteen reads this.
+  ///
+  /// Zero for a member whose server predates 021, which is why the booleans are
+  /// still the answer for the three questions they can answer.
+  final int bits;
+
   const UserPermissions({
     this.isServerAdmin = false,
     this.isChannelManager = false,
     this.canCreateTokens = false,
+    this.bits = 0,
   });
+
+  /// Whether this member holds [permission]. Falls back to the cached boolean
+  /// where one exists, so a server too old to have `my_permissions()` still
+  /// answers the three questions it always could.
+  bool can(ServerPermission permission) {
+    if (bits != 0) return bits.has(permission);
+    return switch (permission) {
+      ServerPermission.administrator => isServerAdmin,
+      ServerPermission.manageChannels => isServerAdmin || isChannelManager,
+      ServerPermission.createInvite => isServerAdmin || canCreateTokens,
+      _ => isServerAdmin,
+    };
+  }
 
   factory UserPermissions.fromJson(Map<String, dynamic> json) {
     return UserPermissions(
       isServerAdmin: json['is_server_admin'] as bool? ?? false,
       isChannelManager: json['is_channel_manager'] as bool? ?? false,
       canCreateTokens: json['can_create_tokens'] as bool? ?? false,
+      bits: (json['permission_bits'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -21,17 +49,20 @@ class UserPermissions {
     'is_server_admin': isServerAdmin,
     'is_channel_manager': isChannelManager,
     'can_create_tokens': canCreateTokens,
+    'permission_bits': bits,
   };
 
   UserPermissions copyWith({
     bool? isServerAdmin,
     bool? isChannelManager,
     bool? canCreateTokens,
+    int? bits,
   }) {
     return UserPermissions(
       isServerAdmin: isServerAdmin ?? this.isServerAdmin,
       isChannelManager: isChannelManager ?? this.isChannelManager,
       canCreateTokens: canCreateTokens ?? this.canCreateTokens,
+      bits: bits ?? this.bits,
     );
   }
 }
