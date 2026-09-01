@@ -723,7 +723,9 @@ too, and it is the difference between "I don't want to be interrupted" and
 - **Screen share carries the same key.** It is a second connection into the same room, published
   from Rust, and LiveKit skips the frame cryptor for a track that declares no encryption — so an
   unencrypted share would not fail, it would hand the server the one stream nobody meant it to
-  have. The Rust path refuses to connect without the key.
+  have. The Rust path refuses to connect without the key, and sets the key *index* on its cryptors
+  by hand: the Rust SDK never does, so it would otherwise encrypt into slot 0 while the room reads
+  `version % 16`.
 - Screenshare capture (video + per-platform system audio) runs in Rust for performance and
   publishes directly to the LiveKit room.
 - **A bot is audible and deaf**, and it takes two mechanisms because encryption removed the easy

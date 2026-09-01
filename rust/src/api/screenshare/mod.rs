@@ -266,6 +266,20 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     let audio_handle = None;
 
+    // Point every cryptor at the slot the room is actually reading.
+    //
+    // The Rust SDK creates a sender's frame cryptor and never sets its key
+    // index, so it encrypts into libwebrtc's default slot 0 — while every Rift
+    // client looks this identity up at `keyVersion % 16`. The share then
+    // publishes happily and decrypts for nobody: the sharer sees "sharing", the
+    // room sees a black tile, and nothing anywhere reports an error.
+    //
+    // After both tracks, because a cryptor does not exist until its track does,
+    // and the system-audio track is published later than the video one.
+    for (_, cryptor) in room.e2ee_manager().frame_cryptors() {
+        cryptor.set_key_index(config.e2ee_key_index);
+    }
+
     println!("✓ Screen sharing started successfully!");
 
     {
