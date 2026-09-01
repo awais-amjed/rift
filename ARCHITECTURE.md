@@ -694,15 +694,39 @@ too, and it is the difference between "I don't want to be interrupted" and
 - Client asks its self-hosted server for a channel token (`get_channel_token`); the Edge Function
   mints a LiveKit JWT (room = channel id, identity = user id, 1 h TTL, `roomAdmin` for channel
   managers). Screenshare sessions use the same flow with an `_screenshare` identity suffix.
-- Media flows through the server's own LiveKit instance over **DTLS-SRTP** — encrypted in
-  transit, unreadable to network observers.
-- **The LiveKit SFU can technically access media frames** (that's how an SFU works). Since the
-  LiveKit server is run by the same admin who runs the Rift server, this matches the trust model:
-  voice has the same privacy level as group chat metadata — protected from outsiders, visible in
-  principle to the server operator. LiveKit's optional frame-level E2EE exists as a future
-  hardening option if that trade-off changes.
+- **Media is end-to-end encrypted** (migrations 031–032). Frames are AES-GCM encrypted with the
+  channel's **own key** — the same key the text keyring seals per member (§4) — so the SFU
+  forwards packets it cannot open. DTLS-SRTP still protects the hop; this protects the room.
+- This used to be the one place the server could read what members said to each other. The SFU sees
+  frames by construction — that is how an SFU works — and the trade was written down as acceptable
+  because the operator runs both. It is no longer taken: everything in Rift is now end-to-end
+  encrypted, and voice was the exception.
+- **A call cannot be joined without the key.** `_prepareE2EE` returning nothing fails the join
+  rather than falling back, because an unencrypted call would connect, work, and sound completely
+  normal. A room you cannot join gets reported; a room that is quietly readable does not.
+- Key *version* maps onto LiveKit's fixed key ring as `version % 16`. Every client has to agree on
+  that mapping — a sender encrypting into a slot its listeners do not read is a call where
+  everybody connects and nobody hears anyone, with no error anywhere. It is frozen in WIRE.md §6.
+- The room runs in LiveKit's **per-participant** key mode rather than its shared-key mode, and only
+  because of bots — see below and BOTS.md §6b. Members all use the channel key.
+- Rotation is the text rules unchanged: `sweep_channel_keys` covers voice channels too, so a banned
+  member's key is rotated away from them. It used to filter to text channels, which was harmless
+  while voice held no keys and a hole the moment it did.
+- **Screen share carries the same key.** It is a second connection into the same room, published
+  from Rust, and LiveKit skips the frame cryptor for a track that declares no encryption — so an
+  unencrypted share would not fail, it would hand the server the one stream nobody meant it to
+  have. The Rust path refuses to connect without the key.
 - Screenshare capture (video + per-platform system audio) runs in Rust for performance and
   publishes directly to the LiveKit room.
+- **A bot is audible and deaf**, and it takes two mechanisms because encryption removed the easy
+  one. Its token is minted `canSubscribe: false` and never `roomAdmin`. And it is given a *different
+  key*: `HMAC-SHA256(channelKey, "voicebot:v1:<botId>")`, sealed to it by a member. Members hold the
+  channel key so they derive it and hear the bot; the bot cannot invert HMAC, so it cannot reach the
+  channel key and cannot decrypt one member's audio.
+  
+  With a single room key this is not expressible — encrypting is what makes a bot audible, and the
+  key that encrypts also decrypts (BOTS.md §2). Two keys and a one-way function are what buy it, and
+  they are the whole reason the room runs in per-participant key mode.
 
 ### Two questions, two transports
 

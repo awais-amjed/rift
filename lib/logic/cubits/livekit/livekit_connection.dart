@@ -5,10 +5,9 @@ part of 'livekit_cubit.dart';
 /// Connecting always cleans up any previous room first, and emits
 /// `connecting` before it does — otherwise the disconnect event fired during
 /// cleanup reads as an unexpected drop and clears the new channel.
-mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
+mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   AppCubit get _appCubit;
   TokenCubit get _tokenCubit;
-  ServerCubit? get _serverCubit;
   List<EventsListener<RoomEvent>> get _listeners;
 
   ScreenshareCubit? get _screenshareCubit;
@@ -148,11 +147,26 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
       );
     }
 
+    // The key before the room. A call joined without one would connect, work,
+    // and be readable by the server — the single thing this is here to stop —
+    // so there is no unencrypted fallback path to take by accident.
+    final e2ee = await _prepareE2EE(channelId);
+    if (e2ee == null) {
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          failure: const ConnectionFailure.noChannelKey(),
+        ),
+      );
+      return;
+    }
+
     final room = Room(
       roomOptions: RoomOptions(
         adaptiveStream: true,
         dynacast: true,
         defaultAudioCaptureOptions: _buildAudioCaptureOptions(),
+        e2eeOptions: e2ee,
       ),
     );
     setupRoomListeners(room);
@@ -170,6 +184,11 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
           camera: TrackOption(enabled: useCameraEnabled),
         ),
       );
+
+      // Whoever is already here, plus us. A participant whose key is not
+      // registered is one nobody can hear, so this happens before the state
+      // says connected.
+      await _registerAllParticipantKeys(room);
 
       emit(
         state.copyWith(
@@ -275,6 +294,11 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState> {
       );
 
       await _cleanupRoom();
+      // The call's key ring goes with the call. Holding it would leave the
+      // last channel's key in memory long after leaving, and would key the
+      // next call with it if a load ever failed quietly.
+      _clearE2EE();
+      _keyring.clear();
       emit(state.copyWith(clearRoom: true));
     } finally {
       _disconnecting = false;

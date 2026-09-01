@@ -158,10 +158,61 @@ The bot redraws by writing `blocks` again on the same row and ringing
 
 ---
 
+## 6. Voice
+
+Calls are end-to-end encrypted with the channel's own key. Three things a second
+implementation has to match, and each of them fails silently if it does not.
+
+### The sealed key — `wrap:v1`
+
+A member seals a key to somebody's X25519 chat identity:
+
+```
+shared      = X25519(ephemeralPrivate, recipientPublic)
+wrappingKey = HMAC-SHA256(shared, "wrap:v1")
+sealed      = AES-256-GCM(base64(key), wrappingKey, nonce)   // ciphertext ‖ tag
+```
+
+On the wire: `ephemeral_public_key`, `ciphertext` (with the 16-byte GCM tag
+appended) and `nonce`, all base64.
+
+**The plaintext inside the envelope is the key's base64, not its bytes.** The
+Dart side seals a string, so a port that decodes once gets 44 bytes of ASCII
+where it wanted 32 and fails at the frame cryptor, a long way from here.
+
+`wrapped_key` in the vectors is a frozen blob rather than a reproducible one —
+the ephemeral half is random, so there are no bytes to compare. A port proves
+itself by *opening* it, which is the half a bot actually does anyway.
+
+### The key a bot speaks with
+
+```
+botKey = HMAC-SHA256(channelKey, "voicebot:v1:<botId>")
+```
+
+`<botId>` is the bot's `users.id`. Members compute this and hear the bot; the
+bot is handed only the result, and cannot invert it to reach `channelKey`. That
+asymmetry is the whole of "publishes but does not listen" — see BOTS.md §6b.
+
+### Which slot a key goes in
+
+LiveKit addresses keys by a slot in a fixed-size ring, not by Rift's version
+number, so the two are mapped:
+
+```
+keyIndex = keyVersion % 16
+```
+
+Every client has to agree. A sender encrypting into a slot its listeners do not
+read is a call where everybody connects, every track publishes, and nobody hears
+anyone — with no error reported anywhere. It is the most quietly broken thing in
+this document, which is why it is in it.
+
+---
+
 ## Out of scope
 
-Key wrapping (`wrap:v1`), the channel keyring and the DM key derivation are
-between clients that hold keys, and a bot never holds one. They are in
-`ARCHITECTURE.md` §4 and are not frozen here yet; the moment a non-Dart client
-needs to *read* a channel rather than be spoken to, they belong in this file
-too.
+The channel keyring itself and the DM key derivation are between clients that
+hold keys; a bot holds one only for voice, and only its own. They are in
+`ARCHITECTURE.md` §4 and are not frozen here yet — the moment a non-Dart client
+needs to *read* a channel rather than be spoken to, they belong here too.

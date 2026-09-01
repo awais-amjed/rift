@@ -63,6 +63,17 @@ class ScreenShareConfig {
   /// Selected audio source process ID (Windows WASAPI)
   final int? selectedAudioSourcePid;
 
+  /// The channel key this call is encrypted with, and the LiveKit key-ring
+  /// slot it occupies (ARCHITECTURE.md §5).
+  ///
+  /// A screen share is a second connection into the same encrypted room, so
+  /// it has to encrypt with the same key as everything else. Publishing it in
+  /// the clear would not fail — LiveKit skips the frame cryptor for a track
+  /// that declares no encryption — it would simply hand the server the one
+  /// stream nobody meant it to have.
+  final Uint8List e2EeKey;
+  final int e2EeKeyIndex;
+
   const ScreenShareConfig({
     required this.livekitUrl,
     required this.livekitToken,
@@ -79,6 +90,8 @@ class ScreenShareConfig {
     this.selectedAudioSourceIndex,
     this.selectedAudioSourceSink,
     this.selectedAudioSourcePid,
+    required this.e2EeKey,
+    required this.e2EeKeyIndex,
   });
 
   @override
@@ -97,7 +110,9 @@ class ScreenShareConfig {
       codec.hashCode ^
       selectedAudioSourceIndex.hashCode ^
       selectedAudioSourceSink.hashCode ^
-      selectedAudioSourcePid.hashCode;
+      selectedAudioSourcePid.hashCode ^
+      e2EeKey.hashCode ^
+      e2EeKeyIndex.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -118,5 +133,7 @@ class ScreenShareConfig {
           codec == other.codec &&
           selectedAudioSourceIndex == other.selectedAudioSourceIndex &&
           selectedAudioSourceSink == other.selectedAudioSourceSink &&
-          selectedAudioSourcePid == other.selectedAudioSourcePid;
+          selectedAudioSourcePid == other.selectedAudioSourcePid &&
+          e2EeKey == other.e2EeKey &&
+          e2EeKeyIndex == other.e2EeKeyIndex;
 }

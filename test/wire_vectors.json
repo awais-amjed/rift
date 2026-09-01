@@ -21,6 +21,18 @@
     "host": "rift.example",
     "public_key_base64": "uSp19iYar0vZBUtBMQ9kj2NREpXNcGezB8mOAQswPBs="
   },
+  "wrapped_key": {
+    "note": "unwraps to key_base64 with chat_identity’s private key",
+    "key_base64": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8=",
+    "ephemeral_public_key": "gwYbI7UsABSk1RRWDHDKU7r2MarasNPmgOS/u4oeVTY=",
+    "ciphertext": "aGxisBR/qXTa7tMjuPtcG7bQPTO8aZ8CBByJWpRri0C6hRecXVrXcrBPXdNmhN9Ai2ayWQU9FDHe0ilw",
+    "nonce": "k7cajWFVAMQ3M59F"
+  },
+  "bot_voice_key": {
+    "note": "HMAC-SHA256(wrapped_key.key, \"voicebot:v1:<bot_id>\")",
+    "bot_id": "99999999-8888-4777-8666-555555555555",
+    "key_base64": "fDBjeHpl/tUdBUzLJaWy96a6XX8vxrcni0Xg3M5RhwQ="
+  },
   "signed_payload": {
     "channel": "chatmsg:v1:aaaa1111-0000-4000-8000-000000000001:3:bm9uY2U=:Y2lwaGVy",
     "bot_plaintext": "chatmsg:v1:aaaa1111-0000-4000-8000-000000000001:0::/echo hello",

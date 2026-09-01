@@ -161,6 +161,15 @@ class ChannelContextMenu extends StatelessWidget {
               onTap: () => openChannelBots(context, channel),
             ),
           ],
+          // A voice channel has the same question and a different answer: no
+          // key, but a bot can still be allowed to hear the room. By default it
+          // cannot — playing music never needed permission, listening does.
+          if (isVoice)
+            ContextMenuItem(
+              icon: Icons.hearing_rounded,
+              label: 'Bots hearing this',
+              onTap: () => openVoiceBots(context, channel),
+            ),
           ContextMenuItem(
             icon: Icons.delete_outline_rounded,
             label: 'Delete channel',

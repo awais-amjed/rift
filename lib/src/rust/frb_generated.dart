@@ -572,8 +572,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScreenShareConfig dco_decode_screen_share_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 15)
-      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    if (arr.length != 17)
+      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
     return ScreenShareConfig(
       livekitUrl: dco_decode_String(arr[0]),
       livekitToken: dco_decode_String(arr[1]),
@@ -590,6 +590,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[12]),
       selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[13]),
       selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[14]),
+      e2EeKey: dco_decode_list_prim_u_8_strict(arr[15]),
+      e2EeKeyIndex: dco_decode_i_32(arr[16]),
     );
   }
 
@@ -831,6 +833,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_selectedAudioSourcePid = sse_decode_opt_box_autoadd_u_32(
       deserializer,
     );
+    var var_e2EeKey = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_e2EeKeyIndex = sse_decode_i_32(deserializer);
     return ScreenShareConfig(
       livekitUrl: var_livekitUrl,
       livekitToken: var_livekitToken,
@@ -847,6 +851,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       selectedAudioSourceIndex: var_selectedAudioSourceIndex,
       selectedAudioSourceSink: var_selectedAudioSourceSink,
       selectedAudioSourcePid: var_selectedAudioSourcePid,
+      e2EeKey: var_e2EeKey,
+      e2EeKeyIndex: var_e2EeKeyIndex,
     );
   }
 
@@ -1072,6 +1078,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceIndex, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceSink, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourcePid, serializer);
+    sse_encode_list_prim_u_8_strict(self.e2EeKey, serializer);
+    sse_encode_i_32(self.e2EeKeyIndex, serializer);
   }
 
   @protected

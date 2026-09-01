@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/participant_info.dart';
@@ -12,8 +13,10 @@ import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
 import '../token/token_cubit.dart';
+import '../vault/vault_cubit.dart';
 import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';
+import '../../services/channel_keyring.dart';
 import '../../services/call_foreground_service.dart';
 import '../../services/connection_failure.dart';
 import '../../services/level_throttle.dart';
@@ -27,10 +30,12 @@ import '../../services/room_tiles.dart';
 import '../../services/serial_queue.dart';
 import '../../services/sound_service.dart';
 import '../../services/speech_detector.dart';
+import '../../services/voice_keys.dart';
 import '../../services/voice_signal.dart';
 
 part 'livekit_state.dart';
 part 'livekit_connection.dart';
+part 'livekit_e2ee.dart';
 part 'livekit_media_controls.dart';
 part 'livekit_participants.dart';
 part 'livekit_screenshare.dart';
@@ -40,6 +45,7 @@ part 'livekit_voice_activity.dart';
 /// Cubit managing LiveKit room connections, participants, and media controls.
 class LiveKitCubit extends Cubit<LiveKitState>
     with
+        _E2EEMixin,
         _LiveKitConnectionMixin,
         _MediaControlsMixin,
         _ParticipantMixin,
@@ -53,6 +59,25 @@ class LiveKitCubit extends Cubit<LiveKitState>
   @override
   final ServerCubit? _serverCubit;
   @override
+  final CryptoRepository _crypto;
+
+  /// Whether a user id belongs to a bot, so its frames are keyed differently.
+  ///
+  /// Settable rather than injected: the member roster is built after this cubit
+  /// and would otherwise be a construction cycle. Null answers "not a bot",
+  /// which is the safe default — a member keyed as a member is readable by the
+  /// room, where a member keyed as a bot would be audible to nobody.
+  @override
+  bool Function(String userId)? _isBotResolver;
+
+  set isBotResolver(bool Function(String userId)? resolver) =>
+      _isBotResolver = resolver;
+
+  /// The channel key for the call being joined. Voice and text share one
+  /// keyring per channel — see [ChannelKeyring].
+  @override
+  late final ChannelKeyring _keyring;
+  @override
   ScreenshareCubit? _screenshareCubit;
   @override
   final List<EventsListener<RoomEvent>> _listeners = [];
@@ -62,14 +87,27 @@ class LiveKitCubit extends Cubit<LiveKitState>
   LiveKitCubit({
     required AppCubit appCubit,
     required TokenCubit tokenCubit,
+    required VaultCubit vaultCubit,
     ServerCubit? serverCubit,
     ScreenshareCubit? screenshareCubit,
+    CryptoRepository? crypto,
   }) : _appCubit = appCubit,
        _tokenCubit = tokenCubit,
        _serverCubit = serverCubit,
        _screenshareCubit = screenshareCubit,
+       _crypto = crypto ?? CryptoRepository(),
        _lastAppState = appCubit.state,
        super(const LiveKitState()) {
+    // Its own ring rather than the chat cubit's: a call and an open text
+    // channel are different channels most of the time, and the two must not
+    // clear each other's keys when either is left.
+    if (serverCubit != null) {
+      _keyring = ChannelKeyring(
+        serverCubit: serverCubit,
+        vaultCubit: vaultCubit,
+        crypto: _crypto,
+      );
+    }
     _appSubscription = _appCubit.stream.listen(_onAppStateChanged);
   }
 

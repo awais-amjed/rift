@@ -147,6 +147,51 @@ void main() {
     });
   });
 
+  group('the sealed key a bot is handed', () {
+    // A bot has to encrypt its own media to be heard in an end-to-end
+    // encrypted call, and the key it uses is sealed to it by a member. This is
+    // the one thing a bot ever opens (BOTS.md §6b).
+
+    test('unwraps to the key that was sealed', () async {
+      // The blob is frozen rather than regenerated: `wrapKey` picks a random
+      // ephemeral key, so there are no reproducible bytes to compare. What is
+      // reproducible is that this exact blob still opens — which is what a
+      // change to the wrap format would break.
+      final v = section('wrapped_key');
+      final identity = await crypto.deriveChatIdentity(
+        masterSeed: seed,
+        host: section('chat_identity')['host'] as String,
+      );
+      final key = await crypto.unwrapKey(
+        wrapped: WrappedKey.fromJson(v),
+        myKeyPair: identity.keyPair,
+      );
+      expect(CryptoRepository.toBase64(key), v['key_base64']);
+    });
+
+    test(
+      'the key a bot speaks with cannot be walked back to the channel key',
+      () async {
+        // Members derive this; the bot receives only the result. HMAC is what
+        // makes "audible but deaf" expressible at all — with one shared room key
+        // it is not (BOTS.md §2).
+        final v = section('bot_voice_key');
+        final channelKey = CryptoRepository.fromBase64(
+          section('wrapped_key')['key_base64'] as String,
+        );
+        final derived = await crypto.hmacSha256(
+          key: channelKey,
+          message: 'voicebot:v1:${v['bot_id']}',
+        );
+        expect(CryptoRepository.toBase64(derived), v['key_base64']);
+        expect(
+          CryptoRepository.toBase64(derived),
+          isNot(section('wrapped_key')['key_base64']),
+        );
+      },
+    );
+  });
+
   test('a signature over all of it', () async {
     // Ed25519 is deterministic, so this one line proves the key ladder and the
     // payload construction at the same time: get either wrong and the bytes

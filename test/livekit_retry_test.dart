@@ -6,6 +6,7 @@ import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/cubits/token/token_cubit.dart';
+import 'package:rift/logic/cubits/vault/vault_cubit.dart';
 import 'package:rift/logic/services/connection_failure.dart';
 import 'package:rift/presentation/screens/home/participants_grid/widgets/error_view.dart';
 
@@ -38,8 +39,11 @@ const _userId = 'user-1';
 
 /// Built with no [ServerCubit], so every join fails at the first check. That is
 /// enough to exercise the retry path itself without a live room.
-LiveKitCubit _buildCubit(TokenCubit tokenCubit) =>
-    LiveKitCubit(appCubit: AppCubit(), tokenCubit: tokenCubit);
+LiveKitCubit _buildCubit(TokenCubit tokenCubit) => LiveKitCubit(
+  appCubit: AppCubit(),
+  tokenCubit: tokenCubit,
+  vaultCubit: VaultCubit(),
+);
 
 Future<void> _pumpErrorView(
   WidgetTester tester, {

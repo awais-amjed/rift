@@ -1,6 +1,6 @@
 part of 'livekit_cubit.dart';
 
-mixin _RoomEventsMixin on Cubit<LiveKitState> {
+mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   List<EventsListener<RoomEvent>> get _listeners;
   AppCubit get _appCubit;
   void _syncParticipants();
@@ -17,6 +17,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState> {
     listener
       ..on<ParticipantConnectedEvent>((e) {
         final identity = e.participant.identity;
+        // Their key before their audio: a frame cryptor with no key for a
+        // participant drops their frames, and somebody who joined a moment
+        // before you registered them would simply never be audible.
+        unawaited(_registerParticipantKey(identity));
         if (ParticipantIdentity.isScreenshare(identity)) {
           SoundService.instance.playStreamStarted();
         } else {

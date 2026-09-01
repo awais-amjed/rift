@@ -1,10 +1,12 @@
 # BOTS.md — Bots, commands & webhooks
 
-Design reference for third-party integrations. **Webhooks (§3, §7), bot identity (§1, §2, §9),
-commands (§4), channel and ephemeral replies (§5) and the moderation grant (§6) are implemented** —
-migrations 013 through 017, plus the Dart SDK (§11). Still **[Planned]**: panels (§5), the
-server-wide grant and its UI (§6), and the TypeScript SDK (§11). Sections are marked as they land,
-the same way `ARCHITECTURE.md` marks its own.
+Design reference for third-party integrations. **Everything in the §13 build order is
+implemented** — migrations 013 through 017 for the bot itself, 028 through 032 for panels, the
+grants and encrypted voice, plus both SDKs (§11). What is left is listed in §12 and in each SDK's
+README, and it is choices rather than a backlog: reading over realtime instead of polling,
+attachments, DMs, joining from an invite link, and an `image` block that points at this server's
+own bucket.
+Sections are marked as they land, the same way `ARCHITECTURE.md` marks its own.
 
 Read `ARCHITECTURE.md` §2 (auth) and §4 (chat encryption) first. This document assumes both, and
 where it departs from them it says so.
@@ -170,7 +172,7 @@ the bot and both work while the bot is asleep.
 
 ---
 
-## 5. Replies — [Channel + ephemeral implemented, migration 016; panels specified below, not built]
+## 5. Replies — [Implemented — channel and ephemeral in migration 016, panels in 029]
 
 Three shapes, because bot output is three different things and Discord flattens them all into
 chat messages for want of anywhere else to put them.
@@ -231,7 +233,7 @@ the widgets, and the button-press row.
 
 ---
 
-## 6. Moderation bots — the one real exception — [Grant implemented, migration 017; server-wide grant and UI planned]
+## 6. Moderation bots — the one real exception — [Implemented — migrations 017, 028 and 030]
 
 A moderation bot has to read everything. There is no cryptographic middle ground: it either holds
 the channel key or it does not.
@@ -337,6 +339,114 @@ says *automod is metadata-only*; this is that decision arriving.
 
 ---
 
+## 6b. What a bot may hear in a call — [Implemented — migrations 031, 032]
+
+The rule at the top of this document was false in exactly one place, and it took
+building the SDK's voice support to notice.
+
+`get_channel_token` never asked what the caller was. `@everyone` carries
+`CONNECT` and `SPEAK`, a bot holds `@everyone` like anybody else, and the token
+was minted with `canSubscribe`. So any bot invited to a server could sit in a
+call and receive every participant's audio, indefinitely, with nothing said in
+any channel and nothing shown to anyone in the room.
+
+Nobody built that on purpose. It is what happens when a rule is enforced in the
+text path and the voice path is written by asking *what does a member need*.
+
+### Publishing is not hearing — and encryption almost took that away
+
+**A bot's token is minted with `canSubscribe: false`.** It can play into a call
+and receives nothing back.
+
+That was the whole mechanism for about an hour. Then voice became end-to-end
+encrypted (`ARCHITECTURE.md` §5), and §2 arrived in the middle of a call: a bot
+has to *encrypt* to be audible, the key that encrypts also decrypts, and with
+one key per room "speaks but does not listen" stops being expressible. A music
+bot would have had to be handed the ability to hear every word in the room.
+
+So the two directions get different keys:
+
+```
+memberKey = channelKey
+botKey    = HMAC-SHA256(channelKey, "voicebot:v1:<botId>")
+```
+
+Every member holds `channelKey`, derives `botKey`, and hears the bot. The bot is
+sealed only `botKey` — by a member, since only somebody holding `channelKey`
+can produce one — and HMAC does not run backwards. It cannot reach the channel
+key, and two bots in one call cannot decrypt each other either.
+
+This is the shape §2 says a key cannot have, and it is bought by giving the two
+directions different keys rather than by trusting anyone. It is also why the
+room runs in LiveKit's per-participant key mode instead of its simpler
+shared-key mode: shared-key would put every participant on one key and take the
+property away.
+
+A bot with no key is refused a token rather than joined. A participant
+publishing with `encryptionType: kNone` is one every member's client skips the
+frame cryptor for — its audio would arrive in the clear, inside the room built
+so that could not happen.
+
+That is affordable precisely because of which bot people ask for first: a music
+bot only ever publishes. It needs no grant and notices no difference. What
+genuinely needs to hear — transcription, an AI that answers out loud, a recorder
+— gets an explicit grant, one voice channel at a time, gated on `MANAGE_BOTS`
+and on being able to see the channel.
+
+A bot is also never `roomAdmin`, which it could previously become by holding a
+moderator role for text reasons. Muting and removing people in a call is not
+something to acquire as a side effect.
+
+### Letting a bot listen is a key grant, like §6's
+
+When this section was first written, voice was not encrypted, and it said the
+listening grant was revocable in a way §6's key grant is not: subscription was a
+permission, so revoking pushed `canSubscribe: false` onto the live connection
+and the audio stopped mid-call.
+
+**That is no longer the whole truth.** A bot that may hear needs `channelKey`
+itself — there is no third thing to give it — so it is sealed the real key, and
+a key that has been handed over cannot be taken back. Revoking now means what it
+means in §6: rotate forward, and the bot keeps everything it already heard.
+
+The live push still happens and is still worth doing — a token is good for its
+hour no matter what the table says, which is why the grant is an edge function
+rather than an RPC, the same lesson `moderate_user` learned about mutes. It just
+is not the whole story any more, and the confirm dialog says so.
+
+What is genuinely free is the other case, and it is the common one: **a music
+bot needs no grant at all.** Speaking was never the half that had to be allowed.
+
+### The room still says so
+
+Rule 4 applies unchanged: the admin decides, and everybody who speaks in that
+room pays for it. Two of the three carriers work here —
+
+- **A standing marker on the channel**, on the sidebar tile at every size,
+  including the plain row an empty voice channel gets. An empty channel is
+  exactly the one nobody is looking at, and a marker that appears only once a
+  call starts is one you notice after speaking rather than before.
+- **The bot's own page**, which lists what it reads and what it hears as two
+  separate lists, because they are two grants with two different consequences.
+
+The third — a system message in the channel — has nowhere to go: a voice channel
+holds no messages. It carries the columns and ignores them (§3).
+
+### No server-wide form
+
+§6 has a bulk grant because thirty channels one at a time produces a button
+somebody else builds without thinking. That argument does not carry here. There
+is no MEE6 of voice, listening to a room full of people is a larger decision than
+reading a text channel, and *every call on this server, plus the ones made
+later* is not a thing anybody should be able to click once. Per channel is the
+only form.
+
+A channel made private drops its listeners, the same re-decision 030 makes for
+text keys: whoever allowed this was looking at a room the whole server could walk
+into.
+
+---
+
 ## 7. Webhooks — [Implemented]
 
 An incoming webhook is a URL an outside service POSTs to, which appears as a message. **No login,
@@ -411,6 +521,8 @@ Nothing here is final; it is the shape the sections above imply.
 | `bot_server_grants` table | a server-wide grant held as intent, materialised per public channel |
 | `channels.is_private BOOLEAN NOT NULL DEFAULT false` | written before private channels exist, so the bulk carve-out cannot be forgotten |
 | `messages.blocks JSONB` | a panel's body (§5); button presses come back through `to_bot` |
+| `bot_voice_grants` table | §6b: `(channel_id, bot_id)` — who may hear a call |
+| `bot_voice_keys` table | §6b: the key a bot *speaks* with, sealed to it by a member |
 
 **The policy that carries the design:** a bot may `SELECT` a message only where
 `to_bot = auth.uid()`, or where it is the sender, or where it holds a keyring entry for that
@@ -418,21 +530,29 @@ channel. Nothing else. That single rule is what "hears what you tell it" reduces
 
 ---
 
-## 11. The SDK — [Dart implemented and text-only, `bot_sdk/`; TypeScript is the reference]
+## 11. The SDK — [Implemented in both languages; voice in TypeScript only]
 
-- Derive an identity from a seed, SIWS login, keep the session refreshed
-- Join from an invite link
-- Subscribe to commands addressed to it, and to its DMs
-- Reply — channel, ephemeral, or panel
-- Publish a manifest
-- Publish audio into a voice channel (LiveKit; no crypto involved)
+- ~~Derive an identity from a seed, SIWS login, keep the session refreshed~~ **done**
+- Join from an invite link — not yet: both SDKs take a server id and a seed
+  that a human pasted in, and `resolve_invite` + `register` are still done by
+  hand
+- ~~Receive commands addressed to it~~ **done**, by polling rather than subscribing
+- ~~Reply — channel, ephemeral, or panel~~ **done**
+- ~~Publish a manifest~~ **done** in both
+- Its DMs — not yet
+- ~~Publish audio into a voice channel (LiveKit; no crypto involved)~~ **done** in TypeScript
+  (migration 031), where `@livekit/rtc-node` is an optional dependency loaded only by
+  `joinVoice`. Not in Dart, and structurally cannot be: see below
 
 ### The contract comes before the second implementation
 
-A bot needs four primitives and no more: HMAC-SHA256 for the seed ladder, an Ed25519 keypair from
-that seed, an Ed25519 signature, and base64. **No X25519, no AES-GCM, no Argon2id** — a bot never
-holds a channel key, so it never opens anything. That is a couple of hundred lines in any language,
-and all four are standard library everywhere.
+A text bot needs four primitives and no more: HMAC-SHA256 for the seed ladder, an Ed25519 keypair
+from that seed, an Ed25519 signature, and base64. **No Argon2id ever** — a bot never holds a vault.
+That is a couple of hundred lines in any language, and all four are standard library everywhere.
+
+Voice adds two, and only two: X25519 and AES-GCM, to open the one thing a bot is ever sealed — its
+own media key for an encrypted call (§6b). It still never holds a channel key. Both are standard
+library too, and the whole of it is one file in each SDK.
 
 Which makes the SDK the cheap half and the *format* the expensive one. Two implementations of
 `chatmsg:v1:…` are two things that can disagree, and the disagreement does not look like an error:
@@ -477,6 +597,12 @@ Documented honestly, not to be "fixed":
   the feature rather than polish on top of it.
 - **A bot puts load on the community's server.** Realtime's default budget is ~100 events/second
   tenant-wide, counted as deliveries. On Discord a bot costs the community nothing; here it does.
+- **A bot cannot hear a call unless somebody says so**, which makes a voice
+  transcription or AI-companion bot a per-channel decision rather than something
+  that works on install. Deliberate, and the affordable version of it: a music
+  bot needs nothing, so the strict default costs the common case nothing (§6b).
+- **A Dart bot cannot publish audio at all.** Not a policy — the only Dart
+  LiveKit client needs Flutter. Music bots are TypeScript here (§11).
 - **Central has no bots.** Friend-gated, quota'd, 30-day TTL — that tier is first contact. Bots are
   a self-hosted feature, which matches the funnel/home split.
 - **The bots people actually use want the §6 grant.** The read-everything shape is most of the top
@@ -505,9 +631,9 @@ badge. Both are fixed; both have tests.
    sidebar entry is the next cheap win. One thing the design did not anticipate: a command is
    *signed* though not sealed, and the read path verifies it. A webhook's message cannot be
    verified and is never shown as a person; a command is attributed to one, so it has to be.
-3. ~~Replies: channel message, then ephemeral~~ **done** (migration 016). Panels still planned.
+3. ~~Replies: channel message, then ephemeral~~ **done** (migration 016). Panels are item 8.
 4. ~~The Dart SDK, extracted from what the first three needed~~ **done** (`bot_sdk/`). Polls rather than subscribing: no reconnect logic to get wrong, and nothing spent from the server-wide event budget. Realtime, voice and DMs are listed in its README as not-yet.
-5. ~~Moderation grants~~ **done** (migration 017). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see. What is *not* done is anything that calls them — `grant_bot_channel_key` and `revoke_bot_channel_key` appear only in the migration, so today an admin grants by writing SQL.
+5. ~~Moderation grants~~ **done** (migration 017). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see. Nothing called them at first — `grant_bot_channel_key` and `revoke_bot_channel_key` appeared only in the migration, so an admin granted by writing SQL. Item 9 gave them a UI.
 
 **Then, in this order.** Private channels come first, and not because bots need them — they are a
 feature in their own right. But the server-wide grant in §6 is *defined* as "not private", and
@@ -558,8 +684,8 @@ to come back.
    every channel it holds a key to. Before it, that was discoverable a channel at a time, which is
    not an answer somebody can act on.
 10. ~~The TypeScript SDK~~ **done** (`bot_sdk_ts/`) — auth, commands, replies and panels. No build
-    step and no dependencies: Node runs TypeScript by stripping types, and the four primitives a
-    bot needs are all in `node:crypto`. It proves itself against `test/wire_vectors.json`, the same
+    step and no dependencies for a text bot: Node runs TypeScript by stripping types, and every
+    primitive a bot needs — voice included — is in `node:crypto`. It proves itself against `test/wire_vectors.json`, the same
     file the Dart implementation is checked against, reproducing one of its signatures byte for
     byte — which is the whole reason item 7 came first.
 
@@ -571,6 +697,44 @@ to come back.
     `Timer.periodic` do not wait for the previous callback, so a slow handler lets two ticks run
     the same query before either advances the cursor. One press counted as two votes. Both are
     guarded now.
+
+11. ~~Voice~~ **done** (migration 031, `bot_sdk_ts/src/voice.ts`) — `Bot.joinVoice`,
+    `VoiceConnection.play`, and `@livekit/rtc-node` as an optional peer imported
+    only by that call, so a text bot still installs nothing.
+
+    Found by building it, and the reason this item was worth more than a wrapper:
+    **`get_channel_token` never asked what the caller was**, so a bot in a call
+    could hear everybody. §6b is the fix and the reasoning. Shipping the media
+    wrapper without it would have been shipping a music-bot SDK that doubles as a
+    call recorder.
+
+    Two smaller things the build turned up. The migration-path test selected
+    files by glob — `0[12][0-9]_*.sql` for "everything from 018 on" — which
+    silently stopped at 029, so 030 had never once been applied by it; the globs
+    are a number comparison now, and it covers six migrations it was skipping.
+    And npm will not install a package the root declares as an optional peer of
+    itself, so the README's own `npm install @livekit/rtc-node` did nothing
+    inside this repo — the examples get it as a devDependency instead.
+
+12. ~~Encrypting voice~~ **done** (migrations 031-032). Calls now use the
+    channel's own key, so the SFU forwards frames it cannot open — the last
+    place in Rift where the server could read what members said to each other.
+
+    It cost item 11 its central property for a while, which is the interesting
+    part. Encrypting is what makes a bot audible, and with one key per room the
+    key that encrypts also decrypts — §2, arriving in voice. Two keys and a
+    one-way function bought it back: `HMAC(channelKey, "voicebot:v1:<botId>")`,
+    which every member derives and no bot inverts. Verified by playing a tone
+    from a bot and listening three ways at once — audible with the derived key,
+    silent with the channel key, silent with a random one.
+
+    Two holes found on the way, both of the same shape: something that used to
+    be true of voice because voice held no keys. `sweep_channel_keys` filtered
+    to text channels, so a banned member's voice key would never have rotated.
+    And screen share is a second connection into the same room — LiveKit skips
+    the frame cryptor for a track declaring no encryption, so an unencrypted
+    share would not have failed, it would have handed the server the one stream
+    nobody meant it to have.
 
 Games are not on this list. Discord's run in a browser already, Linux desktop has no usable web
 view, and the sandboxing is a project of its own.

@@ -5,6 +5,7 @@ import '../logic/cubits/app/app_cubit.dart';
 import '../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../logic/cubits/channel_presence/channel_presence_cubit.dart';
+import '../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
 import '../logic/cubits/livekit/livekit_cubit.dart';
 import '../logic/cubits/notifications/server_notifications_cubit.dart';
@@ -51,6 +52,9 @@ class AppProviders extends StatelessWidget {
           create: (context) => LiveKitCubit(
             appCubit: context.read<AppCubit>(),
             tokenCubit: context.read<TokenCubit>(),
+            // Calls are end-to-end encrypted with the channel's own key, and
+            // the vault is where the identity that unwraps it lives.
+            vaultCubit: vaultCubit,
             // So LiveKit can re-authenticate on token expiry.
             serverCubit: context.read<ServerCubit>(),
           ),
@@ -59,6 +63,10 @@ class AppProviders extends StatelessWidget {
         BlocProvider(
           create: (context) =>
               VoiceStatsCubit(livekitCubit: context.read<LiveKitCubit>()),
+        ),
+        BlocProvider(
+          create: (context) =>
+              VoiceListenersCubit(serverCubit: context.read<ServerCubit>()),
         ),
         BlocProvider(
           create: (context) => ChannelPresenceCubit(
@@ -160,6 +168,12 @@ class AppProviders extends StatelessWidget {
       final url = serverCubit.state.selectedServer?.supabaseUrl;
       if (url != null) tokenCubit.invalidateServerTokens(url);
     });
+    // Which participants in a call are bots, so their media is keyed with the
+    // derived key rather than the channel key (BOTS.md §6b). Set here rather
+    // than injected because the roster is built after LiveKitCubit and would
+    // otherwise be a construction cycle.
+    context.read<LiveKitCubit>().isBotResolver = (userId) =>
+        members.state.byId[userId]?.isBot ?? false;
     return members;
   }
 

@@ -7,12 +7,14 @@ import '../../../../../../../data/constants.dart';
 import '../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../../common/nav_row.dart';
 import '../../../../../../theme/app_text.dart';
 import '../channel_context_menu.dart';
 import 'widgets/channel_drop_target.dart';
 import 'widgets/channel_roster.dart';
 import 'widgets/live_badge.dart';
+import 'widgets/voice_listening_badge.dart';
 import '../channel_lock_badge.dart';
 
 /// A voice channel in the sidebar — Discord-style, showing who is in it.
@@ -82,6 +84,11 @@ class VoiceChannelTile extends StatelessWidget {
                             ? ChannelLockBadge(themeState: themeState)
                             : null,
                         label: channel.name,
+                        trailing: VoiceListeningBadge(
+                          listeners: context
+                              .watch<VoiceListenersCubit>()
+                              .listening(channel.id),
+                        ),
                         onTap: onTap,
                         isSelected: isTargeted,
                       ),
@@ -205,6 +212,14 @@ class VoiceChannelTile extends StatelessWidget {
                       ? themeState.channelActiveText
                       : themeState.textSecondary,
                 ),
+              ),
+            ),
+            // Before LIVE, not after: whether you can be heard by a bot is
+            // the thing to read before deciding to speak, and LIVE is about
+            // the call you already joined.
+            VoiceListeningBadge(
+              listeners: context.watch<VoiceListenersCubit>().listening(
+                channel.id,
               ),
             ),
             if (isSelected) const LiveBadge(),

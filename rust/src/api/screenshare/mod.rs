@@ -29,6 +29,8 @@ use types::{CaptureCommand, ScreenShareSession, SESSION};
 
 use crate::frb_generated::StreamSink;
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+use livekit::e2ee::key_provider::{KeyProvider, KeyProviderOptions};
+use livekit::e2ee::{E2eeOptions, EncryptionType};
 use livekit::prelude::*;
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
@@ -112,10 +114,31 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
 
     println!("Attempting to connect to LiveKit room...");
 
+    // Same key as the rest of the call. `with_shared_key` is right here and not
+    // in the app: this connection publishes one track and subscribes to
+    // nothing, so it never needs anyone else's key — and the app's
+    // per-participant mode exists only so a bot can be given a different one.
+    if config.e2ee_key.len() != 32 {
+        return Err("Missing the channel key for this call".to_string());
+    }
+    let key_provider = KeyProvider::with_shared_key(
+        KeyProviderOptions::default(),
+        config.e2ee_key.clone(),
+    );
+    key_provider.set_shared_key(config.e2ee_key.clone(), config.e2ee_key_index);
+
+    // `RoomOptions` is non-exhaustive upstream, so it is built and then set
+    // rather than written as a literal.
+    let mut room_options = RoomOptions::default();
+    room_options.e2ee = Some(E2eeOptions {
+        encryption_type: EncryptionType::Gcm,
+        key_provider,
+    });
+
     let (room, _rx) = Room::connect(
         &config.livekit_url,
         &config.livekit_token,
-        RoomOptions::default(),
+        room_options,
     )
     .await
     .map_err(|e| format!("Failed to connect to LiveKit: {:?}", e))?;

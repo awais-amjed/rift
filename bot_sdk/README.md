@@ -116,10 +116,22 @@ It is an advertisement, not evidence. Nothing is authorised by what it claims.
   (~100/second, which every member's unread badges also draw on). Realtime
   belongs here eventually; it did not belong in the version that had to prove
   the rest works.
-- **Voice.** A music bot publishes to the server's LiveKit like any participant,
-  and `get_channel_token` already mints the JWT. Not wrapped here yet.
+- **Voice**, and this one is structural rather than pending. The only Dart
+  LiveKit client needs Flutter and `flutter_webrtc`, so a headless Dart bot
+  cannot publish audio at all — which is the whole reason TypeScript is the
+  reference implementation. `bot_sdk_ts` has `Bot.joinVoice`; write your music
+  bot there.
+
+  What *is* true here is the rule around it, and it is enforced below both SDKs
+  so it holds for a bot written in anything. Calls are end-to-end encrypted, a
+  bot's token is minted `canSubscribe: false`, and — the part that survives
+  encryption — a bot is sealed a *different key* from the members:
+  `HMAC(channelKey, "voicebot:v1:<botId>")`, which every member derives and no
+  bot inverts (migrations 031-032, BOTS.md §6b).
 - **Attachments.** A bot's reply is text.
 - **DMs.** A bot can be DM'd, and this SDK does not read them yet.
+- **Joining from an invite link.** `resolve_invite` and `register` are still
+  done by hand; this package starts from a server id and a seed.
 
 ## Depending on `rift_crypto`
 

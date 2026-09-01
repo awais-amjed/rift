@@ -6,7 +6,11 @@ import '../../../../../common/app_switch.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 
-/// One bot, and whether it holds this channel's key.
+/// One bot, and whether it has been given access to this channel.
+///
+/// Shared by the two grants, which are deliberately not the same promise — a
+/// text channel's key cannot be taken back, and hearing a call can — so the
+/// two sentences under the name are passed in rather than assumed here.
 ///
 /// The line under the name is the bot's own `data_use` declaration where it has
 /// published one (BOTS.md §8). It is an advertisement, not evidence — nothing
@@ -19,6 +23,11 @@ class ChannelBotRow extends StatelessWidget {
   final bool busy;
   final VoidCallback? onChanged;
 
+  /// What this bot can do here, said plainly. Overridden for a voice channel,
+  /// where the grant is about hearing rather than reading.
+  final String grantedNote;
+  final String ungrantedNote;
+
   const ChannelBotRow({
     super.key,
     required this.themeState,
@@ -26,14 +35,14 @@ class ChannelBotRow extends StatelessWidget {
     required this.granted,
     required this.busy,
     this.onChanged,
+    this.grantedNote = 'Reads every message sent here.',
+    this.ungrantedNote = 'Only sees what it is sent.',
   });
 
   String? get _note {
     final declared = bot.manifest.dataUse;
     if (declared != null && declared.trim().isNotEmpty) return declared;
-    return granted
-        ? 'Reads every message sent here.'
-        : 'Only sees what it is sent.';
+    return granted ? grantedNote : ungrantedNote;
   }
 
   @override

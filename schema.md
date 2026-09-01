@@ -398,6 +398,83 @@ eligible then. Both new ones are built the same way, so nothing has a flag to se
 | **revoked bot** sealed into current | same shape, same reason |
 | **grant `from_key_version` above current** | a grant just made; the rotation is what makes it forward-only |
 
+### bot_voice_grants (migration 031)
+
+Which bots may **hear** a voice channel. Its absence is the feature: without a row, a bot's LiveKit
+token is minted with `canSubscribe: false`, so it publishes into a call and receives nothing.
+
+Before this, `get_channel_token` never asked what the caller was. `@everyone` carries `CONNECT` and
+`SPEAK`, a bot holds `@everyone` like anybody else, and the token said `canSubscribe` — so any bot
+invited to a server could sit in a call and hear everyone, with nothing shown in the room. Voice was
+the one place BOTS.md's rule was simply false.
+
+| Column | Note |
+|---|---|
+| `channel_id`, `bot_id` | the pair is the primary key |
+| `granted_by`, `granted_at` | so the marker can say who decided |
+
+`SELECT` for anyone who can see the channel — `app.can_see_channel`, not `server_id`, because a
+private voice channel's membership is not public and neither is what is listening to it. No write
+grant at all: `grant_bot_voice_listen` / `revoke_bot_voice_listen` are `SECURITY DEFINER` and carry
+`MANAGE_BOTS`. `voice_listeners` is the view clients read for the marker, joined to a name.
+
+Three things distinguish it from `bot_channel_keys`, and they are why it is a separate table rather
+than a column:
+
+1. **It gates subscription, live.** `set_bot_voice_listen` is an edge function because the row is
+   half the job — it pushes the new permission onto the live connection, so the audio stops mid-call
+   rather than at the next join. The same lesson `moderate_user` learned about mutes.
+
+   This used to be described as making the grant *revocable*, unlike §6's key grant. That was true
+   only while voice was unencrypted. A bot that may hear now needs the channel key itself
+   (`bot_voice_keys`, 032), and a key that has been handed over cannot be taken back.
+2. **There is no server-wide form.** §6's bulk grant exists because thirty channels one at a time
+   produces a button somebody else builds badly. That argument does not carry for calls.
+3. **A channel made private drops its listeners**, the same re-decision 030 makes for text keys.
+
+### bot_voice_keys (migration 032)
+
+The key a bot **speaks** with in one voice channel, sealed to its chat identity by a member.
+
+Calls are end-to-end encrypted (031), and that removed the mechanism 031 had just built. Encrypting
+is what makes a bot audible, holding the key is what makes it a listener, and with one key per room
+those are the same act — BOTS.md §2's "write but not read is not expressible with a key", arriving
+in voice. So the two directions get different keys:
+
+```
+memberKey = channelKey
+botKey    = HMAC-SHA256(channelKey, 'voicebot:v1:<botId>')
+```
+
+Members hold `channelKey`, derive `botKey`, and hear the bot. The bot is sealed only `botKey` and
+cannot invert HMAC, so it cannot reach `channelKey`. Two bots in one call cannot decrypt each other
+either — the bot id is in the context string.
+
+| Column | Note |
+|---|---|
+| `channel_id`, `bot_id`, `key_version` | the triple is the primary key |
+| `is_channel_key` | false: the derived publish key. true: the channel key itself, for a bot with a listening grant |
+| `wrapped_by` | which member sealed it |
+| `ephemeral_public_key`, `ciphertext`, `nonce` | `wrap:v1`, same as a keyring entry (WIRE.md §6) |
+
+`INSERT` by any member who can see the channel and **never by a bot** — it has no channel key to
+derive from, and `refuse_bot_keyring` already settled that bots do not write key material.
+`is_channel_key` may only be true where a `bot_voice_grants` row exists; that much the server can
+check. It cannot check what is *inside* the ciphertext, and a member holding the key could leak it
+anywhere — true of every channel, and not what this defends against. What it defends against is the
+grant meaning one thing in the UI and another in the room.
+
+`SELECT` by the bot itself and by members who can see the channel — the latter because they are the
+ones who notice a bot has no key and seal one, the same healing loop the text keyring uses.
+
+Changing a grant drops the rows (`bot_voice_grants_reset_keys`), so the next member into the call
+seals the right key. Leaving the channel key sealed to a bot whose grant is gone would be the grant
+not actually being revoked.
+
+**A listening grant is therefore a key grant**, with everything §6 says about one: it cannot be
+taken back, only rotated past. 031's note that this grant was revocable was true only while voice
+was unencrypted.
+
 ### users.manifest (migration 015)
 
 A bot's published command list and data declaration (BOTS.md §4, §8). `JSONB`, null for a person

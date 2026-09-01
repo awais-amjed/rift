@@ -19,6 +19,7 @@ import '../../services/broadcast_payload.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_failure.dart';
+import '../../services/channel_keyring.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/bot_command.dart';
 import '../../services/chat_notice.dart';
@@ -31,8 +32,6 @@ import '../server_members/server_members_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'channel_chat_state.dart';
-part 'channel_chat_keyring.dart';
-part 'channel_chat_keyring_result.dart';
 part 'channel_chat_notify.dart';
 part 'channel_chat_ready.dart';
 part 'channel_chat_rows.dart';
@@ -58,7 +57,6 @@ part 'channel_chat_sweep.dart';
 ///   (so a forged broadcast can at worst cause a fetch).
 class ChannelChatCubit extends Cubit<ChannelChatState>
     with
-        _ChatKeyringMixin,
         _ChannelChatRowsMixin,
         _ChannelChatHistoryMixin,
         _ChannelChatSendMixin,
@@ -87,29 +85,32 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   StreamSubscription<ServerState>? _serverSub;
 
-  /// Server ids whose chat public key we've published this run (idempotent
-  /// server-side; this just avoids a call per channel open).
+  /// The open channel's keys.
+  ///
+  /// A service rather than a mixin since voice needs the same bootstrap for the
+  /// same channels — LiveKit's frame cryptor wants the very bytes this holds.
+  /// Two copies of key bootstrap would be two things that can disagree about
+  /// which version is current, and that disagreement presents as a room where
+  /// some people can read each other and some cannot.
   @override
-  final Set<String> _publishedChatKey = {};
-
-  /// The master seed [_publishedChatKey] is valid for — a vault reset in the
-  /// same run yields a new identity whose key must be republished.
-  @override
-  String? _publishedChatKeySeed;
-
-  @override
-  void _setPublishedChatKeySeed(String seed) => _publishedChatKeySeed = seed;
+  late final ChannelKeyring _keyring = ChannelKeyring(
+    serverCubit: _serverCubit,
+    vaultCubit: _vaultCubit,
+    crypto: _crypto,
+    onHealed: _ringKeySweepDoorbell,
+  );
 
   /// Unwrapped channel keys for the open channel, by key version.
   @override
-  final Map<int, Uint8List> _keys = {};
+  Map<int, Uint8List> get _keys => _keyring.keys;
 
   /// The open channel's newest key version (0 = none yet).
   @override
-  int _currentKeyVersion = 0;
+  int get _currentKeyVersion => _keyring.currentVersion;
 
   @override
-  void _setCurrentKeyVersion(int version) => _currentKeyVersion = version;
+  Future<ChatIdentity?> _chatIdentity(Server server) =>
+      _keyring.chatIdentity(server);
 
   /// Guards against a stale async continuation writing into a newer channel.
   int _openGeneration = 0;
@@ -172,13 +173,13 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       return;
     }
 
-    await _ensureChatKeyPublished(server);
+    await _keyring.ensureChatKeyPublished(server);
     if (_isStale(generation)) return;
 
-    final keyring = await _loadOrBootstrapKeyring(channelId);
+    final keyring = await _keyring.loadOrBootstrap(channelId);
     if (_isStale(generation)) return;
 
-    if (keyring.isFailed) {
+    if (keyring.failure != null) {
       emit(
         state.copyWith(
           status: ChannelChatStatus.error,
@@ -229,8 +230,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     _openGeneration++;
     _openServerId = null;
     await _teardownRealtime();
-    _keys.clear();
-    _currentKeyVersion = 0;
+    _keyring.clear();
     if (!isClosed) emit(const ChannelChatState());
   }
 

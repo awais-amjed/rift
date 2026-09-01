@@ -67,15 +67,15 @@ fn wire__crate__api__screenshare__capture__get_capture_source_thumbnail_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_capture_full_screen = <bool>::sse_decode(&mut deserializer);
-            let api_source_index = <u32>::sse_decode(&mut deserializer);
+            let api__capture_full_screen = <bool>::sse_decode(&mut deserializer);
+            let api__source_index = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok(
                         crate::api::screenshare::capture::get_capture_source_thumbnail(
-                            api_capture_full_screen,
-                            api_source_index,
+                            api__capture_full_screen,
+                            api__source_index,
                         ),
                     )?;
                     Ok(output_ok)
@@ -617,6 +617,8 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
         let mut var_selectedAudioSourceIndex = <Option<u32>>::sse_decode(deserializer);
         let mut var_selectedAudioSourceSink = <Option<u32>>::sse_decode(deserializer);
         let mut var_selectedAudioSourcePid = <Option<u32>>::sse_decode(deserializer);
+        let mut var_e2EeKey = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_e2EeKeyIndex = <i32>::sse_decode(deserializer);
         return crate::api::screenshare::types::ScreenShareConfig {
             livekit_url: var_livekitUrl,
             livekit_token: var_livekitToken,
@@ -633,6 +635,8 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
             selected_audio_source_index: var_selectedAudioSourceIndex,
             selected_audio_source_sink: var_selectedAudioSourceSink,
             selected_audio_source_pid: var_selectedAudioSourcePid,
+            e2ee_key: var_e2EeKey,
+            e2ee_key_index: var_e2EeKeyIndex,
         };
     }
 }
@@ -861,6 +865,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ScreenSha
                 .into_dart(),
             self.selected_audio_source_sink.into_into_dart().into_dart(),
             self.selected_audio_source_pid.into_into_dart().into_dart(),
+            self.e2ee_key.into_into_dart().into_dart(),
+            self.e2ee_key_index.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1065,6 +1071,8 @@ impl SseEncode for crate::api::screenshare::types::ScreenShareConfig {
         <Option<u32>>::sse_encode(self.selected_audio_source_index, serializer);
         <Option<u32>>::sse_encode(self.selected_audio_source_sink, serializer);
         <Option<u32>>::sse_encode(self.selected_audio_source_pid, serializer);
+        <Vec<u8>>::sse_encode(self.e2ee_key, serializer);
+        <i32>::sse_encode(self.e2ee_key_index, serializer);
     }
 }
 

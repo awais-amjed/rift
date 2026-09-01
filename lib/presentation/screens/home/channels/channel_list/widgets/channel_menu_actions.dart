@@ -3,11 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu_region.dart';
 import '../../bots/channel_bots_dialog.dart';
+import '../../bots/voice_bots_dialog.dart';
 import '../../channel_members_dialog.dart';
 import '../../channel_settings_dialog.dart';
 import '../../webhooks/channel_webhooks_dialog.dart';
@@ -142,6 +144,23 @@ void openChannelBots(BuildContext context, Channel channel) {
     build: (ctx) => BlocProvider.value(
       value: ctx.read<ServerCubit>(),
       child: ChannelBotsDialog(channel: channel),
+    ),
+  );
+}
+
+/// The voice one, which unlike its neighbour can be undone — see
+/// [VoiceBotsDialog]. Two providers, because the dialog refreshes the sidebar's
+/// marker itself rather than leaving it saying something that stopped being
+/// true.
+void openVoiceBots(BuildContext context, Channel channel) {
+  showDialogFromMenu(
+    context: context,
+    build: (ctx) => MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: ctx.read<ServerCubit>()),
+        BlocProvider.value(value: ctx.read<VoiceListenersCubit>()),
+      ],
+      child: VoiceBotsDialog(channel: channel),
     ),
   );
 }

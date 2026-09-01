@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
@@ -17,6 +18,7 @@ import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/avatar_repository.dart';
 import '../../../data/repositories/central_dm_repository.dart';
+
 import '../../../data/repositories/server_repository.dart';
 import '../../../supabase_config.dart';
 import '../../services/avatar_cache.dart';
@@ -38,6 +40,7 @@ part 'server_chat_api.dart';
 part 'server_profile_api.dart';
 part 'server_push_api.dart';
 part 'server_bots_api.dart';
+part 'server_voice_bots_api.dart';
 part 'server_webhooks_api.dart';
 
 class ServerCubit extends HydratedCubit<ServerState>
@@ -48,6 +51,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerMembersApiMixin,
         _ServerRolesApiMixin,
         _ServerBotsApiMixin,
+        _ServerVoiceBotsApiMixin,
         _ServerChannelsApiMixin,
         _ServerPrivateChannelsApiMixin,
         _ServerChatApiMixin,

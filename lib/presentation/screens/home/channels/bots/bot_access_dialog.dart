@@ -5,24 +5,27 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../data/enums/channel_type.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
-import '../../../../common/hint_card.dart';
 import '../../../../common/message_banner.dart';
-import '../../../../theme/app_text.dart';
 import '../../../settings/widgets/setting_toggle_row.dart';
+import 'widgets/bot_access_list.dart';
 
-/// Everything one bot can read, in one place.
+/// Everything one bot can reach, in one place.
 ///
 /// Before this it was discoverable a channel at a time — open each one, look at
 /// the header. That is not an answer somebody can act on, and "what does this
 /// thing see?" is the question the whole grant design is answerable for
 /// (BOTS.md §6, rule 4).
+///
+/// Reading and hearing are listed separately because they are separate grants
+/// with separate consequences, and a single merged list would suggest one
+/// switch turns both off. It does not: a channel key cannot be taken back, and
+/// a call can.
 class BotAccessDialog extends StatefulWidget {
   final ServerMember bot;
 
@@ -34,6 +37,7 @@ class BotAccessDialog extends StatefulWidget {
 
 class _BotAccessDialogState extends State<BotAccessDialog> {
   Set<String> _channelIds = const {};
+  Set<String> _voiceChannelIds = const {};
   bool _serverWide = false;
   bool _isLoading = true;
   bool _isBusy = false;
@@ -50,13 +54,13 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
               0)
           .has(ServerPermission.manageBots);
 
-  List<Channel> get _channels {
+  List<Channel> _channelsIn(Set<String> ids) {
     final all =
         context.read<ServerCubit>().state.selectedServer?.channels ??
         const <Channel>[];
     return [
       for (final channel in all)
-        if (_channelIds.contains(channel.id)) channel,
+        if (ids.contains(channel.id)) channel,
     ];
   }
 
@@ -67,10 +71,13 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
   }
 
   Future<void> _load() async {
-    final access = await context.read<ServerCubit>().botChannels(widget.bot.id);
+    final cubit = context.read<ServerCubit>();
+    final access = await cubit.botChannels(widget.bot.id);
+    final heard = await cubit.voiceChannelsHeardBy(widget.bot.id);
     if (!mounted) return;
     setState(() {
       _channelIds = access.channelIds;
+      _voiceChannelIds = heard;
       _serverWide = access.serverWide;
       _isLoading = false;
     });
@@ -114,10 +121,11 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
   @override
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
-    final channels = _channels;
+    final channels = _channelsIn(_channelIds);
+    final heard = _channelsIn(_voiceChannelIds);
 
     return AppModal(
-      title: 'What it can read',
+      title: 'What it can reach',
       subtitle: widget.bot.displayName,
       maxWidth: 480,
       content: Column(
@@ -134,54 +142,38 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
               child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
             )
           else ...[
-            SettingToggleRow(
+            BotAccessList(
               themeState: themeState,
-              title: 'Every public channel',
-              description:
-                  'Including channels made later. A private channel is never '
-                  'covered — that stays one decision at a time.',
-              value: _serverWide,
-              onChanged: _mayManage && !_isBusy ? _toggleServerWide : null,
+              label: 'Channels it can read',
+              channels: channels,
+              emptyIcon: Icons.visibility_off_outlined,
+              emptyText:
+                  'It reads nothing. It only sees messages sent to it — '
+                  'commands, and presses on its own panels.',
+              control: SettingToggleRow(
+                themeState: themeState,
+                title: 'Every public channel',
+                description:
+                    'Including channels made later. A private channel is '
+                    'never covered — that stays one decision at a time.',
+                value: _serverWide,
+                onChanged: _mayManage && !_isBusy ? _toggleServerWide : null,
+              ),
             ),
-            const SizedBox(height: 16),
-            if (channels.isEmpty)
-              const HintCard(
-                icon: Icons.visibility_off_outlined,
-                text:
-                    'It reads nothing. It only sees messages sent to it — '
-                    'commands, and presses on its own panels.',
-              )
-            else
-              for (final channel in channels)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Row(
-                    spacing: 8,
-                    children: [
-                      Icon(
-                        channel.channelType == ChannelType.voice
-                            ? Icons.volume_up_rounded
-                            : Icons.tag_rounded,
-                        size: 15,
-                        color: themeState.textTertiary,
-                      ),
-                      Expanded(
-                        child: Text(
-                          channel.name,
-                          style: AppText.row.copyWith(
-                            color: themeState.textPrimary,
-                          ),
-                        ),
-                      ),
-                      if (channel.isPrivate)
-                        Icon(
-                          Icons.lock_rounded,
-                          size: 13,
-                          color: themeState.textTertiary,
-                        ),
-                    ],
-                  ),
-                ),
+            const SizedBox(height: 20),
+            // Silence is the default and worth saying, because it is the
+            // opposite of what somebody arriving from Discord expects. A bot in
+            // a call there receives everything; here its token cannot subscribe
+            // at all unless this list names the channel.
+            BotAccessList(
+              themeState: themeState,
+              label: 'Calls it can hear',
+              channels: heard,
+              emptyIcon: Icons.volume_off_outlined,
+              emptyText:
+                  'It hears nothing. It can still speak in any call — '
+                  'playing music never needed permission.',
+            ),
           ],
         ],
       ),

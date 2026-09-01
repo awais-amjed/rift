@@ -69,6 +69,25 @@ class ConnectionFailure {
       detail = error,
       canRetry = true;
 
+  /// No channel key, so there is nothing to encrypt the call with.
+  ///
+  /// Retryable, and the retry usually works: the common cause is a member who
+  /// has just joined the server and whom nobody has sealed this channel's key
+  /// to yet. Another member's client heals that within seconds.
+  ///
+  /// The call is refused rather than joined unencrypted, which would work and
+  /// sound completely normal. A room you cannot join is a bug somebody reports;
+  /// a room that is quietly readable by the server is the promise breaking with
+  /// nobody noticing.
+  const ConnectionFailure.noChannelKey()
+    : title = 'Waiting for this channel’s key',
+      message =
+          'Calls here are end-to-end encrypted, and this device does not have '
+          'the key yet. Another member’s app hands it over automatically — '
+          'this usually clears in a few seconds.',
+      detail = null,
+      canRetry = true;
+
   /// Translates whatever `room.connect` threw.
   factory ConnectionFailure.from(Object error) {
     final detail = _detailOf(error);

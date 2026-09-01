@@ -178,6 +178,21 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
           response.data['identity'] as String? ??
           '${user.id}${ParticipantIdentity.screenshareSuffix}';
 
+      // The call's key, for the second connection this is about to open into
+      // the same encrypted room.
+      final encryption = _livekitCubit?.callEncryption;
+      if (encryption == null) {
+        emit(
+          state.copyWith(
+            status: ScreenshareStatus.error,
+            error:
+                'Cannot share yet — this call’s encryption key is not ready. '
+                'Rejoining the channel usually clears it.',
+          ),
+        );
+        return;
+      }
+
       final config = ScreenShareConfig(
         livekitUrl: livekitUrl,
         livekitToken: livekitToken,
@@ -194,6 +209,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         selectedAudioSourceIndex: settings.selectedAudioSource?.index,
         selectedAudioSourceSink: settings.selectedAudioSource?.sink,
         selectedAudioSourcePid: settings.selectedVideoSourcePid,
+        // The same key the call itself uses. Without it the Rust side refuses
+        // to connect, which is the right way round: a screen share that fails
+        // is a bug report, a screen share the server can watch is not.
+        e2EeKey: encryption.key,
+        e2EeKeyIndex: encryption.index,
       );
 
       final result = await startScreenshare(config: config);

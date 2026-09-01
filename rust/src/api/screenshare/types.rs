@@ -34,6 +34,16 @@ pub struct ScreenShareConfig {
     pub selected_audio_source_sink: Option<u32>,
     /// Selected audio source process ID (Windows WASAPI)
     pub selected_audio_source_pid: Option<u32>,
+    /// The channel key this call is encrypted with, and the LiveKit key-ring
+    /// slot it occupies (ARCHITECTURE.md §5).
+    ///
+    /// A screen share is a second connection into the same encrypted room, so
+    /// it has to encrypt with the same key as everything else. Publishing it in
+    /// the clear would not fail — LiveKit skips the frame cryptor for a track
+    /// that declares no encryption — it would simply hand the server the one
+    /// stream nobody meant it to have.
+    pub e2ee_key: Vec<u8>,
+    pub e2ee_key_index: i32,
 }
 
 /// Represents a desktop capture source (screen or window).

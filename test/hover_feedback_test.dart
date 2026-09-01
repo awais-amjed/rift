@@ -10,6 +10,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
+import 'package:rift/logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/chat/composer/composer_icon_button.dart';
 import 'package:rift/presentation/common/chat/composer/composer_send_button.dart';
@@ -52,6 +53,18 @@ class _StubAppCubit extends Cubit<AppState> implements AppCubit {
 class _StubPresenceCubit extends Cubit<ChannelPresenceState>
     implements ChannelPresenceCubit {
   _StubPresenceCubit() : super(const ChannelPresenceState());
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// No bot can hear anything, which is the default a real server starts at.
+class _StubVoiceListenersCubit extends Cubit<Map<String, List<String>>>
+    implements VoiceListenersCubit {
+  _StubVoiceListenersCubit() : super(const {});
+
+  @override
+  List<String> listening(String channelId) => const [];
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -338,6 +351,9 @@ void main() {
         providers: [
           BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
           BlocProvider<AppCubit>(create: (_) => _StubAppCubit()),
+          BlocProvider<VoiceListenersCubit>(
+            create: (_) => _StubVoiceListenersCubit(),
+          ),
           BlocProvider<ChannelPresenceCubit>(
             create: (_) => _StubPresenceCubit(),
           ),

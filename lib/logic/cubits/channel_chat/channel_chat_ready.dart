@@ -11,8 +11,10 @@ part of 'channel_chat_cubit.dart';
 /// [_ringKeySweepDoorbell] deliberately stays on the class: two mixins declare
 /// it abstractly, and CODE_STYLE §5 has the class be the meeting point for
 /// those rather than a sibling mixin.
-mixin _ChatReadyMixin
-    on Cubit<ChannelChatState>, _ChatKeyringMixin, _ChatSweepMixin {
+mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
+  ChannelKeyring get _keyring;
+  VaultCubit get _vaultCubit;
+
   /// Implemented by the cubit class.
   Future<void> retry();
 
@@ -45,12 +47,12 @@ mixin _ChatReadyMixin
     await _teardownSweepRealtime();
     _setupSweepRealtime(server);
 
-    final newlyPublished = await _ensureChatKeyPublished(server);
+    final newlyPublished = await _keyring.ensureChatKeyPublished(server);
     // A newly keyed member: tell online members to wrap for us right away.
     if (newlyPublished) _ringKeySweepDoorbell();
     // If the publish didn't stick (locked vault, network/auth failure), leave
     // readiness unset so the next server/vault event retries the whole setup.
-    if (!_publishedChatKey.contains(server.id)) _readyServerId = null;
+    if (!_keyring.publishedChatKey.contains(server.id)) _readyServerId = null;
     unawaited(_runKeySweep());
     // Housekeeping, not chat: applies the operator's retention settings and
     // removes attachment blobs whose messages are gone. It rides along here
@@ -94,6 +96,6 @@ mixin _ChatReadyMixin
     // rather than a heal, and the new version has to be picked up or this
     // client keeps sealing with a key the others have moved off.
     final channelId = state.channelId;
-    if (channelId != null) unawaited(_absorbNewKeyVersions(channelId));
+    if (channelId != null) unawaited(_keyring.absorbNewVersions(channelId));
   }
 }

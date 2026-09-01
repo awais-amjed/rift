@@ -12,6 +12,7 @@ import '../classes/server_limits.dart';
 import '../enums/error_code.dart';
 import 'server_db.dart';
 
+part 'server_repository_bots.dart';
 part 'server_repository_channels.dart';
 part 'server_repository_chat.dart';
 part 'server_repository_chat_reads.dart';
@@ -41,6 +42,7 @@ part 'server_repository_webhooks.dart';
 /// of tables without policies.
 class ServerRepository
     with
+        _BotApiMixin,
         _ChannelApiMixin,
         _ChatApiMixin,
         _ChatReadApiMixin,
