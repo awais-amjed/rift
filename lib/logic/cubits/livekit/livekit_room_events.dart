@@ -57,6 +57,13 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       })
       ..on<TrackSubscribedEvent>((e) {
         _syncParticipants();
+        // Their key, again, and this is the one that actually matters for
+        // somebody who was already here when we arrived: `room.connect`
+        // resolves before `remoteParticipants` is populated, so the sweep at
+        // connect registers nobody, and `ParticipantConnected` only ever fires
+        // for people who arrive *after* you. Whoever joined second heard
+        // silence — connected, subscribed, and decrypting nothing.
+        unawaited(_registerSubscribedKey(e.participant.identity));
 
         if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
           if (e.publication.source == TrackSource.screenShareVideo) {
