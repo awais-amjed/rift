@@ -4,8 +4,8 @@ Design reference for third-party integrations. **Everything in the §13 build or
 implemented** — migrations 013 through 017 for the bot itself, 028 through 032 for panels, the
 grants and encrypted voice, plus both SDKs (§11). What is left is listed in §12 and in each SDK's
 README, and it is choices rather than a backlog: reading over realtime instead of polling,
-attachments, DMs, joining from an invite link, and an `image` block that points at this server's
-own bucket.
+attachments, joining from an invite link, and an `image` block that points at this server's own
+bucket.
 Sections are marked as they land, the same way `ARCHITECTURE.md` marks its own.
 
 Read `ARCHITECTURE.md` §2 (auth) and §4 (chat encryption) first. This document assumes both, and
@@ -539,7 +539,9 @@ channel. Nothing else. That single rule is what "hears what you tell it" reduces
 - ~~Receive commands addressed to it~~ **done**, by polling rather than subscribing
 - ~~Reply — channel, ephemeral, or panel~~ **done**
 - ~~Publish a manifest~~ **done** in both
-- Its DMs — not yet
+- ~~Its DMs~~ **done** in TypeScript. The one place a bot opens and seals rather than
+  writing plaintext: the conversation key falls out of an X25519 exchange between the two
+  identities, so nothing is stored and nothing is sent
 - ~~Publish audio into a voice channel (LiveKit; no crypto involved)~~ **done** in TypeScript
   (migration 031), where `@livekit/rtc-node` is an optional dependency loaded only by
   `joinVoice`. Not in Dart, and structurally cannot be: see below

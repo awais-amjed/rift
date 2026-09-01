@@ -24,14 +24,19 @@
   "wrapped_key": {
     "note": "unwraps to key_base64 with chat_identity’s private key",
     "key_base64": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8=",
-    "ephemeral_public_key": "gwYbI7UsABSk1RRWDHDKU7r2MarasNPmgOS/u4oeVTY=",
-    "ciphertext": "aGxisBR/qXTa7tMjuPtcG7bQPTO8aZ8CBByJWpRri0C6hRecXVrXcrBPXdNmhN9Ai2ayWQU9FDHe0ilw",
-    "nonce": "k7cajWFVAMQ3M59F"
+    "ephemeral_public_key": "K52AQtl+GbSGEXmlzV3UQcN0ghrWGTD5Q2ptBgWZ+x8=",
+    "ciphertext": "VUGNI3f2CPqe9S2waLGAbsaRKOGrPbgeTqvWyeDFa7Ytqd1L78FxMBl9KxxNk2i5xtjkxGFAoSM3uq7Y",
+    "nonce": "g/MD8ruslum1oCVF"
   },
   "bot_voice_key": {
     "note": "HMAC-SHA256(wrapped_key.key, \"voicebot:v1:<bot_id>\")",
     "bot_id": "99999999-8888-4777-8666-555555555555",
     "key_base64": "fDBjeHpl/tUdBUzLJaWy96a6XX8vxrcni0Xg3M5RhwQ="
+  },
+  "dm_key": {
+    "note": "HMAC-SHA256(X25519(chat_identity, peer_chat_public_key), \"dm:v1\")",
+    "peer_chat_public_key": "HZ5hoOWvt8ewj8wCE9Afg4QSRYfSS3MM72CV4A8lI0s=",
+    "key_base64": "b2mbY/6CIkHJHvFdRT5I022mf74tOO+1iX99qr+zQLk="
   },
   "signed_payload": {
     "channel": "chatmsg:v1:aaaa1111-0000-4000-8000-000000000001:3:bm9uY2U=:Y2lwaGVy",

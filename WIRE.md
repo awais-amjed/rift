@@ -194,6 +194,20 @@ botKey = HMAC-SHA256(channelKey, "voicebot:v1:<botId>")
 bot is handed only the result, and cannot invert it to reach `channelKey`. That
 asymmetry is the whole of "publishes but does not listen" — see BOTS.md §6b.
 
+### A DM's key
+
+```
+dmKey = HMAC-SHA256(X25519(myChatPrivate, theirChatPublic), "dm:v1")
+```
+
+Both ends derive the same bytes from opposite halves, so there is nothing to
+distribute — and no round trip in which two implementations could notice they
+disagree. The message itself is sealed and signed like any other, with the
+`contextId` from §3's DM row.
+
+Not voice, strictly, but it is the other thing a non-Dart client derives rather
+than is given, and `dm_key` in the vectors pins it.
+
 ### Which slot a key goes in
 
 LiveKit addresses keys by a slot in a fixed-size ring, not by Rift's version

@@ -192,6 +192,24 @@ void main() {
     );
   });
 
+  test('a DM key is the exchange, not a stored secret', () async {
+    // Both ends derive it from opposite halves, so there is nothing to
+    // distribute and nothing for the server to hold — and no round trip in
+    // which two implementations could notice they disagree.
+    final v = section('dm_key');
+    final mine = await crypto.deriveChatIdentity(
+      masterSeed: seed,
+      host: section('chat_identity')['host'] as String,
+    );
+    final key = await crypto.deriveDmKey(
+      myKeyPair: mine.keyPair,
+      theirPublicKey: CryptoRepository.fromBase64(
+        v['peer_chat_public_key'] as String,
+      ),
+    );
+    expect(CryptoRepository.toBase64(key), v['key_base64']);
+  });
+
   test('a signature over all of it', () async {
     // Ed25519 is deterministic, so this one line proves the key ladder and the
     // payload construction at the same time: get either wrong and the bytes
