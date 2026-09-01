@@ -701,6 +701,9 @@ too, and it is the difference between "I don't want to be interrupted" and
   frames by construction — that is how an SFU works — and the trade was written down as acceptable
   because the operator runs both. It is no longer taken: everything in Rift is now end-to-end
   encrypted, and voice was the exception.
+- Verified between two real clients on Sep 2 2026 — one client's speech audible on the
+  other, the SFU reporting the track as GCM throughout (`MANUAL_TESTING.md`). Worth saying
+  because encryption that silently drops audio looks exactly like encryption that works.
 - **A call cannot be joined without the key.** `_prepareE2EE` returning nothing fails the join
   rather than falling back, because an unencrypted call would connect, work, and sound completely
   normal. A room you cannot join gets reported; a room that is quietly readable does not.
