@@ -63,6 +63,10 @@ class ChatMessageRow extends StatefulWidget {
   /// Lower-cased names an `@mention` can reach — see [ChatMessageList].
   final Set<String> mentionable;
 
+  /// Username → display name, for drawing a mention as the name the room knows.
+  /// A username missing from this is left as written — see `messageMarkupSpan`.
+  final Map<String, String> mentionNames;
+
   /// When true, the row fades + slides in once on first build (a freshly
   /// arrived incoming message). Continuation of existing rows never animates.
   final bool animateIn;
@@ -79,6 +83,7 @@ class ChatMessageRow extends StatefulWidget {
     this.onPanelAction,
     this.isModerator = false,
     this.mentionable = const {},
+    this.mentionNames = const {},
     this.animateIn = false,
   });
 
@@ -336,6 +341,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                   base: AppText.body.copyWith(color: themeState.textSecondary),
                   theme: themeState,
                   mentionable: widget.mentionable,
+                  displayNames: widget.mentionNames,
                 ),
                 if (message.isEdited)
                   TextSpan(

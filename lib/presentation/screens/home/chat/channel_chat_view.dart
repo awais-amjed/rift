@@ -64,6 +64,13 @@ class _ChannelChatViewState extends State<ChannelChatView>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
                       bots: _bots(context),
+                      mentionable: _mentionableMembers(context),
+                      selfUserId: context
+                          .read<ServerCubit>()
+                          .state
+                          .selectedServer
+                          ?.user
+                          ?.id,
                     ),
                   ],
                 ],
@@ -74,6 +81,27 @@ class _ChannelChatViewState extends State<ChannelChatView>
       },
     );
   }
+
+  /// Username → display name, so a mention draws as the name the room knows.
+  ///
+  /// Keyed by username because that is what the message contains; the value is
+  /// only ever what gets drawn. A member who has left is absent, and their
+  /// mention stays as written rather than becoming somebody else.
+  Map<String, String> _mentionNames(BuildContext context) {
+    final members = context.watch<ServerMembersCubit>().state.members;
+    return {
+      for (final m in members ?? const <ServerMember>[])
+        m.username.toLowerCase(): m.displayName,
+    };
+  }
+
+  /// Everybody the composer's `@` menu may offer.
+  ///
+  /// The whole roster, bots included — a bot is addressed by name like anyone
+  /// else. Banned members are dropped by the menu itself, which is also where
+  /// the sender is left out.
+  List<ServerMember> _mentionableMembers(BuildContext context) =>
+      context.watch<ServerMembersCubit>().state.members ?? const [];
 
   /// The bots on this server, for the composer's `/` menu.
   ///
@@ -142,6 +170,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
           // Channel managers and admins may remove anyone's message.
           isModerator: _isModerator(context),
           mentionable: _mentionable(context),
+          mentionNames: _mentionNames(context),
         );
       case ChannelChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

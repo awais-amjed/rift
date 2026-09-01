@@ -12,11 +12,13 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/attachment_staging.dart';
 import '../../../../logic/services/bot_command.dart';
+import '../../../../logic/services/mention_suggestions.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
 import '../../../theme/app_motion.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
 import 'composer_command_menu.dart';
+import 'composer_mention_menu.dart';
 import 'composer_input_row.dart';
 import 'composer_plaintext_notice.dart';
 import 'composer_recording_bar.dart';
@@ -35,6 +37,16 @@ part 'chat_composer_recording.dart';
 class ChatComposer extends StatefulWidget {
   /// Called with the trimmed text and any staged attachments.
   final void Function(String text, List<PendingAttachment> attachments) onSend;
+
+  /// Everybody who can be named, for the `@` menu.
+  ///
+  /// Empty turns the menu off, which is right where there is nobody to name —
+  /// a DM has one other person and they are the conversation.
+  final List<ServerMember> mentionable;
+
+  /// The sender, left out of their own `@` menu: a message that pings its own
+  /// author is only ever a mistake, and `Mentions.resolve` drops it anyway.
+  final String? selfUserId;
 
   /// The bots on this server, for the `/` menu and the unencrypted warning.
   ///
@@ -67,6 +79,8 @@ class ChatComposer extends StatefulWidget {
     this.footer,
     this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
     this.bots = const [],
+    this.mentionable = const [],
+    this.selfUserId,
   });
 
   @override
@@ -98,6 +112,41 @@ class _ChatComposerState extends State<ChatComposer>
 
   /// Replace the typed fragment with the chosen command and leave the caret
   /// after it, ready for arguments.
+  /// Who the `@` menu should be offering, or empty when it should be closed.
+  ///
+  /// Closed while recording or disabled, and closed when the caret is not in a
+  /// mention — see [MentionSuggestions.queryAt], which is also what decides
+  /// that `a@b.com` is an address rather than a name.
+  List<ServerMember> get _mentionMatches {
+    if (!widget.enabled || _isRecording || widget.mentionable.isEmpty) {
+      return const [];
+    }
+    final query = MentionSuggestions.queryAt(
+      _controller.text,
+      _controller.selection.baseOffset,
+    );
+    if (query == null) return const [];
+    return MentionSuggestions.suggest(
+      query,
+      widget.mentionable,
+      excludeUserId: widget.selfUserId,
+    );
+  }
+
+  /// Put the chosen person's *username* in the text — see
+  /// [MentionSuggestions.apply] for why it is not their display name.
+  void _pickMention(ServerMember member) {
+    final result = MentionSuggestions.apply(
+      _controller.text,
+      _controller.selection.baseOffset,
+      member,
+    );
+    _controller.text = result.text;
+    _controller.selection = TextSelection.collapsed(offset: result.cursor);
+    _focusNode.requestFocus();
+    setState(() {});
+  }
+
   void _pickCommand(String name) {
     _controller.text = '/$name ';
     _controller.selection = TextSelection.collapsed(
@@ -178,6 +227,14 @@ class _ChatComposerState extends State<ChatComposer>
                 ComposerPlaintextNotice(
                   bot: _command!.bot,
                   themeState: themeState,
+                ),
+              // One menu at a time, and `/` wins: it only ever opens on the
+              // first word, where an `@` cannot also be starting.
+              if (_suggestions.isEmpty && _mentionMatches.isNotEmpty)
+                ComposerMentionMenu(
+                  members: _mentionMatches,
+                  themeState: themeState,
+                  onSelected: _pickMention,
                 ),
               if (_suggestions.isNotEmpty)
                 ComposerCommandMenu(

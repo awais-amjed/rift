@@ -53,6 +53,10 @@ class ChatMessageList extends StatefulWidget {
   /// is the honest default — a highlight promises somebody was pinged.
   final Set<String> mentionable;
 
+  /// Username → display name, for drawing a mention as the name the room knows.
+  /// A username missing from this is left as written — see `messageMarkupSpan`.
+  final Map<String, String> mentionNames;
+
   /// What an empty conversation says. The default invites the first message,
   /// which is right almost everywhere — but a central request has no composer
   /// under it, and "say hi" printed above a note explaining that you cannot is
@@ -71,6 +75,7 @@ class ChatMessageList extends StatefulWidget {
     this.onPanelAction,
     this.isModerator = false,
     this.mentionable = const {},
+    this.mentionNames = const {},
   });
 
   @override
@@ -221,6 +226,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               onPanelAction: widget.onPanelAction,
               isModerator: widget.isModerator,
               mentionable: widget.mentionable,
+              mentionNames: widget.mentionNames,
               animateIn: _animating.contains(msg.id),
             );
           },
