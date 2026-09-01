@@ -1,0 +1,113 @@
+part of 'server_repository.dart';
+
+/// Joining a call, and the three things a moderator does to one.
+///
+/// Every one of these holds the LiveKit API secret at some point, which is why
+/// none of them is a table call: minting a token, moving somebody between
+/// rooms, and removing them are all things only the server may do. Attachment
+/// sweeping is here for a different reason — it needs the Storage API, which no
+/// database role can reach.
+mixin _VoiceApiMixin {
+  Future<APIResponse> _post(
+    String supabaseUrl,
+    String functionName,
+    Map<String, dynamic> body, {
+    String? bearerToken,
+  });
+
+  /// A stable per-run device id, mixed into LiveKit participant identities so
+  /// the same user can be connected from multiple devices without the later
+  /// connection kicking the earlier one.
+  ///
+  /// It only has to be consistent within a single app run — long enough for a
+  /// voice session and its screen-share to share it — so an in-memory value,
+  /// regenerated each launch, is enough; per-user state persists under the user
+  /// id, not the identity.
+  static final String _deviceId = _generateDeviceId();
+
+  static String _generateDeviceId() {
+    final random = Random();
+    return List.generate(8, (_) => random.nextInt(16).toRadixString(16)).join();
+  }
+
+  /// Get a LiveKit JWT for joining a channel.
+  Future<APIResponse> getChannelToken(
+    String supabaseUrl,
+    String channelId, {
+    bool screenShare = false,
+    String? bearerToken,
+  }) {
+    return _post(supabaseUrl, 'get_channel_token', {
+      'channel_id': channelId,
+      'screen_share': screenShare,
+      'device_id': _deviceId,
+    }, bearerToken: bearerToken);
+  }
+
+  /// Apply the server's retention settings and remove the attachment blobs
+  /// left behind (migration 007).
+  ///
+  /// An edge function rather than a table call, and not for the usual reason:
+  /// this one needs the *Storage API*. `storage.protect_delete()` refuses a
+  /// direct DELETE on `storage.objects`, so no database role can free a blob —
+  /// only something holding the service key can finish the job.
+  Future<APIResponse> sweepAttachments(
+    String supabaseUrl, {
+    String? bearerToken,
+  }) => _post(
+    supabaseUrl,
+    'sweep_attachments',
+    const {},
+    bearerToken: bearerToken,
+  );
+
+  /// Pull a member from the voice channel they're in into [channelId]
+  /// (channel manager or admin).
+  ///
+  /// Nothing is written down — a move only exists as a live connection — so
+  /// there is no table call to make. The function holds the LiveKit API secret
+  /// and uses it to send the target's own connections a "join this channel"
+  /// packet, which their client then does the ordinary way.
+  Future<APIResponse> moveUser(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String userId,
+    required String channelId,
+  }) {
+    return _post(supabaseUrl, 'move_user', {
+      'target_user_id': userId,
+      'channel_id': channelId,
+    }, bearerToken: bearerToken);
+  }
+
+  /// Disconnect a member from the voice channel they're in (channel manager
+  /// or admin).
+  ///
+  /// The transient half of moderation: nothing is written down and they may
+  /// rejoin immediately. Like [moveUser] it needs the LiveKit API secret, and
+  /// like it there is no table call to make — the difference is that this ends
+  /// every connection they hold here, screen share included.
+  Future<APIResponse> kickUser(
+    String supabaseUrl, {
+    String? bearerToken,
+    required String userId,
+  }) {
+    return _post(supabaseUrl, 'kick_user', {
+      'target_user_id': userId,
+    }, bearerToken: bearerToken);
+  }
+
+  /// Who is in which voice channel right now, as LiveKit sees it:
+  /// `{roster: {userId: channelId}}`.
+  ///
+  /// The snapshot a client starts from before it can rely on hearing about
+  /// changes — see [VoiceBroadcast].
+  Future<APIResponse> voiceRoster(String supabaseUrl, {String? bearerToken}) {
+    return _post(
+      supabaseUrl,
+      'voice_roster',
+      const {},
+      bearerToken: bearerToken,
+    );
+  }
+}
