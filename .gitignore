@@ -75,10 +75,6 @@ GoogleService-Info.plist
 key.properties
 android/.kotlin/
 
-# Bot SDK build artifacts (the package itself is tracked)
-bot_sdk/.dart_tool/
-bot_sdk/pubspec.lock
-
 # Local scratch tooling — headless members, probes, one-off scripts. Never
 # tracked: it holds throwaway credentials paths and is written against whatever
 # was being debugged that day. Ignored rather than merely untracked, because a

@@ -1,15 +1,21 @@
 /// Rift's cryptography, with the Flutter taken out.
 ///
-/// This was inside the app package, and `bot_sdk` depended on the whole of
-/// Rift to reach it — a headless bot pulling in a Flutter SDK to sign a string.
-/// The alternative was a second implementation of the signing format, and two
-/// implementations of a canonical payload are two things that can disagree:
-/// a message signed over a payload differing by one character stores fine,
-/// verifies as false, and renders as nothing.
+/// This was inside the app package, which meant anything headless that needed
+/// to sign a string had to pull in a Flutter SDK to get at it. It came out for
+/// the Dart bot SDK, which has since been deleted (BOTS.md §11) — and it stays
+/// out for a better reason than the one it left for.
 ///
-/// So it lives here instead, and both sides depend on one copy. What is frozen
-/// about the formats is in `WIRE.md` and `test/wire_vectors.json`; this is the
-/// code those describe.
+/// **This is the reference implementation.** `tool/gen_wire_vectors.dart`
+/// generates `test/wire_vectors.json` from this code, `test/wire_test.dart`
+/// holds it to them, and `bot_sdk_ts` proves itself against the same file
+/// without reading a line of this one. Two implementations of a canonical
+/// payload are two things that can disagree, and the disagreement does not look
+/// like an error: a message signed over a payload differing by one character
+/// stores fine, verifies as false, and renders as nothing. Meeting at a JSON
+/// file is the only arrangement in which "they agree" means anything.
+///
+/// What is frozen about the formats is in `WIRE.md`; this is the code it
+/// describes.
 library;
 
 export 'src/chat_identity.dart';

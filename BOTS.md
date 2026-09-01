@@ -530,21 +530,19 @@ channel. Nothing else. That single rule is what "hears what you tell it" reduces
 
 ---
 
-## 11. The SDK — [Implemented in both languages; voice in TypeScript only]
+## 11. The SDK — [Implemented, `bot_sdk_ts/`]
 
 - ~~Derive an identity from a seed, SIWS login, keep the session refreshed~~ **done**
-- Join from an invite link — not yet: both SDKs take a server id and a seed
-  that a human pasted in, and `resolve_invite` + `register` are still done by
-  hand
+- ~~Join from an invite link~~ **done** — `BotSession.join` takes the same link an admin
+  would send a person, in any of its three shapes, and comes back a member
 - ~~Receive commands addressed to it~~ **done**, by polling rather than subscribing
 - ~~Reply — channel, ephemeral, or panel~~ **done**
-- ~~Publish a manifest~~ **done** in both
-- ~~Its DMs~~ **done** in TypeScript. The one place a bot opens and seals rather than
-  writing plaintext: the conversation key falls out of an X25519 exchange between the two
-  identities, so nothing is stored and nothing is sent
-- ~~Publish audio into a voice channel (LiveKit; no crypto involved)~~ **done** in TypeScript
-  (migration 031), where `@livekit/rtc-node` is an optional dependency loaded only by
-  `joinVoice`. Not in Dart, and structurally cannot be: see below
+- ~~Publish a manifest~~ **done**
+- ~~Its DMs~~ **done**. The one place a bot opens and seals rather than writing plaintext:
+  the conversation key falls out of an X25519 exchange between the two identities, so
+  nothing is stored and nothing is sent
+- ~~Publish audio into a voice channel~~ **done** (migrations 031-032), where
+  `@livekit/rtc-node` is an optional dependency loaded only by `joinVoice`
 
 ### The contract comes before the second implementation
 
@@ -565,25 +563,30 @@ So before there is a second SDK there is a **spec plus test vectors** — a fixe
 signature, in a JSON file any implementation proves itself against in one test. That is what makes
 *an SDK in every language* safe to want, and it is a day of work rather than a policy.
 
-### Why TypeScript is the reference
+### Why TypeScript, and why there is only one SDK
 
-Dart came first because it could share `CryptoRepository` directly, and it proved the rest of the
-design end to end. It cannot be the reference, for one hard reason: **it cannot publish audio.** The
-only Dart LiveKit client needs Flutter and `flutter_webrtc`, so a headless Dart bot cannot join a
-call — and music is the bot people ask for first.
+There was a Dart one first. It could share `CryptoRepository` directly, and it proved the rest of
+this document end to end before any of it existed in another language. It is **deleted**, and the
+reason is not that it stopped working:
 
-- `@livekit/rtc-node` is a genuine headless client: it publishes and subscribes.
-- Bot authors are, overwhelmingly, the discord.js population.
-- The edge functions are already TypeScript, so wire types are shared rather than mirrored.
+- **It cannot publish audio.** The only Dart LiveKit client needs Flutter and `flutter_webrtc`, so a
+  headless Dart bot cannot join a call — and music is the bot people ask for first. That gap was
+  Dart's, not Rift's: `get_channel_token` never special-cased bots, and `voice_roster` reads
+  participants by identity without asking what they are.
+- **Everything after voice landed in TypeScript only**, so it fell a feature behind per session and
+  the two READMEs started disagreeing about what a bot can do.
+- Bot authors are, overwhelmingly, the discord.js population, and the edge functions are already
+  TypeScript, so wire types are shared rather than mirrored.
 
-**Nothing on the Rift side blocks voice.** `get_channel_token` does not special-case bots — a bot
-gets a `canPublish` token like anyone else — and `voice_roster` reads participants from LiveKit by
-identity and never asks what they are. A bot in a call is a `users` row, so a mod can mute or
-disconnect it with the tools that already exist. The gap was Dart's, not Rift's.
+Two SDKs at different depths is worse than one: it reads as a choice when it is really a trap. A
+second implementation is still worth having — it is the only thing that makes "they agree" mean
+anything — but the one that matters is the **app**, which is Dart, generates
+`test/wire_vectors.json`, and is held to it by `test/wire_test.dart`. `bot_sdk_ts` proves itself
+against the same file. Nothing is lost by the deletion except a second copy of the easy half.
 
-Python comes second, and only because LiveKit Agents is Python-first: an AI that listens and talks
-in a voice channel is a different ecosystem, not a different opinion. Anything after that is a
-community port, and the vectors are what make one trustworthy.
+Python comes next if anything does, and only because LiveKit Agents is Python-first: an AI that
+listens and talks in a voice channel is a different ecosystem, not a different opinion. The vectors
+are what would make a community port trustworthy.
 
 ---
 
@@ -634,7 +637,7 @@ badge. Both are fixed; both have tests.
    *signed* though not sealed, and the read path verifies it. A webhook's message cannot be
    verified and is never shown as a person; a command is attributed to one, so it has to be.
 3. ~~Replies: channel message, then ephemeral~~ **done** (migration 016). Panels are item 8.
-4. ~~The Dart SDK, extracted from what the first three needed~~ **done** (`bot_sdk/`). Polls rather than subscribing: no reconnect logic to get wrong, and nothing spent from the server-wide event budget. Realtime, voice and DMs are listed in its README as not-yet.
+4. ~~The Dart SDK, extracted from what the first three needed~~ **done, and since deleted**. It polled rather than subscribing — no reconnect logic to get wrong, nothing spent from the server-wide event budget — and it proved the design before there was a second implementation to check it against. It could never publish audio, and it fell a feature behind every session after that; see §11.
 5. ~~Moderation grants~~ **done** (migration 017). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see. Nothing called them at first — `grant_bot_channel_key` and `revoke_bot_channel_key` appeared only in the migration, so an admin granted by writing SQL. Item 9 gave them a UI.
 
 **Then, in this order.** Private channels come first, and not because bots need them — they are a
