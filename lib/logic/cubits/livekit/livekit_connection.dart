@@ -188,6 +188,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // registered is one nobody can hear, so this happens before the state
       // says connected.
       await _registerAllParticipantKeys(room);
+      // And from here on, a key rotated by somebody being removed has to reach
+      // this call rather than waiting for a rejoin.
+      _watchKeyRotations(server, channelId);
 
       emit(
         state.copyWith(

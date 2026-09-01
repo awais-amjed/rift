@@ -62,6 +62,14 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   Uint8List? _callChannelKey;
   int _callKeyIndex = 0;
 
+  /// The key-sweep doorbell, held only for the duration of a call.
+  ///
+  /// A rotation matters to a call that is happening and to nothing else, so
+  /// this is one extra Realtime channel held for minutes rather than for the
+  /// session. `ChannelChatCubit` keeps its own for the open text channel: a
+  /// call and an open channel are different channels most of the time.
+  final KeySweepDoorbell _rotations = KeySweepDoorbell();
+
   /// Bots an admin has allowed to hear this channel. They are keyed with the
   /// channel key itself rather than a derived one — there is no third thing to
   /// give a listener, which is why that grant is a key grant and cannot be
@@ -112,7 +120,12 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     return key == null ? null : (key: key, index: _callKeyIndex);
   }
 
+  /// Listen for rotations for as long as [channelId]'s call lasts.
+  void _watchKeyRotations(Server server, String channelId) =>
+      _rotations.listen(server, () => unawaited(_absorbKeyRotation(channelId)));
+
   void _clearE2EE() {
+    unawaited(_rotations.stop());
     _keyProvider = null;
     _callChannelKey = null;
     _callKeyIndex = 0;
@@ -160,6 +173,48 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
         '[LiveKit] key register failed for $identity: $e',
       );
     }
+  }
+
+  /// Pick up a key version minted while the call is running, and move the
+  /// whole room onto it.
+  ///
+  /// A channel key rotates when somebody is banned or removed, and that can
+  /// happen mid-call. Without this the ring keeps the version it joined on:
+  /// everybody stays connected, every track keeps publishing, and the audio
+  /// stops arriving — the failure with no error in it anywhere.
+  ///
+  /// The old key is left in its slot rather than cleared. LiveKit's ring holds
+  /// sixteen, the two versions occupy different ones, and frames already in
+  /// flight were encrypted under the old index.
+  Future<void> _absorbKeyRotation(String channelId) async {
+    final keyring = _keyring;
+    final room = state.room;
+    if (keyring == null || room == null) return;
+
+    final before = keyring.currentVersion;
+    await keyring.absorbNewVersions(channelId);
+    final after = keyring.currentVersion;
+    if (after == before) return;
+
+    final key = keyring.currentKey;
+    if (key == null) return;
+
+    _callChannelKey = key;
+    _callKeyIndex = VoiceKeys.keyIndex(after);
+    // A grant can have changed in the same breath as the rotation — revoking
+    // one is what rotates the key — so which bot gets which kind is re-read
+    // rather than carried over.
+    _callListeningBots =
+        await _serverCubit?.voiceListenerIds(channelId) ?? const {};
+
+    await _registerAllParticipantKeys(room);
+    // Registering the keys is half of it: the frame cryptors were told an index
+    // when their tracks were published and keep using it until they are told
+    // another.
+    await room.e2eeManager?.setKeyIndex(_callKeyIndex);
+    HelperMethods.printDebug(
+      '[LiveKit] moved the call from key v$before to v$after',
+    );
   }
 
   /// Everyone already in the room when we arrive, plus ourselves.

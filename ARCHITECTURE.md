@@ -707,6 +707,11 @@ too, and it is the difference between "I don't want to be interrupted" and
 - Key *version* maps onto LiveKit's fixed key ring as `version % 16`. Every client has to agree on
   that mapping — a sender encrypting into a slot its listeners do not read is a call where
   everybody connects and nobody hears anyone, with no error anywhere. It is frozen in WIRE.md §6.
+- **A rotation reaches a call in progress.** Removing somebody rotates the channel key, and a client
+  that stayed on the version it joined with would sit in a room where everybody is connected and
+  nobody is audible. Each client holds the key-sweep doorbell for the length of a call, re-registers
+  every participant's key at the new slot, and moves its frame cryptors onto it. The old key is left
+  in its slot: the ring holds sixteen, and frames already in flight were sealed under the old one.
 - The room runs in LiveKit's **per-participant** key mode rather than its shared-key mode, and only
   because of bots — see below and BOTS.md §6b. Members all use the channel key.
 - Rotation is the text rules unchanged: `sweep_channel_keys` covers voice channels too, so a banned

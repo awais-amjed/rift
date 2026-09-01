@@ -20,6 +20,7 @@ import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_failure.dart';
 import '../../services/channel_keyring.dart';
+import '../../services/key_sweep_doorbell.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/bot_command.dart';
 import '../../services/chat_notice.dart';
@@ -92,6 +93,11 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// Two copies of key bootstrap would be two things that can disagree about
   /// which version is current, and that disagreement presents as a room where
   /// some people can read each other and some cannot.
+  @override
+  /// See [KeySweepDoorbell]. One per selected server, not per channel.
+  @override
+  final KeySweepDoorbell _sweepDoorbell = KeySweepDoorbell();
+
   @override
   late final ChannelKeyring _keyring = ChannelKeyring(
     serverCubit: _serverCubit,
@@ -270,7 +276,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   void _ringKeySweepDoorbell() {
     try {
-      _sweepRtChannel?.sendBroadcastMessage(event: 'sweep', payload: {});
+      _sweepDoorbell.ring();
     } catch (_) {}
   }
 

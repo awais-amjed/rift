@@ -21,8 +21,10 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
   /// The server we've completed chat setup for this run (published our chat
   /// key, subscribed the key-sweep topic, ran the initial sweep).
   String? _readyServerId;
-  SupabaseClient? _sweepRtClient;
-  RealtimeChannel? _sweepRtChannel;
+
+  /// Held for as long as a server is selected — this is how a member learns
+  /// somebody needs a key wrapped, and how they learn one rotated.
+  KeySweepDoorbell get _sweepDoorbell;
 
   /// Idempotent: brings chat readiness in line with the selected server.
   /// Requires a logged-in server user and an unlocked vault; called on
@@ -62,25 +64,10 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
     unawaited(_serverCubit.sweepAttachments());
   }
 
-  void _setupSweepRealtime(Server server) {
-    if (server.supabaseKey == null) return;
-    _sweepRtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    _sweepRtChannel = _sweepRtClient!.channel('keysweep:${server.id}')
-      ..onBroadcast(event: 'sweep', callback: (_) => _onKeySweepDoorbell())
-      ..subscribe();
-  }
+  void _setupSweepRealtime(Server server) =>
+      _sweepDoorbell.listen(server, _onKeySweepDoorbell);
 
-  Future<void> _teardownSweepRealtime() async {
-    final channel = _sweepRtChannel;
-    final client = _sweepRtClient;
-    _sweepRtChannel = null;
-    _sweepRtClient = null;
-    try {
-      await channel?.unsubscribe();
-      client?.removeAllChannels();
-      await client?.dispose();
-    } catch (_) {}
-  }
+  Future<void> _teardownSweepRealtime() => _sweepDoorbell.stop();
 
   void _onKeySweepDoorbell() {
     if (isClosed) return;
