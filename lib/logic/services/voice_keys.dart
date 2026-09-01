@@ -43,6 +43,25 @@ class VoiceKeys {
     required String botId,
   }) => crypto.hmacSha256(key: channelKey, message: '$botContext$botId');
 
+  /// One bot, and the key it should be sealed in a given channel.
+  ///
+  /// [isChannelKey] records which of the two kinds it is, because the two are
+  /// indistinguishable once wrapped and the database checks the claim against
+  /// the listening grant (migration 032).
+  static Future<SealedBotKey> forOneBot({
+    required CryptoRepository crypto,
+    required Uint8List channelKey,
+    required String botId,
+    required bool mayListen,
+  }) async {
+    // A listener needs the real key — there is no third thing to give it, which
+    // is what makes that grant irreversible. A speaker gets the derived one.
+    final key = mayListen
+        ? channelKey
+        : await forBot(crypto: crypto, channelKey: channelKey, botId: botId);
+    return SealedBotKey(botId: botId, isChannelKey: mayListen, key: key);
+  }
+
   /// LiveKit addresses keys by a slot in a fixed-size ring, not by our version
   /// number, so the two have to be mapped — and mapped the same way by every
   /// client, or a sender encrypts into a slot its listeners are not reading.
@@ -53,4 +72,21 @@ class VoiceKeys {
   /// versions ever collide.
   static int keyIndex(int keyVersion, {int ringSize = 16}) =>
       keyVersion % ringSize;
+}
+
+/// Which key one bot gets in one channel, before it is wrapped.
+///
+/// Its own type rather than a record so the two booleans in play — "may this
+/// bot listen" and "is this the channel key" — cannot be swapped silently at a
+/// call site. They are the same fact, and saying so once is the point.
+class SealedBotKey {
+  final String botId;
+  final bool isChannelKey;
+  final Uint8List key;
+
+  const SealedBotKey({
+    required this.botId,
+    required this.isChannelKey,
+    required this.key,
+  });
 }

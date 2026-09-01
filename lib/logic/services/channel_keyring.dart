@@ -8,7 +8,10 @@ import '../cubits/server/server_cubit.dart';
 import '../cubits/vault/vault_cubit.dart';
 import '../helper_methods.dart';
 import 'chat_failure.dart';
+import 'keyring_outcome.dart';
 import 'voice_keys.dart';
+
+part 'channel_keyring_sealing.dart';
 
 /// A channel's symmetric keys, fetched and unwrapped for this member.
 ///
@@ -25,14 +28,17 @@ import 'voice_keys.dart';
 ///
 /// Everything here is per channel and per member. The server stores only sealed
 /// entries and can read none of them (ARCHITECTURE.md §4).
-class ChannelKeyring {
+class ChannelKeyring with _KeyringSealingMixin {
+  @override
   final ServerCubit _serverCubit;
   final VaultCubit _vaultCubit;
+  @override
   final CryptoRepository _crypto;
 
   /// Called after this client seals the current key to members who lacked it,
   /// so their waiting screens refetch. Optional: a caller that has no doorbell
   /// to ring simply heals quietly.
+  @override
   final void Function()? onHealed;
 
   ChannelKeyring({
@@ -45,6 +51,7 @@ class ChannelKeyring {
        _crypto = crypto;
 
   /// Unwrapped keys for the channel this ring was last loaded for, by version.
+  @override
   final Map<int, Uint8List> keys = {};
 
   /// The newest version this client holds a key for. 0 means none yet.
@@ -246,109 +253,4 @@ class ChannelKeyring {
     }
     return KeyringOutcome.failed(ChatFailure.fromResponse(response));
   }
-
-  /// Seal each bot the key it publishes with in this voice channel.
-  ///
-  /// A bot with no listening grant gets [VoiceKeys.forBot] — derived from the
-  /// channel key, computable by every member, and not invertible by the bot. It
-  /// can be heard and can hear nothing, which is the property a shared room key
-  /// cannot express (BOTS.md §2).
-  ///
-  /// A bot that *has* been granted hearing gets the channel key itself, because
-  /// there is no third thing to give it. That grant is a key grant with
-  /// everything §6 says about one: it cannot be taken back, only rotated past.
-  ///
-  /// Best-effort and fire-and-forget, like healing. A bot short of a key is a
-  /// bot nobody can hear until the next member opens the call, which is a
-  /// nuisance; failing the caller's own join over it would be worse.
-  Future<void> sealBotKeys(
-    String channelId,
-    int keyVersion,
-    List<Map<String, dynamic>> bots,
-  ) async {
-    final channelKey = keys[keyVersion];
-    if (channelKey == null) return;
-
-    for (final bot in bots) {
-      final botId = bot['bot_id'] as String?;
-      final publicKey = bot['chat_public_key'] as String?;
-      if (botId == null || publicKey == null) continue;
-      final mayListen = bot['may_listen'] == true;
-
-      try {
-        final key = mayListen
-            ? channelKey
-            : await VoiceKeys.forBot(
-                crypto: _crypto,
-                channelKey: channelKey,
-                botId: botId,
-              );
-        final wrapped = await _crypto.wrapKey(
-          key: key,
-          recipientPublicKey: CryptoRepository.fromBase64(publicKey),
-        );
-        await _serverCubit.postBotVoiceKey(
-          channelId: channelId,
-          botId: botId,
-          keyVersion: keyVersion,
-          isChannelKey: mayListen,
-          wrapped: wrapped,
-        );
-      } catch (e) {
-        HelperMethods.printDebug('[Keyring] bot key seal failed: $e');
-      }
-    }
-  }
-
-  /// Seal the current channel key to members who lack an entry. Conflicts are
-  /// fine — another client healed them first.
-  Future<void> healMembers(
-    String channelId,
-    int keyVersion,
-    List<Map<String, dynamic>> members,
-  ) async {
-    final channelKey = keys[keyVersion];
-    if (channelKey == null) return;
-    try {
-      final entries = await _crypto.sealKeyringEntries(
-        key: channelKey,
-        members: members,
-      );
-      final response = await _serverCubit.postChannelKeys(
-        channelId: channelId,
-        keyVersion: keyVersion,
-        entries: entries,
-      );
-      // Wake the healed members so their waiting screens refetch.
-      if (response.success) onHealed?.call();
-    } catch (e) {
-      HelperMethods.printDebug('[Keyring] heal failed: $e');
-    }
-  }
-}
-
-/// How a keyring load ended.
-///
-/// "Waiting" is not a failure: it is the state of a member who has joined a
-/// channel nobody has sealed the current key to yet. Somebody else's client
-/// heals them, and the screen that is waiting refetches when the doorbell
-/// rings — so it needs its own answer rather than an error nobody can act on.
-class KeyringOutcome {
-  final bool isReady;
-  final bool isWaiting;
-  final ChatFailure? failure;
-
-  const KeyringOutcome.ready()
-    : isReady = true,
-      isWaiting = false,
-      failure = null;
-
-  const KeyringOutcome.waiting()
-    : isReady = false,
-      isWaiting = true,
-      failure = null;
-
-  const KeyringOutcome.failed(ChatFailure this.failure)
-    : isReady = false,
-      isWaiting = false;
 }

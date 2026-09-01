@@ -36,6 +36,7 @@ import '../../services/voice_signal.dart';
 part 'livekit_state.dart';
 part 'livekit_connection.dart';
 part 'livekit_e2ee.dart';
+part 'livekit_leave.dart';
 part 'livekit_media_controls.dart';
 part 'livekit_participants.dart';
 part 'livekit_screenshare.dart';
@@ -47,6 +48,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
     with
         _E2EEMixin,
         _LiveKitConnectionMixin,
+        _LiveKitLeaveMixin,
         _MediaControlsMixin,
         _ParticipantMixin,
         _ScreenshareMixin,
@@ -60,27 +62,18 @@ class LiveKitCubit extends Cubit<LiveKitState>
   final ServerCubit? _serverCubit;
   @override
   final CryptoRepository _crypto;
-
-  /// Whether a user id belongs to a bot, so its frames are keyed differently.
-  ///
-  /// Settable rather than injected: the member roster is built after this cubit
-  /// and would otherwise be a construction cycle. Null answers "not a bot",
-  /// which is the safe default — a member keyed as a member is readable by the
-  /// room, where a member keyed as a bot would be audible to nobody.
   @override
-  bool Function(String userId)? _isBotResolver;
+  final VaultCubit _vaultCubit;
 
-  set isBotResolver(bool Function(String userId)? resolver) =>
-      _isBotResolver = resolver;
-
-  /// The channel key for the call being joined. Voice and text share one
-  /// keyring per channel — see [ChannelKeyring].
-  @override
-  late final ChannelKeyring _keyring;
   @override
   ScreenshareCubit? _screenshareCubit;
   @override
   final List<EventsListener<RoomEvent>> _listeners = [];
+
+  /// Guards `disconnect` against re-entering itself — see its doc comment.
+  /// State, so it lives here rather than in either mixin that reads it.
+  @override
+  bool _disconnecting = false;
   StreamSubscription<AppState>? _appSubscription;
   AppState _lastAppState;
 
@@ -92,22 +85,13 @@ class LiveKitCubit extends Cubit<LiveKitState>
     ScreenshareCubit? screenshareCubit,
     CryptoRepository? crypto,
   }) : _appCubit = appCubit,
+       _vaultCubit = vaultCubit,
        _tokenCubit = tokenCubit,
        _serverCubit = serverCubit,
        _screenshareCubit = screenshareCubit,
        _crypto = crypto ?? CryptoRepository(),
        _lastAppState = appCubit.state,
        super(const LiveKitState()) {
-    // Its own ring rather than the chat cubit's: a call and an open text
-    // channel are different channels most of the time, and the two must not
-    // clear each other's keys when either is left.
-    if (serverCubit != null) {
-      _keyring = ChannelKeyring(
-        serverCubit: serverCubit,
-        vaultCubit: vaultCubit,
-        crypto: _crypto,
-      );
-    }
     _appSubscription = _appCubit.stream.listen(_onAppStateChanged);
   }
 

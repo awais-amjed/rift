@@ -9,11 +9,10 @@ import '../../../../../../../logic/cubits/channel_presence/channel_presence_cubi
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../../common/nav_row.dart';
-import '../../../../../../theme/app_text.dart';
 import '../channel_context_menu.dart';
 import 'widgets/channel_drop_target.dart';
 import 'widgets/channel_roster.dart';
-import 'widgets/live_badge.dart';
+import 'widgets/voice_channel_tile_header.dart';
 import 'widgets/voice_listening_badge.dart';
 import '../channel_lock_badge.dart';
 
@@ -152,7 +151,15 @@ class VoiceChannelTile extends StatelessWidget {
           ChannelContextMenu.wrap(
             context: context,
             channel: channel,
-            child: _buildHeader(context, themeState),
+            child: VoiceChannelTileHeader(
+              channel: channel,
+              themeState: themeState,
+              isSelected: isSelected,
+              listeners: context.watch<VoiceListenersCubit>().listening(
+                channel.id,
+              ),
+              onTap: onTap,
+            ),
           ),
           if (participants.isNotEmpty || presenceUsers.isNotEmpty)
             ChannelRoster(
@@ -163,68 +170,6 @@ class VoiceChannelTile extends StatelessWidget {
               themeState: themeState,
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, ThemeState themeState) {
-    // The tile paints its own card, so the ink needs a surface inside it —
-    // otherwise the highlight lands on the sidebar behind and the card covers
-    // it, and the one row you can click looks exactly like the roster rows
-    // under it, which you cannot.
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(K.radiusRow),
-        onTap: onTap,
-        child: Row(
-          spacing: 9,
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(
-                    Icons.volume_up_rounded,
-                    size: 16,
-                    color: isSelected
-                        ? themeState.accentBright
-                        : themeState.textTertiary,
-                  ),
-                  if (channel.isPrivate)
-                    Positioned(
-                      right: -4,
-                      bottom: -3,
-                      child: ChannelLockBadge(themeState: themeState),
-                    ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Text(
-                channel.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.row.copyWith(
-                  color: isSelected
-                      ? themeState.channelActiveText
-                      : themeState.textSecondary,
-                ),
-              ),
-            ),
-            // Before LIVE, not after: whether you can be heard by a bot is
-            // the thing to read before deciding to speak, and LIVE is about
-            // the call you already joined.
-            VoiceListeningBadge(
-              listeners: context.watch<VoiceListenersCubit>().listening(
-                channel.id,
-              ),
-            ),
-            if (isSelected) const LiveBadge(),
-          ],
-        ),
       ),
     );
   }

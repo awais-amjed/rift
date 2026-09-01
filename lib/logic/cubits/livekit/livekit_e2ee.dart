@@ -20,10 +20,41 @@ part of 'livekit_cubit.dart';
 /// decrypted, and participants arrive at any time, so this runs on connect for
 /// whoever is already in the room and again whenever somebody joins.
 mixin _E2EEMixin on Cubit<LiveKitState> {
-  ChannelKeyring get _keyring;
   CryptoRepository get _crypto;
+  VaultCubit get _vaultCubit;
   ServerCubit? get _serverCubit;
-  bool Function(String userId)? get _isBotResolver;
+
+  /// Whether a user id belongs to a bot, so its frames are keyed differently.
+  ///
+  /// Set from outside rather than injected: the member roster is built after
+  /// this cubit and would otherwise be a construction cycle. Null answers "not
+  /// a bot", which is the safe default — a member keyed as a member is readable
+  /// by the room, where a member keyed as a bot would be audible to nobody.
+  bool Function(String userId)? _isBotResolver;
+
+  /// Public because it is set from outside the cubit; cubit-internal otherwise
+  /// (CODE_STYLE §5).
+  set isBotResolver(bool Function(String userId)? resolver) =>
+      _isBotResolver = resolver;
+
+  /// The keys for the channel being joined.
+  ///
+  /// Lives here rather than on the cubit class because this mixin is its only
+  /// reader, and lazily because there is nothing to build one from until a
+  /// server is selected. Its own ring rather than the chat cubit's: a call and
+  /// an open text channel are different channels most of the time, and the two
+  /// must not clear each other's keys when either is left.
+  ChannelKeyring? _keyringOrNull;
+
+  ChannelKeyring? get _keyring {
+    final server = _serverCubit;
+    if (server == null) return null;
+    return _keyringOrNull ??= ChannelKeyring(
+      serverCubit: server,
+      vaultCubit: _vaultCubit,
+      crypto: _crypto,
+    );
+  }
 
   /// The key ring in force for the call being set up, and the LiveKit slot it
   /// occupies. Held between `connect` and the participant events that follow.
@@ -46,8 +77,11 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// to provide. A call you cannot join is a bug; a call that is quietly
   /// readable is a broken promise.
   Future<E2EEOptions?> _prepareE2EE(String channelId) async {
-    final outcome = await _keyring.loadOrBootstrap(channelId);
-    final key = _keyring.currentKey;
+    final keyring = _keyring;
+    if (keyring == null) return null;
+
+    final outcome = await keyring.loadOrBootstrap(channelId);
+    final key = keyring.currentKey;
     if (!outcome.isReady || key == null) {
       HelperMethods.printDebug(
         '[LiveKit] no channel key for $channelId — refusing to join',
@@ -56,7 +90,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     }
 
     _callChannelKey = key;
-    _callKeyIndex = VoiceKeys.keyIndex(_keyring.currentVersion);
+    _callKeyIndex = VoiceKeys.keyIndex(keyring.currentVersion);
     _callListeningBots =
         await _serverCubit?.voiceListenerIds(channelId) ?? const {};
 
