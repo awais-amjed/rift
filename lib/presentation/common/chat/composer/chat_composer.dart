@@ -133,14 +133,23 @@ class _ChatComposerState extends State<ChatComposer>
     );
   }
 
-  /// Put the chosen person's *username* in the text — see
-  /// [MentionSuggestions.apply] for why it is not their display name.
+  /// Display name → username for everyone picked from the menu.
+  ///
+  /// The field shows the name the room knows; the message has to carry the
+  /// username. This is what remembers which person a given display name meant,
+  /// so [MentionSuggestions.toWire] never has to guess between two people who
+  /// happen to be called the same thing.
+  final Map<String, String> _picked = {};
+
+  /// Put the chosen person's *display name* in the field, and remember who it
+  /// was — see [MentionSuggestions.apply].
   void _pickMention(ServerMember member) {
     final result = MentionSuggestions.apply(
       _controller.text,
       _controller.selection.baseOffset,
       member,
     );
+    _picked[member.displayName] = member.username;
     _controller.text = result.text;
     _controller.selection = TextSelection.collapsed(offset: result.cursor);
     _focusNode.requestFocus();
@@ -156,11 +165,48 @@ class _ChatComposerState extends State<ChatComposer>
     setState(() {});
   }
 
+  /// Anchors the floating `@` menu to the composer bar.
+  final LayerLink _menuLink = LayerLink();
+  final OverlayPortalController _menuOverlay = OverlayPortalController();
+
+  /// Who the `@` menu is currently offering.
+  ///
+  /// Held rather than computed in `build` because showing an overlay is not
+  /// something a build may do — and because the menu has to react to the caret
+  /// moving, which `onChanged` never reports.
+  List<ServerMember> _mentions = const [];
+
+  /// How wide the composer is, so the popup lines up with it. An overlay is
+  /// outside the layout, so nothing constrains it otherwise.
+  double _barWidth = 0;
+
   @override
   void initState() {
     super.initState();
     // The bar lights its border while the field has focus.
     _focusNode.addListener(_onFocusChanged);
+    // Fires for edits *and* caret moves; both change whether the caret is
+    // inside a mention.
+    _controller.addListener(_syncMentionMenu);
+  }
+
+  /// Recompute the `@` menu, and open or close the overlay to match.
+  void _syncMentionMenu() {
+    final next = _mentionMatches;
+    final changed =
+        next.length != _mentions.length ||
+        [
+          for (var i = 0; i < next.length; i++) next[i].id != _mentions[i].id,
+        ].any((differs) => differs);
+    if (changed && mounted) setState(() => _mentions = next);
+
+    // Guarded: this runs from a controller listener, which can outlive the
+    // widget by a frame, and showing an overlay from a dead element throws.
+    if (!mounted) return;
+    final shouldShow = next.isNotEmpty && _suggestions.isEmpty;
+    if (shouldShow != _menuOverlay.isShowing) {
+      shouldShow ? _menuOverlay.show() : _menuOverlay.hide();
+    }
   }
 
   void _onFocusChanged() {
@@ -170,6 +216,7 @@ class _ChatComposerState extends State<ChatComposer>
   @override
   void dispose() {
     _disposeRecording();
+    _controller.removeListener(_syncMentionMenu);
     _controller.dispose();
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
@@ -177,11 +224,13 @@ class _ChatComposerState extends State<ChatComposer>
   }
 
   void _send() {
-    final text = _controller.text.trim();
+    // The field holds display names; a mention has to travel as a username.
+    final text = MentionSuggestions.toWire(_controller.text, _picked).trim();
     if (!widget.enabled) return;
     if (text.isEmpty && _staged.isEmpty) return;
     final attachments = List<PendingAttachment>.from(_staged);
     _controller.clear();
+    _picked.clear();
     setState(_staged.clear);
     widget.onSend(text, attachments);
     _focusNode.requestFocus();
@@ -199,58 +248,95 @@ class _ChatComposerState extends State<ChatComposer>
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
+        // The mention menu floats rather than sitting in the column: a list
+        // that took layout space shoved the whole conversation up as somebody
+        // typed a name, and dropped it back on every keystroke that narrowed
+        // the list. A popup that covers the last message costs nothing — it is
+        // gone by the time you read it.
+        //
+        // The `/` menu still takes space, and should: it only ever opens on an
+        // empty composer, where there is no message right above it to hide.
         return Padding(
           padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Grown into rather than snapped in. The strip appears above the
-              // bar, so attaching the first file used to shove the whole
-              // conversation up by the height of a row of chips, and removing
-              // the last one dropped it back.
-              AnimatedSize(
-                duration: AppMotion.state,
-                curve: AppMotion.settle,
-                alignment: Alignment.bottomLeft,
-                child: _staged.isEmpty
-                    ? const SizedBox(width: double.infinity)
-                    : ComposerStagedRow(
-                        staged: _staged,
-                        themeState: themeState,
-                        onRemove: _removeStaged,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              _barWidth = constraints.maxWidth;
+              return CompositedTransformTarget(
+                link: _menuLink,
+                child: OverlayPortal(
+                  controller: _menuOverlay,
+                  // In the app's overlay rather than in this subtree, because a
+                  // child drawn outside its parent's box paints but does not
+                  // hit-test — the menu appeared and could not be clicked.
+                  overlayChildBuilder: (context) => CompositedTransformFollower(
+                    link: _menuLink,
+                    // The menu's bottom edge sits on the composer's top edge.
+                    targetAnchor: Alignment.topLeft,
+                    followerAnchor: Alignment.bottomLeft,
+                    // Shrink-wrapped: an overlay child is handed the whole
+                    // screen to fill, and a popup that took it covered the
+                    // conversation entirely instead of sitting above the bar.
+                    child: Align(
+                      alignment: Alignment.bottomLeft,
+                      widthFactor: 1,
+                      heightFactor: 1,
+                      child: SizedBox(
+                        width: _barWidth,
+                        child: ComposerMentionMenu(
+                          members: _mentions,
+                          themeState: themeState,
+                          onSelected: _pickMention,
+                        ),
                       ),
-              ),
-              // Above the bar, because the point of it is to be read *before*
-              // the message goes.
-              if (_command != null)
-                ComposerPlaintextNotice(
-                  bot: _command!.bot,
-                  themeState: themeState,
+                    ),
+                  ),
+                  child: _buildColumn(themeState),
                 ),
-              // One menu at a time, and `/` wins: it only ever opens on the
-              // first word, where an `@` cannot also be starting.
-              if (_suggestions.isEmpty && _mentionMatches.isNotEmpty)
-                ComposerMentionMenu(
-                  members: _mentionMatches,
-                  themeState: themeState,
-                  onSelected: _pickMention,
-                ),
-              if (_suggestions.isNotEmpty)
-                ComposerCommandMenu(
-                  entries: _suggestions,
-                  themeState: themeState,
-                  onSelected: (_, name) => _pickCommand(name),
-                ),
-              _buildBar(themeState),
-              if (widget.footer != null) ...[
-                const SizedBox(height: 6),
-                widget.footer!,
-              ],
-            ],
+              );
+            },
           ),
         );
       },
+    );
+  }
+
+  Widget _buildColumn(ThemeState themeState) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Grown into rather than snapped in. The strip appears above the
+        // bar, so attaching the first file used to shove the whole
+        // conversation up by the height of a row of chips, and removing
+        // the last one dropped it back.
+        AnimatedSize(
+          duration: AppMotion.state,
+          curve: AppMotion.settle,
+          alignment: Alignment.bottomLeft,
+          child: _staged.isEmpty
+              ? const SizedBox(width: double.infinity)
+              : ComposerStagedRow(
+                  staged: _staged,
+                  themeState: themeState,
+                  onRemove: _removeStaged,
+                ),
+        ),
+        // Above the bar, because the point of it is to be read *before*
+        // the message goes.
+        if (_command != null)
+          ComposerPlaintextNotice(bot: _command!.bot, themeState: themeState),
+        if (_suggestions.isNotEmpty)
+          ComposerCommandMenu(
+            entries: _suggestions,
+            themeState: themeState,
+            onSelected: (_, name) => _pickCommand(name),
+          ),
+        _buildBar(themeState),
+        if (widget.footer != null) ...[
+          const SizedBox(height: 6),
+          widget.footer!,
+        ],
+      ],
     );
   }
 

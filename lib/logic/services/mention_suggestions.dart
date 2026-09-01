@@ -7,17 +7,29 @@ import '../../data/classes/server_member.dart';
 /// like afterwards. Every one of those is invisible from the outside until it
 /// is wrong, and then it is wrong while somebody is mid-sentence.
 ///
-/// **You pick a person and the text gets their username.** Display names can be
-/// changed by their owner and can collide; usernames cannot, which is why they
-/// are what a mention resolves against (see [Mentions]). Searching by display
-/// name and writing a username is the whole point of the menu: it is the piece
-/// that lets somebody type the name they know without the message depending on
-/// it.
+/// **You see a display name; the message carries a username.** Display names can
+/// be changed by their owner and can collide, so a mention resolves against the
+/// username or it resolves against the wrong person (see [Mentions]). But
+/// `@schematest` in a box, about somebody the room calls Awais, is a name you
+/// have to translate while writing.
+///
+/// So the composer holds the display name and [toWire] swaps it for the username
+/// on the way out. Doing it the other way round — holding the username and
+/// *drawing* the display name — is not available: a text field maps the caret by
+/// counting characters, so a rendered string of a different length puts the
+/// cursor in the wrong place.
 class MentionSuggestions {
   const MentionSuggestions._();
 
-  /// Most people offered at once. Past this the list stops being a list.
-  static const maxResults = 8;
+  /// Most people offered at once.
+  ///
+  /// Small on purpose: the menu floats over the conversation, so each row hides
+  /// a line of what somebody just said. Past this you are reading a directory
+  /// rather than picking a name, and the answer is nearly always the first one.
+  ///
+  /// The menu is sized to show exactly this many whole rows — a list whose last
+  /// row is cut in half reads as a rendering bug rather than as more to scroll.
+  static const maxResults = 4;
 
   /// The `@…` being typed at [cursor], without its `@`, or null if the caret is
   /// not in one.
@@ -86,10 +98,12 @@ class MentionSuggestions {
 
   /// The text and caret after picking [member] for the mention at [cursor].
   ///
-  /// Writes the *username* and leaves a trailing space, because the next thing
-  /// somebody types is a word and not more of the name. Returns the text
-  /// unchanged when the caret is not in a mention, so a stale menu press cannot
-  /// rewrite the middle of a sentence.
+  /// Writes the *display name* — what the writer is looking at — and leaves a
+  /// trailing space, because the next thing somebody types is a word and not
+  /// more of the name. [toWire] turns it into a username before it is sent.
+  ///
+  /// Returns the text unchanged when the caret is not in a mention, so a stale
+  /// menu press cannot rewrite the middle of a sentence.
   static ({String text, int cursor}) apply(
     String text,
     int cursor,
@@ -99,10 +113,35 @@ class MentionSuggestions {
     if (query == null) return (text: text, cursor: cursor);
 
     final start = cursor - query.length - 1;
-    final inserted = '@${member.username} ';
+    final inserted = '@${member.displayName} ';
     return (
       text: text.replaceRange(start, cursor, inserted),
       cursor: start + inserted.length,
     );
+  }
+
+  /// Swap the display names somebody picked for the usernames a mention needs.
+  ///
+  /// [picked] is display name → username, built as each person was chosen. Only
+  /// names that were actually picked are touched: a display name typed by hand
+  /// is left alone, because the composer never established *which* person it
+  /// meant and guessing is how a message pings a stranger with the same name.
+  ///
+  /// Longest first, so a name that contains another ("Sam" inside "Sam Two") is
+  /// not half-replaced. Plain string matching rather than a regular expression,
+  /// because a display name may contain anything a person can type.
+  static String toWire(String text, Map<String, String> picked) {
+    if (picked.isEmpty || text.isEmpty) return text;
+
+    final names = picked.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+
+    var out = text;
+    for (final name in names) {
+      final username = picked[name];
+      if (username == null) continue;
+      out = out.replaceAll('@$name', '@$username');
+    }
+    return out;
   }
 }

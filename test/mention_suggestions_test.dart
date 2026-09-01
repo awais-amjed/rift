@@ -93,22 +93,25 @@ void main() {
     });
   });
 
+  group('what a pick writes into the field', _wireTests);
+
   group('what picking somebody does to the text', () {
-    test('writes the username, not the display name', () {
-      // Display names change and collide; the message must not depend on one.
+    test('writes the display name, which is what the writer is reading', () {
+      // The username arrives later, in toWire — a text field cannot show one
+      // string and hold another without the caret landing in the wrong place.
       final out = MentionSuggestions.apply('hi @sa', 6, roster.first);
-      expect(out.text, 'hi @charlie ');
+      expect(out.text, 'hi @Sam ');
       expect(out.cursor, out.text.length);
     });
 
     test('leaves a trailing space, because the next thing is a word', () {
-      expect(MentionSuggestions.apply('@', 1, roster.first).text, '@charlie ');
+      expect(MentionSuggestions.apply('@', 1, roster.first).text, '@Sam ');
     });
 
     test('only replaces the mention, not what surrounds it', () {
       final out = MentionSuggestions.apply('hey @sa there', 7, roster.first);
-      expect(out.text, 'hey @charlie  there');
-      expect(out.cursor, 'hey @charlie '.length);
+      expect(out.text, 'hey @Sam  there');
+      expect(out.cursor, 'hey @Sam '.length);
     });
 
     test('a stale press with the caret elsewhere changes nothing', () {
@@ -116,5 +119,57 @@ void main() {
       final out = MentionSuggestions.apply('done and sent', 13, roster.first);
       expect(out.text, 'done and sent');
     });
+  });
+}
+
+/// Turning what the writer sees into what the message carries.
+///
+/// The field holds display names, because `@schematest` about somebody the room
+/// calls Awais is a name you translate while writing. The message holds
+/// usernames, because a display name can be changed by its owner and can
+/// collide. This is the swap between them, and it only ever touches names
+/// somebody actually picked.
+void _wireTests() {
+  test('a picked name becomes the username', () {
+    final out = MentionSuggestions.toWire('@Awais hello', {
+      'Awais': 'schematest',
+    });
+    expect(out, '@schematest hello');
+  });
+
+  test('a display name with a space survives the swap', () {
+    // The mention token cannot contain a space, so this is the only way a
+    // two-word name ever reaches the wire correctly.
+    final out = MentionSuggestions.toWire('hi @Anim Bot', {
+      'Anim Bot': 'animbot',
+    });
+    expect(out, 'hi @animbot');
+  });
+
+  test('a name typed by hand is left alone', () {
+    // The composer never established which person it meant, and guessing is how
+    // a message pings a stranger who happens to share a name.
+    expect(MentionSuggestions.toWire('@Awais hi', const {}), '@Awais hi');
+  });
+
+  test('the longer name wins where one contains the other', () {
+    final out = MentionSuggestions.toWire('@Sam Two and @Sam', {
+      'Sam': 'charlie',
+      'Sam Two': 'sam2',
+    });
+    expect(out, '@sam2 and @charlie');
+  });
+
+  test('every occurrence of the same person is swapped', () {
+    final out = MentionSuggestions.toWire('@Awais and @Awais', {
+      'Awais': 'schematest',
+    });
+    expect(out, '@schematest and @schematest');
+  });
+
+  test('a name with regex characters is matched literally', () {
+    // Display names are whatever a person can type.
+    final out = MentionSuggestions.toWire('@A.(B)+ hi', {'A.(B)+': 'weird'});
+    expect(out, '@weird hi');
   });
 }

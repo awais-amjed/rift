@@ -35,9 +35,14 @@ class ComposerMentionMenu extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 6),
       child: PopoverSurface(
         child: ConstrainedBox(
-          // Same ceiling as the `/` menu: this sits above a composer and must
-          // not push the conversation off the screen.
-          constraints: const BoxConstraints(maxHeight: 210),
+          // Deliberately short: it floats over the conversation, so every row
+          // covers a line of what somebody just said, and the answer is nearly
+          // always in the first two.
+          //
+          // Tall enough for [MentionSuggestions.maxResults] whole rows. A
+          // ceiling that cut the last one in half read as a rendering bug
+          // rather than as a list that continues.
+          constraints: const BoxConstraints(maxHeight: 152),
           child: ListView.builder(
             shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 4),
