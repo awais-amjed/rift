@@ -40,6 +40,21 @@ class Mentions {
     return {everyone, if (name != null && name.isNotEmpty) name};
   }
 
+  /// Everybody a message can actually name.
+  ///
+  /// **Not bots.** A normal message that mentions one does nothing: a bot only
+  /// ever receives what is addressed to it with `/`, and `messages_select` will
+  /// not return anything else however the text is written (BOTS.md §4). Two
+  /// messages that look identical must not have different protection, so the
+  /// habit is refused rather than half-supported.
+  ///
+  /// That refusal has to reach every surface or it becomes a lie somewhere: an
+  /// `@` menu that offers a bot, a name that lights up as though it arrived, a
+  /// mention recorded in the clear that wakes nobody. One list, so they cannot
+  /// disagree.
+  static Iterable<ServerMember> among(Iterable<ServerMember> members) =>
+      members.where((member) => !member.isBot);
+
   /// A roster in the shape [resolve] wants: username → user id.
   ///
   /// Here rather than at the call site because it is the half that decides
@@ -48,7 +63,7 @@ class Mentions {
   /// display names can be changed by their owner and can collide, which is
   /// exactly why they are not the key.
   static Map<String, String> rosterOf(Iterable<ServerMember> members) => {
-    for (final member in members) member.username: member.id,
+    for (final member in among(members)) member.username: member.id,
   };
 
   /// Whether [text] names the person called [username].

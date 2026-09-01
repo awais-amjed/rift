@@ -162,6 +162,12 @@ Two messages that look identical must not have different protection. That is the
 distinction people get wrong at the worst possible moment, and the cost of the rule is that
 Discord's `@bot` habit does not work here.
 
+So the composer never teaches it. `Mentions.among` drops bots from the `@` menu, from the names
+that light up in a sent message, and from the roster a send resolves against — the same list, so
+the surfaces cannot disagree. A menu offering a bot would be a promise the `messages_select`
+policy then refuses in silence: the mention would be stored in the clear and wake nobody. `/` is
+one key away and has its own menu.
+
 ### Discovery
 
 Each bot publishes a **command manifest** — name, description, arguments, and what it does with

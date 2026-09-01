@@ -90,18 +90,21 @@ class _ChannelChatViewState extends State<ChannelChatView>
   Map<String, String> _mentionNames(BuildContext context) {
     final members = context.watch<ServerMembersCubit>().state.members;
     return {
-      for (final m in members ?? const <ServerMember>[])
+      for (final m in Mentions.among(members ?? const <ServerMember>[]))
         m.username.toLowerCase(): m.displayName,
     };
   }
 
   /// Everybody the composer's `@` menu may offer.
   ///
-  /// The whole roster, bots included — a bot is addressed by name like anyone
-  /// else. Banned members are dropped by the menu itself, which is also where
-  /// the sender is left out.
+  /// People, not bots — see [Mentions.among]. A bot is addressed with `/`, which
+  /// has its own menu one key away; offering it here would teach the `@bot`
+  /// habit and then silently do nothing with it. Banned members are dropped by
+  /// the menu itself, which is also where the sender is left out.
   List<ServerMember> _mentionableMembers(BuildContext context) =>
-      context.watch<ServerMembersCubit>().state.members ?? const [];
+      Mentions.among(
+        context.watch<ServerMembersCubit>().state.members ?? const [],
+      ).toList(growable: false);
 
   /// The bots on this server, for the composer's `/` menu.
   ///
@@ -147,7 +150,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
       // `users_username_not_reserved` in migration 012 — so it is never
       // ambiguous between the room and a person.
       Mentions.everyone,
-      for (final m in members ?? const []) m.username.toLowerCase(),
+      for (final m in Mentions.among(members ?? const []))
+        m.username.toLowerCase(),
     };
   }
 

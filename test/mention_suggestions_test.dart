@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/server_member.dart';
 import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/logic/services/mention_suggestions.dart';
+import 'package:rift/logic/services/mentions.dart';
 
 /// The `@` menu's logic, without a composer.
 ///
@@ -95,6 +96,8 @@ void main() {
 
   group('what a pick writes into the field', _wireTests);
 
+  group('bots are addressed with a slash, not an at', _botTests);
+
   group('what picking somebody does to the text', () {
     test('writes the display name, which is what the writer is reading', () {
       // The username arrives later, in toWire — a text field cannot show one
@@ -171,5 +174,58 @@ void _wireTests() {
     // Display names are whatever a person can type.
     final out = MentionSuggestions.toWire('@A.(B)+ hi', {'A.(B)+': 'weird'});
     expect(out, '@weird hi');
+  });
+}
+
+/// A bot is not mentionable, on any surface.
+///
+/// BOTS.md §4: a normal message that mentions a bot does nothing. It only ever
+/// receives what is addressed to it with `/`, and `messages_select` will not
+/// return anything else however the text is written. Two messages that look
+/// identical must not have different protection.
+///
+/// The refusal has to hold everywhere or it becomes a lie somewhere — a menu
+/// that offers a bot, a name lit up as though it arrived, a mention recorded in
+/// the clear that wakes nobody.
+void _botTests() {
+  ServerMember bot(String username, String displayName) => ServerMember(
+    id: username,
+    username: username,
+    displayName: displayName,
+    permissions: UserPermissions(),
+    isBot: true,
+  );
+  ServerMember person(String username, String displayName) => ServerMember(
+    id: username,
+    username: username,
+    displayName: displayName,
+    permissions: UserPermissions(),
+  );
+
+  final roster = [person('charlie', 'Sam'), bot('animbot', 'Anim Bot')];
+
+  test('a bot is not among the people a message can name', () {
+    expect(Mentions.among(roster).map((m) => m.username), ['charlie']);
+  });
+
+  test('and so never reaches the roster a send resolves against', () {
+    // Otherwise a bot's id travels in the clear on `messages.mentions` to wake
+    // somebody who has no phone.
+    expect(Mentions.rosterOf(roster).keys, ['charlie']);
+  });
+
+  test('a message naming a bot names nobody', () {
+    final named = Mentions.resolve(
+      '@animbot play something',
+      idsByUsername: Mentions.rosterOf(roster),
+    );
+    expect(named.userIds, isEmpty);
+    expect(named.all, isFalse);
+  });
+
+  test('the menu offers people, and the `/` menu offers bots', () {
+    // The composer is handed an already-filtered roster; this is the filter.
+    final out = MentionSuggestions.suggest('a', Mentions.among(roster));
+    expect(out.map((m) => m.username), isNot(contains('animbot')));
   });
 }
