@@ -475,6 +475,18 @@ not actually being revoked.
 taken back, only rotated past. 031's note that this grant was revocable was true only while voice
 was unencrypted.
 
+### member_role_list (migration 033 exposes `is_default`)
+
+Which roles each member holds, joined to the role's own columns so a client draws a name and a
+colour without a second query.
+
+`is_default` was missing until 033, and its absence showed: every human is given the default role
+when they register (025), so every client drew a "Members" chip on every row — saying, next to
+every name, what was true of everybody. A badge that never varies is furniture, and the roles worth
+noticing had to compete with it. Clients hide that one chip now; the roles editor and the
+per-member menu still list the role, because it is a real assignment that can be taken away and a
+role you cannot see is one you cannot remove.
+
 ### users.manifest (migration 015)
 
 A bot's published command list and data declaration (BOTS.md §4, §8). `JSONB`, null for a person

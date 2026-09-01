@@ -21,6 +21,21 @@ class RoleLadder {
   /// Zero for somebody holding none — and `@everyone` does not count, because
   /// it is never assigned. Zero is the correct answer: they can touch nothing,
   /// since nothing sits strictly below the ground.
+  /// The roles worth showing beside somebody's name.
+  ///
+  /// Everything except the default one. Every member is given that on
+  /// registration, so a chip for it appeared on every row saying what was true
+  /// of everybody — and a badge that never varies is not a badge, it is
+  /// furniture that the roles somebody should notice have to compete with.
+  ///
+  /// Only the *chip* is dropped. The roles editor and the per-member menu still
+  /// list it, because it is a real assignment that can be taken away, and a
+  /// role you cannot see is a role you cannot remove.
+  static List<Role> badges(List<Role> roles) => [
+    for (final role in roles)
+      if (!role.isDefault) role,
+  ];
+
   static int rankOf(Map<String, List<Role>> assignments, String? userId) {
     if (userId == null) return 0;
     var rank = 0;

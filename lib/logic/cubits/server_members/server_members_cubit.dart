@@ -6,6 +6,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/classes/server_member.dart';
 import '../../services/server_table_watcher.dart';
 import '../server/server_cubit.dart';
+import '../../services/role_ladder.dart';
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -54,10 +55,13 @@ class ServerMembersState {
     return null;
   }
 
-  /// The most senior role [userId] holds at all — what a chip beside their name
-  /// says, colour or not.
+  /// The most senior role [userId] holds that is worth showing — what a chip
+  /// beside their name says, colour or not.
+  ///
+  /// Skips the default role: everybody has it, so a chip for it labelled every
+  /// row in the sidebar with the same word (see [RoleLadder.badges]).
   Role? topRoleFor(String userId) =>
-      (memberRoles[userId] ?? const <Role>[]).firstOrNull;
+      RoleLadder.badges(memberRoles[userId] ?? const <Role>[]).firstOrNull;
 
   /// The current display name for [userId].
   ///

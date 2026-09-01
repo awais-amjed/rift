@@ -42,7 +42,9 @@ mixin _RoleApiMixin {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final rows = await db
           .from('member_role_list')
-          .select('user_id, role_id, name, color, position, permissions');
+          .select(
+            'user_id, role_id, name, color, position, permissions, is_default',
+          );
       return {'assignments': rows};
     });
   }
