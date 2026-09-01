@@ -176,10 +176,6 @@ class _ChatComposerState extends State<ChatComposer>
   /// moving, which `onChanged` never reports.
   List<ServerMember> _mentions = const [];
 
-  /// How wide the composer is, so the popup lines up with it. An overlay is
-  /// outside the layout, so nothing constrains it otherwise.
-  double _barWidth = 0;
-
   @override
   void initState() {
     super.initState();
@@ -258,9 +254,8 @@ class _ChatComposerState extends State<ChatComposer>
         // empty composer, where there is no message right above it to hide.
         return Padding(
           padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              _barWidth = constraints.maxWidth;
+          child: Builder(
+            builder: (context) {
               return CompositedTransformTarget(
                 link: _menuLink,
                 child: OverlayPortal(
@@ -276,17 +271,15 @@ class _ChatComposerState extends State<ChatComposer>
                     // Shrink-wrapped: an overlay child is handed the whole
                     // screen to fill, and a popup that took it covered the
                     // conversation entirely instead of sitting above the bar.
+                    // The menu sets its own width, like every other popover.
                     child: Align(
                       alignment: Alignment.bottomLeft,
                       widthFactor: 1,
                       heightFactor: 1,
-                      child: SizedBox(
-                        width: _barWidth,
-                        child: ComposerMentionMenu(
-                          members: _mentions,
-                          themeState: themeState,
-                          onSelected: _pickMention,
-                        ),
+                      child: ComposerMentionMenu(
+                        members: _mentions,
+                        themeState: themeState,
+                        onSelected: _pickMention,
                       ),
                     ),
                   ),

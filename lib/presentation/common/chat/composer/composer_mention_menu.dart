@@ -3,10 +3,15 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
-import '../../popover_surface.dart';
+import '../../context_menu/context_menu_panel.dart';
 import '../../user_avatar.dart';
 
 /// The `@` menu: who is here, and what they are actually called.
+///
+/// Built on [ContextMenuPanel] so it is the same object as the menu that opens
+/// on a right-click — same surface, same width, same rounded rows. A popover is
+/// a popover; one that invented its own proportions would read as a different
+/// kind of thing appearing in the same place.
 ///
 /// Two names on every row, and both earn their place. The **display name** is
 /// what somebody is looking for — it is the name they see in the room and the
@@ -33,69 +38,69 @@ class ComposerMentionMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: PopoverSurface(
-        child: ConstrainedBox(
-          // Deliberately short: it floats over the conversation, so every row
-          // covers a line of what somebody just said, and the answer is nearly
-          // always in the first two.
-          //
-          // Tall enough for [MentionSuggestions.maxResults] whole rows. A
-          // ceiling that cut the last one in half read as a rendering bug
-          // rather than as a list that continues.
-          constraints: const BoxConstraints(maxHeight: 152),
-          child: ListView.builder(
-            shrinkWrap: true,
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            itemCount: members.length,
-            itemBuilder: (context, i) => _row(members[i]),
-          ),
-        ),
+      child: ContextMenuPanel(
+        // A little wider than a right-click menu, because these rows carry two
+        // names rather than one label — at the default width a two-word display
+        // name lost its second word to an ellipsis, which is the word that
+        // tells two people apart.
+        maxWidth: 268,
+        children: [for (final member in members) _row(member)],
       ),
     );
   }
 
+  /// Deliberately the geometry of [ContextMenuItem] — 9px radius, the same
+  /// padding, the same hover — with an avatar where its icon goes.
   Widget _row(ServerMember member) {
+    final radius = BorderRadius.circular(9);
+
     return Material(
-      type: MaterialType.transparency,
+      color: Colors.transparent,
+      borderRadius: radius,
       child: InkWell(
-        onTap: () => onSelected(member),
+        borderRadius: radius,
         hoverColor: themeState.bgHover,
+        onTap: () => onSelected(member),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(
-            spacing: 8,
+            spacing: 9,
             children: [
               UserAvatar(
                 avatarPath: member.avatarPath,
                 name: member.displayName,
-                size: 22,
+                size: 20,
                 themeState: themeState,
                 seed: member.id,
               ),
+              // The name somebody is reading for gets the room first; the
+              // username gives way.
               Flexible(
+                flex: 3,
                 child: Text(
                   member.displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.row.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: themeState.textPrimary,
+                  style: AppText.rowQuiet.copyWith(
+                    fontSize: 13,
+                    color: themeState.textSecondary,
                   ),
                 ),
               ),
-              Text(
-                '@${member.username}',
-                style: AppText.meta.copyWith(color: themeState.textTertiary),
-              ),
-              const Spacer(),
-              if (member.isBot)
-                Text(
-                  'BOT',
-                  style: AppText.sectionLabel.copyWith(
-                    letterSpacing: 0.6,
+              // Quieter and second: it is what the message will carry, not what
+              // anybody is reading for.
+              Flexible(
+                flex: 2,
+                child: Text(
+                  '@${member.username}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.meta.copyWith(
+                    fontSize: 10,
                     color: themeState.textQuaternary,
                   ),
                 ),
+              ),
             ],
           ),
         ),
