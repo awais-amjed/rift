@@ -140,12 +140,12 @@ class PanelBlock {
       value: rawValue is num ? rawValue.toDouble().clamp(0.0, 1.0) : null,
       fields: [
         for (final item in (raw['items'] as List? ?? const []))
-          if (PanelField.tryParse(item) case final field?) field,
+          ?PanelField.tryParse(item),
       ],
       actions: [
         for (final item
             in (raw['items'] as List? ?? raw['options'] as List? ?? const []))
-          if (PanelAction.tryParse(item) case final action?) action,
+          ?PanelAction.tryParse(item),
       ],
       action: raw['action'] is String ? raw['action'] as String : null,
     );
