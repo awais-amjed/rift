@@ -35,21 +35,42 @@ trap 'docker exec -i "$CONTAINER" psql -U postgres -q -c "DROP DATABASE IF EXIST
 psql_scratch -v ON_ERROR_STOP=1 <<'SQL' >/dev/null
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS extensions;
+-- 008 puts a trigger on `servers` that gives each one its own storage bucket.
+-- Only the columns it writes; this is a landing pad, not Supabase Storage.
+CREATE SCHEMA IF NOT EXISTS storage;
+CREATE TABLE IF NOT EXISTS storage.buckets (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  public BOOLEAN,
+  file_size_limit BIGINT
+);
 CREATE TABLE IF NOT EXISTS auth.users (id UUID PRIMARY KEY);
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE AS $$
   SELECT nullif(current_setting('request.jwt.claims', true)::json->>'sub', '')::uuid $$;
 DO $$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-GRANT USAGE ON SCHEMA public, auth, extensions TO anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA public, auth, extensions, storage TO anon, authenticated, service_role;
 DO $$ BEGIN CREATE PUBLICATION supabase_realtime; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 SQL
+
+# Which migration a file is, as a number. The two loops below used to select
+# by glob — `0[01][0-7]_*` for "before roles" and `0[12][0-9]_*` for "after" —
+# and both were quietly wrong: the first matched neither 008 nor 009, and the
+# second stopped dead at 029, so 030 was never applied by this test at all and
+# 031 would not have been either. A range spelled as a pattern is a range that
+# expires without saying so.
+number_of() { basename "$1" | cut -d_ -f1 | sed 's/^0*//'; }
+
+# The first migration that has roles in it, and the point this test stops at.
+ROLES_MIGRATION=18
 
 # Everything before roles existed. Best-effort: the scheduling and storage
 # migrations need extensions only the real stack has, and nothing this test
 # asserts depends on them — but `users`, `servers` and `invites` do have to be
 # there, and the check below fails loudly if they are not.
-for f in "$MIGRATIONS"/0[01][0-7]_*.sql; do
+for f in "$MIGRATIONS"/[0-9][0-9][0-9]_*.sql; do
+  [ "$(number_of "$f")" -lt "$ROLES_MIGRATION" ] || continue
   psql_scratch -f - < "$f" >/dev/null 2>&1 || true
 done
 
@@ -83,8 +104,10 @@ VALUES
 SQL
 
 echo "── migrations 018 onward ────────────────────────────────────"
-for f in "$MIGRATIONS"/0[12][0-9]_*.sql; do
-  case "$(basename "$f")" in 0[01][0-7]_*) continue;; esac
+# Strict from here: this is the half the test is about, and a migration that
+# cannot apply to a real path is the failure being looked for.
+for f in "$MIGRATIONS"/[0-9][0-9][0-9]_*.sql; do
+  [ "$(number_of "$f")" -ge "$ROLES_MIGRATION" ] || continue
   psql_scratch -v ON_ERROR_STOP=1 -f - < "$f" >/dev/null
 done
 
