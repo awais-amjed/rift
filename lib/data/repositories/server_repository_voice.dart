@@ -8,11 +8,6 @@ part of 'server_repository.dart';
 /// sweeping is here for a different reason — it needs the Storage API, which no
 /// database role can reach.
 mixin _VoiceApiMixin {
-  /// The direct table/RPC client. Everything else here goes through an edge
-  /// function; summoning is an ordinary RPC, because the permission check it
-  /// needs is one the database already knows how to make.
-  ServerDb get _db;
-
   Future<APIResponse> _post(
     String supabaseUrl,
     String functionName,
@@ -121,6 +116,12 @@ mixin _VoiceApiMixin {
   /// Not a key grant and not membership: it lets the bot take a token for this
   /// one channel and publish there. Hearing stays behind `MANAGE_BOTS`, so a
   /// summon adds a speaker to the room and never a listener.
+  ///
+  /// An edge function rather than the RPC directly, and only dismissing needs
+  /// it: deleting the row takes away the bot's media key and its right to a
+  /// *new* token, and does nothing to the connection it already holds, which is
+  /// good for its hour. Without the push, "Send away" removed the row and left
+  /// the bot in the call playing music. Same shape as `set_bot_voice_listen`.
   Future<APIResponse> setBotVoiceSummon(
     String supabaseUrl, {
     required String anonKey,
@@ -129,13 +130,11 @@ mixin _VoiceApiMixin {
     required String botId,
     required bool summon,
   }) {
-    return ServerDb.run(() async {
-      final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      return db.rpc(
-        summon ? 'summon_bot_to_voice' : 'dismiss_bot_from_voice',
-        params: {'p_bot': botId, 'p_channel': channelId},
-      );
-    });
+    return _post(
+      supabaseUrl,
+      'set_bot_voice_summon',
+      {'bot_id': botId, 'channel_id': channelId, 'summon': summon},
+      bearerToken: bearerToken,
+    );
   }
-
 }

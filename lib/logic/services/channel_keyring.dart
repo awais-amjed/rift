@@ -154,6 +154,31 @@ class ChannelKeyring with _KeyringSealingMixin {
     if (keys.containsKey(version)) currentVersion = version;
   }
 
+  /// Seal a media key to any bot in [channelId] that is short of one.
+  ///
+  /// The same `bots_missing` [loadOrBootstrap] acts on, asked again without
+  /// reloading the keyring. A summon is why: it is the one thing that puts a
+  /// bot on that list *while the call is already running*, and everything else
+  /// that seals runs when somebody joins. Without this a bot summoned into a
+  /// call full of people waits for one of them to rejoin before it can speak —
+  /// which is to say, in the common case, forever.
+  ///
+  /// Fire-and-forget like the sealing it delegates to: a bot short of a key is
+  /// a bot nobody can hear yet, not a reason to fail the caller.
+  Future<void> sealMissingBotKeys(String channelId) async {
+    final version = currentVersion;
+    if (!keys.containsKey(version)) return;
+
+    final response = await _serverCubit.getChannelKey(channelId);
+    if (!response.success) return;
+
+    final data = response.data as Map<String, dynamic>;
+    final bots = (data['bots_missing'] as List? ?? const [])
+        .cast<Map<String, dynamic>>();
+    if (bots.isEmpty) return;
+    await sealBotKeys(channelId, version, bots);
+  }
+
   /// Fetch + unwrap the keyring for [channelId]; bootstrap v1 when the channel
   /// has no key yet; heal members missing current-version entries.
   Future<KeyringOutcome> loadOrBootstrap(String channelId) async {

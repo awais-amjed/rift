@@ -10,6 +10,11 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   int get _currentKeyVersion;
   void _ringDoorbell();
 
+  /// Implemented by the cubit class, like [_ChatSweepMixin]'s copy — see the
+  /// note in `channel_chat_ready.dart` for why it lives there rather than in a
+  /// mixin of its own.
+  void _ringKeySweepDoorbell();
+
   int _pendingCounter = 0;
 
   /// Seal, sign, and send a message ([text] and/or [attachments]); shows an
@@ -198,11 +203,17 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // does not turn up, which somebody can see and ask again, and is not a
       // reason to lose the message that carried it.
       if (command != null && command.needsVoice && inVoiceChannel != null) {
-        await _serverCubit.setBotVoiceSummon(
+        final summoned = await _serverCubit.setBotVoiceSummon(
           channelId: inVoiceChannel,
           botId: command.bot.id,
           summon: true,
         );
+        // Then tell whoever is in that call to seal it a media key. A summon is
+        // the one thing that puts a bot on `bots_missing` while the call is
+        // already running, and every other path that seals runs on somebody
+        // joining — so without this the bot waits for a member to rejoin a call
+        // they are already sitting in.
+        if (summoned.success) _ringKeySweepDoorbell();
       }
 
       final response = await _serverCubit.sendChatMessage(

@@ -414,6 +414,26 @@ Dismissing deletes the summon and the media key in the same statement, the same 
 listening grant. And the candidates view got narrower on the way: a summon is now what puts a bot
 on the sealing list, so members' clients stop sealing media keys for bots that will never join.
 
+**Dismissing disconnects.** Deleting the row takes away the media key and the right to a *new*
+token, and does nothing to the connection the bot already holds, which is good for its hour — so
+"Send away" removed the row, the client said the bot would leave, and the bot stayed in the call
+playing music. `set_bot_voice_summon` pushes `removeParticipant` for the one channel, the same
+shape and the same reason as `set_bot_voice_listen`'s push. Summoning pushes nothing: there is no
+connection yet, and the bot's own poll is what brings it in.
+
+**A bot always encrypts in slot 0**, whatever version its media key is. Not a choice: a LiveKit
+frame cryptor is created when its track is published and keeps the index it was born with, and
+`@livekit/rtc-node` cannot move one — `FrameCryptor.setKeyIndex` builds an FFI request missing a
+`track_sid` the native side requires, and throws. So the members read a bot's key from slot 0
+(`livekit_e2ee.dart`) rather than from its version's slot. It costs nothing — the slot is only an
+agreement about where to look, and the key at it is still per-bot and per-version — except across a
+rotation, where slot 0 is overwritten rather than added beside and the frames in flight under the
+old key are lost. That is the beat of silence already recorded above.
+
+Getting this wrong looked like nothing at all: the bot published happily, its own log said it was
+fine, and every member's client reported `FrameCryptorStateMissingKey` about a participant it could
+see.
+
 **How the bot learns where to go.** A command's manifest entry may carry `voice: true` — `/play`
 does, `/roll` does not. When somebody sends one of those from inside a call, their client writes the
 summon alongside the message, and the bot reads its own rows (`bot.summons()`). It is the only

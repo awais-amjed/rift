@@ -122,7 +122,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
 
   /// Listen for rotations for as long as [channelId]'s call lasts.
   void _watchKeyRotations(Server server, String channelId) =>
-      _rotations.listen(server, () => unawaited(_absorbKeyRotation(channelId)));
+      _rotations.listen(server, () => unawaited(_onKeyDoorbell(channelId)));
 
   void _clearE2EE() {
     unawaited(_rotations.stop());
@@ -138,6 +138,9 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// the same key: its identity has a suffix, and the frame cryptor is keyed by
   /// the identity string, so it needs its own registration rather than being
   /// folded into the person's.
+  /// Where a bot's media key goes in the ring — see [_registerParticipantKey].
+  static const int _botKeyIndex = 0;
+
   Future<void> _registerParticipantKey(String identity) async {
     final provider = _keyProvider;
     final channelKey = _callChannelKey;
@@ -163,7 +166,22 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
       await provider.setRawKey(
         key,
         participantId: identity,
-        keyIndex: _callKeyIndex,
+        // A bot's frames always arrive stamped slot 0, whatever version its key
+        // is. Not a choice either side made: `@livekit/rtc-node` cannot move a
+        // frame cryptor's index — the FFI request it builds omits a `track_sid`
+        // the native side requires and throws — so the cryptor keeps the index
+        // it was born with, which is 0. Registering the bot's key at the
+        // version's slot instead left every member reporting
+        // `FrameCryptorStateMissingKey` on a bot that was publishing perfectly
+        // well, with nothing on the bot's side to say so.
+        //
+        // It costs nothing here. The slot is only ever an agreement about where
+        // to look, and the key at it is still per-bot and per-version. What it
+        // does cost is a rotation: slot 0 is overwritten rather than added
+        // beside, so frames still in flight under the old bot key are lost —
+        // the same beat of silence BOTS.md already records for a bot caught by
+        // one.
+        keyIndex: isBot ? _botKeyIndex : _callKeyIndex,
       );
     } catch (e) {
       // A key that fails to register costs one participant's audio, not the
@@ -186,6 +204,19 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// The old key is left in its slot rather than cleared. LiveKit's ring holds
   /// sixteen, the two versions occupy different ones, and frames already in
   /// flight were encrypted under the old index.
+  /// The doorbell rang while we are in a call.
+  ///
+  /// Two different things ring it and only one of them is a rotation. A summon
+  /// puts a bot on `bots_missing` without changing the key version at all, and
+  /// [_absorbKeyRotation] returns early when the version has not moved — so
+  /// sealing has to be asked for separately rather than ridden along with it.
+  Future<void> _onKeyDoorbell(String channelId) async {
+    await _absorbKeyRotation(channelId);
+    // After, not before: a rotation changes which version a bot should be
+    // sealed under, and sealing first would hand it the one being left behind.
+    unawaited(_keyring?.sealMissingBotKeys(channelId) ?? Future.value());
+  }
+
   Future<void> _absorbKeyRotation(String channelId) async {
     final keyring = _keyring;
     final room = state.room;
