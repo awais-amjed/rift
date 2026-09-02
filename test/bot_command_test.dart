@@ -200,6 +200,7 @@ void main() {
         commands: [
           BotCommandSpec(name: 'play', needsVoice: true),
           BotCommandSpec(name: 'queue'),
+          BotCommandSpec(name: 'stop', endsVoice: true),
         ],
       ),
     );
@@ -232,6 +233,35 @@ void main() {
       // Tolerant like the rest of the manifest: somebody else's program wrote
       // this, so a field of the wrong type is a field to ignore.
       expect(m.commands[2].needsVoice, isFalse);
+    });
+
+    /// The mirror. `dismiss` is what makes leaving not depend on the bot
+    /// acting on the verb it advertised — the client drops the summon too, so a
+    /// bot that crashed mid-track still goes.
+    test('and the verb that means leave carries the opposite flag', () {
+      final stop = BotCommands.parse('/stop', [music()]);
+      expect(stop?.endsVoice, isTrue);
+      expect(stop?.needsVoice, isFalse);
+
+      final play = BotCommands.parse('/play a song', [music()]);
+      expect(play?.endsVoice, isFalse);
+    });
+
+    test('which survives the wire under its own key', () {
+      final m = BotManifest.fromJson({
+        'commands': [
+          {'name': 'stop', 'dismiss': true},
+          {'name': 'play', 'voice': true},
+        ],
+      });
+      expect(m.commands[0].endsVoice, isTrue);
+      // The two are independent: a command asks the bot in, or out, or neither.
+      expect(m.commands[0].needsVoice, isFalse);
+      expect(m.commands[1].endsVoice, isFalse);
+      expect(
+        const BotCommandSpec(name: 'stop', endsVoice: true).toJson()['dismiss'],
+        true,
+      );
     });
 
     test('and round-trips, without writing the default out', () {

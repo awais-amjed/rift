@@ -73,11 +73,22 @@ class BotCommandSpec {
   /// and nothing else.
   final bool needsVoice;
 
+  /// Whether this command means "leave the call" — `/disconnect`, `/stop`.
+  ///
+  /// The mirror of [needsVoice], and it does the same thing in reverse: the
+  /// client drops the summon as well as sending the message, so leaving does
+  /// not depend on the bot cooperating. A bot that crashed mid-track, or one
+  /// that simply ignores the verb it advertised, still loses its media key and
+  /// gets disconnected — the same thing "Send away" does from the participant
+  /// menu, reachable by typing.
+  final bool endsVoice;
+
   const BotCommandSpec({
     required this.name,
     this.description,
     this.usage,
     this.needsVoice = false,
+    this.endsVoice = false,
   });
 
   factory BotCommandSpec.fromJson(Map<String, dynamic> json) => BotCommandSpec(
@@ -85,6 +96,7 @@ class BotCommandSpec {
     description: json['description'] as String?,
     usage: json['usage'] as String?,
     needsVoice: json['voice'] == true,
+    endsVoice: json['dismiss'] == true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -92,5 +104,6 @@ class BotCommandSpec {
     if (description != null) 'description': description,
     if (usage != null) 'usage': usage,
     if (needsVoice) 'voice': true,
+    if (endsVoice) 'dismiss': true,
   };
 }

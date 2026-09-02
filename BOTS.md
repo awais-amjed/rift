@@ -435,7 +435,10 @@ fine, and every member's client reported `FrameCryptorStateMissingKey` about a p
 see.
 
 **How the bot learns where to go.** A command's manifest entry may carry `voice: true` — `/play`
-does, `/roll` does not. When somebody sends one of those from inside a call, their client writes the
+does, `/roll` does not. Its mirror is `dismiss: true` — `/stop`, `/disconnect` — which drops the
+summon as well as sending the message, so leaving does not depend on the bot acting on a verb it
+advertised. A bot that crashed mid-track still loses its key and its connection. The dismissal goes
+*after* the message, so the bot gets its chance to edit the panel and say it stopped. When somebody sends one of those from inside a call, their client writes the
 summon alongside the message, and the bot reads its own rows (`bot.summons()`). It is the only
 source that works for a private channel, where the roster cannot help because the bot cannot see it.
 The flag is advertisement like the rest of the manifest: the summon is checked against

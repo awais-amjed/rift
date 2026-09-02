@@ -223,6 +223,19 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         mentionsAll: named.all,
         toBot: command?.bot.id,
       );
+
+      // After the message, not before: the bot is being told to stop, and it
+      // should get the chance to say so — edit its panel, post a last line —
+      // before the connection is taken away. Dropping the summon does that
+      // taking away, which is the point: leaving does not depend on the bot
+      // acting on a verb it advertised.
+      if (command != null && command.endsVoice && inVoiceChannel != null) {
+        await _serverCubit.setBotVoiceSummon(
+          channelId: inVoiceChannel,
+          botId: command.bot.id,
+          summon: false,
+        );
+      }
       if (state.channelId != channelId) return;
 
       if (!response.success) {

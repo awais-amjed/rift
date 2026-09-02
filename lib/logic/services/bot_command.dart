@@ -15,10 +15,14 @@ class BotCommand {
   /// no manifest entry to read it from.
   final bool needsVoice;
 
+  /// And whether it means the opposite — see [BotCommandSpec.endsVoice].
+  final bool endsVoice;
+
   const BotCommand({
     required this.bot,
     required this.text,
     this.needsVoice = false,
+    this.endsVoice = false,
   });
 }
 
@@ -65,6 +69,7 @@ class BotCommands {
           bot: bot,
           text: trimmed,
           needsVoice: spec.needsVoice,
+          endsVoice: spec.endsVoice,
         );
       }
     }
