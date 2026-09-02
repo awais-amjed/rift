@@ -731,6 +731,36 @@ It exposes nothing new: every input is already readable by anyone inside the cha
 they could assemble. A bot never appears in a private channel's answer, because
 `set_channel_members` will not seat one — `grant_bot_channel_key` is its only door.
 
+### app.bot_reads_channel(p_channel uuid) / app.bot_reads_version(p_channel uuid, p_version int) — migration 035
+
+Whether the calling bot holds a live grant on this channel, and whether that grant reaches back as
+far as this key version. Only bots have `bot_channel_keys` rows, so neither needs an `is_bot` test.
+
+They are what finally made the moderation grant do something. 017 built the key half correctly —
+who may be granted, from which version, what revoking does, who is told — but `messages_select` had
+restricted every bot to `to_bot = me OR sender_id = me` since 015 and nothing changed it. A fully
+granted bot, in a public channel, holding the channel key, read **zero** member messages, while
+`grant_bot_channel_key` posted *"It can read every message sent here from now on"* into the
+channel.
+
+035 widens three policies:
+
+- **`messages_select`** — `app.bot_reads_version(channel_id, key_version)` is a fourth way past the
+  bot clause, so `from_key_version` is now the same number on the way out that
+  `refuse_ineligible_keyring` enforces on the way in. The ephemeral and interaction clauses are
+  untouched: a grant is permission to read the channel's conversation, not a reply one person was
+  shown or another bot's button press. `key_version = 0` rows stay out — webhook posts, system
+  notices and commands to other bots were never sealed under any version.
+- **`channel_keyring_select`** — a granted bot may read **its own** wrapped key. Without this a
+  private-channel grant returned messages it had no way to open. Scoped to its own row: the rest of
+  the keyring is a list of who holds a key to that room.
+- **`bot_channel_keys_select`** — a bot may read its own grant, so it can tell a channel it was
+  never granted from one whose history simply starts later.
+
+A granted bot reads a private channel **without becoming a member**: `can_see_channel` still says
+no, so it cannot list the channel, see the roster, or post there. Speaking needs a role with
+`channel_role_access` — the same door a `/` command comes through.
+
 ## Tables (central)
 
 Central mirrors the self-hosted shapes where the idea is the same, so one client path serves both.

@@ -253,7 +253,7 @@ the widgets, and the button-press row.
 
 ---
 
-## 6. Moderation bots — the one real exception — [Key grant implemented — migrations 017, 028 and 030. **The bot still cannot read**: see the end of this section]
+## 6. Moderation bots — the one real exception — [Implemented — migrations 017, 028, 030 and 035]
 
 A moderation bot has to read everything. There is no cryptographic middle ground: it either holds
 the channel key or it does not.
@@ -348,35 +348,49 @@ The server-wide grant is stored as intent, not as a snapshot:
 of them, drop the one. An exception list would also work, and would leave somebody a year later
 asking why one channel is not covered by a grant that says *whole server*.
 
-### The half that is not built — the bot cannot read a word
+### Reading it — [migration 035, and `ChannelReader` in the SDK]
 
-Everything above is about the **key**: who may be granted one, from which version, what revoking
-does, and who is told. All of it works. None of it is what lets a bot read a message.
+Everything above is about the **key**. None of it is what lets a bot read a message, and for a
+long time nothing did: `messages_select` restricted every bot to what it was addressed and what it
+wrote, since migration 015, and 017 never touched that line. A fully granted bot, in a public
+channel, holding the channel key, got zero rows — while `grant_bot_channel_key` posted *"It can
+read every message sent here from now on"* into the channel. The grant machinery was complete and
+the feature did nothing.
 
-`messages_select` has said this since migration 015, and 017 never changed it:
+035 adds the clause, and makes the boundary the same number in both directions:
 
 ```sql
-AND (NOT app.is_bot() OR to_bot = auth.uid() OR sender_id = auth.uid())
+AND (NOT app.is_bot()
+     OR to_bot = auth.uid()
+     OR sender_id = auth.uid()
+     OR app.bot_reads_version(channel_id, key_version))
 ```
 
-A bot reads what it is addressed and what it wrote. **That is still true of a fully granted bot**,
-in a public channel, holding the channel key: the rows do not come back. The SDK agrees without
-meaning to — `bot.ts` polls `to_bot=eq.<me>` and nothing else — so there is no read path on either
-side. Meanwhile `grant_bot_channel_key` posts *"It can read every message sent here from now on"*
-into the channel, which is a promise nothing keeps.
+`from_key_version` is what `refuse_ineligible_keyring` already enforces on the way in, so
+forward-only stopped being a policy promise on one side and arithmetic on the other. Revoking
+deletes the grant row and the bot's keyring rows, so it stops reading in the same statement —
+*it keeps what it already saw* is about what has been unwrapped, not a database it still queries.
 
-This section was marked **Implemented** for a while on the strength of the grant machinery being
-complete. It is not a regression and nothing was lost; the reading half was simply never designed,
-so it never appeared on a list to be missing from. Two pieces would finish it:
+**A granted bot still does not see** anything below `from_key_version`; anything with
+`key_version` 0 — webhook posts, system notices, and commands addressed to *other* bots, none of
+them ever sealed, and the third is the reason to be strict rather than generous; somebody else's
+ephemeral reply; or another bot's button press. The last two clauses were already there and are
+untouched.
 
-1. `messages_select` gains a clause for a bot holding a current grant — the narrow version is
-   `bot_channel_keys` at or below `key_version`, so forward-only stays arithmetic rather than a
-   policy promise.
-2. The SDK gains a channel read, which is the first time a bot decrypts something that was not
-   sealed for it alone, and therefore the first time it needs the channel key at all.
+**A private channel can be granted** — it is the *bulk* grant that never covers one. That was
+doubly inert before: `can_see_channel` asks about membership and `set_channel_members` will not
+seat a bot, so the grant bought neither the messages nor the bot's own wrapped key. Both now admit
+a granted bot, scoped to its own rows. It reads without becoming a member, which means it also
+**cannot speak there** — posting needs `can_see_channel`. Getting in far enough to speak is a role
+with `channel_role_access`, the same door a `/` command comes through.
 
-Until then the honest summary is the one in §14: **a bot hears what you tell it**, and there is no
-exception yet — only the door built for one.
+On the SDK side `bot.watchChannel(channelId, handler)` is the whole of it. It returns the grant's
+`from_key_version`, or **null when there is no grant** — worth handling, because an ungranted bot
+polls forever and receives nothing, which looks exactly like a quiet channel. It reads the bot's
+own `channel_keyring` rows, unwraps them with `wrap:v1`, verifies every signature before handing
+anything over, and **stops rather than skips** at a version whose key has not been sealed yet: a
+rotation is sealed by the next member to open the channel, so a cursor that jumped the gap would
+drop precisely the stretch a moderation bot was granted to see.
 
 ### What metadata-only moderation can still do
 
@@ -593,6 +607,10 @@ channel. Nothing else. That single rule is what "hears what you tell it" reduces
   nothing is stored and nothing is sent
 - ~~Publish audio into a voice channel~~ **done** (migrations 031-032), where
   `@livekit/rtc-node` is an optional dependency loaded only by `joinVoice`
+- ~~Read a channel it was granted~~ **done** (migration 035) — `watchChannel`, the one
+  place a bot opens something nobody sealed for it alone. It is also the only part of the
+  SDK whose absence was invisible: the grant existed, the reading did not, and a bot
+  waiting on a channel it had been granted looked no different from a quiet one
 
 ### The contract comes before the second implementation
 
@@ -646,7 +664,7 @@ Documented honestly, not to be "fixed":
 
 - **A bot cannot react to conversation.** No message that triggers on a keyword, no automatic link
   previews. Link previews are already a client-side job (`ARCHITECTURE.md` §4).
-- **Content moderation needs an explicit key grant** or it does not happen — and today it does not happen either way: the grant exists, the reading half does not (§6).
+- **Content moderation needs an explicit key grant** or it does not happen.
 - **Discovery is worse than Discord's.** Nobody learns a bot exists from watching it talk in a
   channel. `/` completion and the sidebar section are what recover that, which makes them part of
   the feature rather than polish on top of it.
@@ -688,7 +706,9 @@ badge. Both are fixed; both have tests.
    verified and is never shown as a person; a command is attributed to one, so it has to be.
 3. ~~Replies: channel message, then ephemeral~~ **done** (migration 016). Panels are item 8.
 4. ~~The Dart SDK, extracted from what the first three needed~~ **done, and since deleted**. It polled rather than subscribing — no reconnect logic to get wrong, nothing spent from the server-wide event budget — and it proved the design before there was a second implementation to check it against. It could never publish audio, and it fell a feature behind every session after that; see §11.
-5. ~~Moderation grants~~ **done** (migration 017). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see. Nothing called them at first — `grant_bot_channel_key` and `revoke_bot_channel_key` appeared only in the migration, so an admin granted by writing SQL. Item 9 gave them a UI.
+5. ~~Moderation grants~~ **done** (migrations 017 and 035). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see. Nothing called them at first — `grant_bot_channel_key` and `revoke_bot_channel_key` appeared only in the migration, so an admin granted by writing SQL. Item 9 gave them a UI.
+
+   **And for a year of commits the bot could not read a word.** All four rules were about the *key*; `messages_select` still restricted every bot to what it was addressed, so a fully granted bot got zero rows while the channel announced it could read everything. The lesson worth keeping is not "check the policy" — it is that a section marked *Implemented* on the strength of its hardest half is the one nobody re-reads. 035 is the other half, and §6 says which line does it.
 
 **Then, in this order.** Private channels come first, and not because bots need them — they are a
 feature in their own right. But the server-wide grant in §6 is *defined* as "not private", and
