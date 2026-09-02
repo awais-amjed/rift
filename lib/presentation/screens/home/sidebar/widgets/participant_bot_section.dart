@@ -5,6 +5,7 @@ import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu_region.dart';
@@ -41,6 +42,7 @@ class ParticipantBotSection extends StatelessWidget {
   Future<void> _dismiss(BuildContext context) async {
     final dismissMenu = ContextMenuScope.of(context);
     final serverCubit = context.read<ServerCubit>();
+    final voiceBots = context.read<VoiceListenersCubit>();
     final channelId = voiceChannelId;
     if (channelId == null) return;
 
@@ -51,11 +53,12 @@ class ParticipantBotSection extends StatelessWidget {
       summon: false,
     );
     if (result.success) {
-      // Said out loud because the bot leaving is not instant: it finds out on
-      // its next poll, so a silent button looks like one that did nothing.
+      // The row is what the sidebar draws a summoned-but-absent bot from, so
+      // re-read it or the thing just dismissed stays on screen.
+      await voiceBots.refresh();
       HelperMethods.showToast(
         title: 'Sent away',
-        description: '$name will leave the call.',
+        description: '$name has left the call.',
       );
       return;
     }

@@ -806,6 +806,25 @@ Select is granted to the room (`can_see_channel`) **or** the bot itself — a su
 the channel, so `bot_id = auth.uid()` is the only way it learns where it was asked to go. No write
 grant: summoning moves through the two functions.
 
+### Ending a summon — migration 038
+
+037 gave a summon two ways to end and both were somebody deciding. Nothing ended one because the
+*reason* for it had gone, which left three holes:
+
+- **`channels_drop_bot_voice_summons`** — closing a channel now drops its summons, as 031 already
+  does for listening grants. Without it a bot summoned into a public call could still take a token
+  after the channel was made private: `channel_joinable_by` reads the summon and never asks about
+  privacy.
+- **`app.expire_bot_voice_summons()`**, on the same hourly `pg_cron` job as the invite sweep. A
+  summon is a request to come and play *now*, so one unanswered for an hour has been answered by
+  events. The exact end of a call is LiveKit's to know; an age is worse at the edges and cannot
+  break. A connected bot is unaffected — dropping the row takes its right to a *new* token, and
+  dismissing is what disconnects.
+- **`voice_summons`** — the view a client draws them from, sibling of `voice_listeners` and
+  `security_invoker` for the same reason. It exists because "Send away" lives on the participant
+  menu, which needs the bot to be *in* the call: a summon whose bot never arrived could be neither
+  seen nor cleared.
+
 ## Tables (central)
 
 Central mirrors the self-hosted shapes where the idea is the same, so one client path serves both.

@@ -45,6 +45,27 @@ CREATE TABLE IF NOT EXISTS storage.buckets (
   file_size_limit BIGINT
 );
 CREATE TABLE IF NOT EXISTS auth.users (id UUID PRIMARY KEY);
+-- pg_cron is not installed here and `CREATE EXTENSION` in 006 is swallowed with
+-- the rest of the pre-roles best-effort pass. Later migrations that *schedule*
+-- something are not swallowed, and one aborts the whole file — so the schema is
+-- shimmed rather than each migration learning to guard itself. It records what
+-- was scheduled, which is enough for `cron.unschedule ... WHERE EXISTS` to
+-- behave and for a test to assert a job exists.
+CREATE SCHEMA IF NOT EXISTS cron;
+CREATE TABLE IF NOT EXISTS cron.job (
+  jobid    BIGSERIAL PRIMARY KEY,
+  jobname  TEXT UNIQUE,
+  schedule TEXT,
+  command  TEXT
+);
+CREATE OR REPLACE FUNCTION cron.schedule(p_name TEXT, p_schedule TEXT, p_command TEXT)
+  RETURNS BIGINT LANGUAGE sql AS $shim$
+  INSERT INTO cron.job (jobname, schedule, command) VALUES (p_name, p_schedule, p_command)
+  ON CONFLICT (jobname) DO UPDATE SET schedule = EXCLUDED.schedule, command = EXCLUDED.command
+  RETURNING jobid $shim$;
+CREATE OR REPLACE FUNCTION cron.unschedule(p_name TEXT)
+  RETURNS BOOLEAN LANGUAGE sql AS $shim$
+  DELETE FROM cron.job WHERE jobname = p_name RETURNING true $shim$;
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE AS $$
   SELECT nullif(current_setting('request.jwt.claims', true)::json->>'sub', '')::uuid $$;
 DO $$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;

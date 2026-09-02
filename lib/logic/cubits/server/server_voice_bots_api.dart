@@ -129,6 +129,39 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
     return byChannel;
   }
 
+  /// Bots summoned into each voice channel, by name (migration 038).
+  ///
+  /// The same one round trip as [voiceListenersByChannel] and deliberately a
+  /// separate one: they answer different questions and a client draws them
+  /// differently. A listener is somebody else hearing the room; a summon is a
+  /// bot that was asked in and may not have arrived yet.
+  Future<Map<String, List<({String id, String name})>>>
+  voiceSummonsByChannel() async {
+    final server = state.selectedServer;
+    if (server == null) return const {};
+
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.listVoiceSummons(
+        server.supabaseUrl,
+        anonKey: _anonKey,
+        bearerToken: token,
+      ),
+    );
+    if (!response.success) return const {};
+
+    final rows =
+        ((response.data as Map<String, dynamic>)['summons'] as List? ?? const [])
+            .cast<Map<String, dynamic>>();
+    final byChannel = <String, List<({String id, String name})>>{};
+    for (final row in rows) {
+      (byChannel[row['channel_id'] as String] ??= []).add((
+        id: row['bot_id'] as String,
+        name: (row['bot_name'] as String?) ?? 'a bot',
+      ));
+    }
+    return byChannel;
+  }
+
   /// The ids of the bots that can hear [channelId] — for the dialog that
   /// changes them, where [voiceListenersByChannel] is names for the marker
   /// every member reads.

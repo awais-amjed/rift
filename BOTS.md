@@ -421,6 +421,14 @@ playing music. `set_bot_voice_summon` pushes `removeParticipant` for the one cha
 shape and the same reason as `set_bot_voice_listen`'s push. Summoning pushes nothing: there is no
 connection yet, and the bot's own poll is what brings it in.
 
+**A summon ends when its reason does** (migration 038). Closing a channel drops its summons, the
+same as 031 does for listening grants — without it a bot called into a public call could still take
+a token after the channel was closed. And an hour of nobody answering one drops it too: a summon is
+a request to come and play *now*, and one left behind by a bot that was down would otherwise wait
+for the next member to seal it a key and then turn up in a conversation nobody invited it to. The
+sidebar draws the ones that have not arrived, from `voice_summons`, because "Send away" needs a bot
+to be in the call and a summon that nothing answered would otherwise be invisible.
+
 **A bot always encrypts in slot 0**, whatever version its media key is. Not a choice: a LiveKit
 frame cryptor is created when its track is published and keeps the index it was born with, and
 `@livekit/rtc-node` cannot move one — `FrameCryptor.setKeyIndex` builds an FFI request missing a

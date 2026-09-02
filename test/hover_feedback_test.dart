@@ -58,13 +58,17 @@ class _StubPresenceCubit extends Cubit<ChannelPresenceState>
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// No bot can hear anything, which is the default a real server starts at.
-class _StubVoiceListenersCubit extends Cubit<Map<String, List<String>>>
+/// No bot can hear anything and none has been called in, which is the default
+/// a real server starts at.
+class _StubVoiceListenersCubit extends Cubit<VoiceBotsState>
     implements VoiceListenersCubit {
-  _StubVoiceListenersCubit() : super(const {});
+  _StubVoiceListenersCubit() : super(const VoiceBotsState());
 
   @override
   List<String> listening(String channelId) => const [];
+
+  @override
+  List<SummonedBot> summoned(String channelId) => const [];
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

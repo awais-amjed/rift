@@ -135,6 +135,31 @@ mixin _BotApiMixin {
   /// everybody who ever speaks in that room pays for it, so this is readable by
   /// every member who can see the channel rather than by the person who
   /// granted it.
+  /// Bots summoned into voice channels, with the name to draw (migration 038).
+  ///
+  /// The sibling of [listVoiceListeners] and the same shape, but not the same
+  /// meaning: a listener is a warning and a summon is furniture. It exists so a
+  /// summon whose bot never turned up is visible — "Send away" lives on the
+  /// participant menu, which needs the bot to be in the call, so without this
+  /// one that never arrived could be neither seen nor cleared.
+  Future<APIResponse> listVoiceSummons(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    String? channelId,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final query = db
+          .from('voice_summons')
+          .select('channel_id, bot_id, bot_name');
+      final rows = channelId == null
+          ? await query.order('bot_name')
+          : await query.eq('channel_id', channelId).order('bot_name');
+      return {'summons': rows};
+    });
+  }
+
   Future<APIResponse> listVoiceListeners(
     String supabaseUrl, {
     required String anonKey,

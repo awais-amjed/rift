@@ -60,10 +60,18 @@ class VoiceChannelTile extends StatelessWidget {
                 final presenceUsers = isSelected
                     ? const <PresenceUser>[]
                     : presenceState.usersIn(channel.id);
+                // Bots called into this channel, arrived or not. A summon that
+                // nothing answered is the case this is for: it makes the
+                // channel occupied enough to draw a roster, which is the only
+                // place it can be seen or sent away.
+                final summoned = context.watch<VoiceListenersCubit>().summoned(
+                  channel.id,
+                );
                 final isOccupied =
                     isSelected ||
                     participants.isNotEmpty ||
-                    presenceUsers.isNotEmpty;
+                    presenceUsers.isNotEmpty ||
+                    summoned.isNotEmpty;
 
                 // An empty channel is the most likely place to drop someone,
                 // so it catches a drag as readily as an occupied one.
@@ -103,6 +111,7 @@ class VoiceChannelTile extends StatelessWidget {
                     appState,
                     participants: participants,
                     presenceUsers: presenceUsers,
+                    summoned: summoned,
                     isTargeted: isTargeted,
                   ),
                 );
@@ -120,6 +129,7 @@ class VoiceChannelTile extends StatelessWidget {
     AppState appState, {
     required List<ParticipantInfo> participants,
     required List<PresenceUser> presenceUsers,
+    List<SummonedBot> summoned = const [],
     bool isTargeted = false,
   }) {
     return Container(
@@ -161,11 +171,14 @@ class VoiceChannelTile extends StatelessWidget {
               onTap: onTap,
             ),
           ),
-          if (participants.isNotEmpty || presenceUsers.isNotEmpty)
+          if (participants.isNotEmpty ||
+              presenceUsers.isNotEmpty ||
+              summoned.isNotEmpty)
             ChannelRoster(
               channelId: channel.id,
               participants: participants,
               presenceUsers: presenceUsers,
+              summoned: summoned,
               settings: appState.participantSettings,
               themeState: themeState,
             ),

@@ -8,9 +8,11 @@ import '../../../../../../../../logic/cubits/channel_presence/channel_presence_c
 import '../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../sidebar/widgets/draggable_member.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
 import '../../../../../sidebar/widgets/participant_list_item.dart';
+import 'summoned_bot_row.dart';
 import 'presence_member_row.dart';
 
 /// The people inside one voice channel, from both of the places we know about
@@ -26,6 +28,9 @@ class ChannelRoster extends StatelessWidget {
   /// Connected participants — full LiveKit state (speaking, mute, moderation).
   final List<ParticipantInfo> participants;
 
+  /// Bots summoned into this channel, arrived or not.
+  final List<SummonedBot> summoned;
+
   /// Members of this channel seen only through presence, with no live state.
   final List<PresenceUser> presenceUsers;
 
@@ -37,6 +42,7 @@ class ChannelRoster extends StatelessWidget {
     required this.channelId,
     required this.participants,
     required this.presenceUsers,
+    this.summoned = const [],
     required this.settings,
     required this.themeState,
   });
@@ -81,9 +87,27 @@ class ChannelRoster extends StatelessWidget {
               setting: settings[user.userId],
             ),
           ),
+        // Bots that were called in and have not turned up. The two lists above
+        // are drawn from who is connected, and a bot that is down leaves
+        // nothing there — see [SummonedBotRow]. Not draggable: there is no
+        // connection to move.
+        for (final bot in summoned)
+          if (!_present(bot.id))
+            SummonedBotRow(
+              botId: bot.id,
+              name: bot.name,
+              channelId: channelId,
+              themeState: themeState,
+            ),
       ],
     );
   }
+
+  /// Whether this bot is already drawn above, as a participant or from
+  /// presence. A summon it answered is not news.
+  bool _present(String botId) =>
+      participants.any((p) => p.userId == botId) ||
+      presenceUsers.any((u) => u.userId == botId);
 
   Widget _draggable({
     required String userId,

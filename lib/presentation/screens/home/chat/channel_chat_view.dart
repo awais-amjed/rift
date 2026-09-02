@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/services/channel_reach.dart';
@@ -60,18 +62,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                     ),
                     ChatComposer(
                       onSend: (text, attachments) =>
-                          context.read<ChannelChatCubit>().sendMessage(
-                            text,
-                            attachments: attachments,
-                            // The call this person is in, so `/play` reaches
-                            // the bot with somewhere to go. Read at send time
-                            // rather than watched: joining a call should not
-                            // rebuild the composer.
-                            inVoiceChannel: context
-                                .read<LiveKitCubit>()
-                                .state
-                                .currentChannelId,
-                          ),
+                          _send(context, text, attachments),
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
@@ -95,6 +86,34 @@ class _ChannelChatViewState extends State<ChannelChatView>
         );
       },
     );
+  }
+
+  /// Send, and re-read the summons if the line could have changed them.
+  ///
+  /// A `/` command sent from inside a call may summon a bot or send one away,
+  /// and the sidebar draws a summoned-but-absent bot from that row. Narrowed to
+  /// a slash typed while in a call rather than run on every message: it is the
+  /// only shape that can change one, and a query per message to catch it would
+  /// be a poor trade.
+  Future<void> _send(
+    BuildContext context,
+    String text,
+    List<PendingAttachment> attachments,
+  ) async {
+    // Read at send time rather than watched: joining a call should not rebuild
+    // the composer.
+    final inVoice = context.read<LiveKitCubit>().state.currentChannelId;
+    final voiceBots = context.read<VoiceListenersCubit>();
+
+    await context.read<ChannelChatCubit>().sendMessage(
+      text,
+      attachments: attachments,
+      inVoiceChannel: inVoice,
+    );
+
+    if (inVoice != null && text.trimLeft().startsWith('/')) {
+      await voiceBots.refresh();
+    }
   }
 
   /// Username → display name, so a mention draws as the name the room knows.
