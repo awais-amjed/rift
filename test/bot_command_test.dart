@@ -182,4 +182,65 @@ void main() {
       expect(m.commands.single.name, 'play');
     });
   });
+
+  /// Which commands want the bot in your call.
+  ///
+  /// It is what stops `/roll 2d6` pulling a program into whatever conversation
+  /// the sender happens to be sitting in — a summon seals a media key and puts
+  /// a speaker in the room, and doing that for a dice roll is noise nobody
+  /// asked for.
+  group('a command that wants the bot in your call', () {
+    ServerMember music() => ServerMember(
+      id: 'id-musicbot',
+      username: 'musicbot',
+      displayName: 'musicbot',
+      permissions: const UserPermissions(),
+      isBot: true,
+      manifest: const BotManifest(
+        commands: [
+          BotCommandSpec(name: 'play', needsVoice: true),
+          BotCommandSpec(name: 'queue'),
+        ],
+      ),
+    );
+
+    test('the flag is read off the verb that matched', () {
+      expect(BotCommands.parse('/play a song', [music()])?.needsVoice, isTrue);
+      expect(BotCommands.parse('/queue', [music()])?.needsVoice, isFalse);
+    });
+
+    test('a bot addressed by name declares nothing, so it summons nothing', () {
+      // `/musicbot play x` resolves by username and carries no manifest entry
+      // to read the flag from. Guessing yes here would summon on every
+      // by-name command, which is every command a bot with no manifest has.
+      expect(
+        BotCommands.parse('/musicbot play a song', [music()])?.needsVoice,
+        isFalse,
+      );
+    });
+
+    test('it survives the wire, and defaults to off', () {
+      final m = BotManifest.fromJson({
+        'commands': [
+          {'name': 'play', 'voice': true},
+          {'name': 'roll'},
+          {'name': 'skip', 'voice': 'yes please'},
+        ],
+      });
+      expect(m.commands[0].needsVoice, isTrue);
+      expect(m.commands[1].needsVoice, isFalse);
+      // Tolerant like the rest of the manifest: somebody else's program wrote
+      // this, so a field of the wrong type is a field to ignore.
+      expect(m.commands[2].needsVoice, isFalse);
+    });
+
+    test('and round-trips, without writing the default out', () {
+      const spec = BotCommandSpec(name: 'play', needsVoice: true);
+      expect(spec.toJson()['voice'], true);
+      expect(
+        const BotCommandSpec(name: 'roll').toJson().containsKey('voice'),
+        isFalse,
+      );
+    });
+  });
 }

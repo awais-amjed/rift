@@ -46,6 +46,42 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
     return (success: true, error: null);
   }
 
+  /// Ask [botId] into [channelId], or send it away (migration 037).
+  ///
+  /// Distinct from [setBotVoiceListen] in the way that matters: this one is
+  /// `SUMMON_BOTS`, which `@everyone` holds, because a summoned bot publishes
+  /// and cannot hear. Asking the music bot to play is not the same decision as
+  /// letting a program listen to the room, and it should not need the same
+  /// permission or the same warning.
+  ///
+  /// Failure is returned rather than thrown and the caller may ignore it: a
+  /// summon that did not land means the bot does not turn up, which is a thing
+  /// somebody can see and try again, not a reason to fail the message that
+  /// carried it.
+  Future<({bool success, String? error})> setBotVoiceSummon({
+    required String channelId,
+    required String botId,
+    required bool summon,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) return (success: false, error: 'No server');
+
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.setBotVoiceSummon(
+        server.supabaseUrl,
+        anonKey: _anonKey,
+        bearerToken: token,
+        channelId: channelId,
+        botId: botId,
+        summon: summon,
+      ),
+    );
+    if (!response.success) {
+      return (success: false, error: response.error ?? 'Could not do that');
+    }
+    return (success: true, error: null);
+  }
+
   /// Seal one bot its media key for [channelId].
   ///
   /// The bytes are produced by [ChannelKeyring], which holds the channel key;

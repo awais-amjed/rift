@@ -62,17 +62,35 @@ class BotCommandSpec {
   /// the picker can say what a command wants without the bot being reachable.
   final String? usage;
 
-  const BotCommandSpec({required this.name, this.description, this.usage});
+  /// Whether this command wants the bot in the caller's call — `/play` does,
+  /// `/roll` does not.
+  ///
+  /// It is what stops every command summoning a bot into whatever call the
+  /// sender happens to be sitting in, which would seal a media key and put a
+  /// program in the room for a dice roll. Advertisement like the rest of the
+  /// manifest: the summon it triggers is checked against `SUMMON_BOTS` and is
+  /// publish-only either way, so a bot that lies here gains a speaker's seat
+  /// and nothing else.
+  final bool needsVoice;
+
+  const BotCommandSpec({
+    required this.name,
+    this.description,
+    this.usage,
+    this.needsVoice = false,
+  });
 
   factory BotCommandSpec.fromJson(Map<String, dynamic> json) => BotCommandSpec(
     name: (json['name'] as String).toLowerCase(),
     description: json['description'] as String?,
     usage: json['usage'] as String?,
+    needsVoice: json['voice'] == true,
   );
 
   Map<String, dynamic> toJson() => {
     'name': name,
     if (description != null) 'description': description,
     if (usage != null) 'usage': usage,
+    if (needsVoice) 'voice': true,
   };
 }

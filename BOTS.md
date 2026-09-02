@@ -392,6 +392,36 @@ anything over, and **stops rather than skips** at a version whose key has not be
 rotation is sealed by the next member to open the channel, so a cursor that jumped the gap would
 drop precisely the stretch a moderation bot was granted to see.
 
+### Summoning one into a call — [migration 037]
+
+The thing people most want a bot for, and it did not work in a private voice channel at all. Two
+walls, both keyed on `channel_members`, which `set_channel_members` refuses to seat a bot into:
+`channel_visible_to` said no, so `get_channel_token` answered `CHANNEL_NOT_FOUND`; and
+`bot_voice_key_candidates` said no, so no member's client sealed it a media key and there was
+nothing for it to speak with.
+
+A **summon** is the third door and deliberately the smallest: one voice channel, publishing only,
+until somebody dismisses it. `bot_voice_summons` is the row; `channel_joinable_by` is the only
+thing that reads it, and only `get_channel_token` asks that — so a summoned bot still cannot list
+the channel, read its roster, read its messages, or post in it. `app.sees_channel` is untouched.
+
+That is what lets `SUMMON_BOTS` sit on `@everyone` (§036). A summoned bot's token carries
+`canSubscribe: false` unless an admin separately granted listening, and its media key is
+`HMAC(channelKey, 'voicebot:v1:<botId>')` — derived *from* the channel key rather than being it. A
+summon adds a **speaker** to the room. It cannot be turned into a listener from there.
+
+Dismissing deletes the summon and the media key in the same statement, the same shape as revoking a
+listening grant. And the candidates view got narrower on the way: a summon is now what puts a bot
+on the sealing list, so members' clients stop sealing media keys for bots that will never join.
+
+**How the bot learns where to go.** A command's manifest entry may carry `voice: true` — `/play`
+does, `/roll` does not. When somebody sends one of those from inside a call, their client writes the
+summon alongside the message, and the bot reads its own rows (`bot.summons()`). It is the only
+source that works for a private channel, where the roster cannot help because the bot cannot see it.
+The flag is advertisement like the rest of the manifest: the summon is checked against
+`SUMMON_BOTS` and is publish-only regardless, so a bot that lies about it gains a speaker's seat and
+nothing else.
+
 ### What metadata-only moderation can still do
 
 Most of what actually damages a server: posting rate, raid detection, mass-mention spam, brand-new

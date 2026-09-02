@@ -781,6 +781,31 @@ who wants it narrower takes the bit off `@everyone`.
 a program that sits in every public channel. Administrators need no backfill — `has_perm` reads
 `ADMINISTRATOR` as every bit.
 
+### bot_voice_summons — migration 037
+
+`(channel_id, bot_id, summoned_by, summoned_at)`. A bot asked into one voice channel, until
+dismissed. Permission to **publish there and nothing else**: it is not membership and it is not
+listening.
+
+Only `channel_joinable_by` reads it, and only `get_channel_token` calls that — `app.sees_channel` is
+untouched, so a summoned bot still cannot list the channel, read its roster or messages, or post in
+it. `summon_bot_to_voice` needs `SUMMON_BOTS` plus the caller's own `can_see_channel` (the bot's
+visibility is exactly what it does not have yet); `dismiss_bot_from_voice` needs only that
+visibility, or the bot dismissing itself — a bot playing to an empty room should not need the person
+who summoned it to come back.
+
+`bot_voice_summons_reset_keys` drops the bot's `bot_voice_keys` row on insert or delete, so a
+dismissed bot loses its media key rather than keeping something usable behind a closed token. The
+same trigger shape as `bot_voice_grants_reset_keys` (032).
+
+`bot_voice_key_candidates` was rewritten to join through this table. It used to list every bot on
+the server for every public voice channel, so clients sealed media keys for bots that would never
+join; a summon is now what puts a bot on the list, in a public channel and a private one alike.
+
+Select is granted to the room (`can_see_channel`) **or** the bot itself — a summoned bot is not in
+the channel, so `bot_id = auth.uid()` is the only way it learns where it was asked to go. No write
+grant: summoning moves through the two functions.
+
 ## Tables (central)
 
 Central mirrors the self-hosted shapes where the idea is the same, so one client path serves both.

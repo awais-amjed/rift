@@ -8,6 +8,11 @@ part of 'server_repository.dart';
 /// sweeping is here for a different reason — it needs the Storage API, which no
 /// database role can reach.
 mixin _VoiceApiMixin {
+  /// The direct table/RPC client. Everything else here goes through an edge
+  /// function; summoning is an ordinary RPC, because the permission check it
+  /// needs is one the database already knows how to make.
+  ServerDb get _db;
+
   Future<APIResponse> _post(
     String supabaseUrl,
     String functionName,
@@ -110,4 +115,27 @@ mixin _VoiceApiMixin {
       bearerToken: bearerToken,
     );
   }
+
+  /// Ask a bot into a voice channel, or send it away (migration 037).
+  ///
+  /// Not a key grant and not membership: it lets the bot take a token for this
+  /// one channel and publish there. Hearing stays behind `MANAGE_BOTS`, so a
+  /// summon adds a speaker to the room and never a listener.
+  Future<APIResponse> setBotVoiceSummon(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String channelId,
+    required String botId,
+    required bool summon,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc(
+        summon ? 'summon_bot_to_voice' : 'dismiss_bot_from_voice',
+        params: {'p_bot': botId, 'p_channel': channelId},
+      );
+    });
+  }
+
 }

@@ -10,7 +10,16 @@ class BotCommand {
   /// the client does not know what any command's arguments mean.
   final String text;
 
-  const BotCommand({required this.bot, required this.text});
+  /// Whether the bot declared this verb as one that wants it in the caller's
+  /// call. Null when the command resolved by the bot's own name, which carries
+  /// no manifest entry to read it from.
+  final bool needsVoice;
+
+  const BotCommand({
+    required this.bot,
+    required this.text,
+    this.needsVoice = false,
+  });
 }
 
 /// Deciding whether a line the user typed is a command, and whose.
@@ -50,8 +59,13 @@ class BotCommands {
     // has already sorted by display name — so two bots claiming `/play`
     // resolve the same way every time rather than by whoever loaded first.
     for (final bot in bots) {
-      if (bot.manifest.commands.any((c) => c.name == head)) {
-        return BotCommand(bot: bot, text: trimmed);
+      for (final spec in bot.manifest.commands) {
+        if (spec.name != head) continue;
+        return BotCommand(
+          bot: bot,
+          text: trimmed,
+          needsVoice: spec.needsVoice,
+        );
       }
     }
 

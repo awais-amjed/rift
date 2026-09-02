@@ -77,9 +77,14 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     }
   }
 
+  /// [inVoiceChannel] is the call the sender is sitting in, or null. Passed in
+  /// rather than read from a cubit here: "I am in this call while I ask" is a
+  /// fact about the person sending, and the alternative is this cubit knowing
+  /// about LiveKit so it can ask on their behalf.
   Future<void> sendMessage(
     String text, {
     List<PendingAttachment> attachments = const [],
+    String? inVoiceChannel,
   }) async {
     final channelId = state.channelId;
     final server = _serverCubit.state.selectedServer;
@@ -186,6 +191,19 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         ),
         excludeUserId: user.id,
       );
+
+      // Before the message, not after: the bot polls for what it is addressed,
+      // and a summon that lands second is a bot arriving to a call it was told
+      // about a poll ago. Failure is ignored on purpose — an unsummoned bot
+      // does not turn up, which somebody can see and ask again, and is not a
+      // reason to lose the message that carried it.
+      if (command != null && command.needsVoice && inVoiceChannel != null) {
+        await _serverCubit.setBotVoiceSummon(
+          channelId: inVoiceChannel,
+          botId: command.bot.id,
+          summon: true,
+        );
+      }
 
       final response = await _serverCubit.sendChatMessage(
         channelId: channelId,

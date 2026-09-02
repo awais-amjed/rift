@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/services/channel_reach.dart';
@@ -58,9 +59,19 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       themeState: themeState,
                     ),
                     ChatComposer(
-                      onSend: (text, attachments) => context
-                          .read<ChannelChatCubit>()
-                          .sendMessage(text, attachments: attachments),
+                      onSend: (text, attachments) =>
+                          context.read<ChannelChatCubit>().sendMessage(
+                            text,
+                            attachments: attachments,
+                            // The call this person is in, so `/play` reaches
+                            // the bot with somewhere to go. Read at send time
+                            // rather than watched: joining a call should not
+                            // rebuild the composer.
+                            inVoiceChannel: context
+                                .read<LiveKitCubit>()
+                                .state
+                                .currentChannelId,
+                          ),
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
