@@ -16,6 +16,7 @@ import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/squircle_avatar.dart';
 import 'participant_admin_section.dart';
+import 'participant_bot_section.dart';
 import 'participant_volume_control.dart';
 
 /// Dialog-based context menu for a participant — mute toggle + volume slider.
@@ -190,6 +191,15 @@ class ParticipantContextMenu extends StatelessWidget {
                     }
                   },
                 ),
+                // Sending a summoned bot away — not moderation, and not
+                // behind the same permission. Above the admin section because
+                // for a bot it is the only item on here anybody usually wants.
+                if (!isLocal)
+                  ParticipantBotSection(
+                    targetUserId: targetUserId,
+                    voiceChannelId: voiceChannelId,
+                    name: name,
+                  ),
                 // Moderation and roles, each behind its own permission.
                 if (!isLocal)
                   ParticipantAdminSection(
