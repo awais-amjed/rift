@@ -253,7 +253,7 @@ the widgets, and the button-press row.
 
 ---
 
-## 6. Moderation bots — the one real exception — [Implemented — migrations 017, 028 and 030]
+## 6. Moderation bots — the one real exception — [Key grant implemented — migrations 017, 028 and 030. **The bot still cannot read**: see the end of this section]
 
 A moderation bot has to read everything. There is no cryptographic middle ground: it either holds
 the channel key or it does not.
@@ -347,6 +347,36 @@ The server-wide grant is stored as intent, not as a snapshot:
 **Revoking one channel out of a server-wide grant downgrades it to explicit rows:** materialise all
 of them, drop the one. An exception list would also work, and would leave somebody a year later
 asking why one channel is not covered by a grant that says *whole server*.
+
+### The half that is not built — the bot cannot read a word
+
+Everything above is about the **key**: who may be granted one, from which version, what revoking
+does, and who is told. All of it works. None of it is what lets a bot read a message.
+
+`messages_select` has said this since migration 015, and 017 never changed it:
+
+```sql
+AND (NOT app.is_bot() OR to_bot = auth.uid() OR sender_id = auth.uid())
+```
+
+A bot reads what it is addressed and what it wrote. **That is still true of a fully granted bot**,
+in a public channel, holding the channel key: the rows do not come back. The SDK agrees without
+meaning to — `bot.ts` polls `to_bot=eq.<me>` and nothing else — so there is no read path on either
+side. Meanwhile `grant_bot_channel_key` posts *"It can read every message sent here from now on"*
+into the channel, which is a promise nothing keeps.
+
+This section was marked **Implemented** for a while on the strength of the grant machinery being
+complete. It is not a regression and nothing was lost; the reading half was simply never designed,
+so it never appeared on a list to be missing from. Two pieces would finish it:
+
+1. `messages_select` gains a clause for a bot holding a current grant — the narrow version is
+   `bot_channel_keys` at or below `key_version`, so forward-only stays arithmetic rather than a
+   policy promise.
+2. The SDK gains a channel read, which is the first time a bot decrypts something that was not
+   sealed for it alone, and therefore the first time it needs the channel key at all.
+
+Until then the honest summary is the one in §14: **a bot hears what you tell it**, and there is no
+exception yet — only the door built for one.
 
 ### What metadata-only moderation can still do
 
@@ -616,7 +646,7 @@ Documented honestly, not to be "fixed":
 
 - **A bot cannot react to conversation.** No message that triggers on a keyword, no automatic link
   previews. Link previews are already a client-side job (`ARCHITECTURE.md` §4).
-- **Content moderation needs an explicit key grant** or it does not happen.
+- **Content moderation needs an explicit key grant** or it does not happen — and today it does not happen either way: the grant exists, the reading half does not (§6).
 - **Discovery is worse than Discord's.** Nobody learns a bot exists from watching it talk in a
   channel. `/` completion and the sidebar section are what recover that, which makes them part of
   the feature rather than polish on top of it.
