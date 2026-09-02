@@ -202,7 +202,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // about a poll ago. Failure is ignored on purpose — an unsummoned bot
       // does not turn up, which somebody can see and ask again, and is not a
       // reason to lose the message that carried it.
-      if (command != null && command.needsVoice && inVoiceChannel != null) {
+      if (command != null && command.summonsBot && inVoiceChannel != null) {
         final summoned = await _serverCubit.setBotVoiceSummon(
           channelId: inVoiceChannel,
           botId: command.bot.id,
@@ -229,7 +229,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // before the connection is taken away. Dropping the summon does that
       // taking away, which is the point: leaving does not depend on the bot
       // acting on a verb it advertised.
-      if (command != null && command.endsVoice && inVoiceChannel != null) {
+      if (command != null && command.dismissesBot && inVoiceChannel != null) {
         await _serverCubit.setBotVoiceSummon(
           channelId: inVoiceChannel,
           botId: command.bot.id,

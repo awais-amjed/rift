@@ -62,48 +62,54 @@ class BotCommandSpec {
   /// the picker can say what a command wants without the bot being reachable.
   final String? usage;
 
-  /// Whether this command wants the bot in the caller's call — `/play` does,
-  /// `/roll` does not.
+  /// Whether sending this command should call the bot into the sender's call.
   ///
-  /// It is what stops every command summoning a bot into whatever call the
-  /// sender happens to be sitting in, which would seal a media key and put a
-  /// program in the room for a dice roll. Advertisement like the rest of the
-  /// manifest: the summon it triggers is checked against `SUMMON_BOTS` and is
-  /// publish-only either way, so a bot that lies here gains a speaker's seat
-  /// and nothing else.
-  final bool needsVoice;
+  /// **Rift knows no verb names.** `/play` is not special and neither is
+  /// `/disconnect`; the bot's author says which of its commands mean this, and
+  /// a bot with none is simply never summoned by typing. That is what keeps
+  /// every command from dragging a program into whatever call the sender
+  /// happens to be sitting in — sealing a media key and adding a speaker for a
+  /// dice roll.
+  ///
+  /// Advertisement like the rest of the manifest: the summon it triggers is
+  /// checked against `SUMMON_BOTS` and is publish-only regardless, so a bot
+  /// that lies here gains a speaker's seat and nothing else.
+  final bool summonsBot;
 
-  /// Whether this command means "leave the call" — `/disconnect`, `/stop`.
+  /// Whether sending it should send the bot out of that call.
   ///
-  /// The mirror of [needsVoice], and it does the same thing in reverse: the
-  /// client drops the summon as well as sending the message, so leaving does
-  /// not depend on the bot cooperating. A bot that crashed mid-track, or one
-  /// that simply ignores the verb it advertised, still loses its media key and
-  /// gets disconnected — the same thing "Send away" does from the participant
-  /// menu, reachable by typing.
-  final bool endsVoice;
+  /// The mirror, and the reason it is the *client* that acts on it: leaving
+  /// then does not depend on the bot doing anything. A bot that crashed
+  /// mid-track, or one that ignores the verb it advertised, still loses its
+  /// media key and its connection — the same thing "Send away" does from the
+  /// participant menu, reachable by typing.
+  ///
+  /// Separate from stopping whatever the bot is doing, which is the bot's own
+  /// business and needs no flag: a `/stop` that ends the track and stays for
+  /// the next one is an ordinary command.
+  final bool dismissesBot;
 
   const BotCommandSpec({
     required this.name,
     this.description,
     this.usage,
-    this.needsVoice = false,
-    this.endsVoice = false,
+    this.summonsBot = false,
+    this.dismissesBot = false,
   });
 
   factory BotCommandSpec.fromJson(Map<String, dynamic> json) => BotCommandSpec(
     name: (json['name'] as String).toLowerCase(),
     description: json['description'] as String?,
     usage: json['usage'] as String?,
-    needsVoice: json['voice'] == true,
-    endsVoice: json['dismiss'] == true,
+    summonsBot: json['summon'] == true,
+    dismissesBot: json['dismiss'] == true,
   );
 
   Map<String, dynamic> toJson() => {
     'name': name,
     if (description != null) 'description': description,
     if (usage != null) 'usage': usage,
-    if (needsVoice) 'voice': true,
-    if (endsVoice) 'dismiss': true,
+    if (summonsBot) 'summon': true,
+    if (dismissesBot) 'dismiss': true,
   };
 }

@@ -10,19 +10,19 @@ class BotCommand {
   /// the client does not know what any command's arguments mean.
   final String text;
 
-  /// Whether the bot declared this verb as one that wants it in the caller's
-  /// call. Null when the command resolved by the bot's own name, which carries
+  /// Whether the bot declared this verb as one that calls it into the sender's
+  /// call. False when the command resolved by the bot's own name, which carries
   /// no manifest entry to read it from.
-  final bool needsVoice;
+  final bool summonsBot;
 
-  /// And whether it means the opposite — see [BotCommandSpec.endsVoice].
-  final bool endsVoice;
+  /// And whether it declared the opposite — see [BotCommandSpec.dismissesBot].
+  final bool dismissesBot;
 
   const BotCommand({
     required this.bot,
     required this.text,
-    this.needsVoice = false,
-    this.endsVoice = false,
+    this.summonsBot = false,
+    this.dismissesBot = false,
   });
 }
 
@@ -68,8 +68,8 @@ class BotCommands {
         return BotCommand(
           bot: bot,
           text: trimmed,
-          needsVoice: spec.needsVoice,
-          endsVoice: spec.endsVoice,
+          summonsBot: spec.summonsBot,
+          dismissesBot: spec.dismissesBot,
         );
       }
     }

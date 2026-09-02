@@ -198,16 +198,16 @@ void main() {
       isBot: true,
       manifest: const BotManifest(
         commands: [
-          BotCommandSpec(name: 'play', needsVoice: true),
+          BotCommandSpec(name: 'play', summonsBot: true),
           BotCommandSpec(name: 'queue'),
-          BotCommandSpec(name: 'stop', endsVoice: true),
+          BotCommandSpec(name: 'stop', dismissesBot: true),
         ],
       ),
     );
 
     test('the flag is read off the verb that matched', () {
-      expect(BotCommands.parse('/play a song', [music()])?.needsVoice, isTrue);
-      expect(BotCommands.parse('/queue', [music()])?.needsVoice, isFalse);
+      expect(BotCommands.parse('/play a song', [music()])?.summonsBot, isTrue);
+      expect(BotCommands.parse('/queue', [music()])?.summonsBot, isFalse);
     });
 
     test('a bot addressed by name declares nothing, so it summons nothing', () {
@@ -215,7 +215,7 @@ void main() {
       // to read the flag from. Guessing yes here would summon on every
       // by-name command, which is every command a bot with no manifest has.
       expect(
-        BotCommands.parse('/musicbot play a song', [music()])?.needsVoice,
+        BotCommands.parse('/musicbot play a song', [music()])?.summonsBot,
         isFalse,
       );
     });
@@ -223,16 +223,16 @@ void main() {
     test('it survives the wire, and defaults to off', () {
       final m = BotManifest.fromJson({
         'commands': [
-          {'name': 'play', 'voice': true},
+          {'name': 'play', 'summon': true},
           {'name': 'roll'},
-          {'name': 'skip', 'voice': 'yes please'},
+          {'name': 'skip', 'summon': 'yes please'},
         ],
       });
-      expect(m.commands[0].needsVoice, isTrue);
-      expect(m.commands[1].needsVoice, isFalse);
+      expect(m.commands[0].summonsBot, isTrue);
+      expect(m.commands[1].summonsBot, isFalse);
       // Tolerant like the rest of the manifest: somebody else's program wrote
       // this, so a field of the wrong type is a field to ignore.
-      expect(m.commands[2].needsVoice, isFalse);
+      expect(m.commands[2].summonsBot, isFalse);
     });
 
     /// The mirror. `dismiss` is what makes leaving not depend on the bot
@@ -240,35 +240,35 @@ void main() {
     /// bot that crashed mid-track still goes.
     test('and the verb that means leave carries the opposite flag', () {
       final stop = BotCommands.parse('/stop', [music()]);
-      expect(stop?.endsVoice, isTrue);
-      expect(stop?.needsVoice, isFalse);
+      expect(stop?.dismissesBot, isTrue);
+      expect(stop?.summonsBot, isFalse);
 
       final play = BotCommands.parse('/play a song', [music()]);
-      expect(play?.endsVoice, isFalse);
+      expect(play?.dismissesBot, isFalse);
     });
 
     test('which survives the wire under its own key', () {
       final m = BotManifest.fromJson({
         'commands': [
           {'name': 'stop', 'dismiss': true},
-          {'name': 'play', 'voice': true},
+          {'name': 'play', 'summon': true},
         ],
       });
-      expect(m.commands[0].endsVoice, isTrue);
+      expect(m.commands[0].dismissesBot, isTrue);
       // The two are independent: a command asks the bot in, or out, or neither.
-      expect(m.commands[0].needsVoice, isFalse);
-      expect(m.commands[1].endsVoice, isFalse);
+      expect(m.commands[0].summonsBot, isFalse);
+      expect(m.commands[1].dismissesBot, isFalse);
       expect(
-        const BotCommandSpec(name: 'stop', endsVoice: true).toJson()['dismiss'],
+        const BotCommandSpec(name: 'stop', dismissesBot: true).toJson()['dismiss'],
         true,
       );
     });
 
     test('and round-trips, without writing the default out', () {
-      const spec = BotCommandSpec(name: 'play', needsVoice: true);
-      expect(spec.toJson()['voice'], true);
+      const spec = BotCommandSpec(name: 'play', summonsBot: true);
+      expect(spec.toJson()['summon'], true);
       expect(
-        const BotCommandSpec(name: 'roll').toJson().containsKey('voice'),
+        const BotCommandSpec(name: 'roll').toJson().containsKey('summon'),
         isFalse,
       );
     });

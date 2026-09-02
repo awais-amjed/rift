@@ -434,11 +434,21 @@ Getting this wrong looked like nothing at all: the bot published happily, its ow
 fine, and every member's client reported `FrameCryptorStateMissingKey` about a participant it could
 see.
 
-**How the bot learns where to go.** A command's manifest entry may carry `voice: true` — `/play`
-does, `/roll` does not. Its mirror is `dismiss: true` — `/stop`, `/disconnect` — which drops the
-summon as well as sending the message, so leaving does not depend on the bot acting on a verb it
-advertised. A bot that crashed mid-track still loses its key and its connection. The dismissal goes
-*after* the message, so the bot gets its chance to edit the panel and say it stopped. When somebody sends one of those from inside a call, their client writes the
+**How the bot learns where to go.** A command's manifest entry may carry `summon: true`, and its
+mirror is `dismiss: true`. **Rift knows no verb names** — `/play` is not special and neither is
+`/disconnect`. The bot's author says which of its commands mean *bring me in* and which mean *send
+me out*, and a bot that marks neither is simply never summoned by typing.
+
+Two flags rather than one because a command asks a bot in, or out, or neither, and most are
+neither. Stopping whatever the bot is *doing* is the third thing and needs no flag at all: a
+`/stop` that ends the track and stays for the next one is an ordinary command, and running it
+together with leaving is the mistake — somebody who wanted quiet for a minute should not have to
+summon the bot back.
+
+The dismissal is acted on by the **client**, which is what makes it a backstop rather than a
+courtesy: a bot that crashed mid-track, or one that ignores the verb it advertised, still loses its
+media key and its connection. It lands *after* the message, so a bot that is running still gets its
+chance to edit the panel and say it stopped. When somebody sends one of those from inside a call, their client writes the
 summon alongside the message, and the bot reads its own rows (`bot.summons()`). It is the only
 source that works for a private channel, where the roster cannot help because the bot cannot see it.
 The flag is advertisement like the rest of the manifest: the summon is checked against
