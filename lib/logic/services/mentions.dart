@@ -40,7 +40,7 @@ class Mentions {
     return {everyone, if (name != null && name.isNotEmpty) name};
   }
 
-  /// Everybody a message can actually name.
+  /// Everybody a message here can actually name.
   ///
   /// **Not bots.** A normal message that mentions one does nothing: a bot only
   /// ever receives what is addressed to it with `/`, and `messages_select` will
@@ -48,12 +48,24 @@ class Mentions {
   /// messages that look identical must not have different protection, so the
   /// habit is refused rather than half-supported.
   ///
-  /// That refusal has to reach every surface or it becomes a lie somewhere: an
-  /// `@` menu that offers a bot, a name that lights up as though it arrived, a
-  /// mention recorded in the clear that wakes nobody. One list, so they cannot
-  /// disagree.
-  static Iterable<ServerMember> among(Iterable<ServerMember> members) =>
-      members.where((member) => !member.isBot);
+  /// **Not somebody who cannot open the channel.** [audience] is the resolved
+  /// set from `channel_audience`, and null means everybody — a public channel,
+  /// where the roster is already the answer. In a private one the server strips
+  /// an outsider from `mentions` on the way in (`validate_message_mentions`),
+  /// so offering them here is offering a ping that will not happen, and would
+  /// also spend the one thing the writer might want back: telling somebody
+  /// they are not in the room.
+  ///
+  /// Both refusals have to reach every surface or they become a lie somewhere:
+  /// an `@` menu that offers a name, a name that lights up as though it
+  /// arrived, a mention recorded in the clear that wakes nobody. One list, so
+  /// they cannot disagree.
+  static Iterable<ServerMember> among(
+    Iterable<ServerMember> members, {
+    Set<String>? audience,
+  }) => members.where(
+    (member) => !member.isBot && (audience?.contains(member.id) ?? true),
+  );
 
   /// A roster in the shape [resolve] wants: username → user id.
   ///
@@ -62,8 +74,12 @@ class Mentions {
   /// would produce a mention that highlights and pings the wrong person —
   /// display names can be changed by their owner and can collide, which is
   /// exactly why they are not the key.
-  static Map<String, String> rosterOf(Iterable<ServerMember> members) => {
-    for (final member in among(members)) member.username: member.id,
+  static Map<String, String> rosterOf(
+    Iterable<ServerMember> members, {
+    Set<String>? audience,
+  }) => {
+    for (final member in among(members, audience: audience))
+      member.username: member.id,
   };
 
   /// Whether [text] names the person called [username].

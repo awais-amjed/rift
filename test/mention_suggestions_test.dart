@@ -98,6 +98,8 @@ void main() {
 
   group('bots are addressed with a slash, not an at', _botTests);
 
+  group('a private channel narrows who can be named', _audienceTests);
+
   group('what picking somebody does to the text', () {
     test('writes the display name, which is what the writer is reading', () {
       // The username arrives later, in toWire — a text field cannot show one
@@ -227,5 +229,74 @@ void _botTests() {
     // The composer is handed an already-filtered roster; this is the filter.
     final out = MentionSuggestions.suggest('a', Mentions.among(roster));
     expect(out.map((m) => m.username), isNot(contains('animbot')));
+  });
+}
+
+/// In a private channel, only the people who can open it.
+///
+/// `validate_message_mentions` (migration 020) already strips the rest: it
+/// keeps only ids passing `app.channel_eligible`. That is silent, so a composer
+/// offering the whole server let somebody pick a name, watch it highlight, and
+/// never learn the ping was dropped — and spent the one thing they might have
+/// wanted back, which is telling an outsider they are not in the room.
+void _audienceTests() {
+  ServerMember person(String username) => ServerMember(
+    id: username,
+    username: username,
+    displayName: username.toUpperCase(),
+    permissions: UserPermissions(),
+  );
+
+  final roster = [person('inside'), person('outside')];
+  final audience = {'inside'};
+
+  test('null is everybody — a public channel needs no list', () {
+    expect(Mentions.among(roster).map((m) => m.username), [
+      'inside',
+      'outside',
+    ]);
+  });
+
+  test('an outsider is not offered', () {
+    expect(
+      Mentions.among(roster, audience: audience).map((m) => m.username),
+      ['inside'],
+    );
+  });
+
+  test('and is not resolved into a mention on send', () {
+    final named = Mentions.resolve(
+      'hi @outside and @inside',
+      idsByUsername: Mentions.rosterOf(roster, audience: audience),
+    );
+    expect(named.userIds, ['inside']);
+  });
+
+  test('the audience never widens the roster', () {
+    // A stale id — somebody removed from the server but still in the channel
+    // list — names nobody rather than a member who has gone.
+    expect(
+      Mentions.among(roster, audience: {'inside', 'ghost'}).map((m) => m.id),
+      ['inside'],
+    );
+  });
+
+  test('a bot inside the channel is still not mentionable', () {
+    final bot = ServerMember(
+      id: 'musicbot',
+      username: 'musicbot',
+      displayName: 'musicbot',
+      permissions: UserPermissions(),
+      isBot: true,
+    );
+    // `channel_audience` includes bots — they hold keys. The composer is what
+    // declines them, and the audience filter must not undo that.
+    expect(
+      Mentions.among([
+        ...roster,
+        bot,
+      ], audience: {'inside', 'musicbot'}).map((m) => m.id),
+      ['inside'],
+    );
   });
 }

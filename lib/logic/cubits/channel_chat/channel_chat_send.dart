@@ -176,6 +176,9 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         trimmed,
         idsByUsername: Mentions.rosterOf(
           _membersCubit.state.members ?? const [],
+          // The trigger strips an outsider anyway; not sending their id means
+          // it never sits in the clear on a row at all.
+          audience: state.audience,
         ),
         excludeUserId: user.id,
       );

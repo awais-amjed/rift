@@ -203,6 +203,12 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     if (_isStale(generation)) return;
     emit(state.copyWith(botListeners: listeners));
 
+    // And who a message here can reach, before there is a composer to type one
+    // into. Null for a public channel, which costs nothing.
+    final audience = await _serverCubit.channelAudience(channelId);
+    if (_isStale(generation)) return;
+    if (audience != null) emit(state.copyWith(audience: audience));
+
     // The history is fetched either way, including when no key was found.
     // Without a key most of it comes back as locked rows and any webhook
     // message comes back readable — which is the difference between a channel

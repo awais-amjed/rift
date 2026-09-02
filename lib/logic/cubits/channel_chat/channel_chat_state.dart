@@ -50,6 +50,14 @@ class ChannelChatState {
   /// messages is one people scroll past (BOTS.md §6, rule 4).
   final List<String> botListeners;
 
+  /// Server members a message here can reach, or null when that is everybody.
+  ///
+  /// Only a private channel has one. In cubit state and loaded before the
+  /// composer exists, for the same reason as [botListeners]: an `@` menu that
+  /// offers the whole server for the first beat of a private channel is one
+  /// that offers outsiders exactly when somebody is typing fastest.
+  final Set<String>? audience;
+
   /// Members currently typing in the open channel, by user id → display name
   /// (excludes us). Backed by short-lived expiry timers in the cubit.
   final Map<String, String> typingUsers;
@@ -66,6 +74,7 @@ class ChannelChatState {
     this.isLoadingMore = false,
     this.typingUsers = const {},
     this.botListeners = const [],
+    this.audience,
     this.failure,
   });
 
@@ -77,6 +86,7 @@ class ChannelChatState {
     bool? isLoadingMore,
     Map<String, String>? typingUsers,
     List<String>? botListeners,
+    Set<String>? audience,
     ChatFailure? failure,
     bool clearFailure = false,
   }) {
@@ -88,6 +98,9 @@ class ChannelChatState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       typingUsers: typingUsers ?? this.typingUsers,
       botListeners: botListeners ?? this.botListeners,
+      // No clear flag: `openChannel` builds a fresh state, so a public channel
+      // opened after a private one starts null rather than inheriting a list.
+      audience: audience ?? this.audience,
       failure: clearFailure ? null : (failure ?? this.failure),
     );
   }

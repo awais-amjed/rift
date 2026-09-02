@@ -712,6 +712,25 @@ Returns `{reason}`: `ok` (plus `message_id`, `channel_id`, `server_id`), `no_suc
 `empty`, `too_long` or `rate_limited`. Every refusal looks the same from outside — a caller with a
 wrong secret learns that it is wrong and nothing else.
 
+### channel_audience(p_channel uuid) — migration 034
+
+Server members a message in this channel can actually reach: `app.channel_eligible` for every
+user on the server, gated on `app.can_see_channel` so an outsider asking a private channel gets
+an empty answer rather than its membership. Granted to `authenticated`.
+
+Exists because the composer had no way to ask. `validate_message_mentions` already strips a
+mention of somebody outside a private channel — silently, which is right for the wire and wrong
+for the person typing: the `@` menu offered the whole roster, the name lit up in the sent
+message, and nothing said the ping had been dropped. Answering it client-side would mean a Dart
+copy of `channel_eligible` reading `channel_members`, `channel_role_access`, `member_roles` and
+the ban clause — four things to keep in step with one predicate — so the question is asked of the
+predicate itself.
+
+It exposes nothing new: every input is already readable by anyone inside the channel
+(`channel_members_select`, `channel_role_access_select`, `member_role_list`). It resolves what
+they could assemble. A bot never appears in a private channel's answer, because
+`set_channel_members` will not seat one — `grant_bot_channel_key` is its only door.
+
 ## Tables (central)
 
 Central mirrors the self-hosted shapes where the idea is the same, so one client path serves both.
