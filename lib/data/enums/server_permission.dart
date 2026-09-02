@@ -77,8 +77,8 @@ enum ServerPermission {
     7,
     PermissionGroup.server,
     'Manage bots',
-    'Give a bot the key to a channel, and take it back. The channel says so '
-        'to everyone in it for as long as the grant lasts.',
+    'Give a bot the key to a channel or a call, and take it back. The channel '
+        'says so to everyone in it for as long as the grant lasts.',
   ),
   manageWebhooks(
     8,
@@ -175,6 +175,22 @@ enum ServerPermission {
     'Create private channels',
     'Make a channel only the people they pick can see — including from '
         'server admins, who hold no key to it either.',
+  ),
+
+  // ── 036 ─────────────────────────────────────────────────
+  addBots(
+    22,
+    PermissionGroup.server,
+    'Add bots',
+    'Make an invite a bot can join with. A program that will sit in every '
+        'public channel is not the same decision as inviting a person.',
+  ),
+  summonBots(
+    23,
+    PermissionGroup.voice,
+    'Summon bots',
+    'Bring a bot into a call to play or announce something. It publishes and '
+        'cannot hear — listening is a separate grant only Manage bots gives.',
   );
 
   final int bit;

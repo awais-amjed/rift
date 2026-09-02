@@ -761,6 +761,26 @@ A granted bot reads a private channel **without becoming a member**: `can_see_ch
 no, so it cannot list the channel, see the roster, or post there. Speaking needs a role with
 `channel_role_access` — the same door a `/` command comes through.
 
+### Permissions — bits 22 and 23, migration 036
+
+`MANAGE_BOTS` was carrying three jobs of very different weight, so it became three bits:
+
+| Bit | Permission | Gates | Default |
+|---|---|---|---|
+| 7 | `MANAGE_BOTS` | handing a bot a key — read a channel (§6) or hear a call (§6b) | admins |
+| 22 | `ADD_BOTS` | creating an invite with `is_bot` | Moderator, admins |
+| 23 | `SUMMON_BOTS` | bringing a bot into a voice channel | **`@everyone`** |
+
+Summoning is on by default, on existing servers as well as new ones: a permission nobody holds
+looks exactly like a feature that is broken, and a summoned bot's token is minted with
+`canSubscribe: false` unless an admin granted listening — it publishes and cannot hear. An admin
+who wants it narrower takes the bit off `@everyone`.
+
+`ADD_BOTS` is the half that is a real change. Creating a bot invite used to need nothing but
+`CREATE_INVITE`, the same bit as inviting a friend, so anyone who could bring a person could bring
+a program that sits in every public channel. Administrators need no backfill — `has_perm` reads
+`ADMINISTRATOR` as every bit.
+
 ## Tables (central)
 
 Central mirrors the self-hosted shapes where the idea is the same, so one client path serves both.
