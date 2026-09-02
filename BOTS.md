@@ -168,6 +168,20 @@ the surfaces cannot disagree. A menu offering a bot would be a promise the `mess
 policy then refuses in silence: the mention would be stored in the clear and wake nobody. `/` is
 one key away and has its own menu.
 
+### And `/` only reaches a bot that can see the channel
+
+`messages_select` asks `app.can_see_channel` **before** it asks `to_bot`. In a public channel that
+is always true, so any bot on the server can be addressed. In a private one it is true only for a
+bot a role let in — `set_channel_members` refuses to seat one by name, so `channel_role_access` is
+the only door.
+
+Address a bot outside the room and the command is written, in the clear, to be read by nobody who
+wanted it: the worst of both halves. `ChannelReach.botsIn` narrows the `/` menu, the unencrypted
+warning and the send path to the bots this channel's audience actually contains, and an empty list
+turns `/` handling off entirely. `BotCommands.parse` then returns null, so the line goes out
+**sealed** like any other message rather than as plaintext addressed to nobody. A slash that
+reaches no bot is just a slash.
+
 ### Discovery
 
 Each bot publishes a **command manifest** — name, description, arguments, and what it does with

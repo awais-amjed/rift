@@ -101,9 +101,13 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     final command = attachments.isEmpty
         ? BotCommands.parse(
             trimmed,
-            (_membersCubit.state.members ?? const [])
-                .where((m) => m.isBot && !m.isBanned)
-                .toList(),
+            // Only the bots this channel can reach. One that cannot read the
+            // command must not turn the line plaintext to say so: unparsed, it
+            // goes out sealed like any other message.
+            ChannelReach.botsIn(
+              _membersCubit.state.members ?? const [],
+              state.audience,
+            ),
           )
         : null;
 

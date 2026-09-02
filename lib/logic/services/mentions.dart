@@ -1,4 +1,5 @@
 import '../../data/classes/server_member.dart';
+import 'channel_reach.dart';
 import 'message_markup.dart';
 
 /// Who a message names.
@@ -63,9 +64,10 @@ class Mentions {
   static Iterable<ServerMember> among(
     Iterable<ServerMember> members, {
     Set<String>? audience,
-  }) => members.where(
-    (member) => !member.isBot && (audience?.contains(member.id) ?? true),
-  );
+  }) => ChannelReach.within(
+    members,
+    audience,
+  ).where((member) => !member.isBot);
 
   /// A roster in the shape [resolve] wants: username → user id.
   ///

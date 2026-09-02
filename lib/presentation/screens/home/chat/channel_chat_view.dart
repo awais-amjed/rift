@@ -6,6 +6,7 @@ import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../logic/services/channel_reach.dart';
 import '../../../../logic/services/mentions.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/chat_failure.dart';
@@ -63,7 +64,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
-                      bots: _bots(context),
+                      bots: _bots(context, chatState.audience),
                       mentionable: _mentionableMembers(
                         context,
                         chatState.audience,
@@ -118,17 +119,20 @@ class _ChannelChatViewState extends State<ChannelChatView>
     audience: audience,
   ).toList(growable: false);
 
-  /// The bots on this server, for the composer's `/` menu.
+  /// The bots a `/` command can reach in this channel — see
+  /// [ChannelReach.botsIn], which is also where the banned ones go.
   ///
-  /// Banned ones are dropped here rather than in the composer: the server
-  /// refuses a command addressed to one (`app.is_addressable_bot`), so
-  /// offering it would be offering a send that comes back rejected.
-  List<ServerMember> _bots(BuildContext context) => [
-    for (final m
-        in context.watch<ServerMembersCubit>().state.members ??
-            const <ServerMember>[])
-      if (m.isBot && !m.isBanned) m,
-  ];
+  /// In a private channel that is usually none of them: a bot gets in through a
+  /// role with `channel_role_access` and no other way, so without one its
+  /// `messages_select` never returns the command and the plaintext row sits
+  /// there unread. An empty list is what turns `/` handling off entirely, which
+  /// is the honest state — a slash that reaches no bot is just a slash, and the
+  /// line goes out encrypted like any other.
+  List<ServerMember> _bots(BuildContext context, Set<String>? audience) =>
+      ChannelReach.botsIn(
+        context.watch<ServerMembersCubit>().state.members ?? const [],
+        audience,
+      );
 
   /// The operator's per-file attachment cap for this server.
   int _maxAttachmentBytes(BuildContext context) =>
