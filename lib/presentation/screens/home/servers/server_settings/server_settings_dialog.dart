@@ -112,12 +112,17 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
 
   /// Also non-blocking, and allowed to fail: the count is a sentence in the
   /// disclosure, not something Save depends on.
+  ///
+  /// Counted by the database rather than by measuring a fetched list. The list
+  /// is a page now, so its length is how far we read; and even before it was,
+  /// PostgREST capped the response at 1000 rows, so a big server quietly
+  /// advertised itself as having exactly a thousand members.
   Future<void> _loadMemberCount() async {
-    final result = await context.read<ServerCubit>().listMembers(
+    final counts = await context.read<ServerCubit>().memberCounts(
       serverId: widget.server.id,
     );
-    if (!mounted || result.members == null) return;
-    setState(() => _memberCount = result.members!.length);
+    if (!mounted) return;
+    setState(() => _memberCount = counts.people + counts.bots);
   }
 
   /// Also non-blocking, for the same reason as the two above.

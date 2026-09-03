@@ -259,7 +259,10 @@ void main() {
       expect(m.commands[0].summonsBot, isFalse);
       expect(m.commands[1].dismissesBot, isFalse);
       expect(
-        const BotCommandSpec(name: 'stop', dismissesBot: true).toJson()['dismiss'],
+        const BotCommandSpec(
+          name: 'stop',
+          dismissesBot: true,
+        ).toJson()['dismiss'],
         true,
       );
     });

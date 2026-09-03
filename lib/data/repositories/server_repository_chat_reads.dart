@@ -81,11 +81,11 @@ mixin _ChatReadApiMixin {
           .eq('channel_id', channelId);
       if (afterId != null) query = query.gt('id', afterId);
       if (beforeId != null) query = query.lt('id', beforeId);
-      // One row past the page — see ChatMessageOps.splitPage.
+      // One row past the page — see Paging.split.
       final rows = await query
           .order('id', ascending: afterId != null)
           .limit(pageSize + 1);
-      final page = ChatMessageOps.splitPage(
+      final page = Paging.split(
         (rows as List).cast<Map<String, dynamic>>(),
         limit: pageSize,
       );
@@ -122,11 +122,11 @@ mixin _ChatReadApiMixin {
           );
       if (afterId != null) query = query.gt('id', afterId);
       if (beforeId != null) query = query.lt('id', beforeId);
-      // One row past the page — see ChatMessageOps.splitPage.
+      // One row past the page — see Paging.split.
       final rows = await query
           .order('id', ascending: afterId != null)
           .limit(pageSize + 1);
-      final page = ChatMessageOps.splitPage(
+      final page = Paging.split(
         (rows as List).cast<Map<String, dynamic>>(),
         limit: pageSize,
       );

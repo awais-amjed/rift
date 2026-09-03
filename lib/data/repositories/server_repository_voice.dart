@@ -130,11 +130,10 @@ mixin _VoiceApiMixin {
     required String botId,
     required bool summon,
   }) {
-    return _post(
-      supabaseUrl,
-      'set_bot_voice_summon',
-      {'bot_id': botId, 'channel_id': channelId, 'summon': summon},
-      bearerToken: bearerToken,
-    );
+    return _post(supabaseUrl, 'set_bot_voice_summon', {
+      'bot_id': botId,
+      'channel_id': channelId,
+      'summon': summon,
+    }, bearerToken: bearerToken);
   }
 }

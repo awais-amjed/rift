@@ -5,6 +5,7 @@ import '../../../../data/classes/channel.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/services/member_selection.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/hint_card.dart';
@@ -26,12 +27,11 @@ class ChannelMembersDialog extends StatefulWidget {
 }
 
 class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
-  final _searchCtrl = TextEditingController();
+  MemberSelection _selection = MemberSelection.empty;
 
-  List<ServerMember> _members = const [];
-  Set<String> _selected = {};
+  /// Who was in the channel when the dialog opened, so Save can tell a real
+  /// change from a tick-and-untick.
   Set<String> _original = {};
-  String _query = '';
 
   bool _canManage = false;
   bool _isLoading = true;
@@ -42,8 +42,7 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
   /// yourself is leaving, which is a different act with a different button.
   String? get _me => context.read<ServerCubit>().state.selectedServer?.user?.id;
 
-  bool get _changed =>
-      _selected.length != _original.length || !_selected.containsAll(_original);
+  bool get _changed => _selection.differsFrom(_original);
 
   @override
   void initState() {
@@ -53,7 +52,6 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -61,18 +59,37 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
     final cubit = context.read<ServerCubit>();
     final me = _me;
     final membership = await cubit.channelMembers(widget.channel.id);
-    final roster = await cubit.listMembers();
+    if (!mounted) return;
+
+    // Resolved by id rather than picked out of a roster we no longer hold. A
+    // member seated here may be anywhere in the alphabet, and the picker has
+    // to draw them whether or not a search would have found them.
+    final seated = {...membership.memberIds}..remove(me);
+    final rows = await cubit.membersByIds(seated.toList());
     if (!mounted) return;
 
     setState(() {
-      _members = (roster.members ?? const [])
-          .where((m) => !m.isBot && !m.isBanned && m.id != me)
-          .toList();
-      _original = {...membership.memberIds}..remove(me);
-      _selected = {..._original};
+      _original = seated;
+      _selection = MemberSelection.of(rows);
       _canManage = membership.canManage;
       _isLoading = false;
     });
+  }
+
+  /// People who could be seated here — never bots, never the caller.
+  ///
+  /// Bots are excluded by `set_channel_members` too; asking the database for
+  /// people only is what stops the picker offering a row it would refuse.
+  Future<List<ServerMember>> _search(String query) async {
+    final me = _me;
+    final results = await context.read<ServerCubit>().searchMembers(
+      query: query,
+      bots: false,
+    );
+    return [
+      for (final member in results)
+        if (member.id != me) member,
+    ];
   }
 
   Future<void> _save() async {
@@ -87,7 +104,7 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
     final me = _me;
     final result = await context.read<ServerCubit>().setChannelMembers(
       channelId: widget.channel.id,
-      userIds: {?me, ..._selected}.toList(),
+      userIds: {?me, ..._selection.ids}.toList(),
     );
     if (!mounted) return;
 
@@ -133,17 +150,11 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
             ],
             ChannelMemberPicker(
               themeState: themeState,
-              members: _members,
-              selected: _selected,
-              query: _query,
-              queryController: _searchCtrl,
+              selection: _selection,
+              onSearch: _search,
               enabled: _canManage && !_isSaving,
-              onQueryChanged: (q) => setState(() => _query = q),
-              onToggle: (id) => setState(() {
-                _selected.contains(id)
-                    ? _selected.remove(id)
-                    : _selected.add(id);
-              }),
+              onToggle: (member) =>
+                  setState(() => _selection = _selection.toggled(member)),
             ),
           ],
         ],

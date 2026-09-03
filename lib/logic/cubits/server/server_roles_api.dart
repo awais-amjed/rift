@@ -60,20 +60,37 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
     );
     if (!response.success) return const {};
 
-    final rows =
-        (response.data as Map<String, dynamic>)['assignments'] as List? ??
-        const [];
-    final byUser = <String, List<Role>>{};
-    for (final row in rows.cast<Map<String, dynamic>>()) {
-      byUser
-          .putIfAbsent(row['user_id'] as String, () => [])
-          .add(Role.fromJson({...row, 'id': row['role_id']}));
-    }
-    for (final roles in byUser.values) {
-      roles.sort((a, b) => b.position.compareTo(a.position));
-    }
-    return byUser;
+    return RoleLadder.byUser(_assignmentRows(response));
   }
+
+  /// The roles held by [userIds] and nobody else — the chips for the rows on
+  /// screen.
+  ///
+  /// [listMemberRoles] reads the whole server, which is one row per (member,
+  /// role) and so hits the response ceiling sooner than the roster itself does.
+  /// It is still the right call for a screen that shows everyone at once; this
+  /// is the one for a list that pages.
+  Future<Map<String, List<Role>>> memberRolesFor(List<String> userIds) async {
+    final server = state.selectedServer;
+    if (server == null || userIds.isEmpty) return const {};
+
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.memberRolesFor(
+        server.supabaseUrl,
+        anonKey: _anonKey,
+        bearerToken: token,
+        ids: userIds,
+      ),
+    );
+    if (!response.success) return const {};
+    return RoleLadder.byUser(_assignmentRows(response));
+  }
+
+  /// The flat `member_role_list` rows out of either call's envelope.
+  List<Map<String, dynamic>> _assignmentRows(APIResponse response) =>
+      ((response.data as Map<String, dynamic>)['assignments'] as List? ??
+              const [])
+          .cast<Map<String, dynamic>>();
 
   /// Mint a role. [position] is the caller's problem, because it is the whole
   /// of the delegation rule — a role at or above your own rank is refused.

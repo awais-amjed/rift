@@ -98,7 +98,7 @@ void main() {
 
   group('bots are addressed with a slash, not an at', _botTests);
 
-  group('a private channel narrows who can be named', _audienceTests);
+  group('who may be named at all', _audienceTests);
 
   group('what picking somebody does to the text', () {
     test('writes the display name, which is what the writer is reading', () {
@@ -232,13 +232,20 @@ void _botTests() {
   });
 }
 
-/// In a private channel, only the people who can open it.
+/// In a private channel, only the people who can open it — and that rule now
+/// lives in the query.
 ///
-/// `validate_message_mentions` (migration 020) already strips the rest: it
-/// keeps only ids passing `app.channel_eligible`. That is silent, so a composer
-/// offering the whole server let somebody pick a name, watch it highlight, and
-/// never learn the ping was dropped — and spent the one thing they might have
-/// wanted back, which is telling an outsider they are not in the room.
+/// `validate_message_mentions` (migration 020) strips the rest: it keeps only
+/// ids passing `app.channel_eligible`. That is silent, so a composer offering
+/// the whole server let somebody pick a name, watch it highlight, and never
+/// learn the ping was dropped.
+///
+/// The client used to answer it with a filter over the roster it held. It no
+/// longer holds one (migration 039), so every caller asks `search_members` or
+/// `members_by_usernames` **with the channel** and what comes back is already
+/// only people a message here reaches. The rule is tested where it is now
+/// enforced — `policies_test.sql` §18 and §23. What is left here is the part
+/// the client still decides.
 void _audienceTests() {
   ServerMember person(String username) => ServerMember(
     id: username,
@@ -248,40 +255,27 @@ void _audienceTests() {
   );
 
   final roster = [person('inside'), person('outside')];
-  final audience = {'inside'};
 
-  test('null is everybody — a public channel needs no list', () {
+  test('everybody the query returned can be named', () {
     expect(Mentions.among(roster).map((m) => m.username), [
       'inside',
       'outside',
     ]);
   });
 
-  test('an outsider is not offered', () {
-    expect(
-      Mentions.among(roster, audience: audience).map((m) => m.username),
-      ['inside'],
-    );
-  });
-
-  test('and is not resolved into a mention on send', () {
+  test('and resolves into a mention on send', () {
     final named = Mentions.resolve(
       'hi @outside and @inside',
-      idsByUsername: Mentions.rosterOf(roster, audience: audience),
+      idsByUsername: Mentions.rosterOf(roster),
     );
-    expect(named.userIds, ['inside']);
+    expect(named.userIds, ['outside', 'inside']);
   });
 
-  test('the audience never widens the roster', () {
-    // A stale id — somebody removed from the server but still in the channel
-    // list — names nobody rather than a member who has gone.
-    expect(
-      Mentions.among(roster, audience: {'inside', 'ghost'}).map((m) => m.id),
-      ['inside'],
-    );
-  });
-
-  test('a bot inside the channel is still not mentionable', () {
+  test('a bot is still not mentionable, wherever it came from', () {
+    // The one refusal that is the client's. A bot is addressed with `/`, and
+    // the channel-scoped query returns bots because they hold keys — so this
+    // filter is what stops the `@` menu teaching a habit that does nothing
+    // (BOTS.md §4).
     final bot = ServerMember(
       id: 'musicbot',
       username: 'musicbot',
@@ -289,14 +283,14 @@ void _audienceTests() {
       permissions: UserPermissions(),
       isBot: true,
     );
-    // `channel_audience` includes bots — they hold keys. The composer is what
-    // declines them, and the audience filter must not undo that.
+
+    expect(Mentions.among([...roster, bot]).map((m) => m.id), [
+      'inside',
+      'outside',
+    ]);
     expect(
-      Mentions.among([
-        ...roster,
-        bot,
-      ], audience: {'inside', 'musicbot'}).map((m) => m.id),
-      ['inside'],
+      Mentions.rosterOf([...roster, bot]).keys,
+      isNot(contains('musicbot')),
     );
   });
 }

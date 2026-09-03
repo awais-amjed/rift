@@ -1,22 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/server_member.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../logic/services/member_roster.dart';
 import '../../../common/app_panel.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
-import '../channels/channel_list/widgets/section_header.dart';
 import '../chat/widgets/chat_header.dart';
-import 'widgets/member_row.dart';
+import 'widgets/members_sidebar_list.dart';
 
 /// The right-hand member list for the selected server — everyone who has
 /// joined, split into online and offline.
@@ -154,14 +153,18 @@ class _MembersSidebarState extends State<MembersSidebar> {
     final myId = context.watch<ServerCubit>().state.selectedServer?.user?.id;
     final presence = context.watch<ChannelPresenceCubit>().state;
     final roster = context.watch<ServerMembersCubit>().state;
-    final members = roster.members;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _header(context, themeState, members?.length),
+        // The server's own count, not the length of what has been paged in.
+        _header(
+          context,
+          themeState,
+          roster.loaded ? roster.peopleCount + roster.bots.length : null,
+        ),
         Expanded(
-          child: members == null
+          child: !roster.loaded
               ? Center(
                   child: roster.loading
                       ? const SizedBox(
@@ -171,7 +174,16 @@ class _MembersSidebarState extends State<MembersSidebar> {
                         )
                       : const SizedBox.shrink(),
                 )
-              : _roster(themeState, appState, roster, presence, myId),
+              : MembersSidebarList(
+                  themeState: themeState,
+                  appState: appState,
+                  roster: roster,
+                  onlineIds: presence.onlineUserIds,
+                  myId: myId,
+                  onLoadMore: () => unawaited(
+                    context.read<ServerMembersCubit>().loadMorePeople(),
+                  ),
+                ),
         ),
       ],
     );
@@ -223,84 +235,5 @@ class _MembersSidebarState extends State<MembersSidebar> {
         ],
       ),
     );
-  }
-
-  Widget _roster(
-    ThemeState themeState,
-    AppState appState,
-    ServerMembersState roster,
-    ChannelPresenceState presence,
-    String? myId,
-  ) {
-    final members = roster.members ?? const <ServerMember>[];
-    final split = MemberRoster.split(members, presence.onlineUserIds);
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      children: [
-        // Above the people, and in a section of their own: a bot is not a
-        // quiet member, it is a program that hears only what it is told
-        // (BOTS.md §9). Each row still shows whether it is connected — for a
-        // bot that is "is it running", which is worth seeing.
-        ..._group(
-          themeState,
-          appState,
-          label: 'Bots',
-          members: split.bots,
-          onlineIds: presence.onlineUserIds,
-          myId: myId,
-          roster: roster,
-        ),
-        ..._group(
-          themeState,
-          appState,
-          label: 'Online',
-          members: split.online,
-          onlineIds: presence.onlineUserIds,
-          myId: myId,
-          roster: roster,
-        ),
-        ..._group(
-          themeState,
-          appState,
-          label: 'Offline',
-          members: split.offline,
-          onlineIds: presence.onlineUserIds,
-          myId: myId,
-          roster: roster,
-        ),
-        const SizedBox(height: 12),
-      ],
-    );
-  }
-
-  /// One group: the shared [SectionHeader] plus its rows. Empty groups render
-  /// nothing rather than a lone "Offline — 0".
-  ///
-  /// Takes the online set rather than a flag, because the Bots group holds
-  /// both — its rows are grouped by *being a bot* and lit by whether that bot
-  /// is currently connected.
-  List<Widget> _group(
-    ThemeState themeState,
-    AppState appState, {
-    required String label,
-    required List<ServerMember> members,
-    required Set<String> onlineIds,
-    required String? myId,
-    required ServerMembersState roster,
-  }) {
-    if (members.isEmpty) return const [];
-    return [
-      SectionHeader(label: '$label — ${members.length}'),
-      for (final member in members)
-        MemberRow(
-          member: member,
-          themeState: themeState,
-          isOnline: onlineIds.contains(member.id),
-          isMe: member.id == myId,
-          setting: appState.participantSettings[member.id],
-          role: roster.topRoleFor(member.id),
-          colourRole: roster.colourRoleFor(member.id),
-        ),
-    ];
   }
 }

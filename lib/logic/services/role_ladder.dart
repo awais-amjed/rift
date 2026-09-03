@@ -16,11 +16,6 @@ import '../../data/classes/role.dart';
 class RoleLadder {
   const RoleLadder._();
 
-  /// The highest position among the roles [userId] actually holds.
-  ///
-  /// Zero for somebody holding none — and `@everyone` does not count, because
-  /// it is never assigned. Zero is the correct answer: they can touch nothing,
-  /// since nothing sits strictly below the ground.
   /// The roles worth showing beside somebody's name.
   ///
   /// Everything except the default one. Every member is given that on
@@ -36,6 +31,31 @@ class RoleLadder {
       if (!role.isDefault) role,
   ];
 
+  /// `member_role_list` rows grouped by member, each list most senior first.
+  ///
+  /// The rows arrive flat — one per (member, role) — from two different calls
+  /// now that the roster pages: `listMemberRoles` for a whole server, and
+  /// `memberRolesFor` for the handful of rows on screen. Both want the same
+  /// shape, and a second copy of the grouping is where the sort order quietly
+  /// stops matching and one screen starts showing the junior role.
+  static Map<String, List<Role>> byUser(List<Map<String, dynamic>> rows) {
+    final byUser = <String, List<Role>>{};
+    for (final row in rows) {
+      byUser
+          .putIfAbsent(row['user_id'] as String, () => [])
+          .add(Role.fromJson({...row, 'id': row['role_id']}));
+    }
+    for (final roles in byUser.values) {
+      roles.sort((a, b) => b.position.compareTo(a.position));
+    }
+    return byUser;
+  }
+
+  /// The highest position among the roles [userId] actually holds.
+  ///
+  /// Zero for somebody holding none — and `@everyone` does not count, because
+  /// it is never assigned. Zero is the correct answer: they can touch nothing,
+  /// since nothing sits strictly below the ground.
   static int rankOf(Map<String, List<Role>> assignments, String? userId) {
     if (userId == null) return 0;
     var rank = 0;

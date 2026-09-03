@@ -18,10 +18,34 @@ ServerMember member(
   isBot: isBot,
 );
 
+/// The old call shape, kept as a helper: most of these cases are about one
+/// list of members and who is online, and spelling out four named arguments in
+/// each would bury what the case is actually testing.
+///
+/// Bots are lifted out because the sidebar now fetches them separately, and
+/// people go in as the paged list, which is where the offline group comes from.
+({
+  List<ServerMember> bots,
+  List<ServerMember> online,
+  List<ServerMember> offline,
+})
+split(List<ServerMember> members, Set<String> onlineIds) => MemberRoster.split(
+  bots: [
+    for (final m in members)
+      if (m.isBot) m,
+  ],
+  known: members,
+  people: [
+    for (final m in members)
+      if (!m.isBot) m,
+  ],
+  onlineIds: onlineIds,
+);
+
 void main() {
   group('MemberRoster.split', () {
     test('groups by presence', () {
-      final result = MemberRoster.split(
+      final result = split(
         [member('1', 'Ana'), member('2', 'Bo'), member('3', 'Cy')],
         {'1', '3'},
       );
@@ -30,7 +54,7 @@ void main() {
     });
 
     test('sorts each group by display name, case-insensitively', () {
-      final result = MemberRoster.split(
+      final result = split(
         [member('1', 'zoe'), member('2', 'Ana'), member('3', 'mia')],
         {'1', '2', '3'},
       );
@@ -38,7 +62,7 @@ void main() {
     });
 
     test('drops banned members from both groups', () {
-      final result = MemberRoster.split(
+      final result = split(
         [
           member('1', 'Ana', isBanned: true),
           member('2', 'Bo', isBanned: true),
@@ -51,22 +75,19 @@ void main() {
     });
 
     test('an online id with no member row is ignored, not invented', () {
-      final result = MemberRoster.split([member('1', 'Ana')], {'1', 'ghost'});
+      final result = split([member('1', 'Ana')], {'1', 'ghost'});
       expect(result.online, hasLength(1));
       expect(result.offline, isEmpty);
     });
 
     test('nobody online puts everyone in offline', () {
-      final result = MemberRoster.split([
-        member('1', 'Ana'),
-        member('2', 'Bo'),
-      ], const {});
+      final result = split([member('1', 'Ana'), member('2', 'Bo')], const {});
       expect(result.online, isEmpty);
       expect(result.offline, hasLength(2));
     });
 
     test('an empty member list yields two empty groups', () {
-      final result = MemberRoster.split(const [], {'1'});
+      final result = split(const [], {'1'});
       expect(result.online, isEmpty);
       expect(result.offline, isEmpty);
     });
@@ -76,7 +97,7 @@ void main() {
     test('are their own group, not sorted among the people', () {
       // BOTS.md §9: the separation is structural because the difference is —
       // a bot cannot be handed a channel key and hears only what it is told.
-      final result = MemberRoster.split(
+      final result = split(
         [
           member('1', 'Ana'),
           member('2', 'MusicBot', isBot: true),
@@ -94,24 +115,21 @@ void main() {
       // Presence says a bot is running. It does not make it a person in the
       // room, and grouping it as one would put it beside the conversation it
       // cannot hear.
-      final result = MemberRoster.split(
-        [member('2', 'MusicBot', isBot: true)],
-        {'2'},
-      );
+      final result = split([member('2', 'MusicBot', isBot: true)], {'2'});
 
       expect(result.bots, hasLength(1));
       expect(result.online, isEmpty);
     });
 
     test('a banned bot is dropped like anybody else', () {
-      final result = MemberRoster.split([
+      final result = split([
         member('2', 'OldBot', isBot: true, isBanned: true),
       ], {});
       expect(result.bots, isEmpty);
     });
 
     test('bots sort by display name too', () {
-      final result = MemberRoster.split([
+      final result = split([
         member('1', 'zeta', isBot: true),
         member('2', 'Alpha', isBot: true),
       ], {});
@@ -148,6 +166,63 @@ void main() {
         }).isBot,
         isTrue,
       );
+    });
+  });
+
+  group('a paged roster', () {
+    test('somebody online but not yet paged in still shows as online', () {
+      // The case the split exists for. Presence names an id; the pages have not
+      // reached that letter yet; the sidebar must still draw them rather than
+      // wait for a scroll that may never happen.
+      final result = MemberRoster.split(
+        bots: const [],
+        known: [member('9', 'Zoe')],
+        people: [member('1', 'Ana')],
+        onlineIds: {'9'},
+      );
+
+      expect(result.online.map((m) => m.displayName), ['Zoe']);
+      expect(result.offline.map((m) => m.displayName), ['Ana']);
+    });
+
+    test(
+      'but an offline member nobody paged in is not wedged into the list',
+      () {
+        // Resolving somebody by id — an author in the scrollback, say — must not
+        // insert them into the middle of an alphabet the reader is scrolling.
+        final result = MemberRoster.split(
+          bots: const [],
+          known: [member('9', 'Zoe')],
+          people: [member('1', 'Ana')],
+          onlineIds: const {},
+        );
+
+        expect(result.offline.map((m) => m.displayName), ['Ana']);
+      },
+    );
+
+    test('somebody in both lists is drawn once', () {
+      final result = MemberRoster.split(
+        bots: const [],
+        known: [member('1', 'Ana')],
+        people: [member('1', 'Ana')],
+        onlineIds: {'1'},
+      );
+
+      expect(result.online, hasLength(1));
+      expect(result.offline, isEmpty);
+    });
+
+    test('bots come from their own fetch, not from the pages', () {
+      final result = MemberRoster.split(
+        bots: [member('b', 'MusicBot', isBot: true)],
+        known: const [],
+        people: [member('1', 'Ana')],
+        onlineIds: const {},
+      );
+
+      expect(result.bots.map((m) => m.displayName), ['MusicBot']);
+      expect(result.offline.map((m) => m.displayName), ['Ana']);
     });
   });
 }

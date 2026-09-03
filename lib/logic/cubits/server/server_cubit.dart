@@ -8,6 +8,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
+import '../../../data/classes/member_page.dart';
 import '../../../data/classes/role.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_limits.dart';
@@ -22,6 +23,7 @@ import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../supabase_config.dart';
 import '../../services/avatar_cache.dart';
+import '../../services/role_ladder.dart';
 import '../../services/push_service.dart';
 import '../../services/push_wake/wake_index.dart';
 import '../vault/vault_cubit.dart';
@@ -32,6 +34,7 @@ part 'server_state.dart';
 part 'server_crud.dart';
 part 'server_selection.dart';
 part 'server_api.dart';
+part 'server_member_lookup_api.dart';
 part 'server_members_api.dart';
 part 'server_roles_api.dart';
 part 'server_channels_api.dart';
@@ -48,6 +51,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerCrudMixin,
         _ServerSelectionMixin,
         _ServerApiMixin,
+        _ServerMemberLookupApiMixin,
         _ServerMembersApiMixin,
         _ServerRolesApiMixin,
         _ServerBotsApiMixin,
@@ -80,6 +84,31 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// the server list. See [_ServerPushApiMixin.refreshWakeIndex].
   @override
   final WakeIndexWriter _wakeIndex = WakeIndexWriter();
+
+  /// Everybody this client has met, `serverId → userId → member`.
+  ///
+  /// Here rather than in a mixin because both member mixins use it and the
+  /// class is where shared internals meet (CODE_STYLE §5). Its job changed when
+  /// the roster stopped arriving whole: it used to save a round trip on top of
+  /// a list we already held, and it is now the only in-memory record of
+  /// somebody we have seen at all.
+  ///
+  /// Keyed by server because a user id only means something on the server it
+  /// came from — and because listing another server's members would otherwise
+  /// evict the entries the chat surfaces are about to ask for.
+  @override
+  final Map<String, Map<String, ServerMember>> _memberCache = {};
+
+  /// Remember [members] against [serverId], and hand them back unchanged so a
+  /// caller can wrap a fetch in it.
+  @override
+  List<ServerMember> _remember(String serverId, List<ServerMember> members) {
+    final cache = _memberCache.putIfAbsent(serverId, () => {});
+    for (final member in members) {
+      cache[member.id] = member;
+    }
+    return members;
+  }
 
   /// Injected after construction — allows re-authentication without a circular dependency.
   @override

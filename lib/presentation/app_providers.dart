@@ -84,8 +84,6 @@ class AppProviders extends StatelessWidget {
         BlocProvider(
           create: (context) => ChannelChatCubit(
             serverCubit: context.read<ServerCubit>(),
-            // For resolving `@name` to a user id when a message is sent.
-            membersCubit: context.read<ServerMembersCubit>(),
             vaultCubit: vaultCubit,
           ),
         ),
@@ -168,6 +166,14 @@ class AppProviders extends StatelessWidget {
       final url = serverCubit.state.selectedServer?.supabaseUrl;
       if (url != null) tokenCubit.invalidateServerTokens(url);
     });
+    // Presence reports ids; with the roster paged, an id is routinely somebody
+    // no page has reached. Resolving them is what keeps the sidebar's Online
+    // group from being "the online people who sort early in the alphabet".
+    members.watchPresence(
+      context.read<ChannelPresenceCubit>().stream.map(
+        (state) => state.onlineUserIds,
+      ),
+    );
     // Which participants in a call are bots, so their media is keyed with the
     // derived key rather than the channel key (BOTS.md §6b). Set here rather
     // than injected because the roster is built after LiveKitCubit and would

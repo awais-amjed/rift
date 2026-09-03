@@ -1,13 +1,19 @@
 part of 'server_cubit.dart';
 
-/// The people on a server: the roster, the cache behind it, and the two writes
-/// that change what one of them may do.
+/// Browsing the roster: a page of it, every bot on it, and the one write that
+/// changes what a member on it may do.
 ///
-/// Split out of `_ServerApiMixin` because these four share a shape the rest of
-/// that file doesn't: they are the calls a dialog opens for a server other than
-/// the one on screen (the rail's Manage members), so each one names its server
-/// and the cache under them is keyed by server too. Keeping them together is
-/// what makes that shape visible instead of incidental.
+/// Split out of `_ServerApiMixin` because these share a shape the rest of that
+/// file doesn't: they are the calls a dialog opens for a server other than the
+/// one on screen (the rail's Manage members), so each one names its server and
+/// the cache under them is keyed by server too.
+///
+/// **Nothing here returns the whole roster.** It used to — one call, every
+/// member, and PostgREST silently cut the answer at 1000 rows, so every reader
+/// was built on the assumption that a member absent from that list did not
+/// exist. Migration 039 replaced it with bounded questions. This file holds the
+/// browsing half; `_ServerMemberLookupApiMixin` holds the resolving half, which
+/// is what lets a caller name somebody it never paged in.
 mixin _ServerMembersApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
 
@@ -21,66 +27,103 @@ mixin _ServerMembersApiMixin on Cubit<ServerState> {
   Server? _target(String? serverId);
   String _noTarget(String? serverId);
 
+  /// Held by [ServerCubit] because both member mixins write to it.
+  List<ServerMember> _remember(String serverId, List<ServerMember> members);
+
   /// [_noTarget] as the failed [APIResponse] the plain endpoints return.
   APIResponse _noTargetResponse(String? serverId) =>
       APIResponse.error(_noTarget(serverId));
 
-  /// Last fetched member lists, `serverId → userId → member` — warmed by
-  /// [listMembers].
+  /// One alphabetical page of the roster.
   ///
-  /// Lets any surface resolve a user id to their profile (notably
-  /// `chat_public_key`, needed to open a DM) without another round trip. Not
-  /// authoritative: [findMember] refetches on a miss.
-  ///
-  /// Keyed by server because a user id only means something on the server it
-  /// came from — and because listing another server's members would otherwise
-  /// evict the entries the chat surfaces are about to ask for.
-  final Map<String, Map<String, ServerMember>> _memberCache = {};
-
-  /// A member by user id, fetching the list once if we haven't got them.
-  /// Null when they aren't a member of that server.
-  Future<ServerMember?> findMember(String userId, {String? serverId}) async {
-    final id = _target(serverId)?.id;
-    if (id == null) return null;
-
-    final cached = _memberCache[id]?[userId];
-    if (cached != null) return cached;
-    final result = await listMembers(serverId: id);
-    if (!result.success) return null;
-    return _memberCache[id]?[userId];
-  }
-
-  /// Fetch the full member list for [serverId], or for the selected server.
-  Future<({bool success, List<ServerMember>? members, String? error})>
-  listMembers({String? serverId}) async {
+  /// [after] is the previous page's [MemberPage.cursor]; null starts at the
+  /// top. [channelId] narrows to members who can open that channel and answers
+  /// a caller who cannot with nothing. [bots] and [banned] are tri-state — null
+  /// for both, true for only those, false for only the others — and [banned]
+  /// defaults to excluding them, because a banned member is not in the room.
+  Future<({bool success, MemberPage? page, String? error})> listMembers({
+    String? serverId,
+    String? channelId,
+    bool? bots,
+    bool? banned = false,
+    ({String name, String id})? after,
+    int limit = MemberPage.pageSize,
+  }) async {
     final server = _target(serverId);
     if (server == null) {
-      return (success: false, members: null, error: _noTarget(serverId));
+      return (success: false, page: null, error: _noTarget(serverId));
     }
 
     final response = await _callFor(
       server,
-      (token) => _repository.listUsers(
+      (token) => _repository.listMembers(
         server.supabaseUrl,
         anonKey: server.supabaseKey ?? '',
         bearerToken: token,
+        channelId: channelId,
+        bots: bots,
+        banned: banned,
+        afterName: after?.name,
+        afterId: after?.id,
+        limit: limit,
       ),
     );
-
     if (!response.success) {
       return (
         success: false,
-        members: null,
+        page: null,
         error: response.error ?? 'Failed to load members',
       );
     }
 
-    final members = ((response.data['users'] as List<dynamic>?) ?? [])
-        .map((u) => ServerMember.fromJson(u as Map<String, dynamic>))
-        .toList();
-    _memberCache[server.id] = {for (final m in members) m.id: m};
-    return (success: true, members: members, error: null);
+    final data = response.data as Map<String, dynamic>;
+    return (
+      success: true,
+      page: MemberPage(
+        members: _remember(server.id, ServerMember.listFrom(response.data)),
+        hasMore: data['has_more'] == true,
+      ),
+      error: null,
+    );
   }
+
+  /// Every bot on the server, or every bot a `/` command in [channelId] can
+  /// reach, paged to exhaustion.
+  ///
+  /// The one place a whole list is still read, and it is safe for a reason that
+  /// does not generalise to people: a bot is a program somebody registered and
+  /// runs, so a server has a handful of them and not a population. The pickers
+  /// that list them are choosing from all of them, and a picker that silently
+  /// omitted one would be the bug this whole change is about.
+  ///
+  /// Still bounded. [_botPageBudget] pages is far past any real server, and it
+  /// is what stops this quietly becoming a full-table walk if somebody one day
+  /// points it at people.
+  Future<List<ServerMember>> listBots({
+    String? serverId,
+    String? channelId,
+  }) async {
+    final collected = <ServerMember>[];
+    ({String name, String id})? after;
+
+    for (var page = 0; page < _botPageBudget; page++) {
+      final result = await listMembers(
+        serverId: serverId,
+        channelId: channelId,
+        bots: true,
+        after: after,
+      );
+      final fetched = result.page;
+      if (fetched == null) break;
+      collected.addAll(fetched.members);
+      if (!fetched.hasMore || fetched.cursor == null) break;
+      after = fetched.cursor;
+    }
+    return collected;
+  }
+
+  /// How many pages [listBots] will walk before it stops asking.
+  static const int _botPageBudget = 10;
 
   /// Persistently mutes/deafens/bans a user server-wide on [serverId], or on
   /// the selected server (requires channel manager or server admin).

@@ -10,6 +10,7 @@ import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/classes/server_member.dart';
 import '../../../data/classes/panel_block.dart';
 import '../../../data/enums/message_origin.dart';
 import '../../../data/enums/notification_level.dart';
@@ -22,7 +23,6 @@ import '../../services/chat_failure.dart';
 import '../../services/channel_keyring.dart';
 import '../../services/key_sweep_doorbell.dart';
 import '../../services/bot_command.dart';
-import '../../services/channel_reach.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/chat_notice.dart';
 import '../../services/mentions.dart';
@@ -30,7 +30,6 @@ import '../../services/notification_service.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/window_focus_service.dart';
 import '../server/server_cubit.dart';
-import '../server_members/server_members_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'channel_chat_state.dart';
@@ -78,7 +77,12 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// to find the names, and the recipients cannot be told which of them was
   /// meant without being told first.
   @override
-  final ServerMembersCubit _membersCubit;
+  /// Names already asked of `members_by_usernames` for the open channel.
+  ///
+  /// Cleared with the channel: the answer is channel-scoped, so a name that
+  /// resolved to nobody in a private room may well resolve in the next one.
+  @override
+  final Set<String> _askedMentionNames = {};
 
   @override
   final VaultCubit _vaultCubit;
@@ -140,11 +144,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   ChannelChatCubit({
     required ServerCubit serverCubit,
-    required ServerMembersCubit membersCubit,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
   }) : _serverCubit = serverCubit,
-       _membersCubit = membersCubit,
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        super(const ChannelChatState()) {
@@ -204,11 +206,12 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     if (_isStale(generation)) return;
     emit(state.copyWith(botListeners: listeners));
 
-    // And who a message here can reach, before there is a composer to type one
-    // into. Null for a public channel, which costs nothing.
-    final audience = await _serverCubit.channelAudience(channelId);
+    // And which bots a `/` command here can reach, before there is a composer
+    // to type one into. Asked with the channel, so a private one answers with
+    // the bots seated in it rather than with the server's.
+    final bots = await _serverCubit.listBots(channelId: channelId);
     if (_isStale(generation)) return;
-    if (audience != null) emit(state.copyWith(audience: audience));
+    emit(state.copyWith(bots: bots));
 
     // The history is fetched either way, including when no key was found.
     // Without a key most of it comes back as locked rows and any webhook

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/constants.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
-import 'package:rift/data/classes/server_member.dart';
+import 'package:rift/data/classes/member_page.dart';
 import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
@@ -49,9 +49,14 @@ class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
   _StubServerCubit() : super(const ServerState());
 
   @override
-  Future<({bool success, List<ServerMember>? members, String? error})>
-  listMembers({String? serverId}) async =>
-      (success: true, members: <ServerMember>[], error: null);
+  Future<({bool success, MemberPage? page, String? error})> listMembers({
+    String? serverId,
+    String? channelId,
+    bool? bots,
+    bool? banned = false,
+    ({String name, String id})? after,
+    int limit = MemberPage.pageSize,
+  }) async => (success: true, page: MemberPage.empty, error: null);
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -61,8 +66,7 @@ class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
 /// the layout test doesn't need a server to talk to.
 class _StubMembersCubit extends Cubit<ServerMembersState>
     implements ServerMembersCubit {
-  _StubMembersCubit()
-    : super(ServerMembersState(members: const <ServerMember>[]));
+  _StubMembersCubit() : super(ServerMembersState(loaded: true));
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

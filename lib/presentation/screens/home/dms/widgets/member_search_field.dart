@@ -10,10 +10,17 @@ import '../../../../common/search_result_row.dart';
 
 /// Starts a DM with a member of the selected server.
 ///
-/// Unlike the central directory this is a bounded set worth browsing, so
-/// focusing the field lists everyone and typing narrows it. The roster is
-/// fetched once and filtered locally — a server's membership doesn't change
-/// between keystrokes.
+/// Unlike the central directory this is a set worth browsing, so focusing the
+/// field lists people and typing narrows it. Both halves are the database's
+/// answer (`search_members`, migration 039): an empty query is the first
+/// alphabetical page, and a query is a ranked search.
+///
+/// It used to fetch the roster once and filter it in Dart, memoised on the
+/// grounds that a server's membership doesn't change between keystrokes. True,
+/// and beside the point — the fetch was capped at 1000 rows, so on a large
+/// server the field confidently answered "No members match that name" about
+/// somebody sitting in the room. A filter can only be as complete as the list
+/// under it, and that list is no longer one the client holds.
 class MemberSearchField extends StatefulWidget {
   /// Forwarded to [SearchDropdownField.onOpenChanged] so the list behind can
   /// stand down while results are floating over it.
@@ -26,41 +33,19 @@ class MemberSearchField extends StatefulWidget {
 }
 
 class _MemberSearchFieldState extends State<MemberSearchField> {
-  /// The in-flight *or* settled roster fetch — not the roster itself.
-  ///
-  /// Holding the list instead meant every search that started before the
-  /// first one came back still saw it empty and launched its own fetch, so
-  /// each keystroke kicked off another full round trip and only the newest
-  /// was ever rendered. One future, assigned before anything is awaited, is
-  /// what makes the second search wait on the first instead of racing it.
-  Future<List<ServerMember>>? _roster;
-
   Future<List<ServerMember>> _search(String query) async {
     // Read before awaiting: reaching back through the context afterwards
     // would be a use-after-dispose if the panel closed mid-flight.
-    final myId = context.read<ServerCubit>().state.selectedServer?.user?.id;
-    final roster = await (_roster ??= _load());
-    final q = query.trim().toLowerCase();
-    return roster
-        .where(
-          (m) =>
-              m.id != myId &&
-              !m.isBanned &&
-              (q.isEmpty || m.displayName.toLowerCase().contains(q)),
-        )
-        .toList();
-  }
-
-  Future<List<ServerMember>> _load() async {
-    final result = await context.read<ServerCubit>().listMembers();
-    final members = result.members;
-    if (members == null) {
-      // Don't let a failed fetch be the answer forever — drop the memo so the
-      // next keystroke tries again rather than showing an empty roster.
-      _roster = null;
-      return const [];
-    }
-    return members;
+    final cubit = context.read<ServerCubit>();
+    final myId = cubit.state.selectedServer?.user?.id;
+    // Bots are excluded by the query rather than by a filter afterwards: a bot
+    // has no DM inbox, and one dropped from a page after the fact would leave
+    // the drop-down a row shorter than it asked for.
+    final results = await cubit.searchMembers(query: query, bots: false);
+    return [
+      for (final member in results)
+        if (member.id != myId) member,
+    ];
   }
 
   @override

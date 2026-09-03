@@ -155,4 +155,42 @@ void main() {
       );
     });
   });
+
+  group('Mentions.namesIn', () {
+    test('reads the names a message says, without duplicates', () {
+      expect(Mentions.namesIn('hi @ada and @grace and @ada again'), [
+        'ada',
+        'grace',
+      ]);
+    });
+
+    test('lowercases, because a username lookup is not case-sensitive', () {
+      expect(Mentions.namesIn('@Ada'), ['ada']);
+    });
+
+    test('leaves out @all — it is a flag, not a person', () {
+      // Nobody may be called it (`users_username_not_reserved`, migration
+      // 012), so asking the server to resolve it is asking about a name that
+      // cannot exist.
+      expect(Mentions.namesIn('@all hands @ada'), ['ada']);
+    });
+
+    test('uses the same parser that draws the message', () {
+      // An `@name` in a code span is not a mention when rendered, so it must
+      // not be one here either — otherwise every code sample costs a lookup.
+      expect(Mentions.namesIn('run `@example` first'), isEmpty);
+      expect(Mentions.namesIn(r'literally \@ada'), isEmpty);
+    });
+
+    test('stops at the cap the resolver stops at', () {
+      // Reading past it would be work spent on names about to be dropped.
+      final many = List.generate(80, (i) => '@user$i').join(' ');
+      expect(Mentions.namesIn(many), hasLength(Mentions.maxTargets));
+    });
+
+    test('a message that names nobody asks about nobody', () {
+      expect(Mentions.namesIn('just a message'), isEmpty);
+      expect(Mentions.namesIn(''), isEmpty);
+    });
+  });
 }

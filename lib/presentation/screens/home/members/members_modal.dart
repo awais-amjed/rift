@@ -1,17 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/member_page.dart';
+import '../../../../data/classes/role.dart';
 import '../../../../data/classes/server.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/services/member_roster_pager.dart';
+import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
+import '../roles/roles_dialog.dart';
 import 'widgets/members_list.dart';
 import 'widgets/members_modal_header.dart';
-import '../../../theme/app_text.dart';
-import '../roles/roles_dialog.dart';
-import '../../../../data/classes/role.dart';
+import 'widgets/members_search_field.dart';
 
 /// Members dialog — lists everyone on [server] with their permissions and
 /// moderation state. Server admins manage permissions here (Discord-style:
@@ -22,6 +27,16 @@ import '../../../../data/classes/role.dart';
 /// menu, which can be a server you are not currently looking at. Every call it
 /// makes names that server, so the roster and the permission writes cannot drift
 /// onto a different one.
+///
+/// **The roster is paged, and searching is the database's job** (migration
+/// 039). This dialog used to read every member in one call, which PostgREST cut
+/// at 1000 rows — so on a large server the last members alphabetically could
+/// not be moderated at all, and the header confidently reported a membership of
+/// exactly a thousand. Now it walks pages as you scroll, counts with
+/// `member_counts`, and answers a typed name with `search_members`.
+///
+/// Banned members are included on purpose, here and nowhere else: lifting a ban
+/// means finding the person it is on.
 class MembersModal extends StatefulWidget {
   final Server server;
 
@@ -32,33 +47,134 @@ class MembersModal extends StatefulWidget {
 }
 
 class _MembersModalState extends State<MembersModal> {
-  List<ServerMember>? _members;
+  late final MemberRosterPager _pager = MemberRosterPager(
+    fetchPage: _fetchPage,
+  );
 
-  /// Loaded alongside the roster, because a member row shows both and a second
-  /// spinner for the half that arrives later would be worse than one wait.
+  /// Matches from the search field, or null when the field is empty and the
+  /// paged list is what is on screen.
+  ///
+  /// A separate list rather than a filter over the pager's, because a search is
+  /// answered by the database over the whole roster — including people no page
+  /// has reached yet, which is the entire point of it.
+  List<ServerMember>? _matches;
+  bool _searching = false;
+
+  /// Guards a slow search landing after a newer one, or after the field was
+  /// cleared.
+  int _searchId = 0;
+
+  /// Moderation applied since the page a member arrived on.
+  ///
+  /// Held apart rather than written into the pager's list: the pager owns what
+  /// the server said, and a mute is something this dialog did afterwards. It
+  /// also survives a search, so muting somebody and then searching for them
+  /// does not show them unmuted again.
+  final Map<String, ServerMember> _moderated = {};
+
+  /// Which roles each visible member holds. Filled per page rather than for the
+  /// whole server — `member_role_list` is one row per (member, role), so it hit
+  /// the response ceiling sooner than the roster itself did.
   Map<String, List<Role>> _memberRoles = const {};
+
+  /// How many members there are, from the database rather than from the length
+  /// of what has been loaded.
+  int? _total;
+
   String? _error;
   String? _expandedId;
 
   /// Member id with an in-flight permission/moderation call.
   String? _busyId;
 
+  /// What the list is showing: matches while searching, otherwise the pages
+  /// loaded so far — each row with any moderation applied since it arrived.
+  List<ServerMember> get _rows => [
+    for (final member in _matches ?? _pager.loaded.members)
+      _moderated[member.id] ?? member,
+  ];
+
+  bool get _isSearching => _matches != null;
+
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_loadMore());
+    unawaited(_loadTotal());
   }
 
-  Future<void> _load() async {
-    final cubit = context.read<ServerCubit>();
-    final result = await cubit.listMembers(serverId: widget.server.id);
-    final memberRoles = await cubit.listMemberRoles();
+  Future<MemberPage?> _fetchPage(({String name, String id})? after) async {
+    final result = await context.read<ServerCubit>().listMembers(
+      serverId: widget.server.id,
+      after: after,
+      // Null, not false: this is the one screen that has to reach a banned
+      // member, because lifting a ban means finding the person it is on.
+      banned: null,
+    );
+    if (!result.success && mounted) setState(() => _error = result.error);
+    return result.page;
+  }
+
+  Future<void> _loadMore() async {
+    if (!await _pager.next() || !mounted) return;
+    setState(() {});
+    await _loadRoles(_pager.loaded.members);
+  }
+
+  Future<void> _loadTotal() async {
+    final counts = await context.read<ServerCubit>().memberCounts(
+      serverId: widget.server.id,
+    );
+    if (!mounted) return;
+    setState(() => _total = counts.people + counts.bots);
+  }
+
+  /// Role chips for [members], merged into what is already known.
+  ///
+  /// Asked for the rows on screen rather than the whole server, and merged
+  /// rather than replaced so a page does not blank the chips on the pages above
+  /// it.
+  Future<void> _loadRoles(List<ServerMember> members) async {
+    final wanted = [
+      for (final member in members)
+        if (!_memberRoles.containsKey(member.id)) member.id,
+    ];
+    if (wanted.isEmpty) return;
+
+    final roles = await context.read<ServerCubit>().memberRolesFor(wanted);
     if (!mounted) return;
     setState(() {
-      _members = result.members;
-      _memberRoles = memberRoles;
-      _error = result.error;
+      _memberRoles = {
+        ..._memberRoles,
+        // Everybody asked about is recorded, holders and non-holders alike, or
+        // the next page would ask about them all over again.
+        for (final id in wanted) id: roles[id] ?? const [],
+      };
     });
+  }
+
+  Future<void> _search(String query) async {
+    final id = ++_searchId;
+    if (query.trim().isEmpty) {
+      setState(() {
+        _matches = null;
+        _searching = false;
+      });
+      return;
+    }
+
+    setState(() => _searching = true);
+    final results = await context.read<ServerCubit>().searchMembers(
+      query: query,
+      serverId: widget.server.id,
+      banned: null,
+    );
+    if (!mounted || id != _searchId) return;
+    setState(() {
+      _matches = results;
+      _searching = false;
+    });
+    await _loadRoles(results);
   }
 
   Future<void> _moderate(
@@ -79,17 +195,11 @@ class _MembersModalState extends State<MembersModal> {
     setState(() {
       _busyId = null;
       if (response.success) {
-        _members = _members!
-            .map(
-              (m) => m.id == member.id
-                  ? m.copyWith(
-                      isMuted: muted,
-                      isDeafened: deafened,
-                      isBanned: banned,
-                    )
-                  : m,
-            )
-            .toList();
+        _moderated[member.id] = member.copyWith(
+          isMuted: muted,
+          isDeafened: deafened,
+          isBanned: banned,
+        );
       } else {
         _error = response.error;
       }
@@ -139,53 +249,85 @@ class _MembersModalState extends State<MembersModal> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 MembersModalHeader(
-                  count: _members?.length,
+                  count: _total,
                   serverName: widget.server.name,
                   themeState: themeState,
                   onOpenRoles: () => _openRoles(context),
                 ),
                 Divider(height: 1, color: themeState.borderPrimary),
-
-                // ── Body ────────────────────────────────────────────
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: Text(
-                      _error!,
-                      style: AppText.secondary.copyWith(
-                        fontSize: 12,
-                        color: CustomColors.error,
-                      ),
-                    ),
+                MembersSearchField(
+                  themeState: themeState,
+                  onChanged: (query) => unawaited(_search(query)),
+                ),
+                if (_error != null) _buildError(),
+                Flexible(
+                  child: _buildBody(
+                    themeState,
+                    viewer?.id,
+                    viewerIsAdmin,
+                    viewerIsModerator,
                   ),
-                if (_members == null && _error == null)
-                  const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(),
-                  )
-                else if (_members != null)
-                  Flexible(
-                    child: MembersList(
-                      members: _members!,
-                      memberRoles: _memberRoles,
-                      viewerId: viewer?.id,
-                      viewerIsAdmin: viewerIsAdmin,
-                      viewerIsModerator: viewerIsModerator,
-                      expandedId: _expandedId,
-                      busyId: _busyId,
-                      onTap: (member) => setState(() {
-                        _expandedId = _expandedId == member.id
-                            ? null
-                            : member.id;
-                      }),
-                      onModerate: _moderate,
-                    ),
-                  ),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildError() => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+    child: Text(
+      _error!,
+      style: AppText.secondary.copyWith(
+        fontSize: 12,
+        color: CustomColors.error,
+      ),
+    ),
+  );
+
+  Widget _buildBody(
+    ThemeState themeState,
+    String? viewerId,
+    bool viewerIsAdmin,
+    bool viewerIsModerator,
+  ) {
+    if (_searching || (!_pager.isLoaded && !_isSearching)) {
+      return const Padding(
+        padding: EdgeInsets.all(32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final rows = _rows;
+    if (rows.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(32),
+        child: Text(
+          _isSearching ? 'Nobody matches that name.' : 'Nobody here yet.',
+          textAlign: TextAlign.center,
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
+        ),
+      );
+    }
+
+    return MembersList(
+      members: rows,
+      // A search is one ranked answer, not the first of many: `search_members`
+      // caps it and there is no coherent cursor into a ranked order.
+      hasMore: !_isSearching && _pager.hasMore,
+      onLoadMore: () => unawaited(_loadMore()),
+      memberRoles: _memberRoles,
+      viewerId: viewerId,
+      viewerIsAdmin: viewerIsAdmin,
+      viewerIsModerator: viewerIsModerator,
+      expandedId: _expandedId,
+      busyId: _busyId,
+      onTap: (member) => setState(() {
+        _expandedId = _expandedId == member.id ? null : member.id;
+      }),
+      onModerate: _moderate,
     );
   }
 }

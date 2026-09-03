@@ -38,11 +38,20 @@ class ChatComposer extends StatefulWidget {
   /// Called with the trimmed text and any staged attachments.
   final void Function(String text, List<PendingAttachment> attachments) onSend;
 
-  /// Everybody who can be named, for the `@` menu.
+  /// Who can be named, asked of the server for what has been typed after the
+  /// `@` (migration 039).
   ///
-  /// Empty turns the menu off, which is right where there is nobody to name —
+  /// Null turns the menu off, which is right where there is nobody to name —
   /// a DM has one other person and they are the conversation.
-  final List<ServerMember> mentionable;
+  ///
+  /// A callback rather than a list because the list is the roster, and the
+  /// roster no longer fits in the client. It used to: the composer was handed
+  /// every member and filtered them locally, which silently stopped finding
+  /// anybody past the thousandth name. The ranking is still applied here on top
+  /// of the answer — `MentionSuggestions.suggest` is what drops the sender and
+  /// caps the menu — and it agrees with `search_members` by design, so the rows
+  /// do not reorder themselves when the server's reply lands.
+  final Future<List<ServerMember>> Function(String query)? onMentionSearch;
 
   /// The sender, left out of their own `@` menu: a message that pings its own
   /// author is only ever a mistake, and `Mentions.resolve` drops it anyway.
@@ -79,7 +88,7 @@ class ChatComposer extends StatefulWidget {
     this.footer,
     this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
     this.bots = const [],
-    this.mentionable = const [],
+    this.onMentionSearch,
     this.selfUserId,
   });
 
@@ -110,25 +119,36 @@ class _ChatComposerState extends State<ChatComposer>
       ? null
       : BotCommands.parse(_controller.text, widget.bots);
 
-  /// Replace the typed fragment with the chosen command and leave the caret
-  /// after it, ready for arguments.
-  /// Who the `@` menu should be offering, or empty when it should be closed.
+  /// The `@` fragment the caret is inside, or null when it is not in one.
   ///
-  /// Closed while recording or disabled, and closed when the caret is not in a
-  /// mention — see [MentionSuggestions.queryAt], which is also what decides
-  /// that `a@b.com` is an address rather than a name.
-  List<ServerMember> get _mentionMatches {
-    if (!widget.enabled || _isRecording || widget.mentionable.isEmpty) {
-      return const [];
+  /// Null while recording or disabled, and null where there is nobody to name —
+  /// see [MentionSuggestions.queryAt], which is also what decides that
+  /// `a@b.com` is an address rather than a name.
+  String? get _mentionQueryAt {
+    if (!widget.enabled || _isRecording || widget.onMentionSearch == null) {
+      return null;
     }
-    final query = MentionSuggestions.queryAt(
+    return MentionSuggestions.queryAt(
       _controller.text,
       _controller.selection.baseOffset,
     );
+  }
+
+  /// Who the `@` menu should be offering: the server's candidates for the
+  /// current fragment, ranked and capped locally.
+  ///
+  /// Ranked here as well as there on purpose. The local pass is what narrows
+  /// the menu on the very next keystroke, before the request for it has come
+  /// back — and because the two use the same rule (prefix beats substring,
+  /// spaces squashed out of a display name) the rows do not jump when the
+  /// answer lands. It is also where the sender is dropped and the menu is cut
+  /// to four.
+  List<ServerMember> get _mentionMatches {
+    final query = _mentionQueryAt;
     if (query == null) return const [];
     return MentionSuggestions.suggest(
       query,
-      widget.mentionable,
+      _mentionCandidates,
       excludeUserId: widget.selfUserId,
     );
   }
@@ -156,6 +176,8 @@ class _ChatComposerState extends State<ChatComposer>
     setState(() {});
   }
 
+  /// Replace the typed fragment with the chosen command and leave the caret
+  /// after it, ready for arguments.
   void _pickCommand(String name) {
     _controller.text = '/$name ';
     _controller.selection = TextSelection.collapsed(
@@ -176,6 +198,28 @@ class _ChatComposerState extends State<ChatComposer>
   /// moving, which `onChanged` never reports.
   List<ServerMember> _mentions = const [];
 
+  /// The server's answer for the fragment in [_candidatesFor].
+  ///
+  /// Kept across keystrokes so the menu narrows immediately while the next
+  /// answer is in flight. Typing another letter can only ever *shrink* the set
+  /// of names that match, so filtering what we already hold is never wrong —
+  /// it is only, briefly, incomplete.
+  List<ServerMember> _mentionCandidates = const [];
+
+  /// The fragment [_mentionCandidates] answers, so a repeated one is not asked
+  /// for twice.
+  String? _candidatesFor;
+
+  Timer? _mentionDebounce;
+
+  /// Guards a slow search landing after a newer one.
+  int _mentionRequestId = 0;
+
+  /// Short, because this fires while somebody is watching the menu. Long
+  /// enough that typing a name straight through is one request rather than
+  /// six.
+  static const Duration _mentionSearchDelay = Duration(milliseconds: 160);
+
   @override
   void initState() {
     super.initState();
@@ -186,8 +230,27 @@ class _ChatComposerState extends State<ChatComposer>
     _controller.addListener(_syncMentionMenu);
   }
 
+  /// Ask the server who matches the fragment the caret is in.
+  void _refreshMentionCandidates(String? query) {
+    if (query == _candidatesFor) return;
+    _candidatesFor = query;
+    _mentionDebounce?.cancel();
+    if (query == null) {
+      _mentionCandidates = const [];
+      return;
+    }
+    _mentionDebounce = Timer(_mentionSearchDelay, () async {
+      final id = ++_mentionRequestId;
+      final found = await widget.onMentionSearch!(query);
+      if (!mounted || id != _mentionRequestId) return;
+      setState(() => _mentionCandidates = found);
+      _syncMentionMenu();
+    });
+  }
+
   /// Recompute the `@` menu, and open or close the overlay to match.
   void _syncMentionMenu() {
+    _refreshMentionCandidates(_mentionQueryAt);
     final next = _mentionMatches;
     final changed =
         next.length != _mentions.length ||
@@ -212,6 +275,7 @@ class _ChatComposerState extends State<ChatComposer>
   @override
   void dispose() {
     _disposeRecording();
+    _mentionDebounce?.cancel();
     _controller.removeListener(_syncMentionMenu);
     _controller.dispose();
     _focusNode.removeListener(_onFocusChanged);

@@ -1,5 +1,4 @@
 import '../../data/classes/server_member.dart';
-import 'channel_reach.dart';
 import 'message_markup.dart';
 
 /// Who a message names.
@@ -49,25 +48,42 @@ class Mentions {
   /// messages that look identical must not have different protection, so the
   /// habit is refused rather than half-supported.
   ///
-  /// **Not somebody who cannot open the channel.** [audience] is the resolved
-  /// set from `channel_audience`, and null means everybody — a public channel,
-  /// where the roster is already the answer. In a private one the server strips
-  /// an outsider from `mentions` on the way in (`validate_message_mentions`),
-  /// so offering them here is offering a ping that will not happen, and would
-  /// also spend the one thing the writer might want back: telling somebody
-  /// they are not in the room.
+  /// Somebody who cannot open the channel is refused too, and that refusal is
+  /// the *query's* now rather than this filter's: every caller asks
+  /// `search_members` or `members_by_usernames` with the channel, so what comes
+  /// back can already only be people a message here reaches. Doing it any other
+  /// way means being a second copy of `app.channel_eligible` (migration 039).
   ///
   /// Both refusals have to reach every surface or they become a lie somewhere:
   /// an `@` menu that offers a name, a name that lights up as though it
-  /// arrived, a mention recorded in the clear that wakes nobody. One list, so
-  /// they cannot disagree.
-  static Iterable<ServerMember> among(
-    Iterable<ServerMember> members, {
-    Set<String>? audience,
-  }) => ChannelReach.within(
-    members,
-    audience,
-  ).where((member) => !member.isBot);
+  /// arrived, a mention recorded in the clear that wakes nobody.
+  static Iterable<ServerMember> among(Iterable<ServerMember> members) =>
+      members.where((member) => !member.isBot);
+
+  /// The names [text] actually says, lowercased and without duplicates.
+  ///
+  /// `@all` is left out: it is a flag rather than a person, and asking the
+  /// server to resolve it would be asking about a name nobody may hold
+  /// (`users_username_not_reserved`, migration 012).
+  ///
+  /// This is what makes mention resolution bounded. It used to be answered out
+  /// of the whole roster held in memory; now the client asks the database about
+  /// the handful of names in front of it. Capped at [maxTargets] for the same
+  /// reason the resolver is — a message may not name more than that, so reading
+  /// past it would be work spent on names that are about to be dropped.
+  ///
+  /// Parsed with the same parser that draws the message, so an `@name` inside a
+  /// code span or behind a backslash is not asked about either.
+  static List<String> namesIn(String text) {
+    final names = <String>{};
+    for (final span in parseMessageMarkup(text)) {
+      final mention = span.mention?.toLowerCase();
+      if (mention == null || mention == everyone) continue;
+      names.add(mention);
+      if (names.length >= maxTargets) break;
+    }
+    return names.toList(growable: false);
+  }
 
   /// A roster in the shape [resolve] wants: username → user id.
   ///
@@ -76,12 +92,8 @@ class Mentions {
   /// would produce a mention that highlights and pings the wrong person —
   /// display names can be changed by their owner and can collide, which is
   /// exactly why they are not the key.
-  static Map<String, String> rosterOf(
-    Iterable<ServerMember> members, {
-    Set<String>? audience,
-  }) => {
-    for (final member in among(members, audience: audience))
-      member.username: member.id,
+  static Map<String, String> rosterOf(Iterable<ServerMember> members) => {
+    for (final member in among(members)) member.username: member.id,
   };
 
   /// Whether [text] names the person called [username].

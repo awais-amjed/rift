@@ -130,42 +130,4 @@ mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
       ),
     );
   }
-
-  /// Who a message in [channelId] can reach, or null when that is everybody.
-  ///
-  /// Null for a public channel, decided here without a round trip: its audience
-  /// is the roster the caller already holds, and asking the server to list a
-  /// few thousand ids to say "all of them" is a page of network per channel
-  /// open for no new information.
-  ///
-  /// Also null when the call fails, which is the same shape the send path
-  /// already takes when the roster has not loaded: a mention that reaches
-  /// nobody costs a ping, and the server strips it regardless — a composer
-  /// that offered nobody would cost the message instead.
-  Future<Set<String>?> channelAudience(String channelId) async {
-    final server = state.selectedServer;
-    if (server == null) return null;
-
-    final channel = server.channels
-        .where((c) => c.id == channelId)
-        .firstOrNull;
-    if (channel == null || !channel.isPrivate) return null;
-
-    final response = await _callWithAutoRefresh(
-      (token) => _repository.listChannelAudience(
-        server.supabaseUrl,
-        channelId,
-        anonKey: _anonKey,
-        bearerToken: token,
-      ),
-    );
-    if (!response.success) return null;
-
-    final rows =
-        (response.data as Map<String, dynamic>)['audience'] as List? ?? const [];
-    return {
-      for (final r in rows.cast<Map<String, dynamic>>())
-        r['user_id'] as String,
-    };
-  }
 }

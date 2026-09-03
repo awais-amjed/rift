@@ -3,7 +3,6 @@ part of 'channel_chat_cubit.dart';
 /// Sending into a channel, and fetching attachment bytes back for rendering.
 mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
-  ServerMembersCubit get _membersCubit;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
@@ -111,13 +110,12 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     final command = attachments.isEmpty
         ? BotCommands.parse(
             trimmed,
-            // Only the bots this channel can reach. One that cannot read the
-            // command must not turn the line plaintext to say so: unparsed, it
-            // goes out sealed like any other message.
-            ChannelReach.botsIn(
-              _membersCubit.state.members ?? const [],
-              state.audience,
-            ),
+            // Only the bots this channel can reach — resolved when the channel
+            // opened, with the channel, so a private one offers the bots seated
+            // in it. One that cannot read the command must not turn the line
+            // plaintext to say so: unparsed, it goes out sealed like any other
+            // message.
+            state.bots,
           )
         : null;
 
@@ -183,16 +181,24 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
 
       // The one part of a message that travels in the clear. See
       // `ServerRepository.sendMessage` for what that costs and buys.
-      // Empty while the roster is still loading, which costs the message its
-      // pings rather than its delivery — the right way round. The alternative
-      // is blocking a send on a fetch only needed to decide whose phone buzzes.
+      //
+      // Resolved by asking about the names this message says, rather than by
+      // looking them up in a roster held in memory: past a thousand members
+      // that roster was a truncation, so a mention of somebody far down the
+      // alphabet silently pinged nobody. Scoped to the channel, because the
+      // trigger strips an outsider anyway and not sending their id means it
+      // never sits in the clear on a row at all. A failed lookup costs the
+      // message its pings rather than its delivery — the right way round.
+      final spoken = Mentions.namesIn(trimmed);
       final named = Mentions.resolve(
         trimmed,
         idsByUsername: Mentions.rosterOf(
-          _membersCubit.state.members ?? const [],
-          // The trigger strips an outsider anyway; not sending their id means
-          // it never sits in the clear on a row at all.
-          audience: state.audience,
+          spoken.isEmpty
+              ? const []
+              : await _serverCubit.membersByUsernames(
+                  spoken,
+                  channelId: channelId,
+                ),
         ),
         excludeUserId: user.id,
       );

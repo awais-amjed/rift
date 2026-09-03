@@ -26,6 +26,13 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
   ///
   /// The middle one used to share a line with the last, which is why a member
   /// waiting on a key opened a busy channel and found an empty room.
+  /// Names already asked about, so scrolling does not re-ask on every page.
+  ///
+  /// Holds names that resolved to nobody as well as names that resolved, which
+  /// is the point: `@nobody` is exactly the token that would otherwise be
+  /// looked up again on every scroll for as long as the message is on screen.
+  Set<String> get _askedMentionNames;
+
   Future<List<ChatMessage>> _decryptRows(
     String channelId,
     List<Map<String, dynamic>> rows,
@@ -105,6 +112,10 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
         HelperMethods.printDebug('[Chat] dropped message ${row['id']}: $e');
       }
     }
+    // The names these rows say, resolved in the background — see
+    // [_resolveMentionNames]. Not awaited: a message must render now, and a
+    // mention nobody has resolved yet draws as the text somebody typed.
+    unawaited(_resolveMentionNames(result));
     return result;
   }
 
@@ -209,6 +220,46 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       // on this row: an interface drawn from an envelope nobody could verify
       // is an interface anybody could have sent.
       panel: Panel.tryParse(row['blocks']),
+    );
+  }
+
+  /// Resolve the `@names` [messages] contain to the display names they draw as.
+  ///
+  /// Fire-and-forget, and deliberately after the rows are built rather than
+  /// before: a message renders the moment it is decrypted, and an unresolved
+  /// mention draws as the plain text somebody typed until this lands — which is
+  /// also exactly how it draws for a name belonging to nobody.
+  ///
+  /// Scoped to the channel, so a name belonging to somebody outside a private
+  /// one resolves to nothing and is drawn as plain text. That is the same set
+  /// `validate_message_mentions` keeps, so what lights up is what was
+  /// delivered (migration 034).
+  Future<void> _resolveMentionNames(List<ChatMessage> messages) async {
+    final channelId = state.channelId;
+    if (channelId == null) return;
+
+    final wanted = <String>[];
+    for (final message in messages) {
+      for (final name in Mentions.namesIn(message.text)) {
+        if (_askedMentionNames.add(name)) wanted.add(name);
+      }
+    }
+    if (wanted.isEmpty) return;
+
+    final found = await _serverCubit.membersByUsernames(
+      wanted,
+      channelId: channelId,
+    );
+    if (isClosed || state.channelId != channelId || found.isEmpty) return;
+
+    emit(
+      state.copyWith(
+        mentionNames: {
+          ...state.mentionNames,
+          for (final member in Mentions.among(found))
+            member.username.toLowerCase(): member.displayName,
+        },
+      ),
     );
   }
 }

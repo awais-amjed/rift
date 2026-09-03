@@ -65,14 +65,17 @@ class _VoiceBotsDialogState extends State<VoiceBotsDialog> {
 
   Future<void> _load() async {
     final cubit = context.read<ServerCubit>();
-    final roster = await cubit.listMembers();
+    // Every bot, not a page of them: this is a picker, and one that silently
+    // left a bot out would be the bug the paged roster exists to fix.
+    final bots = await cubit.listBots();
     final listening = await cubit.voiceListenerIds(widget.channel.id);
     if (!mounted) return;
 
     setState(() {
-      _bots = (roster.members ?? const [])
-          .where((m) => m.isBot && !m.isBanned)
-          .toList();
+      _bots = [
+        for (final bot in bots)
+          if (!bot.isBanned) bot,
+      ];
       _granted = listening;
       _isLoading = false;
     });

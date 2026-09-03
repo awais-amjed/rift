@@ -8,8 +8,6 @@ import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../logic/services/channel_reach.dart';
 import '../../../../logic/services/mentions.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/chat_failure.dart';
@@ -66,11 +64,9 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
-                      bots: _bots(context, chatState.audience),
-                      mentionable: _mentionableMembers(
-                        context,
-                        chatState.audience,
-                      ),
+                      bots: chatState.bots,
+                      onMentionSearch: (query) =>
+                          _searchMentionable(context, query),
                       selfUserId: context
                           .read<ServerCubit>()
                           .state
@@ -116,53 +112,30 @@ class _ChannelChatViewState extends State<ChannelChatView>
     }
   }
 
-  /// Username → display name, so a mention draws as the name the room knows.
+  /// Who the `@` menu may offer for what has been typed after the `@`.
   ///
-  /// Keyed by username because that is what the message contains; the value is
-  /// only ever what gets drawn. A member who has left is absent, and their
-  /// mention stays as written rather than becoming somebody else — as is
-  /// somebody outside a private channel, whose name is left exactly as typed
-  /// because dressing it up as a real mention is the whole thing being fixed.
-  Map<String, String> _mentionNames(BuildContext context, Set<String>? seen) {
-    final members = context.watch<ServerMembersCubit>().state.members;
-    return {
-      for (final m in Mentions.among(
-        members ?? const <ServerMember>[],
-        audience: seen,
-      ))
-        m.username.toLowerCase(): m.displayName,
-    };
-  }
-
-  /// Everybody the composer's `@` menu may offer.
+  /// Asked of the database with the channel, so a private one offers only the
+  /// people who can open it. Doing it any other way means being a second copy
+  /// of `channel_eligible`, and the server strips a mention of an outsider on
+  /// the way in anyway — so offering them was offering a ping that would not
+  /// happen (migration 034).
   ///
-  /// People, not bots, and in a private channel only the people who can open it
-  /// — see [Mentions.among]. A bot is addressed with `/`, which has its own
-  /// menu one key away; offering it here would teach the `@bot` habit and then
-  /// silently do nothing with it. Banned members are dropped by the menu
-  /// itself, which is also where the sender is left out.
-  List<ServerMember> _mentionableMembers(
+  /// **People, not bots.** A bot is addressed with `/`, which has its own menu
+  /// one key away; offering it here would teach the `@bot` habit and then
+  /// silently do nothing with it (BOTS.md §4). The sender and banned members
+  /// are dropped by the menu itself.
+  Future<List<ServerMember>> _searchMentionable(
     BuildContext context,
-    Set<String>? audience,
-  ) => Mentions.among(
-    context.watch<ServerMembersCubit>().state.members ?? const [],
-    audience: audience,
-  ).toList(growable: false);
-
-  /// The bots a `/` command can reach in this channel — see
-  /// [ChannelReach.botsIn], which is also where the banned ones go.
-  ///
-  /// In a private channel that is usually none of them: a bot gets in through a
-  /// role with `channel_role_access` and no other way, so without one its
-  /// `messages_select` never returns the command and the plaintext row sits
-  /// there unread. An empty list is what turns `/` handling off entirely, which
-  /// is the honest state — a slash that reaches no bot is just a slash, and the
-  /// line goes out encrypted like any other.
-  List<ServerMember> _bots(BuildContext context, Set<String>? audience) =>
-      ChannelReach.botsIn(
-        context.watch<ServerMembersCubit>().state.members ?? const [],
-        audience,
-      );
+    String query,
+  ) {
+    final channelId = context.read<ChannelChatCubit>().state.channelId;
+    if (channelId == null) return Future.value(const []);
+    return context.read<ServerCubit>().searchMembers(
+      query: query,
+      channelId: channelId,
+      bots: false,
+    );
+  }
 
   /// The operator's per-file attachment cap for this server.
   int _maxAttachmentBytes(BuildContext context) =>
@@ -180,25 +153,6 @@ class _ChannelChatViewState extends State<ChannelChatView>
         ?.permissions;
     return (permissions?.isChannelManager ?? false) ||
         (permissions?.isServerAdmin ?? false);
-  }
-
-  /// Everyone an `@mention` can reach in this channel — the server's roster in
-  /// a public one, the people who can open it in a private one — by username.
-  ///
-  /// Usernames rather than display names, because a display name can be
-  /// changed by its owner at any time and can collide with another member's —
-  /// neither of which is a property you want deciding who got pinged.
-  Set<String> _mentionable(BuildContext context, Set<String>? audience) {
-    final members = context.watch<ServerMembersCubit>().state.members;
-    return {
-      // `@all` reaches everybody in the room, so it is a name that reaches
-      // somebody and gets lit like one. Nobody can be called this — see
-      // `users_username_not_reserved` in migration 012 — so it is never
-      // ambiguous between the room and a person.
-      Mentions.everyone,
-      for (final m in Mentions.among(members ?? const [], audience: audience))
-        m.username.toLowerCase(),
-    };
   }
 
   Widget _buildBody(BuildContext context, ChannelChatState chatState) {
@@ -219,8 +173,13 @@ class _ChannelChatViewState extends State<ChannelChatView>
           onPanelAction: context.read<ChannelChatCubit>().pressPanelAction,
           // Channel managers and admins may remove anyone's message.
           isModerator: _isModerator(context),
-          mentionable: _mentionable(context, chatState.audience),
-          mentionNames: _mentionNames(context, chatState.audience),
+          // Only the names these messages actually say, resolved against this
+          // channel — see [ChannelChatState.mentionNames]. `@all` is added
+          // here because it names everybody in the room and so lights up like
+          // a name that reached somebody; nobody can be called it, so it is
+          // never ambiguous between the room and a person.
+          mentionable: {Mentions.everyone, ...chatState.mentionNames.keys},
+          mentionNames: chatState.mentionNames,
         );
       case ChannelChatStatus.loading:
         return const Center(child: CircularProgressIndicator());

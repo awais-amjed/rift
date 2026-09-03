@@ -12,6 +12,15 @@ import '../../../../../data/classes/role.dart';
 class MembersList extends StatelessWidget {
   final List<ServerMember> members;
 
+  /// Whether another page of the roster exists. Draws a footer, and is what
+  /// makes [onLoadMore] worth calling.
+  final bool hasMore;
+
+  /// Asked for when the list is scrolled near its end. Safe to fire often —
+  /// `MemberRosterPager` drops a call made while one is already in flight,
+  /// which is why the guard is not repeated here.
+  final VoidCallback onLoadMore;
+
   /// The viewer's own member id, so their row can refuse to act on itself: the
   /// server rejects self-edits, so offering them is a wasted trip.
   final String? viewerId;
@@ -38,6 +47,8 @@ class MembersList extends StatelessWidget {
   const MembersList({
     super.key,
     required this.members,
+    required this.hasMore,
+    required this.onLoadMore,
     required this.memberRoles,
     required this.viewerId,
     required this.viewerIsAdmin,
@@ -48,13 +59,34 @@ class MembersList extends StatelessWidget {
     required this.onModerate,
   });
 
+  /// How close to the bottom counts as "nearly there".
+  ///
+  /// Roughly two rows' worth, so the next page is asked for while there is
+  /// still something to look at rather than when the list has already stopped.
+  static const double _loadMoreSlack = 120;
+
   @override
   Widget build(BuildContext context) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (hasMore && notification.metrics.extentAfter < _loadMoreSlack) {
+          onLoadMore();
+        }
+        // Never swallowed: the scrollbar and any parent listening for the same
+        // notifications still need to see it.
+        return false;
+      },
+      child: _buildList(),
+    );
+  }
+
+  Widget _buildList() {
     return ListView.builder(
       shrinkWrap: true,
       padding: const EdgeInsets.all(12),
-      itemCount: members.length,
+      itemCount: members.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == members.length) return _buildFooter();
         final member = members[index];
         final isSelf = member.id == viewerId;
 
@@ -82,4 +114,17 @@ class MembersList extends StatelessWidget {
       },
     );
   }
+
+  /// The spinner at the end of a page, which is also the thing whose appearing
+  /// tells somebody the list has not simply stopped.
+  Widget _buildFooter() => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 18),
+    child: Center(
+      child: SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    ),
+  );
 }

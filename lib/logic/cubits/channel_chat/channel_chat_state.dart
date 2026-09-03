@@ -50,13 +50,30 @@ class ChannelChatState {
   /// messages is one people scroll past (BOTS.md §6, rule 4).
   final List<String> botListeners;
 
-  /// Server members a message here can reach, or null when that is everybody.
+  /// The bots a `/` command in this channel can reach.
   ///
-  /// Only a private channel has one. In cubit state and loaded before the
-  /// composer exists, for the same reason as [botListeners]: an `@` menu that
-  /// offers the whole server for the first beat of a private channel is one
-  /// that offers outsiders exactly when somebody is typing fastest.
-  final Set<String>? audience;
+  /// In cubit state and loaded before the composer exists, for the same reason
+  /// as [botListeners]: a `/` menu that offers a bot which cannot read the
+  /// channel is one that offers it exactly when somebody is typing fastest.
+  ///
+  /// Usually none of them in a private channel: a bot gets in through a role
+  /// with `channel_role_access` and no other way, so without one its
+  /// `messages_select` never returns the command. An empty list is what turns
+  /// `/` handling off entirely, which is the honest state — a slash that
+  /// reaches no bot is just a slash.
+  final List<ServerMember> bots;
+
+  /// Username → display name for the `@names` these messages contain.
+  ///
+  /// Only the names actually written, and only those a message here can reach
+  /// — `members_by_usernames` is asked with this channel, so a name belonging
+  /// to somebody outside a private channel resolves to nothing and is drawn as
+  /// the plain text it is. That is the same set `validate_message_mentions`
+  /// keeps, so what lights up is what was delivered.
+  ///
+  /// It replaces a map built from the whole roster, which could only ever be as
+  /// complete as the roster was — and past a thousand members it was not.
+  final Map<String, String> mentionNames;
 
   /// Members currently typing in the open channel, by user id → display name
   /// (excludes us). Backed by short-lived expiry timers in the cubit.
@@ -74,7 +91,8 @@ class ChannelChatState {
     this.isLoadingMore = false,
     this.typingUsers = const {},
     this.botListeners = const [],
-    this.audience,
+    this.bots = const [],
+    this.mentionNames = const {},
     this.failure,
   });
 
@@ -86,7 +104,8 @@ class ChannelChatState {
     bool? isLoadingMore,
     Map<String, String>? typingUsers,
     List<String>? botListeners,
-    Set<String>? audience,
+    List<ServerMember>? bots,
+    Map<String, String>? mentionNames,
     ChatFailure? failure,
     bool clearFailure = false,
   }) {
@@ -98,9 +117,11 @@ class ChannelChatState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       typingUsers: typingUsers ?? this.typingUsers,
       botListeners: botListeners ?? this.botListeners,
-      // No clear flag: `openChannel` builds a fresh state, so a public channel
-      // opened after a private one starts null rather than inheriting a list.
-      audience: audience ?? this.audience,
+      // No clear flags: `openChannel` builds a fresh state, so a channel opened
+      // after another starts empty rather than inheriting its neighbour's bots
+      // or the names somebody said in it.
+      bots: bots ?? this.bots,
+      mentionNames: mentionNames ?? this.mentionNames,
       failure: clearFailure ? null : (failure ?? this.failure),
     );
   }

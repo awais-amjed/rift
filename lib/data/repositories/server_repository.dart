@@ -6,8 +6,10 @@ import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart' hide ErrorCode;
 
 import '../../logic/services/chat_message_ops.dart';
+import '../../logic/services/paging.dart';
 import '../../logic/services/reaction_ops.dart';
 import '../classes/api_response.dart';
+import '../classes/member_page.dart';
 import '../classes/server_limits.dart';
 import '../enums/error_code.dart';
 import 'server_db.dart';
@@ -18,6 +20,7 @@ part 'server_repository_bots.dart';
 part 'server_repository_channels.dart';
 part 'server_repository_chat.dart';
 part 'server_repository_chat_reads.dart';
+part 'server_repository_members.dart';
 part 'server_repository_push.dart';
 part 'server_repository_reactions.dart';
 part 'server_repository_roles.dart';
@@ -52,6 +55,7 @@ class ServerRepository
         _ChannelApiMixin,
         _ChatApiMixin,
         _ChatReadApiMixin,
+        _MemberApiMixin,
         _PushApiMixin,
         _ReactionApiMixin,
         _RoleApiMixin,

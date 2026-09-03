@@ -712,24 +712,23 @@ Returns `{reason}`: `ok` (plus `message_id`, `channel_id`, `server_id`), `no_suc
 `empty`, `too_long` or `rate_limited`. Every refusal looks the same from outside — a caller with a
 wrong secret learns that it is wrong and nothing else.
 
-### channel_audience(p_channel uuid) — migration 034
+### channel_audience(p_channel uuid) — migration 034, **dropped by 039**
 
-Server members a message in this channel can actually reach: `app.channel_eligible` for every
-user on the server, gated on `app.can_see_channel` so an outsider asking a private channel gets
-an empty answer rather than its membership. Granted to `authenticated`.
+Answered "who can a message here reach" as a whole set: `app.channel_eligible` for every user on
+the server, gated on `app.can_see_channel` so an outsider asking a private channel got an empty
+answer rather than its membership.
 
-Exists because the composer had no way to ask. `validate_message_mentions` already strips a
-mention of somebody outside a private channel — silently, which is right for the wire and wrong
-for the person typing: the `@` menu offered the whole roster, the name lit up in the sent
-message, and nothing said the ping had been dropped. Answering it client-side would mean a Dart
-copy of `channel_eligible` reading `channel_members`, `channel_role_access`, `member_roles` and
-the ban clause — four things to keep in step with one predicate — so the question is asked of the
-predicate itself.
+It existed because the composer had no way to ask. `validate_message_mentions` strips a mention of
+somebody outside a private channel — silently, which is right for the wire and wrong for the person
+typing: the `@` menu offered the whole roster, the name lit up in the sent message, and nothing
+said the ping had been dropped.
 
-It exposes nothing new: every input is already readable by anyone inside the channel
-(`channel_members_select`, `channel_role_access_select`, `member_role_list`). It resolves what
-they could assemble. A bot never appears in a private channel's answer, because
-`set_channel_members` will not seat one — `grant_bot_channel_key` is its only door.
+**Dropped in 039.** The question is right and the *shape* was wrong: a whole set is unbounded by
+exactly the number the client stopped being allowed to assume, and on a large private channel it
+would have been cut off by the same 1000-row response ceiling. The same predicate is now a filter —
+`list_members(p_channel => …)` for a page of it and `members_by_usernames(p_names, p_channel)` for
+the handful of names in one message. A granted `SECURITY DEFINER` function that resolves private
+channel membership and that nothing calls is a door nobody remembers, so it went with its callers.
 
 ### app.bot_reads_channel(p_channel uuid) / app.bot_reads_version(p_channel uuid, p_version int) — migration 035
 

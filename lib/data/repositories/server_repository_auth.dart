@@ -158,30 +158,4 @@ mixin _AuthApiMixin {
       return row;
     });
   }
-
-  /// Every member of the server, with permissions and moderation state.
-  /// Members can see each other; changing any of it goes through the RPCs.
-  Future<APIResponse> listUsers(
-    String supabaseUrl, {
-    required String anonKey,
-    String? bearerToken,
-  }) {
-    return ServerDb.run(() async {
-      final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final rows = await db
-          .from('users')
-          .select(
-            'id, username, display_name, avatar_path, chat_public_key, '
-            'is_muted, is_deafened, is_banned, is_bot, manifest, '
-            'is_server_admin, is_channel_manager, can_create_tokens',
-          )
-          .order('username');
-      return {
-        'users': [
-          for (final u in (rows as List).cast<Map<String, dynamic>>())
-            ServerUserRow.of(u),
-        ],
-      };
-    });
-  }
 }

@@ -7,6 +7,7 @@ import 'package:rift/data/classes/server_member.dart';
 import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/logic/services/member_selection.dart';
 import 'package:rift/presentation/common/status_chip.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/channel_lock_badge.dart';
 import 'package:rift/presentation/screens/home/channels/widgets/channel_member_picker.dart';
@@ -66,18 +67,23 @@ void main() {
   });
 
   group('picking who is in the room', () {
-    late Set<String> selected;
-    late String query;
+    late MemberSelection selection;
+    late List<String> asked;
 
+    /// [results] answers whatever is typed. The picker's search is the
+    /// database's now (migration 039), so what a test can check here is that
+    /// the question is asked and the answer drawn — not that a local filter
+    /// matched, which is the thing that stopped working past a thousand
+    /// members.
     Future<void> pump(
       WidgetTester tester,
-      List<ServerMember> members, {
-      Set<String>? initial,
-    }) {
-      selected = initial ?? <String>{};
-      query = '';
+      List<ServerMember> Function(String query) results, {
+      MemberSelection initial = MemberSelection.empty,
+    }) async {
+      selection = initial;
+      asked = [];
       final themeCubit = ThemeCubit();
-      return tester.pumpWidget(
+      await tester.pumpWidget(
         BlocProvider<ThemeCubit>.value(
           value: themeCubit,
           child: MaterialApp(
@@ -89,26 +95,31 @@ void main() {
               builder: (context, setState) => Scaffold(
                 body: ChannelMemberPicker(
                   themeState: themeCubit.state,
-                  members: members,
-                  selected: selected,
-                  query: query,
-                  queryController: TextEditingController(text: query),
-                  onQueryChanged: (q) => setState(() => query = q),
-                  onToggle: (id) => setState(() {
-                    selected.contains(id)
-                        ? selected.remove(id)
-                        : selected.add(id);
-                  }),
+                  selection: selection,
+                  onSearch: (query) async {
+                    asked.add(query);
+                    return results(query);
+                  },
+                  onToggle: (member) =>
+                      setState(() => selection = selection.toggled(member)),
                 ),
               ),
             ),
           ),
         ),
       );
+      // The picker asks on mount; let that land before anything is asserted.
+      await tester.pumpAndSettle();
     }
 
-    testWidgets('lists the people it was given', (tester) async {
-      await pump(tester, [_member('1', 'Ada'), _member('2', 'Grace')]);
+    List<ServerMember> Function(String) fixed(List<ServerMember> members) =>
+        (_) => members;
+
+    testWidgets('browses on open, without waiting to be typed into', (
+      tester,
+    ) async {
+      await pump(tester, fixed([_member('1', 'Ada'), _member('2', 'Grace')]));
+      expect(asked, ['']);
       expect(find.text('Ada'), findsOneWidget);
       expect(find.text('Grace'), findsOneWidget);
     });
@@ -116,47 +127,50 @@ void main() {
     testWidgets('says so when there is nobody else', (tester) async {
       // A one-person server is the state this dialog is most likely to be
       // opened in, and an empty box with no explanation reads as broken.
-      await pump(tester, const []);
+      await pump(tester, fixed(const []));
       expect(find.text('Nobody else here yet'), findsOneWidget);
     });
 
-    testWidgets('filters by display name and by handle', (tester) async {
-      await pump(tester, [_member('1', 'Ada'), _member('2', 'Grace')]);
+    testWidgets('asks the server for what was typed', (tester) async {
+      // Not a local filter. The roster arrives a page at a time, so filtering
+      // what is in hand answers "No matches" about somebody who is really
+      // there — which is the bug this picker was changed to fix.
+      await pump(
+        tester,
+        (query) => query == 'gra' ? [_member('2', 'Grace')] : const [],
+      );
 
       await tester.enterText(find.byType(TextField), 'gra');
-      await tester.pump();
-      expect(find.text('Ada'), findsNothing);
+      await tester.pumpAndSettle();
+      expect(asked, ['', 'gra']);
       expect(find.text('Grace'), findsOneWidget);
-
-      // The handle is what people type when two members share a display name,
-      // so searching only the display name would fail exactly then.
-      await tester.enterText(find.byType(TextField), 'ada');
-      await tester.pump();
-      expect(find.text('Ada'), findsOneWidget);
-      expect(find.text('Grace'), findsNothing);
     });
 
     testWidgets('distinguishes no matches from nobody at all', (tester) async {
-      await pump(tester, [_member('1', 'Ada')]);
+      await pump(
+        tester,
+        (query) => query.isEmpty ? [_member('1', 'Ada')] : const [],
+      );
+
       await tester.enterText(find.byType(TextField), 'zz');
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.text('No matches'), findsOneWidget);
       expect(find.text('Nobody else here yet'), findsNothing);
     });
 
     testWidgets('a tap selects, and a second one lets go', (tester) async {
-      await pump(tester, [_member('1', 'Ada')]);
+      await pump(tester, fixed([_member('1', 'Ada')]));
       expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
 
       await tester.tap(find.text('Ada'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
-      expect(selected, {'1'});
+      expect(selection.ids, {'1'});
 
       await tester.tap(find.text('Ada'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
-      expect(selected, isEmpty);
+      expect(selection.ids, isEmpty);
     });
 
     testWidgets('shows what was already picked', (tester) async {
@@ -164,11 +178,26 @@ void main() {
       // opens with a selection rather than building one.
       await pump(
         tester,
-        [_member('1', 'Ada'), _member('2', 'Grace')],
-        initial: {'2'},
+        fixed([_member('1', 'Ada'), _member('2', 'Grace')]),
+        initial: MemberSelection.of([_member('2', 'Grace')]),
       );
       expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
       expect(find.byIcon(Icons.radio_button_unchecked), findsOneWidget);
+    });
+
+    testWidgets('somebody already in the channel is drawn even when no page '
+        'has reached them', (tester) async {
+      // The case the pinned rows exist for. A search that does not return them
+      // must not make them vanish from a list they are already in — losing
+      // them there means dropping them when the dialog saves.
+      await pump(
+        tester,
+        fixed(const []),
+        initial: MemberSelection.of([_member('9', 'Zoe')]),
+      );
+
+      expect(find.text('Zoe'), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
     });
   });
 

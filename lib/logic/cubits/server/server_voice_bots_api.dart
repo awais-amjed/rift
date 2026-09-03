@@ -150,7 +150,8 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
     if (!response.success) return const {};
 
     final rows =
-        ((response.data as Map<String, dynamic>)['summons'] as List? ?? const [])
+        ((response.data as Map<String, dynamic>)['summons'] as List? ??
+                const [])
             .cast<Map<String, dynamic>>();
     final byChannel = <String, List<({String id, String name})>>{};
     for (final row in rows) {

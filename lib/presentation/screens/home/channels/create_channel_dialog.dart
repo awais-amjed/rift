@@ -8,6 +8,7 @@ import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/member_selection.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
@@ -27,7 +28,6 @@ class CreateChannelDialog extends StatefulWidget {
 
 class _CreateChannelDialogState extends State<CreateChannelDialog> {
   final _nameCtrl = TextEditingController();
-  final _searchCtrl = TextEditingController();
 
   ChannelType _type = ChannelType.text;
   bool _isPrivate = false;
@@ -42,9 +42,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
 
   /// Everyone but this device's own member row and the bots — see
   /// [ChannelMemberPicker] for why neither belongs in the list.
-  List<ServerMember> _members = const [];
-  final Set<String> _selected = {};
-  String _query = '';
+  MemberSelection _selection = MemberSelection.empty;
 
   UserPermissions? get _permissions =>
       context.read<ServerCubit>().state.selectedServer?.user?.permissions;
@@ -55,29 +53,29 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   void initState() {
     super.initState();
     _isPrivate = !_mayMakePublic;
-    _loadMembers();
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _searchCtrl.dispose();
     super.dispose();
   }
 
-  /// Loaded on open rather than when the toggle is flipped: the list is the
-  /// slowest thing in this dialog, and somebody who ticks "private" has already
-  /// decided — making them wait at that point would be the one moment it shows.
-  Future<void> _loadMembers() async {
+  /// People who could be seated in this channel — never bots, never the
+  /// creator, who is always in it and so is never drawn as a checkbox.
+  ///
+  /// Asked of the database on every keystroke rather than filtered out of a
+  /// roster held in memory. The roster arrives a page at a time now, and a
+  /// local filter over one page is a filter that answers "No matches" about
+  /// somebody who is really there.
+  Future<List<ServerMember>> _searchMembers(String query) async {
     final cubit = context.read<ServerCubit>();
     final me = cubit.state.selectedServer?.user?.id;
-    final result = await cubit.listMembers();
-    if (!mounted || result.members == null) return;
-    setState(() {
-      _members = result.members!
-          .where((m) => !m.isBot && !m.isBanned && m.id != me)
-          .toList();
-    });
+    final results = await cubit.searchMembers(query: query, bots: false);
+    return [
+      for (final member in results)
+        if (member.id != me) member,
+    ];
   }
 
   Future<void> _submit() async {
@@ -92,7 +90,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
       name: _nameCtrl.text.trim(),
       channelType: _type.name,
       isPrivate: _isPrivate,
-      memberIds: _isPrivate ? _selected.toList() : const [],
+      memberIds: _isPrivate ? _selection.ids.toList() : const [],
     );
 
     if (!mounted) return;
@@ -167,17 +165,11 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
                 const SizedBox(height: 16),
                 ChannelMemberPicker(
                   themeState: themeState,
-                  members: _members,
-                  selected: _selected,
-                  query: _query,
-                  queryController: _searchCtrl,
+                  selection: _selection,
+                  onSearch: _searchMembers,
                   enabled: !_isLoading,
-                  onQueryChanged: (q) => setState(() => _query = q),
-                  onToggle: (id) => setState(() {
-                    _selected.contains(id)
-                        ? _selected.remove(id)
-                        : _selected.add(id);
-                  }),
+                  onToggle: (member) =>
+                      setState(() => _selection = _selection.toggled(member)),
                 ),
               ],
             ],

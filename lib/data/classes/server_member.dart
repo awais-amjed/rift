@@ -65,6 +65,21 @@ class ServerMember {
     );
   }
 
+  /// The members inside a `{'users': [...]}` envelope.
+  ///
+  /// Every call in the member directory (migration 039) answers in that shape —
+  /// a page, a search, a batch of resolved ids — so the parse is here once
+  /// rather than repeated per call. A missing or malformed envelope is an empty
+  /// list, not a throw: these feed lists and typeaheads, and a search box is
+  /// not where a transport problem should surface.
+  static List<ServerMember> listFrom(Object? data) {
+    final rows = (data is Map<String, dynamic> ? data['users'] : null) as List?;
+    return [
+      for (final row in rows ?? const [])
+        if (row is Map<String, dynamic>) ServerMember.fromJson(row),
+    ];
+  }
+
   ServerMember copyWith({
     UserPermissions? permissions,
     bool? isMuted,
