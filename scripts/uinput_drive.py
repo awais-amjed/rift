@@ -302,7 +302,12 @@ def run(dev, cmd, args):
     elif cmd == 'scroll':
         dev.scroll(int(args[0]))
     else:
-        raise SystemExit(f'unknown command {cmd}')
+        # A ValueError, not a SystemExit. `serve` catches Exception around this
+        # call and SystemExit is not one — so a single typo used to take the
+        # long-lived device down with it, and every command after that fell
+        # through to the one-shot path, which looks exactly like the pointer
+        # having stopped working.
+        raise ValueError(f'unknown command {cmd}')
 
 
 def serve():
@@ -324,6 +329,10 @@ def serve():
                     try:
                         run(dev, parts[0], parts[1:])
                     except Exception as err:
+                        # Never fatal. This process holds the only device, and
+                        # a bad command is a caller's typo — losing the device
+                        # over one costs a relaunch of whatever is being
+                        # driven, which is far more expensive than the typo.
                         print(f'error: {err}', file=sys.stderr, flush=True)
     finally:
         dev.close()
