@@ -12,17 +12,20 @@ import '../password_strength_indicator.dart';
 import '../../../../common/feature_header.dart';
 import '../../../../theme/app_text.dart';
 
+/// The account step's form: sign in, or create an account.
+///
+/// It opens on **sign in**. Onboarding is reached whenever there is no local
+/// vault, and that is as often a reinstall or a second device as it is a
+/// genuinely new account — for the first group, creating a second account is
+/// the one thing they must not do, because the vault they are trying to reach
+/// is behind the first one. Someone with no account has "New here? Create an
+/// account" a line below and loses two seconds; someone who signs up twice
+/// loses their servers.
 class AuthView extends StatefulWidget {
   final SupabaseBackupState state;
   final VoidCallback onBack;
-  final bool initialSignUp;
 
-  const AuthView({
-    super.key,
-    required this.state,
-    required this.onBack,
-    this.initialSignUp = true,
-  });
+  const AuthView({super.key, required this.state, required this.onBack});
 
   @override
   State<AuthView> createState() => AuthViewState();
@@ -36,8 +39,11 @@ class AuthViewState extends State<AuthView>
   @override
   void initState() {
     super.initState();
-    isSignUp = widget.initialSignUp;
-    // Coming back from "check your inbox" — prefill the address they used.
+    // `isSignUp` starts false in the shared mixin, and is left alone here: the
+    // form opens on sign in, including on the way back from "check your inbox",
+    // where the account already exists by definition.
+    //
+    // Coming back from there, prefill the address they used.
     emailController.text = widget.state.email ?? '';
   }
 
@@ -86,7 +92,7 @@ class AuthViewState extends State<AuthView>
             icon: isSignUp
                 ? Icons.person_add_rounded
                 : Icons.cloud_sync_rounded,
-            title: isSignUp ? 'Create Your Account' : 'Welcome Back',
+            title: isSignUp ? 'Create Your Account' : 'Sign In to Rift',
             subtitle: isSignUp
                 ? 'One password for everything. It also protects your '
                       'encrypted backup and never leaves this device.'
