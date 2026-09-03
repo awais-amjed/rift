@@ -138,6 +138,38 @@ decrypt stored backups (Bitwarden/Proton model).
 - **[Planned follow-up]**: recovery key — random code shown once at signup, wraps the vault key a
   second time so password *or* recovery key can decrypt.
 
+#### Confirming the address [Implemented September 2026]
+
+When the central project requires email confirmation, sign-up returns no session and the app shows
+a "check your email" notice. That notice used to be a dead end: one button, which took you to a
+sign-in the server would refuse until the link was clicked. A link that never arrives — lost mail,
+spam folder, an expired token — locked you out of the account you had just made, with nothing on
+screen able to help.
+
+`SupabaseBackupCubit.resendConfirmation` sends another. Three things shape it:
+
+- **A refused sign-in is a route into it.** GoTrue answers `email_not_confirmed` for an account
+  that exists with the right password and an unconfirmed address, and that is where most people
+  meet this screen — long after the one-time notice at sign-up. `SupabaseBackupRepository` now
+  keeps GoTrue's `code` alongside its message (`_authFailure`) so the cubit can tell that apart
+  from a wrong password, and puts the reader back on the notice instead of showing a refusal.
+- **The address is never retyped.** Resend uses `state.email`, the address signed up with. A field
+  here would turn the screen into a way of sending mail to anybody.
+- **The confirmation is conditional on purpose.** The server does not say whether an address is
+  real, already confirmed, or unknown, so neither do we: *"If … is waiting to be confirmed, another
+  link is on its way."* Anything more definite would answer which emails hold accounts.
+
+**Mail is metered**, and the UI has to respect that rather than discover it. Supabase enforces a
+minimum gap per address (`smtp_max_frequency`, 60s on the central project) *and* a project-wide
+hourly cap, and a refused request spends the same allowance as an accepted one. So the cooldown
+starts whether the send succeeded or failed, and the control becomes a plain countdown rather than
+a disabled button — a greyed-out button invites the clicking it exists to prevent. A rate-limit
+refusal is passed through in GoTrue's own words because they name the wait; every other GoTrue
+message is replaced, being written for a developer reading a log.
+
+The built-in mail service caps the whole project at a handful of emails per hour. **Custom SMTP is
+a prerequisite for turning confirmation on for real users** — not a nicety.
+
 ### The public server directory — [Implemented August 2026]
 
 A server created in the app existed nowhere but on its own Supabase project and in the vaults

@@ -6,6 +6,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_text_field.dart';
 import '../../../../../common/message_banner.dart';
+import '../../../../../common/resend_confirmation_button.dart';
 import '../../../../../common/supabase_auth_form_state.dart';
 import '../../../../../common/feature_header.dart';
 import '../../../../../theme/app_text.dart';
@@ -30,7 +31,7 @@ class _AuthViewState extends State<AuthView>
   Widget build(BuildContext context) {
     // Show confirmation-pending screen when server requires email verification.
     if (widget.state.needsEmailConfirmation) {
-      return _EmailConfirmationView(email: widget.state.email);
+      return _EmailConfirmationView(state: widget.state);
     }
 
     final theme = context.read<ThemeCubit>().state;
@@ -111,14 +112,15 @@ class _AuthViewState extends State<AuthView>
 // ── Email confirmation pending ────────────────────────────────────────────────
 
 class _EmailConfirmationView extends StatelessWidget {
-  final String? email;
+  final SupabaseBackupState state;
 
-  const _EmailConfirmationView({this.email});
+  const _EmailConfirmationView({required this.state});
 
   @override
   Widget build(BuildContext context) {
     final theme = context.read<ThemeCubit>().state;
     final cubit = context.read<SupabaseBackupCubit>();
+    final email = state.email;
 
     return Column(
       children: [
@@ -135,12 +137,32 @@ class _EmailConfirmationView extends StatelessWidget {
           subtitleMaxWidth: double.infinity,
         ),
 
+        if (state.successMessage != null) ...[
+          const SizedBox(height: 20),
+          MessageBanner(
+            message: state.successMessage!,
+            kind: MessageBannerKind.success,
+          ),
+        ],
+        if (state.error != null) ...[
+          const SizedBox(height: 20),
+          MessageBanner(message: state.error!, kind: MessageBannerKind.error),
+        ],
+
         const SizedBox(height: 32),
 
         AppButton(
           label: 'Sign In After Confirming',
           expanded: true,
           onPressed: () => cubit.clearMessage(),
+        ),
+
+        // Under the primary action, not beside it: confirming is what almost
+        // everybody is here to do, and a second email is the fallback for the
+        // one whose first never arrived.
+        ResendConfirmationButton(
+          availableAt: state.resendAvailableAt,
+          isProcessing: state.isProcessing,
         ),
       ],
     );

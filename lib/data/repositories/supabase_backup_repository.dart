@@ -60,6 +60,8 @@ class SupabaseBackupRepository {
         return APIResponse.error('Sign-up succeeded but no user was returned.');
       }
       return APIResponse.success({'user': user, 'needsConfirmation': false});
+    } on AuthException catch (e) {
+      return _authFailure(e);
     } catch (e) {
       return APIResponse.error(e);
     }
@@ -82,10 +84,45 @@ class SupabaseBackupRepository {
         return APIResponse.error('Sign-in succeeded but no user was returned.');
       }
       return APIResponse.success(user);
+    } on AuthException catch (e) {
+      return _authFailure(e);
     } catch (e) {
       return APIResponse.error(e);
     }
   }
+
+  /// Sends the confirmation email again for an address that has signed up and
+  /// never confirmed.
+  ///
+  /// Supabase does not tell us whether the address exists, is already
+  /// confirmed, or was never seen — and should not. An unauthenticated caller
+  /// learning which emails hold accounts is exactly the enumeration a sign-up
+  /// form is careful to avoid, so a success here means "the request was
+  /// accepted", not "an email is on its way to a real account".
+  ///
+  /// Rate limited by the server on two axes: a minimum gap between two emails
+  /// to one address, and a project-wide hourly cap. A refusal comes back as
+  /// [ErrorCode.emailSendRateLimited] with the server's own wording, which
+  /// usually names the number of seconds left.
+  Future<APIResponse> resendConfirmation({required String email}) async {
+    try {
+      await _client.auth.resend(type: OtpType.signup, email: email);
+      return APIResponse.success(null);
+    } on AuthException catch (e) {
+      return _authFailure(e);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
+  /// Keeps GoTrue's machine-readable code alongside its message.
+  ///
+  /// Without this every auth failure reached the cubit as a sentence and
+  /// nothing else, so "your address is not confirmed yet" was indistinguishable
+  /// from "that password is wrong" — one of which has an obvious next step and
+  /// the other of which does not.
+  APIResponse _authFailure(AuthException e) =>
+      APIResponse(success: false, error: e.message, errorCode: e.code);
 
   /// Signs out the current user.
   Future<APIResponse> signOut() async {

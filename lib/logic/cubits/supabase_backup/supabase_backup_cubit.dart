@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, User;
 
 import '../../../data/enums/auth_status.dart';
+import '../../../data/enums/error_code.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/repositories/supabase_backup_repository.dart';
 import '../../../logic/helper_methods.dart';
@@ -33,6 +34,15 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
         _SupabaseBackupAuthMixin,
         _SupabaseBackupRestoreMixin,
         _SupabaseBackupTransferMixin {
+  /// How long the resend button stays locked after asking.
+  ///
+  /// Matched to the central project's `smtp_max_frequency`, which is 60
+  /// seconds: the server would refuse a second request inside that window
+  /// anyway, and being refused costs the same hourly allowance as being
+  /// obeyed. Better to hold the button than to spend an email learning it was
+  /// too soon.
+  static const Duration resendCooldown = Duration(seconds: 60);
+
   @override
   final SupabaseBackupRepository _repo;
   @override

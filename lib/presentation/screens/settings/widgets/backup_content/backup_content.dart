@@ -55,10 +55,7 @@ class _BackupBody extends StatelessWidget {
         } else if (state.isSignedIn) {
           cloudPanel = SignedInPanel(themeState: themeState, state: state);
         } else if (state.needsEmailConfirmation) {
-          cloudPanel = ConfirmEmailPanel(
-            themeState: themeState,
-            email: state.email,
-          );
+          cloudPanel = ConfirmEmailPanel(themeState: themeState, state: state);
         } else {
           cloudPanel = AuthPanel(themeState: themeState, state: state);
         }

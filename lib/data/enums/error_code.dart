@@ -93,6 +93,23 @@ class ErrorCode {
   /// the server is there, it is just too slow or too busy to answer.
   static const String serverTimeout = 'server_timeout';
 
+  // ── Central account (GoTrue) ─────────────────────────────────────────────────
+  // Not Rift's codes and not in `_shared/error_codes.ts`: these are Supabase's
+  // own auth service speaking, passed through by
+  // `SupabaseBackupRepository` so the cubit can act on them without matching
+  // substrings of an English sentence that Supabase is free to reword.
+
+  /// The account exists and the password was right, but the address has never
+  /// been confirmed. The one error that is not a dead end: it means "finish
+  /// signing up", and the answer to it is another confirmation email.
+  static const String emailNotConfirmed = 'email_not_confirmed';
+
+  /// Too many confirmation emails, too fast. Supabase enforces both a minimum
+  /// gap between two emails to one address and an hourly cap for the whole
+  /// project, and it is the second that bites — the built-in mail service is
+  /// metered in single figures per hour.
+  static const String emailSendRateLimited = 'over_email_send_rate_limit';
+
   // ── Generic ───────────────────────────────────────────────────────────────────
   static const String missingFields = 'missing_fields';
   static const String dbError = 'db_error';

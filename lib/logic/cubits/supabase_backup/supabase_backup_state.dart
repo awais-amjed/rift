@@ -17,6 +17,15 @@ class SupabaseBackupState {
   final bool cloudBackupConflict;
 
   final String? email;
+
+  /// When another confirmation email may be asked for, or null when one may be
+  /// asked for now.
+  ///
+  /// A time rather than a countdown so the UI owns the ticking: a cubit that
+  /// emitted once a second would rebuild the whole backup screen for the sake
+  /// of two digits.
+  final DateTime? resendAvailableAt;
+
   final String? error;
   final String? successMessage;
 
@@ -27,6 +36,7 @@ class SupabaseBackupState {
     this.needsVaultPassword = false,
     this.cloudBackupConflict = false,
     this.email,
+    this.resendAvailableAt,
     this.error,
     this.successMessage,
   });
@@ -38,6 +48,7 @@ class SupabaseBackupState {
     bool? needsVaultPassword,
     bool? cloudBackupConflict,
     String? email,
+    DateTime? resendAvailableAt,
     String? error,
     String? successMessage,
     bool clearMessage = false,
@@ -50,6 +61,7 @@ class SupabaseBackupState {
       needsVaultPassword: needsVaultPassword ?? this.needsVaultPassword,
       cloudBackupConflict: cloudBackupConflict ?? this.cloudBackupConflict,
       email: email ?? this.email,
+      resendAvailableAt: resendAvailableAt ?? this.resendAvailableAt,
       error: clearMessage ? null : (error ?? this.error),
       successMessage: clearMessage
           ? null
@@ -68,6 +80,7 @@ class SupabaseBackupState {
           needsVaultPassword == other.needsVaultPassword &&
           cloudBackupConflict == other.cloudBackupConflict &&
           email == other.email &&
+          resendAvailableAt == other.resendAvailableAt &&
           error == other.error &&
           successMessage == other.successMessage;
 
@@ -79,6 +92,7 @@ class SupabaseBackupState {
     needsVaultPassword,
     cloudBackupConflict,
     email,
+    resendAvailableAt,
     error,
     successMessage,
   );
