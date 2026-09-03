@@ -963,6 +963,38 @@ Same columns as their self-hosted counterparts. Differences that matter:
   same upsert without touching the key. **Any future upsert against a column-granted table has
   this problem**; write it as an RPC.
 
+### dm_conversations(p_limit, p_before) — central migration 013
+
+One page of the caller's conversations, newest first. Each row carries everything it draws: the
+peer and their published keys, the newest envelope, the unread count, the newest inbound id a
+"mark read" writes back, and the notification level (null meaning "the default", which is the
+client's word). Answers `{conversations, has_more}`, keyset-paged on the last message id.
+
+**It replaced four unbounded reads.** The client derived this list from `listRecentMessages(limit:
+1000)` — the last thousand envelopes, scanned once for the newest row per peer and again for the
+unread counts — with `read_state` and `notification_prefs` fetched whole beside it, both of which
+grow a row per conversation. Three things were wrong with that and only the first is about
+bandwidth: a thousand envelopes crossed the wire to draw a dozen rows; past a thousand *total*
+messages an old conversation dropped off the list silently and its unread badge went with it; and
+there was no cursor with which to ask for more, because the list was a by-product rather than a
+query. The self-hosted tier had already made this move — `003_api.sql` says so in a comment above
+its own `dm_conversations`, about an edge function that "pulled a thousand rows and grouped them in
+TypeScript".
+
+`SECURITY DEFINER` on the same gate as `directory_profiles`: a message exchanged, not a friendship.
+A conversation has to keep opening after an unfriend or a block, because a DM key is derived from
+the peer's published X25519 key and re-read on every launch — a version that stopped answering
+would quietly make the other person's copy undecryptable.
+
+It **replaces** an earlier no-argument `dm_conversations()` from 003 that nothing ever called. That
+one was unbounded, and being `SECURITY INVOKER` it would have silently dropped the conversation
+with anybody unfriended once 012 narrowed `users_select_directory` to `knows_user(id)` — the exact
+failure `directory_profiles` exists to avoid, sitting unnoticed in an uncalled function.
+
+Two indexes come with it — `(recipient_id, sender_id, id)` and `(sender_id, recipient_id, id)` — so
+the per-peer count and the newest-inbound lookup are index range scans over one pair's messages
+rather than filters over the whole inbox.
+
 ### friendships / blocks (central, migration 012)
 
 The central gate: who may reach whom. See ARCHITECTURE §4 for the argument; what matters here is

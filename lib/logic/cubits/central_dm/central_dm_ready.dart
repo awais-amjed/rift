@@ -39,8 +39,11 @@ mixin _CentralDmReadyMixin on Cubit<CentralDmState>, _CentralDmUnreadMixin {
   /// The rest are implemented by the friends, conversations and send mixins. A
   /// ready account loads all of them, and the order matters — see
   /// [_activateProfile].
+  ///
+  /// `refreshConversations` is not among them: the unread mixin is applied
+  /// before this one and declares it, because the notification level now rides
+  /// on a conversation row rather than being fetched on its own.
   Future<void> loadFriends();
-  Future<void> refreshConversations();
   Future<void> refreshQuota();
 
   bool _settingUp = false;
@@ -184,14 +187,10 @@ mixin _CentralDmReadyMixin on Cubit<CentralDmState>, _CentralDmUnreadMixin {
     _incoming ??= _repo.subscribeIncoming(
       _onIncoming,
       onUpdate: _onMessageUpdated,
-      onPrefsChanged: () => unawaited(_loadNotificationLevels()),
+      onPrefsChanged: () => unawaited(refreshConversations()),
       onGraphChanged: _onGraphChanged,
     );
     emit(state.copyWith(status: CentralDmStatus.ready, myHandle: handle));
-    // Cursors first: without them every message reads as unread, so the badge
-    // would flash the whole history before settling.
-    await _loadReadCursors();
-    unawaited(_loadNotificationLevels());
     // Before the conversations: the graph is what decides whether each of them
     // is a conversation or a request, and loading them the other way round
     // shows every request in the conversation list for one frame.

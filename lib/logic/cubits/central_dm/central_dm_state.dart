@@ -24,6 +24,10 @@ class CentralDmState {
   final List<DmConversation> conversations;
   final bool conversationsLoading;
 
+  /// Whether another page of conversations exists — proved by the row
+  /// `dm_conversations` over-fetched, never inferred from a page being full.
+  final bool hasMoreConversations;
+
   /// peer id → unread messages from them. A zero count is an absent key, so
   /// `unreadByPeer[id] ?? 0` is the only correct way to read it.
   final Map<String, int> unreadByPeer;
@@ -73,6 +77,7 @@ class CentralDmState {
     this.claiming = false,
     this.conversations = const [],
     this.conversationsLoading = false,
+    this.hasMoreConversations = false,
     this.unreadByPeer = const {},
     this.levelsByPeer = const {},
     FriendDirectory? graph,
@@ -95,6 +100,7 @@ class CentralDmState {
     bool? claiming,
     List<DmConversation>? conversations,
     bool? conversationsLoading,
+    bool? hasMoreConversations,
     Map<String, int>? unreadByPeer,
     Map<String, NotificationLevel>? levelsByPeer,
     FriendDirectory? graph,
@@ -119,6 +125,7 @@ class CentralDmState {
       claiming: claiming ?? this.claiming,
       conversations: conversations ?? this.conversations,
       conversationsLoading: conversationsLoading ?? this.conversationsLoading,
+      hasMoreConversations: hasMoreConversations ?? this.hasMoreConversations,
       unreadByPeer: unreadByPeer ?? this.unreadByPeer,
       levelsByPeer: levelsByPeer ?? this.levelsByPeer,
       graph: graph ?? this.graph,

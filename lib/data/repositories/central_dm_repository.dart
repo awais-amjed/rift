@@ -209,18 +209,30 @@ class CentralDmRepository
     }
   }
 
-  /// Recent envelopes involving the caller (newest first) — the cubit groups
-  /// them into conversations.
-  Future<APIResponse> listRecentMessages({int limit = 1000}) async {
+  /// One page of the caller's conversations, newest first (central migration
+  /// 013).
+  ///
+  /// Answers `{conversations, has_more}`, and each conversation carries
+  /// everything its row draws: the peer and their published keys, the newest
+  /// envelope, the unread count, the newest inbound id a "mark read" writes
+  /// back, and the notification level.
+  ///
+  /// This replaced four unbounded reads. The list used to be derived on the
+  /// client from the last thousand envelopes, with the read cursors and the
+  /// notification levels fetched whole beside them — so past a thousand
+  /// messages an old conversation fell off the list silently, taking its unread
+  /// badge with it, and there was no cursor with which to ask for more.
+  ///
+  /// [before] is the previous page's last `last_message.id`. Keyset rather than
+  /// an offset: a conversation moves to the top when somebody speaks in it, and
+  /// an offset under that would skip and repeat rows at every boundary.
+  Future<APIResponse> listConversations({int limit = 30, int? before}) async {
     try {
-      final myId = _client.auth.currentUser!.id;
-      final rows = await _client
-          .from('dm_messages')
-          .select()
-          .or('sender_id.eq.$myId,recipient_id.eq.$myId')
-          .order('id', ascending: false)
-          .limit(limit);
-      return APIResponse.success(rows);
+      final result = await _client.rpc(
+        'dm_conversations',
+        params: {'p_limit': limit, 'p_before': before},
+      );
+      return APIResponse.success(result);
     } catch (e) {
       return APIResponse.error(e);
     }

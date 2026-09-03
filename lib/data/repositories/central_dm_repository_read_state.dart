@@ -10,28 +10,14 @@ part of 'central_dm_repository.dart';
 ///
 /// The same table, with the same `scope`/`scope_id` shape, is what a
 /// self-hosted server uses for both channels and DMs.
+///
+/// Only written, never read. Reading every cursor to work out the unread counts
+/// was a whole-table fetch of something that grows with the number of
+/// conversations, and it answered a question `dm_conversations` now answers per
+/// row (central migration 013): the count, and the cursor a read writes back,
+/// from the same call so the second can never skip what the first counted.
 mixin _CentralDmReadStateMixin {
   SupabaseClient get _client;
-
-  /// Every conversation's cursor for the caller: `{peerId: lastReadId}`.
-  Future<APIResponse> listReadCursors() async {
-    try {
-      final rows = await _client
-          .from('read_state')
-          .select('scope_id, last_read_id')
-          .eq('user_id', _client.auth.currentUser!.id)
-          .eq('scope', 'dm');
-      final cursors = <String, int>{};
-      for (final row in (rows as List).cast<Map<String, dynamic>>()) {
-        final peerId = row['scope_id'] as String?;
-        final lastRead = row['last_read_id'];
-        if (peerId != null && lastRead is int) cursors[peerId] = lastRead;
-      }
-      return APIResponse.success(cursors);
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
 
   /// Move one conversation's cursor to [lastReadId].
   ///

@@ -3,10 +3,16 @@ part of 'central_dm_cubit.dart';
 /// Unread counts for central DMs — the badge on the rail's Home chip and on
 /// each conversation row.
 ///
-/// Derived rather than delivered: the client already sees every message
-/// addressed to it (RLS + Realtime on `dm_messages`) and the conversation
-/// refresh already pulls them, so all that was ever missing is *read state* —
-/// one cursor per conversation in `read_state`.
+/// Derived rather than delivered — but derived *in the database*. The count is
+/// one cursor per conversation in `read_state` compared against that peer's
+/// messages, and `dm_conversations` (central migration 013) does the comparison
+/// and hands back both the count and the cursor a read would write.
+///
+/// It used to be done here, over the last thousand envelopes the conversation
+/// refresh had pulled, with every cursor and every notification preference
+/// fetched whole beside them. All three were unbounded, and the first one was
+/// unbounded *and* wrong past a thousand messages: a conversation that fell off
+/// the batch lost its badge rather than showing a stale one.
 ///
 /// Both tiers work this way now. A self-hosted server used to fan out a
 /// `notifications` row per recipient per message so its client had something it
@@ -18,11 +24,25 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
   CentralDmRepository get _repo;
   AppCubit get _appCubit;
 
-  /// peer → newest message id read. Absent means "never read any of it".
+  /// Implemented by the conversations mixin — the only read of a notification
+  /// level there is now, since the level rides on the conversation row.
+  Future<void> refreshConversations();
+
+  /// peer → newest message id known to be read.
+  ///
+  /// No longer fetched: it is *inferred* from the conversation list. A row with
+  /// nothing unread has its cursor at or past its newest inbound message, which
+  /// is all [_pushCursor] needs to know to skip a redundant write. A row with
+  /// something unread is left absent, so the next read writes.
+  ///
+  /// The exact stored value is never needed, which is why the whole
+  /// `read_state` table is no longer read — one row per conversation, fetched
+  /// entire, to answer a question the same call already answers.
   final Map<String, int> _readCursors = {};
 
-  /// peer → newest inbound id seen in the last refresh, which is what a read
-  /// writes back. Refreshed by every [_countUnread].
+  /// peer → newest inbound id in the last refresh, which is what a read writes
+  /// back. Comes from the same call as the counts, so a cursor can never skip
+  /// a message that was counted a moment earlier.
   final Map<String, int> _latestInbound = {};
 
   /// Central DMs render on one surface only, so that's what "the user can see
@@ -32,34 +52,9 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
       _appCubit.state.surface == HomeSurface.centralDms &&
       WindowFocusService.instance.isFocused;
 
-  Future<void> _loadReadCursors() async {
-    final response = await _repo.listReadCursors();
-    if (isClosed || !response.success) return;
-    _readCursors
-      ..clear()
-      ..addAll(response.data as Map<String, int>);
-  }
-
   void _resetUnread() {
     _readCursors.clear();
     _latestInbound.clear();
-  }
-
-  /// Load how much each conversation may interrupt.
-  ///
-  /// Its own read rather than a field on the conversation list, because it is
-  /// the caller's private opinion of the other person and has nothing to do
-  /// with what the conversation contains — and because `refreshConversations`
-  /// runs on every incoming message, where re-reading a setting nobody changed
-  /// would be a request per message for no reason.
-  Future<void> _loadNotificationLevels() async {
-    final response = await _repo.listNotificationLevels();
-    if (isClosed || !response.success) return;
-    emit(
-      state.copyWith(
-        levelsByPeer: response.data as Map<String, NotificationLevel>,
-      ),
-    );
   }
 
   /// How much [peerId] may interrupt. Applied locally first: the change is the
@@ -80,26 +75,32 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
       level: level,
     );
     // Put back what the server actually thinks, rather than leaving a setting
-    // on screen that is in force nowhere.
-    if (!response.success) unawaited(_loadNotificationLevels());
+    // on screen that is in force nowhere. Through the conversation list because
+    // that is where the level now comes from — its own fetch was a whole-table
+    // read of `notification_prefs` to answer about the rows already on screen.
+    if (!response.success) unawaited(refreshConversations());
   }
 
-  /// Per-peer unread counts for one batch of raw rows, and the cursors a read
-  /// would write. Called by the conversation refresh, which has the rows.
+  /// Record what the conversation list said about read state.
+  ///
+  /// [latestInbound] is what a read writes back. [unread] is only consulted for
+  /// which peers are *caught up*: those have their cursor at the newest inbound
+  /// message by definition, and remembering that is what stops opening a
+  /// conversation nobody has written in from posting a redundant write.
   ///
   // The call site resolves to the conversations mixin's abstract declaration,
   // which the unused-element check can't follow back here.
   // ignore: unused_element
-  Map<String, int> _countUnread(List<Map<String, dynamic>> rows, String myId) {
-    final scan = DmUnreadScan.of(
-      rows: rows,
-      myUserId: myId,
-      cursors: _readCursors,
-    );
+  void _rememberCursors(
+    Map<String, int> latestInbound,
+    Map<String, int> unread,
+  ) {
     _latestInbound
       ..clear()
-      ..addAll(scan.latestInbound);
-    return scan.counts;
+      ..addAll(latestInbound);
+    for (final entry in latestInbound.entries) {
+      if (!unread.containsKey(entry.key)) _readCursors[entry.key] = entry.value;
+    }
   }
 
   /// Takes the open conversation out of a freshly-computed [counts] when it's

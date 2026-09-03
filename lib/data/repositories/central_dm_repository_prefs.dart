@@ -13,35 +13,14 @@ part of 'central_dm_repository.dart';
 mixin _CentralDmPrefsMixin {
   SupabaseClient get _client;
 
-  /// Every conversation the caller has an opinion about: `{peerId: level}`.
-  ///
-  /// Conversations they don't are simply absent — [NotificationLevel.dmDefault]
-  /// answers for those, and that is what lets the default be changed later
-  /// without rewriting everybody's rows.
-  Future<APIResponse> listNotificationLevels() async {
-    try {
-      final rows = await _client
-          .from('notification_prefs')
-          .select('scope_id, level')
-          .eq('user_id', _client.auth.currentUser!.id)
-          .eq('scope', 'dm');
-      final levels = <String, NotificationLevel>{};
-      for (final row in (rows as List).cast<Map<String, dynamic>>()) {
-        final peerId = row['scope_id'] as String?;
-        if (peerId == null) continue;
-        final level = NotificationLevel.parse(
-          row['level'],
-          fallback: NotificationLevel.dmDefault,
-        );
-        if (level != NotificationLevel.dmDefault) levels[peerId] = level;
-      }
-      return APIResponse.success(levels);
-    } catch (e) {
-      return APIResponse.error(e);
-    }
-  }
-
   /// Set one conversation's level.
+  ///
+  /// There is no read here any more. Reading every row of this table to draw
+  /// the rows already on screen was a whole-table fetch of something that grows
+  /// with the number of conversations, so the level rides on the conversation
+  /// row instead (central migration 013). A conversation nobody has an opinion
+  /// about carries a null level, which is what lets the default be changed
+  /// later without rewriting anybody's table.
   ///
   /// Choosing the default **deletes** the row instead of storing it: a scope
   /// nobody has an opinion about should have no row, so that what the default

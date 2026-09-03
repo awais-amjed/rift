@@ -25,7 +25,6 @@ import '../../services/attachment_cache.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
-import '../../services/dm_unread_scan.dart';
 import '../../services/notification_service.dart';
 import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -24,6 +26,12 @@ import 'friends/friend_menu_item.dart';
 /// A blocked peer is left out: their old messages are still rows on the server
 /// (blocking takes away reach, not history), and [FriendDirectory.visible] is
 /// what keeps them out of the list.
+///
+/// It **pages** (central migration 013). The list used to be derived on the
+/// client from the last thousand envelopes, which meant an old conversation
+/// silently stopped existing rather than sitting further down — and there was
+/// nothing to scroll to, because there was no cursor into a list nobody was
+/// querying.
 class CentralConversationList extends StatelessWidget {
   const CentralConversationList({super.key});
 
@@ -33,23 +41,50 @@ class CentralConversationList extends StatelessWidget {
     final state = context.watch<CentralDmCubit>().state;
     final conversations = state.graph.visible(state.conversations);
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      children: [
-        const SectionHeader(label: 'Conversations'),
-        for (final conversation in conversations)
-          _tile(context, state, themeState, conversation),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(2, 14, 2, 12),
-          child: HintCard(
-            text:
-                'Central DMs are for finding each other. For longer chats, '
-                'move to a server you share.',
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (state.hasMoreConversations &&
+            notification.metrics.extentAfter < _loadMoreSlack) {
+          unawaited(context.read<CentralDmCubit>().loadMoreConversations());
+        }
+        // Never swallowed — the scrollbar is still listening.
+        return false;
+      },
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        children: [
+          const SectionHeader(label: 'Conversations'),
+          for (final conversation in conversations)
+            _tile(context, state, themeState, conversation),
+          if (state.hasMoreConversations) _buildFooter(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(2, 14, 2, 12),
+            child: HintCard(
+              text:
+                  'Central DMs are for finding each other. For longer chats, '
+                  'move to a server you share.',
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
+
+  /// How close to the bottom counts as "nearly there" — about three tiles.
+  static const double _loadMoreSlack = 180;
+
+  /// The spinner at the end of a page, which is also what says the list has not
+  /// simply stopped.
+  Widget _buildFooter() => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 16),
+    child: Center(
+      child: SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    ),
+  );
 
   Widget _tile(
     BuildContext context,
