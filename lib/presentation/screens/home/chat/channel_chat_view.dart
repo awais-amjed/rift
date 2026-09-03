@@ -170,6 +170,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
           onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
           onEdit: context.read<ChannelChatCubit>().editMessage,
           onDelete: context.read<ChannelChatCubit>().deleteMessage,
+          onRetry: context.read<ChannelChatCubit>().retrySend,
           onPanelAction: context.read<ChannelChatCubit>().pressPanelAction,
           // Channel managers and admins may remove anyone's message.
           isModerator: _isModerator(context),

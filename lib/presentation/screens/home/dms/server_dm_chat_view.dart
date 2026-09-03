@@ -98,6 +98,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           onToggleReaction: context.read<DmCubit>().toggleReaction,
           onEdit: context.read<DmCubit>().editMessage,
           onDelete: context.read<DmCubit>().deleteMessage,
+          onRetry: context.read<DmCubit>().retrySend,
           mentionable: _mentionable(state),
         );
       case DmChatStatus.loading:

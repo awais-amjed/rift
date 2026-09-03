@@ -12,6 +12,10 @@ mixin _ChannelChatHistoryMixin
   /// not our own sends) so the hub can clear typing state and notify.
   void _onFreshIncoming(List<ChatMessage> incoming);
 
+  /// See the send mixin. Read here to put failed sends back under a freshly
+  /// fetched page, and to forget one the server turns out to have stored.
+  Outbox get _outbox;
+
   Future<void> _fetchLatest(String channelId) async {
     final response = await _serverCubit.listChatMessages(
       channelId: channelId,
@@ -25,7 +29,13 @@ mixin _ChannelChatHistoryMixin
     final decrypted = await _decryptRows(channelId, rows);
     emit(
       state.copyWith(
-        messages: decrypted.reversed.toList(),
+        // Anything that failed to send in this channel goes back on the end.
+        // Without this a "Not sent" row lasts exactly until the first click
+        // elsewhere, which is the loss the outbox exists to stop.
+        messages: _outbox.restoreInto(
+          decrypted.reversed.toList(),
+          channelId,
+        ),
         hasMoreHistory: data['has_more'] as bool? ?? false,
       ),
     );
@@ -56,6 +66,13 @@ mixin _ChannelChatHistoryMixin
     );
     if (result.fresh.isEmpty) return;
 
+    // A send can time out *after* the server stored it. When that message comes
+    // back the merge retires the row it belongs to — and the outbox entry
+    // behind it has to go too, or reopening the channel would offer to send a
+    // message that is already in it.
+    for (final pendingId in result.retired) {
+      _outbox.drop(pendingId);
+    }
     emit(state.copyWith(messages: result.merged));
 
     final freshIncoming = result.fresh.where((m) => !m.isMine).toList();

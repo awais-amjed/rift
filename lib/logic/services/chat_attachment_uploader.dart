@@ -35,6 +35,7 @@ class ChatAttachmentUploader {
       if (!response.success || response.data == null) {
         throw AttachmentUploadException(
           response.error ?? 'Attachment upload failed',
+          errorCode: response.errorCode,
         );
       }
       final r =
@@ -78,7 +79,13 @@ class ChatAttachmentUploader {
 
 class AttachmentUploadException implements Exception {
   final String message;
-  AttachmentUploadException(this.message);
+
+  /// The code the failed upload came back with, so a caller can tell a
+  /// connection that dropped from a file the server refused. Null when the
+  /// response carried none. See `ErrorCode.isRetryable`.
+  final String? errorCode;
+
+  AttachmentUploadException(this.message, {this.errorCode});
   @override
   String toString() => message;
 }

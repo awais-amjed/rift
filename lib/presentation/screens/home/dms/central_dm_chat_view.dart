@@ -107,6 +107,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           // kept deliberately thin — reactions live on servers.
           onEdit: context.read<CentralDmCubit>().editMessage,
           onDelete: context.read<CentralDmCubit>().deleteMessage,
+          onRetry: context.read<CentralDmCubit>().retrySend,
           // The only two people who will ever read this. Naming anyone else
           // would light up a mention that cannot reach them.
           mentionable: {

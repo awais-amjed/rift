@@ -3,6 +3,10 @@ part of 'central_dm_cubit.dart';
 /// The open central-DM conversation: opening it, and paging its history.
 /// Turning the rows into messages is [_CentralDmDecryptMixin].
 mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
+  /// See the send mixin. Read here to put failed sends back under a freshly
+  /// fetched page, and to forget one the server turns out to have stored.
+  Outbox get _outbox;
+
   CentralDmRepository get _repo;
 
   /// Implemented by the send mixin.
@@ -78,7 +82,8 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     final decrypted = await _decryptRows(peerId, rows);
     emit(
       state.copyWith(
-        messages: decrypted.reversed.toList(),
+        // Anything that failed to send to this peer goes back on the end.
+        messages: _outbox.restoreInto(decrypted.reversed.toList(), peerId),
         hasMoreHistory: data['has_more'] as bool? ?? false,
       ),
     );
@@ -108,6 +113,11 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     );
     if (result.fresh.isEmpty) return;
 
+    // A send can time out after central stored it; when that message comes
+    // back, the entry behind the row it retires has to go with it.
+    for (final pendingId in result.retired) {
+      _outbox.drop(pendingId);
+    }
     emit(state.copyWith(messages: result.merged));
   }
 

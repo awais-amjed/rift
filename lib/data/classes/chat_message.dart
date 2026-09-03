@@ -39,6 +39,17 @@ class ChatMessage {
   /// Sent optimistically, not yet acknowledged by the server.
   final bool isPending;
 
+  /// A pending row whose send failed on the way out, and which is waiting to
+  /// be told to try again.
+  ///
+  /// Still [isPending] — it is no more sent than it was a moment ago — but no
+  /// longer in flight, which is a different thing to say and a different thing
+  /// to draw. Only ever set for a failure that could plausibly succeed on a
+  /// retry (see `ErrorCode.isRetryable`); a refusal takes the row away instead,
+  /// because a "try again" on something the server has already declined is a
+  /// button that cannot work.
+  final bool sendFailed;
+
   /// The local id this message carried while it was pending, if it was sent
   /// from this client and has since been acknowledged.
   ///
@@ -69,8 +80,13 @@ class ChatMessage {
   /// moment earlier. [isEphemeral] likewise — a bot's private reply grouping
   /// under its public one would hide the badge that says only you can see it,
   /// which is the whole thing that row has to communicate.
+  ///
+  /// [sendFailed] is in the key for exactly that reason. "Not sent" is drawn in
+  /// the header, and only the first row of a group has one — so a failed
+  /// message tucking under the message before it would be silent about the one
+  /// fact it exists to report.
   String get groupKey => origin.isMember
-      ? '$authorId:$isEncrypted:$isEphemeral'
+      ? '$authorId:$isEncrypted:$isEphemeral:$sendFailed'
       : '${origin.name}:$authorName';
 
   /// When the author last edited this message, or null if never edited.
@@ -129,6 +145,7 @@ class ChatMessage {
     this.attachments = const [],
     this.reactions = const [],
     this.isPending = false,
+    this.sendFailed = false,
     this.sentAsId,
     this.editedAt,
     this.origin = MessageOrigin.member,
@@ -143,6 +160,7 @@ class ChatMessage {
     String? text,
     DateTime? editedAt,
     String? sentAsId,
+    bool? sendFailed,
   }) => ChatMessage(
     id: id,
     authorId: authorId,
@@ -154,6 +172,7 @@ class ChatMessage {
     attachments: attachments,
     reactions: reactions ?? this.reactions,
     isPending: isPending,
+    sendFailed: sendFailed ?? this.sendFailed,
     sentAsId: sentAsId ?? this.sentAsId,
     editedAt: editedAt ?? this.editedAt,
     origin: origin,

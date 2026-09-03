@@ -27,6 +27,7 @@ import '../../services/chat_message_ops.dart';
 import '../../services/chat_notice.dart';
 import '../../services/mentions.dart';
 import '../../services/notification_service.dart';
+import '../../services/outbox.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/window_focus_service.dart';
 import '../server/server_cubit.dart';
@@ -38,6 +39,7 @@ part 'channel_chat_ready.dart';
 part 'channel_chat_rows.dart';
 part 'channel_chat_history.dart';
 part 'channel_chat_send.dart';
+part 'channel_chat_panels.dart';
 part 'channel_chat_edit.dart';
 part 'channel_chat_reactions.dart';
 part 'channel_chat_realtime.dart';
@@ -61,6 +63,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         _ChannelChatRowsMixin,
         _ChannelChatHistoryMixin,
         _ChannelChatSendMixin,
+        _ChannelChatPanelsMixin,
         _ChannelChatEditMixin,
         _ChannelChatReactionsMixin,
         _ChannelChatRealtimeMixin,
@@ -99,6 +102,15 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// which version is current, and that disagreement presents as a room where
   /// some people can read each other and some cannot.
   @override
+  /// Sends that failed on the way out, waiting to be retried.
+  ///
+  /// On the class because two mixins need it: the send mixin holds and takes,
+  /// the history mixin restores and drops (CODE_STYLE §5). Not persisted — it
+  /// lives as long as the app is open, which is the whole of what Rift keeps
+  /// locally.
+  @override
+  final Outbox _outbox = Outbox();
+
   /// See [KeySweepDoorbell]. One per selected server, not per channel.
   @override
   final KeySweepDoorbell _sweepDoorbell = KeySweepDoorbell();

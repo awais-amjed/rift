@@ -29,6 +29,7 @@ import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/notification_service.dart';
 import '../../services/window_focus_service.dart';
+import '../../services/outbox.dart';
 import '../app/app_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -94,6 +95,15 @@ class CentralDmCubit extends Cubit<CentralDmState>
 
   /// Diffs conversation snapshots to raise notifications for new central DMs.
   final NewMessageNotifier _notifier = NewMessageNotifier();
+
+  /// Sends that failed on the way out, waiting to be retried.
+  ///
+  /// On the class because two mixins need it: the send mixin holds and takes,
+  /// the history mixin restores and drops (CODE_STYLE §5). Not persisted — it
+  /// lives as long as the app is open, which is the whole of what Rift keeps
+  /// locally.
+  @override
+  final Outbox _outbox = Outbox();
 
   CentralDmCubit({
     required VaultCubit vaultCubit,
@@ -162,6 +172,10 @@ class CentralDmCubit extends Cubit<CentralDmState>
     final channel = _incoming;
     _incoming = null;
     _dmKeys.clear();
+    // Unsent messages belong to the account that wrote them. Keeping them
+    // across a sign-out would offer the next account a retry on somebody
+    // else's sentence.
+    _outbox.clear();
     _notifier.reset();
     // Cursors belong to the signed-in account, not the app.
     _resetUnread();

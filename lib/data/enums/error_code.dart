@@ -104,4 +104,17 @@ class ErrorCode {
   /// valid and the client should attempt re-authentication.
   static bool isSessionInvalid(String? code) =>
       code == tokenInvalid || code == tokenExpired || code == tokenUnlinked;
+
+  /// Whether the same call, made again later, could plausibly succeed.
+  ///
+  /// True only for the two codes that describe the *connection* rather than
+  /// the request: nothing answered, or nothing answered in time. Everything
+  /// else is the server having considered the question and said no — a quota,
+  /// a policy, an unfriending — and offering to try those again is a lie, both
+  /// to the reader and about what the button does.
+  ///
+  /// This is what decides whether a failed send is kept as a retryable row or
+  /// removed with an explanation. See `Outbox`.
+  static bool isRetryable(String? code) =>
+      code == serverUnreachable || code == serverTimeout;
 }

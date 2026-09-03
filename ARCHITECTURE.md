@@ -524,6 +524,49 @@ The locked row carries the author and the timestamp, which are columns the serve
 the clear (§6, *metadata is visible*). Showing them reveals nothing a member without the key could
 not read off the table directly, and without them the row says nothing about whose history this is.
 
+### A send that did not get out [Implemented September 2026]
+
+All three chat surfaces show an optimistic row the moment you press enter, and until now a failure
+took that row away: the bubble was removed, a toast said *Failed to send message*, and the sentence
+went with it. On a bad connection that is the worst possible outcome — the message was fine, the
+network was not, and the only copy of what you typed was the one just deleted.
+
+A failed send now stays where it is, marked **Not sent**, with the text intact and a *Retry* beside
+it. `Outbox` (`lib/logic/services/outbox.dart`) holds what a second attempt needs — the row itself,
+plus the local attachment bytes, which are the one input the row does not carry.
+
+**Two paths, decided by whether anything answered.** `ErrorCode.isRetryable` is the whole of it:
+`server_unreachable` and `server_timeout` describe the *connection*, and only those keep the row.
+Everything else — a quota, a policy, an unfriending, a permission denied — is the server having
+considered the message and refused it, and those keep the old behaviour of removing the row and
+saying why. A *Retry* on a message the server has already declined is a button that cannot work,
+and worse, it tells the reader the message might still go.
+
+**Nothing re-sends on its own**, which was a deliberate choice over the usual meaning of "outbox".
+A queue that empties itself while nobody is looking can deliver a sentence hours after it stopped
+being true. It is the same rule as §*presence* — the client does not assert what the server has not
+confirmed, and it does not act on the reader's behalf without being asked.
+
+Three details that are load-bearing:
+
+- **The row survives leaving the conversation.** `Outbox.restoreInto` puts held rows back under a
+  freshly fetched page, so a "Not sent" message is still there after a click elsewhere. Without it
+  the feature would last exactly one navigation.
+- **`sendFailed` is in `ChatMessage.groupKey`.** "Not sent" is drawn in the header, and only the
+  first row of a group has one — so a failed message tucking under the message above it would be
+  silent about the one thing it exists to report. Same reasoning as `isEncrypted` and `isEphemeral`.
+- **A send can time out after the server stored it.** When that message arrives over realtime,
+  `mergeIncoming` retires the row it belongs to and now reports which ids it retired, so the entry
+  behind them is dropped too. Otherwise reopening the conversation would offer to send a message
+  that is already in it.
+
+This is **not** a local message store, and deliberately stops short of one. It holds only what has
+*not* been sent, in memory, for as long as the app is open. Rift persists structure — the server
+list, channels, window geometry — and no content: caching decrypted messages would put the one
+thing the whole design protects into a plain file (`hydrated_bloc` is built with no cipher). If
+offline reading is ever wanted, the shape is to store the **envelopes** rather than the plaintext,
+which is a different feature with encryption-at-rest as a property rather than a chore.
+
 ### Rich messages — structured body + attachments [Implemented July 2026]
 
 A message's encrypted plaintext is no longer a bare string but a small **tagged

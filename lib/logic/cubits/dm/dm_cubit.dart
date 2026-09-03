@@ -17,6 +17,7 @@ import '../../services/chat_attachment_uploader.dart';
 import '../../services/broadcast_payload.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/notification_service.dart';
+import '../../services/outbox.dart';
 import '../../services/reaction_ops.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
@@ -66,6 +67,15 @@ class DmCubit extends Cubit<DmState>
   /// Diffs conversation snapshots to raise notifications for new DMs.
   final NewMessageNotifier _notifier = NewMessageNotifier();
 
+  /// Sends that failed on the way out, waiting to be retried.
+  ///
+  /// On the class because two mixins need it: the send mixin holds and takes,
+  /// the history mixin restores and drops (CODE_STYLE §5). Cleared with the
+  /// rest of the state on a server switch — a message meant for one server's
+  /// member has nowhere to go on another.
+  @override
+  final Outbox _outbox = Outbox();
+
   /// Expiry timer + rate-limit for the typing indicator.
   Timer? _typingTimer;
   DateTime? _lastTypingSent;
@@ -108,6 +118,7 @@ class DmCubit extends Cubit<DmState>
   Future<void> _reset() async {
     _readyServerId = null;
     _dmKeys.clear();
+    _outbox.clear();
     _notifier.reset();
     _typingTimer?.cancel();
     _typingTimer = null;

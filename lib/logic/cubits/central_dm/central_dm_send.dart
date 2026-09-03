@@ -15,6 +15,10 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   /// Implemented by the friends mixin.
   Future<void> loadFriends();
 
+  /// Sends that did not get out. On the class rather than here because the
+  /// history mixin restores from it too (CODE_STYLE §5).
+  Outbox get _outbox;
+
   int _pendingCounter = 0;
 
   Future<void> refreshQuota() async {
@@ -46,22 +50,19 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     if (trimmed.isEmpty && attachments.isEmpty) return;
 
     final pendingId = 'pending-${_pendingCounter++}';
-    emit(
-      state.copyWith(
-        messages: [
-          ...state.messages,
-          ChatMessage(
-            id: pendingId,
-            authorId: myId,
-            authorName: state.myHandle ?? 'me',
-            text: trimmed,
-            sentAt: DateTime.now(),
-            isMine: true,
-            isPending: true,
-          ),
-        ],
-      ),
+    // Held in a local as well as emitted: if this send fails it becomes the row
+    // the outbox keeps, and by then the reader may have left the conversation
+    // — so it cannot be read back out of state.
+    final pending = ChatMessage(
+      id: pendingId,
+      authorId: myId,
+      authorName: state.myHandle ?? 'me',
+      text: trimmed,
+      sentAt: DateTime.now(),
+      isMine: true,
+      isPending: true,
     );
+    emit(state.copyWith(messages: [...state.messages, pending]));
 
     try {
       final uploaded = await ChatAttachmentUploader.uploadAll(
@@ -87,8 +88,20 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
       if (state.openPeerId != peerId) return;
 
       if (!response.success) {
-        _removePending(pendingId);
-        _reportSendFailure(response);
+        // The quota and the friendship walls are refusals with something to
+        // say, and [_reportSendFailure] is where they are said. It is reached
+        // only for a response that actually came back — a send that never
+        // arrived has no code, and nothing about the account to report.
+        if (Outbox.canRetry(response.errorCode)) {
+          _failSend(
+            pending: pending,
+            peerId: peerId,
+            attachments: attachments,
+          );
+        } else if (state.openPeerId == peerId) {
+          _removePending(pendingId);
+          _reportSendFailure(response);
+        }
         return;
       }
 
@@ -123,17 +136,60 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
       unawaited(refreshConversations());
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[CentralDM] attachment upload failed: $e');
-      if (state.openPeerId == peerId) {
+      if (Outbox.canRetry(e.errorCode)) {
+        _failSend(pending: pending, peerId: peerId, attachments: attachments);
+      } else if (state.openPeerId == peerId) {
         _removePending(pendingId);
         HelperMethods.showError(error: 'Failed to upload attachment');
       }
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] send failed: $e');
+      // No code to read, so no claim that a retry would help.
       if (state.openPeerId == peerId) {
         _removePending(pendingId);
         HelperMethods.showError(error: 'Failed to send message');
       }
     }
+  }
+
+  /// Keep a send the connection lost, and mark the row so it says so.
+  ///
+  /// Only ever called for a retryable failure — the refusals go through
+  /// [_reportSendFailure], which has something specific to say and nothing to
+  /// offer a retry for. Holds whether or not the conversation is still open,
+  /// so walking away mid-failure does not lose the message
+  /// (`Outbox.restoreInto` brings it back).
+  void _failSend({
+    required ChatMessage pending,
+    required String peerId,
+    required List<PendingAttachment> attachments,
+  }) {
+    _outbox.hold(
+      OutboxEntry(
+        destination: peerId,
+        row: pending.copyWith(sendFailed: true),
+        attachments: attachments,
+      ),
+    );
+    if (state.openPeerId == peerId) {
+      emit(
+        state.copyWith(
+          messages: ChatMessageOps.markFailed(state.messages, pending.id),
+        ),
+      );
+    }
+  }
+
+  /// Try one held send again — what tapping a "Not sent" row does.
+  Future<void> retrySend(String pendingId) async {
+    final entry = _outbox.take(pendingId);
+    if (entry == null) return;
+    emit(
+      state.copyWith(
+        messages: ChatMessageOps.removePending(state.messages, pendingId),
+      ),
+    );
+    await sendDm(entry.text, attachments: entry.attachments);
   }
 
   void _reportSendFailure(APIResponse response) {

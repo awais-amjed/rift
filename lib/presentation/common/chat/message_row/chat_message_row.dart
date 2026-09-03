@@ -51,6 +51,10 @@ class ChatMessageRow extends StatefulWidget {
   /// Hard-delete this message. Null disables deletion.
   final void Function(String messageId)? onDelete;
 
+  /// Send a failed message again. Null on a surface with no outbox — the row
+  /// still says "Not sent", it just has nothing to offer.
+  final void Function(String pendingId)? onRetry;
+
   /// Somebody pressed something on a bot's panel. Null where the surface has
   /// no way to send one — a panel is still worth reading where it cannot be
   /// touched, so the buttons are drawn and inert rather than hidden.
@@ -80,6 +84,7 @@ class ChatMessageRow extends StatefulWidget {
     this.onToggleReaction,
     this.onEdit,
     this.onDelete,
+    this.onRetry,
     this.onPanelAction,
     this.isModerator = false,
     this.mentionable = const {},
@@ -269,7 +274,10 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
           ? themeState.textPrimary.withValues(alpha: 0.025)
           : Colors.transparent,
       child: Opacity(
-        opacity: message.isPending ? 0.6 : 1.0,
+        // Dimmed while it is in flight, and full strength again once it has
+        // failed: the fade says "not finished", and a row asking to be pressed
+        // is the wrong thing to push into the background.
+        opacity: message.isPending && !message.sendFailed ? 0.6 : 1.0,
         child: Padding(
           padding: EdgeInsets.only(
             left: K.messageRowHPad,
@@ -306,7 +314,13 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.showHeader)
-          MessageRowHeader(message: message, themeState: themeState),
+          MessageRowHeader(
+            message: message,
+            themeState: themeState,
+            onRetry: widget.onRetry == null
+                ? null
+                : () => widget.onRetry!(message.id),
+          ),
         if (message.isLocked)
           MessageLockedBody(themeState: themeState)
         // A panel replaces the body rather than sitting beside it: its text is

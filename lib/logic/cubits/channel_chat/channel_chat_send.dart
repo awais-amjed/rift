@@ -14,73 +14,20 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// mixin of its own.
   void _ringKeySweepDoorbell();
 
+  /// Sends that did not get out. On the class rather than here because the
+  /// history mixin restores from it too (CODE_STYLE §5).
+  Outbox get _outbox;
+
   int _pendingCounter = 0;
 
   /// Seal, sign, and send a message ([text] and/or [attachments]); shows an
   /// optimistic pending message until the server acknowledges. Attachments are
-  /// encrypted + uploaded first; on any failure the pending message is removed
-  /// and an error toast shown.
-  /// Press something on a bot's panel.
+  /// encrypted + uploaded first.
   ///
-  /// Signed but not sealed, exactly like the command that would have done the
-  /// same job before panels existed — the bot holds no channel key, so a sealed
-  /// press is one it could not open. The channel sees the panel change and not
-  /// the press: `is_interaction` keeps the row out of everybody else's view
-  /// (migration 029).
+  /// A failure takes one of two paths, and which one is the whole of
+  /// [_failSend]: a server that answered "no" removes the row and says why, a
+  /// server that did not answer at all keeps it for a retry.
   ///
-  /// Fire-and-forget, and deliberately without an optimistic anything. What
-  /// the press *does* is entirely the bot's business — it may change the panel,
-  /// or take a second, or decide not to — so a client guessing at the outcome
-  /// would be guessing.
-  Future<void> pressPanelAction(
-    String messageId,
-    String action,
-    String? value,
-  ) async {
-    final channelId = state.channelId;
-    final server = _serverCubit.state.selectedServer;
-    final user = server?.user;
-    if (channelId == null || server == null || user == null) return;
-
-    // The panel's author is the bot to answer. Taken from the row rather than
-    // from anything the block carried: a button that named its own recipient
-    // would let one bot's panel address another's.
-    String? botId;
-    for (final message in state.messages) {
-      if (message.id == messageId) botId = message.authorId;
-    }
-    final replyTo = int.tryParse(messageId);
-    if (botId == null || botId.isEmpty || replyTo == null) return;
-
-    // The *server* identity, which is what signs a message — the chat identity
-    // is X25519 and seals one.
-    final identity = await _vaultCubit.getIdentityForHost(
-      Uri.parse(server.supabaseUrl).host,
-      serverId: server.id,
-      version: server.keyVersion,
-    );
-
-    // The body is the action id rather than empty: it is what a client without
-    // panels would show, and what the bot reads if it ignores `action_id`.
-    final envelope = await _crypto.signPlaintext(
-      plaintext: action,
-      signingKeyPair: identity.keyPair,
-      contextId: channelId,
-    );
-
-    final response = await _serverCubit.sendPanelAction(
-      channelId: channelId,
-      envelope: envelope.toJson(),
-      toBot: botId,
-      replyTo: replyTo,
-      actionId: action,
-      actionValue: value,
-    );
-    if (!response.success) {
-      HelperMethods.showError(error: response.error ?? 'That did not go');
-    }
-  }
-
   /// [inVoiceChannel] is the call the sender is sitting in, or null. Passed in
   /// rather than read from a cubit here: "I am in this call while I ask" is a
   /// fact about the person sending, and the alternative is this cubit knowing
@@ -120,29 +67,25 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         : null;
 
     final pendingId = 'pending-${_pendingCounter++}';
-    // Show the text immediately; attachments appear once uploaded.
-    emit(
-      state.copyWith(
-        messages: [
-          ...state.messages,
-          ChatMessage(
-            id: pendingId,
-            authorId: user.id,
-            authorName: user.displayName,
-            text: trimmed,
-            sentAt: DateTime.now(),
-            isMine: true,
-            isPending: true,
-            // The badge has to be on the row from the moment it appears. This
-            // is the one message whose *sender* chose to send it in the clear,
-            // and the send is exactly when they want to see that confirmed —
-            // waiting for a reload to admit it would be the worst timing
-            // available.
-            isEncrypted: command == null,
-          ),
-        ],
-      ),
+    // Held in a local as well as emitted: if this send fails it becomes the
+    // row the outbox keeps, and by then the reader may have walked away from
+    // the channel — so it cannot be read back out of state.
+    final pending = ChatMessage(
+      id: pendingId,
+      authorId: user.id,
+      authorName: user.displayName,
+      text: trimmed,
+      sentAt: DateTime.now(),
+      isMine: true,
+      isPending: true,
+      // The badge has to be on the row from the moment it appears. This is the
+      // one message whose *sender* chose to send it in the clear, and the send
+      // is exactly when they want to see that confirmed — waiting for a reload
+      // to admit it would be the worst timing available.
+      isEncrypted: command == null,
     );
+    // Show the text immediately; attachments appear once uploaded.
+    emit(state.copyWith(messages: [...state.messages, pending]));
 
     try {
       final uploaded = await ChatAttachmentUploader.uploadAll(
@@ -245,8 +188,11 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       if (state.channelId != channelId) return;
 
       if (!response.success) {
-        _removePending(pendingId);
-        HelperMethods.showError(
+        _failSend(
+          pending: pending,
+          channelId: channelId,
+          attachments: attachments,
+          errorCode: response.errorCode,
           error: response.error ?? 'Failed to send message',
         );
         return;
@@ -274,17 +220,88 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       _ringDoorbell();
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[Chat] attachment upload failed: $e');
-      if (state.channelId == channelId) {
-        _removePending(pendingId);
-        HelperMethods.showError(error: 'Failed to upload attachment');
-      }
+      _failSend(
+        pending: pending,
+        channelId: channelId,
+        attachments: attachments,
+        errorCode: e.errorCode,
+        error: 'Failed to upload attachment',
+      );
     } catch (e) {
       HelperMethods.printDebug('[Chat] send failed: $e');
-      if (state.channelId == channelId) {
-        _removePending(pendingId);
-        HelperMethods.showError(error: 'Failed to send message');
-      }
+      // No code to read, so no claim that a retry would help. An exception
+      // that got this far is a bug in the send path rather than a network
+      // that dropped, and those are the same next time.
+      _failSend(
+        pending: pending,
+        channelId: channelId,
+        attachments: attachments,
+        errorCode: null,
+        error: 'Failed to send message',
+      );
     }
+  }
+
+  /// What happens to a pending row when the send did not land.
+  ///
+  /// Two outcomes, decided entirely by whether anything answered. A refusal —
+  /// a quota, a policy, a channel you are no longer in — takes the row away
+  /// and says why, because the same message sent again would be refused again
+  /// and a retry button would be a lie. A connection that dropped keeps the
+  /// row, marks it, and holds what a second attempt would need.
+  ///
+  /// Nothing is shown for the retryable case: the row itself now says "Not
+  /// sent", right where the reader is already looking, and a toast on top of it
+  /// is the same news twice.
+  ///
+  /// Emits only while this is still the open channel, but holds either way —
+  /// somebody who clicked elsewhere while a send was failing should still find
+  /// it waiting when they come back (`Outbox.restoreInto`).
+  void _failSend({
+    required ChatMessage pending,
+    required String channelId,
+    required List<PendingAttachment> attachments,
+    required String? errorCode,
+    required String error,
+  }) {
+    final open = state.channelId == channelId;
+    if (!Outbox.canRetry(errorCode)) {
+      if (open) {
+        _removePending(pending.id);
+        HelperMethods.showError(error: error);
+      }
+      return;
+    }
+    _outbox.hold(
+      OutboxEntry(
+        destination: channelId,
+        row: pending.copyWith(sendFailed: true),
+        attachments: attachments,
+      ),
+    );
+    if (open) {
+      emit(
+        state.copyWith(
+          messages: ChatMessageOps.markFailed(state.messages, pending.id),
+        ),
+      );
+    }
+  }
+
+  /// Try one held send again — what tapping a "Not sent" row does.
+  ///
+  /// The row is taken out and re-sent from the bottom rather than resurrected
+  /// in place: it is being sent *now*, so now is where it belongs in the
+  /// conversation. [Outbox.take] is what makes a double-tap harmless.
+  Future<void> retrySend(String pendingId) async {
+    final entry = _outbox.take(pendingId);
+    if (entry == null) return;
+    emit(
+      state.copyWith(
+        messages: ChatMessageOps.removePending(state.messages, pendingId),
+      ),
+    );
+    await sendMessage(entry.text, attachments: entry.attachments);
   }
 
   void _removePending(String pendingId) {

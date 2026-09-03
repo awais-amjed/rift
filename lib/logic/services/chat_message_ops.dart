@@ -46,6 +46,20 @@ class ChatMessageOps {
     String pendingId,
   ) => messages.where((m) => m.id != pendingId).toList();
 
+  /// Leave an optimistic bubble where it is and mark that it did not get out.
+  ///
+  /// The alternative — and what every send used to do — is [removePending],
+  /// which takes the row and the typed text away together. That is right for a
+  /// refusal, where trying again cannot help, and wrong for a lost connection,
+  /// where the message is fine and the network was not. See `Outbox`.
+  static List<ChatMessage> markFailed(
+    List<ChatMessage> messages,
+    String pendingId,
+  ) => [
+    for (final m in messages)
+      if (m.id != pendingId) m else m.copyWith(sendFailed: true),
+  ];
+
   /// Swap an optimistic bubble for the row the server acknowledged.
   static List<ChatMessage> replacePending(
     List<ChatMessage> messages, {
@@ -96,13 +110,26 @@ class ChatMessageOps {
   /// when its exact content came back from the server — other in-flight sends
   /// keep their bubbles. [fresh] is what actually arrived, so callers can
   /// notify or clear typing state off it.
-  static ({List<ChatMessage> merged, List<ChatMessage> fresh}) mergeIncoming({
+  ///
+  /// [retired] names the pending rows the arriving page replaced. A caller
+  /// holding failed sends needs it: a send can time out *after* the server
+  /// stored it, and when that message comes back the row it belongs to is
+  /// rightly retired here — but the `Outbox` entry behind it would otherwise
+  /// survive, and put the row back the next time the conversation was opened.
+  static ({
+    List<ChatMessage> merged,
+    List<ChatMessage> fresh,
+    List<String> retired,
+  })
+  mergeIncoming({
     required List<ChatMessage> current,
     required List<ChatMessage> incoming,
   }) {
     final known = current.where((m) => !m.isPending).map((m) => m.id).toSet();
     final fresh = incoming.where((m) => !known.contains(m.id)).toList();
-    if (fresh.isEmpty) return (merged: current, fresh: const []);
+    if (fresh.isEmpty) {
+      return (merged: current, fresh: const [], retired: const []);
+    }
 
     // One acknowledged row retires one bubble, oldest first — a count, not a
     // set of texts. Matching on membership let a single arriving row retire
@@ -115,14 +142,16 @@ class ChatMessageOps {
       if (m.isMine) unclaimed[m.text] = (unclaimed[m.text] ?? 0) + 1;
     }
     final kept = <ChatMessage>[];
+    final retired = <String>[];
     for (final m in current) {
       final claims = unclaimed[m.text] ?? 0;
       if (m.isPending && m.isMine && claims > 0) {
         unclaimed[m.text] = claims - 1;
+        retired.add(m.id);
         continue;
       }
       kept.add(m);
     }
-    return (merged: [...kept, ...fresh], fresh: fresh);
+    return (merged: [...kept, ...fresh], fresh: fresh, retired: retired);
   }
 }

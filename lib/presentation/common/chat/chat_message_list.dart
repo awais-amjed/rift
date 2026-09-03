@@ -37,6 +37,11 @@ class ChatMessageList extends StatefulWidget {
   /// Hard-delete a message. Null disables deletion on this surface.
   final void Function(String messageId)? onDelete;
 
+  /// Send a message that failed on the way out again. Null leaves a failed row
+  /// saying so with nothing to press — which is still better than the row not
+  /// being there.
+  final void Function(String pendingId)? onRetry;
+
   /// Somebody pressed something on a bot's panel.
   final void Function(String messageId, String action, String? value)?
   onPanelAction;
@@ -72,6 +77,7 @@ class ChatMessageList extends StatefulWidget {
     this.onToggleReaction,
     this.onEdit,
     this.onDelete,
+    this.onRetry,
     this.onPanelAction,
     this.isModerator = false,
     this.mentionable = const {},
@@ -223,6 +229,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               onToggleReaction: widget.onToggleReaction,
               onEdit: widget.onEdit,
               onDelete: widget.onDelete,
+              onRetry: widget.onRetry,
               onPanelAction: widget.onPanelAction,
               isModerator: widget.isModerator,
               mentionable: widget.mentionable,
