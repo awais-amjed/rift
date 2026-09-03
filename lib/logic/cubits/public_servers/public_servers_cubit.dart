@@ -32,26 +32,73 @@ class PublicServersCubit extends Cubit<PublicServersState> {
 
   // ── Browsing ──────────────────────────────────────────────
 
-  /// Re-run the current query. Called on open, on retry, and after the
-  /// debounce set by [search].
+  /// Re-run the current query from the top. Called on open, on retry, and
+  /// after the debounce set by [search].
   Future<void> browse() async {
     final browseId = ++_browseId;
     emit(state.copyWith(loading: true, clearError: true));
 
-    final response = await _repo.browse(query: state.query, tag: state.tag);
-    if (isClosed || browseId != _browseId) return;
+    final page = await _fetch(offset: 0);
+    if (isClosed || browseId != _browseId || page == null) return;
 
-    if (!response.success) {
-      emit(state.copyWith(loading: false, error: response.error));
-      return;
-    }
     emit(
       state.copyWith(
         loading: false,
-        results: response.data as List<PublicServer>,
+        results: page.results,
+        hasMore: page.hasMore,
         hasBrowsed: true,
         clearError: true,
       ),
+    );
+  }
+
+  /// Append the next page — what the list asks for as it is scrolled.
+  ///
+  /// The directory used to be one page of 50 with no way to ask for the next,
+  /// so the 51st listed server could not be found at all and nothing on screen
+  /// said so. Safe to call on every scroll frame: a call while one is in
+  /// flight, or after the end, is a no-op.
+  Future<void> loadMore() async {
+    if (state.loading || state.loadingMore || !state.hasMore) return;
+    final browseId = _browseId;
+    emit(state.copyWith(loadingMore: true));
+
+    final page = await _fetch(offset: state.results.length);
+    if (isClosed || browseId != _browseId) return;
+    if (page == null) {
+      emit(state.copyWith(loadingMore: false));
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        loadingMore: false,
+        results: [...state.results, ...page.results],
+        hasMore: page.hasMore,
+        clearError: true,
+      ),
+    );
+  }
+
+  /// One page of the directory, or null when the request failed — in which
+  /// case [PublicServersState.error] carries the reason.
+  Future<({List<PublicServer> results, bool hasMore})?> _fetch({
+    required int offset,
+  }) async {
+    final response = await _repo.browse(
+      query: state.query,
+      tag: state.tag,
+      offset: offset,
+    );
+    if (isClosed) return null;
+    if (!response.success) {
+      emit(state.copyWith(loading: false, error: response.error));
+      return null;
+    }
+    final data = response.data as Map<String, dynamic>;
+    return (
+      results: data['results'] as List<PublicServer>,
+      hasMore: data['has_more'] == true,
     );
   }
 

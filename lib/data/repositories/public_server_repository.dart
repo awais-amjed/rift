@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../logic/services/paging.dart';
 import '../classes/api_response.dart';
 import '../classes/public_server.dart';
 
@@ -17,7 +18,13 @@ class PublicServerRepository {
   String? get _uid => _client.auth.currentUser?.id;
 
   /// Browse the directory. [query] matches the name or the description,
-  /// [tag] narrows to listings carrying it.
+  /// [tag] narrows to listings carrying it, [offset] pages.
+  ///
+  /// Answers `{results, has_more}`. Over-fetches one row past the page so
+  /// "there is more" is proved rather than guessed from a full page — see
+  /// [Paging.split]. The directory used to be read as one page of 50 with no
+  /// way to ask for the next, which meant the 51st listed server could not be
+  /// found at all and nothing on screen said so.
   ///
   /// `is_listed` is filtered here as well as in the policy, which reads as
   /// redundant and isn't: the policy also lets you see **your own** delisted
@@ -46,11 +53,13 @@ class PublicServerRepository {
       final rows = await request
           .order('member_count', ascending: false)
           .order('updated_at', ascending: false)
-          .range(offset, offset + limit - 1);
+          .range(offset, offset + limit);
 
-      return APIResponse.success(
-        rows.map((r) => PublicServer.fromJson(r)).toList(),
-      );
+      final page = Paging.split(rows, limit: limit);
+      return APIResponse.success({
+        'results': [for (final r in page.rows) PublicServer.fromJson(r)],
+        'has_more': page.hasMore,
+      });
     } catch (e) {
       return APIResponse.error(e);
     }

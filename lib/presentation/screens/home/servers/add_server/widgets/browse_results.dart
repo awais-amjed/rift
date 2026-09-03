@@ -21,13 +21,22 @@ class BrowseResults extends StatelessWidget {
   final void Function(PublicServer server) onJoin;
   final VoidCallback onRetry;
 
+  /// Asked for when the list is scrolled near its end. Safe to fire often —
+  /// [PublicServersCubit.loadMore] drops a call made while one is in flight or
+  /// after the end.
+  final VoidCallback onLoadMore;
+
   const BrowseResults({
     super.key,
     required this.state,
     required this.joinedServerIds,
     required this.onJoin,
     required this.onRetry,
+    required this.onLoadMore,
   });
+
+  /// How close to the bottom counts as "nearly there" — about two tiles.
+  static const double _loadMoreSlack = 200;
 
   @override
   Widget build(BuildContext context) {
@@ -71,19 +80,43 @@ class BrowseResults extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      itemCount: state.results.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final server = state.results[index];
-        return PublicServerTile(
-          server: server,
-          onJoin: joinedServerIds.contains(server.serverId)
-              ? null
-              : () => onJoin(server),
-        );
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (state.hasMore &&
+            notification.metrics.extentAfter < _loadMoreSlack) {
+          onLoadMore();
+        }
+        // Never swallowed — the scrollbar is still listening.
+        return false;
       },
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        itemCount: state.results.length + (state.hasMore ? 1 : 0),
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          if (index == state.results.length) return _buildFooter();
+          final server = state.results[index];
+          return PublicServerTile(
+            server: server,
+            onJoin: joinedServerIds.contains(server.serverId)
+                ? null
+                : () => onJoin(server),
+          );
+        },
+      ),
     );
   }
+
+  /// The spinner at the end of a page, which is also what tells somebody the
+  /// directory has not simply stopped at fifty.
+  Widget _buildFooter() => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 18),
+    child: Center(
+      child: SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    ),
+  );
 }

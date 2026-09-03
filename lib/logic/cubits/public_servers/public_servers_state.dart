@@ -13,6 +13,15 @@ class PublicServersState {
   /// the two want very different things on screen.
   final bool hasBrowsed;
 
+  /// Whether another page of the directory exists — proved by the row the
+  /// query over-fetched, never inferred from a page being full.
+  final bool hasMore;
+
+  /// Whether a *further* page is in flight, as opposed to a fresh browse.
+  /// Kept apart because the two draw differently: one is a footer spinner
+  /// under results, the other replaces them.
+  final bool loadingMore;
+
   // ── Publishing ────────────────────────────────────────────
 
   final List<PublicServer> myListings;
@@ -30,6 +39,8 @@ class PublicServersState {
     this.tag,
     this.loading = false,
     this.hasBrowsed = false,
+    this.hasMore = false,
+    this.loadingMore = false,
     this.myListings = const [],
     this.cap,
     this.savingListing = false,
@@ -58,6 +69,8 @@ class PublicServersState {
     String? tag,
     bool? loading,
     bool? hasBrowsed,
+    bool? hasMore,
+    bool? loadingMore,
     List<PublicServer>? myListings,
     int? cap,
     bool? savingListing,
@@ -71,6 +84,8 @@ class PublicServersState {
       tag: clearTag ? null : (tag ?? this.tag),
       loading: loading ?? this.loading,
       hasBrowsed: hasBrowsed ?? this.hasBrowsed,
+      hasMore: hasMore ?? this.hasMore,
+      loadingMore: loadingMore ?? this.loadingMore,
       myListings: myListings ?? this.myListings,
       cap: cap ?? this.cap,
       savingListing: savingListing ?? this.savingListing,

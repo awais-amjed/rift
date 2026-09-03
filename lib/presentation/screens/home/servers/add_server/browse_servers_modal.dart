@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -114,6 +116,7 @@ class _BrowseServersModalState extends State<BrowseServersModal> {
                 joinedServerIds: _joined,
                 onJoin: widget.onJoin,
                 onRetry: cubit.browse,
+                onLoadMore: () => unawaited(cubit.loadMore()),
               ),
             ),
             const SizedBox(height: 12),
