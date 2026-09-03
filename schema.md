@@ -825,6 +825,62 @@ grant: summoning moves through the two functions.
   menu, which needs the bot to be *in* the call: a summon whose bot never arrived could be neither
   seen nor cleared.
 
+### The member directory — migration 039
+
+Every client read of `users` was `SELECT … FROM users` with no limit, and PostgREST is configured
+with `PGRST_DB_MAX_ROWS=1000`. A server's 1001st member therefore did not fail to load — they were
+*silently absent*, and everything built on the roster inherited it: the member sidebar, the `@`
+menu, the `/` menu, mention resolution on send, "start a DM with…", the private channel member
+picker. The other half of the problem was that the read was whole-table and repeated: the roster,
+every role and every role assignment were refetched on each `users` row event, so somebody else
+renaming themselves cost three full-table reads.
+
+So this is not the same query with a `LIMIT`. It is the set of questions the client actually has,
+each answerable in bounded work.
+
+- **`member_directory`** — a `security_invoker` view fixing the columns a member row has, so all
+  six functions and the client parser agree on one shape. It adds no reach: `users_select` still
+  decides who is visible.
+- **`list_members(p_channel, p_bots, p_banned, p_after_name, p_after_id, p_limit)`** — one
+  alphabetical page, **keyset**-paged on `(lower(display_name), id)`. Not `OFFSET`: the sidebar
+  pages while people are joining and renaming themselves, and a shifting sort under an offset skips
+  and repeats rows at every boundary. Hand the last row back as `p_after_*` for the next page.
+- **`search_members(p_query, p_channel, p_bots, p_banned, p_limit)`** — the best matches, prefix
+  before substring, capped. Searching and browsing are different questions, so they are different
+  functions: a ranked order cannot be keyset-paged coherently, and a typeahead does not need it.
+  An empty query is the first alphabetical page, which is what lets a field open on focus. Matches
+  username and display name with spaces squashed out of the latter, so `animb` finds "Anim Bot" —
+  the same rule `MentionSuggestions.suggest` applies to rows the client already holds, and the two
+  must agree or the list reshuffles as the server's answer lands.
+- **`members_by_ids(p_ids)`** and **`members_by_usernames(p_names, p_channel)`** — the other half
+  of dropping the whole-table read. Once the client no longer holds every member it still has ids
+  in hand (Realtime presence, message senders, voice participants) and names in hand (the `@`s
+  just typed). Without these, removing the roster read would only move the bug.
+- **`member_counts(p_channel)`** — how many people and how many bots, so a paged list can say how
+  long it is instead of a header reading "Offline — 50" forever.
+- **`member_roles_for(p_ids)`** — role chips for the rows on screen. `member_role_list` is one row
+  per (member, role), so it hits the ceiling sooner than the roster did.
+
+Shared machinery: `app.member_page_max()` (100) caps every one of them, so no caller can ask for
+the whole table however it asks; `app.member_limit()` **clamps** rather than rejects, because an
+over-eager client has a bug and answering it with an error turns that bug into an empty sidebar.
+`p_bots` and `p_banned` are tri-state (`NULL` both, `true` only, `false` only) — bots are listed
+apart from people everywhere in the UI (BOTS.md §9), and `p_banned` defaults to `false` because a
+banned member is not in the room; the moderation modal asks for them by name to lift the ban.
+
+`p_channel` answers per query what `channel_audience` (034) answered as a whole set: who a message
+here can actually reach. A caller who cannot open the channel gets nothing — not a filtered list,
+which would still leak its size. `app.member_in_scope` deliberately does **not** call
+`app.channel_eligible` per row: that re-reads the channel each time, and the membership test only
+matters when the channel is private, so the scalar `is_private` subquery is evaluated once and the
+`OR` short-circuits for every row of a public channel.
+
+Indexes: `(server_id, lower(display_name), id)` for the keyset walk, `text_pattern_ops` on the
+lowercased username and display name for prefix search, and a `pg_trgm` GIN index for substring
+search created inside a `DO` block that swallows its own failure — the extension is not guaranteed
+on every host, and a missing one must not take the migration down. Without it the substring pass is
+a scan bounded by the page limit.
+
 ## Tables (central)
 
 Central mirrors the self-hosted shapes where the idea is the same, so one client path serves both.
