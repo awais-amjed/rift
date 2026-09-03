@@ -136,13 +136,6 @@ mixin _ChannelApiMixin {
     });
   }
 
-  /// Server members a message in this channel can actually reach.
-  ///
-  /// An RPC rather than three selects the client stitches together: the answer
-  /// is `app.channel_eligible`, which is also what strips a mention on the way
-  /// in, and a Dart copy of it would have to read `channel_members`, read
-  /// `channel_role_access`, resolve those through `member_roles` and remember
-  /// the ban clause — four things to keep in step with one predicate. Migration
   /// Update a channel's settings (requires channel manager).
   ///
   /// A plain update — the column grant covers only `name`, `retention_days`
