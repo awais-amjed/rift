@@ -278,7 +278,7 @@ silent re-login still triggers.
 | `update_profile`, `publish_chat_key` | `update` on your own row — the column grant covers only `display_name`, `chat_public_key`, `avatar_path` |
 | `toggle_reaction`, `list_reactions` | `insert`/`delete` keyed by `(message, user, emoji)`; a duplicate-key error *is* the "already reacted" answer |
 | `moderate_user`, `set_user_permissions` | RPCs — RLS is row-level, so a policy allowing an admin to write another member's flags would also let them rewrite that member's identity. `moderate_user` kept the RPC but regained an edge function in front of it, which is the only thing that can reach LiveKit (above) |
-| `list_dm_conversations` | `dm_conversations()` — `DISTINCT ON` instead of a thousand rows grouped in TypeScript |
+| `list_dm_conversations` | `dm_conversations(p_limit, p_before)` — `DISTINCT ON` instead of a thousand rows grouped in TypeScript, and since 041 a page of them rather than every peer you have ever messaged |
 | the `notifications` table | `unread_counts()` + `mark_read()` over `read_state` |
 
 ## Database schema

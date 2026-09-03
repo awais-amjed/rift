@@ -903,6 +903,33 @@ way, and `mine` is the database's answer rather than a client comparing user ids
 exactly as it does for a direct read. `ReactionOps.aggregate` stays on the client: a message page
 carries its reactions as an embedded select, and folding those is free.
 
+### dm_conversations(p_limit, p_before) — migration 041
+
+One page of the caller's DM conversations on this server, newest activity first, as
+`{conversations, has_more}`. Keyset-paged on the newest message id: pass the last row's
+`last_message.id` back as `p_before`. The **row is unchanged** from the no-argument version in
+`003_api.sql` — same peer keys, same envelope, same `DISTINCT ON (peer)` — so a caller that reads a
+conversation out of the answer needed no edit; only the envelope around them changed.
+
+This is central migration 013's change, made here, and it is the last of the unbounded reads to go.
+It is also the only one that was never *wrong*: the answer is a JSONB scalar, so the 1000-row
+response cap does not apply and nothing was ever silently missing. What it did instead was grow —
+one row per person you have ever messaged, refetched on every server switch and on every incoming
+DM, each row carrying an envelope the client decrypts to draw a preview. Two hundred peers meant
+two hundred decryptions to render the dozen tiles that fit on screen, paid again the next time
+anybody said hello. Bounded by how many people you have talked to rather than by how much was said,
+which is why it took longest to matter.
+
+`SECURITY INVOKER`, unlike central's. `dm_messages_select` is already
+`auth.uid() IN (sender_id, recipient_id)`, so the pairing needs no filter of its own and the RLS is
+the whole of the scoping. Central's is `DEFINER` for a reason that does not exist here: it has a
+`blocks` table, and it has to name a blocked peer in order to leave them out.
+
+Ordering is by message **id**, not by a timestamp, and that is what makes the cursor exact — the
+list reorders itself every time anybody speaks, so an OFFSET into it means something different a
+second later. `p_limit` is clamped to 1..100 (default 30) rather than refused, and the query
+over-fetches one row so `has_more` is proved rather than guessed from a page coming back full.
+
 ## Tables (central)
 
 Central mirrors the self-hosted shapes where the idea is the same, so one client path serves both.

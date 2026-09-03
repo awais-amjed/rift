@@ -245,17 +245,26 @@ mixin _ChatApiMixin {
     });
   }
 
-  /// One entry per peer with their identity material and the latest envelope.
-  /// `DISTINCT ON` in the database instead of a thousand rows grouped here.
+  /// One page of conversations: an entry per peer with their identity material
+  /// and the latest envelope, newest activity first.
+  ///
+  /// [before] is the newest message id of the last row already held — the
+  /// cursor `dm_conversations` pages backwards on (migration 041). Null asks
+  /// for the top of the list. The reply is `{conversations, has_more}` as the
+  /// RPC returns it; it used to be wrapped here because the RPC answered with a
+  /// bare array and there was no second fact to carry.
   Future<APIResponse> listDmConversations(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
+    int? before,
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final rows = await db.rpc('dm_conversations');
-      return {'conversations': rows};
+      return await db.rpc(
+        'dm_conversations',
+        params: {'p_before': ?before},
+      );
     });
   }
 

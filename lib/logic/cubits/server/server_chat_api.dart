@@ -344,14 +344,19 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     ),
   );
 
-  /// List DM conversations for the local user.
-  Future<APIResponse> listDmConversations() => _callWithAutoRefresh(
-    (token) => _repository.listDmConversations(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      bearerToken: token,
-    ),
-  );
+  /// One page of the local user's DM conversations, newest activity first.
+  ///
+  /// [before] is the cursor: the newest message id of the last row already
+  /// held. Null asks for the top.
+  Future<APIResponse> listDmConversations({int? before}) =>
+      _callWithAutoRefresh(
+        (token) => _repository.listDmConversations(
+          state.selectedServer!.supabaseUrl,
+          anonKey: _anonKey,
+          bearerToken: token,
+          before: before,
+        ),
+      );
 
   /// Store sealed keyring entries for a key version.
   Future<APIResponse> postChannelKeys({

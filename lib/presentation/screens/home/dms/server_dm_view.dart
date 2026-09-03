@@ -53,6 +53,8 @@ class _ServerDmViewState extends State<ServerDmView> {
         subtitle: server?.name,
         conversations: state.conversations,
         openPeerId: state.openPeerId,
+        hasMore: state.hasMoreConversations,
+        onLoadMore: context.read<DmCubit>().loadMoreConversations,
         unreadFor: server == null
             ? null
             : (peerId) => notifications.unreadForDm(server.id, peerId),

@@ -7,6 +7,11 @@ class DmState {
   final List<DmConversation> conversations;
   final bool conversationsLoading;
 
+  /// Whether another page of conversations follows — proved by the spare row
+  /// `dm_conversations` over-fetched (migration 041), never inferred from a
+  /// page being full.
+  final bool hasMoreConversations;
+
   /// The open conversation's peer, or null when none is open.
   final String? openPeerId;
   final String? openPeerName;
@@ -27,6 +32,7 @@ class DmState {
   const DmState({
     this.conversations = const [],
     this.conversationsLoading = false,
+    this.hasMoreConversations = false,
     this.openPeerId,
     this.openPeerName,
     this.chatStatus = DmChatStatus.closed,
@@ -40,6 +46,7 @@ class DmState {
   DmState copyWith({
     List<DmConversation>? conversations,
     bool? conversationsLoading,
+    bool? hasMoreConversations,
     String? openPeerId,
     String? openPeerName,
     DmChatStatus? chatStatus,
@@ -55,6 +62,7 @@ class DmState {
     return DmState(
       conversations: conversations ?? this.conversations,
       conversationsLoading: conversationsLoading ?? this.conversationsLoading,
+      hasMoreConversations: hasMoreConversations ?? this.hasMoreConversations,
       openPeerId: closeConversation ? null : (openPeerId ?? this.openPeerId),
       openPeerName: closeConversation
           ? null
