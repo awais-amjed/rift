@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/friend_buckets.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
@@ -32,9 +35,32 @@ class _CentralFriendsViewState extends State<CentralFriendsView> {
   FriendsTab _tab = FriendsTab.friends;
 
   @override
+  void initState() {
+    super.initState();
+    _open(_tab);
+  }
+
+  /// Ask for the rows behind a tab as it is shown. The counts are already in
+  /// hand — they arrive with the account (central migration 014) — so the tab
+  /// bar is drawn correctly before any of this lands.
+  void _open(FriendsTab tab) {
+    final cubit = context.read<CentralDmCubit>();
+    for (final bucket in switch (tab) {
+      FriendsTab.friends => const [FriendBucket.friends],
+      FriendsTab.blocked => const [FriendBucket.blocked],
+      FriendsTab.pending => const [
+        FriendBucket.incoming,
+        FriendBucket.outgoing,
+      ],
+    }) {
+      unawaited(cubit.loadBucket(bucket));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
-    final graph = context.watch<CentralDmCubit>().state.graph;
+    final counts = context.watch<CentralDmCubit>().state.friends;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -50,14 +76,20 @@ class _CentralFriendsViewState extends State<CentralFriendsView> {
           const SizedBox(height: 14),
           FriendsTabBar(
             current: _tab,
-            onChanged: (tab) => setState(() => _tab = tab),
+            onChanged: (tab) {
+              setState(() => _tab = tab);
+              _open(tab);
+            },
+            // From `friend_counts`, not from the length of a list — the lists
+            // are not loaded until their tab is opened, and a label that
+            // counted what it had would read zero until you clicked it.
             counts: {
-              FriendsTab.friends: graph.friends.length,
+              FriendsTab.friends: counts.countOf(FriendBucket.friends),
               // Incoming only. An outgoing request is not something waiting
               // for you, and counting it here would make the number disagree
               // with the badge on the row that opened this page.
-              FriendsTab.pending: graph.incoming.length,
-              FriendsTab.blocked: graph.blocked.length,
+              FriendsTab.pending: counts.countOf(FriendBucket.incoming),
+              FriendsTab.blocked: counts.countOf(FriendBucket.blocked),
             },
           ),
           Expanded(child: FriendsList(tab: _tab)),

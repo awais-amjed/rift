@@ -3,7 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/friend.dart';
-import 'package:rift/data/classes/friend_directory.dart';
+import 'package:rift/data/classes/friend_buckets.dart';
+import 'package:rift/data/classes/paged.dart';
 import 'package:rift/data/enums/friendship_state.dart';
 import 'package:rift/logic/cubits/central_dm/central_dm_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
@@ -34,11 +35,33 @@ class _MemoryStorage implements Storage {
 
 class _StubCentralDmCubit extends Cubit<CentralDmState>
     implements CentralDmCubit {
-  _StubCentralDmCubit(FriendDirectory graph)
-    : super(CentralDmState(status: CentralDmStatus.ready, graph: graph));
+  _StubCentralDmCubit(FriendBuckets friends)
+    : super(CentralDmState(status: CentralDmStatus.ready, friends: friends));
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// A settled empty result for every bucket.
+///
+/// Every bucket, because [FriendsList] tells a loaded-and-empty tab from an
+/// unopened one by whether its page is null — and a tab that said "no friends
+/// yet" while its first page was in flight would be telling somebody something
+/// untrue about their own account.
+FriendBuckets loaded({
+  List<Friend> friends = const [],
+  List<Friend> incoming = const [],
+  List<Friend> outgoing = const [],
+  List<Friend> blocked = const [],
+}) {
+  Paged<Friend> page(List<Friend> items) =>
+      Paged<Friend>(items: items, hasMore: false);
+  return FriendBuckets(
+    friends: page(friends),
+    incoming: page(incoming),
+    outgoing: page(outgoing),
+    blocked: page(blocked),
+  );
 }
 
 /// What each friends tab shows with nothing in it.
@@ -52,11 +75,7 @@ class _StubCentralDmCubit extends Cubit<CentralDmState>
 void main() {
   setUpAll(() => HydratedBloc.storage = _MemoryStorage());
 
-  Future<void> pump(
-    WidgetTester tester,
-    FriendsTab tab,
-    FriendDirectory graph,
-  ) {
+  Future<void> pump(WidgetTester tester, FriendsTab tab, FriendBuckets graph) {
     return tester.pumpWidget(
       MultiBlocProvider(
         providers: [
@@ -72,7 +91,7 @@ void main() {
     );
   }
 
-  const empty = FriendDirectory.empty();
+  final empty = loaded();
 
   testWidgets('every tab has its own empty state, and none of them is a card', (
     tester,
@@ -93,7 +112,7 @@ void main() {
   testWidgets('a tab with rows in it shows rows and no empty state', (
     tester,
   ) async {
-    final graph = FriendDirectory(
+    final graph = loaded(
       friends: const [
         Friend(id: 'u1', handle: 'ana', state: FriendshipState.friends),
       ],
@@ -113,7 +132,7 @@ void main() {
     // Pending is the one tab with two halves. Only one of them being filled
     // still means there is something waiting, so the empty state must not
     // stand in for the missing half.
-    final graph = FriendDirectory(
+    final graph = loaded(
       outgoing: const [
         Friend(id: 'u3', handle: 'cy', state: FriendshipState.outgoing),
       ],

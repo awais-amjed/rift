@@ -21,13 +21,75 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
   /// Implemented by the history mixin.
   void closeConversation();
 
-  /// Load the whole graph. Cheap enough to be the answer to every change:
-  /// one RPC, four short lists.
+  /// Load how many people are in each part of the graph — and, with that, drop
+  /// every page loaded from the old ones.
+  ///
+  /// This is still the answer to every change, as the whole-graph read was. It
+  /// is just much smaller: a change means the rows behind the counts moved, so
+  /// keeping a page whose count has shifted is how a tab shows a request that
+  /// was answered a minute ago. The open tab refetches its first page.
   Future<void> loadFriends() async {
-    final response = await _repo.listFriends();
+    final response = await _repo.friendCounts();
     if (isClosed || !response.success) return;
-    emit(state.copyWith(graph: response.data as FriendDirectory));
+    emit(
+      state.copyWith(
+        friends: state.friends.withCounts(
+          response.data
+              as ({int friends, int incoming, int outgoing, int blocked}),
+        ),
+      ),
+    );
+    final open = state.openBucket;
+    if (open != null) unawaited(loadBucket(open));
   }
+
+  /// The first page of one tab, fetched when that tab is opened.
+  ///
+  /// A tab already loaded is left alone: opening Pending, going to Friends and
+  /// coming back should not cost a round trip, and [loadFriends] is what clears
+  /// a page once something has actually changed.
+  Future<void> loadBucket(FriendBucket bucket, {bool force = false}) async {
+    emit(state.copyWith(openBucket: bucket));
+    if (!force && state.friends.pageOf(bucket) != null) return;
+
+    final response = await _repo.friendBucket(bucket);
+    if (isClosed || !response.success) return;
+    emit(
+      state.copyWith(
+        friends: state.friends.withPage(bucket, response.data as Paged<Friend>),
+      ),
+    );
+  }
+
+  /// Append the next page of [bucket] — what a tab asks for as it is scrolled.
+  ///
+  /// Safe to call on every scroll frame: a call while one is in flight, or
+  /// after the end, is a no-op.
+  Future<void> loadMoreFriends(FriendBucket bucket) async {
+    final loaded = state.friends.pageOf(bucket);
+    if (loaded == null || !loaded.hasMore || _loadingBucket) return;
+
+    _loadingBucket = true;
+    final response = await _repo.friendBucket(
+      bucket,
+      after: loaded.items.last.handle,
+    );
+    _loadingBucket = false;
+    if (isClosed || !response.success) return;
+
+    final next = response.data as Paged<Friend>;
+    emit(
+      state.copyWith(
+        friends: state.friends.withPage(
+          bucket,
+          Paged<Friend>(items: loaded.itemsWith(next), hasMore: next.hasMore),
+        ),
+      ),
+    );
+  }
+
+  /// Guards a second page landing on top of one already in flight.
+  bool _loadingBucket = false;
 
   /// Ask somebody to be friends. Asking somebody who has already asked you
   /// accepts instead — the server collapses that case, so there is no "you

@@ -23,7 +23,7 @@ class FriendsNavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
     final state = context.watch<CentralDmCubit>().state;
-    final requests = state.graph.requestCount;
+    final requests = state.friends.requestCount;
 
     return NavRow(
       icon: Icons.people_alt_outlined,

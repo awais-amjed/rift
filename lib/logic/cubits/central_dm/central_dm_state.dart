@@ -38,12 +38,20 @@ class CentralDmState {
   /// anybody's stored rows.
   final Map<String, NotificationLevel> levelsByPeer;
 
-  /// Friends, the requests waiting in both directions, and the block list.
+  /// How many people are in each part of the friends graph, plus the rows of
+  /// whichever tabs have been opened.
   ///
   /// What it gates is the whole point of the central tier having a gate at
   /// all: a conversation with somebody you are not friends with is a
   /// *request*, and it is drawn, counted and composed into differently.
-  final FriendDirectory graph;
+  ///
+  /// The rows are not loaded until a tab asks for them (central migration
+  /// 014) — see [FriendBuckets].
+  final FriendBuckets friends;
+
+  /// Which friends tab is on screen, so a change to the graph can refetch the
+  /// one page somebody is actually looking at. Null when the page is closed.
+  final FriendBucket? openBucket;
 
   /// Daily-quota meter (null until first fetched).
   final int? quota;
@@ -80,7 +88,8 @@ class CentralDmState {
     this.hasMoreConversations = false,
     this.unreadByPeer = const {},
     this.levelsByPeer = const {},
-    FriendDirectory? graph,
+    FriendBuckets? friends,
+    this.openBucket,
     this.quota,
     this.remaining,
     this.friendsOpen = false,
@@ -92,7 +101,7 @@ class CentralDmState {
     this.isLoadingMore = false,
     this.error,
     this.handleQuery,
-  }) : graph = graph ?? const FriendDirectory.empty();
+  }) : friends = friends ?? FriendBuckets.empty;
 
   CentralDmState copyWith({
     CentralDmStatus? status,
@@ -103,7 +112,8 @@ class CentralDmState {
     bool? hasMoreConversations,
     Map<String, int>? unreadByPeer,
     Map<String, NotificationLevel>? levelsByPeer,
-    FriendDirectory? graph,
+    FriendBuckets? friends,
+    FriendBucket? openBucket,
     int? quota,
     int? remaining,
     bool? friendsOpen,
@@ -128,7 +138,8 @@ class CentralDmState {
       hasMoreConversations: hasMoreConversations ?? this.hasMoreConversations,
       unreadByPeer: unreadByPeer ?? this.unreadByPeer,
       levelsByPeer: levelsByPeer ?? this.levelsByPeer,
-      graph: graph ?? this.graph,
+      friends: friends ?? this.friends,
+      openBucket: openBucket ?? this.openBucket,
       quota: quota ?? this.quota,
       remaining: remaining ?? this.remaining,
       // Deliberately untouched by [closeConversation]: opening friends *is*
@@ -156,7 +167,25 @@ class CentralDmState {
       levelsByPeer[peerId] ?? NotificationLevel.dmDefault;
 
   /// Where the caller stands with one person — see [FriendshipState].
-  FriendshipState stateFor(String peerId) => graph.stateFor(peerId);
+  ///
+  /// The conversation row is the authoritative answer (central migration 014):
+  /// `dm_conversations` resolves it per peer, so the client no longer holds the
+  /// whole graph to work it out. Whichever friends tab is open is the fallback,
+  /// and it answers for somebody reached from the friends page before a message
+  /// has ever been exchanged with them — there is no conversation row to carry
+  /// their state yet.
+  ///
+  /// A scan rather than a map, because this is asked about *one* peer: the
+  /// open conversation. A row in the list has its own state on it and reads it
+  /// there, without coming through here at all.
+  FriendshipState stateFor(String peerId) {
+    for (final conversation in conversations) {
+      if (conversation.peerId == peerId) {
+        return conversation.state ?? FriendshipState.none;
+      }
+    }
+    return friends.stateOf(peerId) ?? FriendshipState.none;
+  }
 
   /// Whether the open conversation can be typed into — which is to say
   /// whether the two of you are friends. Nothing else opens a composer.
@@ -172,14 +201,12 @@ class CentralDmState {
   /// arrived in it. What muting buys is that it stops adding to the number on
   /// the outside, which is a claim that somebody wants you.
   ///
-  /// Blocked is left out for a different reason: their old messages are still
-  /// rows, and their conversation is not in the list, so anything they left
-  /// unread would be a number pointing at nothing.
+  /// A blocked peer needs no clause here any more: `dm_conversations` leaves
+  /// them out of the list, so their unread counts never arrive to be skipped.
   int get totalUnread {
     var total = 0;
     for (final entry in unreadByPeer.entries) {
       if (levelFor(entry.key).isMuted) continue;
-      if (graph.isBlocked(entry.key)) continue;
       total += entry.value;
     }
     return total;
@@ -188,5 +215,5 @@ class CentralDmState {
   /// What the rail's Home chip shows: unread messages plus people waiting for
   /// an answer. Somebody who has asked to reach you is exactly as worth
   /// surfacing as somebody who already can.
-  int get homeBadge => totalUnread + graph.requestCount;
+  int get homeBadge => totalUnread + friends.requestCount;
 }

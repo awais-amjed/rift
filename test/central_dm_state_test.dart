@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/friend.dart';
-import 'package:rift/data/classes/friend_directory.dart';
+import 'package:rift/data/classes/dm_conversation.dart';
+import 'package:rift/data/classes/friend_buckets.dart';
+import 'package:rift/data/classes/paged.dart';
 import 'package:rift/data/enums/friendship_state.dart';
 import 'package:rift/data/enums/notification_level.dart';
 import 'package:rift/logic/cubits/central_dm/central_dm_cubit.dart';
@@ -11,24 +13,33 @@ void main() {
   Friend friend(String id, FriendshipState state) =>
       Friend(id: id, handle: 'h$id', state: state);
 
-  final graph = FriendDirectory(
-    friends: [friend('u1', FriendshipState.friends)],
-    incoming: [friend('u2', FriendshipState.incoming)],
-    outgoing: [friend('u3', FriendshipState.outgoing)],
-    blocked: [friend('u4', FriendshipState.blocked)],
-  );
+  /// A conversation carrying the state the server resolved for it — which is
+  /// where `stateFor` reads it from since central migration 014.
+  DmConversation conversation(String id, FriendshipState state) =>
+      DmConversation(peerId: id, peerName: 'h$id', state: state);
 
   final state = CentralDmState(
     status: CentralDmStatus.ready,
-    graph: graph,
-    unreadByPeer: const {'u1': 3, 'u2': 5, 'u3': 1, 'u4': 9},
+    conversations: [
+      conversation('u1', FriendshipState.friends),
+      conversation('u2', FriendshipState.incoming),
+      conversation('u3', FriendshipState.outgoing),
+    ],
+    friends: FriendBuckets.empty.withCounts((
+      friends: 1,
+      incoming: 1,
+      outgoing: 1,
+      blocked: 1,
+    )),
+    unreadByPeer: const {'u1': 3, 'u2': 5, 'u3': 1},
   );
 
   group('the unread total', () {
-    test('counts everyone but a blocked peer', () {
-      // u4 is blocked: their conversation is not in the list, so unread from
-      // them would be a number pointing at nothing. Everybody else counts —
-      // and since the gate went in, nothing can arrive from a stranger at all.
+    test('counts everybody in the list', () {
+      // There is no blocked clause any more: `dm_conversations` leaves a
+      // blocked peer out of the list, so their unread count never arrives to
+      // be skipped. Since the gate went in nothing can arrive from a stranger
+      // either, so what is left is simply everybody.
       expect(state.totalUnread, 9); // u1's 3 + u2's 5 + u3's 1
     });
 
@@ -53,9 +64,12 @@ void main() {
       // is nothing unread anywhere and the only sign of it is this number.
       final only = CentralDmState(
         status: CentralDmStatus.ready,
-        graph: FriendDirectory(
-          incoming: [friend('u2', FriendshipState.incoming)],
-        ),
+        friends: FriendBuckets.empty.withCounts((
+          friends: 0,
+          incoming: 1,
+          outgoing: 0,
+          blocked: 0,
+        )),
       );
       expect(only.totalUnread, 0);
       expect(only.homeBadge, 1);
@@ -71,7 +85,25 @@ void main() {
       expect(state.copyWith(openPeerId: 'u1').canSendToOpen, isTrue);
       expect(state.copyWith(openPeerId: 'u2').canSendToOpen, isFalse);
       expect(state.copyWith(openPeerId: 'u3').canSendToOpen, isFalse);
-      expect(state.copyWith(openPeerId: 'u4').canSendToOpen, isFalse);
+    });
+
+    test('a peer reached from the friends page, before any message', () {
+      // The fallback the loaded tabs exist for: opening a chat from the
+      // Friends list means there is no conversation row yet to carry the
+      // state, and refusing the composer there would be refusing a friend.
+      final fromTab = state.copyWith(
+        conversations: const [],
+        friends: FriendBuckets.empty.withPage(
+          FriendBucket.friends,
+          Paged<Friend>(
+            items: [friend('u7', FriendshipState.friends)],
+            hasMore: false,
+          ),
+        ),
+      );
+
+      expect(fromTab.copyWith(openPeerId: 'u7').canSendToOpen, isTrue);
+      expect(fromTab.copyWith(openPeerId: 'u9').canSendToOpen, isFalse);
     });
 
     test('a stranger is refused, request or no request', () {

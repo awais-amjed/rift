@@ -1,3 +1,4 @@
+import 'paged.dart';
 import 'server_member.dart';
 
 /// One page of the roster, and where the next one resumes.
@@ -8,7 +9,7 @@ import 'server_member.dart';
 /// there are more — travel together or they drift apart. A "load more" button
 /// wired to a bare list has to guess, and guessing from a full page is the bug
 /// [Paging.split] exists to avoid.
-class MemberPage {
+class MemberPage extends Paged<ServerMember> {
   /// How many members one page asks for.
   ///
   /// Comfortably more than a sidebar shows at once, so scrolling normally
@@ -16,13 +17,13 @@ class MemberPage {
   /// `app.member_page_max()`, so the database never has to clamp us.
   static const int pageSize = 50;
 
-  final List<ServerMember> members;
+  /// The rows, named for what they are at every call site that reads them.
+  List<ServerMember> get members => items;
 
-  /// Whether another page follows — proved by the spare row the query
-  /// over-fetched, never inferred from a page being full.
-  final bool hasMore;
-
-  const MemberPage({required this.members, required this.hasMore});
+  const MemberPage({
+    required List<ServerMember> members,
+    required super.hasMore,
+  }) : super(items: members);
 
   /// A settled empty roster: no rows, and nothing more coming. Distinct from
   /// null, which callers use for "not loaded yet".
@@ -44,5 +45,5 @@ class MemberPage {
   /// far end, and keeping our own would leave a list that had reached the
   /// bottom still claiming more.
   MemberPage followedBy(MemberPage next) =>
-      MemberPage(members: [...members, ...next.members], hasMore: next.hasMore);
+      MemberPage(members: itemsWith(next), hasMore: next.hasMore);
 }

@@ -275,8 +275,10 @@ Every state change is an RPC (`friend_request`, `friend_request_by_handle`,
 INSERT/UPDATE/DELETE grant on either table**. Each change carries a rule with it — a request may
 not be accepted by whoever sent it, a block has to tear the friendship down with it — and a rule
 spelled in a policy has to be re-derived by every policy that reads the table afterwards.
-`friend_list()` answers the whole graph in one call, because everything on screen is drawn from
-all of it at once.
+Reading it is `friend_counts()` plus `friend_bucket()` a tab at a time (central migration 014).
+It used to be `friend_list()`, all four buckets at once, because everything on screen was drawn
+from all of it — until the counts took over the badge and the tab labels, and the per-peer state
+moved onto the conversation row. What was left is three lists that only their own tab reads.
 
 **Four consequences worth stating:**
 

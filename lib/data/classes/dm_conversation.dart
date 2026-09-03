@@ -1,3 +1,4 @@
+import '../enums/friendship_state.dart';
 import 'chat_message.dart';
 
 /// One DM conversation as shown in the Home list: the peer's identity
@@ -16,12 +17,23 @@ class DmConversation {
 
   final ChatMessage? lastMessage;
 
+  /// Where the caller stands with this person, resolved by the server
+  /// (central migration 014).
+  ///
+  /// On the row because this is the only place it is asked, and because the
+  /// alternative was holding the whole friends graph to answer it. Null on a
+  /// row built from a directory lookup rather than a conversation query, where
+  /// nobody asked. Never [FriendshipState.blocked]: `dm_conversations` leaves
+  /// those conversations out of the list entirely.
+  final FriendshipState? state;
+
   const DmConversation({
     required this.peerId,
     required this.peerName,
     this.peerChatPublicKey,
     this.peerSigningPublicKey,
     this.lastMessage,
+    this.state,
   });
 
   /// One row of the central directory (`users` on the central tier).

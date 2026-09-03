@@ -1018,6 +1018,27 @@ Two indexes come with it — `(recipient_id, sender_id, id)` and `(sender_id, re
 the per-peer count and the newest-inbound lookup are index range scans over one pair's messages
 rather than filters over the whole inbox.
 
+### The friends graph a tab at a time — central migration 014
+
+`friend_counts()`, `friend_bucket(p_bucket, p_after, p_limit)` and `app_friend_state(p_peer)`,
+replacing `friend_list()`. Their entries are under `friendships / blocks` below; what belongs here
+is why, and the bug it fixes.
+
+**Why.** 012 answered all four buckets in one call because the client needed all of them to draw
+anything. Only three *derived facts* were ever needed outside their own tab: how many requests are
+waiting (the rail badge, on screen everywhere), who is blocked (the conversation list leaves them
+out), and where you stand with one peer (a conversation tile's menu). None of those needs the rows.
+So the counts became a scalar, the per-peer state moved onto the conversation row beside the unread
+count and the notification level, and what is left is three lists that each only their own tab
+reads — fetched when that tab is opened, and paged.
+
+**The bug.** `dm_conversations` now excludes blocked peers itself. The client used to drop them
+after the page arrived, which was fine while the list was the whole thing and stopped being fine in
+013, which made it paged: a page of thirty containing four blocked peers renders twenty-six rows,
+while `has_more` and the cursor were both computed for thirty. The list is quietly shorter than it
+should be and every further page compounds it. **A filter has to be on the same side of the page
+boundary as the paging.**
+
 ### friendships / blocks (central, migration 012)
 
 The central gate: who may reach whom. See ARCHITECTURE §4 for the argument; what matters here is
@@ -1095,9 +1116,23 @@ rows for one relationship is two chances to disagree about it. `low_id < high_id
   answers what the policy would for the same ids — the message half of `knows_user` — and exists
   as its own function so the client has one call rather than a table read whose result silently
   depends on a policy. It cannot be used to browse.
-- `friend_list()` answers all four buckets in one call. It is SECURITY DEFINER specifically so
-  the blocked bucket carries handles: blocking deletes the friendship, so the policy above stops
-  admitting them, and a blocked list of bare UUIDs cannot be unblocked from.
+- `friend_counts()` answers how many are in each bucket — friends, requests each way, blocks.
+  Small enough to be eager, which is what lets the rows wait: it feeds the rail badge and the
+  three tab labels, and those are on screen before anybody clicks a tab.
+- `friend_bucket(p_bucket, p_after, p_limit)` answers **one** bucket, keyset-paged on the peer's
+  handle. A handle is unique, so it is a total order by itself and needs no tiebreaker — unlike
+  the member roster's display name (self-hosted 039), whose cursor carries an id alongside it.
+  SECURITY DEFINER specifically so the blocked bucket carries handles: blocking deletes the
+  friendship, so the policy above stops admitting them, and a blocked list of bare UUIDs cannot
+  be unblocked from.
+- `app_friend_state(p_peer)` answers where the caller stands with **one** person, which is what
+  a conversation row carries (see `dm_conversations`) so no screen has to hold the graph to
+  work it out.
+
+These three replaced `friend_list()`, which answered all four buckets at once — right while
+three of them were read from outside their own tab, and unpageable by construction. Migration
+014 took those jobs away; see it for the argument, and for the paging bug it fixes in the
+conversation list.
 
 ### push_relays (central, migration 010)
 

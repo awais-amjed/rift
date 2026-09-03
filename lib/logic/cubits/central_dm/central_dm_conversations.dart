@@ -158,6 +158,9 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
           peerName: handle,
           peerChatPublicKey: chatKey,
           peerSigningPublicKey: signingKey,
+          // Resolved per peer by the query rather than by the client holding
+          // the whole friends graph — see central migration 014.
+          state: FriendshipState.parse(row['state']),
           lastMessage: envelope == null
               ? null
               : await _decryptRow(envelope, peerId: peerId, peerHandle: handle),

@@ -23,9 +23,12 @@ import 'friends/friend_menu_item.dart';
 /// only people here are people you agreed to hear from, and requests live on
 /// the friends page where they can be answered.
 ///
-/// A blocked peer is left out: their old messages are still rows on the server
-/// (blocking takes away reach, not history), and [FriendDirectory.visible] is
-/// what keeps them out of the list.
+/// A blocked peer is left out by the *query* (central migration 014). Their
+/// old messages are still rows on the server — blocking takes away reach, not
+/// history — so something has to leave them out, and it has to be on the same
+/// side of the page boundary as the paging: a filter applied after a page
+/// arrives shortens it, while `has_more` and the cursor were computed for the
+/// rows the filter then dropped.
 ///
 /// It **pages** (central migration 013). The list used to be derived on the
 /// client from the last thousand envelopes, which meant an old conversation
@@ -39,7 +42,7 @@ class CentralConversationList extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
     final state = context.watch<CentralDmCubit>().state;
-    final conversations = state.graph.visible(state.conversations);
+    final conversations = state.conversations;
 
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
@@ -101,9 +104,10 @@ class CentralConversationList extends StatelessWidget {
       menuItems: [
         for (final action in FriendActions.forFriend(
           context,
+          // The row's own state, off the row. Nothing here consults a graph.
           Friend.fromConversation(
             conversation,
-            state.stateFor(conversation.peerId),
+            conversation.state ?? state.stateFor(conversation.peerId),
           ),
         ))
           FriendMenuItem(action: action),

@@ -9,7 +9,9 @@ import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/dm_conversation.dart';
-import '../../../data/classes/friend_directory.dart';
+import '../../../data/classes/friend.dart';
+import '../../../data/classes/friend_buckets.dart';
+import '../../../data/classes/paged.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/repositories/central_dm_repository.dart';
@@ -175,17 +177,14 @@ class CentralDmCubit extends Cubit<CentralDmState>
     if (channel != null) await _repo.unsubscribe(channel);
   }
 
-  /// Blocked peers are left out, and nobody else needs to be: since the gate
-  /// went in nothing can arrive from somebody who is not a friend, so there is
-  /// no stranger left to filter. What can still arrive is an old message from
-  /// somebody blocked afterwards, and they should not get to ring a phone with
-  /// it.
+  /// Nobody is filtered here any more. Since the gate went in nothing can
+  /// arrive from somebody who is not a friend, so there is no stranger left to
+  /// leave out — and an old message from somebody blocked afterwards, which
+  /// should not get to ring a phone, is dropped by `dm_conversations` before
+  /// the list is built (central migration 014).
   @override
   void _notifyFromConversations(List<DmConversation> conversations) {
-    _notifier.scan(
-      state.graph.visible(conversations),
-      titleFor: (c) => c.peerName,
-    );
+    _notifier.scan(conversations, titleFor: (c) => c.peerName);
   }
 
   /// Seeds the add-friend field and shows the page it lives on — see

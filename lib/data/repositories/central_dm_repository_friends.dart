@@ -26,12 +26,67 @@ mixin _CentralDmFriendsMixin {
     'sender_has_no_profile',
   ];
 
-  /// The whole graph in one call — see [FriendDirectory] for why it is one.
-  Future<APIResponse> listFriends() async {
+  /// How many people are in each part of the graph (central migration 014).
+  ///
+  /// Small enough to be eager, which is the whole reason the rows are not: this
+  /// feeds the rail badge and the three tab labels, and those are on screen
+  /// before anybody has clicked a tab.
+  Future<APIResponse> friendCounts() async {
     try {
-      final result = await _client.rpc('friend_list');
+      final row = (await _client.rpc('friend_counts') as Map)
+          .cast<String, dynamic>();
+      int at(String key) => (row[key] as num?)?.toInt() ?? 0;
+      return APIResponse.success((
+        friends: at('friends'),
+        incoming: at('incoming'),
+        outgoing: at('outgoing'),
+        blocked: at('blocked'),
+      ));
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
+  /// One page of one tab, fetched when that tab is opened.
+  ///
+  /// [after] is the previous page's last handle. Keyset on the handle alone,
+  /// because a handle is unique and so is a total order by itself — unlike the
+  /// member roster's display name, whose cursor needs an id alongside it.
+  Future<APIResponse> friendBucket(
+    FriendBucket bucket, {
+    String? after,
+    int limit = 30,
+  }) async {
+    try {
+      final result =
+          (await _client.rpc(
+                    'friend_bucket',
+                    params: {
+                      'p_bucket': bucket.wire,
+                      'p_after': after,
+                      'p_limit': limit,
+                    },
+                  )
+                  as Map)
+              .cast<String, dynamic>();
+
+      final state = switch (bucket) {
+        FriendBucket.friends => FriendshipState.friends,
+        FriendBucket.incoming => FriendshipState.incoming,
+        FriendBucket.outgoing => FriendshipState.outgoing,
+        FriendBucket.blocked => FriendshipState.blocked,
+      };
       return APIResponse.success(
-        FriendDirectory.fromJson((result as Map).cast<String, dynamic>()),
+        Paged<Friend>(
+          items: [
+            for (final row in (result['rows'] as List? ?? const []))
+              Friend.fromJson(
+                (row as Map).cast<String, dynamic>(),
+                state: state,
+              ),
+          ],
+          hasMore: result['has_more'] == true,
+        ),
       );
     } catch (e) {
       return APIResponse.error(e);
