@@ -60,6 +60,18 @@ mixin _ReactionApiMixin {
   /// Usually one id: a reaction doorbell names the message that changed. The
   /// batch form remains for the fallback path, where a client rang without
   /// saying which.
+  ///
+  /// Counted by the database (migration 040) rather than here. This used to ask
+  /// for one row per person per emoji across the whole batch, and PostgREST
+  /// caps a response at 1000 rows — fifty messages with twenty reactors each is
+  /// a lively channel, not an extreme one, and past that point the answer was
+  /// trimmed and the counts quietly read low. The tally is one row per
+  /// (message, emoji) and comes back as a scalar, so there is nothing left to
+  /// truncate.
+  ///
+  /// [userId] is no longer used to decide what is "mine" — the database knows
+  /// who is asking. It stays in the signature because both call sites have it
+  /// and a parameter is cheaper than two shapes of the same call.
   Future<APIResponse> listReactions(
     String supabaseUrl, {
     required String anonKey,
@@ -68,23 +80,14 @@ mixin _ReactionApiMixin {
     required String scope,
     required List<int> messageIds,
   }) {
-    final table = _tableFor(scope);
     return ServerDb.run(() async {
       if (messageIds.isEmpty) return {'reactions': <String, dynamic>{}};
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final rows = await db
-          .from(table)
-          .select('message_id, user_id, emoji')
-          .inFilter('message_id', messageIds);
-
-      // Tallying here rather than in SQL keeps the round trip to one and the
-      // rows are already scoped to messages the caller can see.
-      return {
-        'reactions': ReactionOps.byMessage(
-          (rows as List).cast<Map<String, dynamic>>(),
-          userId: userId,
-        ),
-      };
+      final tallies = await db.rpc(
+        'message_reaction_tallies',
+        params: {'p_scope': scope, 'p_ids': messageIds},
+      );
+      return {'reactions': (tallies as Map?)?.cast<String, dynamic>() ?? {}};
     });
   }
 }

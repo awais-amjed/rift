@@ -880,6 +880,29 @@ search created inside a `DO` block that swallows its own failure — the extensi
 on every host, and a missing one must not take the migration down. Without it the substring pass is
 a scan bounded by the page limit.
 
+### message_reaction_tallies(p_scope, p_ids) — migration 040
+
+Reaction counts for a page of messages, as `{message_id: [{emoji, count, mine}]}` — the shape
+`ReactionOps.byMessage` used to build on the client.
+
+The standalone reaction read asked for one row per person per emoji across a whole page, and
+PostgREST caps a response at 1000 rows. Fifty messages is a page; twenty people reacting to each of
+them is a lively channel, not an extreme one. Past that the response was cut off and the client
+tallied whatever survived, so a count quietly read low — or your own reaction stopped being yours
+and the button un-filled. Nothing about it looked wrong, which is the shape of every bug in this
+batch: a limit that trims an answer instead of refusing the question.
+
+Counting here makes the response smaller by exactly the factor that was overflowing it: one row per
+(message, emoji) rather than per (message, emoji, person). Returned as **one JSONB object** rather
+than a set, for the same reason `unread_counts` and `dm_conversations` are — a scalar is not
+row-capped, so it cannot be truncated however many reactions a page collects. `p_ids` is capped at
+100; a page is fifty. Entries are ordered by emoji so two clients draw the same message the same
+way, and `mine` is the database's answer rather than a client comparing user ids it was handed.
+
+`security_invoker`, so `message_reactions_select` (`app.can_see_message`) decides what is counted,
+exactly as it does for a direct read. `ReactionOps.aggregate` stays on the client: a message page
+carries its reactions as an embedded select, and folding those is free.
+
 ## Tables (central)
 
 Central mirrors the self-hosted shapes where the idea is the same, so one client path serves both.
