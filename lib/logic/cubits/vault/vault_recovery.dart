@@ -91,6 +91,45 @@ mixin _VaultRecoveryMixin on Cubit<VaultState> {
     }
   }
 
+  /// Re-wrap the in-memory master seed under [newPassword].
+  ///
+  /// Unlike [changeVaultPassword] this proves nothing first, because in the
+  /// one flow that needs it there is nothing left to prove: the seed is
+  /// already in hand, having just been unwrapped with a recovery key. The
+  /// vault must be unlocked, which is the actual precondition.
+  Future<({bool success, String? error})> rewrapSeed({
+    required String newPassword,
+  }) async {
+    final masterSeedB64 = state.masterSeed;
+    if (masterSeedB64 == null) {
+      return (success: false, error: 'Vault is locked');
+    }
+
+    try {
+      final salt = _crypto.generateSalt();
+      final key = await _crypto.deriveVaultKey(
+        password: newPassword,
+        salt: salt,
+      );
+      final wrapped = await _crypto.encrypt(
+        plaintext: masterSeedB64,
+        key: key,
+      );
+
+      await _storage.saveEncryptedSeed(
+        EncryptedSeed(
+          ciphertext: CryptoRepository.toBase64(wrapped.ciphertext),
+          iv: CryptoRepository.toBase64(wrapped.iv),
+          salt: CryptoRepository.toBase64(salt),
+        ),
+      );
+      return (success: true, error: null);
+    } catch (e) {
+      HelperMethods.printDebug('[Vault] rewrapSeed error: $e');
+      return (success: false, error: e.toString());
+    }
+  }
+
   /// Turn a typed recovery key into the master seed it unwraps.
   ///
   /// [blob] is the recovery wrap — from local storage when the vault is on

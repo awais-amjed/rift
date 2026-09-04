@@ -18,6 +18,19 @@ enum PasswordChangeStage {
   enterNew,
 }
 
+/// Where account recovery has got to.
+enum AccountRecoveryStage {
+  /// Not recovering — the sign-in form is showing.
+  idle,
+
+  /// In the flow, but no code asked for yet: confirming which address.
+  enterEmail,
+
+  /// A code was requested. Waiting for it, the recovery key, and a new
+  /// password.
+  enterCode,
+}
+
 /// Immutable state for [SupabaseBackupCubit].
 class SupabaseBackupState {
   final bool isProcessing;
@@ -47,6 +60,9 @@ class SupabaseBackupState {
   /// Where a password change has got to. See [PasswordChangeStage].
   final PasswordChangeStage passwordChange;
 
+  /// Where account recovery has got to. See [AccountRecoveryStage].
+  final AccountRecoveryStage accountRecovery;
+
   final String? error;
   final String? successMessage;
 
@@ -59,6 +75,7 @@ class SupabaseBackupState {
     this.email,
     this.resendAvailableAt,
     this.passwordChange = PasswordChangeStage.idle,
+    this.accountRecovery = AccountRecoveryStage.idle,
     this.error,
     this.successMessage,
   });
@@ -72,6 +89,7 @@ class SupabaseBackupState {
     String? email,
     DateTime? resendAvailableAt,
     PasswordChangeStage? passwordChange,
+    AccountRecoveryStage? accountRecovery,
     String? error,
     String? successMessage,
     bool clearMessage = false,
@@ -86,6 +104,7 @@ class SupabaseBackupState {
       email: email ?? this.email,
       resendAvailableAt: resendAvailableAt ?? this.resendAvailableAt,
       passwordChange: passwordChange ?? this.passwordChange,
+      accountRecovery: accountRecovery ?? this.accountRecovery,
       error: clearMessage ? null : (error ?? this.error),
       successMessage: clearMessage
           ? null
@@ -106,6 +125,7 @@ class SupabaseBackupState {
           email == other.email &&
           resendAvailableAt == other.resendAvailableAt &&
           passwordChange == other.passwordChange &&
+          accountRecovery == other.accountRecovery &&
           error == other.error &&
           successMessage == other.successMessage;
 
@@ -119,6 +139,7 @@ class SupabaseBackupState {
     email,
     resendAvailableAt,
     passwordChange,
+    accountRecovery,
     error,
     successMessage,
   );

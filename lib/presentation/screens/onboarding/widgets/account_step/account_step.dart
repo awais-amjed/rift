@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import 'account_recovery_view.dart';
 import 'auth_view.dart';
 import 'email_confirmation_view.dart';
 import 'vault_password_view.dart';
@@ -22,6 +23,12 @@ class AccountStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<SupabaseBackupCubit, SupabaseBackupState>(
       builder: (context, state) {
+        if (state.accountRecovery != AccountRecoveryStage.idle) {
+          return AccountRecoveryView(
+            state: state,
+            onBack: context.read<SupabaseBackupCubit>().cancelAccountRecovery,
+          );
+        }
         if (state.needsVaultPassword) {
           return VaultPasswordView(state: state, onBack: onBack);
         }

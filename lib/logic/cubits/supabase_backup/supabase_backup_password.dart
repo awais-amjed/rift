@@ -165,6 +165,32 @@ mixin _SupabaseBackupPasswordMixin on Cubit<SupabaseBackupState> {
     emit(state.copyWith(isProcessing: false, successMessage: 'Password changed.'));
   }
 
+  /// Mint a new recovery key, retiring the old one.
+  ///
+  /// **Goes through here rather than straight to [VaultCubit] because of the
+  /// derivation.** The seed blob on an account is wrapped under
+  /// `KDF(typed, "vault")`, not under what the person types — so a panel that
+  /// handed the raw string to the vault would be told "wrong password" by an
+  /// account holder who typed exactly the right one.
+  Future<({bool success, String? error})> replaceRecoveryKey({
+    required String password,
+  }) async {
+    final vaultPassword = await _vaultPasswordFor(password);
+    final result = await _vaultCubit.regenerateRecoveryKey(
+      password: vaultPassword,
+    );
+    if (!result.success) {
+      return (success: false, error: result.error);
+    }
+
+    // The stored backup still carries the old wrap, and a recovery key that
+    // only works against this device is not a recovery key.
+    if (state.isSignedIn) {
+      await _uploadBackup(successMessage: 'Recovery key replaced.');
+    }
+    return (success: true, error: null);
+  }
+
   /// Abandon a change in progress, forgetting the proved password with it.
   void cancelPasswordChange() {
     _pendingOldVaultPassword = null;

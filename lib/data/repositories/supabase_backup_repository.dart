@@ -144,15 +144,62 @@ class SupabaseBackupRepository {
   /// [SupabaseConfig] and ARCHITECTURE.md §3); handing GoTrue the raw string
   /// here would leave an account whose password the client can never
   /// reproduce, and no way back into it.
+  /// [nonce] is omitted when the session was *just* established by a recovery
+  /// code — verifying that code is itself the proof, and GoTrue asks for a
+  /// nonce only when the session predates the request.
   Future<APIResponse> updatePassword({
     required String password,
-    required String nonce,
+    String? nonce,
   }) async {
     try {
       await _client.auth.updateUser(
         UserAttributes(password: password, nonce: nonce),
       );
       return APIResponse.success(null);
+    } on AuthException catch (e) {
+      return _authFailure(e);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
+  /// Start account recovery: GoTrue emails a code to [email].
+  ///
+  /// Unauthenticated by nature — this is the way in when the password is the
+  /// thing that was lost. It says nothing about whether the address has an
+  /// account, and must not: an answer either way turns this into a way of
+  /// asking which emails are registered.
+  Future<APIResponse> sendPasswordRecovery({required String email}) async {
+    try {
+      await _client.auth.resetPasswordForEmail(email);
+      return APIResponse.success(null);
+    } on AuthException catch (e) {
+      return _authFailure(e);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
+  /// Exchange an emailed recovery code for a session.
+  ///
+  /// Needs `{{ .Token }}` in the project's recovery template — the link in
+  /// that mail is a PKCE URL meant for a browser, and this flow deliberately
+  /// stays in the app so the password derivation never leaves the device.
+  Future<APIResponse> verifyRecoveryCode({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      final response = await _client.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.recovery,
+      );
+      final user = response.user;
+      if (user == null) {
+        return APIResponse.error('That code did not open a session.');
+      }
+      return APIResponse.success(user);
     } on AuthException catch (e) {
       return _authFailure(e);
     } catch (e) {

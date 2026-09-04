@@ -193,6 +193,27 @@ class AuthViewState extends State<AuthView>
 
                 const SizedBox(height: 12),
 
+                // Only on sign in. Offering "recover your account" to
+                // somebody creating one is an invitation to reset an account
+                // they do not have.
+                if (!isSignUp)
+                  TextButton(
+                    onPressed: isProcessing
+                        ? null
+                        : () => context
+                              .read<SupabaseBackupCubit>()
+                              .startAccountRecovery(
+                                email: emailController.text.trim(),
+                              ),
+                    child: Text(
+                      'Forgotten your password?',
+                      style: AppText.secondary.copyWith(
+                        fontSize: 12,
+                        color: theme.textTertiary,
+                      ),
+                    ),
+                  ),
+
                 TextButton(
                   onPressed: isProcessing
                       ? null

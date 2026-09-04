@@ -38,6 +38,22 @@ class _ChangePasswordPanelState extends State<ChangePasswordPanel> {
   bool _open = false;
 
   @override
+  void didUpdateWidget(ChangePasswordPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // A change that finished — or was abandoned — leaves the stage back at
+    // idle. Without this the panel would fall back to its own first step and
+    // sit there asking for the current password again, which reads as though
+    // nothing happened.
+    final was = oldWidget.state.passwordChange;
+    final now = widget.state.passwordChange;
+    if (was != PasswordChangeStage.idle && now == PasswordChangeStage.idle) {
+      _current.clear();
+      if (_open) setState(() => _open = false);
+    }
+  }
+
+  @override
   void dispose() {
     _current.dispose();
     super.dispose();

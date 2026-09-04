@@ -174,6 +174,28 @@ and the key wrapping the seed. The order is chosen so they cannot end up disagre
 
 The recovery key keeps working throughout, and is the reason a torn state is survivable at all.
 
+#### Recovering an account [Implemented September 2026]
+
+Two halves, and each is useless alone. A code emailed to the address recovers the **account**; the
+recovery key opens the **vault**, and nothing on any server can. The backup is wrapped under the
+forgotten password — that is the property the encryption exists for, and the reason the key has to
+be issued up front rather than offered at the moment it is needed.
+
+Reached from "Forgotten your password?" on the sign-in form, and it stays **inside the app**: the
+value GoTrue stores is `KDF(typed, "auth")`, so following the link in the email into a browser and
+setting a password there would leave an account the client could never sign in to again. The
+recovery template therefore carries `{{ .Token }}` and no action link.
+
+`verifyOTP(recovery)` → `updateUser(password: KDF(new, "auth"))` with no nonce (verifying the code
+*is* the proof) → download the backup → `importBackup(recoveryKey:)` → **`rewrapSeed`** under
+`KDF(new, "vault")` → re-upload. The rewrap is the step that is easy to miss: the imported blob is
+still under the forgotten password, and without it the next sign-in on that device would have to
+come through recovery all over again.
+
+A wrong recovery key is discovered *after* the password is set, because the key cannot be checked
+without the backup and the backup needs a session. That ordering is deliberate — being signed in is
+what makes a second attempt possible.
+
 #### Confirming the address [Implemented September 2026]
 
 When the central project requires email confirmation, sign-up returns no session and the app shows

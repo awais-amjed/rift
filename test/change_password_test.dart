@@ -41,7 +41,7 @@ class _FakeRepo implements SupabaseBackupRepository {
   @override
   Future<APIResponse> updatePassword({
     required String password,
-    required String nonce,
+    String? nonce,
   }) async {
     sentPassword = password;
     sentNonce = nonce;

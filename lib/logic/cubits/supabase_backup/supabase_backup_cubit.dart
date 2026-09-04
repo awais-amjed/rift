@@ -15,6 +15,7 @@ part 'supabase_backup_auth.dart';
 part 'supabase_backup_restore.dart';
 part 'supabase_backup_transfer.dart';
 part 'supabase_backup_password.dart';
+part 'supabase_backup_account_recovery.dart';
 
 /// Manages the central-server account and cloud backup sync.
 ///
@@ -35,7 +36,8 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
         _SupabaseBackupAuthMixin,
         _SupabaseBackupRestoreMixin,
         _SupabaseBackupTransferMixin,
-        _SupabaseBackupPasswordMixin {
+        _SupabaseBackupPasswordMixin,
+        _SupabaseBackupAccountRecoveryMixin {
   /// How long the resend button stays locked after asking.
   ///
   /// Matched to the central project's `smtp_max_frequency`, which is 60
