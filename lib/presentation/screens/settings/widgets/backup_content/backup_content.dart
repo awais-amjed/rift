@@ -5,8 +5,10 @@ import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 
 import 'auth_panel.dart';
+import 'change_password_panel.dart';
 import 'confirm_email_panel.dart';
 import 'conflict_panel.dart';
+import 'recovery_key_panel.dart';
 import 'file_backup_panel.dart';
 import 'reset_vault_card.dart';
 import 'signed_in_panel.dart';
@@ -64,6 +66,17 @@ class _BackupBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             cloudPanel,
+            // Only once there is a settled vault to change the password of —
+            // not while the screen is still asking someone to sign in, resolve
+            // a conflict, or confirm an address.
+            if (!state.cloudBackupConflict &&
+                !state.needsVaultPassword &&
+                !state.needsEmailConfirmation) ...[
+              const SizedBox(height: 28),
+              ChangePasswordPanel(themeState: themeState, state: state),
+              const SizedBox(height: 28),
+              RecoveryKeyPanel(themeState: themeState),
+            ],
             const SizedBox(height: 28),
             FileBackupPanel(themeState: themeState),
             const SizedBox(height: 28),

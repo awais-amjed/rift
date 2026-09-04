@@ -133,10 +133,46 @@ decrypt stored backups (Bitwarden/Proton model).
 - **Conflict rule**: fresh device → import cloud backup silently; existing local vault + different
   cloud backup → ask the user.
 - **Forgot password**: email reset recovers the *account*, not the backup — old blobs are
-  undecryptable by design. UI must warn. Recovery path: any still-signed-in device or file backup
-  re-encrypts and re-uploads under the new password.
-- **[Planned follow-up]**: recovery key — random code shown once at signup, wraps the vault key a
-  second time so password *or* recovery key can decrypt.
+  undecryptable by design. UI must warn. Recovery path: the recovery key below, any still-signed-in
+  device, or a file backup, re-encrypting and re-uploading under the new password.
+
+#### Recovery key [Implemented September 2026]
+
+A second, independent wrapping of the **same master seed**: `Argon2id(recoveryKey, salt2)` beside
+the password's `Argon2id(password, salt)`. Neither knows about the other, which is what makes it a
+spare key rather than a hint — forgetting the password costs one blob and nothing else, and
+changing the password does not touch the recovery blob because the plaintext under both is the
+seed, and the seed never changes.
+
+- **Format**: 25 characters of Crockford base32 (no `I`, `L`, `O`, `U`) as `XXXXX-XXXXX-…` — 125
+  bits, drawn five bits at a time so the alphabet maps on with no modulo bias. Normalisation folds
+  case, drops separators and reads `I`/`L`→`1`, `O`→`0`, because those are the mistakes people
+  actually make copying it off paper.
+- **Issued at vault creation, shown once, never stored after acknowledgement.** `/recovery-key` is
+  a router gate, not a notice: while `VaultState.pendingRecoveryKey` is set, no other route is
+  reachable. The plaintext key is held in secure storage only between generation and
+  acknowledgement, so a crash on that screen cannot strand a blob whose key nobody knows.
+- **Travels in the backup file** (`BackupFile.recovery`, v3) — otherwise it would only work on the
+  device that generated it, which is the one device you do not need it for. v2 files still load
+  with a null recovery blob, which is exactly what they meant.
+- Settings can **replace** it (password required) but never display it; there is no stored copy to
+  show, and a second copy would only be a thing to leak.
+
+#### Changing the password [Implemented September 2026]
+
+One typed password stands behind two things that fail independently: the verifier GoTrue stores
+and the key wrapping the seed. The order is chosen so they cannot end up disagreeing —
+
+1. prove the current password against the **local seed blob** (no email spent on a wrong guess);
+2. on an account, GoTrue `reauthenticate()` emails a nonce — the step that separates "walked past
+   an unlocked laptop" from "has the password *and* the inbox". Privacy mode has no address and
+   skips it;
+3. re-wrap the seed locally — reversible, nothing has left the device;
+4. `updateUser(password: KDF(new, "auth"), nonce:)`;
+5. **if that fails, put the seed back**, or the account would sign in fine and open nothing;
+6. only then re-upload the backup.
+
+The recovery key keeps working throughout, and is the reason a torn state is survivable at all.
 
 #### Confirming the address [Implemented September 2026]
 

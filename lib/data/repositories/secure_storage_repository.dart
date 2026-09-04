@@ -39,11 +39,50 @@ class SecureStorageRepository {
   String get _keyEncryptedVault => '${namespacePrefix}encrypted_vault';
   String get _keyEncryptedSeed => '${namespacePrefix}encrypted_seed';
   String get _keyJoinedServers => '${namespacePrefix}joined_servers';
+  String get _keyRecoverySeed => '${namespacePrefix}recovery_seed';
+  String get _keyPendingRecoveryKey => '${namespacePrefix}pending_recovery_key';
 
   final FlutterSecureStorage _storage;
 
   SecureStorageRepository({FlutterSecureStorage? storage})
     : _storage = storage ?? const FlutterSecureStorage();
+
+  // ── Recovery key ─────────────────────────────────────────
+
+  /// The master seed wrapped under the recovery key.
+  ///
+  /// Same shape as the password blob and stored beside it, because it is the
+  /// same thing: `Argon2id(recoveryKey, salt)` over the same plaintext. Absent
+  /// on vaults created before recovery keys, which is why every read of it is
+  /// nullable rather than an error.
+  Future<void> saveRecoverySeed(EncryptedSeed seed) => _storage.write(
+    key: _keyRecoverySeed,
+    value: jsonEncode(seed.toJson()),
+  );
+
+  Future<EncryptedSeed?> getRecoverySeed() async {
+    final raw = await _storage.read(key: _keyRecoverySeed);
+    if (raw == null) return null;
+    return EncryptedSeed.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  /// A generated recovery key that the person has not confirmed seeing yet.
+  ///
+  /// **Deliberately persisted in the clear, and deliberately temporary.** It
+  /// sits next to the master seed, which is also in the clear here — so it
+  /// gives away nothing that device access did not already give away. What it
+  /// buys is that a crash, a force-quit or a flat battery between "your key is
+  /// XXXXX-…" and "I have written it down" does not silently leave somebody
+  /// with a recovery blob whose key no living thing knows. It is deleted the
+  /// moment they acknowledge it.
+  Future<void> savePendingRecoveryKey(String key) =>
+      _storage.write(key: _keyPendingRecoveryKey, value: key);
+
+  Future<String?> getPendingRecoveryKey() =>
+      _storage.read(key: _keyPendingRecoveryKey);
+
+  Future<void> clearPendingRecoveryKey() =>
+      _storage.delete(key: _keyPendingRecoveryKey);
 
   // ── Master Seed ──────────────────────────────────────────
 
@@ -145,5 +184,7 @@ class SecureStorageRepository {
     _storage.delete(key: _keyEncryptedVault),
     _storage.delete(key: _keyEncryptedSeed),
     _storage.delete(key: _keyJoinedServers),
+    _storage.delete(key: _keyRecoverySeed),
+    _storage.delete(key: _keyPendingRecoveryKey),
   ]);
 }

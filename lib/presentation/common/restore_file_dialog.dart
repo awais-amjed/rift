@@ -2,16 +2,24 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../logic/cubits/theme/theme_cubit.dart';
 import '../../logic/cubits/vault/vault_cubit.dart';
 import '../../logic/helper_methods.dart';
 import 'app_button.dart';
 import 'app_modal.dart';
 import 'app_text_field.dart';
 import 'message_banner.dart';
+import '../theme/app_text.dart';
 
 /// Dialog for restoring a vault from an exported backup file.
 ///
 /// Fully offline — used from the privacy-mode onboarding path and settings.
+///
+/// Takes either the password or the recovery key, as a choice rather than a
+/// fallback. The two unwrap independent blobs holding the same seed, so trying
+/// one and then the other would mean reporting whichever failed last as the
+/// reason — telling somebody their recovery key is wrong when what they typed
+/// was a password.
 class RestoreFileDialog extends StatefulWidget {
   const RestoreFileDialog({super.key});
 
@@ -24,6 +32,7 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
   XFile? _file;
   String? _error;
   bool _isProcessing = false;
+  bool _useRecoveryKey = false;
 
   @override
   void dispose() {
@@ -52,7 +61,11 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
       return;
     }
     if (_passwordController.text.isEmpty) {
-      setState(() => _error = 'Enter the vault password');
+      setState(
+        () => _error = _useRecoveryKey
+            ? 'Enter your recovery key'
+            : 'Enter the vault password',
+      );
       return;
     }
 
@@ -66,7 +79,8 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
       final content = await file.readAsString();
       final result = await vault.importBackup(
         jsonContent: content,
-        password: _passwordController.text,
+        password: _useRecoveryKey ? null : _passwordController.text,
+        recoveryKey: _useRecoveryKey ? _passwordController.text : null,
       );
 
       if (!mounted) return;
@@ -109,11 +123,38 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
           const SizedBox(height: 16),
           AppTextField(
             controller: _passwordController,
-            label: 'Vault Password',
-            hint: 'Password used when the backup was created',
-            obscureText: true,
+            label: _useRecoveryKey ? 'Recovery Key' : 'Vault Password',
+            hint: _useRecoveryKey
+                ? 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX'
+                : 'Password used when the backup was created',
+            // A recovery key is read off paper and typed once. Hiding it
+            // behind dots turns the one input people cannot retype from
+            // memory into the one they cannot check either.
+            obscureText: !_useRecoveryKey,
             enabled: !_isProcessing,
             onEditingComplete: _isProcessing ? null : _restore,
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: _isProcessing
+                  ? null
+                  : () => setState(() {
+                      _useRecoveryKey = !_useRecoveryKey;
+                      _passwordController.clear();
+                      _error = null;
+                    }),
+              child: Text(
+                _useRecoveryKey
+                    ? 'Use the password instead'
+                    : 'Forgotten the password? Use a recovery key',
+                style: AppText.secondary.copyWith(
+                  fontSize: 12,
+                  color: context.read<ThemeCubit>().state.primary,
+                ),
+              ),
+            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),

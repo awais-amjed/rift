@@ -18,6 +18,7 @@ part 'vault_creation.dart';
 part 'vault_identity.dart';
 part 'vault_auth.dart';
 part 'vault_backup.dart';
+part 'vault_recovery.dart';
 
 /// Manages the user's encrypted vault: creation, server identity derivation,
 /// SIWS login, and backup export/import.
@@ -26,7 +27,8 @@ class VaultCubit extends Cubit<VaultState>
         _VaultCreationMixin,
         _VaultIdentityMixin,
         _VaultAuthMixin,
-        _VaultBackupMixin {
+        _VaultBackupMixin,
+        _VaultRecoveryMixin {
   @override
   final CryptoRepository _crypto;
   @override

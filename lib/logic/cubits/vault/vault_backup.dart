@@ -2,6 +2,13 @@ part of 'vault_cubit.dart';
 
 mixin _VaultBackupMixin on Cubit<VaultState> {
   CryptoRepository get _crypto;
+
+  /// Implemented by [_VaultRecoveryMixin].
+  Future<({String? masterSeedB64, String? error})> unwrapWithRecoveryKey({
+    required EncryptedSeed blob,
+    required String recoveryKey,
+  });
+
   SecureStorageRepository get _storage;
   Map<String, ServerIdentity> get _identityCache;
   void Function(List<Map<String, dynamic>>)? get _onServersImported;
@@ -45,6 +52,10 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
         version: BackupFile.currentVersion,
         seed: encryptedSeed,
         vault: encryptedVault,
+        // Travels with the file, or the recovery key would only ever work on
+        // the device that generated it — which is the one device you do not
+        // need a recovery key for.
+        recovery: await _storage.getRecoverySeed(),
         encryptedServers: EncryptedVault(
           ciphertext: CryptoRepository.toBase64(encryptedServers.ciphertext),
           iv: CryptoRepository.toBase64(encryptedServers.iv),
@@ -58,27 +69,57 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
     }
   }
 
-  /// Restores a vault from a [BackupFile] JSON string and password.
+  /// Restores a vault from a [BackupFile] JSON string.
+  ///
+  /// Opened with [password], or with [recoveryKey] when the password is the
+  /// thing that was lost. They are alternatives, not a fallback chain: the two
+  /// blobs wrap the same seed under unrelated keys, so trying both would only
+  /// mean reporting the wrong one as wrong.
+  ///
   /// On success emits [AuthStatus.unlocked] and fully populates secure storage.
   Future<({bool success, String? error})> importBackup({
     required String jsonContent,
-    required String password,
+    String? password,
+    String? recoveryKey,
   }) async {
+    assert(
+      (password == null) != (recoveryKey == null),
+      'importBackup takes a password or a recovery key, not both and not neither',
+    );
     emit(state.copyWith(isProcessing: true, clearError: true));
 
     try {
       final backup = BackupFile.fromJsonString(jsonContent);
 
-      final salt = CryptoRepository.fromBase64(backup.seed.salt);
-      final seedKey = await _crypto.deriveVaultKey(
-        password: password,
-        salt: salt,
-      );
-      final masterSeedB64 = await _crypto.decrypt(
-        ciphertext: CryptoRepository.fromBase64(backup.seed.ciphertext),
-        key: seedKey,
-        iv: CryptoRepository.fromBase64(backup.seed.iv),
-      );
+      final String masterSeedB64;
+      if (recoveryKey != null) {
+        final blob = backup.recovery;
+        if (blob == null) {
+          const msg = 'This backup has no recovery key on it';
+          emit(state.copyWith(isProcessing: false, error: msg));
+          return (success: false, error: msg);
+        }
+        final unwrapped = await unwrapWithRecoveryKey(
+          blob: blob,
+          recoveryKey: recoveryKey,
+        );
+        if (unwrapped.masterSeedB64 == null) {
+          emit(state.copyWith(isProcessing: false, error: unwrapped.error));
+          return (success: false, error: unwrapped.error);
+        }
+        masterSeedB64 = unwrapped.masterSeedB64!;
+      } else {
+        final salt = CryptoRepository.fromBase64(backup.seed.salt);
+        final seedKey = await _crypto.deriveVaultKey(
+          password: password!,
+          salt: salt,
+        );
+        masterSeedB64 = await _crypto.decrypt(
+          ciphertext: CryptoRepository.fromBase64(backup.seed.ciphertext),
+          key: seedKey,
+          iv: CryptoRepository.fromBase64(backup.seed.iv),
+        );
+      }
 
       final masterSeedBytes = CryptoRepository.fromBase64(masterSeedB64);
       final vaultKey = await _crypto.deriveLocalVaultKey(masterSeedBytes);
@@ -99,6 +140,9 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
       await _storage.setJoinedServers(joinedServers);
       await _storage.saveEncryptedSeed(backup.seed);
       await _storage.saveEncryptedVault(backup.vault);
+      if (backup.recovery != null) {
+        await _storage.saveRecoverySeed(backup.recovery!);
+      }
 
       _identityCache.clear();
 

@@ -10,11 +10,19 @@ class VaultState {
   /// Never persisted outside of secure storage.
   final String? masterSeed;
 
+  /// A generated recovery key the person has not confirmed seeing yet.
+  ///
+  /// Held in state, not just in storage, because the router treats it as a
+  /// gate: while it is set, the app is not finished starting up. Null in every
+  /// other circumstance, including for vaults created before recovery keys.
+  final String? pendingRecoveryKey;
+
   const VaultState({
     this.status = AuthStatus.unknown,
     this.isProcessing = false,
     this.error,
     this.masterSeed,
+    this.pendingRecoveryKey,
   });
 
   VaultState copyWith({
@@ -23,12 +31,17 @@ class VaultState {
     String? error,
     bool clearError = false,
     String? masterSeed,
+    String? pendingRecoveryKey,
+    bool clearPendingRecoveryKey = false,
   }) {
     return VaultState(
       status: status ?? this.status,
       isProcessing: isProcessing ?? this.isProcessing,
       error: clearError ? null : (error ?? this.error),
       masterSeed: masterSeed ?? this.masterSeed,
+      pendingRecoveryKey: clearPendingRecoveryKey
+          ? null
+          : (pendingRecoveryKey ?? this.pendingRecoveryKey),
     );
   }
 
@@ -40,10 +53,12 @@ class VaultState {
           status == other.status &&
           isProcessing == other.isProcessing &&
           error == other.error &&
-          masterSeed == other.masterSeed;
+          masterSeed == other.masterSeed &&
+          pendingRecoveryKey == other.pendingRecoveryKey;
 
   @override
-  int get hashCode => Object.hash(status, isProcessing, error, masterSeed);
+  int get hashCode =>
+      Object.hash(status, isProcessing, error, masterSeed, pendingRecoveryKey);
 
   @override
   String toString() =>

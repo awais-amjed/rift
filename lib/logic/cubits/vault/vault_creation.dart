@@ -4,6 +4,9 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
   CryptoRepository get _crypto;
   SecureStorageRepository get _storage;
 
+  /// Implemented by [_VaultRecoveryMixin].
+  Future<String> _issueRecoveryKey(String masterSeedB64);
+
   // ──────────────────────────────────────────────────────────
   // Phase 1: Account creation
   // ──────────────────────────────────────────────────────────
@@ -51,7 +54,18 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
         ),
       );
 
-      emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
+      // Issued here rather than offered later, because a recovery key is only
+      // worth anything if it exists before the password is forgotten — and
+      // nobody goes looking for one while they still remember it.
+      final recoveryKey = await _issueRecoveryKey(masterSeedB64);
+
+      emit(
+        VaultState(
+          status: AuthStatus.unlocked,
+          masterSeed: masterSeedB64,
+          pendingRecoveryKey: recoveryKey,
+        ),
+      );
     } catch (e) {
       HelperMethods.printDebug('[Vault] createVault error: $e');
       emit(
@@ -60,6 +74,34 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
           error: 'Failed to create vault: $e',
         ),
       );
+    }
+  }
+
+  /// Whether [password] opens the current seed blob.
+  ///
+  /// Exists so a password can be checked *before* anything with a cost or a
+  /// side effect happens — sending an email, starting a change that has to be
+  /// unwound. Runs the same Argon2id as a real unlock, so it is a second of
+  /// work, not a free comparison.
+  Future<bool> verifyVaultPassword(String password) async {
+    final seedBlob = await _storage.getEncryptedSeed();
+    if (seedBlob == null) return false;
+    try {
+      final key = await _crypto.deriveVaultKey(
+        password: password,
+        salt: CryptoRepository.fromBase64(seedBlob.salt),
+      );
+      await _crypto.decrypt(
+        ciphertext: CryptoRepository.fromBase64(seedBlob.ciphertext),
+        key: key,
+        iv: CryptoRepository.fromBase64(seedBlob.iv),
+      );
+      return true;
+    } on SecretBoxAuthenticationError {
+      return false;
+    } catch (e) {
+      HelperMethods.printDebug('[Vault] verifyVaultPassword error: $e');
+      return false;
     }
   }
 

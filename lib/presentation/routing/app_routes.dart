@@ -6,6 +6,7 @@ import '../../logic/cubits/vault/vault_cubit.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/home/backups/supabase/supabase_backup_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
+import '../screens/recovery_key/recovery_key_screen.dart';
 import '../screens/settings/settings_screen.dart';
 
 class AppRoutes {
@@ -15,6 +16,7 @@ class AppRoutes {
 
   static const String home = '/';
   static const String onboarding = '/onboarding';
+  static const String recoveryKey = '/recovery-key';
   static const String supabaseBackup = '/backup/cloud';
   static const String settings = '/settings';
 
@@ -25,6 +27,7 @@ class AppRoutes {
     redirect: (context, state) {
       final vaultState = vaultCubit.state;
       final isOnboarding = state.matchedLocation == onboarding;
+      final isRecoveryKey = state.matchedLocation == recoveryKey;
 
       // Still checking — don't redirect yet.
       if (vaultState.status == AuthStatus.unknown) return null;
@@ -34,9 +37,15 @@ class AppRoutes {
         return isOnboarding ? null : onboarding;
       }
 
-      // Unlocked → go home if still on onboarding.
+      // Unlocked → but a recovery key that was generated and never
+      // acknowledged outranks everywhere else. It exists only in memory and in
+      // one temporary storage key until it is written down, so letting anyone
+      // reach the app around it is how it gets lost. See [RecoveryKeyScreen].
       if (vaultState.status == AuthStatus.unlocked) {
-        return isOnboarding ? home : null;
+        if (vaultState.pendingRecoveryKey != null) {
+          return isRecoveryKey ? null : recoveryKey;
+        }
+        return (isOnboarding || isRecoveryKey) ? home : null;
       }
 
       return null;
@@ -46,6 +55,10 @@ class AppRoutes {
       GoRoute(
         path: onboarding,
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: recoveryKey,
+        builder: (context, state) => const RecoveryKeyScreen(),
       ),
       GoRoute(
         path: supabaseBackup,

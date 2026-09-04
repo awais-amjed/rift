@@ -7,10 +7,15 @@ import 'encrypted_vault.dart';
 ///
 /// File layout (JSON):
 /// ```
-///   seed             → AES-GCM( Argon2id(password, salt),  masterSeed )
+///   seed             → AES-GCM( Argon2id(password, salt),      masterSeed )
+///   recovery         → AES-GCM( Argon2id(recoveryKey, salt2),   masterSeed )
 ///   vault            → AES-GCM( HMAC(masterSeed, "vault:v1"), joined_servers )
 ///   encryptedServers → AES-GCM( HMAC(masterSeed, "vault:v1"), servers JSON )
 /// ```
+///
+/// `seed` and `recovery` hold the *same* master seed under two independent
+/// keys. That is the point of the second one: a forgotten password costs you
+/// the first blob and nothing else.
 ///
 /// All three blobs are encrypted. The `encryptedServers` blob uses the same
 /// vault key but a separate IV, keeping server metadata opaque to the storage
@@ -23,7 +28,9 @@ import 'encrypted_vault.dart';
 ///   4. Store everything in secure storage and derive all server identities.
 ///   5. Reconstruct Server objects from decrypted servers and populate ServerCubit.
 class BackupFile {
-  static const int currentVersion = 2;
+  /// v3 added [recovery]. Older files still load — [recovery] is null and the
+  /// password is the only way in, which is exactly what those files meant.
+  static const int currentVersion = 3;
 
   final int version;
   final EncryptedSeed seed;
@@ -35,11 +42,17 @@ class BackupFile {
   /// keyVersion. Token is intentionally excluded.
   final EncryptedVault? encryptedServers;
 
+  /// The master seed again, wrapped under the recovery key instead of the
+  /// password. Null on backups written before recovery keys existed, and on
+  /// accounts whose key was never generated.
+  final EncryptedSeed? recovery;
+
   const BackupFile({
     required this.version,
     required this.seed,
     required this.vault,
     this.encryptedServers,
+    this.recovery,
   });
 
   Map<String, dynamic> toJson() => {
@@ -48,6 +61,7 @@ class BackupFile {
     'vault': vault.toJson(),
     if (encryptedServers != null)
       'encrypted_servers': encryptedServers!.toJson(),
+    if (recovery != null) 'recovery': recovery!.toJson(),
   };
 
   factory BackupFile.fromJson(Map<String, dynamic> json) => BackupFile(
@@ -58,6 +72,9 @@ class BackupFile {
         ? EncryptedVault.fromJson(
             json['encrypted_servers'] as Map<String, dynamic>,
           )
+        : null,
+    recovery: json['recovery'] != null
+        ? EncryptedSeed.fromJson(json['recovery'] as Map<String, dynamic>)
         : null,
   );
 

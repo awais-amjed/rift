@@ -2,6 +2,9 @@ part of 'vault_cubit.dart';
 
 mixin _VaultAuthMixin on Cubit<VaultState> {
   SecureStorageRepository get _storage;
+
+  /// Implemented by [_VaultRecoveryMixin].
+  Future<String?> loadPendingRecoveryKey();
   ServerRepository get _serverRepo;
   CryptoRepository get _crypto;
   Future<ServerIdentity> getIdentityForHost(
@@ -19,7 +22,16 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
     try {
       final masterSeed = await _storage.getMasterSeed();
       if (masterSeed != null) {
-        emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeed));
+        // A key generated but never acknowledged outlives the process that
+        // generated it — the app was closed on the screen showing it, and it
+        // has to come back or the blob is unopenable by anyone.
+        emit(
+          VaultState(
+            status: AuthStatus.unlocked,
+            masterSeed: masterSeed,
+            pendingRecoveryKey: await loadPendingRecoveryKey(),
+          ),
+        );
       } else {
         emit(const VaultState(status: AuthStatus.fresh));
       }

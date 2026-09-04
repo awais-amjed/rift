@@ -14,6 +14,7 @@ part 'supabase_backup_state.dart';
 part 'supabase_backup_auth.dart';
 part 'supabase_backup_restore.dart';
 part 'supabase_backup_transfer.dart';
+part 'supabase_backup_password.dart';
 
 /// Manages the central-server account and cloud backup sync.
 ///
@@ -33,7 +34,8 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     with
         _SupabaseBackupAuthMixin,
         _SupabaseBackupRestoreMixin,
-        _SupabaseBackupTransferMixin {
+        _SupabaseBackupTransferMixin,
+        _SupabaseBackupPasswordMixin {
   /// How long the resend button stays locked after asking.
   ///
   /// Matched to the central project's `smtp_max_frequency`, which is 60
@@ -55,6 +57,14 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
   /// when the session was restored from disk (re-derived on next sign-in).
   @override
   String? _accountVaultPassword;
+
+  /// The vault-blob password proved during a change in progress.
+  ///
+  /// Memory-only and cleared the moment the change lands or is abandoned —
+  /// it is a password-equivalent, and it exists only so the second step does
+  /// not have to ask for the old password a second time.
+  @override
+  String? _pendingOldVaultPassword;
 
   /// Cloud backup JSON awaiting a user decision (password prompt / conflict).
   @override

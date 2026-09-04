@@ -1,5 +1,23 @@
 part of 'supabase_backup_cubit.dart';
 
+/// Where a password change has got to.
+///
+/// A change is a conversation, not a single call: prove the old password, then
+/// (on an account) prove the address, then set the new one. The UI needs to
+/// know which question it is asking.
+enum PasswordChangeStage {
+  /// Nothing in progress — the form asks for the current password.
+  idle,
+
+  /// Current password proved and a code emailed. Waiting for the code and the
+  /// new password.
+  enterCode,
+
+  /// Current password proved and there is no address to confirm — privacy
+  /// mode. Waiting for the new password alone.
+  enterNew,
+}
+
 /// Immutable state for [SupabaseBackupCubit].
 class SupabaseBackupState {
   final bool isProcessing;
@@ -26,6 +44,9 @@ class SupabaseBackupState {
   /// of two digits.
   final DateTime? resendAvailableAt;
 
+  /// Where a password change has got to. See [PasswordChangeStage].
+  final PasswordChangeStage passwordChange;
+
   final String? error;
   final String? successMessage;
 
@@ -37,6 +58,7 @@ class SupabaseBackupState {
     this.cloudBackupConflict = false,
     this.email,
     this.resendAvailableAt,
+    this.passwordChange = PasswordChangeStage.idle,
     this.error,
     this.successMessage,
   });
@@ -49,6 +71,7 @@ class SupabaseBackupState {
     bool? cloudBackupConflict,
     String? email,
     DateTime? resendAvailableAt,
+    PasswordChangeStage? passwordChange,
     String? error,
     String? successMessage,
     bool clearMessage = false,
@@ -62,6 +85,7 @@ class SupabaseBackupState {
       cloudBackupConflict: cloudBackupConflict ?? this.cloudBackupConflict,
       email: email ?? this.email,
       resendAvailableAt: resendAvailableAt ?? this.resendAvailableAt,
+      passwordChange: passwordChange ?? this.passwordChange,
       error: clearMessage ? null : (error ?? this.error),
       successMessage: clearMessage
           ? null
@@ -81,6 +105,7 @@ class SupabaseBackupState {
           cloudBackupConflict == other.cloudBackupConflict &&
           email == other.email &&
           resendAvailableAt == other.resendAvailableAt &&
+          passwordChange == other.passwordChange &&
           error == other.error &&
           successMessage == other.successMessage;
 
@@ -93,6 +118,7 @@ class SupabaseBackupState {
     cloudBackupConflict,
     email,
     resendAvailableAt,
+    passwordChange,
     error,
     successMessage,
   );

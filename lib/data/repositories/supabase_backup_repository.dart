@@ -121,6 +121,45 @@ class SupabaseBackupRepository {
     }
   }
 
+  /// Ask GoTrue to email a one-time code for a password change.
+  ///
+  /// Requires a live session — this is the "prove it is still you" step, not a
+  /// way in from outside. GoTrue calls the code a *nonce* and will not accept
+  /// [updatePassword] without one.
+  Future<APIResponse> sendReauthenticationCode() async {
+    try {
+      await _client.auth.reauthenticate();
+      return APIResponse.success(null);
+    } on AuthException catch (e) {
+      return _authFailure(e);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
+  /// Set a new login password, proving possession of the emailed [nonce].
+  ///
+  /// **[password] is the derived auth verifier, never what the user typed.**
+  /// The account's stored password is `KDF(typed, "auth")` (see
+  /// [SupabaseConfig] and ARCHITECTURE.md §3); handing GoTrue the raw string
+  /// here would leave an account whose password the client can never
+  /// reproduce, and no way back into it.
+  Future<APIResponse> updatePassword({
+    required String password,
+    required String nonce,
+  }) async {
+    try {
+      await _client.auth.updateUser(
+        UserAttributes(password: password, nonce: nonce),
+      );
+      return APIResponse.success(null);
+    } on AuthException catch (e) {
+      return _authFailure(e);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
   /// Keeps GoTrue's machine-readable code alongside its message.
   ///
   /// Without this every auth failure reached the cubit as a sentence and
