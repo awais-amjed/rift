@@ -45,6 +45,11 @@ class SupabaseConfig {
   /// refuse an unlisted address — it quietly substitutes Site URL — so a typo
   /// here surfaces as people landing on the marketing page with no idea
   /// whether it worked.
+  ///
+  /// **The trailing slash is deliberate.** Pages serves this from a directory
+  /// and answers the bare path with a redirect. Browsers do carry a fragment
+  /// across one, but the fragment here is a live session token, and an auth
+  /// flow is a poor place to lean on that being true everywhere.
   static const String emailConfirmationRedirect =
-      'https://joinrift.app/email-confirmation';
+      'https://joinrift.app/email-confirmation/';
 }
