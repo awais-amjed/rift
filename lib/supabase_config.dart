@@ -1,8 +1,8 @@
 /// Configuration class for Supabase connection details.
 ///
 /// This class provides the necessary constants to connect to the Supabase
-/// backend for the Mimba Mobile application. It contains the project URL
-/// and the public anon key required for authentication and API access.
+/// backend for the central tier. It contains the project URL and the public
+/// anon key required for authentication and API access.
 class SupabaseConfig {
   /// The URL of the Supabase project instance.
   ///
@@ -32,4 +32,19 @@ class SupabaseConfig {
   /// answers before writing it into a server, so a missing record is a
   /// sentence rather than a silence.
   static const String pushRelayEndpoint = 'https://push.joinrift.app';
+
+  /// Where GoTrue sends someone after it has consumed a confirmation token.
+  ///
+  /// **Passed explicitly rather than left to the project's Site URL.** Site URL
+  /// is the fallback for every email flow at once, so leaning on it would mean
+  /// a future password reset landing on a page written to say "your email is
+  /// confirmed". Naming the target per flow keeps each one able to answer the
+  /// question it was actually asked.
+  ///
+  /// **It must also be in the project's redirect allow list.** GoTrue does not
+  /// refuse an unlisted address — it quietly substitutes Site URL — so a typo
+  /// here surfaces as people landing on the marketing page with no idea
+  /// whether it worked.
+  static const String emailConfirmationRedirect =
+      'https://joinrift.app/email-confirmation';
 }

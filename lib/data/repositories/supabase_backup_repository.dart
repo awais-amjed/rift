@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../supabase_config.dart';
 import '../classes/api_response.dart';
 
 /// Repository that manages all interactions with the central Supabase server
@@ -48,6 +49,7 @@ class SupabaseBackupRepository {
       final response = await _client.auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo: SupabaseConfig.emailConfirmationRedirect,
       );
 
       // Session is null → email confirmation required.
@@ -106,7 +108,11 @@ class SupabaseBackupRepository {
   /// usually names the number of seconds left.
   Future<APIResponse> resendConfirmation({required String email}) async {
     try {
-      await _client.auth.resend(type: OtpType.signup, email: email);
+      await _client.auth.resend(
+        type: OtpType.signup,
+        email: email,
+        emailRedirectTo: SupabaseConfig.emailConfirmationRedirect,
+      );
       return APIResponse.success(null);
     } on AuthException catch (e) {
       return _authFailure(e);
