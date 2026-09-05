@@ -13,6 +13,7 @@ jobs:
         os:
           - ubuntu-latest
           - windows-latest
+          - macos-latest
     steps:
       - uses: actions/checkout@v4 # Updated to v4 for better performance/security
 
@@ -43,6 +44,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
           PRIVATE_KEY: ${{ secrets.RELEASE_PRIVATE_KEY }}
           RUSTFLAGS: '-C target-feature=+crt-static'
+
+      # Both Mac architectures and the three iOS targets, since cargokit
+      # builds every Darwin target it knows from a Mac. iOS is cheap here:
+      # the crate carries no LiveKit off the desktop (see rust/Cargo.toml).
+      - name: Precompile (macOS/iOS)
+        if: matrix.os == 'macos-latest'
+        run: dart run build_tool precompile-binaries -v --manifest-dir=../../../rust --repository=awais-amjed/rift
+        working-directory: rust_builder/cargokit/build_tool
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
+          PRIVATE_KEY: ${{ secrets.RELEASE_PRIVATE_KEY }}
 
       - name: Precompile (Linux/Android)
         if: matrix.os == 'ubuntu-latest'

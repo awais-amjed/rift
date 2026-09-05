@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
+import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../sections/audio_source_section.dart';
 import '../sections/bitrate_section.dart';
@@ -117,7 +118,11 @@ class ScreenShareSettingsForm extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          AudioToggle(shareAudio: settings.shareAudio, onToggle: onAudioToggle),
+          if (HostPlatform.capturesSystemAudio)
+            AudioToggle(
+              shareAudio: settings.shareAudio,
+              onToggle: onAudioToggle,
+            ),
 
           if (_showsAudioSourcePicker) ...[
             const SizedBox(height: 16),

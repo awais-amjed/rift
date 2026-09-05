@@ -194,7 +194,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         resolution: settings.resolution,
         fps: settings.fps,
         bitrate: settings.bitrate,
-        shareAudio: settings.shareAudio,
+        // A hidden toggle keeps whatever it was last set to, so the platform
+        // decides here rather than in the settings.
+        shareAudio: settings.shareAudio && HostPlatform.capturesSystemAudio,
         captureFullScreen: settings.captureFullScreen,
         selectedVideoSourceIndex: settings.selectedVideoSourceIndex,
         codec: settings.videoCodec,

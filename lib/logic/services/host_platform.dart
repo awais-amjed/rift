@@ -28,4 +28,13 @@ class HostPlatform {
   /// `SafeArea` is harmless on a desktop, where they are all zero. This is for
   /// the cases where something more than padding changes.
   static bool get isMobile => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+  /// Whether a screen share can carry the computer's audio.
+  ///
+  /// Windows has WASAPI loopback and Linux has PulseAudio monitors; both are
+  /// wired up in the Rust crate. macOS would need ScreenCaptureKit, which is
+  /// not, so there the toggle is hidden and the share is video only rather
+  /// than a toggle that does nothing.
+  static bool get capturesSystemAudio =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux);
 }

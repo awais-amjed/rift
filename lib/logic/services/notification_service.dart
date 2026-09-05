@@ -8,8 +8,8 @@ import '../../data/classes/dm_conversation.dart';
 import 'browser_apis.dart';
 import 'window_focus_service.dart';
 
-/// Local notifications for incoming chat messages, on Linux, Windows, Android
-/// and the web.
+/// Local notifications for incoming chat messages, on Linux, Windows, macOS,
+/// Android and the web.
 ///
 /// Notifications are only surfaced while the window is unfocused — the trigger
 /// sites in the chat cubits gate on [WindowFocusService.isFocused] before
@@ -71,10 +71,18 @@ class NotificationService {
       // notification icon to a flat silhouette, so a detailed mark would come
       // out as a blob either way.
       const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+      // macOS asks its permission inside initialize, so nothing is requested
+      // separately. Badges are left out: the dock icon has no count to show.
+      const macOS = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestSoundPermission: true,
+        requestBadgePermission: false,
+      );
       await _plugin.initialize(
         settings: InitializationSettings(
           linux: linux,
           windows: windows,
+          macOS: macOS,
           android: android,
         ),
       );
@@ -144,12 +152,14 @@ class NotificationService {
       showBrowserNotification(title: title, body: body);
       return;
     }
-    // Android was missing from this list, which quietly cost the platform that
-    // needs notifications most every message notification it should have had:
-    // [init] configures and asks permission for it, and then nothing was ever
-    // posted. macOS and iOS are genuinely not set up in [init] yet, so they
-    // stay out until they are.
-    if (!Platform.isLinux && !Platform.isWindows && !Platform.isAndroid) {
+    // Every platform [init] configures, and only those. Android was once
+    // missing from this list, which quietly cost the platform that needs
+    // notifications most every one it should have had. iOS is not set up in
+    // [init] yet, so it stays out until it is.
+    if (!Platform.isLinux &&
+        !Platform.isWindows &&
+        !Platform.isMacOS &&
+        !Platform.isAndroid) {
       return;
     }
     try {
@@ -160,6 +170,7 @@ class NotificationService {
         notificationDetails: const NotificationDetails(
           linux: LinuxNotificationDetails(),
           windows: WindowsNotificationDetails(),
+          macOS: DarwinNotificationDetails(),
           android: _androidDetails,
         ),
       );

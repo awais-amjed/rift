@@ -28,5 +28,33 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.social-networking</string>
+	<!-- Calls. Without these strings macOS refuses the device outright rather
+	     than asking; screen recording needs no key, only the system prompt. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Rift uses the microphone for voice calls.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Rift uses the camera for video calls.</string>
+	<!-- A self-hosted server is often a machine on the same network, which
+	     macOS 14+ gates behind a prompt of its own. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Rift connects to servers on your local network.</string>
+	<!-- rift://join/… invite links, the app's own scheme, delivered through
+	     app_links. https://joinrift.app/… links need an associated-domains
+	     entitlement and a signed build, so they are not claimed here yet. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>com.codingfries.rift</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>rift</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
