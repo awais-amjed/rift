@@ -8,6 +8,7 @@ import 'app_button.dart';
 import 'app_modal.dart';
 import 'context_menu_region.dart';
 import '../theme/app_text.dart';
+import 'button_footer.dart';
 
 /// Ask the user to confirm one action, and answer `true` only if they did.
 ///
@@ -120,29 +121,19 @@ class _ConfirmDialog extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 22),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppButton(
-                          label: cancelLabel,
-                          variant: AppButtonVariant.secondary,
-                          onPressed: () => Navigator.of(context).pop(false),
-                          expanded: true,
-                          height: K.fieldHeight,
-                        ),
+                  ButtonFooter(
+                    buttons: [
+                      AppButton(
+                        label: cancelLabel,
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => Navigator.of(context).pop(false),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: AppButton(
-                          label: confirmLabel,
-                          variant: isDestructive
-                              ? AppButtonVariant.danger
-                              : AppButtonVariant.primary,
-                          icon: Icon(icon, size: 14, color: Colors.white),
-                          onPressed: () => Navigator.of(context).pop(true),
-                          expanded: true,
-                          height: K.fieldHeight,
-                        ),
+                      AppButton(
+                        label: confirmLabel,
+                        variant: isDestructive
+                            ? AppButtonVariant.danger
+                            : AppButtonVariant.primary,
+                        onPressed: () => Navigator.of(context).pop(true),
                       ),
                     ],
                   ),

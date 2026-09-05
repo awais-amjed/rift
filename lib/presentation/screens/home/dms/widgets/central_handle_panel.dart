@@ -8,6 +8,7 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/button_footer.dart';
 
 /// Inline claim-a-handle panel, shown when the user is signed in to central
 /// but hasn't created a directory profile yet.
@@ -60,15 +61,18 @@ class _CentralHandlePanelState extends State<CentralHandlePanel> {
             ),
           ],
           const SizedBox(height: 8),
-          AppButton(
-            label: 'Claim handle',
-            isLoading: state.claiming,
-            expanded: true,
-            onPressed: state.claiming
-                ? null
-                : () => context.read<CentralDmCubit>().claimHandle(
-                    _controller.text,
-                  ),
+          ButtonFooter(
+            buttons: [
+              AppButton(
+                label: 'Claim handle',
+                isLoading: state.claiming,
+                onPressed: state.claiming
+                    ? null
+                    : () => context.read<CentralDmCubit>().claimHandle(
+                        _controller.text,
+                      ),
+              ),
+            ],
           ),
         ],
       ),

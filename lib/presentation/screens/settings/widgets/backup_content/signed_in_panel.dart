@@ -13,6 +13,7 @@ import '../../../../theme/custom_colors.dart';
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
+import '../../../../common/button_footer.dart';
 
 class SignedInPanel extends StatelessWidget {
   final ThemeState themeState;
@@ -108,7 +109,7 @@ class SignedInPanel extends StatelessWidget {
         const SizedBox(height: 20),
 
         // ── Save backup ────────────────────────────────────────
-        SectionTitle(label: 'Save Backup', themeState: theme),
+        SectionTitle(label: 'Cloud', themeState: theme),
         const SizedBox(height: 4),
         Text(
           'Upload your current encrypted vault backup to the cloud. '
@@ -119,10 +120,10 @@ class SignedInPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
+        ButtonFooter(
+          buttons: [
             AppButton(
-              label: 'Save to Cloud',
+              label: 'Save',
               isLoading: isProcessing,
               icon: const Icon(
                 Icons.cloud_upload_rounded,
@@ -131,9 +132,8 @@ class SignedInPanel extends StatelessWidget {
               ),
               onPressed: isProcessing ? null : cubit.saveBackupToCloud,
             ),
-            const SizedBox(width: 12),
             AppButton(
-              label: 'Restore from Cloud',
+              label: 'Restore',
               variant: AppButtonVariant.secondary,
               onPressed: isProcessing
                   ? null

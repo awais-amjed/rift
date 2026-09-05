@@ -10,6 +10,7 @@ import '../../../../../common/resend_confirmation_button.dart';
 import '../../../../../common/supabase_auth_form_state.dart';
 import '../../../../../common/feature_header.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../common/button_footer.dart';
 
 /// Sign-up / sign-in form shown when the user is not yet authenticated.
 ///
@@ -82,11 +83,14 @@ class _AuthViewState extends State<AuthView>
 
         const SizedBox(height: 24),
 
-        AppButton(
-          label: isSignUp ? 'Create Account' : 'Sign In',
-          expanded: true,
-          isLoading: isProcessing,
-          onPressed: isProcessing ? null : submitCredentials,
+        ButtonFooter(
+          buttons: [
+            AppButton(
+              label: isSignUp ? 'Create account' : 'Sign in',
+              isLoading: isProcessing,
+              onPressed: isProcessing ? null : submitCredentials,
+            ),
+          ],
         ),
 
         const SizedBox(height: 16),
@@ -146,18 +150,16 @@ class _EmailConfirmationView extends StatelessWidget {
 
         const SizedBox(height: 32),
 
-        AppButton(
-          label: 'Sign In After Confirming',
-          expanded: true,
-          onPressed: () => cubit.clearMessage(),
-        ),
-
-        // Under the primary action, not beside it: confirming is what almost
-        // everybody is here to do, and a second email is the fallback for the
-        // one whose first never arrived.
-        ResendConfirmationButton(
-          availableAt: state.resendAvailableAt,
-          isProcessing: state.isProcessing,
+        // Sign in is what almost everybody is here to do; Resend is the
+        // fallback for the one whose first email never arrived.
+        ButtonFooter(
+          buttons: [
+            ResendConfirmationButton(
+              availableAt: state.resendAvailableAt,
+              isProcessing: state.isProcessing,
+            ),
+            AppButton(label: 'Sign in', onPressed: () => cubit.clearMessage()),
+          ],
         ),
       ],
     );

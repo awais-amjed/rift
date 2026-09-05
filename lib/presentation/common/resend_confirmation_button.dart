@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
-import '../theme/app_text.dart';
+import 'app_button.dart';
 
 /// "Didn't get the email? Send it again" — and, once asked, the wait until it
 /// may be asked again.
@@ -85,28 +84,19 @@ class _ResendConfirmationButtonState extends State<ResendConfirmationButton> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeCubit>().state;
     final left = _remaining;
     final waiting = left > Duration.zero;
 
-    if (waiting) {
-      // Plain text, not a disabled button. A greyed-out control invites the
-      // clicking it is there to prevent; a sentence counting down does not.
-      return Text(
-        'You can ask for another in ${left.inSeconds}s',
-        textAlign: TextAlign.center,
-        style: AppText.rowQuiet.copyWith(color: theme.textQuaternary),
-      );
-    }
-
-    return TextButton(
-      onPressed: widget.isProcessing
+    // It sits in a footer beside Sign in, so it is the same kind of button;
+    // while it must wait, the label carries the countdown and the button is
+    // disabled, which keeps the footer's shape rather than swapping a
+    // sentence in and out of it.
+    return AppButton(
+      label: waiting ? 'Resend in ${left.inSeconds}s' : 'Resend',
+      variant: AppButtonVariant.secondary,
+      onPressed: waiting || widget.isProcessing
           ? null
           : context.read<SupabaseBackupCubit>().resendConfirmation,
-      child: Text(
-        "Didn't get it? Send the email again",
-        style: AppText.rowQuiet.copyWith(color: theme.primary),
-      ),
     );
   }
 }

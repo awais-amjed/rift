@@ -11,6 +11,7 @@ import '../onboarding_page.dart';
 import '../password_strength_indicator.dart';
 import '../../../../common/feature_header.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../common/button_footer.dart';
 
 /// The account step's form: sign in, or create an account.
 ///
@@ -172,21 +173,17 @@ class AuthViewState extends State<AuthView>
 
                 const SizedBox(height: 24),
 
-                Row(
-                  children: [
+                ButtonFooter(
+                  buttons: [
                     AppButton(
                       label: 'Back',
                       variant: AppButtonVariant.secondary,
                       onPressed: isProcessing ? null : widget.onBack,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppButton(
-                        label: isSignUp ? 'Create Account' : 'Sign In',
-                        expanded: true,
-                        isLoading: isProcessing,
-                        onPressed: isProcessing ? null : _submit,
-                      ),
+                    AppButton(
+                      label: isSignUp ? 'Create account' : 'Sign in',
+                      isLoading: isProcessing,
+                      onPressed: isProcessing ? null : _submit,
                     ),
                   ],
                 ),

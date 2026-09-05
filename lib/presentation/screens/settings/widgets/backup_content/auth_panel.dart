@@ -9,6 +9,7 @@ import '../../../../common/supabase_auth_form_state.dart';
 
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../common/button_footer.dart';
 
 class AuthPanel extends StatefulWidget {
   final ThemeState themeState;
@@ -71,18 +72,22 @@ class AuthPanelState extends State<AuthPanel>
         const SizedBox(height: 16),
         Row(
           children: [
-            AppButton(
-              label: isSignUp ? 'Create Account' : 'Sign In',
-              isLoading: isProcessing,
-              onPressed: isProcessing ? null : submitCredentials,
-            ),
-            const SizedBox(width: 12),
             TextButton(
               onPressed: isProcessing ? null : toggleAuthMode,
               child: Text(
                 isSignUp ? 'Already have an account?' : 'Create an account',
                 style: AppText.secondary.copyWith(color: theme.primary),
               ),
+            ),
+            const Spacer(),
+            ButtonFooter(
+              buttons: [
+                AppButton(
+                  label: isSignUp ? 'Create account' : 'Sign in',
+                  isLoading: isProcessing,
+                  onPressed: isProcessing ? null : submitCredentials,
+                ),
+              ],
             ),
           ],
         ),

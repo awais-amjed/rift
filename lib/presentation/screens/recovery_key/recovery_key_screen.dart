@@ -9,6 +9,7 @@ import '../../common/feature_header.dart';
 import '../../common/message_banner.dart';
 import 'widgets/recovery_key_acknowledgement.dart';
 import 'widgets/recovery_key_card.dart';
+import '../../common/button_footer.dart';
 
 /// Shown once, immediately after a vault is created, and not skippable.
 ///
@@ -80,14 +81,17 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
                       onChanged: (v) => setState(() => _acknowledged = v),
                     ),
                     const SizedBox(height: 20),
-                    AppButton(
-                      label: 'Continue',
-                      expanded: true,
-                      onPressed: _acknowledged
-                          ? () => context
-                                .read<VaultCubit>()
-                                .acknowledgeRecoveryKey()
-                          : null,
+                    ButtonFooter(
+                      buttons: [
+                        AppButton(
+                          label: 'Continue',
+                          onPressed: _acknowledged
+                              ? () => context
+                                    .read<VaultCubit>()
+                                    .acknowledgeRecoveryKey()
+                              : null,
+                        ),
+                      ],
                     ),
                   ],
                 ),

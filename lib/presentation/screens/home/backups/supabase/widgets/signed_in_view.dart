@@ -9,6 +9,7 @@ import 'message_banner.dart';
 import 'section_header.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../common/button_footer.dart';
 
 /// Actions view shown when the user is signed in to the backup server.
 ///
@@ -46,16 +47,19 @@ class SignedInView extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        AppButton(
-          label: 'Save Backup',
-          expanded: true,
-          isLoading: isProcessing,
-          icon: const Icon(
-            Icons.cloud_upload_rounded,
-            size: 16,
-            color: Colors.white,
-          ),
-          onPressed: isProcessing ? null : cubit.saveBackupToCloud,
+        ButtonFooter(
+          buttons: [
+            AppButton(
+              label: 'Save backup',
+              isLoading: isProcessing,
+              icon: const Icon(
+                Icons.cloud_upload_rounded,
+                size: 16,
+                color: Colors.white,
+              ),
+              onPressed: isProcessing ? null : cubit.saveBackupToCloud,
+            ),
+          ],
         ),
 
         if (state.error != null) ...[

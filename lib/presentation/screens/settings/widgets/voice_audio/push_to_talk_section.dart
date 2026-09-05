@@ -8,6 +8,7 @@ import '../../../../common/app_button.dart';
 import '../section_title.dart';
 import '../setting_toggle_row.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../common/button_footer.dart';
 
 /// Push-to-talk: the enable switch, the current keybind, and the capture
 /// button that listens for the next key pressed.
@@ -106,26 +107,22 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
         Focus(
           focusNode: _captureFocusNode,
           onKeyEvent: _onKeyEvent,
-          child: Row(
-            children: [
-              Expanded(
-                child: AppButton(
-                  label: _isCapturing
-                      ? 'Press any key...'
-                      : 'Set Push-to-Talk Key',
-                  onPressed: () => _toggleCapture(!_isCapturing),
-                  variant: _isCapturing
-                      ? AppButtonVariant.secondary
-                      : AppButtonVariant.primary,
-                ),
-              ),
-              const SizedBox(width: 10),
+          child: ButtonFooter(
+            alignment: MainAxisAlignment.start,
+            buttons: [
               AppButton(
                 label: 'Clear',
                 onPressed: appState.pushToTalkKeyId == null
                     ? null
                     : context.read<AppCubit>().clearPushToTalkKeybind,
                 variant: AppButtonVariant.secondary,
+              ),
+              AppButton(
+                label: _isCapturing ? 'Press a key…' : 'Set key',
+                onPressed: () => _toggleCapture(!_isCapturing),
+                variant: _isCapturing
+                    ? AppButtonVariant.secondary
+                    : AppButtonVariant.primary,
               ),
             ],
           ),

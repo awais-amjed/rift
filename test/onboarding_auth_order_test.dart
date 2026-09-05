@@ -88,7 +88,7 @@ void main() {
     await pump(tester);
 
     expect(find.text('Sign In to Rift'), findsOneWidget);
-    expect(find.text('Sign In'), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Create Your Account'), findsNothing);
     // The surest tell, because it exists only on the sign-up form.
     // Upper-cased: that is how `AppTextField` draws a label.

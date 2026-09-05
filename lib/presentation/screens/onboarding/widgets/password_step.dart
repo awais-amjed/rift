@@ -13,6 +13,7 @@ import '../../../common/restore_file_dialog.dart';
 import '../../../common/feature_header.dart';
 import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
+import '../../../common/button_footer.dart';
 
 /// Privacy-mode onboarding step — create a local-only vault.
 ///
@@ -161,21 +162,17 @@ class _PasswordStepState extends State<PasswordStep> {
                     ],
 
                     // Actions
-                    Row(
-                      children: [
+                    ButtonFooter(
+                      buttons: [
                         AppButton(
                           label: 'Back',
                           variant: AppButtonVariant.secondary,
                           onPressed: isProcessing ? null : widget.onBack,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: AppButton(
-                            label: 'Create Vault',
-                            expanded: true,
-                            isLoading: isProcessing,
-                            onPressed: isProcessing ? null : _submit,
-                          ),
+                        AppButton(
+                          label: 'Create vault',
+                          isLoading: isProcessing,
+                          onPressed: isProcessing ? null : _submit,
                         ),
                       ],
                     ),

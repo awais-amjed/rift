@@ -9,6 +9,7 @@ import '../../../../common/resend_confirmation_button.dart';
 
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../common/button_footer.dart';
 
 class ConfirmEmailPanel extends StatelessWidget {
   final ThemeState themeState;
@@ -28,7 +29,7 @@ class ConfirmEmailPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Check Your Email', themeState: themeState),
+        SectionTitle(label: 'Check your email', themeState: themeState),
         const SizedBox(height: 4),
         Text(
           email != null
@@ -51,19 +52,15 @@ class ConfirmEmailPanel extends StatelessWidget {
           MessageBanner(message: state.error!, kind: MessageBannerKind.error),
         ],
         const SizedBox(height: 16),
-        Row(
-          children: [
-            AppButton(
-              label: 'Sign In After Confirming',
-              onPressed: cubit.clearMessage,
+        // Sign in is what almost everybody is here to do; Resend is the
+        // fallback for the one whose first email never arrived.
+        ButtonFooter(
+          buttons: [
+            ResendConfirmationButton(
+              availableAt: state.resendAvailableAt,
+              isProcessing: state.isProcessing,
             ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: ResendConfirmationButton(
-                availableAt: state.resendAvailableAt,
-                isProcessing: state.isProcessing,
-              ),
-            ),
+            AppButton(label: 'Sign in', onPressed: cubit.clearMessage),
           ],
         ),
       ],

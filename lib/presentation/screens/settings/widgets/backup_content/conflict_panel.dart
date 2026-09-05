@@ -8,6 +8,7 @@ import '../../../../common/message_banner.dart';
 
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../common/button_footer.dart';
 
 class ConflictPanel extends StatelessWidget {
   final ThemeState themeState;
@@ -27,30 +28,36 @@ class ConflictPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Backup Conflict', themeState: themeState),
+        SectionTitle(label: 'Two identities', themeState: themeState),
         const SizedBox(height: 4),
         Text(
-          'Your account already has a cloud backup, but this device has its '
-          'own vault. Choose which identity to keep — the other one is '
-          'overwritten.',
+          'Your account already has a cloud backup, and this device has its '
+          'own vault. Choose which one to keep.',
           style: AppText.secondary.copyWith(
             color: themeState.textTertiary,
             height: 1.5,
           ),
         ),
+        const SizedBox(height: 12),
+        // The consequence first, then the choice is named in the buttons.
+        const MessageBanner(
+          message:
+              "Whichever you don't keep is overwritten and cannot be "
+              'recovered.',
+          kind: MessageBannerKind.caution,
+        ),
         const SizedBox(height: 16),
-        Row(
-          children: [
+        ButtonFooter(
+          buttons: [
             AppButton(
-              label: 'Keep This Device',
-              isLoading: isProcessing,
-              onPressed: isProcessing ? null : cubit.keepLocalVault,
-            ),
-            const SizedBox(width: 12),
-            AppButton(
-              label: 'Restore Cloud Backup',
+              label: 'Keep cloud',
               variant: AppButtonVariant.secondary,
               onPressed: isProcessing ? null : cubit.restoreCloudBackup,
+            ),
+            AppButton(
+              label: 'Keep this device',
+              isLoading: isProcessing,
+              onPressed: isProcessing ? null : cubit.keepLocalVault,
             ),
           ],
         ),

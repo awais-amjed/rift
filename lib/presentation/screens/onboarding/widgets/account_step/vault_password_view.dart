@@ -8,6 +8,7 @@ import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 import '../onboarding_page.dart';
 import '../../../../common/feature_header.dart';
+import '../../../../common/button_footer.dart';
 
 class VaultPasswordView extends StatefulWidget {
   final SupabaseBackupState state;
@@ -80,8 +81,8 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
                   ),
                 ],
                 const SizedBox(height: 24),
-                Row(
-                  children: [
+                ButtonFooter(
+                  buttons: [
                     AppButton(
                       label: 'Back',
                       variant: AppButtonVariant.secondary,
@@ -94,14 +95,10 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
                               widget.onBack();
                             },
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppButton(
-                        label: 'Unlock',
-                        expanded: true,
-                        isLoading: isProcessing,
-                        onPressed: isProcessing ? null : _unlock,
-                      ),
+                    AppButton(
+                      label: 'Unlock',
+                      isLoading: isProcessing,
+                      onPressed: isProcessing ? null : _unlock,
                     ),
                   ],
                 ),

@@ -9,6 +9,7 @@ import '../../../../common/message_banner.dart';
 
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../common/button_footer.dart';
 
 class VaultPasswordPanel extends StatefulWidget {
   final ThemeState themeState;
@@ -42,7 +43,7 @@ class VaultPasswordPanelState extends State<VaultPasswordPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Unlock Cloud Backup', themeState: theme),
+        SectionTitle(label: 'Unlock cloud backup', themeState: theme),
         const SizedBox(height: 4),
         Text(
           'This backup is protected by a separately chosen vault password '
@@ -72,20 +73,19 @@ class VaultPasswordPanelState extends State<VaultPasswordPanel> {
           ),
         ],
         const SizedBox(height: 16),
-        Row(
-          children: [
+        ButtonFooter(
+          buttons: [
+            AppButton(
+              label: 'Cancel',
+              variant: AppButtonVariant.secondary,
+              onPressed: isProcessing ? null : cubit.dismissPending,
+            ),
             AppButton(
               label: 'Unlock',
               isLoading: isProcessing,
               onPressed: isProcessing
                   ? null
                   : () => cubit.submitVaultPassword(_passwordController.text),
-            ),
-            const SizedBox(width: 12),
-            AppButton(
-              label: 'Cancel',
-              variant: AppButtonVariant.secondary,
-              onPressed: isProcessing ? null : cubit.dismissPending,
             ),
           ],
         ),

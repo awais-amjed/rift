@@ -14,6 +14,7 @@ import '../../../../common/restore_file_dialog.dart';
 
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../common/button_footer.dart';
 
 class FileBackupPanel extends StatefulWidget {
   final ThemeState themeState;
@@ -79,7 +80,7 @@ class FileBackupPanelState extends State<FileBackupPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Backup File', themeState: theme),
+        SectionTitle(label: 'Backup file', themeState: theme),
         const SizedBox(height: 4),
         Text(
           'Export your encrypted backup as a file, or restore from one. '
@@ -90,10 +91,10 @@ class FileBackupPanelState extends State<FileBackupPanel> {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
+        ButtonFooter(
+          buttons: [
             AppButton(
-              label: 'Export to File',
+              label: 'Export',
               isLoading: _isExporting,
               icon: const Icon(
                 Icons.save_alt_rounded,
@@ -102,9 +103,8 @@ class FileBackupPanelState extends State<FileBackupPanel> {
               ),
               onPressed: _isExporting ? null : _exportToFile,
             ),
-            const SizedBox(width: 12),
             AppButton(
-              label: 'Restore from File',
+              label: 'Restore',
               variant: AppButtonVariant.secondary,
               onPressed: _isExporting ? null : _restoreFromFile,
             ),

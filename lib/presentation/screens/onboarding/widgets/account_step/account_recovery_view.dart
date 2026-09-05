@@ -9,6 +9,7 @@ import '../../../../common/app_text_field.dart';
 import '../../../../common/feature_header.dart';
 import '../../../../common/message_banner.dart';
 import '../onboarding_page.dart';
+import '../../../../common/button_footer.dart';
 
 /// Getting back in without the password.
 ///
@@ -189,29 +190,23 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
                 ),
 
                 const SizedBox(height: 22),
-                Row(
-                  children: [
+                ButtonFooter(
+                  buttons: [
                     AppButton(
                       label: 'Back',
                       variant: AppButtonVariant.secondary,
                       onPressed: busy ? null : widget.onBack,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppButton(
-                        label: _awaitingCode ? 'Recover account' : 'Send code',
-                        expanded: true,
-                        isLoading: busy,
-                        onPressed: busy
-                            ? null
-                            : () => _awaitingCode
-                                  ? _finish()
-                                  : context
-                                        .read<SupabaseBackupCubit>()
-                                        .beginAccountRecovery(
-                                          email: _email.text,
-                                        ),
-                      ),
+                    AppButton(
+                      label: _awaitingCode ? 'Recover account' : 'Send code',
+                      isLoading: busy,
+                      onPressed: busy
+                          ? null
+                          : () => _awaitingCode
+                                ? _finish()
+                                : context
+                                      .read<SupabaseBackupCubit>()
+                                      .beginAccountRecovery(email: _email.text),
                     ),
                   ],
                 ),

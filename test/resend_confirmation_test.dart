@@ -10,6 +10,7 @@ import 'package:rift/data/repositories/supabase_backup_repository.dart';
 import 'package:rift/logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/cubits/vault/vault_cubit.dart';
+import 'package:rift/presentation/common/app_button.dart';
 import 'package:rift/presentation/common/resend_confirmation_button.dart';
 
 class _MemoryStorage implements Storage {
@@ -53,8 +54,9 @@ class _FakeRepo implements SupabaseBackupRepository {
   Stream<AuthState> get authChanges => const Stream.empty();
 
   @override
-  noSuchMethod(Invocation invocation) =>
-      throw UnsupportedError('${invocation.memberName} is not part of this test');
+  noSuchMethod(Invocation invocation) => throw UnsupportedError(
+    '${invocation.memberName} is not part of this test',
+  );
 }
 
 /// A confirmation link that never arrives is the most ordinary way to be locked
@@ -125,7 +127,8 @@ void main() {
       // and no wording of ours would be more useful than the number.
       repo.answer = APIResponse(
         success: false,
-        error: 'For security purposes, you can only request this after 47 '
+        error:
+            'For security purposes, you can only request this after 47 '
             'seconds.',
         errorCode: ErrorCode.emailSendRateLimited,
       );
@@ -136,19 +139,21 @@ void main() {
       expect(cubit.state.successMessage, isNull);
     });
 
-    test('any other failure is reworded, because GoTrue writes for logs',
-        () async {
-      repo.answer = APIResponse(
-        success: false,
-        error: 'Database error finding user',
-        errorCode: 'unexpected_failure',
-      );
-      awaitingConfirmation();
-      await cubit.resendConfirmation();
+    test(
+      'any other failure is reworded, because GoTrue writes for logs',
+      () async {
+        repo.answer = APIResponse(
+          success: false,
+          error: 'Database error finding user',
+          errorCode: 'unexpected_failure',
+        );
+        awaitingConfirmation();
+        await cubit.resendConfirmation();
 
-      expect(cubit.state.error, isNot(contains('Database')));
-      expect(cubit.state.error, contains('Try again'));
-    });
+        expect(cubit.state.error, isNot(contains('Database')));
+        expect(cubit.state.error, contains('Try again'));
+      },
+    );
 
     test('and a failure still starts the cooldown', () async {
       // Being refused costs an email from the hourly allowance just as being
@@ -199,17 +204,21 @@ void main() {
 
     setUp(() => now = DateTime(2026, 9, 4, 12));
 
+    bool enabled(WidgetTester tester) =>
+        tester.widget<AppButton>(find.byType(AppButton)).onPressed != null;
+
     testWidgets('offers to send again when nothing is pending', (tester) async {
       await pump(tester, null);
-      expect(find.textContaining('Send the email again'), findsOneWidget);
+      expect(find.text('Resend'), findsOneWidget);
+      expect(enabled(tester), isTrue);
     });
 
     testWidgets('counts down instead, while the wait is on', (tester) async {
       await pump(tester, now.add(const Duration(seconds: 30)));
-      // Not a greyed-out button: a disabled control invites the clicking it is
-      // there to prevent, and every click costs the project an email.
-      expect(find.byType(TextButton), findsNothing);
-      expect(find.textContaining('You can ask for another in'), findsOneWidget);
+      // Disabled and saying why: every click would cost the project an email,
+      // so the button cannot be pressed until the wait is over.
+      expect(enabled(tester), isFalse);
+      expect(find.textContaining('Resend in'), findsOneWidget);
     });
 
     testWidgets('and the number goes down', (tester) async {
@@ -225,16 +234,18 @@ void main() {
       tester,
     ) async {
       await pump(tester, now.add(const Duration(seconds: 2)));
-      expect(find.byType(TextButton), findsNothing);
+      expect(enabled(tester), isFalse);
 
       now = now.add(const Duration(seconds: 3));
       await tester.pump(const Duration(seconds: 3));
-      expect(find.textContaining('Send the email again'), findsOneWidget);
+      expect(find.text('Resend'), findsOneWidget);
+      expect(enabled(tester), isTrue);
     });
 
     testWidgets('a wait already past reads as ready', (tester) async {
       await pump(tester, now.subtract(const Duration(minutes: 5)));
-      expect(find.textContaining('Send the email again'), findsOneWidget);
+      expect(find.text('Resend'), findsOneWidget);
+      expect(enabled(tester), isTrue);
     });
   });
 }

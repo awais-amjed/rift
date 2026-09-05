@@ -7,6 +7,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../common/button_footer.dart';
 
 /// The second half of a password change: the emailed code, where there is one,
 /// and the new password.
@@ -141,21 +142,17 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
         ),
 
         const SizedBox(height: 16),
-        Row(
-          children: [
+        ButtonFooter(
+          buttons: [
             AppButton(
               label: 'Cancel',
               variant: AppButtonVariant.secondary,
               onPressed: busy ? null : widget.onCancel,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: AppButton(
-                label: 'Change password',
-                expanded: true,
-                isLoading: busy,
-                onPressed: busy ? null : _submit,
-              ),
+            AppButton(
+              label: 'Change password',
+              isLoading: busy,
+              onPressed: busy ? null : _submit,
             ),
           ],
         ),
