@@ -112,7 +112,9 @@ edge_functions.md   # Edge Function API doc — update when functions change
 - **Colors:** never hard-code a `Color` in a widget. Themed values live in
   `theme/palettes/*.dart` (one `AppPalette` per file, `dark` + `light`), surfaced through a
   semantic getter on `ThemeState` (`bgSecondary`, `textTertiary`, `channelActiveBg`, ...).
-  Widgets read them via `BlocBuilder<ThemeCubit, ThemeState>`. To add a color: add the field to
+  Widgets read it with `context.theme` (`theme/theme_context.dart`) — `ThemeState` is a
+  `ThemeExtension` installed on every `ThemeData` — never as a constructor parameter threaded
+  down from whoever built the widget. To add a color: add the field to
   `PaletteColors`, give all four palettes both modes, add one getter — no
   `isDarkTheme ? ... : ...` branching inside widgets. Status colors (success/warning/error,
   online-green) stay in `CustomColors`, are shared across palettes, and must never be
@@ -123,10 +125,19 @@ edge_functions.md   # Edge Function API doc — update when functions change
   members); `bgTertiary` is inset (fields, composer); `bgElevated` floats above everything
   (dialogs, menus, popovers). `test/app_palette_test.dart` fails if a palette breaks the
   ordering or drops body text below WCAG AA on the content panel.
-- **Type:** `AppText` (`theme/app_text.dart`) holds the scale. Its styles carry size, weight,
-  spacing and family but never colour — finish one with
-  `.copyWith(color: themeState.textSecondary)`. Geist for UI; `AppText.meta`/`figure`/`kbd` are
-  mono, reserved for figures that line up or tick in place and for keyboard chips.
+- **Type:** `AppText` (`theme/app_text.dart`) holds the scale: six sizes, 11 / 12 / 13 / 14 /
+  15 / 21, and every style is one of them. A call site never sets a size —
+  `copyWith(fontSize:)` is banned; a place that needs a size needs a token. Styles carry size,
+  weight, spacing and family but never colour — finish one with
+  `.copyWith(color: theme.textSecondary)`. Geist for UI; `figure`/`kbd`/`code`/`mnemonic` are
+  mono, reserved for figures that line up or tick in place, keyboard chips and strings copied
+  exactly. Timestamps (`meta`) are sans with tabular figures.
+- **Radius:** four steps in `K` — `radiusRow` (10, anything pressed), `radiusCard` (14),
+  `radiusPanel` (20, panels and dialogs), `radiusPill`. No literal radii in widgets.
+- **Selection:** one language everywhere — a flat `channelActiveBg` tint and a 1px
+  `channelActiveBorder`, the same width as the resting hairline (`SelectableSurface`, `NavRow`,
+  the voice card). No gradients, no glow: primary buttons and the send control are solid accent.
+- **Motion:** durations are `AppMotion` tokens (`react`, `state`, `enter`), never literals.
 - **Depth:** elevated chrome reads its shadow from `AppShadows`, never a hand-rolled `BoxShadow`.
 - **A field's tap target is the box it looks like, not the strip of text inside it.** A bare
   `TextField` only hit-tests its own decoration, so one drawn inside a taller bar — the

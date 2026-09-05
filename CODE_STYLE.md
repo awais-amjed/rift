@@ -60,8 +60,10 @@ chat/
 
 ## 4. Central variables — no loose literals
 
-- **Colours**: `ThemeState` getters, or `CustomColors` for semantic status. Never a
-  `Color(0x…)` in a widget.
+- **Colours**: `context.theme` getters, or `CustomColors` for semantic status. Never a
+  `Color(0x…)` in a widget, and never `ThemeState` as a constructor parameter.
+- **Type sizes**: an `AppText` token, never `copyWith(fontSize:)`. **Radii**: `K.radiusRow` /
+  `radiusCard` / `radiusPanel` / `radiusPill`, never a literal.
 - **Layout numbers reused across files**: `K` in `data/constants.dart`, under a banner
   section (e.g. `K.composerControlSize`). A number used in exactly one file may stay a
   `static const` at the top of that file — named, not inline.
@@ -117,20 +119,24 @@ Before hand-rolling chrome, check `presentation/common/`:
 
 | Need | Use |
 | --- | --- |
-| A dialog | `AppModal` + `showAppModal` (`showCustomDialog` for a bare one) |
+| A dialog | `AppModal` + `showAppModal` (`showCustomDialog` for a bare one); a list that scrolls itself goes in `body:`, a form in `content:` |
 | A dialog opened from a context menu | `showDialogFromMenu` — never `showCustomDialog` with the menu's context, see its doc |
 | Two groups in one dialog | `ModalColumns` — side by side when there's room, stacked when there isn't |
 | "Are you sure?" | `showConfirmDialog` — returns a non-null `bool`; dismiss means no |
-| An inline error / notice | `MessageBanner` |
+| An inline error / notice | `MessageBanner` — every error, never a bare red `Text`; `caution` is the amber kind |
 | A button | `AppButton` (`AppButtonVariant.danger` for destructive) |
+| The buttons at the end of a panel or dialog | `ButtonFooter` — equal widths at the trailing edge, never one stretched |
+| A two- or three-way choice that shapes a form | `SegmentedControl` (sign in / create, person / bot, text / voice) |
+| A word in a pill (role, Bot, Banned) | `LabelPill` |
+| Waiting on something | `LoadingDots`, never `CircularProgressIndicator` |
+| Nothing here yet, connecting, failed | `EmptyState` (`busy:` for the dots, `detail:` for a raw cause) |
 | A settings heading / toggle | `SectionTitle`, `SettingToggleRow` |
 | An onboarding-style hero | `FeatureHeader` |
 | A prose field with a length limit | `AppTextField(maxLines:, maxLength:)` — the counter is already themed |
 | A pick-one row of chips | `SelectableSurface` (see `ChipSelector`, `TagFilterBar`) — it sets its own colours, so pass size and weight only |
 
-A dialog that doesn't fit `AppModal` (its body scrolls internally, e.g. a
-`ListView`) should say so in a comment rather than silently re-implementing the
-chrome.
+Nothing hand-rolls dialog chrome: a body that scrolls internally goes in
+`AppModal(body:)`, which is what the slot is for.
 
 ## 9. Before you commit
 
