@@ -10,9 +10,26 @@ enum ChannelChatStatus {
   /// Chat is usable.
   ready,
 
+  /// No key yet, but one has just been asked for and is expected.
+  ///
+  /// Drawn as loading, not as a problem. Somebody opening a channel for the
+  /// first time has no keyring entry until another member's client wraps one
+  /// for them, and the doorbell that asks for it is usually answered in well
+  /// under a second — so declaring "waiting for channel access" immediately
+  /// put a full-screen key warning in front of every new member for exactly
+  /// as long as the healing took, and then took it away again. On a fast local
+  /// server that is a flash; on a real one it is long enough to read and worry
+  /// about.
+  ///
+  /// Becomes [waitingForKey] if no key arrives within the grace period, which
+  /// is the point at which "shortly" stops being an honest thing to imply.
+  healingKey,
+
   /// The keyring has no entry sealed to us yet **and there is nothing here we
   /// can read either** — waiting for another member's client to heal us (they
   /// wrap the channel key on their next channel open).
+  ///
+  /// Reached only after [healingKey] has given the heal time to happen.
   waitingForKey,
 
   /// No key, but the channel still has something worth showing: unencrypted

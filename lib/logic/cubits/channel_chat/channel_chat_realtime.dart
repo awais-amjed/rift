@@ -131,6 +131,7 @@ mixin _ChannelChatRealtimeMixin
       case ChannelChatStatus.readOnly:
         unawaited(_fetchAfterLatest());
       case ChannelChatStatus.waitingForKey:
+      case ChannelChatStatus.healingKey:
         // A member came online and may have healed our keyring entry.
         unawaited(retry());
       default:

@@ -183,6 +183,9 @@ class _ChannelChatViewState extends State<ChannelChatView>
           mentionNames: chatState.mentionNames,
         );
       case ChannelChatStatus.loading:
+      // Drawn the same as loading, and that is the whole point: a key being
+      // wrapped for a new member is work in progress, not a refusal.
+      case ChannelChatStatus.healingKey:
         return const Center(child: CircularProgressIndicator());
       case ChannelChatStatus.waitingForKey:
         return const ChatStatusView(

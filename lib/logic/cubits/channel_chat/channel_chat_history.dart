@@ -32,10 +32,7 @@ mixin _ChannelChatHistoryMixin
         // Anything that failed to send in this channel goes back on the end.
         // Without this a "Not sent" row lasts exactly until the first click
         // elsewhere, which is the loss the outbox exists to stop.
-        messages: _outbox.restoreInto(
-          decrypted.reversed.toList(),
-          channelId,
-        ),
+        messages: _outbox.restoreInto(decrypted.reversed.toList(), channelId),
         hasMoreHistory: data['has_more'] as bool? ?? false,
       ),
     );

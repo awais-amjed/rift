@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
@@ -137,6 +137,15 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       _keyring.chatIdentity(server);
 
   /// Guards against a stale async continuation writing into a newer channel.
+  /// How long to let a keyring heal happen before calling it a wait.
+  ///
+  /// Long enough for the round trip the doorbell starts — ring, another
+  /// member's client wraps the key, our retry picks it up — and short enough
+  /// that somebody genuinely without access is not left watching a spinner
+  /// wondering whether anything is happening.
+  @visibleForTesting
+  static const keyHealGrace = Duration(seconds: 3);
+
   int _openGeneration = 0;
 
   /// How much the open channel may interrupt, asked of whoever keeps that.
@@ -237,10 +246,28 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       // No entry sealed to us yet — another member's client will heal us.
       // Ring the sweep doorbell so online members re-check right away, even
       // if the original "newly published" ring was lost.
+      _ringKeySweepDoorbell();
+
+      // Hold a loading state through the heal window, whatever came back.
       //
-      // The full-screen wait is kept for the one case it is still the honest
-      // answer: nothing came back at all, so there is no list to show and
-      // nothing to say but why.
+      // Almost always this is somebody opening a channel for the first time,
+      // and the doorbell just rung is answered in well under a second. Drawing
+      // the honest answer for that moment — a wall of "you do not have the key
+      // for this yet" over rows that are about to decrypt — tells a new member
+      // they are locked out of a room they are already in, and then takes it
+      // back. Locked rows are worth showing for a wait; they are not worth
+      // showing for a round trip.
+      emit(state.copyWith(status: ChannelChatStatus.healingKey));
+      await Future.delayed(keyHealGrace);
+
+      // A heal that landed reopened the channel, which bumps the generation
+      // and makes this emit stale — so anything below is only ever reached by
+      // a wait that really did go unanswered.
+      if (_isStale(generation)) return;
+
+      // Now it is a wait rather than a round trip, so say so: locked rows and
+      // any readable webhook message if there are any, and the panel that
+      // explains why if the channel came back empty.
       emit(
         state.copyWith(
           status: state.messages.isEmpty
@@ -248,7 +275,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
               : ChannelChatStatus.readOnly,
         ),
       );
-      _ringKeySweepDoorbell();
       return;
     }
 
