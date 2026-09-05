@@ -11,8 +11,8 @@ import 'onboarding_page.dart';
 import 'password_strength_indicator.dart';
 import '../../../common/restore_file_dialog.dart';
 import '../../../common/feature_header.dart';
+import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
-import '../../../../data/constants.dart';
 
 /// Privacy-mode onboarding step — create a local-only vault.
 ///
@@ -131,46 +131,19 @@ class _PasswordStepState extends State<PasswordStep> {
                     if (_validationError != null ||
                         vaultState.error != null) ...[
                       const SizedBox(height: 12),
-                      Text(
-                        _validationError ?? vaultState.error!,
-                        style: AppText.rowQuiet.copyWith(
-                          color: CustomColors.error,
-                        ),
+                      MessageBanner(
+                        message: _validationError ?? vaultState.error!,
+                        kind: MessageBannerKind.error,
                       ),
                     ],
 
                     const SizedBox(height: 16),
 
-                    // Remember-password warning
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: CustomColors.warning.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(K.radiusRow),
-                        border: Border.all(
-                          color: CustomColors.warning.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline_rounded,
-                            size: 18,
-                            color: CustomColors.warning,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Make sure you remember this password. '
-                              'It cannot be reset or recovered.',
-                              style: AppText.secondary.copyWith(
-                                height: 1.4,
-                                color: theme.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    const MessageBanner(
+                      message:
+                          'Make sure you remember this password. '
+                          'It cannot be reset or recovered.',
+                      kind: MessageBannerKind.caution,
                     ),
 
                     const SizedBox(height: 24),

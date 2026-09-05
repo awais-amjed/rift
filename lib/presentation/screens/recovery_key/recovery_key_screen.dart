@@ -71,7 +71,7 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
                           'reset it for you — your data is encrypted on this '
                           'device, and nobody else holds a key that opens it. '
                           'Lose both and it is gone.',
-                      kind: MessageBannerKind.info,
+                      kind: MessageBannerKind.caution,
                     ),
                     const SizedBox(height: 20),
                     RecoveryKeyAcknowledgement(

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
+import '../../../../../common/message_banner.dart';
 import '../../../../../theme/app_text.dart';
-import '../../../../../theme/custom_colors.dart';
 
 /// Start/stop button for the mic test, with the running indicator and whatever
 /// went wrong if the microphone could not be opened.
@@ -58,10 +58,7 @@ class MicTestControls extends StatelessWidget {
         ),
         if (error != null) ...[
           const SizedBox(height: 8),
-          Text(
-            error,
-            style: AppText.secondary.copyWith(color: CustomColors.error),
-          ),
+          MessageBanner(message: error, kind: MessageBannerKind.error),
         ],
       ],
     );

@@ -7,7 +7,11 @@ import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
 
 /// What a [MessageBanner] is saying — which sets its colour and icon.
-enum MessageBannerKind { info, success, error }
+///
+/// `caution` is amber: something to know before going on, not something
+/// that went wrong. Every error in the app goes through `error`; a bare red
+/// line of text is not a second way to say it.
+enum MessageBannerKind { caution, success, error }
 
 /// Tinted inline banner carrying one sentence of feedback or caution.
 ///
@@ -23,7 +27,7 @@ class MessageBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, icon) = switch (kind) {
-      MessageBannerKind.info => (CustomColors.warning, Icons.info_outlined),
+      MessageBannerKind.caution => (CustomColors.warning, Icons.info_outlined),
       MessageBannerKind.success => (
         CustomColors.success,
         Icons.check_circle_outlined,

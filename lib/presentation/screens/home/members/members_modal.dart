@@ -12,7 +12,7 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster_pager.dart';
 import '../../../theme/app_text.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../common/message_banner.dart';
 import '../roles/roles_dialog.dart';
 import 'widgets/members_list.dart';
 import 'widgets/members_modal_header.dart';
@@ -278,10 +278,7 @@ class _MembersModalState extends State<MembersModal> {
 
   Widget _buildError() => Padding(
     padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-    child: Text(
-      _error!,
-      style: AppText.secondary.copyWith(color: CustomColors.error),
-    ),
+    child: MessageBanner(message: _error!, kind: MessageBannerKind.error),
   );
 
   Widget _buildBody(

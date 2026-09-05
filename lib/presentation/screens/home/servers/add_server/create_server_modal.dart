@@ -146,7 +146,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
                 'servers for you — none of this to fill in. Open it at '
                 'http://localhost:8080, create the server there, and join with '
                 'the invite link it gives you.',
-            kind: MessageBannerKind.info,
+            kind: MessageBannerKind.caution,
           ),
           const SizedBox(height: 18),
 

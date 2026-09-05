@@ -166,7 +166,7 @@ class AuthViewState extends State<AuthView>
                         'Your password protects your encrypted backup. '
                         'Resetting it later means old backups can\'t be '
                         'restored — keep it safe.',
-                    kind: MessageBannerKind.info,
+                    kind: MessageBannerKind.caution,
                   ),
                 ],
 

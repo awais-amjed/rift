@@ -137,7 +137,7 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
               'Backups made with the old password can no longer be restored '
               'once this goes through. Your recovery key keeps working — it '
               'wraps the same vault independently of the password.',
-          kind: MessageBannerKind.info,
+          kind: MessageBannerKind.caution,
         ),
 
         const SizedBox(height: 16),

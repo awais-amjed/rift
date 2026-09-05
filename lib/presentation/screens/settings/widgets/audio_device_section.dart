@@ -8,8 +8,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/audio_devices.dart';
-import '../../../theme/app_text.dart';
-import '../../../theme/custom_colors.dart';
+import '../../../common/message_banner.dart';
 import 'audio_device_picker.dart';
 
 /// Section for selecting audio input and output devices.
@@ -211,10 +210,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
             // indistinguishable from one that worked and killed the audio.
             if (error != null) ...[
               const SizedBox(height: 12),
-              Text(
-                error,
-                style: AppText.secondary.copyWith(color: CustomColors.error),
-              ),
+              MessageBanner(message: error, kind: MessageBannerKind.error),
             ],
           ],
         );

@@ -115,7 +115,7 @@ class _ChangeHandleDialogState extends State<ChangeHandleDialog> {
                 message:
                     'Anyone searching for @${widget.currentHandle} will stop '
                     'finding you. Conversations you already have are unaffected.',
-                kind: MessageBannerKind.info,
+                kind: MessageBannerKind.caution,
               ),
             ],
           ),

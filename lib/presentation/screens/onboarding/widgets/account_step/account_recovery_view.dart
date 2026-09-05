@@ -185,7 +185,7 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
                       'cannot be restored. They are encrypted with a key only '
                       'you hold — resetting the password alone does not open '
                       'them.',
-                  kind: MessageBannerKind.info,
+                  kind: MessageBannerKind.caution,
                 ),
 
                 const SizedBox(height: 22),
