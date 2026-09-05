@@ -17,3 +17,6 @@ pub(crate) mod session;
 pub(crate) mod thumbnail;
 #[cfg(desktop)]
 mod track;
+
+#[cfg(all(test, desktop))]
+mod live_test;

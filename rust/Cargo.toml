@@ -35,5 +35,11 @@ wasapi = "0.22.0"
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_Media"] }
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
+# For the live test in src/screenshare/live_test.rs: minting tokens and
+# reading the viewer's frames. Desktop only for the same reason livekit is.
+[target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dev-dependencies]
+livekit-api = { version = "0.4.14", default-features = false, features = ["access-token"] }
+futures-util = "0.3"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
