@@ -146,7 +146,6 @@ class _AppTitleBarState extends State<AppTitleBar>
         Text(
           'rift',
           style: AppText.row.copyWith(
-            fontSize: 13,
             letterSpacing: 0.2,
             color: themeState.textTertiary,
           ),

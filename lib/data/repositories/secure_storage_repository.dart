@@ -55,10 +55,8 @@ class SecureStorageRepository {
   /// same thing: `Argon2id(recoveryKey, salt)` over the same plaintext. Absent
   /// on vaults created before recovery keys, which is why every read of it is
   /// nullable rather than an error.
-  Future<void> saveRecoverySeed(EncryptedSeed seed) => _storage.write(
-    key: _keyRecoverySeed,
-    value: jsonEncode(seed.toJson()),
-  );
+  Future<void> saveRecoverySeed(EncryptedSeed seed) =>
+      _storage.write(key: _keyRecoverySeed, value: jsonEncode(seed.toJson()));
 
   Future<EncryptedSeed?> getRecoverySeed() async {
     final raw = await _storage.read(key: _keyRecoverySeed);

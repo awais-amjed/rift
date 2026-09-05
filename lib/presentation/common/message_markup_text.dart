@@ -86,7 +86,6 @@ TextStyle? _styleFor(
 
 TextStyle _codeStyle(TextStyle base, ThemeState theme) => base.copyWith(
   fontFamily: AppText.mono,
-  fontSize: (base.fontSize ?? 14) - 0.5,
   color: theme.textPrimary,
   backgroundColor: theme.bgTertiary,
 );

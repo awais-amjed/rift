@@ -52,8 +52,7 @@ class ComposerRecordingBar extends StatelessWidget {
         const SizedBox(width: 9),
         Text(
           'Recording…',
-          style: TextStyle(
-            fontSize: K.composerFontSize,
+          style: AppText.input.copyWith(
             height: K.composerLineHeight,
             color: themeState.textSecondary,
           ),
@@ -63,10 +62,7 @@ class ComposerRecordingBar extends StatelessWidget {
           _fmtElapsed(elapsed),
           // Already tabular via AppText.figure — a recording timer that
           // reflows every second is the exact case that style exists for.
-          style: AppText.figure.copyWith(
-            fontSize: 13,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.code.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(width: 4),
         ComposerIconButton(

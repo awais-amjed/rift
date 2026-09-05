@@ -73,7 +73,6 @@ class AppButton extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: AppText.row.copyWith(
-                    fontSize: 13,
                     // Secondary is the quiet option, and carrying less weight
                     // is most of what makes it read that way.
                     fontWeight: variant == AppButtonVariant.secondary

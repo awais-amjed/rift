@@ -53,9 +53,6 @@ class ConnectionQualityPopup extends StatelessWidget {
                         Text(
                           'VOICE CONNECTION',
                           style: AppText.sectionLabel.copyWith(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1,
                             color: themeState.textQuaternary,
                           ),
                         ),
@@ -69,9 +66,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                               stats.quality,
                               unknown: 'Connecting…',
                             ),
-                      style: AppText.row.copyWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                      style: AppText.sectionTitle.copyWith(
                         color: stats.isAlone
                             ? themeState.textTertiary
                             : ConnectionQualityStyle.color(
@@ -124,9 +119,6 @@ class ConnectionQualityPopup extends StatelessWidget {
                       Text(
                         'PING HISTORY · 5 MIN',
                         style: AppText.sectionLabel.copyWith(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
                           color: themeState.textQuaternary,
                         ),
                       ),
@@ -165,16 +157,13 @@ class _StatRow extends StatelessWidget {
         Text(
           label,
           style: AppText.secondary.copyWith(
-            fontSize: 12,
             color: themeState.textTertiary,
             fontWeight: FontWeight.w500,
           ),
         ),
         Text(
           value,
-          style: AppText.secondary.copyWith(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+          style: AppText.secondaryStrong.copyWith(
             color: isWarning ? CustomColors.warning : themeState.textPrimary,
           ),
         ),

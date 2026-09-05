@@ -67,8 +67,7 @@ class EmptyState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: AppText.row.copyWith(
-                fontSize: 13.5,
+              style: AppText.sectionTitle.copyWith(
                 color: themeState.textSecondary,
               ),
             ),
@@ -83,7 +82,6 @@ class EmptyState extends StatelessWidget {
                   message!,
                   textAlign: TextAlign.center,
                   style: AppText.secondary.copyWith(
-                    fontSize: 11.5,
                     height: 1.55,
                     color: themeState.textTertiary,
                   ),

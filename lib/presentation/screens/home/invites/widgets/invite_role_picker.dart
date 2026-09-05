@@ -38,11 +38,7 @@ class InviteRolePicker extends StatelessWidget {
       children: [
         Text(
           'GIVE THEM A ROLE',
-          style: AppText.sectionLabel.copyWith(
-            fontSize: 10.5,
-            letterSpacing: 1.2,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.sectionLabel.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -55,7 +51,6 @@ class InviteRolePicker extends StatelessWidget {
               child: Text(
                 'No role',
                 style: AppText.secondary.copyWith(
-                  fontSize: 12,
                   color: themeState.textSecondary,
                 ),
               ),

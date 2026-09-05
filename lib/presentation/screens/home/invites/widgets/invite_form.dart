@@ -125,10 +125,7 @@ class InviteForm extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             error!,
-            style: AppText.secondary.copyWith(
-              fontSize: 12,
-              color: CustomColors.error,
-            ),
+            style: AppText.secondary.copyWith(color: CustomColors.error),
           ),
         ],
 
@@ -136,10 +133,7 @@ class InviteForm extends StatelessWidget {
         Text(
           'Share this link with the person you want to invite — they paste '
           'it as one field to join.',
-          style: AppText.label.copyWith(
-            fontSize: 11,
-            color: themeState.textQuaternary,
-          ),
+          style: AppText.secondary.copyWith(color: themeState.textQuaternary),
         ),
       ],
     );

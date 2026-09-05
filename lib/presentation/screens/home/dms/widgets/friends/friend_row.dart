@@ -64,7 +64,6 @@ class FriendRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.row.copyWith(
-                        fontSize: 13,
                         color: themeState.textPrimary,
                       ),
                     ),
@@ -74,7 +73,6 @@ class FriendRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.secondary.copyWith(
-                          fontSize: 11.5,
                           color: themeState.textTertiary,
                         ),
                       ),

@@ -40,17 +40,12 @@ class SectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: AppText.row.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: theme.textPrimary,
-                ),
+                style: AppText.sectionTitle.copyWith(color: theme.textPrimary),
               ),
               const SizedBox(height: 4),
               Text(
                 description,
                 style: AppText.secondary.copyWith(
-                  fontSize: 12,
                   height: 1.5,
                   color: theme.textTertiary,
                 ),

@@ -49,7 +49,6 @@ class VaultPasswordPanelState extends State<VaultPasswordPanel> {
           '(privacy mode). Enter it once — it will be re-encrypted under '
           'your account password afterwards.',
           style: AppText.secondary.copyWith(
-            fontSize: 12,
             color: theme.textTertiary,
             height: 1.5,
           ),

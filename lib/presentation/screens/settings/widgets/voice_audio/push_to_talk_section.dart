@@ -94,19 +94,13 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
         ),
         const SizedBox(height: 16),
         Text(
-          'Keybind',
-          style: TextStyle(
-            color: themeState.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
+          'KEYBIND',
+          style: AppText.sectionLabel.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 6),
         Text(
           appState.pushToTalkKeyLabel ?? 'Not set',
-          style: AppText.rowQuiet.copyWith(
-            color: themeState.textSecondary,
-            fontSize: 13,
-          ),
+          style: AppText.kbd.copyWith(color: themeState.textSecondary),
         ),
         const SizedBox(height: 10),
         Focus(
@@ -140,10 +134,7 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
           const SizedBox(height: 8),
           Text(
             'Press Esc to cancel key capture.',
-            style: AppText.secondary.copyWith(
-              color: themeState.textTertiary,
-              fontSize: 12,
-            ),
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
           ),
         ],
       ],

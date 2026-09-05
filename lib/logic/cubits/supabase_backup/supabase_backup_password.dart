@@ -87,8 +87,7 @@ mixin _SupabaseBackupPasswordMixin on Cubit<SupabaseBackupState> {
       state.copyWith(
         isProcessing: false,
         passwordChange: PasswordChangeStage.enterCode,
-        successMessage:
-            'We sent a code to ${state.email}. Enter it to finish.',
+        successMessage: 'We sent a code to ${state.email}. Enter it to finish.',
       ),
     );
   }
@@ -162,7 +161,9 @@ mixin _SupabaseBackupPasswordMixin on Cubit<SupabaseBackupState> {
       await _uploadBackup(successMessage: 'Password changed.');
       return;
     }
-    emit(state.copyWith(isProcessing: false, successMessage: 'Password changed.'));
+    emit(
+      state.copyWith(isProcessing: false, successMessage: 'Password changed.'),
+    );
   }
 
   /// Mint a new recovery key, retiring the old one.

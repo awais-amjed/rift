@@ -46,10 +46,7 @@ class AppearanceContent extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           'Changes the accent and surface tones across the whole app.',
-          style: AppText.secondary.copyWith(
-            fontSize: 12,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -123,7 +120,6 @@ class _PaletteCard extends StatelessWidget {
               // check already say which one is chosen, and tinting the name
               // too would make the selected card read as a link.
               style: AppText.row.copyWith(
-                fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 color: themeState.textPrimary,
               ),
@@ -189,7 +185,6 @@ class ThemeCard extends StatelessWidget {
             Text(
               label,
               style: AppText.row.copyWith(
-                fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
             ),

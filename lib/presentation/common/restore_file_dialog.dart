@@ -150,7 +150,6 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
                     ? 'Use the password instead'
                     : 'Forgotten the password? Use a recovery key',
                 style: AppText.secondary.copyWith(
-                  fontSize: 12,
                   color: context.read<ThemeCubit>().state.primary,
                 ),
               ),

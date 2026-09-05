@@ -43,7 +43,6 @@ class SettingToggleRow extends StatelessWidget {
                 description,
                 style: AppText.secondary.copyWith(
                   color: themeState.textTertiary,
-                  fontSize: 12,
                 ),
               ),
             ],

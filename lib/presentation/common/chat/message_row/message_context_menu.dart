@@ -98,10 +98,7 @@ PopupMenuItem<MessageMenuAction> _item(
       children: [
         Icon(icon, size: 16, color: color),
         const SizedBox(width: 10),
-        Text(
-          label,
-          style: AppText.rowQuiet.copyWith(fontSize: 13, color: color),
-        ),
+        Text(label, style: AppText.rowQuiet.copyWith(color: color)),
       ],
     ),
   );

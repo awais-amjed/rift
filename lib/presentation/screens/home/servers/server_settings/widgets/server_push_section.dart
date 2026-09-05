@@ -48,11 +48,7 @@ class ServerPushSection extends StatelessWidget {
           'Wake members’ phones for messages that arrive while Rift is '
           'closed. Without this, a phone only learns about a message the next '
           'time someone opens the app.',
-          style: AppText.label.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 14),
         if (!signedIn)
@@ -68,10 +64,7 @@ class ServerPushSection extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Send push notifications',
-                  style: AppText.row.copyWith(
-                    fontSize: 13,
-                    color: themeState.textPrimary,
-                  ),
+                  style: AppText.row.copyWith(color: themeState.textPrimary),
                 ),
               ),
               AppSwitch(

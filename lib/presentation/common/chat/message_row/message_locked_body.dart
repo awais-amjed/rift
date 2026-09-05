@@ -34,7 +34,6 @@ class MessageLockedBody extends StatelessWidget {
               'Encrypted — you do not have the key for this yet',
               overflow: TextOverflow.ellipsis,
               style: AppText.body.copyWith(
-                fontSize: 13,
                 fontStyle: FontStyle.italic,
                 color: color,
               ),

@@ -94,7 +94,6 @@ class _TabPill extends StatelessWidget {
           child: Text(
             count > 0 ? '${tab.label}  $count' : tab.label,
             style: AppText.row.copyWith(
-              fontSize: 12.5,
               color: isSelected
                   ? themeState.textPrimary
                   : themeState.textTertiary,

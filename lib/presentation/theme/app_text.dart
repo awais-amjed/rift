@@ -1,73 +1,124 @@
 import 'package:flutter/material.dart';
 
-/// The app's type scale.
+/// The app's type scale: six sizes, 11 / 12 / 13 / 14 / 15 / 21.
 ///
-/// Styles here carry size, weight, spacing and family — never colour. Colour
-/// is themed and comes from `ThemeState`, so call sites finish a style with
+/// Every style here is one of those six. A call site never sets a size of
+/// its own — `copyWith(fontSize:)` is how a scale grows thirteen steps that
+/// are half a pixel apart — so if a place needs a size, it needs a token,
+/// and the token has to land on one of the six.
+///
+/// Styles carry size, weight, spacing and family — never colour. Colour is
+/// themed and comes from `ThemeState`, so call sites finish a style with
 /// `.copyWith(color: theme.textSecondary)`. Keeping the two apart is what
 /// stops a hard-coded colour from sneaking in behind a text style.
 ///
-/// Mono is reserved for the two things proportional type handles badly:
-/// figures that must line up or tick in place (timestamps, timers, counts),
-/// and keyboard chips.
+/// Mono is reserved for the things proportional type handles badly: figures
+/// that must line up or tick in place, keyboard chips, and strings meant to
+/// be copied exactly (invite links, recovery keys).
 class AppText {
   static const String sans = 'Geist';
   static const String mono = 'GeistMono';
 
-  // ── Headings ──────────────────────────────────────────────────────────────
+  // ── 21 ────────────────────────────────────────────────────────────────────
 
-  /// Screen titles (settings pages, onboarding steps).
+  /// Screen titles: onboarding steps, the banned notice, welcome.
   static const TextStyle pageTitle = TextStyle(
-    fontSize: 27,
-    fontWeight: FontWeight.w700,
-    height: 1.2,
-    letterSpacing: -0.4,
-  );
-
-  static const TextStyle dialogTitle = TextStyle(
     fontSize: 21,
     fontWeight: FontWeight.w700,
+    height: 1.2,
     letterSpacing: -0.2,
   );
 
-  /// Headings inside a page — a settings group, a dialog section.
+  // ── 15 ────────────────────────────────────────────────────────────────────
+
+  /// A dialog's title, in its header.
+  static const TextStyle dialogTitle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+  );
+
+  /// Headings inside a page — a settings group, an empty state's title.
   static const TextStyle sectionTitle = TextStyle(
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: FontWeight.w700,
   );
 
   /// The title of a panel or its header bar (server name, channel name).
   static const TextStyle panelTitle = TextStyle(
-    fontSize: 14.5,
+    fontSize: 15,
     fontWeight: FontWeight.w700,
   );
 
-  // ── Rows and body ─────────────────────────────────────────────────────────
-
-  /// A list row that is active, unread, or otherwise wants weight.
-  static const TextStyle row = TextStyle(
-    fontSize: 13.5,
+  /// A recovery key, set to be read aloud and typed elsewhere.
+  static const TextStyle mnemonic = TextStyle(
+    fontFamily: mono,
+    fontSize: 15,
     fontWeight: FontWeight.w600,
+    letterSpacing: 2.4,
   );
 
-  /// A list row at rest.
-  static const TextStyle rowQuiet = TextStyle(
-    fontSize: 13.5,
-    fontWeight: FontWeight.w500,
-  );
+  // ── 14 ────────────────────────────────────────────────────────────────────
 
-  /// Message text and prose. The generous line height is what makes a wall of
-  /// chat readable, so it belongs in the token rather than at each call site.
+  /// Message text, dialog prose, notices. The generous line height is what
+  /// makes a wall of chat readable, so it belongs in the token rather than
+  /// at each call site.
   static const TextStyle body = TextStyle(
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.55,
   );
 
+  /// What the user types: text fields and the composer.
+  static const TextStyle input = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+  );
+
+  // ── 13 ────────────────────────────────────────────────────────────────────
+
+  /// A list row that is active, unread, or otherwise wants weight. Also the
+  /// label of a secondary button and a selected segment.
+  static const TextStyle row = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+  );
+
+  /// A list row at rest, an unselected segment.
+  static const TextStyle rowQuiet = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// The heaviest thing at row size: a message author, a primary button's
+  /// label, a palette card's name.
+  static const TextStyle strong = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+  );
+
+  /// A string meant to be copied exactly — an invite link, a server address.
+  static const TextStyle code = TextStyle(
+    fontFamily: mono,
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
+
+  // ── 12 ────────────────────────────────────────────────────────────────────
+
+  /// Helper lines, previews, descriptions under a row.
   static const TextStyle secondary = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w400,
   );
+
+  /// A selected option chip, a status pill with a word in it ("Encrypted").
+  static const TextStyle secondaryStrong = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+  );
+
+  // ── 11 ────────────────────────────────────────────────────────────────────
 
   /// Sub-labels under a title — the E2E note, presence lines.
   static const TextStyle label = TextStyle(
@@ -75,45 +126,42 @@ class AppText {
     fontWeight: FontWeight.w500,
   );
 
-  // ── Micro-labels and chips ────────────────────────────────────────────────
-
   /// The uppercase dividers between groups: TEXT, VOICE, ONLINE — 3.
   static const TextStyle sectionLabel = TextStyle(
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.w700,
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
   );
 
-  /// Pill chips carrying a short status word ("Encrypted", "Central").
+  /// Small emphasis at label size: a date divider, a reaction count.
   static const TextStyle chip = TextStyle(
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: FontWeight.w600,
   );
 
   /// Unread counts and other numeric badges.
   static const TextStyle badge = TextStyle(
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: FontWeight.w700,
   );
 
-  /// Role tags on member rows: ADMIN, MOD.
+  /// Role pills on member rows: Admin, Mod, Bot, Banned.
   static const TextStyle roleChip = TextStyle(
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.5,
   );
 
-  // ── Mono ──────────────────────────────────────────────────────────────────
-
-  /// Message timestamps and other quiet metadata.
+  /// Message timestamps and other quiet metadata. Sans, not mono — tabular
+  /// figures keep the column straight without a second family on every row.
   static const TextStyle meta = TextStyle(
-    fontFamily: mono,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.w400,
+    fontFeatures: [FontFeature.tabularFigures()],
   );
 
-  /// Figures that update in place — session timers, ping, counts. Tabular so
-  /// the text doesn't shift width as the digits change.
+  /// Figures that update in place — session timers, ping, counts. Mono and
+  /// tabular so the text doesn't shift width as the digits change.
   static const TextStyle figure = TextStyle(
     fontFamily: mono,
     fontSize: 11,
@@ -121,10 +169,10 @@ class AppText {
     fontFeatures: [FontFeature.tabularFigures()],
   );
 
-  /// Keyboard chips (⌘K).
+  /// Keyboard chips (⌘K, Left Alt).
   static const TextStyle kbd = TextStyle(
     fontFamily: mono,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.w400,
   );
 }

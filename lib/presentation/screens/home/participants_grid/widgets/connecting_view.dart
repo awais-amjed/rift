@@ -29,17 +29,14 @@ class ConnectingView extends StatelessWidget {
                 const SizedBox(height: 24),
                 Text(
                   'Connecting...',
-                  style: AppText.dialogTitle.copyWith(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.sectionTitle.copyWith(
                     color: themeState.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Joining voice channel',
-                  style: AppText.rowQuiet.copyWith(
-                    fontSize: 14,
+                  style: AppText.secondary.copyWith(
                     color: themeState.textTertiary,
                   ),
                 ),

@@ -95,10 +95,7 @@ class _ResendConfirmationButtonState extends State<ResendConfirmationButton> {
       return Text(
         'You can ask for another in ${left.inSeconds}s',
         textAlign: TextAlign.center,
-        style: AppText.rowQuiet.copyWith(
-          fontSize: 13,
-          color: theme.textQuaternary,
-        ),
+        style: AppText.rowQuiet.copyWith(color: theme.textQuaternary),
       );
     }
 
@@ -108,7 +105,7 @@ class _ResendConfirmationButtonState extends State<ResendConfirmationButton> {
           : context.read<SupabaseBackupCubit>().resendConfirmation,
       child: Text(
         "Didn't get it? Send the email again",
-        style: AppText.rowQuiet.copyWith(fontSize: 13, color: theme.primary),
+        style: AppText.rowQuiet.copyWith(color: theme.primary),
       ),
     );
   }

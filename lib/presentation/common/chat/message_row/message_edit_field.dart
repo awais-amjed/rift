@@ -85,10 +85,7 @@ class _MessageEditFieldState extends State<MessageEditField> {
             controller: _controller,
             focusNode: _focusNode,
             maxLines: null,
-            style: AppText.body.copyWith(
-              fontSize: 14,
-              color: theme.textSecondary,
-            ),
+            style: AppText.body.copyWith(color: theme.textSecondary),
             decoration: InputDecoration(
               isDense: true,
               filled: true,

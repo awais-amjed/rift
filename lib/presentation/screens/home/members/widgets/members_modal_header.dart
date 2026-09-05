@@ -56,9 +56,7 @@ class MembersModalHeader extends StatelessWidget {
               children: [
                 Text(
                   count == null ? 'Members' : 'Members — $count',
-                  style: AppText.row.copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.dialogTitle.copyWith(
                     color: themeState.textPrimary,
                   ),
                 ),
@@ -67,7 +65,6 @@ class MembersModalHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.secondary.copyWith(
-                    fontSize: 12,
                     color: themeState.textTertiary,
                   ),
                 ),

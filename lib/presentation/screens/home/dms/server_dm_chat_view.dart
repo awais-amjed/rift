@@ -110,10 +110,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
             child: Text(
               state.error ?? 'Could not open this conversation.',
               textAlign: TextAlign.center,
-              style: AppText.rowQuiet.copyWith(
-                fontSize: 13,
-                color: themeState.textTertiary,
-              ),
+              style: AppText.rowQuiet.copyWith(color: themeState.textTertiary),
             ),
           ),
         );

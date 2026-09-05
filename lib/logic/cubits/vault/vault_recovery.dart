@@ -111,10 +111,7 @@ mixin _VaultRecoveryMixin on Cubit<VaultState> {
         password: newPassword,
         salt: salt,
       );
-      final wrapped = await _crypto.encrypt(
-        plaintext: masterSeedB64,
-        key: key,
-      );
+      final wrapped = await _crypto.encrypt(plaintext: masterSeedB64, key: key);
 
       await _storage.saveEncryptedSeed(
         EncryptedSeed(

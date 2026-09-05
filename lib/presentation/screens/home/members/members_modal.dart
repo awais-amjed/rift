@@ -280,10 +280,7 @@ class _MembersModalState extends State<MembersModal> {
     padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
     child: Text(
       _error!,
-      style: AppText.secondary.copyWith(
-        fontSize: 12,
-        color: CustomColors.error,
-      ),
+      style: AppText.secondary.copyWith(color: CustomColors.error),
     ),
   );
 

@@ -76,7 +76,6 @@ class ChannelBotRow extends StatelessWidget {
                       note,
                       style: AppText.secondary.copyWith(
                         color: themeState.textTertiary,
-                        fontSize: 11.5,
                         height: 1.35,
                       ),
                     ),

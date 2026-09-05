@@ -47,11 +47,7 @@ class ModerationButton extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: AppText.secondary.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: color,
-                ),
+                style: AppText.secondaryStrong.copyWith(color: color),
               ),
             ],
           ),

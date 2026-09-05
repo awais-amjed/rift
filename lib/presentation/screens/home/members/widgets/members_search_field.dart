@@ -80,10 +80,7 @@ class _MembersSearchFieldState extends State<MembersSearchField> {
               child: TextField(
                 controller: _controller,
                 onChanged: _onChanged,
-                style: AppText.secondary.copyWith(
-                  fontSize: 12.5,
-                  color: theme.textPrimary,
-                ),
+                style: AppText.secondary.copyWith(color: theme.textPrimary),
                 cursorColor: theme.primary,
                 cursorWidth: 1.5,
                 decoration: InputDecoration(
@@ -95,7 +92,6 @@ class _MembersSearchFieldState extends State<MembersSearchField> {
                   contentPadding: EdgeInsets.zero,
                   hintText: 'Search members…',
                   hintStyle: AppText.secondary.copyWith(
-                    fontSize: 12.5,
                     color: theme.textQuaternary,
                   ),
                 ),

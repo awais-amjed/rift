@@ -102,17 +102,14 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
           widget.attachment.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: AppText.row.copyWith(fontSize: 12.5, color: theme.textPrimary),
+          style: AppText.row.copyWith(color: theme.textPrimary),
         ),
         const SizedBox(height: 1),
         Text(
           humanSize(widget.attachment.size),
           // A file's size is a figure — mono keeps a column of cards
           // from having their sizes wander.
-          style: AppText.meta.copyWith(
-            fontSize: 10.5,
-            color: theme.textQuaternary,
-          ),
+          style: AppText.meta.copyWith(color: theme.textQuaternary),
         ),
       ],
     );

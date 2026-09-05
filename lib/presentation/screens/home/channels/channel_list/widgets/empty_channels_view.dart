@@ -32,7 +32,6 @@ class EmptyChannelsView extends StatelessWidget {
                 Text(
                   'No channels yet',
                   style: AppText.rowQuiet.copyWith(
-                    fontSize: 13,
                     color: themeState.textTertiary,
                   ),
                 ),

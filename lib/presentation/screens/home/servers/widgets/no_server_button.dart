@@ -50,16 +50,13 @@ class NoServerButton extends StatelessWidget {
                       children: [
                         Text(
                           'No Server Selected',
-                          style: AppText.row.copyWith(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                          style: AppText.strong.copyWith(
                             color: themeState.textTertiary,
                           ),
                         ),
                         Text(
                           'Click to add',
                           style: AppText.label.copyWith(
-                            fontSize: 11,
                             color: themeState.textQuaternary,
                           ),
                         ),

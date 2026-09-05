@@ -60,9 +60,7 @@ class LimitField extends StatelessWidget {
             const SizedBox(height: 5),
             Text(
               helper,
-              style: AppText.label.copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w400,
+              style: AppText.secondary.copyWith(
                 color: themeState.textQuaternary,
               ),
             ),

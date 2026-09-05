@@ -66,8 +66,7 @@ class _TypeButton extends StatelessWidget {
             Icon(icon, size: 15),
             Text(
               label,
-              style: AppText.secondary.copyWith(
-                fontSize: 12.5,
+              style: AppText.row.copyWith(
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
               ),
             ),

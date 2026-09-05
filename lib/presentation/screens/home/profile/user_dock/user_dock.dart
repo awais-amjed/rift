@@ -77,11 +77,7 @@ class UserDock extends StatelessWidget {
               user?.displayName ?? 'Guest',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppText.row.copyWith(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: themeState.textPrimary,
-              ),
+              style: AppText.strong.copyWith(color: themeState.textPrimary),
             ),
             // In a call the line is worth spending on live quality; otherwise
             // it just says who you are.

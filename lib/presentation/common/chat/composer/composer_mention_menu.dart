@@ -82,7 +82,6 @@ class ComposerMentionMenu extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.rowQuiet.copyWith(
-                    fontSize: 13,
                     color: themeState.textSecondary,
                   ),
                 ),
@@ -96,7 +95,6 @@ class ComposerMentionMenu extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.meta.copyWith(
-                    fontSize: 10,
                     color: themeState.textQuaternary,
                   ),
                 ),

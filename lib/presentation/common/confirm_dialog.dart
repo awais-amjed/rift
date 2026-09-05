@@ -116,7 +116,6 @@ class _ConfirmDialog extends StatelessWidget {
                     message,
                     textAlign: TextAlign.center,
                     style: AppText.body.copyWith(
-                      fontSize: 12.5,
                       color: themeState.textTertiary,
                     ),
                   ),

@@ -48,9 +48,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
           child: Text(
             strength.label,
             key: ValueKey(strength.label),
-            style: AppText.secondary.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+            style: AppText.secondaryStrong.copyWith(
               color: password.isEmpty ? theme.textQuaternary : strength.color,
             ),
           ),

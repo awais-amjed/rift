@@ -261,10 +261,7 @@ mixin _ChatApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      return await db.rpc(
-        'dm_conversations',
-        params: {'p_before': ?before},
-      );
+      return await db.rpc('dm_conversations', params: {'p_before': ?before});
     });
   }
 

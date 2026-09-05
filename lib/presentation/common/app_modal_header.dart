@@ -40,8 +40,7 @@ class AppModalHeader extends StatelessWidget {
                       title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.sectionTitle.copyWith(
-                        fontSize: 15,
+                      style: AppText.dialogTitle.copyWith(
                         color: themeState.textPrimary,
                       ),
                     ),
@@ -51,10 +50,7 @@ class AppModalHeader extends StatelessWidget {
                         subtitle!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.secondary.copyWith(
-                          fontSize: 11.5,
-                          color: textTertiary,
-                        ),
+                        style: AppText.secondary.copyWith(color: textTertiary),
                       ),
                     ],
                   ],

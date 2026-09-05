@@ -72,10 +72,7 @@ class SearchResultRow extends StatelessWidget {
                     name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.row.copyWith(
-                      fontSize: 13,
-                      color: themeState.textPrimary,
-                    ),
+                    style: AppText.row.copyWith(color: themeState.textPrimary),
                   ),
                 ),
                 if (!enabled && trailingNote != null)

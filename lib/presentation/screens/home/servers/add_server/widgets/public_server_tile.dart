@@ -117,8 +117,6 @@ class PublicServerTile extends StatelessWidget {
                   child: Text(
                     tag,
                     style: AppText.label.copyWith(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
                       color: themeState.textTertiary,
                     ),
                   ),

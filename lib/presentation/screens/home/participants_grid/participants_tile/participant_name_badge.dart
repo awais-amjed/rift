@@ -51,10 +51,7 @@ class ParticipantNameBadge extends StatelessWidget {
                     ),
                   Text(
                     name,
-                    style: AppText.row.copyWith(
-                      fontSize: 12.5,
-                      color: themeState.textPrimary,
-                    ),
+                    style: AppText.row.copyWith(color: themeState.textPrimary),
                   ),
                   if (!isScreenshare && (!isMicEnabled || isMuted))
                     const Icon(

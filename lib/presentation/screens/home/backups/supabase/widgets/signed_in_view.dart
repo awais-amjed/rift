@@ -108,10 +108,7 @@ class _SignedInBanner extends StatelessWidget {
           Expanded(
             child: Text(
               'Signed in as ${email ?? 'unknown'}',
-              style: AppText.rowQuiet.copyWith(
-                fontSize: 13,
-                color: theme.textSecondary,
-              ),
+              style: AppText.rowQuiet.copyWith(color: theme.textSecondary),
             ),
           ),
           TextButton(
@@ -122,10 +119,7 @@ class _SignedInBanner extends StatelessWidget {
             ),
             child: Text(
               'Sign out',
-              style: AppText.secondary.copyWith(
-                fontSize: 12,
-                color: CustomColors.error,
-              ),
+              style: AppText.secondary.copyWith(color: CustomColors.error),
             ),
           ),
         ],

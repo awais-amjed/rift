@@ -52,7 +52,6 @@ class MicTestControls extends StatelessWidget {
                 'Listening…',
                 style: AppText.secondary.copyWith(
                   color: themeState.textTertiary,
-                  fontSize: 12,
                 ),
               ),
           ],
@@ -61,10 +60,7 @@ class MicTestControls extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             error,
-            style: AppText.secondary.copyWith(
-              color: CustomColors.error,
-              fontSize: 12,
-            ),
+            style: AppText.secondary.copyWith(color: CustomColors.error),
           ),
         ],
       ],

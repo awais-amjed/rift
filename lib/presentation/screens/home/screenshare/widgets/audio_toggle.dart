@@ -53,8 +53,6 @@ class AudioToggle extends StatelessWidget {
                       Text(
                         'Share Audio',
                         style: AppText.row.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
                           color: shareAudio
                               ? themeState.textPrimary
                               : themeState.textSecondary,
@@ -65,7 +63,6 @@ class AudioToggle extends StatelessWidget {
                             ? 'System audio will be captured'
                             : 'No audio will be shared',
                         style: AppText.label.copyWith(
-                          fontSize: 11,
                           color: themeState.textQuaternary,
                         ),
                       ),

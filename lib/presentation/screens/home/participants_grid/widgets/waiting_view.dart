@@ -25,16 +25,13 @@ class WaitingView extends StatelessWidget {
               Text(
                 'Waiting for others...',
                 style: AppText.sectionTitle.copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
                   color: themeState.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'You\'re the first one here',
-                style: AppText.rowQuiet.copyWith(
-                  fontSize: 14,
+                style: AppText.secondary.copyWith(
                   color: themeState.textTertiary,
                 ),
               ),

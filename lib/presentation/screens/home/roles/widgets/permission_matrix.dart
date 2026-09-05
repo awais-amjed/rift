@@ -52,8 +52,6 @@ class PermissionMatrix extends StatelessWidget {
             child: Text(
               group.label.toUpperCase(),
               style: AppText.sectionLabel.copyWith(
-                fontSize: 10.5,
-                letterSpacing: 1.2,
                 color: themeState.textTertiary,
               ),
             ),
@@ -115,7 +113,6 @@ class _PermissionRow extends StatelessWidget {
                     permission.description,
                     style: AppText.secondary.copyWith(
                       color: themeState.textTertiary,
-                      fontSize: 11.5,
                       height: 1.35,
                     ),
                   ),

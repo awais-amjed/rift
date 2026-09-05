@@ -36,11 +36,7 @@ class ServerLimitsSection extends StatelessWidget {
           'Nothing here is on unless you turn it on. Leave a box empty and '
           "there's no limit. Attachments are what fill a disk, so the two "
           'sweeps below delete their files too.',
-          style: AppText.label.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 14),
         LimitField(
@@ -78,11 +74,7 @@ class ServerLimitsSection extends StatelessWidget {
           'Both sweeps reach the direct messages on this server as well. To '
           'give those their own numbers, right-click Server DMs in the '
           'sidebar.',
-          style: AppText.label.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
       ],
     );

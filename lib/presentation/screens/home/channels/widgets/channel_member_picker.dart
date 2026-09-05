@@ -167,10 +167,7 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
           : _controller.text.trim().isEmpty
           ? 'Nobody else here yet'
           : 'No matches',
-      style: AppText.secondary.copyWith(
-        color: widget.themeState.textTertiary,
-        fontSize: 12,
-      ),
+      style: AppText.secondary.copyWith(color: widget.themeState.textTertiary),
     ),
   );
 }

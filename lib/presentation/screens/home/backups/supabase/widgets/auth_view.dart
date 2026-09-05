@@ -47,7 +47,6 @@ class _AuthViewState extends State<AuthView>
                     'Only you can decrypt it.'
               : 'Sign in to upload or restore your encrypted backup.',
           themeState: theme,
-          titleSize: 20,
           subtitleMaxWidth: double.infinity,
         ),
 
@@ -98,10 +97,7 @@ class _AuthViewState extends State<AuthView>
             isSignUp
                 ? 'Already have an account? Sign in'
                 : "Don't have an account? Sign up",
-            style: AppText.rowQuiet.copyWith(
-              fontSize: 13,
-              color: theme.primary,
-            ),
+            style: AppText.rowQuiet.copyWith(color: theme.primary),
           ),
         ),
       ],
@@ -133,7 +129,6 @@ class _EmailConfirmationView extends StatelessWidget {
               : 'A confirmation link was sent to your email.\n'
                     'Click the link then sign in below.',
           themeState: theme,
-          titleSize: 20,
           subtitleMaxWidth: double.infinity,
         ),
 

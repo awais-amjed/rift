@@ -34,7 +34,6 @@ class ConflictPanel extends StatelessWidget {
           'own vault. Choose which identity to keep — the other one is '
           'overwritten.',
           style: AppText.secondary.copyWith(
-            fontSize: 12,
             color: themeState.textTertiary,
             height: 1.5,
           ),

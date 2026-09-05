@@ -69,8 +69,6 @@ class ContextMenuPanel extends StatelessWidget {
           Text(
             heading!.toUpperCase(),
             style: AppText.sectionLabel.copyWith(
-              fontSize: 9.5,
-              letterSpacing: 1.3,
               color: themeState.textQuaternary,
             ),
           ),
@@ -99,7 +97,6 @@ class ContextMenuPanel extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.meta.copyWith(
-                            fontSize: 9.5,
                             color: themeState.textQuaternary,
                           ),
                         ),

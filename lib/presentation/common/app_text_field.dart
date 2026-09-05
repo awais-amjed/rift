@@ -100,8 +100,6 @@ class _AppTextFieldState extends State<AppTextField> {
             child: Text(
               widget.label!.toUpperCase(),
               style: AppText.sectionLabel.copyWith(
-                fontSize: 10.5,
-                letterSpacing: 1.2,
                 color: themeState.textTertiary,
               ),
             ),
@@ -121,16 +119,10 @@ class _AppTextFieldState extends State<AppTextField> {
           autofocus: widget.autofocus,
           maxLines: widget.obscureText ? 1 : widget.maxLines,
           maxLength: widget.maxLength,
-          style: AppText.body.copyWith(
-            fontSize: 13.5,
-            color: themeState.textPrimary,
-          ),
+          style: AppText.input.copyWith(color: themeState.textPrimary),
           decoration: InputDecoration(
             hintText: widget.hint,
-            hintStyle: AppText.body.copyWith(
-              fontSize: 13.5,
-              color: themeState.textQuaternary,
-            ),
+            hintStyle: AppText.input.copyWith(color: themeState.textQuaternary),
             filled: true,
             fillColor: themeState.bgTertiary,
             border: OutlineInputBorder(
@@ -157,9 +149,7 @@ class _AppTextFieldState extends State<AppTextField> {
             // the wrong colour and at the wrong weight. Keep the count — it is
             // the point of setting a limit — and dress it like every other
             // helper line in the app.
-            counterStyle: AppText.label.copyWith(
-              fontSize: 11,
-              fontWeight: FontWeight.w400,
+            counterStyle: AppText.secondary.copyWith(
               color: themeState.textTertiary,
             ),
           ),

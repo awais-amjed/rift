@@ -34,11 +34,7 @@ class InputLevelPanel extends StatelessWidget {
       children: [
         Text(
           'Input Level',
-          style: AppText.row.copyWith(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: themeState.textPrimary,
-          ),
+          style: AppText.row.copyWith(color: themeState.textPrimary),
         ),
         const SizedBox(height: 4),
         Text(
@@ -51,10 +47,7 @@ class InputLevelPanel extends StatelessWidget {
               : 'Test Mic and speak — the bar should move with your voice. If '
                     'it stays dark, Rift is not hearing the input device '
                     'selected above.',
-          style: AppText.secondary.copyWith(
-            color: themeState.textTertiary,
-            fontSize: 12,
-          ),
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 12),
         MicLevelMeter(level: level, active: testing, themeState: themeState),

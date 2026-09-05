@@ -54,9 +54,7 @@ class ErrorView extends StatelessWidget {
                   Text(
                     failure.title,
                     textAlign: TextAlign.center,
-                    style: AppText.dialogTitle.copyWith(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
+                    style: AppText.sectionTitle.copyWith(
                       color: themeState.textPrimary,
                     ),
                   ),
@@ -64,9 +62,7 @@ class ErrorView extends StatelessWidget {
                   Text(
                     failure.message,
                     textAlign: TextAlign.center,
-                    style: AppText.rowQuiet.copyWith(
-                      fontSize: 13.5,
-                      height: 1.45,
+                    style: AppText.secondary.copyWith(
                       color: themeState.textTertiary,
                     ),
                   ),
@@ -100,10 +96,7 @@ class ErrorView extends StatelessWidget {
         textAlign: TextAlign.center,
         maxLines: 4,
         overflow: TextOverflow.ellipsis,
-        style: AppText.figure.copyWith(
-          fontSize: 11,
-          color: themeState.textQuaternary,
-        ),
+        style: AppText.figure.copyWith(color: themeState.textQuaternary),
       ),
     );
   }

@@ -85,7 +85,6 @@ class MemberRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.rowQuiet.copyWith(
-                      fontSize: 13,
                       // A role's colour is the point of giving it one, and the
                       // name is the only thing on this row long enough to
                       // carry it. Uncoloured roles leave the name alone.

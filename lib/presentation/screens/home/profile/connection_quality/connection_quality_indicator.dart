@@ -143,9 +143,7 @@ class _ConnectionQualityIndicatorState
                           child: Text(
                             label,
                             style: AppText.label.copyWith(
-                              fontSize: 11,
                               color: themeState.textTertiary,
-                              fontWeight: FontWeight.w500,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),

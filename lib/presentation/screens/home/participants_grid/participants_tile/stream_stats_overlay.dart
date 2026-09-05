@@ -138,15 +138,7 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
       mainAxisSize: MainAxisSize.min,
       spacing: 6,
       children: [
-        Text(
-          'Stats',
-          style: AppText.sectionLabel.copyWith(
-            fontSize: 11,
-            color: Colors.white54,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
-        ),
+        Text('Stats', style: AppText.roleChip.copyWith(color: Colors.white54)),
         IconButton(
           onPressed: _togglePinned,
           icon: Icon(
@@ -188,21 +180,17 @@ class _StatRow extends StatelessWidget {
         Text(
           '$label: ',
           style: AppText.label.copyWith(
-            fontSize: 11,
             color: isWarning
                 ? CustomColors.warning
                 : (isMuted ? Colors.white38 : Colors.white70),
-            fontWeight: FontWeight.w500,
           ),
         ),
         Text(
           value,
-          style: AppText.label.copyWith(
-            fontSize: 11,
+          style: AppText.chip.copyWith(
             color: isWarning
                 ? CustomColors.warning
                 : (isMuted ? Colors.white54 : Colors.white),
-            fontWeight: FontWeight.w600,
           ),
         ),
       ],

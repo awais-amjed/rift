@@ -29,7 +29,6 @@ class SettingsChip extends StatelessWidget {
       child: Text(
         label,
         style: AppText.secondary.copyWith(
-          fontSize: 11.5,
           fontWeight: active ? FontWeight.w700 : FontWeight.w500,
         ),
       ),

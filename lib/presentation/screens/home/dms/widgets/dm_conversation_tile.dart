@@ -133,7 +133,6 @@ class DmConversationTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppText.row.copyWith(
-                        fontSize: 13,
                         color: isSelected
                             ? themeState.channelActiveText
                             : themeState.textPrimary,
@@ -145,7 +144,6 @@ class DmConversationTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.secondary.copyWith(
-                          fontSize: 11.5,
                           // Unread lifts the preview to body ink: the line the
                           // badge is counting is the one worth reading.
                           color: unreadCount > 0

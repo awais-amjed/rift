@@ -42,10 +42,7 @@ class RecoveryKeyAcknowledgement extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
                   'I have saved my recovery key somewhere safe.',
-                  style: AppText.body.copyWith(
-                    fontSize: 13.5,
-                    color: themeState.textSecondary,
-                  ),
+                  style: AppText.body.copyWith(color: themeState.textSecondary),
                 ),
               ),
             ),

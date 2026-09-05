@@ -84,7 +84,6 @@ class _RecoveryKeyPanelState extends State<RecoveryKeyPanel> {
           'vault without the password — replace it if you think somebody else '
           'has seen it.',
           style: AppText.secondary.copyWith(
-            fontSize: 12,
             color: theme.textTertiary,
             height: 1.5,
           ),

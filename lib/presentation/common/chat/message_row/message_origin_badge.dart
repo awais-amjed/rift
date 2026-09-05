@@ -87,15 +87,7 @@ class MessageOriginBadge extends StatelessWidget {
           spacing: 3,
           children: [
             Icon(Icons.lock_open_rounded, size: 10, color: _color),
-            Text(
-              _label,
-              style: AppText.meta.copyWith(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
-                color: _color,
-              ),
-            ),
+            Text(_label, style: AppText.roleChip.copyWith(color: _color)),
           ],
         ),
       ),

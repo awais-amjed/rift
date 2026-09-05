@@ -19,11 +19,7 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: AppText.row.copyWith(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: themeState.textPrimary,
-      ),
+      style: AppText.sectionTitle.copyWith(color: themeState.textPrimary),
     );
   }
 }

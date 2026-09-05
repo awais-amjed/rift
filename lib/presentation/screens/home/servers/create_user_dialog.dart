@@ -152,10 +152,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       padding: const EdgeInsets.only(top: 4, bottom: 12),
       child: Text(
         text,
-        style: AppText.label.copyWith(
-          fontSize: 11,
-          color: themeState.textQuaternary,
-        ),
+        style: AppText.label.copyWith(color: themeState.textQuaternary),
       ),
     );
   }

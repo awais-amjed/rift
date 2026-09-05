@@ -83,10 +83,7 @@ class SignedInPanel extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Signed in as ${state.email ?? 'unknown'}',
-                  style: AppText.secondary.copyWith(
-                    fontSize: 12,
-                    color: theme.textSecondary,
-                  ),
+                  style: AppText.secondary.copyWith(color: theme.textSecondary),
                 ),
               ),
               TextButton(
@@ -100,10 +97,7 @@ class SignedInPanel extends StatelessWidget {
                 ),
                 child: Text(
                   'Sign out',
-                  style: AppText.label.copyWith(
-                    fontSize: 11,
-                    color: CustomColors.error,
-                  ),
+                  style: AppText.label.copyWith(color: CustomColors.error),
                 ),
               ),
             ],
@@ -119,7 +113,6 @@ class SignedInPanel extends StatelessWidget {
           'Upload your current encrypted vault backup to the cloud. '
           'Your password is never sent.',
           style: AppText.secondary.copyWith(
-            fontSize: 12,
             color: theme.textTertiary,
             height: 1.5,
           ),

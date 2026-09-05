@@ -64,8 +64,7 @@ class TypingIndicator extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: who,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
+                    style: AppText.secondaryStrong.copyWith(
                       color: themeState.textSecondary,
                     ),
                   ),
@@ -73,10 +72,7 @@ class TypingIndicator extends StatelessWidget {
                 ],
               ),
               overflow: TextOverflow.ellipsis,
-              style: AppText.secondary.copyWith(
-                fontSize: 11.5,
-                color: themeState.textTertiary,
-              ),
+              style: AppText.secondary.copyWith(color: themeState.textTertiary),
             ),
           ),
         ],

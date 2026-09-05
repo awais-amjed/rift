@@ -36,9 +36,7 @@ class ChatStatusView extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               title,
-              style: AppText.row.copyWith(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+              style: AppText.sectionTitle.copyWith(
                 color: themeState.textPrimary,
               ),
             ),
@@ -46,10 +44,7 @@ class ChatStatusView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppText.rowQuiet.copyWith(
-                fontSize: 13,
-                color: themeState.textTertiary,
-              ),
+              style: AppText.rowQuiet.copyWith(color: themeState.textTertiary),
             ),
             if (showRetry) ...[
               const SizedBox(height: 16),

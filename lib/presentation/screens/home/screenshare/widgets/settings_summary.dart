@@ -38,39 +38,25 @@ class SettingsSummary extends StatelessWidget {
             child: RichText(
               text: TextSpan(
                 style: AppText.rowQuiet.copyWith(
-                  fontSize: 13,
                   color: themeState.textSecondary,
                 ),
                 children: [
                   TextSpan(
                     text: captureFullScreen ? 'Screen' : 'Window',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: AppText.strong,
                   ),
                   const TextSpan(text: ' · '),
-                  TextSpan(
-                    text: resolution,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+                  TextSpan(text: resolution, style: AppText.strong),
                   const TextSpan(text: ' · '),
-                  TextSpan(
-                    text: '$fps fps',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+                  TextSpan(text: '$fps fps', style: AppText.strong),
                   const TextSpan(text: ' · '),
-                  TextSpan(
-                    text: '$bitrate Mbps',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+                  TextSpan(text: '$bitrate Mbps', style: AppText.strong),
                   const TextSpan(text: ' · '),
-                  TextSpan(
-                    text: codec,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+                  TextSpan(text: codec, style: AppText.strong),
                   const TextSpan(text: ' · '),
                   TextSpan(
                     text: shareAudio ? 'Audio on' : 'Audio off',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
+                    style: AppText.strong.copyWith(
                       color: shareAudio
                           ? themeState.primary
                           : themeState.textQuaternary,

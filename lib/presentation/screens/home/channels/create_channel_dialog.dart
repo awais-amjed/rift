@@ -133,8 +133,6 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               Text(
                 'CHANNEL TYPE',
                 style: AppText.sectionLabel.copyWith(
-                  fontSize: 10.5,
-                  letterSpacing: 1.2,
                   color: themeState.textTertiary,
                 ),
               ),

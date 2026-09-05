@@ -50,8 +50,7 @@ class MessageBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   message,
-                  style: AppText.body.copyWith(
-                    fontSize: 11.5,
+                  style: AppText.secondary.copyWith(
                     height: 1.5,
                     color: themeState.textSecondary,
                   ),

@@ -66,15 +66,14 @@ class ComposerTextField extends StatelessWidget {
               onChanged: onChanged,
               minLines: 1,
               maxLines: _maxLines,
-              style: AppText.body.copyWith(
-                fontSize: K.composerFontSize,
+              style: AppText.input.copyWith(
                 height: K.composerLineHeight,
                 color: themeState.textPrimary,
               ),
               // Pin the line box: without this an emoji (or any taller glyph)
               // stretches the line and the whole bar jumps as you type.
-              strutStyle: const StrutStyle(
-                fontSize: K.composerFontSize,
+              strutStyle: StrutStyle(
+                fontSize: AppText.input.fontSize,
                 height: K.composerLineHeight,
                 forceStrutHeight: true,
               ),
@@ -88,8 +87,7 @@ class ComposerTextField extends StatelessWidget {
                 hintMaxLines: 1,
                 // Same metrics as the real text, so the hint sits exactly
                 // where typing will start.
-                hintStyle: AppText.body.copyWith(
-                  fontSize: K.composerFontSize,
+                hintStyle: AppText.input.copyWith(
                   height: K.composerLineHeight,
                   color: themeState.textQuaternary,
                 ),

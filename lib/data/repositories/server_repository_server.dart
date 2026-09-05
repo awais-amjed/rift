@@ -166,5 +166,4 @@ mixin _ServerApiMixin {
     String supabaseUrl, {
     required String bearerToken,
   }) => _post(supabaseUrl, 'listing_token', const {}, bearerToken: bearerToken);
-
 }

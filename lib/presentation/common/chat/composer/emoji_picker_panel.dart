@@ -190,10 +190,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
               controller: _searchController,
               focusNode: _searchFocus,
               onChanged: _onSearch,
-              style: AppText.secondary.copyWith(
-                fontSize: 12.5,
-                color: themeState.textPrimary,
-              ),
+              style: AppText.secondary.copyWith(color: themeState.textPrimary),
               cursorColor: themeState.primary,
               cursorWidth: 1.5,
               decoration: InputDecoration(
@@ -205,7 +202,6 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
                 contentPadding: EdgeInsets.zero,
                 hintText: 'Search emoji',
                 hintStyle: AppText.secondary.copyWith(
-                  fontSize: 12.5,
                   color: themeState.textQuaternary,
                 ),
               ),
@@ -251,10 +247,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
         return Center(
           child: Text(
             'No emoji found.',
-            style: AppText.secondary.copyWith(
-              fontSize: 11.5,
-              color: themeState.textTertiary,
-            ),
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
           ),
         );
       }
@@ -278,8 +271,6 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
                 child: Text(
                   _label(section.category),
                   style: AppText.sectionLabel.copyWith(
-                    fontSize: 9.5,
-                    letterSpacing: 1.3,
                     color: themeState.textQuaternary,
                   ),
                 ),

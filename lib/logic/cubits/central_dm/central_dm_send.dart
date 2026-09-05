@@ -93,11 +93,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         // only for a response that actually came back — a send that never
         // arrived has no code, and nothing about the account to report.
         if (Outbox.canRetry(response.errorCode)) {
-          _failSend(
-            pending: pending,
-            peerId: peerId,
-            attachments: attachments,
-          );
+          _failSend(pending: pending, peerId: peerId, attachments: attachments);
         } else if (state.openPeerId == peerId) {
           _removePending(pendingId);
           _reportSendFailure(response);

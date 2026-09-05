@@ -53,7 +53,6 @@ class JumpField extends StatelessWidget {
                       child: Text(
                         'Jump to…',
                         style: AppText.secondary.copyWith(
-                          fontSize: 12.5,
                           color: themeState.textQuaternary,
                         ),
                       ),

@@ -210,10 +210,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
             child: TextField(
               controller: _controller,
               focusNode: _focusNode,
-              style: AppText.secondary.copyWith(
-                fontSize: 12.5,
-                color: themeState.textPrimary,
-              ),
+              style: AppText.secondary.copyWith(color: themeState.textPrimary),
               cursorColor: themeState.primary,
               cursorWidth: 1.5,
               decoration: InputDecoration(
@@ -225,7 +222,6 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
                 contentPadding: EdgeInsets.zero,
                 hintText: widget.hintText,
                 hintStyle: AppText.secondary.copyWith(
-                  fontSize: 12.5,
                   color: themeState.textQuaternary,
                 ),
               ),
@@ -294,10 +290,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       child: Text(
         text,
-        style: AppText.secondary.copyWith(
-          fontSize: 11.5,
-          color: themeState.textTertiary,
-        ),
+        style: AppText.secondary.copyWith(color: themeState.textTertiary),
       ),
     );
   }

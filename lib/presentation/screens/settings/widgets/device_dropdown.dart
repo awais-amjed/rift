@@ -53,10 +53,7 @@ class DeviceDropdown<T> extends StatelessWidget {
                   size: 17,
                   color: themeState.textQuaternary,
                 ),
-                style: AppText.rowQuiet.copyWith(
-                  fontSize: 13,
-                  color: themeState.textPrimary,
-                ),
+                style: AppText.rowQuiet.copyWith(color: themeState.textPrimary),
                 items: items,
                 onChanged: onChanged,
               ),

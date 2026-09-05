@@ -41,17 +41,12 @@ class ParticipantVolumeControl extends StatelessWidget {
                   Text(
                     'VOLUME',
                     style: AppText.sectionLabel.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
                       color: themeState.textQuaternary,
                     ),
                   ),
                   Text(
                     isMuted ? '—' : '${(volume * 100).round()}%',
-                    style: AppText.label.copyWith(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                    style: AppText.chip.copyWith(
                       color: themeState.textSecondary,
                     ),
                   ),

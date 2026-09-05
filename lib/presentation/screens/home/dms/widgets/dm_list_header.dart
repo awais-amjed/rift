@@ -54,11 +54,7 @@ class DmListHeader extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.row.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: themeState.textPrimary,
-                  ),
+                  style: AppText.strong.copyWith(color: themeState.textPrimary),
                 ),
                 if (subtitle != null)
                   Text(

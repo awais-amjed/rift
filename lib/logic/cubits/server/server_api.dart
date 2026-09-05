@@ -131,7 +131,9 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   /// — "only a server admin can list this server publicly" — so an endpoint
   /// that was failing to boot, a server that was unreachable and a genuine
   /// refusal all arrived as an accusation that the admin was not an admin.
-  Future<({String? token, String? error})> listingToken({String? serverId}) async {
+  Future<({String? token, String? error})> listingToken({
+    String? serverId,
+  }) async {
     final server = _target(serverId);
     if (server == null) {
       return (token: null, error: 'That server is not open here any more.');
@@ -139,10 +141,8 @@ mixin _ServerApiMixin on Cubit<ServerState> {
 
     final response = await _callFor(
       server,
-      (token) => _repository.listingToken(
-        server.supabaseUrl,
-        bearerToken: token,
-      ),
+      (token) =>
+          _repository.listingToken(server.supabaseUrl, bearerToken: token),
     );
     if (!response.success) {
       return (token: null, error: response.error?.toString());

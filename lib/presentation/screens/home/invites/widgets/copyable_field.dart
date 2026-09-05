@@ -48,9 +48,7 @@ class CopyableField extends StatelessWidget {
                         // 'monospace' was asking the platform for whatever it
                         // had, which is the inconsistency bundling Geist Mono
                         // was meant to end.
-                        style: AppText.figure.copyWith(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
+                        style: AppText.code.copyWith(
                           color: textColor,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -58,7 +56,6 @@ class CopyableField extends StatelessWidget {
                     : Text(
                         placeholder ?? '',
                         style: AppText.rowQuiet.copyWith(
-                          fontSize: 13,
                           fontStyle: FontStyle.italic,
                           color: placeholderColor ?? textColor,
                         ),

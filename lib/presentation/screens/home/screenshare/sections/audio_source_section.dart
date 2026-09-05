@@ -69,7 +69,6 @@ class AudioSourceSection extends StatelessWidget {
                       child: Text(
                         'No audio sources found. Make sure an application is playing audio.',
                         style: AppText.secondary.copyWith(
-                          fontSize: 12,
                           color: themeState.textTertiary,
                         ),
                       ),
@@ -101,7 +100,6 @@ class AudioSourceSection extends StatelessWidget {
                     hint: Text(
                       'Select audio source',
                       style: AppText.rowQuiet.copyWith(
-                        fontSize: 13,
                         color: themeState.textTertiary,
                       ),
                     ),
@@ -111,8 +109,6 @@ class AudioSourceSection extends StatelessWidget {
                         child: Text(
                           _buildLabel(source),
                           style: AppText.rowQuiet.copyWith(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
                             color: themeState.textPrimary,
                           ),
                           maxLines: 1,

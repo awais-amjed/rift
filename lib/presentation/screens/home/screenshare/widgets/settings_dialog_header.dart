@@ -27,9 +27,7 @@ class SettingsDialogHeader extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               'Screen Share Settings',
-              style: AppText.sectionTitle.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+              style: AppText.dialogTitle.copyWith(
                 color: themeState.textPrimary,
               ),
             ),

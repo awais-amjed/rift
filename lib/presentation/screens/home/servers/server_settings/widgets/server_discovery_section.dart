@@ -56,11 +56,7 @@ class ServerDiscoverySection extends StatelessWidget {
         Text(
           'A listed server can be found and joined by anyone with a Rift '
           'account, without an invite from you.',
-          style: AppText.label.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 14),
         if (!signedIn)
@@ -76,10 +72,7 @@ class ServerDiscoverySection extends StatelessWidget {
               Expanded(
                 child: Text(
                   'List in the server browser',
-                  style: AppText.row.copyWith(
-                    fontSize: 13,
-                    color: themeState.textPrimary,
-                  ),
+                  style: AppText.row.copyWith(color: themeState.textPrimary),
                 ),
               ),
               AppSwitch(
@@ -172,11 +165,7 @@ class _JoinLink extends StatelessWidget {
       children: [
         Text(
           'JOIN LINK',
-          style: AppText.sectionLabel.copyWith(
-            fontSize: 10.5,
-            letterSpacing: 1.2,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.sectionLabel.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 7),
         Text(
@@ -186,7 +175,6 @@ class _JoinLink extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: AppText.meta.copyWith(
-            fontSize: 11.5,
             color: draft.resetLink
                 ? themeState.textTertiary
                 : themeState.textSecondary,
@@ -197,11 +185,7 @@ class _JoinLink extends StatelessWidget {
           'An ordinary unlimited invite on this server, carrying no '
           'permissions. Resetting it locks out anyone holding the old one; '
           'revoking it under Invite people quietly kills the listing.',
-          style: AppText.label.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
       ],
     );

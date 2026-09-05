@@ -35,7 +35,6 @@ class ConfirmEmailPanel extends StatelessWidget {
               ? 'A confirmation link was sent to $email. Click the link, then sign in.'
               : 'A confirmation link was sent to your email. Click the link, then sign in.',
           style: AppText.secondary.copyWith(
-            fontSize: 12,
             color: themeState.textTertiary,
             height: 1.5,
           ),

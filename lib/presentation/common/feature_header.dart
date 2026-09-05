@@ -23,9 +23,6 @@ class FeatureHeader extends StatelessWidget {
   /// than naming a step.
   final Color? badgeColor;
 
-  /// 21 in onboarding steps; the denser dialogs use 20.
-  final double titleSize;
-
   /// Keeps the explanatory line to a readable measure. Pass
   /// [double.infinity] where the surrounding panel already constrains it.
   final double subtitleMaxWidth;
@@ -37,7 +34,6 @@ class FeatureHeader extends StatelessWidget {
     required this.themeState,
     this.subtitle,
     this.badgeColor,
-    this.titleSize = 21,
     this.subtitleMaxWidth = 340,
   });
 
@@ -64,11 +60,7 @@ class FeatureHeader extends StatelessWidget {
         Text(
           title,
           textAlign: TextAlign.center,
-          style: AppText.pageTitle.copyWith(
-            fontSize: titleSize,
-            letterSpacing: -0.3,
-            color: themeState.textPrimary,
-          ),
+          style: AppText.pageTitle.copyWith(color: themeState.textPrimary),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 8),
@@ -78,7 +70,6 @@ class FeatureHeader extends StatelessWidget {
               subtitle!,
               textAlign: TextAlign.center,
               style: AppText.secondary.copyWith(
-                fontSize: 12.5,
                 height: 1.6,
                 color: themeState.textTertiary,
               ),

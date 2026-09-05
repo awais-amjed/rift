@@ -208,7 +208,6 @@ class AuthViewState extends State<AuthView>
                     child: Text(
                       'Forgotten your password?',
                       style: AppText.secondary.copyWith(
-                        fontSize: 12,
                         color: theme.textTertiary,
                       ),
                     ),
@@ -225,10 +224,7 @@ class AuthViewState extends State<AuthView>
                     isSignUp
                         ? 'Already have an account? Sign in'
                         : 'New here? Create an account',
-                    style: AppText.secondary.copyWith(
-                      fontSize: 12,
-                      color: theme.primary,
-                    ),
+                    style: AppText.secondary.copyWith(color: theme.primary),
                   ),
                 ),
               ],

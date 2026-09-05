@@ -91,16 +91,13 @@ class MemberRow extends StatelessWidget {
                                   ? '${member.displayName} (You)'
                                   : member.displayName,
                               style: AppText.row.copyWith(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
                                 color: themeState.textPrimary,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             Text(
                               '@${member.username}',
-                              style: AppText.label.copyWith(
-                                fontSize: 11,
+                              style: AppText.secondary.copyWith(
                                 color: themeState.textQuaternary,
                               ),
                             ),

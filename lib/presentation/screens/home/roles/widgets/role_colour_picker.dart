@@ -40,11 +40,7 @@ class RoleColourPicker extends StatelessWidget {
       children: [
         Text(
           'COLOUR',
-          style: AppText.sectionLabel.copyWith(
-            fontSize: 10.5,
-            letterSpacing: 1.2,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.sectionLabel.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 8),
         Wrap(

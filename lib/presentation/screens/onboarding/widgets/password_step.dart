@@ -133,7 +133,6 @@ class _PasswordStepState extends State<PasswordStep> {
                       Text(
                         _validationError ?? vaultState.error!,
                         style: AppText.rowQuiet.copyWith(
-                          fontSize: 13,
                           color: CustomColors.error,
                         ),
                       ),
@@ -164,7 +163,6 @@ class _PasswordStepState extends State<PasswordStep> {
                               'Make sure you remember this password. '
                               'It cannot be reset or recovered.',
                               style: AppText.secondary.copyWith(
-                                fontSize: 12,
                                 height: 1.4,
                                 color: theme.textSecondary,
                               ),
@@ -182,7 +180,6 @@ class _PasswordStepState extends State<PasswordStep> {
                         'Setting up your account…',
                         textAlign: TextAlign.center,
                         style: AppText.secondary.copyWith(
-                          fontSize: 12,
                           color: theme.textQuaternary,
                         ),
                       ),
@@ -223,10 +220,7 @@ class _PasswordStepState extends State<PasswordStep> {
                             ),
                       child: Text(
                         'Have a backup file? Restore it instead',
-                        style: AppText.secondary.copyWith(
-                          fontSize: 12,
-                          color: theme.primary,
-                        ),
+                        style: AppText.secondary.copyWith(color: theme.primary),
                       ),
                     ),
                   ],

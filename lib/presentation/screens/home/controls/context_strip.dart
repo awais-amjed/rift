@@ -116,9 +116,7 @@ class _ContextStripState extends State<ContextStrip> {
                                   child: Text(
                                     channelName ?? 'Voice',
                                     overflow: TextOverflow.ellipsis,
-                                    style: AppText.row.copyWith(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
+                                    style: AppText.panelTitle.copyWith(
                                       color: themeState.textPrimary,
                                     ),
                                   ),
@@ -138,7 +136,6 @@ class _ContextStripState extends State<ContextStrip> {
                           Text(
                             _elapsed,
                             style: AppText.figure.copyWith(
-                              fontSize: 11.5,
                               color: themeState.textTertiary,
                             ),
                           ),

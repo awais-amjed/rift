@@ -68,10 +68,7 @@ class ServerConnectionSection extends StatelessWidget {
         Text(
           'The API key and secret are stored only on the server and never '
           'sent back — leave them blank to keep the current values.',
-          style: AppText.label.copyWith(
-            fontSize: 11,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.label.copyWith(color: themeState.textTertiary),
         ),
       ],
     );

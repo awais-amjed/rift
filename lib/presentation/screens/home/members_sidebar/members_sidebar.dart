@@ -203,21 +203,14 @@ class _MembersSidebarState extends State<MembersSidebar> {
           Expanded(
             child: Text(
               'Members',
-              style: AppText.row.copyWith(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: themeState.textPrimary,
-              ),
+              style: AppText.strong.copyWith(color: themeState.textPrimary),
             ),
           ),
           // Mono, so the tally sits still while people come and go.
           if (count != null)
             Text(
               '$count',
-              style: AppText.figure.copyWith(
-                fontSize: 10,
-                color: themeState.textQuaternary,
-              ),
+              style: AppText.figure.copyWith(color: themeState.textQuaternary),
             ),
           // Through the shell rather than straight to AppCubit: overlaid,
           // this is the drawer's own close button and has to shut the drawer,

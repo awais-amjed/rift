@@ -107,11 +107,7 @@ class TagEditor extends StatelessWidget {
           'How people filter the browser. Lowercase, no spaces — anything else '
           'is folded into that shape. Whatever is still in the box when you '
           'save is added too.',
-          style: AppText.label.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
       ],
     );

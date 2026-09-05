@@ -23,9 +23,7 @@ class NoChannelView extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No Channel Selected',
-                  style: AppText.dialogTitle.copyWith(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.sectionTitle.copyWith(
                     color: themeState.textPrimary,
                   ),
                 ),
@@ -36,8 +34,7 @@ class NoChannelView extends StatelessWidget {
                   context.layoutMode.sidebarIsOverlay
                       ? 'Open the menu and pick a voice channel to join'
                       : 'Select a voice channel from the sidebar to join',
-                  style: AppText.rowQuiet.copyWith(
-                    fontSize: 14,
+                  style: AppText.secondary.copyWith(
                     color: themeState.textTertiary,
                   ),
                 ),

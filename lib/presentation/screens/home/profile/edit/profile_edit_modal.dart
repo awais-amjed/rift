@@ -156,9 +156,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
               const SizedBox(height: 18),
               Text(
                 'Display Name',
-                style: AppText.secondary.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                style: AppText.secondaryStrong.copyWith(
                   color: themeState.textTertiary,
                 ),
               ),
@@ -167,10 +165,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
                 controller: _nameController,
                 enabled: !_saving,
                 maxLength: 32,
-                style: AppText.rowQuiet.copyWith(
-                  color: themeState.textPrimary,
-                  fontSize: 14,
-                ),
+                style: AppText.input.copyWith(color: themeState.textPrimary),
                 decoration: const InputDecoration(
                   hintText: 'Your name on this server',
                   counterText: '',
@@ -180,10 +175,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
               Text(
                 'Each server is a separate identity — this name and picture '
                 'apply here only.',
-                style: AppText.label.copyWith(
-                  fontSize: 11,
-                  color: themeState.textQuaternary,
-                ),
+                style: AppText.label.copyWith(color: themeState.textQuaternary),
               ),
             ],
           ),
@@ -251,10 +243,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
         const SizedBox(height: 8),
         Text(
           picked != null ? 'New picture ready to save' : 'Change picture',
-          style: AppText.label.copyWith(
-            fontSize: 11,
-            color: themeState.textQuaternary,
-          ),
+          style: AppText.label.copyWith(color: themeState.textQuaternary),
         ),
       ],
     );

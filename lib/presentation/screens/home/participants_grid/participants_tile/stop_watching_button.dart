@@ -24,11 +24,7 @@ class StopWatchingButton extends StatelessWidget {
               SizedBox(width: 6),
               Text(
                 'Stop Watching',
-                style: AppText.row.copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+                style: AppText.row.copyWith(color: Colors.white),
               ),
             ],
           ),

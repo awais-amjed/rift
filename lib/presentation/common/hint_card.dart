@@ -47,7 +47,6 @@ class HintCard extends StatelessWidget {
                     child: Text(
                       text,
                       style: AppText.secondary.copyWith(
-                        fontSize: 11.5,
                         height: 1.5,
                         color: themeState.textTertiary,
                       ),

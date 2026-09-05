@@ -196,10 +196,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
           return Center(
             child: Text(
               widget.emptyMessage,
-              style: AppText.body.copyWith(
-                fontSize: 14,
-                color: themeState.textTertiary,
-              ),
+              style: AppText.body.copyWith(color: themeState.textTertiary),
             ),
           );
         }

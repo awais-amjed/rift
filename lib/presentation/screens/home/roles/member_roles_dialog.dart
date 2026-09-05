@@ -5,6 +5,7 @@ import '../../../../data/classes/role.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/message_banner.dart';
@@ -122,7 +123,9 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
               child: Center(
                 child: Text(
                   'This server has no roles to hand out yet.',
-                  style: TextStyle(color: themeState.textTertiary),
+                  style: AppText.secondary.copyWith(
+                    color: themeState.textTertiary,
+                  ),
                 ),
               ),
             )

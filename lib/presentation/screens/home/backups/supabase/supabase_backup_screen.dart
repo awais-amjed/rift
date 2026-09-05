@@ -37,11 +37,7 @@ class _SupabaseBackupView extends StatelessWidget {
         elevation: 0,
         title: Text(
           'Cloud Backup',
-          style: AppText.row.copyWith(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: theme.textPrimary,
-          ),
+          style: AppText.sectionTitle.copyWith(color: theme.textPrimary),
         ),
         leading: BackButton(color: theme.textSecondary),
         bottom: PreferredSize(

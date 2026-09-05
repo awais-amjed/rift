@@ -85,7 +85,6 @@ class FileBackupPanelState extends State<FileBackupPanel> {
           'Export your encrypted backup as a file, or restore from one. '
           'Works entirely offline — no account needed.',
           style: AppText.secondary.copyWith(
-            fontSize: 12,
             color: theme.textTertiary,
             height: 1.5,
           ),

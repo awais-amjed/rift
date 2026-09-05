@@ -181,7 +181,6 @@ class K {
   static const double composerControlSize = 34;
   static const double composerControlRadius = 10;
   static const double composerIconSize = 19;
-  static const double composerFontSize = 13.5;
   static const double composerLineHeight = 1.4;
 
   /// Room above/below the composer text, applied as a plain symmetric padding

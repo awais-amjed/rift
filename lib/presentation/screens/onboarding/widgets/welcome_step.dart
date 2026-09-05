@@ -39,12 +39,7 @@ class WelcomeStep extends StatelessWidget {
           // Title
           Text(
             'Welcome to Rift',
-            style: AppText.sectionTitle.copyWith(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: theme.textPrimary,
-              letterSpacing: -0.5,
-            ),
+            style: AppText.pageTitle.copyWith(color: theme.textPrimary),
           ),
 
           const SizedBox(height: 12),
@@ -52,11 +47,7 @@ class WelcomeStep extends StatelessWidget {
           // Subtitle
           Text(
             'Your space to hang out.',
-            style: AppText.sectionTitle.copyWith(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: theme.accentBright,
-            ),
+            style: AppText.sectionTitle.copyWith(color: theme.accentBright),
           ),
 
           const SizedBox(height: 18),
@@ -127,10 +118,7 @@ class WelcomeStep extends StatelessWidget {
             'Privacy mode: no email, no central server — your identity '
             'never leaves this device.',
             textAlign: TextAlign.center,
-            style: AppText.label.copyWith(
-              fontSize: 11,
-              color: theme.textQuaternary,
-            ),
+            style: AppText.label.copyWith(color: theme.textQuaternary),
           ),
         ],
       ),

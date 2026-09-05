@@ -147,9 +147,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
     // been fetched yet at this point.
     final permissions =
         (data['user'] as Map?)?['permissions'] as Map<String, dynamic>?;
-    widget.onSuccess(
-      joinedAsAdmin: permissions?['is_server_admin'] == true,
-    );
+    widget.onSuccess(joinedAsAdmin: permissions?['is_server_admin'] == true);
   }
 
   @override

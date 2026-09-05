@@ -83,7 +83,6 @@ class _ChangePasswordPanelState extends State<ChangePasswordPanel> {
                     'Changing it needs a code emailed to ${state.email}.'
               : 'The password that unlocks your vault on this device.',
           style: AppText.secondary.copyWith(
-            fontSize: 12,
             color: theme.textTertiary,
             height: 1.5,
           ),
@@ -134,11 +133,7 @@ class _ChangePasswordPanelState extends State<ChangePasswordPanel> {
 
         if (started) ...[
           const SizedBox(height: 16),
-          ChangePasswordForm(
-            themeState: theme,
-            state: state,
-            onCancel: _close,
-          ),
+          ChangePasswordForm(themeState: theme, state: state, onCancel: _close),
         ],
       ],
     );

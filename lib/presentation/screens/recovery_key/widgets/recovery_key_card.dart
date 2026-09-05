@@ -55,13 +55,7 @@ class _RecoveryKeyCardState extends State<RecoveryKeyCard> {
               for (final group in groups)
                 Text(
                   group,
-                  style: AppText.body.copyWith(
-                    fontFamily: 'monospace',
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 2.4,
-                    color: theme.textPrimary,
-                  ),
+                  style: AppText.mnemonic.copyWith(color: theme.textPrimary),
                 ),
             ],
           ),
@@ -77,7 +71,6 @@ class _RecoveryKeyCardState extends State<RecoveryKeyCard> {
           label: Text(
             _copied ? 'Copied' : 'Copy to clipboard',
             style: AppText.secondary.copyWith(
-              fontSize: 12.5,
               color: _copied ? theme.accentBright : theme.textTertiary,
             ),
           ),

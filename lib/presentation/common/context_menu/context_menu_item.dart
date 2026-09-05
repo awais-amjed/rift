@@ -59,10 +59,7 @@ class ContextMenuItem extends StatelessWidget {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.rowQuiet.copyWith(
-                        fontSize: 13,
-                        color: color,
-                      ),
+                      style: AppText.rowQuiet.copyWith(color: color),
                     ),
                   ),
                   ?trailing,

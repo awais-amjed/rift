@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../roles/member_roles_dialog.dart';
@@ -160,7 +161,9 @@ class _PanelRow extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
-                    style: TextStyle(color: themeState.textPrimary),
+                    style: AppText.rowQuiet.copyWith(
+                      color: themeState.textPrimary,
+                    ),
                   ),
                 ),
                 Icon(

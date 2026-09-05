@@ -33,10 +33,7 @@ class RailUnreadBadge extends StatelessWidget {
           child: Text(
             count > max ? '$max+' : '$count',
             textAlign: TextAlign.center,
-            style: AppText.badge.copyWith(
-              fontSize: 9,
-              color: themeState.onPrimary,
-            ),
+            style: AppText.badge.copyWith(color: themeState.onPrimary),
           ),
         );
       },

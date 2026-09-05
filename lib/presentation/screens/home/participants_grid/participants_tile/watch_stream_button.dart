@@ -38,11 +38,7 @@ class WatchStreamButton extends StatelessWidget {
                     SizedBox(width: 8),
                     Text(
                       'Watch Stream',
-                      style: AppText.row.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                      style: AppText.strong.copyWith(color: Colors.white),
                     ),
                   ],
                 ),

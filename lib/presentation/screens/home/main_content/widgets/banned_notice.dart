@@ -49,9 +49,7 @@ class BannedNotice extends StatelessWidget {
                 Text(
                   'You were banned from $serverName',
                   textAlign: TextAlign.center,
-                  style: AppText.dialogTitle.copyWith(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                  style: AppText.pageTitle.copyWith(
                     color: themeState.textPrimary,
                   ),
                 ),
@@ -63,9 +61,7 @@ class BannedNotice extends StatelessWidget {
                     'Only an admin there can lift this — if one does, the app '
                     'comes back on its own.',
                     textAlign: TextAlign.center,
-                    style: AppText.rowQuiet.copyWith(
-                      fontSize: 14,
-                      height: 1.45,
+                    style: AppText.body.copyWith(
                       color: themeState.textTertiary,
                     ),
                   ),
@@ -77,7 +73,6 @@ class BannedNotice extends StatelessWidget {
                     'Your account and your other servers are unaffected.',
                     textAlign: TextAlign.center,
                     style: AppText.rowQuiet.copyWith(
-                      fontSize: 13,
                       color: themeState.textQuaternary,
                     ),
                   ),

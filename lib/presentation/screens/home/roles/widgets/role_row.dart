@@ -80,7 +80,6 @@ class RoleRow extends StatelessWidget {
                       subtitle,
                       style: AppText.secondary.copyWith(
                         color: themeState.textTertiary,
-                        fontSize: 11.5,
                       ),
                     ),
                   ],
