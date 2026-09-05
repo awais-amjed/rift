@@ -149,11 +149,18 @@ class PublicServersCubit extends Cubit<PublicServersState> {
 
   /// Create or update the listing for one server. Returns the saved row, or
   /// null on failure — [PublicServersState.error] carries the reason.
+  ///
+  /// [listingToken] is a one-time proof, obtained from the server being
+  /// listed, that an admin of it asked for this. Central redeems it against
+  /// that server's own domain before writing anything — see the
+  /// `publish_server` edge function — because central cannot otherwise tell an
+  /// administrator from any other member.
   Future<PublicServer?> publish({
     required String supabaseUrl,
     required String serverId,
     required String inviteCode,
     required String name,
+    required String listingToken,
     String? description,
     String? iconUrl,
     List<String> tags = const [],
@@ -167,6 +174,7 @@ class PublicServersCubit extends Cubit<PublicServersState> {
       serverId: serverId,
       inviteCode: inviteCode,
       name: name,
+      listingToken: listingToken,
       description: description,
       iconUrl: iconUrl,
       tags: tags,

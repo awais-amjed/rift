@@ -35,10 +35,20 @@ class ListingActions {
           'one could not be created. Try Save again.';
     }
 
+    // Proof that an admin of this server asked for the listing. Central cannot
+    // tell an administrator from any other member, so it redeems this against
+    // the server's own domain before writing anything.
+    final listingToken = await serverCubit.listingToken(serverId: server.id);
+    if (listingToken == null) {
+      return 'Server settings saved, but the public listing did not: only a '
+          'server admin can publish it.';
+    }
+
     final saved = await publicServers.publish(
       supabaseUrl: server.supabaseUrl,
       serverId: server.id,
       inviteCode: code,
+      listingToken: listingToken,
       // The listing is named by the server, so a rename reaches the directory
       // in the same Save that applied it.
       name: name,

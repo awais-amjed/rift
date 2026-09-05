@@ -151,4 +151,20 @@ mixin _ServerApiMixin {
       ...?limits?.toJson(),
     }, bearerToken: bearerToken);
   }
+
+  /// Ask this server for a one-time token proving an admin wants it listed.
+  ///
+  /// Central owns the public directory and cannot tell who administers a
+  /// server here — it has never heard of this database, and a member's
+  /// identity here is unrelated to their Rift account. So the proof comes from
+  /// the server itself: this returns a token that central redeems against this
+  /// server's own domain before it will write a listing.
+  ///
+  /// Admin-gated at the endpoint. A member who is not one gets a refusal here
+  /// rather than a listing they were never entitled to create.
+  Future<APIResponse> listingToken(
+    String supabaseUrl, {
+    required String bearerToken,
+  }) => _post(supabaseUrl, 'listing_token', const {}, bearerToken: bearerToken);
+
 }

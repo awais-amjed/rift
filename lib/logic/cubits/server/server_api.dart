@@ -121,6 +121,27 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   }
 
   /// Create a plain invite code for [serverId], or for the selected server.
+  /// A one-time token proving an admin of [serverId] wants it listed.
+  ///
+  /// Handed to central, which redeems it against this server's own domain
+  /// before writing a directory entry — see `publish_server` there. Returns
+  /// null when this server refuses, which for anyone who is not an admin is
+  /// the expected answer.
+  Future<String?> listingToken({String? serverId}) async {
+    final server = _target(serverId);
+    if (server == null) return null;
+
+    final response = await _callFor(
+      server,
+      (token) => _repository.listingToken(
+        server.supabaseUrl,
+        bearerToken: token,
+      ),
+    );
+    if (!response.success) return null;
+    return (response.data as Map<String, dynamic>?)?['token'] as String?;
+  }
+
   Future<({bool success, String? inviteCode, String? error})> createInvite({
     int? maxUses = 1,
     int? expiresInSeconds,

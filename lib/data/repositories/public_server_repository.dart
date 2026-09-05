@@ -111,14 +111,25 @@ class PublicServerRepository {
 
   /// Create or update the listing for one server.
   ///
-  /// Through the RPC rather than an upsert for the reason `claim_handle`
-  /// exists — there is no INSERT or UPDATE grant on the table at all, so the
-  /// per-account cap and the ownership check can't be stepped around.
+  /// Through the **edge function**, not the RPC, and that is the whole
+  /// security of the directory. Central cannot tell who administers a
+  /// self-hosted server: it has never heard of that database, and a member's
+  /// identity there is unrelated to their Rift account. So the RPC used to
+  /// check only that the caller was signed in here — and every *member* of a
+  /// server holds its URL, its id and an invite code, which was everything
+  /// needed to list somebody else's server, permanently, with a working join
+  /// link and a description of their choosing.
+  ///
+  /// [listingToken] comes from the server being listed (`ServerCubit
+  /// .listingToken`, admin-gated there), and central redeems it against that
+  /// server's own domain before writing anything. The RPC is now service-role
+  /// only, so this path cannot be gone around.
   Future<APIResponse> publish({
     required String supabaseUrl,
     required String serverId,
     required String inviteCode,
     required String name,
+    required String listingToken,
     String? description,
     String? iconUrl,
     List<String> tags = const [],
@@ -126,25 +137,41 @@ class PublicServerRepository {
     bool isListed = true,
   }) async {
     try {
-      final row = await _client.rpc(
+      final response = await _client.functions.invoke(
         'publish_server',
-        params: {
-          'p_supabase_url': supabaseUrl,
-          'p_server_id': serverId,
-          'p_invite_code': inviteCode,
-          'p_name': name,
-          'p_description': description,
-          'p_icon_url': iconUrl,
-          'p_tags': tags,
-          'p_member_count': memberCount,
-          'p_is_listed': isListed,
+        body: {
+          'supabase_url': supabaseUrl,
+          'server_id': serverId,
+          'invite_code': inviteCode,
+          'name': name,
+          'listing_token': listingToken,
+          'description': description,
+          'icon_url': iconUrl,
+          'tags': tags,
+          'member_count': memberCount,
+          'is_listed': isListed,
         },
       );
+
+      final data = response.data;
+      if (data is Map<String, dynamic> && data['error'] != null) {
+        return APIResponse.error(
+          _explainIdentifier('${data['error']}'),
+          errorCode: '${data['error']}',
+        );
+      }
       return APIResponse.success(
-        PublicServer.fromJson(row as Map<String, dynamic>),
+        PublicServer.fromJson(data as Map<String, dynamic>),
       );
-    } on PostgrestException catch (e) {
-      return APIResponse.error(_explain(e), errorCode: _codeOf(e));
+    } on FunctionException catch (e) {
+      final detail = e.details;
+      final identifier = detail is Map && detail['error'] != null
+          ? '${detail['error']}'
+          : 'unexpected_error';
+      return APIResponse.error(
+        _explainIdentifier(identifier),
+        errorCode: identifier,
+      );
     } catch (e) {
       return APIResponse.error(e);
     }
@@ -171,9 +198,9 @@ class PublicServerRepository {
   }
 
   // ── Errors ────────────────────────────────────────────────
-  // `publish_server` raises bare identifiers, which reach the client as a
-  // Postgrest message. Turn the three a user can actually act on into
-  // sentences; anything else keeps the server's own words.
+  // Both the RPC and the edge function answer with bare identifiers. Turn the
+  // ones a person can act on into sentences; anything else keeps the server's
+  // own words.
 
   static const _messages = {
     'owner_has_no_profile':
@@ -183,17 +210,25 @@ class PublicServerRepository {
         'published it to update or remove the listing.',
     'listing_cap_reached':
         'You have listed as many servers as one account may. Remove one first.',
+    // The three the proof round trip can produce. Each is actionable, and
+    // none of them says anything about what central found at the address.
+    'listing_not_authorised':
+        'Your server did not confirm this listing. Only a server admin can '
+        'publish it, and the confirmation expires after a few minutes — try '
+        'again.',
+    'server_unreachable':
+        'Your server did not answer, so the listing was not published. Try '
+        'again once it is back online.',
+    'server_url_not_allowed':
+        'A listed server has to be reachable at an https address of its own. '
+        'A local or private address cannot be published.',
   };
 
-  static String? _codeOf(PostgrestException e) {
-    for (final key in _messages.keys) {
-      if (e.message.contains(key)) return key;
-    }
-    return e.code;
-  }
-
-  static String _explain(PostgrestException e) {
-    final code = _codeOf(e);
-    return _messages[code] ?? e.message;
-  }
+  /// The sentence for an identifier, or the identifier itself.
+  ///
+  /// Publishing goes through the edge function now, so these arrive as plain
+  /// strings rather than wrapped in a Postgrest message — the two helpers that
+  /// unwrapped one went with the RPC call that produced it.
+  static String _explainIdentifier(String identifier) =>
+      _messages[identifier] ?? identifier;
 }

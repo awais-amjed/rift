@@ -93,6 +93,22 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       return;
     }
 
+    // Proof that an admin of this server asked. Central redeems it against the
+    // server's own domain, because it has no other way to tell an
+    // administrator from any other member — see the publish_server edge
+    // function on central.
+    final listingToken = await context.read<ServerCubit>().listingToken(
+      serverId: server.id,
+    );
+    if (!mounted) return;
+    if (listingToken == null) {
+      setState(() {
+        _publishing = false;
+        _error = 'Only a server admin can list this server publicly.';
+      });
+      return;
+    }
+
     final description = _descriptionCtrl.text.trim();
     final cubit = context.read<PublicServersCubit>();
     final saved = await cubit.publish(
@@ -100,6 +116,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       serverId: server.id,
       inviteCode: invite.inviteCode!,
       name: server.name,
+      listingToken: listingToken,
       description: description.isEmpty ? null : description,
       iconUrl: server.iconUrl,
       tags: ServerTags.withPending(_tags, _tagCtrl.text),

@@ -1265,3 +1265,26 @@ drains rather than lingering.
   select for any authenticated user. 10 MB per-object cap.
 - **Purpose**: same E2E-encrypted blobs for central DMs; uploads count against
   the sender's daily DM quota.
+
+## `listing_tokens` (self-hosted, migration 042)
+
+One-time proof that an admin of this server asked for it to be listed in the
+public directory on central.
+
+| column | notes |
+|---|---|
+| `token_hash` | PK. SHA-256 of the token; the token itself is never stored |
+| `server_id` | FK to `servers`, cascading |
+| `created_at` | |
+| `expires_at` | five minutes — long enough to finish an open dialog |
+| `used_at` | set on redemption, kept so a replay reads as *spent* rather than unknown |
+
+No grants and RLS on, reachable only by the two endpoints that hold the service
+key: `listing_token` (admin-gated) issues one, `verify_listing_token`
+(unauthenticated, called by central) redeems it. `redeem_listing_token` burns
+and checks in one statement, so two arrivals of the same token cannot both
+succeed.
+
+Central cannot tell who administers a self-hosted server — it has never heard
+of the database and the two identities are unrelated — so this round trip is
+what binds a directory listing to domain control plus administration.
