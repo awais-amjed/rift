@@ -31,7 +31,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
   /// Holds names that resolved to nobody as well as names that resolved, which
   /// is the point: `@nobody` is exactly the token that would otherwise be
   /// looked up again on every scroll for as long as the message is on screen.
-  Set<String> get _askedMentionNames;
+  MentionNameCache get _mentionCache;
 
   Future<List<ChatMessage>> _decryptRows(
     String channelId,
@@ -238,28 +238,32 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
     final channelId = state.channelId;
     if (channelId == null) return;
 
-    final wanted = <String>[];
-    for (final message in messages) {
-      for (final name in Mentions.namesIn(message.text)) {
-        if (_askedMentionNames.add(name)) wanted.add(name);
-      }
-    }
+    final wanted = _mentionCache.unasked(
+      messages.expand((message) => Mentions.namesIn(message.text)),
+    );
     if (wanted.isEmpty) return;
 
     final found = await _serverCubit.membersByUsernames(
       wanted,
       channelId: channelId,
     );
-    if (isClosed || state.channelId != channelId || found.isEmpty) return;
 
-    emit(
-      state.copyWith(
-        mentionNames: {
-          ...state.mentionNames,
-          for (final member in Mentions.among(found))
-            member.username.toLowerCase(): member.displayName,
-        },
-      ),
-    );
+    // The channel moved under us, so these answers are about the wrong room.
+    if (isClosed || state.channelId != channelId) return;
+
+    if (found.isEmpty) {
+      // Nothing came back. That is either "nobody answers to these names" or a
+      // lookup that failed, and the two are indistinguishable here — so let
+      // them be asked again rather than leaving a name unresolvable for the
+      // life of the channel because one request happened to fail.
+      _mentionCache.forget(wanted);
+      return;
+    }
+
+    _mentionCache.remember({
+      for (final member in Mentions.among(found))
+        member.username: member.displayName,
+    });
+    emit(state.copyWith(mentionNames: _mentionCache.names));
   }
 }

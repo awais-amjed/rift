@@ -25,6 +25,7 @@ import '../../services/key_sweep_doorbell.dart';
 import '../../services/bot_command.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/chat_notice.dart';
+import '../../services/mention_name_cache.dart';
 import '../../services/mentions.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
@@ -79,13 +80,13 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// the sender's client can do it at all: the server cannot read the message
   /// to find the names, and the recipients cannot be told which of them was
   /// meant without being told first.
-  @override
-  /// Names already asked of `members_by_usernames` for the open channel.
+  /// What `@names` in the open channel resolve to, and which have been asked.
   ///
-  /// Cleared with the channel: the answer is channel-scoped, so a name that
-  /// resolved to nobody in a private room may well resolve in the next one.
+  /// Cleared with the channel by [_resetTo]. Both halves live in one object so
+  /// that a reset cannot drop the answers and keep the questions — see
+  /// [MentionNameCache].
   @override
-  final Set<String> _askedMentionNames = {};
+  final MentionNameCache _mentionCache = MentionNameCache();
 
   @override
   final VaultCubit _vaultCubit;
@@ -178,7 +179,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     final generation = ++_openGeneration;
     await _teardownRealtime();
 
-    emit(
+    _resetTo(
       ChannelChatState(status: ChannelChatStatus.loading, channelId: channelId),
     );
 
@@ -254,12 +255,22 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     emit(state.copyWith(status: ChannelChatStatus.ready));
   }
 
+  /// Emit a fresh chat state, dropping the caches that only described the old
+  /// one.
+  ///
+  /// The mention cache describes the channel that was open, so it goes with
+  /// it — see [MentionNameCache] for what leaving half of it behind cost.
+  void _resetTo(ChannelChatState next) {
+    _mentionCache.reset();
+    emit(next);
+  }
+
   Future<void> closeChannel() async {
     _openGeneration++;
     _openServerId = null;
     await _teardownRealtime();
     _keyring.clear();
-    if (!isClosed) emit(const ChannelChatState());
+    if (!isClosed) _resetTo(const ChannelChatState());
   }
 
   /// Retry entry point for the waiting/error states (UI button + doorbell).
@@ -267,7 +278,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   Future<void> retry() async {
     final channelId = state.channelId;
     if (channelId == null) return;
-    emit(const ChannelChatState());
+    _resetTo(const ChannelChatState());
     await openChannel(channelId);
   }
 
