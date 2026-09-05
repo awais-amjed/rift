@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_motion.dart';
 
 /// Progress through onboarding, as dots under the card.
 ///
@@ -24,7 +25,7 @@ class StepDots extends StatelessWidget {
           children: [
             for (var i = 0; i < count; i++)
               AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: AppMotion.state,
                 curve: Curves.easeOut,
                 width: i == step ? 18 : 5,
                 height: 5,

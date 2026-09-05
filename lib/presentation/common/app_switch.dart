@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_motion.dart';
 
 /// The app's on/off toggle.
 ///
@@ -33,7 +34,7 @@ class AppSwitch extends StatelessWidget {
           child: GestureDetector(
             onTap: onChanged == null ? null : () => onChanged!(!value),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 140),
+              duration: AppMotion.state,
               curve: Curves.easeOut,
               width: _trackWidth,
               height: _trackHeight,
@@ -43,7 +44,7 @@ class AppSwitch extends StatelessWidget {
                 borderRadius: BorderRadius.circular(K.radiusPill),
               ),
               child: AnimatedAlign(
-                duration: const Duration(milliseconds: 140),
+                duration: AppMotion.state,
                 curve: Curves.easeOut,
                 alignment: value ? Alignment.centerRight : Alignment.centerLeft,
                 child: Container(

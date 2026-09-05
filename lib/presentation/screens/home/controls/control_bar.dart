@@ -18,6 +18,7 @@ import '../../../theme/custom_colors.dart';
 import '../screenshare/screen_share_settings_dialog.dart';
 import '../../../theme/app_text.dart';
 import '../../../responsive/shell_scope.dart';
+import '../../../theme/app_motion.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 ///
@@ -42,10 +43,10 @@ class ControlBar extends StatelessWidget {
               child: Center(
                 child: AnimatedOpacity(
                   opacity: visible ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 300),
+                  duration: AppMotion.enter,
                   child: AnimatedSlide(
                     offset: visible ? Offset.zero : const Offset(0, 0.4),
-                    duration: const Duration(milliseconds: 300),
+                    duration: AppMotion.enter,
                     curve: Curves.easeInOut,
                     child: IgnorePointer(
                       ignoring: !visible,
@@ -320,7 +321,7 @@ class _ControlButton extends StatelessWidget {
         Color iconColor;
 
         if (isActive) {
-          bgColor = themeState.primary.withValues(alpha: 0.15);
+          bgColor = themeState.channelActiveBg;
           iconColor = themeState.primary;
         } else if (isError) {
           bgColor = CustomColors.error.withValues(alpha: 0.1);

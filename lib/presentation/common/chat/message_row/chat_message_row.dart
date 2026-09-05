@@ -270,9 +270,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       // Half the usual hover: a message list is mostly hover surface as the
       // pointer crosses it, and the full row fill turns reading into a
       // strobe. It only has to say "the toolbar belongs to this one".
-      color: _hovering
-          ? themeState.textPrimary.withValues(alpha: 0.025)
-          : Colors.transparent,
+      color: _hovering ? themeState.bgHoverSubtle : Colors.transparent,
       child: Opacity(
         // Dimmed while it is in flight, and full strength again once it has
         // failed: the fade says "not finished", and a row asking to be pressed

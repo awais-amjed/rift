@@ -7,13 +7,14 @@ import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
 import 'stream_stats_overlay.dart';
 import 'watch_stream_button.dart';
+import '../../../../theme/app_motion.dart';
 
 /// A participant filling the stage. Same content as the grid tile without the
 /// card chrome, plus a stats overlay and controls that fade out while the
 /// pointer is still — [showOverlays] drives that, and pointer activity is
 /// reported through [onActivity].
 class ExpandedParticipantTile extends StatelessWidget {
-  static const _fade = Duration(milliseconds: 300);
+  static const _fade = AppMotion.enter;
 
   final ThemeState themeState;
   final VideoTrack? videoTrack;

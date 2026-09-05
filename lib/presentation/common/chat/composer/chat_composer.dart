@@ -421,7 +421,7 @@ class _ChatComposerState extends State<ChatComposer>
 
   Widget _buildBarBox(ThemeState themeState) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 140),
+      duration: AppMotion.state,
       padding: const EdgeInsets.fromLTRB(8, 6, 6, 6),
       decoration: BoxDecoration(
         color: themeState.bgTertiary,

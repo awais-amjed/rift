@@ -8,6 +8,7 @@ import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/squircle_avatar.dart';
 import 'rail_unread_badge.dart';
 import 'server_chip_menu.dart';
+import '../../../../../theme/app_motion.dart';
 
 /// One server in the rail.
 ///
@@ -74,7 +75,7 @@ class _RailServerChipState extends State<RailServerChip> {
                         child: _SelectionHalo(themeState: themeState),
                       ),
                     AnimatedOpacity(
-                      duration: const Duration(milliseconds: 140),
+                      duration: AppMotion.state,
                       opacity: widget.isSelected || _hovered ? 1 : 0.85,
                       child: SquircleAvatar(
                         name: widget.server.name,

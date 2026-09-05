@@ -55,6 +55,9 @@ class ThemeState {
 
   Color get bgHover => colors.bgHover;
 
+  /// Half of [bgHover]. See `PaletteColors.bgHoverSubtle`.
+  Color get bgHoverSubtle => colors.bgHoverSubtle;
+
   Color get bgActive => colors.bgActive;
 
   Color get bgElevated => colors.bgElevated;

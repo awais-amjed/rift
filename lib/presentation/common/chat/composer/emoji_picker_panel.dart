@@ -8,6 +8,7 @@ import '../../../theme/app_text.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/app_motion.dart';
 
 /// The emoji picker's contents: a search row, a flat row of category icons,
 /// and the grid.
@@ -111,7 +112,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
     }
     _scrollController.animateTo(
       offset.clamp(0.0, _scrollController.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 180),
+      duration: AppMotion.state,
       curve: Curves.easeOut,
     );
   }

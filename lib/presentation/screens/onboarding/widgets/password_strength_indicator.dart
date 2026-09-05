@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/app_motion.dart';
 
 /// Visual password strength meter: four bars and, on the same row, the word
 /// for what they show. One row rather than bars over a label — the label is
@@ -27,7 +28,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
               final active = i < strength.level;
               return Expanded(
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
+                  duration: AppMotion.state,
                   curve: Curves.easeOut,
                   height: 4,
                   margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
@@ -42,7 +43,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
+          duration: AppMotion.state,
           child: Text(
             strength.label,
             key: ValueKey(strength.label),

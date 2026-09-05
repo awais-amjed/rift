@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_motion.dart';
 
 /// The grab strip between the sidebar and the content.
 ///
@@ -62,7 +63,7 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
           width: K.sidebarResizeHandleWidth,
           child: Center(
             child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 120),
+              duration: AppMotion.react,
               opacity: active ? 1 : 0,
               child: Container(
                 width: 3,

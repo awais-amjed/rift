@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_shadows.dart';
+import '../theme/app_motion.dart';
 
 /// Wraps anything that should glow while its owner is talking — a voice tile,
 /// an avatar in the sidebar roster.
@@ -53,7 +54,7 @@ class _SpeakingRingState extends State<SpeakingRing>
     } else {
       // Stop at rest rather than wherever the pulse happened to be, so the
       // ring doesn't freeze mid-bloom when someone stops talking.
-      _controller.animateTo(0, duration: const Duration(milliseconds: 160));
+      _controller.animateTo(0, duration: AppMotion.state);
     }
   }
 

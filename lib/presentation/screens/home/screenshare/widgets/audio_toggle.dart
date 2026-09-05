@@ -5,6 +5,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_switch.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/app_motion.dart';
 
 /// Audio sharing toggle widget
 class AudioToggle extends StatelessWidget {
@@ -24,7 +25,7 @@ class AudioToggle extends StatelessWidget {
         return GestureDetector(
           onTap: onToggle,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: AppMotion.state,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: shareAudio

@@ -99,6 +99,13 @@ class PaletteColors {
     required this.channelActiveBorder,
   });
 
+  // ── Derived tints ─────────────────────────────────────────────────────────
+
+  /// Half a hover, for a surface the pointer is always crossing — a message
+  /// row. The full [bgHover] there turns reading into a strobe; this only has
+  /// to say which row the toolbar belongs to.
+  Color get bgHoverSubtle => textPrimary.withValues(alpha: 0.025);
+
   // ── Derived gradients ─────────────────────────────────────────────────────
 
   /// Primary buttons and the composer's send control.

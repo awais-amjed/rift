@@ -4,6 +4,7 @@ import '../../common/canvas_backdrop.dart';
 import 'widgets/account_step/account_step.dart';
 import 'widgets/password_step.dart';
 import 'widgets/welcome_step.dart';
+import '../../theme/app_motion.dart';
 
 /// Full-screen onboarding flow for first-time users.
 ///
@@ -48,7 +49,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
+                duration: AppMotion.enter,
                 switchInCurve: Curves.easeOut,
                 switchOutCurve: Curves.easeIn,
                 transitionBuilder: (child, animation) => FadeTransition(

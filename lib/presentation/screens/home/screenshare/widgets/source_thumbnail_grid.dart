@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/app_motion.dart';
 
 /// Thumbnail grid for selecting a capture source (Windows only).
 class SourceThumbnailGrid extends StatelessWidget {
@@ -85,7 +86,7 @@ class _SourceCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: AppMotion.state,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(K.radiusRow),
           border: Border.all(

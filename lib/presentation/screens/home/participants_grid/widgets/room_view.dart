@@ -11,6 +11,7 @@ import '../../controls/context_strip.dart';
 import '../../controls/control_bar.dart';
 import 'participant_grid_layout.dart';
 import 'waiting_view.dart';
+import '../../../../theme/app_motion.dart';
 
 /// Room is connected — shows participant tiles + control bar.
 ///
@@ -100,11 +101,11 @@ class _RoomViewState extends State<RoomView> {
                         child: AnimatedAlign(
                           alignment: Alignment.topCenter,
                           heightFactor: _chromeVisible ? 1.0 : 0.0,
-                          duration: const Duration(milliseconds: 250),
+                          duration: AppMotion.enter,
                           curve: Curves.easeInOut,
                           child: AnimatedOpacity(
                             opacity: _chromeVisible ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 200),
+                            duration: AppMotion.enter,
                             child: const ContextStrip(),
                           ),
                         ),

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../../data/constants.dart';
+import '../theme/app_motion.dart';
 
 /// Which edge a tab hangs off.
 enum EdgeTabSide {
@@ -58,7 +59,7 @@ class _EdgeTabState extends State<EdgeTab> {
             child: GestureDetector(
               onTap: widget.onTap,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
+                duration: AppMotion.state,
                 width: _hovered ? 22 : 18,
                 height: 72,
                 decoration: BoxDecoration(

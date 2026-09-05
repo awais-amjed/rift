@@ -5,6 +5,7 @@ import '../../data/constants.dart';
 import '../../logic/cubits/app/app_cubit.dart';
 import '../../logic/services/host_platform.dart';
 import 'title_bar/app_title_bar.dart';
+import '../theme/app_motion.dart';
 
 /// Wraps the entire app (above the Navigator) so the title bar always renders
 /// on top of dialogs, sheets, and any other Navigator overlay.
@@ -63,7 +64,7 @@ class _TitleBarOverlayState extends State<TitleBarOverlay> {
               widget.child,
               // Title bar is last in the Stack → always above dialogs.
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 180),
+                duration: AppMotion.state,
                 curve: Curves.easeOut,
                 top: (visible || hovering) ? 0 : -_height,
                 left: 0,

@@ -5,6 +5,7 @@ import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/user_avatar.dart';
 import '../../../../../theme/custom_colors.dart';
+import '../../../../../theme/app_motion.dart';
 
 /// Your avatar in the dock, and the way into the profile editor.
 ///
@@ -74,7 +75,7 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
   Widget _overlay(ThemeState themeState, BorderRadius radius) {
     return AnimatedOpacity(
       opacity: _hovering ? 1 : 0,
-      duration: const Duration(milliseconds: 120),
+      duration: AppMotion.react,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: themeState.bgPrimary.withValues(alpha: 0.62),

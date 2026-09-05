@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/custom_colors.dart';
 import '../../../data/constants.dart';
+import '../../theme/app_motion.dart';
 
 /// One control in the title bar's right-hand cluster.
 ///
@@ -52,7 +53,7 @@ class _WindowButtonState extends State<WindowButton> {
           onTap: widget.onTap,
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            duration: AppMotion.react,
             width: 34,
             height: 26,
             decoration: BoxDecoration(

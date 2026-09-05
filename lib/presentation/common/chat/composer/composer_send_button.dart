@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_motion.dart';
 
 /// The send button: solid accent once there's something to send, a muted
 /// ghost arrow otherwise.
@@ -47,7 +48,7 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
         onHover: (value) => setState(() => _hovering = value),
         borderRadius: radius,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          duration: AppMotion.react,
           width: K.composerControlSize,
           height: K.composerControlSize,
           decoration: BoxDecoration(

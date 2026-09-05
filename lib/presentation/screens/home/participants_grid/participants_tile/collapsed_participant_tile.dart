@@ -8,6 +8,7 @@ import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
 import 'watch_stream_button.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/app_motion.dart';
 
 /// A participant as they appear in the grid: video or avatar in a rounded
 /// card, name badge always visible, and a speaking ring that lights up.
@@ -55,7 +56,7 @@ class CollapsedParticipantTile extends StatelessWidget {
       borderRadius: radius,
       bloom: 2.2,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: AppMotion.state,
         decoration: BoxDecoration(
           color: themeState.isDarkTheme
               ? themeState.bgSecondary
