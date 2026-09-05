@@ -99,7 +99,7 @@ class AppTheme {
         titleMedium: AppText.panelTitle.copyWith(color: colors.textPrimary),
         bodyMedium: AppText.body.copyWith(color: colors.textSecondary),
         bodySmall: AppText.secondary.copyWith(color: colors.textTertiary),
-        labelSmall: AppText.label.copyWith(color: colors.textQuaternary),
+        labelSmall: AppText.label.copyWith(color: colors.textTertiary),
       ),
     );
   }

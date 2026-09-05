@@ -99,7 +99,7 @@ class MemberRow extends StatelessWidget {
                             Text(
                               '@${member.username}',
                               style: AppText.secondary.copyWith(
-                                color: themeState.textQuaternary,
+                                color: themeState.textTertiary,
                               ),
                             ),
                           ],

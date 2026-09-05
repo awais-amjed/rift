@@ -95,9 +95,7 @@ class ComposerMentionMenu extends StatelessWidget {
                   '@${member.username}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.meta.copyWith(
-                    color: themeState.textQuaternary,
-                  ),
+                  style: AppText.meta.copyWith(color: themeState.textTertiary),
                 ),
               ),
             ],

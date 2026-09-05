@@ -41,7 +41,7 @@ class ParticipantVolumeControl extends StatelessWidget {
                   Text(
                     'VOLUME',
                     style: AppText.sectionLabel.copyWith(
-                      color: themeState.textQuaternary,
+                      color: themeState.textTertiary,
                     ),
                   ),
                   Text(

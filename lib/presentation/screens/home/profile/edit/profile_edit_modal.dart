@@ -175,7 +175,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
               Text(
                 'Each server is a separate identity — this name and picture '
                 'apply here only.',
-                style: AppText.label.copyWith(color: themeState.textQuaternary),
+                style: AppText.label.copyWith(color: themeState.textTertiary),
               ),
             ],
           ),
@@ -243,7 +243,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
         const SizedBox(height: 8),
         Text(
           picked != null ? 'New picture ready to save' : 'Change picture',
-          style: AppText.label.copyWith(color: themeState.textQuaternary),
+          style: AppText.label.copyWith(color: themeState.textTertiary),
         ),
       ],
     );

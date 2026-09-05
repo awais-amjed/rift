@@ -53,7 +53,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                         Text(
                           'VOICE CONNECTION',
                           style: AppText.sectionLabel.copyWith(
-                            color: themeState.textQuaternary,
+                            color: themeState.textTertiary,
                           ),
                         ),
                       ],
@@ -119,7 +119,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                       Text(
                         'PING HISTORY · 5 MIN',
                         style: AppText.sectionLabel.copyWith(
-                          color: themeState.textQuaternary,
+                          color: themeState.textTertiary,
                         ),
                       ),
                       const SizedBox(height: 8),

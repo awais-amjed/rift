@@ -84,7 +84,7 @@ class ComposerCommandMenu extends StatelessWidget {
               // the row that does not say whose it is would be a coin toss.
               Text(
                 entry.bot.displayName,
-                style: AppText.meta.copyWith(color: themeState.textQuaternary),
+                style: AppText.meta.copyWith(color: themeState.textTertiary),
               ),
             ],
           ),

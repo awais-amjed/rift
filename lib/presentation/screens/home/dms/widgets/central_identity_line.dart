@@ -53,7 +53,7 @@ class CentralIdentityLine extends StatelessWidget {
           handle == null ? 'central account' : '· central account',
           style: AppText.label.copyWith(
             fontWeight: FontWeight.w400,
-            color: themeState.textQuaternary,
+            color: themeState.textTertiary,
           ),
         ),
         if (handle != null)

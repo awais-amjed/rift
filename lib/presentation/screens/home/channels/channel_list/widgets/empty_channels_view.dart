@@ -43,7 +43,7 @@ class EmptyChannelsView extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: AppText.label.copyWith(
                     fontWeight: FontWeight.w400,
-                    color: themeState.textQuaternary,
+                    color: themeState.textTertiary,
                   ),
                 ),
                 if (onCreate != null) ...[

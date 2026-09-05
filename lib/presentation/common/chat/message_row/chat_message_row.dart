@@ -361,7 +361,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                   TextSpan(
                     text: '  (edited)',
                     style: AppText.meta.copyWith(
-                      color: themeState.textQuaternary,
+                      color: themeState.textTertiary,
                     ),
                   ),
               ],

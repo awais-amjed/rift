@@ -115,7 +115,7 @@ class _MessageEditFieldState extends State<MessageEditField> {
           'escape to cancel • enter to save',
           style: AppText.label.copyWith(
             fontWeight: FontWeight.w400,
-            color: theme.textQuaternary,
+            color: theme.textTertiary,
           ),
         ),
       ],

@@ -66,7 +66,7 @@ class QuickSwitcherRow extends StatelessWidget {
                   Text(
                     isVoice ? 'Voice' : 'Text',
                     style: AppText.meta.copyWith(
-                      color: themeState.textQuaternary,
+                      color: themeState.textTertiary,
                     ),
                   ),
                 ],

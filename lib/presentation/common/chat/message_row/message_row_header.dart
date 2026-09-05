@@ -72,7 +72,7 @@ class MessageRowHeader extends StatelessWidget {
               _timeLabel(message.sentAt),
               // Mono so timestamps form a column down the message list
               // instead of jittering with the digits.
-              style: AppText.meta.copyWith(color: themeState.textQuaternary),
+              style: AppText.meta.copyWith(color: themeState.textTertiary),
             ),
         ],
       ),
@@ -136,7 +136,7 @@ class MessageRowHeader extends StatelessWidget {
         const SizedBox(width: 5),
         Text(
           'Sending…',
-          style: AppText.meta.copyWith(color: themeState.textQuaternary),
+          style: AppText.meta.copyWith(color: themeState.textTertiary),
         ),
       ],
     );

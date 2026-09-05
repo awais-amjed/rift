@@ -26,7 +26,7 @@ class DateDivider extends StatelessWidget {
             style: AppText.meta.copyWith(
               fontWeight: FontWeight.w500,
               letterSpacing: 1,
-              color: themeState.textQuaternary,
+              color: themeState.textTertiary,
             ),
           ),
           Expanded(child: Divider(color: themeState.borderPrimary, height: 1)),

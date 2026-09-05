@@ -133,7 +133,7 @@ class InviteForm extends StatelessWidget {
         Text(
           'Share this link with the person you want to invite — they paste '
           'it as one field to join.',
-          style: AppText.secondary.copyWith(color: themeState.textQuaternary),
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
       ],
     );

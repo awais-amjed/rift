@@ -37,7 +37,7 @@ class SectionHeader extends StatelessWidget {
                 child: Text(
                   label.toUpperCase(),
                   style: AppText.sectionLabel.copyWith(
-                    color: themeState.textQuaternary,
+                    color: themeState.textTertiary,
                   ),
                 ),
               ),

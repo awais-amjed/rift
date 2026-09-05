@@ -69,7 +69,7 @@ class ContextMenuPanel extends StatelessWidget {
           Text(
             heading!.toUpperCase(),
             style: AppText.sectionLabel.copyWith(
-              color: themeState.textQuaternary,
+              color: themeState.textTertiary,
             ),
           ),
           if (subheading != null) ...[
@@ -97,7 +97,7 @@ class ContextMenuPanel extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.meta.copyWith(
-                            color: themeState.textQuaternary,
+                            color: themeState.textTertiary,
                           ),
                         ),
                     ],

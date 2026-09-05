@@ -64,7 +64,7 @@ class AudioToggle extends StatelessWidget {
                             ? 'System audio will be captured'
                             : 'No audio will be shared',
                         style: AppText.label.copyWith(
-                          color: themeState.textQuaternary,
+                          color: themeState.textTertiary,
                         ),
                       ),
                     ],

@@ -68,7 +68,7 @@ class QuotaMeter extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: AppText.label.copyWith(
                 fontWeight: FontWeight.w400,
-                color: themeState.textQuaternary,
+                color: themeState.textTertiary,
               ),
             ),
           ),

@@ -57,7 +57,7 @@ class NoServerButton extends StatelessWidget {
                         Text(
                           'Click to add',
                           style: AppText.label.copyWith(
-                            color: themeState.textQuaternary,
+                            color: themeState.textTertiary,
                           ),
                         ),
                       ],

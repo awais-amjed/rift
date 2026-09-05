@@ -118,7 +118,7 @@ class WelcomeStep extends StatelessWidget {
             'Privacy mode: no email, no central server — your identity '
             'never leaves this device.',
             textAlign: TextAlign.center,
-            style: AppText.label.copyWith(color: theme.textQuaternary),
+            style: AppText.label.copyWith(color: theme.textTertiary),
           ),
         ],
       ),

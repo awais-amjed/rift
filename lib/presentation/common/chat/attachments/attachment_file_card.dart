@@ -109,7 +109,7 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
           humanSize(widget.attachment.size),
           // A file's size is a figure — mono keeps a column of cards
           // from having their sizes wander.
-          style: AppText.meta.copyWith(color: theme.textQuaternary),
+          style: AppText.meta.copyWith(color: theme.textTertiary),
         ),
       ],
     );

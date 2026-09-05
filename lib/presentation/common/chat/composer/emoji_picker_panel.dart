@@ -272,7 +272,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
                 child: Text(
                   _label(section.category),
                   style: AppText.sectionLabel.copyWith(
-                    color: themeState.textQuaternary,
+                    color: themeState.textTertiary,
                   ),
                 ),
               ),

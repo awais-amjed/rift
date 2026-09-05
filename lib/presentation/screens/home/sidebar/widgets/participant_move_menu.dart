@@ -111,7 +111,7 @@ class _ParticipantMoveMenuState extends State<ParticipantMoveMenu> {
         text,
         style: AppText.label.copyWith(
           fontWeight: FontWeight.w400,
-          color: color ?? themeState.textQuaternary,
+          color: color ?? themeState.textTertiary,
         ),
       ),
     );

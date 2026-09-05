@@ -68,7 +68,7 @@ class SummonedBotRow extends StatelessWidget {
               ),
               Text(
                 'summoned',
-                style: AppText.meta.copyWith(color: themeState.textQuaternary),
+                style: AppText.meta.copyWith(color: themeState.textTertiary),
               ),
             ],
           ),

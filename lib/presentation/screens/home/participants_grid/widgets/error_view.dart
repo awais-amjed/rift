@@ -97,7 +97,7 @@ class ErrorView extends StatelessWidget {
         textAlign: TextAlign.center,
         maxLines: 4,
         overflow: TextOverflow.ellipsis,
-        style: AppText.figure.copyWith(color: themeState.textQuaternary),
+        style: AppText.figure.copyWith(color: themeState.textTertiary),
       ),
     );
   }

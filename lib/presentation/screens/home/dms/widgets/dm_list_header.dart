@@ -62,7 +62,7 @@ class DmListHeader extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.meta.copyWith(
-                      color: themeState.textQuaternary,
+                      color: themeState.textTertiary,
                     ),
                   ),
               ],

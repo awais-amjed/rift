@@ -54,7 +54,7 @@ class PublicServerTile extends StatelessWidget {
                     'Joined',
                     style: AppText.label.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: themeState.textQuaternary,
+                      color: themeState.textTertiary,
                     ),
                   ),
                 ),

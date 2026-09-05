@@ -210,7 +210,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
           if (count != null)
             Text(
               '$count',
-              style: AppText.figure.copyWith(color: themeState.textQuaternary),
+              style: AppText.figure.copyWith(color: themeState.textTertiary),
             ),
           // Through the shell rather than straight to AppCubit: overlaid,
           // this is the drawer's own close button and has to shut the drawer,

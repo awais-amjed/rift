@@ -81,7 +81,7 @@ class JumpField extends StatelessWidget {
       ),
       child: Text(
         shortcutLabel,
-        style: AppText.kbd.copyWith(color: themeState.textQuaternary),
+        style: AppText.kbd.copyWith(color: themeState.textTertiary),
       ),
     );
   }

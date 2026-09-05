@@ -130,7 +130,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   // Ticks while playing, so it must not change width.
-                  style: AppText.figure.copyWith(color: theme.textQuaternary),
+                  style: AppText.figure.copyWith(color: theme.textTertiary),
                 ),
               ],
             ),

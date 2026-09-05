@@ -81,7 +81,7 @@ class SearchResultRow extends StatelessWidget {
                     trailingNote!,
                     style: AppText.label.copyWith(
                       fontWeight: FontWeight.w400,
-                      color: themeState.textQuaternary,
+                      color: themeState.textTertiary,
                     ),
                   ),
               ],
