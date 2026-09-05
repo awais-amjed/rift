@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../common/app_button.dart';
-import '../../../../common/confirm_dialog.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../theme/custom_colors.dart';
 
@@ -19,36 +16,6 @@ class SignedInPanel extends StatelessWidget {
   final SupabaseBackupState state;
 
   const SignedInPanel({super.key, required this.state});
-
-  /// Signs out of the account AND removes the vault + server list from this
-  /// device, returning to onboarding. The cloud backup is untouched, so
-  /// signing back in restores everything.
-  Future<void> _signOutOfDevice(BuildContext context) async {
-    final confirmed = await showConfirmDialog(
-      context: context,
-      title: 'Sign out of this device?',
-      message:
-          'Your encrypted cloud backup stays safe. The vault and server list '
-          'on this device will be removed — sign back in to restore them '
-          'automatically.',
-      confirmLabel: 'Sign Out',
-      icon: Icons.logout_rounded,
-      isDestructive: true,
-    );
-    if (!confirmed || !context.mounted) return;
-
-    final backupCubit = context.read<SupabaseBackupCubit>();
-    final serverCubit = context.read<ServerCubit>();
-    final vaultCubit = context.read<VaultCubit>();
-    final navigator = Navigator.of(context);
-
-    await backupCubit.signOut();
-    await serverCubit.reset();
-    await vaultCubit.resetVault();
-
-    // Close the settings dialog — the router now shows onboarding.
-    navigator.popUntil((route) => route.isFirst);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,24 +45,13 @@ class SignedInPanel extends StatelessWidget {
                 color: CustomColors.success,
               ),
               const SizedBox(width: 8),
+              // Only who you are. Signing out is an action against this
+              // device, and it lives with the other one of those, under
+              // "This device" below.
               Expanded(
                 child: Text(
                   'Signed in as ${state.email ?? 'unknown'}',
                   style: AppText.secondary.copyWith(color: theme.textSecondary),
-                ),
-              ),
-              TextButton(
-                onPressed: isProcessing
-                    ? null
-                    : () => _signOutOfDevice(context),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(48, 28),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Sign out',
-                  style: AppText.label.copyWith(color: CustomColors.error),
                 ),
               ),
             ],

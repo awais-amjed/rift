@@ -22,6 +22,11 @@ class K {
   /// the avatar's size.
   static const double avatarRadiusRatio = 1 / 3;
 
+  /// The bar across the top of a pane: the chat header and the voice
+  /// stage's context strip. One height, so switching panes does not jump
+  /// the content under it by the difference.
+  static const double paneHeaderHeight = 52;
+
   // ── Controls ──────────────────────────────────────────────
   /// A standalone button.
   static const double controlHeight = 38;

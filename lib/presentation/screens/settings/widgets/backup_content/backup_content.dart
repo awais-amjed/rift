@@ -9,16 +9,17 @@ import 'confirm_email_panel.dart';
 import 'conflict_panel.dart';
 import 'recovery_key_panel.dart';
 import 'file_backup_panel.dart';
-import 'reset_vault_card.dart';
 import 'signed_in_panel.dart';
+import 'this_device_section.dart';
 import 'vault_password_panel.dart';
 
 /// Backup tab content rendered inside the settings dialog.
 ///
 /// Everything that decides which identity this device holds, in the order you
 /// would do it: sign in to the central account, save or restore the encrypted
-/// backup, and — last, because it is the one step with no way back — wipe the
-/// vault (see [ResetVaultCard] for why that lives here rather than in the nav).
+/// backup, and — last, because they are the steps with no way back — sign the
+/// device out or wipe its vault (see [ThisDeviceSection] for why those live
+/// here rather than in the nav or the signed-in banner).
 class BackupContent extends StatelessWidget {
   /// Wipes the vault. Confirmed by the caller before anything is destroyed.
   final VoidCallback onResetVault;
@@ -72,7 +73,10 @@ class _BackupBody extends StatelessWidget {
             const SizedBox(height: 28),
             FileBackupPanel(),
             const SizedBox(height: 28),
-            ResetVaultCard(onTap: onResetVault),
+            ThisDeviceSection(
+              signedIn: state.isSignedIn,
+              onResetVault: onResetVault,
+            ),
           ],
         );
       },

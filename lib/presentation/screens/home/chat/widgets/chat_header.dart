@@ -13,6 +13,7 @@ import '../../../../../data/classes/channel.dart';
 import '../../channels/channel_list/widgets/channel_context_menu.dart';
 import 'chat_header_button.dart';
 import 'header_pane_buttons.dart';
+import '../../../../../data/constants.dart';
 
 /// The chat panel's top bar: which channel you're in, that it's encrypted, and
 /// the controls that change what the panel shows.
@@ -21,7 +22,7 @@ import 'header_pane_buttons.dart';
 /// it's the product's central claim, and a chip you can read beats a glyph
 /// you have to hover.
 class ChatHeader extends StatelessWidget {
-  static const double height = 52;
+  static const double height = K.paneHeaderHeight;
 
   const ChatHeader({super.key});
 

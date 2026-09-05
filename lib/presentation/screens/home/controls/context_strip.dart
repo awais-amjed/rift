@@ -86,7 +86,7 @@ class _ContextStripState extends State<ContextStrip> {
                     // than underneath it.
                     final menuSlot = context.layoutMode.sidebarIsOverlay;
                     return Container(
-                      height: 44,
+                      height: K.paneHeaderHeight,
                       padding: EdgeInsets.only(
                         left: menuSlot ? K.paneMenuButtonSlot : 18,
                         right: 18,

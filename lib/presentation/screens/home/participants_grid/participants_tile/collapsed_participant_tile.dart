@@ -61,12 +61,10 @@ class CollapsedParticipantTile extends StatelessWidget {
               ? themeState.bgSecondary
               : themeState.bgTertiary,
           borderRadius: radius,
-          border: Border.all(
-            // At rest the tile is edged, not outlined — the speaking ring is
-            // what should read as a state change, not a thicker border.
-            color: isSpeaking ? themeState.primary : themeState.borderElevated,
-            width: isSpeaking ? 2 : 1,
-          ),
+          // The same hairline speaking or not. Speech is the ring outside
+          // the tile; a border swapping from 1px to 2px nudged the video
+          // inside by a pixel every time someone started talking.
+          border: Border.all(color: themeState.borderElevated),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(K.radiusCard - 1),
