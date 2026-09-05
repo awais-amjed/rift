@@ -97,14 +97,17 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     // server's own domain, because it has no other way to tell an
     // administrator from any other member — see the publish_server edge
     // function on central.
-    final listingToken = await context.read<ServerCubit>().listingToken(
+    final proof = await context.read<ServerCubit>().listingToken(
       serverId: server.id,
     );
     if (!mounted) return;
-    if (listingToken == null) {
+    if (proof.token == null) {
       setState(() {
         _publishing = false;
-        _error = 'Only a server admin can list this server publicly.';
+        // The server's own words. "Only an admin can do this" is one of the
+        // things it might say, and saying it for every failure told an admin
+        // they were not one whenever anything else went wrong.
+        _error = proof.error ?? 'This server would not confirm the listing.';
       });
       return;
     }
@@ -116,7 +119,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       serverId: server.id,
       inviteCode: invite.inviteCode!,
       name: server.name,
-      listingToken: listingToken,
+      listingToken: proof.token!,
       description: description.isEmpty ? null : description,
       iconUrl: server.iconUrl,
       tags: ServerTags.withPending(_tags, _tagCtrl.text),

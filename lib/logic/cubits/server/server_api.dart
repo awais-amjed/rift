@@ -124,12 +124,18 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   /// A one-time token proving an admin of [serverId] wants it listed.
   ///
   /// Handed to central, which redeems it against this server's own domain
-  /// before writing a directory entry — see `publish_server` there. Returns
-  /// null when this server refuses, which for anyone who is not an admin is
-  /// the expected answer.
-  Future<String?> listingToken({String? serverId}) async {
+  /// before writing a directory entry — see `publish_server` there.
+  ///
+  /// Returns the server's own reason on failure rather than a bare null. It
+  /// used to return null for everything, and every caller said the same thing
+  /// — "only a server admin can list this server publicly" — so an endpoint
+  /// that was failing to boot, a server that was unreachable and a genuine
+  /// refusal all arrived as an accusation that the admin was not an admin.
+  Future<({String? token, String? error})> listingToken({String? serverId}) async {
     final server = _target(serverId);
-    if (server == null) return null;
+    if (server == null) {
+      return (token: null, error: 'That server is not open here any more.');
+    }
 
     final response = await _callFor(
       server,
@@ -138,8 +144,14 @@ mixin _ServerApiMixin on Cubit<ServerState> {
         bearerToken: token,
       ),
     );
-    if (!response.success) return null;
-    return (response.data as Map<String, dynamic>?)?['token'] as String?;
+    if (!response.success) {
+      return (token: null, error: response.error?.toString());
+    }
+
+    final token = (response.data as Map<String, dynamic>?)?['token'] as String?;
+    return token == null
+        ? (token: null, error: 'This server did not return a listing token.')
+        : (token: token, error: null);
   }
 
   Future<({bool success, String? inviteCode, String? error})> createInvite({
