@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/confirm_dialog.dart';
@@ -14,16 +13,12 @@ import '../section_title.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../theme/theme_context.dart';
 
 class SignedInPanel extends StatelessWidget {
-  final ThemeState themeState;
   final SupabaseBackupState state;
 
-  const SignedInPanel({
-    super.key,
-    required this.themeState,
-    required this.state,
-  });
+  const SignedInPanel({super.key, required this.state});
 
   /// Signs out of the account AND removes the vault + server list from this
   /// device, returning to onboarding. The cloud backup is untouched, so
@@ -57,6 +52,7 @@ class SignedInPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final cubit = context.read<SupabaseBackupCubit>();
     final isProcessing = state.isProcessing;
     final theme = themeState;
@@ -109,7 +105,7 @@ class SignedInPanel extends StatelessWidget {
         const SizedBox(height: 20),
 
         // ── Save backup ────────────────────────────────────────
-        SectionTitle(label: 'Cloud', themeState: theme),
+        SectionTitle(label: 'Cloud'),
         const SizedBox(height: 4),
         Text(
           'Upload your current encrypted vault backup to the cloud. '

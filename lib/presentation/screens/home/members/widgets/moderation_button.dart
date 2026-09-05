@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/theme_context.dart';
 
 /// One moderation control in the members dialog.
 ///
@@ -14,7 +14,6 @@ class ModerationButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
-  final ThemeState themeState;
   final VoidCallback? onTap;
 
   const ModerationButton({
@@ -22,12 +21,12 @@ class ModerationButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.isActive,
-    required this.themeState,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final color = isActive ? themeState.textSecondary : CustomColors.error;
 
     // Same height and hairline ring as a secondary AppButton, so the panel

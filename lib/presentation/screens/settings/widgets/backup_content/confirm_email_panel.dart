@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/resend_confirmation_button.dart';
@@ -10,26 +9,23 @@ import '../../../../common/resend_confirmation_button.dart';
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../theme/theme_context.dart';
 
 class ConfirmEmailPanel extends StatelessWidget {
-  final ThemeState themeState;
   final SupabaseBackupState state;
 
-  const ConfirmEmailPanel({
-    super.key,
-    required this.themeState,
-    required this.state,
-  });
+  const ConfirmEmailPanel({super.key, required this.state});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final cubit = context.read<SupabaseBackupCubit>();
     final email = state.email;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Check your email', themeState: themeState),
+        SectionTitle(label: 'Check your email'),
         const SizedBox(height: 4),
         Text(
           email != null

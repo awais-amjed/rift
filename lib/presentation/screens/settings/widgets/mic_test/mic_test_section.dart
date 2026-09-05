@@ -6,7 +6,6 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/mic_test_capture.dart';
 import 'widgets/input_level_panel.dart';
 import 'widgets/mic_test_controls.dart';
@@ -33,9 +32,7 @@ import 'widgets/mic_test_controls.dart';
 /// and renegotiating it is slow enough that the new capture opens against a
 /// microphone that is not there yet.
 class MicTestSection extends StatefulWidget {
-  final ThemeState themeState;
-
-  const MicTestSection({super.key, required this.themeState});
+  const MicTestSection({super.key});
 
   @override
   State<MicTestSection> createState() => _MicTestSectionState();
@@ -157,22 +154,16 @@ class _MicTestSectionState extends State<MicTestSection> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = widget.themeState;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InputLevelPanel(
-          level: _level,
-          testing: _testing,
-          themeState: themeState,
-        ),
+        InputLevelPanel(level: _level, testing: _testing),
         const SizedBox(height: 10),
         MicTestControls(
           testing: _testing,
           busy: _busy,
           error: _error,
           onToggle: _toggle,
-          themeState: themeState,
         ),
       ],
     );

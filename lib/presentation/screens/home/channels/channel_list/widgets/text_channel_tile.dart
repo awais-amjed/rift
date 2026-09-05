@@ -47,11 +47,7 @@ class TextChannelTile extends StatelessWidget {
           channel: channel,
           child: NavRow(
             icon: Icons.tag_rounded,
-            iconBadge: channel.isPrivate
-                ? ChannelLockBadge(
-                    themeState: context.watch<ThemeCubit>().state,
-                  )
-                : null,
+            iconBadge: channel.isPrivate ? ChannelLockBadge() : null,
             label: channel.name,
             isSelected: isSelected,
             // A muted channel is still unread — the name stays lifted, so it
@@ -59,11 +55,7 @@ class TextChannelTile extends StatelessWidget {
             // loud pill, which is the part that reads as "you are wanted".
             isUnread: unread > 0,
             trailing: unread > 0
-                ? UnreadBadge(
-                    count: unread,
-                    themeState: context.watch<ThemeCubit>().state,
-                    isMuted: level.isMuted,
-                  )
+                ? UnreadBadge(count: unread, isMuted: level.isMuted)
                 : level.isMuted
                 ? Icon(
                     Icons.notifications_off_outlined,

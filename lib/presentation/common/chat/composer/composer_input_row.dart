@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'composer_icon_button.dart';
 import 'composer_send_button.dart';
 import 'composer_text_field.dart';
@@ -15,7 +14,6 @@ import 'emoji_picker_popup.dart';
 class ComposerInputRow extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
-  final ThemeState themeState;
   final bool enabled;
   final bool canSend;
   final bool atAttachmentLimit;
@@ -30,7 +28,6 @@ class ComposerInputRow extends StatelessWidget {
     super.key,
     required this.controller,
     required this.focusNode,
-    required this.themeState,
     required this.enabled,
     required this.canSend,
     required this.atAttachmentLimit,
@@ -55,14 +52,14 @@ class ComposerInputRow extends StatelessWidget {
         ComposerIconButton(
           icon: Icons.add_rounded,
           tooltip: 'Attach files',
-          themeState: themeState,
+
           onPressed: enabled ? onPickFiles : null,
         ),
         Expanded(
           child: ComposerTextField(
             controller: controller,
             focusNode: focusNode,
-            themeState: themeState,
+
             enabled: enabled,
             hintText: hintText,
             onChanged: onChanged,
@@ -74,21 +71,17 @@ class ComposerInputRow extends StatelessWidget {
           builder: (buttonContext) => ComposerIconButton(
             icon: Icons.sentiment_satisfied_alt_rounded,
             tooltip: 'Emoji',
-            themeState: themeState,
+
             onPressed: enabled ? () => _openEmojiPicker(buttonContext) : null,
           ),
         ),
         ComposerIconButton(
           icon: Icons.mic_none_rounded,
           tooltip: 'Record a voice message',
-          themeState: themeState,
+
           onPressed: (enabled && !atAttachmentLimit) ? onStartRecording : null,
         ),
-        ComposerSendButton(
-          themeState: themeState,
-          enabled: canSend,
-          onPressed: onSubmit,
-        ),
+        ComposerSendButton(enabled: canSend, onPressed: onSubmit),
       ],
     );
   }

@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/server/server_cubit.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../../logic/services/avatar_cache.dart';
 import 'squircle_avatar.dart';
 
@@ -18,7 +17,6 @@ class UserAvatar extends StatefulWidget {
   final String? avatarPath;
   final String name;
   final double size;
-  final ThemeState themeState;
 
   /// Stable id picking the fallback gradient. Pass a user id — falling back to
   /// the name means a rename changes someone's colour.
@@ -29,7 +27,6 @@ class UserAvatar extends StatefulWidget {
     required this.avatarPath,
     required this.name,
     required this.size,
-    required this.themeState,
     this.seed,
   });
 

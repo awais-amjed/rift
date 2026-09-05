@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/server_member.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/theme_context.dart';
 
 /// Sits above the composer while what is typed will be sent **in the clear**.
 ///
@@ -21,16 +21,11 @@ import '../../../../data/constants.dart';
 /// *who gets to read it* is the half people actually weigh.
 class ComposerPlaintextNotice extends StatelessWidget {
   final ServerMember bot;
-  final ThemeState themeState;
-
-  const ComposerPlaintextNotice({
-    super.key,
-    required this.bot,
-    required this.themeState,
-  });
+  const ComposerPlaintextNotice({super.key, required this.bot});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final dataUse = bot.manifest.dataUse;
     return Container(
       width: double.infinity,

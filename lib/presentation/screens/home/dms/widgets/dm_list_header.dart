@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../chat/widgets/chat_header.dart';
 import '../../chat/widgets/header_pane_buttons.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The bar above a DM conversation list: what the list is, and what it belongs
 /// to.
@@ -19,17 +19,11 @@ class DmListHeader extends StatelessWidget {
   /// Sits under [title] — a handle, a server name.
   final String? subtitle;
 
-  final ThemeState themeState;
-
-  const DmListHeader({
-    super.key,
-    required this.title,
-    required this.themeState,
-    this.subtitle,
-  });
+  const DmListHeader({super.key, required this.title, this.subtitle});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final hasMenu = context.layoutMode.sidebarIsOverlay;
 
     return Container(

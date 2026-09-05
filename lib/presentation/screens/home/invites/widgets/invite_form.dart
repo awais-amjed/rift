@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import 'chip_selector.dart';
 import 'copyable_field.dart';
@@ -10,12 +9,12 @@ import '../../../../theme/app_text.dart';
 import '../../../settings/widgets/setting_toggle_row.dart';
 import '../../../../../data/classes/role.dart';
 import 'invite_role_picker.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The body of the invite modal: the two pickers and the generated link.
 ///
 /// Purely presentational — the modal owns the token and the request.
 class InviteForm extends StatelessWidget {
-  final ThemeState themeState;
   final int expiryIndex;
   final int usesIndex;
   final ValueChanged<int> onExpirySelected;
@@ -39,7 +38,6 @@ class InviteForm extends StatelessWidget {
 
   const InviteForm({
     super.key,
-    required this.themeState,
     required this.expiryIndex,
     required this.usesIndex,
     required this.onExpirySelected,
@@ -58,6 +56,7 @@ class InviteForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -85,7 +84,6 @@ class InviteForm extends StatelessWidget {
         // what actually differs, because "it's a bot" tells somebody nothing
         // about what the thing will and will not be able to read.
         InviteRolePicker(
-          themeState: themeState,
           roles: roles,
           selectedId: roleId,
           onSelected: onRoleSelected,
@@ -93,7 +91,6 @@ class InviteForm extends StatelessWidget {
         if (roles.isNotEmpty) const SizedBox(height: 16),
 
         SettingToggleRow(
-          themeState: themeState,
           title: 'This invite is for a bot',
           description:
               'Bots are listed separately and can never be given a '

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/theme_context.dart';
 
 /// The floating actions revealed at a message's top-right corner on hover.
 ///
@@ -13,8 +13,6 @@ import '../../../../data/constants.dart';
 /// red glyph, red hover — so a row of near-identical icons can't lead you
 /// into it by accident.
 class MessageHoverToolbar extends StatelessWidget {
-  final ThemeState themeState;
-
   /// Each callback receives the tapped button's context so a popover (the
   /// reaction picker) can anchor to it. Null hides that action.
   final void Function(BuildContext anchorContext)? onReact;
@@ -24,7 +22,6 @@ class MessageHoverToolbar extends StatelessWidget {
 
   const MessageHoverToolbar({
     super.key,
-    required this.themeState,
     this.onReact,
     this.onCopy,
     this.onEdit,
@@ -33,6 +30,7 @@ class MessageHoverToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Container(
       decoration: BoxDecoration(
         color: themeState.bgElevated,
@@ -54,28 +52,28 @@ class MessageHoverToolbar extends StatelessWidget {
                 _ToolbarButton(
                   icon: Icons.add_reaction_outlined,
                   tooltip: 'React',
-                  themeState: themeState,
+
                   onTap: onReact!,
                 ),
               if (onCopy != null)
                 _ToolbarButton(
                   icon: Icons.content_copy_outlined,
                   tooltip: 'Copy text',
-                  themeState: themeState,
+
                   onTap: onCopy!,
                 ),
               if (onEdit != null)
                 _ToolbarButton(
                   icon: Icons.edit_outlined,
                   tooltip: 'Edit',
-                  themeState: themeState,
+
                   onTap: onEdit!,
                 ),
               if (onDelete != null)
                 _ToolbarButton(
                   icon: Icons.delete_outline,
                   tooltip: 'Delete',
-                  themeState: themeState,
+
                   isDangerous: true,
                   onTap: onDelete!,
                 ),
@@ -90,20 +88,19 @@ class MessageHoverToolbar extends StatelessWidget {
 class _ToolbarButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
-  final ThemeState themeState;
   final bool isDangerous;
   final void Function(BuildContext anchorContext) onTap;
 
   const _ToolbarButton({
     required this.icon,
     required this.tooltip,
-    required this.themeState,
     required this.onTap,
     this.isDangerous = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Tooltip(
       message: tooltip,
       child: InkWell(

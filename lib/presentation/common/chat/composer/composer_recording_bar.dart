@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import 'composer_icon_button.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// What the composer bar shows while a voice note is being recorded.
 ///
@@ -12,14 +12,12 @@ import '../../../theme/app_text.dart';
 /// the input row, so the bar keeps its height when recording starts.
 class ComposerRecordingBar extends StatelessWidget {
   final Duration elapsed;
-  final ThemeState themeState;
   final VoidCallback onCancel;
   final VoidCallback onStop;
 
   const ComposerRecordingBar({
     super.key,
     required this.elapsed,
-    required this.themeState,
     required this.onCancel,
     required this.onStop,
   });
@@ -32,12 +30,13 @@ class ComposerRecordingBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Row(
       children: [
         ComposerIconButton(
           icon: Icons.delete_outline_rounded,
           tooltip: 'Discard',
-          themeState: themeState,
+
           onPressed: onCancel,
         ),
         const SizedBox(width: 2),
@@ -68,7 +67,7 @@ class ComposerRecordingBar extends StatelessWidget {
         ComposerIconButton(
           icon: Icons.stop_circle_rounded,
           tooltip: 'Stop & attach',
-          themeState: themeState,
+
           active: true,
           onPressed: onStop,
         ),

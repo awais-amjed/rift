@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
@@ -10,6 +9,7 @@ import '../../../../common/message_banner.dart';
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
 import 'change_password_form.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Changing the password that guards the vault, and the account if there is
 /// one.
@@ -20,14 +20,9 @@ import 'change_password_form.dart';
 /// between "someone walked past an unlocked laptop" and "someone has the
 /// password *and* the inbox".
 class ChangePasswordPanel extends StatefulWidget {
-  final ThemeState themeState;
   final SupabaseBackupState state;
 
-  const ChangePasswordPanel({
-    super.key,
-    required this.themeState,
-    required this.state,
-  });
+  const ChangePasswordPanel({super.key, required this.state});
 
   @override
   State<ChangePasswordPanel> createState() => _ChangePasswordPanelState();
@@ -67,7 +62,7 @@ class _ChangePasswordPanelState extends State<ChangePasswordPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.themeState;
+    final theme = context.theme;
     final state = widget.state;
     final cubit = context.read<SupabaseBackupCubit>();
     final started = state.passwordChange != PasswordChangeStage.idle;
@@ -75,7 +70,7 @@ class _ChangePasswordPanelState extends State<ChangePasswordPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Password', themeState: theme),
+        SectionTitle(label: 'Password'),
         const SizedBox(height: 4),
         Text(
           state.isSignedIn
@@ -133,7 +128,7 @@ class _ChangePasswordPanelState extends State<ChangePasswordPanel> {
 
         if (started) ...[
           const SizedBox(height: 16),
-          ChangePasswordForm(themeState: theme, state: state, onCancel: _close),
+          ChangePasswordForm(state: state, onCancel: _close),
         ],
       ],
     );

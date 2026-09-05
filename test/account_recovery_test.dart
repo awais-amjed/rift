@@ -82,8 +82,9 @@ class _FakeRepo implements SupabaseBackupRepository {
   Stream<AuthState> get authChanges => const Stream.empty();
 
   @override
-  noSuchMethod(Invocation invocation) =>
-      throw UnsupportedError('${invocation.memberName} is not part of this test');
+  noSuchMethod(Invocation invocation) => throw UnsupportedError(
+    '${invocation.memberName} is not part of this test',
+  );
 }
 
 class _FakeVault extends VaultCubit {
@@ -124,8 +125,8 @@ class _FakeVault extends VaultCubit {
   }
 
   @override
-  Future<({bool success, String? content, String? error})> exportBackup() async =>
-      (success: true, content: '{}', error: null);
+  Future<({bool success, String? content, String? error})>
+  exportBackup() async => (success: true, content: '{}', error: null);
 }
 
 /// Recovery is two halves that only work together: a code recovers the
@@ -182,18 +183,23 @@ void main() {
   group('finishing', () {
     Future<void> atCodeStage() => cubit.beginAccountRecovery(email: email);
 
-    test('a key of the wrong shape is refused before the code is spent',
-        () async {
-      await atCodeStage();
-      await cubit.completeAccountRecovery(
-        code: '12345678',
-        recoveryKey: 'nonsense',
-        newPassword: newPassword,
-      );
+    test(
+      'a key of the wrong shape is refused before the code is spent',
+      () async {
+        await atCodeStage();
+        await cubit.completeAccountRecovery(
+          code: '12345678',
+          recoveryKey: 'nonsense',
+          newPassword: newPassword,
+        );
 
-      expect(repo.verifiedToken, isNull, reason: 'code not burned on a typo');
-      expect(cubit.state.error, contains('does not look like a recovery key'));
-    });
+        expect(repo.verifiedToken, isNull, reason: 'code not burned on a typo');
+        expect(
+          cubit.state.error,
+          contains('does not look like a recovery key'),
+        );
+      },
+    );
 
     test('sets the derived verifier, with no nonce', () async {
       await atCodeStage();
@@ -216,28 +222,30 @@ void main() {
       expect(repo.sentNonce, isNull);
     });
 
-    test('opens the backup with the key, then rewraps under the new password',
-        () async {
-      await atCodeStage();
-      await cubit.completeAccountRecovery(
-        code: '12345678',
-        recoveryKey: goodKey,
-        newPassword: newPassword,
-      );
+    test(
+      'opens the backup with the key, then rewraps under the new password',
+      () async {
+        await atCodeStage();
+        await cubit.completeAccountRecovery(
+          code: '12345678',
+          recoveryKey: goodKey,
+          newPassword: newPassword,
+        );
 
-      final keys = await crypto.deriveAccountKeys(
-        email: email,
-        password: newPassword,
-      );
+        final keys = await crypto.deriveAccountKeys(
+          email: email,
+          password: newPassword,
+        );
 
-      expect(vault.importedWithRecoveryKey, goodKey);
-      // Without the rewrap the imported blob would still be under the
-      // forgotten password, and the next sign-in would need recovery again.
-      expect(vault.rewrappedUnder, keys.vaultPassword);
-      expect(repo.uploads, 1);
-      expect(cubit.state.isSignedIn, isTrue);
-      expect(cubit.state.accountRecovery, AccountRecoveryStage.idle);
-    });
+        expect(vault.importedWithRecoveryKey, goodKey);
+        // Without the rewrap the imported blob would still be under the
+        // forgotten password, and the next sign-in would need recovery again.
+        expect(vault.rewrappedUnder, keys.vaultPassword);
+        expect(repo.uploads, 1);
+        expect(cubit.state.isSignedIn, isTrue);
+        expect(cubit.state.accountRecovery, AccountRecoveryStage.idle);
+      },
+    );
 
     test('a wrong code stops before the password is touched', () async {
       await atCodeStage();
@@ -254,25 +262,27 @@ void main() {
       expect(cubit.state.error, 'Token has expired');
     });
 
-    test('a wrong recovery key leaves the account usable to try again',
-        () async {
-      await atCodeStage();
-      vault.importSucceeds = false;
+    test(
+      'a wrong recovery key leaves the account usable to try again',
+      () async {
+        await atCodeStage();
+        vault.importSucceeds = false;
 
-      await cubit.completeAccountRecovery(
-        code: '12345678',
-        recoveryKey: goodKey,
-        newPassword: newPassword,
-      );
+        await cubit.completeAccountRecovery(
+          code: '12345678',
+          recoveryKey: goodKey,
+          newPassword: newPassword,
+        );
 
-      // The password is already set by this point and that is deliberate: the
-      // key cannot be checked without downloading the backup, and the backup
-      // needs a session. Being signed in is what makes a second attempt
-      // possible.
-      expect(cubit.state.isSignedIn, isTrue);
-      expect(cubit.state.error, contains('does not match'));
-      expect(repo.uploads, 0);
-    });
+        // The password is already set by this point and that is deliberate: the
+        // key cannot be checked without downloading the backup, and the backup
+        // needs a session. Being signed in is what makes a second attempt
+        // possible.
+        expect(cubit.state.isSignedIn, isTrue);
+        expect(cubit.state.error, contains('does not match'));
+        expect(repo.uploads, 0);
+      },
+    );
 
     test('an account with no backup still gets its password back', () async {
       await atCodeStage();
@@ -331,8 +341,9 @@ void main() {
   });
 
   group('the change-password panel', () {
-    testWidgets('goes back to its resting state once the change lands',
-        (tester) async {
+    testWidgets('goes back to its resting state once the change lands', (
+      tester,
+    ) async {
       Widget panelAt(SupabaseBackupState state) => MaterialApp(
         home: Scaffold(
           body: MultiBlocProvider(
@@ -341,10 +352,7 @@ void main() {
               BlocProvider<SupabaseBackupCubit>.value(value: cubit),
             ],
             child: Builder(
-              builder: (context) => ChangePasswordPanel(
-                themeState: context.read<ThemeCubit>().state,
-                state: state,
-              ),
+              builder: (context) => ChangePasswordPanel(state: state),
             ),
           ),
         ),

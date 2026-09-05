@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// The lock on a private channel's glyph.
 ///
@@ -11,12 +11,11 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 /// Ringed in the sidebar's own background so it reads as a badge sitting on the
 /// glyph rather than a second icon crowding it.
 class ChannelLockBadge extends StatelessWidget {
-  final ThemeState themeState;
-
-  const ChannelLockBadge({super.key, required this.themeState});
+  const ChannelLockBadge({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Container(
       padding: const EdgeInsets.all(1),
       decoration: BoxDecoration(

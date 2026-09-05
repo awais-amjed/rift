@@ -41,10 +41,12 @@ Widget _harness({
   required String channelId,
   void Function(VoiceDrag)? onDropped,
 }) {
-  return MaterialApp(
-    home: BlocProvider(
-      create: (_) => ThemeCubit(),
-      child: Scaffold(
+  // The cubit sits above the MaterialApp so the drag feedback, which lives in
+  // the app's overlay rather than under `home`, can still reach the theme.
+  return BlocProvider(
+    create: (_) => ThemeCubit(),
+    child: MaterialApp(
+      home: Scaffold(
         body: Column(
           children: [
             DraggableMember(

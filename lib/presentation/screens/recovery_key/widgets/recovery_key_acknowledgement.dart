@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/theme_context.dart';
 
 /// The "I have saved it" confirmation, as a row you press anywhere on.
 ///
@@ -11,18 +11,17 @@ import '../../../../data/constants.dart';
 /// truth can be told to somebody who can still act on it.
 class RecoveryKeyAcknowledgement extends StatelessWidget {
   final bool value;
-  final ThemeState themeState;
   final ValueChanged<bool> onChanged;
 
   const RecoveryKeyAcknowledgement({
     super.key,
     required this.value,
-    required this.themeState,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return InkWell(
       onTap: () => onChanged(!value),
       borderRadius: BorderRadius.circular(K.radiusRow),

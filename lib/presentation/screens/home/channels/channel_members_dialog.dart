@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/classes/channel.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_selection.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
@@ -120,8 +119,6 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
-
     return AppModal(
       title: 'Who can see this',
       subtitle: '#${widget.channel.name}',
@@ -149,7 +146,6 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
               const SizedBox(height: 12),
             ],
             ChannelMemberPicker(
-              themeState: themeState,
               selection: _selection,
               onSearch: _search,
               enabled: _canManage && !_isSaving,

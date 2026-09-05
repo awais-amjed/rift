@@ -8,6 +8,7 @@ import '../../icon_tile.dart';
 import 'attachment_download.dart';
 import 'attachment_loader.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// A non-media attachment: name, size, and a tap to decrypt and save it.
 /// The card owns the in-flight state so a slow download shows a spinner in
@@ -15,13 +16,10 @@ import '../../../theme/app_text.dart';
 class AttachmentFileCard extends StatefulWidget {
   final Attachment attachment;
   final AttachmentLoader loader;
-  final ThemeState themeState;
-
   const AttachmentFileCard({
     super.key,
     required this.attachment,
     required this.loader,
-    required this.themeState,
   });
 
   @override
@@ -49,7 +47,7 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.themeState;
+    final theme = context.theme;
     final radius = BorderRadius.circular(K.radiusCard);
     // Card outside, ink inside. With the InkWell wrapping the card its hover
     // was painted on whatever Material was under the message row and then

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/webhook.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// One existing webhook in the list: its name, when it last posted, and the
 /// only thing that can still be done to it.
@@ -15,15 +15,9 @@ import '../../../../../../data/constants.dart';
 /// cannot do.
 class WebhookRow extends StatelessWidget {
   final Webhook webhook;
-  final ThemeState themeState;
   final VoidCallback? onDelete;
 
-  const WebhookRow({
-    super.key,
-    required this.webhook,
-    required this.themeState,
-    this.onDelete,
-  });
+  const WebhookRow({super.key, required this.webhook, this.onDelete});
 
   /// "never used" is the interesting state, so it is spelled out rather than
   /// left blank — a credential nothing has used is one worth revoking.
@@ -39,6 +33,7 @@ class WebhookRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
       decoration: BoxDecoration(

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/services/host_platform.dart';
 import '../../../../../theme/app_text.dart';
 import 'mic_level_meter.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// The input-level meter with the wording that says what it is for.
 ///
@@ -18,17 +18,15 @@ class InputLevelPanel extends StatelessWidget {
   /// Whether a mic test is running, which is what makes the meter live.
   final bool testing;
 
-  final ThemeState themeState;
-
   const InputLevelPanel({
     super.key,
     required this.level,
     required this.testing,
-    required this.themeState,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -50,7 +48,7 @@ class InputLevelPanel extends StatelessWidget {
           style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 12),
-        MicLevelMeter(level: level, active: testing, themeState: themeState),
+        MicLevelMeter(level: level, active: testing),
       ],
     );
   }

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/squircle_avatar.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../sidebar/widgets/participant_bot_section.dart';
+import '../../../../../../../theme/theme_context.dart';
 
 /// A bot that was called into this call but is not in it.
 ///
@@ -23,18 +23,16 @@ class SummonedBotRow extends StatelessWidget {
   final String botId;
   final String name;
   final String channelId;
-  final ThemeState themeState;
-
   const SummonedBotRow({
     super.key,
     required this.botId,
     required this.name,
     required this.channelId,
-    required this.themeState,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return ContextMenuRegion(
       contextMenu: ContextMenuPanel(
         heading: 'Summoned',

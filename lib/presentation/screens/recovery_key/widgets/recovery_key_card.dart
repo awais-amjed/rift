@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/theme_context.dart';
 
 /// The key itself, sized and spaced to be copied off a screen by hand.
 ///
@@ -12,13 +12,7 @@ import '../../../../data/constants.dart';
 /// somebody losing their place halfway through twenty-five characters.
 class RecoveryKeyCard extends StatefulWidget {
   final String recoveryKey;
-  final ThemeState themeState;
-
-  const RecoveryKeyCard({
-    super.key,
-    required this.recoveryKey,
-    required this.themeState,
-  });
+  const RecoveryKeyCard({super.key, required this.recoveryKey});
 
   @override
   State<RecoveryKeyCard> createState() => _RecoveryKeyCardState();
@@ -35,7 +29,7 @@ class _RecoveryKeyCardState extends State<RecoveryKeyCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.themeState;
+    final theme = context.theme;
     final groups = widget.recoveryKey.split('-');
 
     return Column(

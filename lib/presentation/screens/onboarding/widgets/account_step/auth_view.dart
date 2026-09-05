@@ -98,7 +98,6 @@ class AuthViewState extends State<AuthView>
                 ? 'One password for everything. It also protects your '
                       'encrypted backup and never leaves this device.'
                 : 'Sign in and your encrypted vault is restored automatically.',
-            themeState: theme,
           ),
 
           const SizedBox(height: 32),

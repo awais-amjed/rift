@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/enums/server_permission.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_switch.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Every permission a role can carry, grouped by where it is exercised.
 ///
@@ -16,7 +16,6 @@ import '../../../../theme/app_text.dart';
 /// other bit, so the boxes below it stop meaning anything; a list that vanished
 /// would leave somebody wondering what they had just agreed to.
 class PermissionMatrix extends StatelessWidget {
-  final ThemeState themeState;
   final int permissions;
 
   /// Null for a role the viewer may look at but not change — the baseline role
@@ -30,7 +29,6 @@ class PermissionMatrix extends StatelessWidget {
 
   const PermissionMatrix({
     super.key,
-    required this.themeState,
     required this.permissions,
     required this.viewerPermissions,
     this.onChanged,
@@ -43,6 +41,7 @@ class PermissionMatrix extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -58,7 +57,6 @@ class PermissionMatrix extends StatelessWidget {
           ),
           for (final permission in ServerPermission.inGroup(group))
             _PermissionRow(
-              themeState: themeState,
               permission: permission,
               // The literal bit, not the implied one: a checkbox has to show
               // what the role carries, or turning ADMINISTRATOR off would
@@ -77,14 +75,12 @@ class PermissionMatrix extends StatelessWidget {
 }
 
 class _PermissionRow extends StatelessWidget {
-  final ThemeState themeState;
   final ServerPermission permission;
   final bool value;
   final bool implied;
   final ValueChanged<bool>? onChanged;
 
   const _PermissionRow({
-    required this.themeState,
     required this.permission,
     required this.value,
     required this.implied,
@@ -93,6 +89,7 @@ class _PermissionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Opacity(
       opacity: implied ? 0.45 : 1,
       child: Padding(

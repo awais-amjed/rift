@@ -9,6 +9,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'attachment_loader.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// Inline player for an audio attachment (voice note or attached audio file).
 /// Bytes are fetched + decrypted lazily on first play via [loader]; playback is
@@ -16,13 +17,10 @@ import '../../../theme/app_text.dart';
 class AudioMessagePlayer extends StatefulWidget {
   final Attachment attachment;
   final AttachmentLoader loader;
-  final ThemeState themeState;
-
   const AudioMessagePlayer({
     super.key,
     required this.attachment,
     required this.loader,
-    required this.themeState,
   });
 
   @override
@@ -92,7 +90,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.themeState;
+    final theme = context.theme;
     final total = _duration.inMilliseconds == 0 ? 1 : _duration.inMilliseconds;
     final progress = (_position.inMilliseconds / total).clamp(0.0, 1.0);
 

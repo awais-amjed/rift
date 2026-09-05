@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/role.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/selectable_surface.dart';
 import '../../../../theme/app_text.dart';
 import '../../members_sidebar/widgets/role_chip.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Which role, if any, the link hands out.
 ///
@@ -17,14 +17,12 @@ import '../../../../../data/constants.dart';
 /// "No role" is first and selected by default. Handing somebody a role by link
 /// is the deliberate case; joining as an ordinary member is the common one.
 class InviteRolePicker extends StatelessWidget {
-  final ThemeState themeState;
   final List<Role> roles;
   final String? selectedId;
   final ValueChanged<String?>? onSelected;
 
   const InviteRolePicker({
     super.key,
-    required this.themeState,
     required this.roles,
     required this.selectedId,
     this.onSelected,
@@ -32,6 +30,7 @@ class InviteRolePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     if (roles.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -60,7 +59,7 @@ class InviteRolePicker extends StatelessWidget {
               _Option(
                 selected: selectedId == role.id,
                 onTap: onSelected == null ? null : () => onSelected!(role.id),
-                child: RoleChip(role: role, themeState: themeState),
+                child: RoleChip(role: role),
               ),
           ],
         ),

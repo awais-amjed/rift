@@ -76,7 +76,6 @@ Map<String, Widget Function()> _cases() => {
   // widget whose content is entirely out of the app's hands.
   'RoleChip': () => RoleChip(
     role: const Role(id: 'r', name: _longLabel, position: 1, permissions: 0),
-    themeState: ThemeCubit().state,
   ),
   'AppModalHeader': () =>
       const AppModalHeader(title: _longLabel, subtitle: _longLabel),

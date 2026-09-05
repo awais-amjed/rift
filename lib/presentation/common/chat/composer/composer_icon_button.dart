@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/theme_context.dart';
 
 /// A uniform, square tap target for the composer's actions (attach, emoji,
 /// mic, discard, stop). Fixed size so every control lines up on the same
@@ -9,7 +9,6 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 class ComposerIconButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
-  final ThemeState themeState;
   final VoidCallback? onPressed;
 
   /// Tints the icon with the accent — used while a mode is engaged (the emoji
@@ -20,13 +19,13 @@ class ComposerIconButton extends StatelessWidget {
     super.key,
     required this.icon,
     required this.tooltip,
-    required this.themeState,
     required this.onPressed,
     this.active = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final enabled = onPressed != null;
     final color = active
         ? themeState.primary

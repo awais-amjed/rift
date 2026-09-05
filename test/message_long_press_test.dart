@@ -70,7 +70,7 @@ void main() {
                 body: ChatMessageRow(
                   message: msg,
                   showHeader: true,
-                  themeState: themeState,
+
                   onToggleReaction: withCallbacks ? (_, _) {} : null,
                   onEdit: withCallbacks ? (_, _) {} : null,
                   onDelete: withCallbacks ? (_) {} : null,

@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
+import '../../theme/theme_context.dart';
 
 /// A centred day label with hairline rules on either side, inserted into the
 /// message list whenever the calendar date changes.
 class DateDivider extends StatelessWidget {
   final String label;
-  final ThemeState themeState;
-
-  const DateDivider({super.key, required this.label, required this.themeState});
+  const DateDivider({super.key, required this.label});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
       child: Row(

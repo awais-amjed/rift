@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/custom_colors.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// A segmented input-level bar. [level] is 0..1; segments light up from the
 /// left, shifting green → amber → red toward the top of the range. When
@@ -9,14 +9,7 @@ import '../../../../../theme/custom_colors.dart';
 class MicLevelMeter extends StatelessWidget {
   final double level;
   final bool active;
-  final ThemeState themeState;
-
-  const MicLevelMeter({
-    super.key,
-    required this.level,
-    required this.active,
-    required this.themeState,
-  });
+  const MicLevelMeter({super.key, required this.level, required this.active});
 
   static const _segments = 24;
   static const _height = 14.0;
@@ -29,6 +22,7 @@ class MicLevelMeter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final filled = (level.clamp(0.0, 1.0) * _segments).round();
 
     return SizedBox(

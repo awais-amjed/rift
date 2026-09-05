@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/audio_devices.dart';
 import '../../../theme/app_text.dart';
 import 'device_dropdown.dart';
 import 'section_title.dart';
+import '../../../theme/theme_context.dart';
 
 /// One labelled dropdown of audio devices — input or output.
 ///
@@ -22,7 +22,6 @@ class AudioDevicePicker extends StatelessWidget {
 
   final String? selectedDeviceId;
   final bool loading;
-  final ThemeState themeState;
   final ValueChanged<String?> onChanged;
 
   const AudioDevicePicker({
@@ -33,7 +32,6 @@ class AudioDevicePicker extends StatelessWidget {
     required this.formats,
     required this.selectedDeviceId,
     required this.loading,
-    required this.themeState,
     required this.onChanged,
   });
 
@@ -56,10 +54,11 @@ class AudioDevicePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: label, themeState: themeState),
+        SectionTitle(label: label),
         const SizedBox(height: 10),
         if (loading || devices.isEmpty)
           Text(
@@ -70,7 +69,7 @@ class AudioDevicePicker extends StatelessWidget {
           DeviceDropdown<String>(
             icon: icon,
             value: _displayId,
-            themeState: themeState,
+
             items: [
               // Naming no device is a real choice, and the one to land on
               // first. Windows already has an answer, and these lists can be

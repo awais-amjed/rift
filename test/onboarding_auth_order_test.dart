@@ -45,8 +45,9 @@ class _OfflineRepo implements SupabaseBackupRepository {
       APIResponse.success(null);
 
   @override
-  noSuchMethod(Invocation invocation) =>
-      throw UnsupportedError('${invocation.memberName} is not part of this test');
+  noSuchMethod(Invocation invocation) => throw UnsupportedError(
+    '${invocation.memberName} is not part of this test',
+  );
 }
 
 /// Onboarding opens on **sign in**, not on sign up.
@@ -73,10 +74,7 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: AuthView(
-              state: const SupabaseBackupState(),
-              onBack: () {},
-            ),
+            body: AuthView(state: const SupabaseBackupState(), onBack: () {}),
           ),
         ),
       ),

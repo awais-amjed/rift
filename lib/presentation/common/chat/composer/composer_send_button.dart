@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_motion.dart';
+import '../../../theme/theme_context.dart';
 
 /// The send button: solid accent once there's something to send, a muted
 /// ghost arrow otherwise.
@@ -11,13 +11,11 @@ import '../../../theme/app_motion.dart';
 /// not a circle — it sits in a row of them, and the only thing that should
 /// set it apart is that it's lit.
 class ComposerSendButton extends StatefulWidget {
-  final ThemeState themeState;
   final bool enabled;
   final VoidCallback onPressed;
 
   const ComposerSendButton({
     super.key,
-    required this.themeState,
     required this.enabled,
     required this.onPressed,
   });
@@ -35,7 +33,7 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = widget.themeState;
+    final themeState = context.theme;
     final enabled = widget.enabled;
     final lit = enabled && _hovering;
     final radius = BorderRadius.circular(K.radiusRow);

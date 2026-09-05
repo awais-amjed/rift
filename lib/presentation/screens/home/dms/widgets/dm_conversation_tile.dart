@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/notification_level.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/notifications/notification_level_submenu.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../common/unread_badge.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// One conversation in the Home panel: who it's with, and what was last said.
 ///
@@ -20,7 +20,6 @@ class DmConversationTile extends StatelessWidget {
   final DmConversation conversation;
   final bool isSelected;
   final VoidCallback onTap;
-  final ThemeState themeState;
 
   /// Unread messages from this peer. Passed in rather than read from a cubit
   /// because the two tiers count differently — server DMs have `notifications`
@@ -50,7 +49,6 @@ class DmConversationTile extends StatelessWidget {
     required this.conversation,
     required this.isSelected,
     required this.onTap,
-    required this.themeState,
     this.unreadCount = 0,
     this.level = NotificationLevel.dmDefault,
     this.onLevelChanged,
@@ -59,7 +57,7 @@ class DmConversationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tile = _tile();
+    final tile = _tile(context);
     final onLevelChanged = this.onLevelChanged;
     if (onLevelChanged == null && menuItems.isEmpty) return tile;
     return ContextMenuRegion(
@@ -93,7 +91,8 @@ class DmConversationTile extends StatelessWidget {
     );
   }
 
-  Widget _tile() {
+  Widget _tile(BuildContext context) {
+    final themeState = context.theme;
     // A step rounder than a channel row: this tile carries two lines and an
     // avatar, and at the row radius it reads as a cramped version of one.
     final radius = BorderRadius.circular(K.radiusRow);
@@ -152,11 +151,7 @@ class DmConversationTile extends StatelessWidget {
                 ),
               ),
               if (unreadCount > 0)
-                UnreadBadge(
-                  count: unreadCount,
-                  themeState: themeState,
-                  isMuted: level.isMuted,
-                )
+                UnreadBadge(count: unreadCount, isMuted: level.isMuted)
               else if (level.isMuted)
                 Icon(
                   Icons.notifications_off_outlined,

@@ -5,6 +5,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 import '../../emoji_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// One emoji-reaction chip: the emoji, how many people picked it, and whether
 /// you are one of them.
@@ -17,7 +18,6 @@ import '../../emoji_text.dart';
 /// re-popping it would claim something arrived that didn't.
 class ReactionChip extends StatefulWidget {
   final MessageReaction reaction;
-  final ThemeState themeState;
   final VoidCallback onTap;
 
   /// Whether this chip appeared after the bar was first built. False for
@@ -29,7 +29,6 @@ class ReactionChip extends StatefulWidget {
   const ReactionChip({
     super.key,
     required this.reaction,
-    required this.themeState,
     required this.onTap,
     required this.isNew,
   });
@@ -103,7 +102,7 @@ class _ReactionChipState extends State<ReactionChip>
   }
 
   Widget _chip() {
-    final themeState = widget.themeState;
+    final themeState = context.theme;
     final mine = widget.reaction.mine;
 
     return Material(

@@ -9,6 +9,7 @@ import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
 import '../../../../data/constants.dart';
 import '../../../theme/app_motion.dart';
+import '../../../theme/theme_context.dart';
 
 /// The emoji picker's contents: a search row, a flat row of category icons,
 /// and the grid.
@@ -227,7 +228,6 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
             _CategoryButton(
               icon: entry.value,
               onTap: () => _scrollTo(entry.key),
-              themeState: themeState,
             ),
         ],
       ),
@@ -324,16 +324,11 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
 class _CategoryButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  final ThemeState themeState;
-
-  const _CategoryButton({
-    required this.icon,
-    required this.onTap,
-    required this.themeState,
-  });
+  const _CategoryButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return InkWell(
       borderRadius: BorderRadius.circular(K.radiusRow),
       onTap: onTap,

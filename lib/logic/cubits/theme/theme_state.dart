@@ -1,7 +1,14 @@
 part of 'theme_cubit.dart';
 
+/// The theme, as widgets read it: the mode, the palette, and every semantic
+/// colour derived from them.
+///
+/// It is the cubit's state, and it is also installed on the `ThemeData` as a
+/// [ThemeExtension], which is how a widget reaches it — `context.theme`, see
+/// `theme_context.dart` — rather than having it threaded through every
+/// constructor as a parameter.
 @JsonSerializable()
-class ThemeState {
+class ThemeState extends ThemeExtension<ThemeState> {
   final ThemeMode themeMode;
 
   /// Id of the active [AppPalette]. Unknown ids fall back to indigo.
@@ -10,11 +17,21 @@ class ThemeState {
 
   ThemeState({this.themeMode = ThemeMode.dark, this.paletteId = 'indigo'});
 
+  @override
   ThemeState copyWith({ThemeMode? themeMode, String? paletteId}) {
     return ThemeState(
       themeMode: themeMode ?? this.themeMode,
       paletteId: paletteId ?? this.paletteId,
     );
+  }
+
+  /// A palette is a choice, not a point on a line: while the framework
+  /// cross-fades its own colours between two themes, this snaps at the
+  /// midpoint.
+  @override
+  ThemeState lerp(ThemeState? other, double t) {
+    if (other == null) return this;
+    return t < 0.5 ? this : other;
   }
 
   bool get isLightTheme => themeMode == ThemeMode.light;

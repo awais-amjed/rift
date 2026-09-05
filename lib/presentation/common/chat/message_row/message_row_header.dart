@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/chat_message.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import 'message_origin_badge.dart';
+import '../../../theme/theme_context.dart';
 
 /// The author + timestamp line that opens a group of messages.
 ///
@@ -14,18 +14,12 @@ import 'message_origin_badge.dart';
 /// already checks to see when something was said.
 class MessageRowHeader extends StatelessWidget {
   final ChatMessage message;
-  final ThemeState themeState;
 
   /// Send this message again. Null where the surface has no outbox — the row
   /// still says it did not send, it just cannot offer to fix it.
   final VoidCallback? onRetry;
 
-  const MessageRowHeader({
-    super.key,
-    required this.message,
-    required this.themeState,
-    this.onRetry,
-  });
+  const MessageRowHeader({super.key, required this.message, this.onRetry});
 
   static String _timeLabel(DateTime t) {
     final local = t.toLocal();
@@ -35,6 +29,7 @@ class MessageRowHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
@@ -60,13 +55,13 @@ class MessageRowHeader extends StatelessWidget {
           // wherever the name happened to end.
           if (MessageOriginBadge.isNeededFor(message)) ...[
             const SizedBox(width: 6),
-            MessageOriginBadge(message: message, themeState: themeState),
+            MessageOriginBadge(message: message),
           ],
           const SizedBox(width: 8),
           if (message.sendFailed)
-            _failedLabel()
+            _failedLabel(context)
           else if (message.isPending)
-            _sendingLabel()
+            _sendingLabel(context)
           else
             Text(
               _timeLabel(message.sentAt),
@@ -89,7 +84,8 @@ class MessageRowHeader extends StatelessWidget {
   /// In the warning colour rather than the error one. Nothing has gone wrong
   /// with the message; it is a note about the network, and painting it as a
   /// failure of the sentence overstates it.
-  Widget _failedLabel() {
+  Widget _failedLabel(BuildContext context) {
+    final themeState = context.theme;
     final label = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -122,7 +118,8 @@ class MessageRowHeader extends StatelessWidget {
     );
   }
 
-  Widget _sendingLabel() {
+  Widget _sendingLabel(BuildContext context) {
+    final themeState = context.theme;
     return Row(
       children: [
         SizedBox(

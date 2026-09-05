@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../section_title.dart';
 import '../setting_toggle_row.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Push-to-talk: the enable switch, the current keybind, and the capture
 /// button that listens for the next key pressed.
@@ -17,14 +17,9 @@ import '../../../../common/button_footer.dart';
 /// other desktop targets, so the Voice & Audio tab omits the whole section
 /// elsewhere rather than showing controls that do nothing.
 class PushToTalkSection extends StatefulWidget {
-  final ThemeState themeState;
   final AppState appState;
 
-  const PushToTalkSection({
-    super.key,
-    required this.themeState,
-    required this.appState,
-  });
+  const PushToTalkSection({super.key, required this.appState});
 
   @override
   State<PushToTalkSection> createState() => _PushToTalkSectionState();
@@ -77,17 +72,16 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = widget.themeState;
+    final themeState = context.theme;
     final appState = widget.appState;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Push-to-Talk', themeState: themeState),
+        SectionTitle(label: 'Push-to-Talk'),
         const SizedBox(height: 12),
         SettingToggleRow(
-          themeState: themeState,
           title: 'Enable Push-to-Talk',
           description: 'Hold the configured key to transmit your mic.',
           value: appState.pushToTalkEnabled,

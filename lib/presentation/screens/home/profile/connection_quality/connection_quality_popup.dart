@@ -8,6 +8,7 @@ import '../../../../theme/custom_colors.dart';
 import 'connection_quality_style.dart';
 import 'ping_graph.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Popup panel shown above the connection quality indicator.
 /// Shows ping, average ping, packet loss, and a 5-minute ping history graph.
@@ -88,7 +89,6 @@ class ConnectionQualityPopup extends StatelessWidget {
                           label: 'Ping',
                           value: '${stats.rttMs!.toStringAsFixed(0)} ms',
                           isWarning: stats.rttMs! > 200,
-                          themeState: themeState,
                         ),
                       if (stats.avgRttMs != null) ...[
                         const SizedBox(height: 6),
@@ -96,7 +96,6 @@ class ConnectionQualityPopup extends StatelessWidget {
                           label: 'Average Ping',
                           value: '${stats.avgRttMs!.toStringAsFixed(0)} ms',
                           isWarning: stats.avgRttMs! > 200,
-                          themeState: themeState,
                         ),
                       ],
                       if (stats.packetLossPercent != null) ...[
@@ -106,7 +105,6 @@ class ConnectionQualityPopup extends StatelessWidget {
                           value:
                               '${stats.packetLossPercent!.toStringAsFixed(1)}%',
                           isWarning: stats.packetLossPercent! > 5,
-                          themeState: themeState,
                         ),
                       ],
                     ],
@@ -140,17 +138,15 @@ class _StatRow extends StatelessWidget {
   final String label;
   final String value;
   final bool isWarning;
-  final ThemeState themeState;
-
   const _StatRow({
     required this.label,
     required this.value,
     required this.isWarning,
-    required this.themeState,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

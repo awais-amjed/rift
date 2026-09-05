@@ -8,7 +8,6 @@ import '../../../../../../logic/cubits/notifications/server_notifications_cubit.
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu_region.dart';
@@ -46,7 +45,6 @@ class ServerChipMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final permissions = server.user?.permissions;
-    final themeState = context.watch<ThemeCubit>().state;
     final unread = context.select<ServerNotificationsCubit, int>(
       (c) => c.state.unreadForServer(server.id),
     );
@@ -77,7 +75,7 @@ class ServerChipMenu extends StatelessWidget {
           ContextMenuItem(
             icon: Icons.mark_chat_read_outlined,
             label: 'Mark as read',
-            trailing: UnreadBadge(count: unread, themeState: themeState),
+            trailing: UnreadBadge(count: unread),
             onTap: () {
               ContextMenuScope.of(context)?.call();
               context.read<ServerNotificationsCubit>().markServerRead(

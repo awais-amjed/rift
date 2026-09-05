@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The reset-vault action, at the end of the Cloud Backup tab.
 ///
@@ -23,17 +23,13 @@ import '../../../../theme/custom_colors.dart';
 /// that cannot be recovered without a backup, and it should look like the one
 /// thing on the screen you can't undo.
 class ResetVaultCard extends StatelessWidget {
-  final ThemeState themeState;
   final VoidCallback onTap;
 
-  const ResetVaultCard({
-    super.key,
-    required this.themeState,
-    required this.onTap,
-  });
+  const ResetVaultCard({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final radius = BorderRadius.circular(K.radiusCard);
 
     return Padding(

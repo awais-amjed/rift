@@ -6,6 +6,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/user_avatar.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/app_motion.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// Your avatar in the dock, and the way into the profile editor.
 ///
@@ -17,15 +18,9 @@ import '../../../../../theme/app_motion.dart';
 /// it. A highlight would only have raised the question this answers.
 class DockAvatarButton extends StatefulWidget {
   final ServerUser? user;
-  final ThemeState themeState;
   final VoidCallback onTap;
 
-  const DockAvatarButton({
-    super.key,
-    required this.user,
-    required this.themeState,
-    required this.onTap,
-  });
+  const DockAvatarButton({super.key, required this.user, required this.onTap});
 
   @override
   State<DockAvatarButton> createState() => _DockAvatarButtonState();
@@ -38,7 +33,7 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = widget.themeState;
+    final themeState = context.theme;
     // The avatar's own corner, from the same ratio it uses, rather than a
     // literal that drifts the first time an avatar changes size.
     final radius = BorderRadius.circular(_size * K.avatarRadiusRatio);
@@ -59,7 +54,6 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
                 avatarPath: widget.user?.avatarPath,
                 name: widget.user?.displayName ?? 'Guest',
                 size: _size,
-                themeState: themeState,
               ),
               Positioned.fill(child: _overlay(themeState, radius)),
               Positioned(right: -2, bottom: -2, child: _statusDot(themeState)),

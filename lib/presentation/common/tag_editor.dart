@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../data/classes/public_server.dart';
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 import 'app_button.dart';
 import 'app_text_field.dart';
+import '../theme/theme_context.dart';
 
 /// The tags on a public listing: the ones already chosen, and a field to add
 /// another.
@@ -28,7 +28,6 @@ class TagEditor extends StatelessWidget {
   final TextEditingController controller;
   final List<String> tags;
   final ValueChanged<List<String>> onChanged;
-  final ThemeState themeState;
   final bool enabled;
 
   const TagEditor({
@@ -36,7 +35,6 @@ class TagEditor extends StatelessWidget {
     required this.controller,
     required this.tags,
     required this.onChanged,
-    required this.themeState,
     this.enabled = true,
   });
 
@@ -55,6 +53,7 @@ class TagEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -67,7 +66,7 @@ class TagEditor extends StatelessWidget {
               for (final tag in tags)
                 _TagChip(
                   tag: tag,
-                  themeState: themeState,
+
                   onRemove: enabled ? () => _remove(tag) : null,
                 ),
             ],
@@ -117,17 +116,13 @@ class TagEditor extends StatelessWidget {
 /// One chosen tag, with the way to drop it again.
 class _TagChip extends StatelessWidget {
   final String tag;
-  final ThemeState themeState;
   final VoidCallback? onRemove;
 
-  const _TagChip({
-    required this.tag,
-    required this.themeState,
-    required this.onRemove,
-  });
+  const _TagChip({required this.tag, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Container(
       padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
       decoration: BoxDecoration(

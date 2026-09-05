@@ -4,12 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/squircle_avatar.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/custom_colors.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
+import '../../../../../../../theme/theme_context.dart';
 
 /// A member of a voice channel you're not in — rendered from Realtime
 /// presence, so we only have their name (no live mic/speaking state).
@@ -21,15 +21,9 @@ import '../../../../../sidebar/widgets/participant_context_menu.dart';
 /// with. [setting] shows any stored preference so the row reflects it.
 class PresenceMemberRow extends StatelessWidget {
   final PresenceUser user;
-  final ThemeState themeState;
   final ParticipantSetting? setting;
 
-  const PresenceMemberRow({
-    super.key,
-    required this.user,
-    required this.themeState,
-    this.setting,
-  });
+  const PresenceMemberRow({super.key, required this.user, this.setting});
 
   @override
   Widget build(BuildContext context) {
@@ -42,11 +36,12 @@ class PresenceMemberRow extends StatelessWidget {
     );
     return ContextMenuRegion(
       contextMenu: ParticipantContextMenu(identity: user.userId, name: name),
-      child: _buildRow(name),
+      child: _buildRow(context, name),
     );
   }
 
-  Widget _buildRow(String name) {
+  Widget _buildRow(BuildContext context, String name) {
+    final themeState = context.theme;
     final isMuted = setting?.muted ?? false;
 
     return Padding(

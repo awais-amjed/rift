@@ -45,7 +45,7 @@ Future<_Taps> _pumpSidebar(WidgetTester tester) async {
             child: SettingsSidebar(
               activeTab: SettingsTab.appearance,
               onTabSelected: (tab) => taps.tab = tab,
-              themeState: ThemeState(),
+
               onBack: () => taps.back++,
             ),
           ),

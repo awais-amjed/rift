@@ -9,6 +9,7 @@ import '../../../../../common/squircle_avatar.dart';
 import 'rail_unread_badge.dart';
 import 'server_chip_menu.dart';
 import '../../../../../theme/app_motion.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// One server in the rail.
 ///
@@ -72,7 +73,7 @@ class _RailServerChipState extends State<RailServerChip> {
                         top: -_haloExtent,
                         right: -_haloExtent,
                         bottom: -_haloExtent,
-                        child: _SelectionHalo(themeState: themeState),
+                        child: _SelectionHalo(),
                       ),
                     AnimatedOpacity(
                       duration: AppMotion.state,
@@ -113,12 +114,11 @@ class _RailServerChipState extends State<RailServerChip> {
 /// the ring stays an even distance from the chip the whole way round instead
 /// of pinching at the corners.
 class _SelectionHalo extends StatelessWidget {
-  final ThemeState themeState;
-
-  const _SelectionHalo({required this.themeState});
+  const _SelectionHalo();
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: themeState.primary.withValues(alpha: 0.8),

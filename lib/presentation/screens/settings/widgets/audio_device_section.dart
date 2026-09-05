@@ -6,16 +6,13 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/audio_devices.dart';
 import '../../../common/message_banner.dart';
 import 'audio_device_picker.dart';
 
 /// Section for selecting audio input and output devices.
 class AudioDeviceSection extends StatefulWidget {
-  final ThemeState themeState;
-
-  const AudioDeviceSection({super.key, required this.themeState});
+  const AudioDeviceSection({super.key});
 
   @override
   State<AudioDeviceSection> createState() => _AudioDeviceSectionState();
@@ -192,7 +189,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
               formats: _inputFormats,
               selectedDeviceId: appState.inputDeviceId,
               loading: _devicesLoading,
-              themeState: widget.themeState,
+
               onChanged: (id) => _select(id, isInput: true),
             ),
             const SizedBox(height: 22),
@@ -203,7 +200,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
               formats: _outputFormats,
               selectedDeviceId: appState.outputDeviceId,
               loading: _devicesLoading,
-              themeState: widget.themeState,
+
               onChanged: (id) => _select(id, isInput: false),
             ),
             // A device switch that fails used to do so silently, which is

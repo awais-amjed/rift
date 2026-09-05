@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/message_reaction.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'reaction_chip.dart';
+import '../../../theme/theme_context.dart';
 
 /// The row of emoji-reaction chips shown under a message, plus a small "add
 /// reaction" button. Tapping a chip toggles the local user's reaction; the "+"
@@ -16,14 +16,12 @@ import 'reaction_chip.dart';
 /// up afterwards animates.
 class MessageReactionsBar extends StatefulWidget {
   final List<MessageReaction> reactions;
-  final ThemeState themeState;
   final void Function(String emoji) onToggle;
   final void Function(BuildContext anchorContext) onAdd;
 
   const MessageReactionsBar({
     super.key,
     required this.reactions,
-    required this.themeState,
     required this.onToggle,
     required this.onAdd,
   });
@@ -78,14 +76,11 @@ class _MessageReactionsBarState extends State<MessageReactionsBar> {
               // would land on whichever chip shuffled into that slot.
               key: ValueKey(r.emoji),
               reaction: r,
-              themeState: widget.themeState,
+
               onTap: () => widget.onToggle(r.emoji),
               isNew: _arrived.contains(r.emoji),
             ),
-          _AddReactionButton(
-            themeState: widget.themeState,
-            onTap: widget.onAdd,
-          ),
+          _AddReactionButton(onTap: widget.onAdd),
         ],
       ),
     );
@@ -93,13 +88,13 @@ class _MessageReactionsBarState extends State<MessageReactionsBar> {
 }
 
 class _AddReactionButton extends StatelessWidget {
-  final ThemeState themeState;
   final void Function(BuildContext anchorContext) onTap;
 
-  const _AddReactionButton({required this.themeState, required this.onTap});
+  const _AddReactionButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Material(
       color: themeState.bgHover,
       shape: StadiumBorder(side: BorderSide(color: themeState.borderElevated)),

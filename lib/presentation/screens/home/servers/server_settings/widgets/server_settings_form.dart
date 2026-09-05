@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/message_banner.dart';
 import '../../../../../common/modal_columns.dart';
 import '../listing_draft.dart';
@@ -69,7 +68,6 @@ class ServerSettingsForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
     final signedIn = context.select<SupabaseBackupCubit, bool>(
       (c) => c.state.isSignedIn,
     );
@@ -88,14 +86,10 @@ class ServerSettingsForm extends StatelessWidget {
               livekitUrlCtrl: livekitUrlCtrl,
               apiKeyCtrl: apiKeyCtrl,
               secretCtrl: secretCtrl,
-              themeState: themeState,
+
               enabled: enabled,
             ),
-            ServerLimitsSection(
-              controllers: limits,
-              themeState: themeState,
-              enabled: enabled,
-            ),
+            ServerLimitsSection(controllers: limits, enabled: enabled),
             // Discovery and notifications share a column because they are the
             // same kind of setting — the two things this server asks central
             // for, and the two an operator can withdraw.
@@ -109,7 +103,7 @@ class ServerSettingsForm extends StatelessWidget {
                   memberCount: memberCount,
                   onChanged: onChanged,
                   onRemove: onRemoveListing,
-                  themeState: themeState,
+
                   enabled: enabled,
                 ),
                 const SizedBox(height: 22),
@@ -117,7 +111,7 @@ class ServerSettingsForm extends StatelessWidget {
                   enabled: pushEnabled,
                   signedIn: signedIn,
                   onChanged: onPushChanged,
-                  themeState: themeState,
+
                   interactive: enabled,
                 ),
               ],

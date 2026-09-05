@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
@@ -16,7 +15,6 @@ import '../../../../theme/app_motion.dart';
 class ExpandedParticipantTile extends StatelessWidget {
   static const _fade = AppMotion.enter;
 
-  final ThemeState themeState;
   final VideoTrack? videoTrack;
   final String name;
 
@@ -39,7 +37,6 @@ class ExpandedParticipantTile extends StatelessWidget {
 
   const ExpandedParticipantTile({
     super.key,
-    required this.themeState,
     required this.videoTrack,
     required this.name,
     this.userId,

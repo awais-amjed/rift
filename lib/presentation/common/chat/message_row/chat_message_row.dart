@@ -25,6 +25,7 @@ import 'message_text.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 import '../panel/panel_view.dart';
+import '../../../theme/theme_context.dart';
 
 /// One message in the chat list — flat Discord-style row, not a bubble.
 ///
@@ -36,7 +37,6 @@ class ChatMessageRow extends StatefulWidget {
 
   final ChatMessage message;
   final bool showHeader;
-  final ThemeState themeState;
 
   /// Fetches attachment bytes on demand. Null when the chat surface doesn't
   /// support attachments (then attachments simply aren't rendered).
@@ -79,7 +79,6 @@ class ChatMessageRow extends StatefulWidget {
     super.key,
     required this.message,
     required this.showHeader,
-    required this.themeState,
     this.attachmentLoader,
     this.onToggleReaction,
     this.onEdit,
@@ -109,7 +108,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
   bool _editing = false;
 
   ChatMessage get message => widget.message;
-  ThemeState get themeState => widget.themeState;
+  ThemeState get themeState => context.theme;
 
   bool get _canReact =>
       widget.onToggleReaction != null &&
@@ -231,7 +230,6 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                     ),
                   ),
                   child: MessageHoverToolbar(
-                    themeState: themeState,
                     onReact: _canReact ? _pickReaction : null,
                     onCopy: _canCopy ? (_) => _copy() : null,
                     onEdit: _canEdit
@@ -294,7 +292,6 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                         authorName: message.authorName,
                         authorId: message.authorId,
                         avatarPath: message.authorAvatarPath,
-                        themeState: themeState,
                       )
                     : null,
               ),
@@ -314,20 +311,20 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
         if (widget.showHeader)
           MessageRowHeader(
             message: message,
-            themeState: themeState,
+
             onRetry: widget.onRetry == null
                 ? null
                 : () => widget.onRetry!(message.id),
           ),
         if (message.isLocked)
-          MessageLockedBody(themeState: themeState)
+          MessageLockedBody()
         // A panel replaces the body rather than sitting beside it: its text is
         // in its blocks, and rendering `text` as well would show whatever the
         // bot happened to leave in the column twice or not at all.
         else if (message.panel case final panel?)
           PanelView(
             panel: panel,
-            themeState: themeState,
+
             onAction: widget.onPanelAction == null
                 ? null
                 : (action, value) =>
@@ -336,7 +333,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
         else if (_editing)
           MessageEditField(
             initialText: message.text,
-            themeState: themeState,
+
             onSave: (text) {
               setState(() => _editing = false);
               if (text != message.text) widget.onEdit?.call(message.id, text);
@@ -369,12 +366,11 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
           MessageAttachments(
             attachments: message.attachments,
             loader: widget.attachmentLoader!,
-            themeState: themeState,
           ),
         if (showReactions)
           MessageReactionsBar(
             reactions: message.reactions,
-            themeState: themeState,
+
             onToggle: _toggle,
             onAdd: _pickReaction,
           ),

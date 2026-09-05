@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 
 /// Accent pill showing an unread count (capped at "99+"). Used on channel
 /// tiles, DM rows and server rows.
@@ -20,7 +20,6 @@ import '../theme/app_text.dart';
 /// arrived.
 class UnreadBadge extends StatefulWidget {
   final int count;
-  final ThemeState themeState;
 
   /// A muted conversation still counts what arrived in it — muting is not
   /// pretending nothing happened — but it stops shouting about it. The pill
@@ -28,12 +27,7 @@ class UnreadBadge extends StatefulWidget {
   /// longer competes with the ones that asked for attention.
   final bool isMuted;
 
-  const UnreadBadge({
-    super.key,
-    required this.count,
-    required this.themeState,
-    this.isMuted = false,
-  });
+  const UnreadBadge({super.key, required this.count, this.isMuted = false});
 
   @override
   State<UnreadBadge> createState() => _UnreadBadgeState();
@@ -75,7 +69,7 @@ class _UnreadBadgeState extends State<UnreadBadge>
   }
 
   Widget _pill() {
-    final themeState = widget.themeState;
+    final themeState = context.theme;
     final isMuted = widget.isMuted;
 
     return Container(
@@ -107,13 +101,13 @@ class _UnreadBadgeState extends State<UnreadBadge>
 /// Small accent dot — a presence-only unread hint (e.g. "another server has
 /// activity") where a number would be noise.
 class UnreadDot extends StatelessWidget {
-  final ThemeState themeState;
   final double size;
 
-  const UnreadDot({super.key, required this.themeState, this.size = 8});
+  const UnreadDot({super.key, this.size = 8});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Container(
       width: size,
       height: size,

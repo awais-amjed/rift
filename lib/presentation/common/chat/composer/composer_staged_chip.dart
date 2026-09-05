@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/attachment.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// One picked-but-not-yet-sent attachment: an image preview, or an icon and
 /// filename for everything else, with a corner button to drop it again.
@@ -13,18 +13,17 @@ class ComposerStagedChip extends StatelessWidget {
   static const double _fileChipWidth = 150;
 
   final PendingAttachment attachment;
-  final ThemeState themeState;
   final VoidCallback onRemove;
 
   const ComposerStagedChip({
     super.key,
     required this.attachment,
-    required this.themeState,
     required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final isImage = attachment.kind == AttachmentKind.image;
     return Stack(
       clipBehavior: Clip.none,
@@ -40,14 +39,15 @@ class ComposerStagedChip extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: isImage
               ? Image.memory(attachment.bytes, fit: BoxFit.cover)
-              : _fileBody(),
+              : _fileBody(context),
         ),
-        Positioned(top: -6, right: -6, child: _removeButton()),
+        Positioned(top: -6, right: -6, child: _removeButton(context)),
       ],
     );
   }
 
-  Widget _fileBody() {
+  Widget _fileBody(BuildContext context) {
+    final themeState = context.theme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
@@ -77,7 +77,8 @@ class ComposerStagedChip extends StatelessWidget {
     );
   }
 
-  Widget _removeButton() {
+  Widget _removeButton(BuildContext context) {
+    final themeState = context.theme;
     return GestureDetector(
       onTap: onRemove,
       child: Container(

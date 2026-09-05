@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// Stands in for a message sealed under a key this device does not hold.
 ///
@@ -15,12 +15,11 @@ import '../../../theme/app_text.dart';
 /// something here and that it will open later. It is a placeholder, not an
 /// error — nothing has gone wrong, and it must not read as though it has.
 class MessageLockedBody extends StatelessWidget {
-  final ThemeState themeState;
-
-  const MessageLockedBody({super.key, required this.themeState});
+  const MessageLockedBody({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final color = themeState.textQuaternary;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),

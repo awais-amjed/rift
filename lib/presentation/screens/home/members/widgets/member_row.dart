@@ -80,7 +80,6 @@ class MemberRow extends StatelessWidget {
                         name: member.displayName,
                         seed: member.id,
                         size: 30,
-                        themeState: themeState,
                       ),
                       const SizedBox(width: 10),
                       // Names
@@ -115,7 +114,7 @@ class MemberRow extends StatelessWidget {
                         runSpacing: 4,
                         children: [
                           for (final role in _badges.take(3))
-                            RoleChip(role: role, themeState: themeState),
+                            RoleChip(role: role),
                           if (_badges.length > 3)
                             Text(
                               '+${_badges.length - 3}',
@@ -128,14 +127,12 @@ class MemberRow extends StatelessWidget {
                               icon: Icons.mic_off,
                               tooltip: 'Muted by a moderator',
                               color: CustomColors.error,
-                              themeState: themeState,
                             ),
                           if (member.isDeafened)
                             MemberBadge(
                               icon: Icons.headset_off,
                               tooltip: 'Deafened by a moderator',
                               color: CustomColors.error,
-                              themeState: themeState,
                             ),
                           // This is the one list a banned member appears in,
                           // and the only place a ban can be lifted; the row
@@ -144,7 +141,6 @@ class MemberRow extends StatelessWidget {
                             LabelPill(
                               label: 'Banned',
                               color: CustomColors.error,
-                              themeState: themeState,
                             ),
                         ],
                       ),

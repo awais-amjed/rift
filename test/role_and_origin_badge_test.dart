@@ -59,12 +59,7 @@ void main() {
     ) async {
       await pump(
         tester,
-        Builder(
-          builder: (context) => MessageOriginBadge(
-            message: hook(),
-            themeState: context.read<ThemeCubit>().state,
-          ),
-        ),
+        Builder(builder: (context) => MessageOriginBadge(message: hook())),
       );
 
       final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
@@ -80,12 +75,7 @@ void main() {
       // enough on a target this small to read as nothing being there.
       await pump(
         tester,
-        Builder(
-          builder: (context) => MessageOriginBadge(
-            message: hook(),
-            themeState: context.read<ThemeCubit>().state,
-          ),
-        ),
+        Builder(builder: (context) => MessageOriginBadge(message: hook())),
       );
 
       final theme = Theme.of(tester.element(find.byType(MessageOriginBadge)));
@@ -122,7 +112,6 @@ void main() {
               position: 2,
               permissions: 0,
             ),
-            themeState: context.read<ThemeCubit>().state,
           ),
         ),
       );
@@ -145,7 +134,6 @@ void main() {
               permissions: 0,
               color: '#22C55E',
             ),
-            themeState: context.read<ThemeCubit>().state,
           ),
         ),
       );
@@ -167,7 +155,6 @@ void main() {
               position: 2,
               permissions: 0,
             ),
-            themeState: context.read<ThemeCubit>().state,
           ),
         ),
       );

@@ -1,21 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_motion.dart';
 import '../../theme/app_text.dart';
 import '../loading_dots.dart';
+import '../../theme/theme_context.dart';
 
 /// A slim "… is typing" strip shown just above the composer. Renders nothing
 /// when [names] is empty, so callers can place it unconditionally.
 class TypingIndicator extends StatelessWidget {
   final List<String> names;
-  final ThemeState themeState;
-
-  const TypingIndicator({
-    super.key,
-    required this.names,
-    required this.themeState,
-  });
+  const TypingIndicator({super.key, required this.names});
 
   /// Who is typing, and the verb phrase that follows them — kept apart so the
   /// names can carry weight while the phrase stays quiet.
@@ -45,11 +39,14 @@ class TypingIndicator extends StatelessWidget {
       duration: AppMotion.state,
       curve: AppMotion.settle,
       alignment: Alignment.bottomLeft,
-      child: names.isEmpty ? const SizedBox(width: double.infinity) : _row(),
+      child: names.isEmpty
+          ? const SizedBox(width: double.infinity)
+          : _row(context),
     );
   }
 
-  Widget _row() {
+  Widget _row(BuildContext context) {
+    final themeState = context.theme;
     final (who, phrase) = _parts;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 16, 4),

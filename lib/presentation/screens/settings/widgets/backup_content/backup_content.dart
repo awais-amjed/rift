@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 
 import 'auth_panel.dart';
 import 'change_password_panel.dart';
@@ -21,29 +20,22 @@ import 'vault_password_panel.dart';
 /// backup, and — last, because it is the one step with no way back — wipe the
 /// vault (see [ResetVaultCard] for why that lives here rather than in the nav).
 class BackupContent extends StatelessWidget {
-  final ThemeState themeState;
-
   /// Wipes the vault. Confirmed by the caller before anything is destroyed.
   final VoidCallback onResetVault;
 
-  const BackupContent({
-    super.key,
-    required this.themeState,
-    required this.onResetVault,
-  });
+  const BackupContent({super.key, required this.onResetVault});
 
   @override
   Widget build(BuildContext context) {
     // Uses the app-global SupabaseBackupCubit provided in main.dart.
-    return _BackupBody(themeState: themeState, onResetVault: onResetVault);
+    return _BackupBody(onResetVault: onResetVault);
   }
 }
 
 class _BackupBody extends StatelessWidget {
-  final ThemeState themeState;
   final VoidCallback onResetVault;
 
-  const _BackupBody({required this.themeState, required this.onResetVault});
+  const _BackupBody({required this.onResetVault});
 
   @override
   Widget build(BuildContext context) {
@@ -51,15 +43,15 @@ class _BackupBody extends StatelessWidget {
       builder: (context, state) {
         final Widget cloudPanel;
         if (state.cloudBackupConflict) {
-          cloudPanel = ConflictPanel(themeState: themeState, state: state);
+          cloudPanel = ConflictPanel(state: state);
         } else if (state.needsVaultPassword) {
-          cloudPanel = VaultPasswordPanel(themeState: themeState, state: state);
+          cloudPanel = VaultPasswordPanel(state: state);
         } else if (state.isSignedIn) {
-          cloudPanel = SignedInPanel(themeState: themeState, state: state);
+          cloudPanel = SignedInPanel(state: state);
         } else if (state.needsEmailConfirmation) {
-          cloudPanel = ConfirmEmailPanel(themeState: themeState, state: state);
+          cloudPanel = ConfirmEmailPanel(state: state);
         } else {
-          cloudPanel = AuthPanel(themeState: themeState, state: state);
+          cloudPanel = AuthPanel(state: state);
         }
 
         return Column(
@@ -73,14 +65,14 @@ class _BackupBody extends StatelessWidget {
                 !state.needsVaultPassword &&
                 !state.needsEmailConfirmation) ...[
               const SizedBox(height: 28),
-              ChangePasswordPanel(themeState: themeState, state: state),
+              ChangePasswordPanel(state: state),
               const SizedBox(height: 28),
-              RecoveryKeyPanel(themeState: themeState),
+              RecoveryKeyPanel(),
             ],
             const SizedBox(height: 28),
-            FileBackupPanel(themeState: themeState),
+            FileBackupPanel(),
             const SizedBox(height: 28),
-            ResetVaultCard(themeState: themeState, onTap: onResetVault),
+            ResetVaultCard(onTap: onResetVault),
           ],
         );
       },

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// One tickable person in [ChannelMemberPicker].
 ///
@@ -11,14 +11,12 @@ import '../../../../theme/app_text.dart';
 /// the tick is drawn as a filled circle so a selected row reads at a glance
 /// down a list of twenty rather than needing to be read one at a time.
 class MemberPickRow extends StatelessWidget {
-  final ThemeState themeState;
   final ServerMember member;
   final bool checked;
   final VoidCallback? onTap;
 
   const MemberPickRow({
     super.key,
-    required this.themeState,
     required this.member,
     required this.checked,
     this.onTap,
@@ -26,6 +24,7 @@ class MemberPickRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -37,7 +36,7 @@ class MemberPickRow extends StatelessWidget {
               avatarPath: member.avatarPath,
               name: member.displayName,
               size: 24,
-              themeState: themeState,
+
               seed: member.id,
             ),
             Expanded(

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/limit_field.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../settings/widgets/section_title.dart';
 import '../server_limits_controllers.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// The limits half of the server settings dialog.
 ///
@@ -14,23 +14,22 @@ import '../server_limits_controllers.dart';
 /// somewhere to say it, not because the software thinks they should.
 class ServerLimitsSection extends StatelessWidget {
   final ServerLimitsControllers controllers;
-  final ThemeState themeState;
   final bool enabled;
 
   const ServerLimitsSection({
     super.key,
     required this.controllers,
-    required this.themeState,
     this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Limits', themeState: themeState),
+        SectionTitle(label: 'Limits'),
         const SizedBox(height: 4),
         Text(
           'Nothing here is on unless you turn it on. Leave a box empty and '

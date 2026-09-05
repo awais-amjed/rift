@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
@@ -10,12 +9,12 @@ import '../../../../common/supabase_auth_form_state.dart';
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../theme/theme_context.dart';
 
 class AuthPanel extends StatefulWidget {
-  final ThemeState themeState;
   final SupabaseBackupState state;
 
-  const AuthPanel({super.key, required this.themeState, required this.state});
+  const AuthPanel({super.key, required this.state});
 
   @override
   State<AuthPanel> createState() => AuthPanelState();
@@ -26,14 +25,13 @@ class AuthPanelState extends State<AuthPanel>
   @override
   Widget build(BuildContext context) {
     final isProcessing = widget.state.isProcessing;
-    final theme = widget.themeState;
+    final theme = context.theme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionTitle(
           label: isSignUp ? 'Create Backup Account' : 'Sign In to Cloud Backup',
-          themeState: theme,
         ),
         const SizedBox(height: 4),
         Text(

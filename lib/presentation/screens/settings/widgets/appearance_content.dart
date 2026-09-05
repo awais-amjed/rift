@@ -7,18 +7,18 @@ import '../../../common/selectable_surface.dart';
 import 'section_title.dart';
 import '../../../theme/app_palette.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 class AppearanceContent extends StatelessWidget {
-  final ThemeState themeState;
-
-  const AppearanceContent({super.key, required this.themeState});
+  const AppearanceContent({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Theme', themeState: themeState),
+        SectionTitle(label: 'Theme'),
         const SizedBox(height: 12),
         // One segmented row, not two cards: it is a two-way choice, and the
         // segment is how the app spells those (channel type, sign in / create).
@@ -47,7 +47,7 @@ class AppearanceContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        SectionTitle(label: 'Colour palette', themeState: themeState),
+        SectionTitle(label: 'Colour palette'),
         const SizedBox(height: 4),
         Text(
           'Changes the accent and surface tones across the whole app.',
@@ -62,7 +62,7 @@ class AppearanceContent extends StatelessWidget {
               _PaletteCard(
                 palette: palette,
                 isSelected: themeState.paletteId == palette.id,
-                themeState: themeState,
+
                 onTap: () => context.read<ThemeCubit>().setPalette(palette.id),
               ),
           ],
@@ -114,18 +114,17 @@ class _ModeSegment extends StatelessWidget {
 class _PaletteCard extends StatelessWidget {
   final AppPalette palette;
   final bool isSelected;
-  final ThemeState themeState;
   final VoidCallback onTap;
 
   const _PaletteCard({
     required this.palette,
     required this.isSelected,
-    required this.themeState,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     // The preview is drawn in the palette's own colours for the current
     // brightness, whichever palette is active.
     final preview = themeState.isDarkTheme ? palette.dark : palette.light;

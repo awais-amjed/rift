@@ -56,7 +56,6 @@ class _ChannelChatViewState extends State<ChannelChatView>
                   if (chatState.status == ChannelChatStatus.ready) ...[
                     TypingIndicator(
                       names: chatState.typingUsers.values.toList(),
-                      themeState: themeState,
                     ),
                     ChatComposer(
                       onSend: (text, attachments) =>

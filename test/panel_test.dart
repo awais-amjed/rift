@@ -121,11 +121,7 @@ void main() {
               Brightness.dark,
             ),
             home: Scaffold(
-              body: PanelView(
-                panel: panel,
-                themeState: themeCubit.state,
-                onAction: onAction,
-              ),
+              body: PanelView(panel: panel, onAction: onAction),
             ),
           ),
         ),

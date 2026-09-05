@@ -47,7 +47,7 @@ class _AuthViewState extends State<AuthView>
               ? 'Your encrypted backup is stored on our central server. '
                     'Only you can decrypt it.'
               : 'Sign in to upload or restore your encrypted backup.',
-          themeState: theme,
+
           subtitleMaxWidth: double.infinity,
         ),
 
@@ -118,7 +118,6 @@ class _EmailConfirmationView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.read<ThemeCubit>().state;
     final cubit = context.read<SupabaseBackupCubit>();
     final email = state.email;
 
@@ -132,7 +131,7 @@ class _EmailConfirmationView extends StatelessWidget {
                     'Click the link then sign in below.'
               : 'A confirmation link was sent to your email.\n'
                     'Click the link then sign in below.',
-          themeState: theme,
+
           subtitleMaxWidth: double.infinity,
         ),
 

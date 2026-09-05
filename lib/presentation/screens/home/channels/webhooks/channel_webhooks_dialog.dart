@@ -166,12 +166,7 @@ class _ChannelWebhooksDialogState extends State<ChannelWebhooksDialog> {
         if (_error != null)
           MessageBanner(message: _error!, kind: MessageBannerKind.error),
         if (_created != null)
-          WebhookSecretCard(
-            created: _created!,
-            themeState: themeState,
-            copied: _copied,
-            onCopy: _copy,
-          ),
+          WebhookSecretCard(created: _created!, copied: _copied, onCopy: _copy),
         WebhookCreateRow(
           controller: _nameCtrl,
           isBusy: _isCreating,
@@ -181,7 +176,7 @@ class _ChannelWebhooksDialogState extends State<ChannelWebhooksDialog> {
         WebhookList(
           webhooks: _webhooks,
           isLoading: _isLoading,
-          themeState: themeState,
+
           onDelete: _delete,
         ),
       ],

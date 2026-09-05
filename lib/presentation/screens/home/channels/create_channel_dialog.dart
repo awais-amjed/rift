@@ -146,7 +146,6 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               // people get wrong: an admin is outside this too, because an
               // admin holds no key to it either (ARCHITECTURE.md §4).
               SettingToggleRow(
-                themeState: themeState,
                 title: 'Private channel',
                 description: _mayMakePublic
                     ? 'Only the people you pick can see it — server admins '
@@ -162,7 +161,6 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               if (_isPrivate) ...[
                 const SizedBox(height: 16),
                 ChannelMemberPicker(
-                  themeState: themeState,
                   selection: _selection,
                   onSearch: _searchMembers,
                   enabled: !_isLoading,

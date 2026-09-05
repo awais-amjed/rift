@@ -83,11 +83,7 @@ class DmListPanel extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DmListHeader(
-              title: title,
-              subtitle: subtitle,
-              themeState: themeState,
-            ),
+            DmListHeader(title: title, subtitle: subtitle),
             if (search != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
@@ -151,7 +147,7 @@ class DmListPanel extends StatelessWidget {
     return DmConversationTile(
       conversation: conversation,
       isSelected: conversation.peerId == openPeerId,
-      themeState: themeState,
+
       unreadCount: unreadFor?.call(conversation.peerId) ?? 0,
       level: levelFor?.call(conversation.peerId) ?? NotificationLevel.dmDefault,
       onLevelChanged: onLevelChanged == null

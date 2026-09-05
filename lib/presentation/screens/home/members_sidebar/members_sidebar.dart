@@ -175,7 +175,6 @@ class _MembersSidebarState extends State<MembersSidebar> {
                       : const SizedBox.shrink(),
                 )
               : MembersSidebarList(
-                  themeState: themeState,
                   appState: appState,
                   roster: roster,
                   onlineIds: presence.onlineUserIds,

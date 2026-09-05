@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// A device picker styled as one of the app's fields rather than as a Material
 /// dropdown.
@@ -15,19 +15,17 @@ class DeviceDropdown<T> extends StatelessWidget {
   final T? value;
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?> onChanged;
-  final ThemeState themeState;
-
   const DeviceDropdown({
     super.key,
     required this.icon,
     required this.value,
     required this.items,
     required this.onChanged,
-    required this.themeState,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Container(
       height: K.fieldHeight,
       padding: const EdgeInsets.symmetric(horizontal: 12),

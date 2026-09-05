@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/panel_block.dart';
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
+import '../../../theme/theme_context.dart';
 
 /// The pressable half of a panel: a row of buttons, or a menu.
 ///
@@ -17,16 +17,10 @@ import '../../../theme/custom_colors.dart';
 /// menu, and a horizontal scroller would hide the ninth on a phone with no
 /// sign that it was there.
 class PanelActions extends StatelessWidget {
-  final ThemeState themeState;
   final PanelBlock block;
   final void Function(String action, String? value)? onAction;
 
-  const PanelActions({
-    super.key,
-    required this.themeState,
-    required this.block,
-    this.onAction,
-  });
+  const PanelActions({super.key, required this.block, this.onAction});
 
   bool get _isSelect => block.type == PanelBlockType.select;
 
@@ -42,7 +36,6 @@ class PanelActions extends StatelessWidget {
         children: [
           for (final action in block.actions)
             _Button(
-              themeState: themeState,
               action: action,
               onTap: onAction == null
                   ? null
@@ -56,6 +49,7 @@ class PanelActions extends StatelessWidget {
   /// A menu, drawn as Rift's own dropdown. The bot names the action once; each
   /// option carries the value that comes back with it.
   Widget _select(BuildContext context) {
+    final themeState = context.theme;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: PopupMenuButton<PanelAction>(
@@ -97,26 +91,26 @@ class PanelActions extends StatelessWidget {
 }
 
 class _Button extends StatelessWidget {
-  final ThemeState themeState;
   final PanelAction action;
   final VoidCallback? onTap;
 
-  const _Button({required this.themeState, required this.action, this.onTap});
+  const _Button({required this.action, this.onTap});
 
-  Color get _foreground => switch (action.style) {
-    PanelButtonStyle.primary => themeState.accentBright,
+  Color _foreground(BuildContext context) => switch (action.style) {
+    PanelButtonStyle.primary => context.theme.accentBright,
     PanelButtonStyle.danger => CustomColors.error,
-    PanelButtonStyle.normal => themeState.textSecondary,
+    PanelButtonStyle.normal => context.theme.textSecondary,
   };
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Opacity(
       opacity: onTap == null ? 0.5 : 1,
       child: Material(
         color: action.style == PanelButtonStyle.normal
             ? themeState.bgHover
-            : _foreground.withValues(alpha: 0.12),
+            : _foreground(context).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(K.radiusRow),
         child: InkWell(
           onTap: onTap,
@@ -126,7 +120,7 @@ class _Button extends StatelessWidget {
             child: Text(
               action.label,
               style: AppText.secondary.copyWith(
-                color: _foreground,
+                color: _foreground(context),
                 fontWeight: FontWeight.w600,
               ),
             ),

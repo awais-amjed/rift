@@ -1,27 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/nav_row.dart';
 import '../../../theme/app_text.dart';
 import 'settings_tab.dart';
+import '../../../theme/theme_context.dart';
 
 class SettingsSidebar extends StatelessWidget {
   final SettingsTab activeTab;
   final ValueChanged<SettingsTab> onTabSelected;
-  final ThemeState themeState;
   final VoidCallback onBack;
 
   const SettingsSidebar({
     super.key,
     required this.activeTab,
     required this.onTabSelected,
-    required this.themeState,
     required this.onBack,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -34,7 +33,7 @@ class SettingsSidebar extends StatelessWidget {
           child: Row(
             spacing: 11,
             children: [
-              _BackButton(themeState: themeState, onTap: onBack),
+              _BackButton(onTap: onBack),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,13 +100,13 @@ class SettingsSidebar extends StatelessWidget {
 /// and tooltip — the tile already looked like a button, so this is only making
 /// it behave like the one it was pretending to be.
 class _BackButton extends StatelessWidget {
-  final ThemeState themeState;
   final VoidCallback onTap;
 
-  const _BackButton({required this.themeState, required this.onTap});
+  const _BackButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final radius = BorderRadius.circular(K.radiusRow);
 
     return Tooltip(

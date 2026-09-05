@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/classes/role.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/hint_card.dart';
@@ -137,8 +136,6 @@ class _RolesDialogState extends State<RolesDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
-
     return AppModal(
       title: 'Roles',
       subtitle: 'What each one can do, and who holds it',
@@ -164,7 +161,6 @@ class _RolesDialogState extends State<RolesDialog> {
             ],
             for (final role in _roles)
               RoleRow(
-                themeState: themeState,
                 role: role,
                 memberCount: _counts[role.id] ?? 0,
                 locked: _locked(role),

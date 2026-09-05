@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/classes/role.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
@@ -133,8 +132,6 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
-
     return AppModal(
       title: _isNew ? 'New role' : 'Edit role',
       subtitle: _isEveryone
@@ -163,13 +160,11 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
           if (!_isEveryone) ...[
             const SizedBox(height: 16),
             RoleColourPicker(
-              themeState: themeState,
               value: _color,
               onChanged: _isSaving ? null : (c) => setState(() => _color = c),
             ),
           ],
           PermissionMatrix(
-            themeState: themeState,
             permissions: _permissions,
             viewerPermissions: _viewerPermissions,
             onChanged: _isSaving

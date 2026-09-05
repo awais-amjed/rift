@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/webhook.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// The URL of a webhook that was just created — shown once, and then gone.
 ///
@@ -15,20 +15,19 @@ import '../../../../../../data/constants.dart';
 /// dialog would be a bad way to learn it.
 class WebhookSecretCard extends StatelessWidget {
   final WebhookSecret created;
-  final ThemeState themeState;
   final bool copied;
   final VoidCallback onCopy;
 
   const WebhookSecretCard({
     super.key,
     required this.created,
-    required this.themeState,
     required this.copied,
     required this.onCopy,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/feature_header.dart';
@@ -92,7 +91,6 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.read<ThemeCubit>().state;
     final state = widget.state;
     final busy = state.isProcessing;
 
@@ -108,7 +106,6 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
                       'password.'
                 : 'We will email you a code. You will also need the recovery '
                       'key you saved when you created your account.',
-            themeState: theme,
           ),
 
           const SizedBox(height: 28),

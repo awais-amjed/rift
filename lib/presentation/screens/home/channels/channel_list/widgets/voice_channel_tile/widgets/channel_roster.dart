@@ -7,7 +7,6 @@ import '../../../../../../../../data/classes/voice_drag.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../sidebar/widgets/draggable_member.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
@@ -35,8 +34,6 @@ class ChannelRoster extends StatelessWidget {
   final List<PresenceUser> presenceUsers;
 
   final Map<String, ParticipantSetting> settings;
-  final ThemeState themeState;
-
   const ChannelRoster({
     super.key,
     required this.channelId,
@@ -44,7 +41,6 @@ class ChannelRoster extends StatelessWidget {
     required this.presenceUsers,
     this.summoned = const [],
     required this.settings,
-    required this.themeState,
   });
 
   @override
@@ -83,7 +79,7 @@ class ChannelRoster extends StatelessWidget {
             enabled: canMoveOthers,
             child: PresenceMemberRow(
               user: user,
-              themeState: themeState,
+
               setting: settings[user.userId],
             ),
           ),
@@ -93,12 +89,7 @@ class ChannelRoster extends StatelessWidget {
         // connection to move.
         for (final bot in summoned)
           if (!_present(bot.id))
-            SummonedBotRow(
-              botId: bot.id,
-              name: bot.name,
-              channelId: channelId,
-              themeState: themeState,
-            ),
+            SummonedBotRow(botId: bot.id, name: bot.name, channelId: channelId),
       ],
     );
   }

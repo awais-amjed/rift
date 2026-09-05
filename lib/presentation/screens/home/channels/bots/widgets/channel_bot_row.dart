@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/server_member.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_switch.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// One bot, and whether it has been given access to this channel.
 ///
@@ -17,7 +17,6 @@ import '../../../../../theme/custom_colors.dart';
 /// is authorised by what a bot claims — but for a bot that forwards anywhere it
 /// is the sentence that matters most, and this is the moment it matters.
 class ChannelBotRow extends StatelessWidget {
-  final ThemeState themeState;
   final ServerMember bot;
   final bool granted;
   final bool busy;
@@ -30,7 +29,6 @@ class ChannelBotRow extends StatelessWidget {
 
   const ChannelBotRow({
     super.key,
-    required this.themeState,
     required this.bot,
     required this.granted,
     required this.busy,
@@ -47,6 +45,7 @@ class ChannelBotRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Opacity(
       opacity: busy ? 0.5 : 1,
       child: Padding(

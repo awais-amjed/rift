@@ -166,13 +166,11 @@ class _AppTitleBarState extends State<AppTitleBar>
           tooltip: widget.pinned ? 'Hide title bar' : 'Pin title bar',
           onTap: () =>
               widget.pinned ? widget.onHide?.call() : widget.onShow?.call(),
-          themeState: themeState,
         ),
         WindowButton(
           icon: Icons.remove_rounded,
           tooltip: 'Minimize',
           onTap: () => windowManager.minimize(),
-          themeState: themeState,
         ),
         WindowButton(
           icon: _isMaximized
@@ -182,13 +180,12 @@ class _AppTitleBarState extends State<AppTitleBar>
           onTap: () => _isMaximized
               ? windowManager.unmaximize()
               : windowManager.maximize(),
-          themeState: themeState,
         ),
         WindowButton(
           icon: Icons.close_rounded,
           tooltip: 'Minimize to tray',
           onTap: () => windowManager.hide(),
-          themeState: themeState,
+
           isClose: true,
         ),
       ],

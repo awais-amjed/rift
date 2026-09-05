@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/webhook.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_text.dart';
 import 'webhook_row.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// The webhooks already posting into a channel — or the reason there are none
 /// on screen.
@@ -14,19 +14,18 @@ import 'webhook_row.dart';
 class WebhookList extends StatelessWidget {
   final List<Webhook> webhooks;
   final bool isLoading;
-  final ThemeState themeState;
   final ValueChanged<Webhook> onDelete;
 
   const WebhookList({
     super.key,
     required this.webhooks,
     required this.isLoading,
-    required this.themeState,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     if (isLoading) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -59,7 +58,7 @@ class WebhookList extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, i) => WebhookRow(
           webhook: webhooks[i],
-          themeState: themeState,
+
           onDelete: () => onDelete(webhooks[i]),
         ),
       ),

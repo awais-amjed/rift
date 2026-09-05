@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../../../../../../data/classes/channel.dart';
 import '../../../../../../../../data/constants.dart';
-import '../../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../channel_lock_badge.dart';
 import 'live_badge.dart';
 import 'voice_listening_badge.dart';
+import '../../../../../../../theme/theme_context.dart';
 
 /// The clickable row at the top of an occupied voice channel's card: the
 /// channel's name, its lock, whether a bot can hear it, and the LIVE tag.
@@ -16,7 +16,6 @@ import 'voice_listening_badge.dart';
 /// the tile growing a third job every time voice gains a badge.
 class VoiceChannelTileHeader extends StatelessWidget {
   final Channel channel;
-  final ThemeState themeState;
   final bool isSelected;
 
   /// Display names of the bots that can hear this channel. Empty is the common
@@ -28,7 +27,6 @@ class VoiceChannelTileHeader extends StatelessWidget {
   const VoiceChannelTileHeader({
     super.key,
     required this.channel,
-    required this.themeState,
     required this.isSelected,
     required this.listeners,
     this.onTap,
@@ -36,6 +34,7 @@ class VoiceChannelTileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     // The tile paints its own card, so the ink needs a surface inside it —
     // otherwise the highlight lands on the sidebar behind and the card covers
     // it, and the one row you can click looks exactly like the roster rows
@@ -65,7 +64,7 @@ class VoiceChannelTileHeader extends StatelessWidget {
                     Positioned(
                       right: -4,
                       bottom: -3,
-                      child: ChannelLockBadge(themeState: themeState),
+                      child: ChannelLockBadge(),
                     ),
                 ],
               ),

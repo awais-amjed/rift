@@ -212,7 +212,6 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                 behavior: HitTestBehavior.opaque,
                 child: widget.isExpanded
                     ? ExpandedParticipantTile(
-                        themeState: themeState,
                         videoTrack: videoTrack,
                         name: name,
                         userId: userId,
@@ -265,7 +264,6 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
       ),
       builder: (context, isSpeaking) {
         return CollapsedParticipantTile(
-          themeState: themeState,
           videoTrack: videoTrack,
           isSpeaking: isSpeaking && !widget.isMuted,
           name: name,

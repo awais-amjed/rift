@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../user_avatar.dart';
 
 /// The author's picture in a header row's gutter, falling back to an initial.
@@ -9,7 +8,6 @@ class MessageRowAvatar extends StatelessWidget {
 
   final String authorName;
   final String? avatarPath;
-  final ThemeState themeState;
 
   /// The author's user id, so their colour survives a display-name change.
   final String? authorId;
@@ -17,7 +15,6 @@ class MessageRowAvatar extends StatelessWidget {
   const MessageRowAvatar({
     super.key,
     required this.authorName,
-    required this.themeState,
     this.avatarPath,
     this.authorId,
   });
@@ -29,7 +26,6 @@ class MessageRowAvatar extends StatelessWidget {
       name: authorName,
       seed: authorId,
       size: size,
-      themeState: themeState,
     );
   }
 }

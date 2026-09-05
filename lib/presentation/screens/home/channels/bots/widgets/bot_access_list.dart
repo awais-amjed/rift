@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/channel.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../theme/app_text.dart';
 import 'bot_channel_row.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// One labelled list of channels a bot can reach.
 ///
@@ -15,7 +15,6 @@ import 'bot_channel_row.dart';
 /// arriving from Discord, and they should be impossible to add to one list and
 /// forget in the other.
 class BotAccessList extends StatelessWidget {
-  final ThemeState themeState;
   final String label;
   final List<Channel> channels;
   final IconData emptyIcon;
@@ -28,7 +27,6 @@ class BotAccessList extends StatelessWidget {
 
   const BotAccessList({
     super.key,
-    required this.themeState,
     required this.label,
     required this.channels,
     required this.emptyIcon,
@@ -38,6 +36,7 @@ class BotAccessList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -55,8 +54,7 @@ class BotAccessList extends StatelessWidget {
         if (channels.isEmpty)
           HintCard(icon: emptyIcon, text: emptyText)
         else
-          for (final channel in channels)
-            BotChannelRow(themeState: themeState, channel: channel),
+          for (final channel in channels) BotChannelRow(channel: channel),
       ],
     );
   }

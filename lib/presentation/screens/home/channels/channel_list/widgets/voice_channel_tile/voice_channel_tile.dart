@@ -88,7 +88,7 @@ class VoiceChannelTile extends StatelessWidget {
                         // here is the case you would never notice by reading:
                         // an empty channel is exactly the one nobody is in.
                         iconBadge: channel.isPrivate
-                            ? ChannelLockBadge(themeState: themeState)
+                            ? ChannelLockBadge()
                             : null,
                         label: channel.name,
                         trailing: VoiceListeningBadge(
@@ -162,7 +162,7 @@ class VoiceChannelTile extends StatelessWidget {
             channel: channel,
             child: VoiceChannelTileHeader(
               channel: channel,
-              themeState: themeState,
+
               isSelected: isSelected,
               listeners: context.watch<VoiceListenersCubit>().listening(
                 channel.id,
@@ -179,7 +179,6 @@ class VoiceChannelTile extends StatelessWidget {
               presenceUsers: presenceUsers,
               summoned: summoned,
               settings: appState.participantSettings,
-              themeState: themeState,
             ),
         ],
       ),

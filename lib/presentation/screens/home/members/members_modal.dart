@@ -262,7 +262,6 @@ class _MembersModalState extends State<MembersModal> {
             mainAxisSize: MainAxisSize.min,
             children: [
               MembersSearchField(
-                themeState: themeState,
                 onChanged: (query) => unawaited(_search(query)),
               ),
               if (_error != null) _buildError(),
@@ -315,7 +314,7 @@ class _MembersModalState extends State<MembersModal> {
 
     return MembersList(
       members: rows,
-      themeState: themeState,
+
       // A search is one ranked answer, not the first of many: `search_members`
       // caps it and there is no coherent cursor into a ranked order.
       hasMore: !_isSearching && _pager.hasMore,

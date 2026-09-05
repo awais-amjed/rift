@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_switch.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/no_central_account.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../settings/widgets/section_title.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// Whether this server may wake its members' phones, in the settings dialog.
 ///
@@ -24,7 +24,6 @@ class ServerPushSection extends StatelessWidget {
   final bool signedIn;
 
   final ValueChanged<bool> onChanged;
-  final ThemeState themeState;
   final bool interactive;
 
   const ServerPushSection({
@@ -32,17 +31,17 @@ class ServerPushSection extends StatelessWidget {
     required this.enabled,
     required this.signedIn,
     required this.onChanged,
-    required this.themeState,
     this.interactive = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Notifications', themeState: themeState),
+        SectionTitle(label: 'Notifications'),
         const SizedBox(height: 4),
         Text(
           'Wake members’ phones for messages that arrive while Rift is '

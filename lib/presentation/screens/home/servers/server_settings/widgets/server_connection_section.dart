@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_text_field.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../settings/widgets/section_title.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// The identity + LiveKit half of the server settings dialog.
 ///
@@ -14,7 +14,6 @@ class ServerConnectionSection extends StatelessWidget {
   final TextEditingController livekitUrlCtrl;
   final TextEditingController apiKeyCtrl;
   final TextEditingController secretCtrl;
-  final ThemeState themeState;
   final bool enabled;
 
   const ServerConnectionSection({
@@ -23,17 +22,17 @@ class ServerConnectionSection extends StatelessWidget {
     required this.livekitUrlCtrl,
     required this.apiKeyCtrl,
     required this.secretCtrl,
-    required this.themeState,
     this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Server', themeState: themeState),
+        SectionTitle(label: 'Server'),
         const SizedBox(height: 14),
         AppTextField(
           controller: nameCtrl,

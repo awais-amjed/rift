@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/speaking_ring.dart';
 import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
@@ -9,11 +8,11 @@ import 'stop_watching_button.dart';
 import 'watch_stream_button.dart';
 import '../../../../../data/constants.dart';
 import '../../../../theme/app_motion.dart';
+import '../../../../theme/theme_context.dart';
 
 /// A participant as they appear in the grid: video or avatar in a rounded
 /// card, name badge always visible, and a speaking ring that lights up.
 class CollapsedParticipantTile extends StatelessWidget {
-  final ThemeState themeState;
   final VideoTrack? videoTrack;
   final bool isSpeaking;
   final String name;
@@ -33,7 +32,6 @@ class CollapsedParticipantTile extends StatelessWidget {
 
   const CollapsedParticipantTile({
     super.key,
-    required this.themeState,
     required this.videoTrack,
     required this.isSpeaking,
     required this.name,
@@ -49,6 +47,7 @@ class CollapsedParticipantTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final radius = BorderRadius.circular(K.radiusCard);
 
     return SpeakingRing(

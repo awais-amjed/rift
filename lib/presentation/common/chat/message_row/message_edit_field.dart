@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/theme_context.dart';
 
 /// Inline editor that replaces a message's text while it is being edited —
 /// Discord-style, rather than lifting the message into a dialog.
@@ -12,14 +12,12 @@ import '../../../../data/constants.dart';
 /// composer uses, so editing feels like writing.
 class MessageEditField extends StatefulWidget {
   final String initialText;
-  final ThemeState themeState;
   final ValueChanged<String> onSave;
   final VoidCallback onCancel;
 
   const MessageEditField({
     super.key,
     required this.initialText,
-    required this.themeState,
     required this.onSave,
     required this.onCancel,
   });
@@ -76,7 +74,7 @@ class _MessageEditFieldState extends State<MessageEditField> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.themeState;
+    final theme = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// The composer's text input, stripped of the global filled [InputDecoration]
 /// so it reads as part of the bar rather than a box inside it.
@@ -16,7 +16,6 @@ class ComposerTextField extends StatelessWidget {
 
   final TextEditingController controller;
   final FocusNode focusNode;
-  final ThemeState themeState;
   final bool enabled;
   final String hintText;
   final ValueChanged<String> onChanged;
@@ -28,7 +27,6 @@ class ComposerTextField extends StatelessWidget {
     super.key,
     required this.controller,
     required this.focusNode,
-    required this.themeState,
     required this.enabled,
     required this.hintText,
     required this.onChanged,
@@ -50,6 +48,7 @@ class ComposerTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: K.composerControlSize),
       child: Align(

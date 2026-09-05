@@ -5,7 +5,6 @@ import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/nav_row.dart';
 import '../../../../common/unread_badge.dart';
 import 'server_dms_context_menu.dart';
@@ -48,12 +47,7 @@ class ServerDmsRow extends StatelessWidget {
               label: 'Server DMs',
               isSelected: appState.surface == HomeSurface.serverDms,
               isUnread: unread > 0,
-              trailing: unread > 0
-                  ? UnreadBadge(
-                      count: unread,
-                      themeState: context.watch<ThemeCubit>().state,
-                    )
-                  : null,
+              trailing: unread > 0 ? UnreadBadge(count: unread) : null,
               onTap: () =>
                   context.read<AppCubit>().setSurface(HomeSurface.serverDms),
             ),

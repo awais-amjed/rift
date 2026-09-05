@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../logic/cubits/theme/theme_cubit.dart';
 import '../../logic/services/host_platform.dart';
 import 'app_palette.dart';
 import 'app_shadows.dart';
@@ -17,6 +18,15 @@ class AppTheme {
     return ThemeData(
       brightness: brightness,
       useMaterial3: true,
+      // What widgets actually read — see `context.theme`.
+      extensions: [
+        ThemeState(
+          themeMode: brightness == Brightness.dark
+              ? ThemeMode.dark
+              : ThemeMode.light,
+          paletteId: palette.id,
+        ),
+      ],
       fontFamily: AppText.sans,
       colorScheme: ColorScheme.fromSeed(
         seedColor: colors.primary,

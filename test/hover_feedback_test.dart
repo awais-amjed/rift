@@ -160,7 +160,7 @@ void main() {
       (theme) => ComposerIconButton(
         icon: Icons.sentiment_satisfied_alt_rounded,
         tooltip: 'Emoji',
-        themeState: theme,
+
         onPressed: () {},
       ),
     );
@@ -177,7 +177,7 @@ void main() {
       (theme) => ComposerIconButton(
         icon: Icons.mic_none_rounded,
         tooltip: 'Record',
-        themeState: theme,
+
         onPressed: null,
       ),
     );
@@ -191,11 +191,7 @@ void main() {
     // however many Materials it were given — it lifts itself instead.
     await host(
       tester,
-      (theme) => ComposerSendButton(
-        themeState: theme,
-        enabled: true,
-        onPressed: () {},
-      ),
+      (theme) => ComposerSendButton(enabled: true, onPressed: () {}),
     );
 
     final (idle, lit) = await hover(tester, find.byType(ComposerSendButton));
@@ -205,11 +201,7 @@ void main() {
   testWidgets('a send button with nothing to send stays dark', (tester) async {
     await host(
       tester,
-      (theme) => ComposerSendButton(
-        themeState: theme,
-        enabled: false,
-        onPressed: () {},
-      ),
+      (theme) => ComposerSendButton(enabled: false, onPressed: () {}),
     );
 
     final (idle, lit) = await hover(tester, find.byType(ComposerSendButton));
@@ -261,7 +253,6 @@ void main() {
           nonceB64: 'n',
         ),
         loader: (_) async => null,
-        themeState: theme,
       ),
     );
 
@@ -278,7 +269,6 @@ void main() {
         controller: TextEditingController(),
         tags: const ['board-games'],
         onChanged: (_) {},
-        themeState: theme,
       ),
     );
 
@@ -300,7 +290,7 @@ void main() {
           displayName: 'Me',
           permissions: UserPermissions(),
         ),
-        themeState: theme,
+
         onTap: () {},
       ),
     );

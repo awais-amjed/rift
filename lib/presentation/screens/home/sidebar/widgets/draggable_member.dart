@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/voice_drag.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Makes a voice-channel row something you can pick up and drop on another
 /// channel, which is the direct way to say what the "Move to" submenu says.
@@ -35,7 +34,6 @@ class DraggableMember extends StatelessWidget {
     // Read here rather than inside the chip: the feedback is built in the
     // overlay, which is outside this tree, so it can't look a cubit up for
     // itself — the same reason a context menu is handed its cubits.
-    final themeState = context.watch<ThemeCubit>().state;
 
     return Draggable<VoiceDrag>(
       data: member,
@@ -43,7 +41,7 @@ class DraggableMember extends StatelessWidget {
       // much smaller than the row it came from, so holding the original offset
       // would leave it floating away from the cursor.
       dragAnchorStrategy: pointerDragAnchorStrategy,
-      feedback: _Chip(member: member, themeState: themeState),
+      feedback: _Chip(member: member),
       childWhenDragging: Opacity(opacity: 0.4, child: child),
       child: child,
     );
@@ -54,12 +52,11 @@ class DraggableMember extends StatelessWidget {
 /// channel underneath it.
 class _Chip extends StatelessWidget {
   final VoiceDrag member;
-  final ThemeState themeState;
-
-  const _Chip({required this.member, required this.themeState});
+  const _Chip({required this.member});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Material(
       color: Colors.transparent,
       child: Padding(

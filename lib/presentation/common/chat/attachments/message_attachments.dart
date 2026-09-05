@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/attachment.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'attachment_file_card.dart';
 import 'attachment_image_thumb.dart';
 import 'attachment_loader.dart';
@@ -13,13 +12,10 @@ import 'audio_message_player.dart';
 class MessageAttachments extends StatelessWidget {
   final List<Attachment> attachments;
   final AttachmentLoader loader;
-  final ThemeState themeState;
-
   const MessageAttachments({
     super.key,
     required this.attachments,
     required this.loader,
-    required this.themeState,
   });
 
   @override
@@ -38,19 +34,16 @@ class MessageAttachments extends StatelessWidget {
                 key: ValueKey(a.id),
                 attachment: a,
                 loader: loader,
-                themeState: themeState,
               ),
               AttachmentKind.audio => AudioMessagePlayer(
                 key: ValueKey(a.id),
                 attachment: a,
                 loader: loader,
-                themeState: themeState,
               ),
               AttachmentKind.file => AttachmentFileCard(
                 key: ValueKey(a.id),
                 attachment: a,
                 loader: loader,
-                themeState: themeState,
               ),
             },
         ],

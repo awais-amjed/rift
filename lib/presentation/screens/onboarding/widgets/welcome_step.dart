@@ -8,6 +8,7 @@ import '../../../common/app_mark.dart';
 import 'onboarding_page.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
+import '../../../theme/theme_context.dart';
 
 /// First step of onboarding — welcome & app overview.
 class WelcomeStep extends StatelessWidget {
@@ -72,7 +73,7 @@ class WelcomeStep extends StatelessWidget {
           const SizedBox(height: 20),
 
           // Feature pills
-          _FeaturePillRow(theme: theme),
+          const _FeaturePillRow(),
 
           const SizedBox(height: 36),
 
@@ -127,9 +128,7 @@ class WelcomeStep extends StatelessWidget {
 }
 
 class _FeaturePillRow extends StatelessWidget {
-  final ThemeState theme;
-
-  const _FeaturePillRow({required this.theme});
+  const _FeaturePillRow();
 
   @override
   Widget build(BuildContext context) {
@@ -138,13 +137,14 @@ class _FeaturePillRow extends StatelessWidget {
       runSpacing: 8,
       alignment: WrapAlignment.center,
       children: [
-        _pill(Icons.mic_rounded, 'Voice chat'),
-        _pill(Icons.screen_share_rounded, 'Screen sharing'),
-        _pill(Icons.forum_rounded, 'Channels'),
-        _pill(Icons.dns_rounded, 'Self-hosted'),
+        _pill(context, Icons.mic_rounded, 'Voice chat'),
+        _pill(context, Icons.screen_share_rounded, 'Screen sharing'),
+        _pill(context, Icons.forum_rounded, 'Channels'),
+        _pill(context, Icons.dns_rounded, 'Self-hosted'),
         // Green, and last, so it reads as the guarantee over the feature list
         // rather than as one more feature in it.
         _pill(
+          context,
           Icons.lock_outline,
           'End-to-end encrypted',
           color: CustomColors.success,
@@ -153,7 +153,13 @@ class _FeaturePillRow extends StatelessWidget {
     );
   }
 
-  Widget _pill(IconData icon, String label, {Color? color}) {
+  Widget _pill(
+    BuildContext context,
+    IconData icon,
+    String label, {
+    Color? color,
+  }) {
+    final theme = context.theme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(

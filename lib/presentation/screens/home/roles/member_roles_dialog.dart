@@ -137,7 +137,6 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
                   children: [
                     Expanded(
                       child: RoleRow(
-                        themeState: themeState,
                         role: role,
                         // An administrator may hand out a role at their own
                         // rank, which is how the only admin on a server makes

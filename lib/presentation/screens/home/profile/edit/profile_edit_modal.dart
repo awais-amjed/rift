@@ -215,7 +215,6 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
                       avatarPath: currentPath,
                       name: _nameController.text,
                       size: 84,
-                      themeState: themeState,
                     ),
             ),
             Positioned(

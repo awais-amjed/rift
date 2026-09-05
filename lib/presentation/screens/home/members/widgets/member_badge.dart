@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../data/constants.dart';
 
 /// Small icon badge with tooltip used in member rows (admin, manager,
@@ -9,14 +8,11 @@ class MemberBadge extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final Color color;
-  final ThemeState themeState;
-
   const MemberBadge({
     super.key,
     required this.icon,
     required this.tooltip,
     required this.color,
-    required this.themeState,
   });
 
   @override

@@ -10,6 +10,7 @@ import '../../roles/member_roles_dialog.dart';
 import 'member_moderation_row.dart';
 import '../../channels/bots/bot_access_dialog.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Expanded management controls under a member row: permission toggles
 /// (server admins only), mute/deafen moderation buttons (admins and channel
@@ -96,7 +97,6 @@ class MemberManagePanel extends StatelessWidget {
               // cannot be taken back.
               if (member.isBot)
                 _PanelRow(
-                  themeState: themeState,
                   icon: Icons.hearing_rounded,
                   label: 'What it can read',
                   onTap: isBusy ? null : () => _openBotAccess(context),
@@ -108,14 +108,13 @@ class MemberManagePanel extends StatelessWidget {
               // first time somebody edits a role.
               if (canManagePermissions && !member.isBot)
                 _PanelRow(
-                  themeState: themeState,
                   icon: Icons.shield_outlined,
                   label: 'Roles',
                   onTap: isBusy ? null : () => _openRoles(context),
                 ),
               MemberModerationRow(
                 member: member,
-                themeState: themeState,
+
                 isBusy: isBusy,
                 canModerate: canModerate,
                 canBan: canManagePermissions,
@@ -134,20 +133,15 @@ class MemberManagePanel extends StatelessWidget {
 /// One tappable line in the panel — the two things it opens rather than
 /// toggles.
 class _PanelRow extends StatelessWidget {
-  final ThemeState themeState;
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
 
-  const _PanelRow({
-    required this.themeState,
-    required this.icon,
-    required this.label,
-    this.onTap,
-  });
+  const _PanelRow({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       children: [
         Divider(height: 1, color: themeState.borderPrimary),

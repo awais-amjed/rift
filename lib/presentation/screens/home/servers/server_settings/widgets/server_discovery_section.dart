@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/public_server.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_switch.dart';
 import '../../../../../common/app_text_field.dart';
@@ -11,6 +10,7 @@ import '../../../../../common/tag_editor.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../settings/widgets/section_title.dart';
 import '../listing_draft.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// The discovery third of the server settings dialog: whether this server is
 /// in the central browser, and how it reads there.
@@ -31,7 +31,6 @@ class ServerDiscoverySection extends StatelessWidget {
   final VoidCallback onChanged;
 
   final VoidCallback onRemove;
-  final ThemeState themeState;
   final bool enabled;
 
   const ServerDiscoverySection({
@@ -41,17 +40,17 @@ class ServerDiscoverySection extends StatelessWidget {
     required this.memberCount,
     required this.onChanged,
     required this.onRemove,
-    required this.themeState,
     this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Discovery', themeState: themeState),
+        SectionTitle(label: 'Discovery'),
         const SizedBox(height: 4),
         Text(
           'A listed server can be found and joined by anyone with a Rift '
@@ -104,7 +103,7 @@ class ServerDiscoverySection extends StatelessWidget {
                 draft.committedTags = tags;
                 onChanged();
               },
-              themeState: themeState,
+
               enabled: enabled,
             ),
             const SizedBox(height: 14),
@@ -121,7 +120,7 @@ class ServerDiscoverySection extends StatelessWidget {
           ],
           if (draft.listing != null) ...[
             const SizedBox(height: 14),
-            _JoinLink(draft: draft, themeState: themeState),
+            _JoinLink(draft: draft),
             const SizedBox(height: 12),
             Row(
               spacing: 8,
@@ -153,12 +152,11 @@ class ServerDiscoverySection extends StatelessWidget {
 /// The listing's current join link, or a note that Save will replace it.
 class _JoinLink extends StatelessWidget {
   final ListingDraft draft;
-  final ThemeState themeState;
-
-  const _JoinLink({required this.draft, required this.themeState});
+  const _JoinLink({required this.draft});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

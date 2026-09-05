@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/loading_dots.dart';
 import 'member_row.dart';
 import '../../../../../data/classes/role.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The roster inside the members dialog: one [MemberRow] per member, and the
 /// rules about which of them the viewer may act on.
@@ -13,7 +13,6 @@ import '../../../../../data/classes/role.dart';
 /// *viewer* — who they are and what they may do — which no single row knows.
 class MembersList extends StatelessWidget {
   final List<ServerMember> members;
-  final ThemeState themeState;
 
   /// Whether another page of the roster exists. Draws a footer, and is what
   /// makes [onLoadMore] worth calling.
@@ -50,7 +49,6 @@ class MembersList extends StatelessWidget {
   const MembersList({
     super.key,
     required this.members,
-    required this.themeState,
     required this.hasMore,
     required this.onLoadMore,
     required this.memberRoles,
@@ -80,17 +78,17 @@ class MembersList extends StatelessWidget {
         // notifications still need to see it.
         return false;
       },
-      child: _buildList(),
+      child: _buildList(context),
     );
   }
 
-  Widget _buildList() {
+  Widget _buildList(BuildContext context) {
     return ListView.builder(
       shrinkWrap: true,
       padding: const EdgeInsets.all(12),
       itemCount: members.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == members.length) return _buildFooter();
+        if (index == members.length) return _buildFooter(context);
         final member = members[index];
         final isSelf = member.id == viewerId;
 
@@ -121,10 +119,10 @@ class MembersList extends StatelessWidget {
 
   /// The spinner at the end of a page, which is also the thing whose appearing
   /// tells somebody the list has not simply stopped.
-  Widget _buildFooter() => Padding(
+  Widget _buildFooter(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 18),
     child: Center(
-      child: LoadingDots(color: themeState.accentBright, dotSize: 5),
+      child: LoadingDots(color: context.theme.accentBright, dotSize: 5),
     ),
   );
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/nav_row.dart';
 import '../../../../common/unread_badge.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -21,7 +20,6 @@ class FriendsNavRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
     final state = context.watch<CentralDmCubit>().state;
     final requests = state.friends.requestCount;
 
@@ -36,9 +34,7 @@ class FriendsNavRow extends StatelessWidget {
           state.openPeerId == null &&
           (state.friendsOpen || !context.layoutMode.isCompact),
       isUnread: requests > 0,
-      trailing: requests > 0
-          ? UnreadBadge(count: requests, themeState: themeState)
-          : null,
+      trailing: requests > 0 ? UnreadBadge(count: requests) : null,
       onTap: () => context.read<CentralDmCubit>().openFriends(),
     );
   }

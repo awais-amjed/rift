@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/server_member.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../context_menu/context_menu_panel.dart';
 import '../../user_avatar.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/theme_context.dart';
 
 /// The `@` menu: who is here, and what they are actually called.
 ///
@@ -25,13 +25,11 @@ import '../../../../data/constants.dart';
 /// showing only the second is the problem this menu exists to fix.
 class ComposerMentionMenu extends StatelessWidget {
   final List<ServerMember> members;
-  final ThemeState themeState;
   final void Function(ServerMember member) onSelected;
 
   const ComposerMentionMenu({
     super.key,
     required this.members,
-    required this.themeState,
     required this.onSelected,
   });
 
@@ -45,14 +43,15 @@ class ComposerMentionMenu extends StatelessWidget {
         // name lost its second word to an ellipsis, which is the word that
         // tells two people apart.
         maxWidth: 268,
-        children: [for (final member in members) _row(member)],
+        children: [for (final member in members) _row(context, member)],
       ),
     );
   }
 
   /// Deliberately the geometry of [ContextMenuItem] — 9px radius, the same
   /// padding, the same hover — with an avatar where its icon goes.
-  Widget _row(ServerMember member) {
+  Widget _row(BuildContext context, ServerMember member) {
+    final themeState = context.theme;
     final radius = BorderRadius.circular(K.radiusRow);
 
     return Material(
@@ -71,7 +70,7 @@ class ComposerMentionMenu extends StatelessWidget {
                 avatarPath: member.avatarPath,
                 name: member.displayName,
                 size: 20,
-                themeState: themeState,
+
                 seed: member.id,
               ),
               // The name somebody is reading for gets the room first; the

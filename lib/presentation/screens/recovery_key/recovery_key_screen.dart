@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../common/app_button.dart';
 import '../../common/canvas_backdrop.dart';
@@ -32,7 +31,6 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeCubit>().state;
     final vault = context.watch<VaultCubit>();
     final key = vault.state.pendingRecoveryKey;
 
@@ -60,10 +58,9 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
                       subtitle:
                           'Write this down and keep it somewhere safe. It is '
                           'shown once and never again.',
-                      themeState: theme,
                     ),
                     const SizedBox(height: 28),
-                    RecoveryKeyCard(recoveryKey: key, themeState: theme),
+                    RecoveryKeyCard(recoveryKey: key),
                     const SizedBox(height: 20),
                     const MessageBanner(
                       message:
@@ -77,7 +74,7 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
                     const SizedBox(height: 20),
                     RecoveryKeyAcknowledgement(
                       value: _acknowledged,
-                      themeState: theme,
+
                       onChanged: (v) => setState(() => _acknowledged = v),
                     ),
                     const SizedBox(height: 20),

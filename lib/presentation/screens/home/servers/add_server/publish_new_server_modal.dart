@@ -215,7 +215,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
           controller: _tagCtrl,
           tags: _tags,
           onChanged: (tags) => setState(() => _tags = tags),
-          themeState: themeState,
+
           enabled: !_publishing,
         ),
         const SizedBox(height: 16),

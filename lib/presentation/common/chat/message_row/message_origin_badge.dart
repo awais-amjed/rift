@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/chat_message.dart';
 import '../../../../data/enums/message_origin.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
+import '../../../theme/theme_context.dart';
 
 /// Says a message was not encrypted, and that no person sent it.
 ///
@@ -23,13 +23,7 @@ import '../../../theme/custom_colors.dart';
 /// nothing being there at all.
 class MessageOriginBadge extends StatelessWidget {
   final ChatMessage message;
-  final ThemeState themeState;
-
-  const MessageOriginBadge({
-    super.key,
-    required this.message,
-    required this.themeState,
-  });
+  const MessageOriginBadge({super.key, required this.message});
 
   /// Whether [message] needs one at all. A member's sealed message — every
   /// message before migration 013 — does not.
@@ -41,8 +35,8 @@ class MessageOriginBadge extends StatelessWidget {
   /// like an error would teach people to ignore it.
   /// A private reply is not a caution, so it is not amber. It is a fact about
   /// who is looking, and it reads as one.
-  Color get _color =>
-      message.isEphemeral ? themeState.textTertiary : CustomColors.warning;
+  Color _color(BuildContext context) =>
+      message.isEphemeral ? context.theme.textTertiary : CustomColors.warning;
 
   /// "Only you" comes first when both are true. A private reply is already
   /// unencrypted by construction, and the surprising half — that nobody else
@@ -79,15 +73,18 @@ class MessageOriginBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
         decoration: BoxDecoration(
-          color: _color.withValues(alpha: 0.14),
+          color: _color(context).withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           spacing: 3,
           children: [
-            Icon(Icons.lock_open_rounded, size: 10, color: _color),
-            Text(_label, style: AppText.roleChip.copyWith(color: _color)),
+            Icon(Icons.lock_open_rounded, size: 10, color: _color(context)),
+            Text(
+              _label,
+              style: AppText.roleChip.copyWith(color: _color(context)),
+            ),
           ],
         ),
       ),

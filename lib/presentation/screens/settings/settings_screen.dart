@@ -168,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             activeTab: _activeTab,
                             onTabSelected: (tab) =>
                                 _selectTab(tab, compact: compact),
-                            themeState: themeState,
+
                             onBack: () => context.pop(),
                           ),
                         ),
@@ -194,15 +194,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     padding: EdgeInsets.all(compact ? 16 : 24),
                                     child: switch (_activeTab) {
                                       SettingsTab.appearance =>
-                                        AppearanceContent(
-                                          themeState: themeState,
-                                        ),
+                                        AppearanceContent(),
                                       SettingsTab.voiceAndAudio =>
-                                        VoiceAudioContent(
-                                          themeState: themeState,
-                                        ),
+                                        VoiceAudioContent(),
                                       SettingsTab.backup => BackupContent(
-                                        themeState: themeState,
                                         onResetVault: _resetVault,
                                       ),
                                     },

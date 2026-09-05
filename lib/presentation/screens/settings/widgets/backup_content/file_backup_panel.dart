@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
@@ -15,11 +14,10 @@ import '../../../../common/restore_file_dialog.dart';
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../theme/theme_context.dart';
 
 class FileBackupPanel extends StatefulWidget {
-  final ThemeState themeState;
-
-  const FileBackupPanel({super.key, required this.themeState});
+  const FileBackupPanel({super.key});
 
   @override
   State<FileBackupPanel> createState() => FileBackupPanelState();
@@ -75,12 +73,12 @@ class FileBackupPanelState extends State<FileBackupPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.themeState;
+    final theme = context.theme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Backup file', themeState: theme),
+        SectionTitle(label: 'Backup file'),
         const SizedBox(height: 4),
         Text(
           'Export your encrypted backup as a file, or restore from one. '

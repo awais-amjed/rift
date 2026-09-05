@@ -94,7 +94,6 @@ void main() {
             home: StatefulBuilder(
               builder: (context, setState) => Scaffold(
                 body: ChannelMemberPicker(
-                  themeState: themeCubit.state,
                   selection: selection,
                   onSearch: (query) async {
                     asked.add(query);
@@ -219,9 +218,7 @@ void main() {
     await tester.pumpWidget(
       BlocProvider<ThemeCubit>.value(
         value: themeCubit,
-        child: MaterialApp(
-          home: Scaffold(body: ChannelLockBadge(themeState: themeCubit.state)),
-        ),
+        child: MaterialApp(home: Scaffold(body: ChannelLockBadge())),
       ),
     );
     expect(find.byIcon(Icons.lock_rounded), findsOneWidget);

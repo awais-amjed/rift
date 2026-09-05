@@ -54,7 +54,6 @@ void main() {
     Widget? control,
   }) => Builder(
     builder: (context) => BotAccessList(
-      themeState: context.watch<ThemeCubit>().state,
       label: label,
       channels: channels,
       emptyIcon: Icons.volume_off_outlined,

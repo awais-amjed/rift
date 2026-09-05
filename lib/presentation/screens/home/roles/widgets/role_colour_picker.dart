@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/theme_context.dart';
 
 /// A row of swatches, and "none".
 ///
@@ -11,16 +11,10 @@ import '../../../../../data/constants.dart';
 /// either invisible there or indistinguishable from the accent — so the choice
 /// worth offering is a small one that all works.
 class RoleColourPicker extends StatelessWidget {
-  final ThemeState themeState;
   final String? value;
   final ValueChanged<String?>? onChanged;
 
-  const RoleColourPicker({
-    super.key,
-    required this.themeState,
-    required this.value,
-    this.onChanged,
-  });
+  const RoleColourPicker({super.key, required this.value, this.onChanged});
 
   static const List<String> swatches = [
     '#F43F5E', // rose
@@ -36,6 +30,7 @@ class RoleColourPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -49,14 +44,12 @@ class RoleColourPicker extends StatelessWidget {
           runSpacing: 8,
           children: [
             _Swatch(
-              themeState: themeState,
               hex: null,
               selected: value == null,
               onTap: onChanged == null ? null : () => onChanged!(null),
             ),
             for (final hex in swatches)
               _Swatch(
-                themeState: themeState,
                 hex: hex,
                 selected: value == hex,
                 onTap: onChanged == null ? null : () => onChanged!(hex),
@@ -69,20 +62,15 @@ class RoleColourPicker extends StatelessWidget {
 }
 
 class _Swatch extends StatelessWidget {
-  final ThemeState themeState;
   final String? hex;
   final bool selected;
   final VoidCallback? onTap;
 
-  const _Swatch({
-    required this.themeState,
-    required this.hex,
-    required this.selected,
-    this.onTap,
-  });
+  const _Swatch({required this.hex, required this.selected, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final colour = hex == null
         ? themeState.bgSecondary
         : Color(0xFF000000 | int.parse(hex!.substring(1), radix: 16));

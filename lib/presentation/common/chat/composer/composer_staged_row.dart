@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/pending_attachment.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import 'composer_staged_chip.dart';
 
 /// The horizontal strip of staged-attachment chips shown above the input.
@@ -9,13 +8,11 @@ class ComposerStagedRow extends StatelessWidget {
   static const double _height = 76;
 
   final List<PendingAttachment> staged;
-  final ThemeState themeState;
   final ValueChanged<int> onRemove;
 
   const ComposerStagedRow({
     super.key,
     required this.staged,
-    required this.themeState,
     required this.onRemove,
   });
 
@@ -30,7 +27,7 @@ class ComposerStagedRow extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) => ComposerStagedChip(
           attachment: staged[i],
-          themeState: themeState,
+
           onRemove: () => onRemove(i),
         ),
       ),

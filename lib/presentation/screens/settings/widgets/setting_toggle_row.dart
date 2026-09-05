@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_switch.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// A titled description with a trailing switch — the standard layout for a
 /// boolean setting.
@@ -11,7 +11,6 @@ import '../../../theme/app_text.dart';
 /// setting stays visible (with a description explaining why) on platforms
 /// that cannot offer it.
 class SettingToggleRow extends StatelessWidget {
-  final ThemeState themeState;
   final String title;
   final String description;
   final bool value;
@@ -19,7 +18,6 @@ class SettingToggleRow extends StatelessWidget {
 
   const SettingToggleRow({
     super.key,
-    required this.themeState,
     required this.title,
     required this.description,
     required this.value,
@@ -28,6 +26,7 @@ class SettingToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Row(
       children: [
         Expanded(

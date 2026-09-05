@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/member_selection.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../theme/app_text.dart';
 import 'member_pick_row.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Who else is in a private channel.
 ///
@@ -34,8 +34,6 @@ import '../../../../../data/constants.dart';
 /// is the matches alone, because a pinned row that has nothing to do with what
 /// somebody is searching for is noise in the one moment they are looking hard.
 class ChannelMemberPicker extends StatefulWidget {
-  final ThemeState themeState;
-
   /// Who is ticked, and the rows behind them. The picker never mutates it — it
   /// reports taps through [onToggle] and re-reads this.
   ///
@@ -57,7 +55,6 @@ class ChannelMemberPicker extends StatefulWidget {
 
   const ChannelMemberPicker({
     super.key,
-    required this.themeState,
     required this.selection,
     required this.onSearch,
     required this.onToggle,
@@ -140,9 +137,9 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
         Container(
           height: 168,
           decoration: BoxDecoration(
-            color: widget.themeState.bgSecondary,
+            color: context.theme.bgSecondary,
             borderRadius: BorderRadius.circular(K.radiusRow),
-            border: Border.all(color: widget.themeState.borderPrimary),
+            border: Border.all(color: context.theme.borderPrimary),
           ),
           child: visible.isEmpty ? _message() : _list(visible),
         ),
@@ -154,7 +151,6 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
     padding: const EdgeInsets.symmetric(vertical: 4),
     itemCount: visible.length,
     itemBuilder: (context, i) => MemberPickRow(
-      themeState: widget.themeState,
       member: visible[i],
       checked: widget.selection.contains(visible[i].id),
       onTap: widget.enabled ? () => widget.onToggle(visible[i]) : null,
@@ -168,7 +164,7 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
           : _controller.text.trim().isEmpty
           ? 'Nobody else here yet'
           : 'No matches',
-      style: AppText.secondary.copyWith(color: widget.themeState.textTertiary),
+      style: AppText.secondary.copyWith(color: context.theme.textTertiary),
     ),
   );
 }

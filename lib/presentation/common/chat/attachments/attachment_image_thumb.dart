@@ -3,11 +3,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/attachment.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_motion.dart';
 import 'attachment_image_viewer.dart';
 import 'attachment_loader.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/theme_context.dart';
 
 /// An image attachment, decrypted on demand and shown as a rounded thumbnail.
 /// Tapping opens it full-screen.
@@ -21,13 +21,10 @@ import '../../../../data/constants.dart';
 class AttachmentImageThumb extends StatefulWidget {
   final Attachment attachment;
   final AttachmentLoader loader;
-  final ThemeState themeState;
-
   const AttachmentImageThumb({
     super.key,
     required this.attachment,
     required this.loader,
-    required this.themeState,
   });
 
   /// Longest edge of a thumbnail in the message list.
@@ -106,7 +103,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
                 height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: widget.themeState.primary,
+                  color: context.theme.primary,
                 ),
               ),
             ),
@@ -119,7 +116,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
             Center(
               child: Icon(
                 Icons.broken_image_outlined,
-                color: widget.themeState.textQuaternary,
+                color: context.theme.textQuaternary,
               ),
             ),
           );
@@ -167,9 +164,9 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
       width: box == null ? AttachmentImageThumb.maxSize : null,
       height: box == null ? AttachmentImageThumb._fallbackHeight : null,
       decoration: BoxDecoration(
-        color: widget.themeState.bgTertiary,
+        color: context.theme.bgTertiary,
         borderRadius: BorderRadius.circular(K.radiusCard),
-        border: Border.all(color: widget.themeState.borderPrimary),
+        border: Border.all(color: context.theme.borderPrimary),
       ),
       child: child,
     );

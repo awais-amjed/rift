@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/server_member.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../popover_surface.dart';
+import '../../../theme/theme_context.dart';
 
 /// The `/` menu: which bots are here and what they answer to.
 ///
@@ -19,13 +19,11 @@ class ComposerCommandMenu extends StatelessWidget {
   /// `(bot, command name, one-line description)`, already filtered by what has
   /// been typed after the slash.
   final List<({ServerMember bot, String name, String? description})> entries;
-  final ThemeState themeState;
   final void Function(ServerMember bot, String name) onSelected;
 
   const ComposerCommandMenu({
     super.key,
     required this.entries,
-    required this.themeState,
     required this.onSelected,
   });
 
@@ -42,14 +40,18 @@ class ComposerCommandMenu extends StatelessWidget {
             shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 4),
             itemCount: entries.length,
-            itemBuilder: (context, i) => _row(entries[i]),
+            itemBuilder: (context, i) => _row(context, entries[i]),
           ),
         ),
       ),
     );
   }
 
-  Widget _row(({ServerMember bot, String name, String? description}) entry) {
+  Widget _row(
+    BuildContext context,
+    ({ServerMember bot, String name, String? description}) entry,
+  ) {
+    final themeState = context.theme;
     return Material(
       type: MaterialType.transparency,
       child: InkWell(

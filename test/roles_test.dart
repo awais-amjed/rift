@@ -206,7 +206,6 @@ void main() {
             home: Scaffold(
               body: SingleChildScrollView(
                 child: PermissionMatrix(
-                  themeState: themeCubit.state,
                   permissions: permissions,
                   viewerPermissions: viewer,
                   onChanged: editable ? (_, _) {} : null,

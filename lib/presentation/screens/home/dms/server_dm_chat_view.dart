@@ -47,7 +47,6 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
             names: state.typingPeerName != null
                 ? [state.typingPeerName!]
                 : const [],
-            themeState: themeState,
           ),
           ChatComposer(
             hintText: 'Message ${state.openPeerName ?? ''}',

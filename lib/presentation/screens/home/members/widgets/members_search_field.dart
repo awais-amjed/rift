@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The search row under the members dialog's header.
 ///
@@ -18,17 +18,11 @@ import '../../../../../data/constants.dart';
 /// name into, and a request per letter would spend five round trips answering
 /// about prefixes nobody meant.
 class MembersSearchField extends StatefulWidget {
-  final ThemeState themeState;
-
   /// Fires with the settled query — empty when the field is cleared, which the
   /// dialog reads as "go back to the paged list".
   final ValueChanged<String> onChanged;
 
-  const MembersSearchField({
-    super.key,
-    required this.themeState,
-    required this.onChanged,
-  });
+  const MembersSearchField({super.key, required this.onChanged});
 
   @override
   State<MembersSearchField> createState() => _MembersSearchFieldState();
@@ -62,7 +56,7 @@ class _MembersSearchFieldState extends State<MembersSearchField> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.themeState;
+    final theme = context.theme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
       child: Container(

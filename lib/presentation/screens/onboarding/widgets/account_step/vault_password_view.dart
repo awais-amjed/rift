@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
@@ -41,7 +40,6 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.read<ThemeCubit>().state;
     final isProcessing = widget.state.isProcessing;
 
     return OnboardingPage(
@@ -56,7 +54,6 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
                 'We found your backup, but it\'s protected by a separately '
                 'chosen vault password (privacy mode). Enter it once — '
                 'future restores will be automatic.',
-            themeState: theme,
           ),
           const SizedBox(height: 32),
           ConstrainedBox(

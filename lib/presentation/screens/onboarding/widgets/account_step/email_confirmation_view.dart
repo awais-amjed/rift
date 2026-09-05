@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/resend_confirmation_button.dart';
@@ -23,8 +22,6 @@ class EmailConfirmationView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.read<ThemeCubit>().state;
-
     return OnboardingPage(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -35,7 +32,6 @@ class EmailConfirmationView extends StatelessWidget {
             subtitle:
                 'We sent a confirmation link to ${state.email ?? 'your email'}. '
                 'Confirm it, then sign in to continue.',
-            themeState: theme,
           ),
           if (state.successMessage != null) ...[
             const SizedBox(height: 24),

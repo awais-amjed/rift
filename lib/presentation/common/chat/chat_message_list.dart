@@ -211,7 +211,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
           itemBuilder: (context, reversedIndex) {
             final item = items[items.length - 1 - reversedIndex];
             if (item is _DateItem) {
-              return DateDivider(label: item.label, themeState: themeState);
+              return DateDivider(label: item.label);
             }
             final msg = (item as _MsgItem).message;
             return ChatMessageRow(
@@ -221,7 +221,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               key: ValueKey(msg.rowId),
               message: msg,
               showHeader: item.showHeader,
-              themeState: themeState,
+
               attachmentLoader: widget.attachmentLoader,
               onToggleReaction: widget.onToggleReaction,
               onEdit: widget.onEdit,

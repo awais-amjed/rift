@@ -62,8 +62,9 @@ class _FakeRepo implements SupabaseBackupRepository {
   Stream<AuthState> get authChanges => const Stream.empty();
 
   @override
-  noSuchMethod(Invocation invocation) =>
-      throw UnsupportedError('${invocation.memberName} is not part of this test');
+  noSuchMethod(Invocation invocation) => throw UnsupportedError(
+    '${invocation.memberName} is not part of this test',
+  );
 }
 
 /// A vault that remembers which password its seed blob is currently under, so
@@ -94,8 +95,8 @@ class _FakeVault extends VaultCubit {
   }
 
   @override
-  Future<({bool success, String? content, String? error})> exportBackup() async =>
-      (success: true, content: '{}', error: null);
+  Future<({bool success, String? content, String? error})>
+  exportBackup() async => (success: true, content: '{}', error: null);
 }
 
 /// One typed password stands behind two things that can fail independently:
@@ -117,8 +118,10 @@ void main() {
   /// The vault-blob password for an account is the derived one, never what
   /// was typed — so the fixture has to be built the same way the app does.
   Future<String> vaultPasswordFor(String typed) async =>
-      (await crypto.deriveAccountKeys(email: email, password: typed))
-          .vaultPassword;
+      (await crypto.deriveAccountKeys(
+        email: email,
+        password: typed,
+      )).vaultPassword;
 
   Future<void> signedIn() async {
     vault = _FakeVault(wrappedUnder: await vaultPasswordFor(oldTyped));
@@ -244,15 +247,20 @@ void main() {
       expect(repo.uploads, 0);
     });
 
-    test('submitting without having proved the old password is refused',
-        () async {
-      await signedIn();
-      await cubit.submitPasswordChange(newPassword: newTyped, code: '12345678');
+    test(
+      'submitting without having proved the old password is refused',
+      () async {
+        await signedIn();
+        await cubit.submitPasswordChange(
+          newPassword: newTyped,
+          code: '12345678',
+        );
 
-      expect(vault.rewraps, isEmpty);
-      expect(repo.sentPassword, isNull);
-      expect(cubit.state.error, contains('Start again'));
-    });
+        expect(vault.rewraps, isEmpty);
+        expect(repo.sentPassword, isNull);
+        expect(cubit.state.error, contains('Start again'));
+      },
+    );
 
     test('cancelling forgets the proved password', () async {
       await signedIn();

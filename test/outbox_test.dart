@@ -26,7 +26,10 @@ void main() {
       );
 
   OutboxEntry entry(String id, {String to = 'chan', DateTime? at}) =>
-      OutboxEntry(destination: to, row: row(id, at: at));
+      OutboxEntry(
+        destination: to,
+        row: row(id, at: at),
+      );
 
   group('what is worth keeping', () {
     test('a connection that dropped is', () {
@@ -80,10 +83,8 @@ void main() {
       // A quota trigger raising in Postgres reaches the client with its own
       // code. The connection was fine; the answer was no.
       final response = await ServerDb.run(
-        () async => throw PostgrestException(
-          message: 'quota_exceeded',
-          code: 'P0001',
-        ),
+        () async =>
+            throw PostgrestException(message: 'quota_exceeded', code: 'P0001'),
       );
       expect(response.errorCode, 'quota_exceeded');
       expect(Outbox.canRetry(response.errorCode), isFalse);

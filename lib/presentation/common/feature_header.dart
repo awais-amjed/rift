@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 import '../../data/constants.dart';
+import '../theme/theme_context.dart';
 
 /// The hero block that opens a full-screen step or a first-run panel: an
 /// accent-tinted icon badge, a title, and an optional explanatory line.
@@ -17,7 +17,6 @@ class FeatureHeader extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
-  final ThemeState themeState;
 
   /// Tints the badge. Defaults to the accent; the privacy-vault step passes
   /// green, because there the badge is making a claim about safety rather
@@ -32,7 +31,6 @@ class FeatureHeader extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    required this.themeState,
     this.subtitle,
     this.badgeColor,
     this.subtitleMaxWidth = 340,
@@ -40,6 +38,7 @@ class FeatureHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final accent = badgeColor ?? themeState.accentBright;
 
     return Column(

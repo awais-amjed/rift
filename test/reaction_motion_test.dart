@@ -51,7 +51,7 @@ void main() {
               // fresh one — which would prime again and hide the bug.
               key: const ValueKey('bar'),
               reactions: reactions,
-              themeState: ThemeCubit().state,
+
               onToggle: (_) {},
               onAdd: (_) {},
             ),

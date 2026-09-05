@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/role.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/theme_context.dart';
 
 /// One role in the list, with the dot that shows what colour it paints a name.
 ///
@@ -12,7 +12,6 @@ import '../../../../../data/constants.dart';
 /// that only sorted by it would leave somebody guessing why the row they want
 /// is refused.
 class RoleRow extends StatelessWidget {
-  final ThemeState themeState;
   final Role role;
 
   /// Null where the count is not the point — one member's own role list, where
@@ -29,7 +28,6 @@ class RoleRow extends StatelessWidget {
 
   const RoleRow({
     super.key,
-    required this.themeState,
     required this.role,
     this.memberCount,
     this.locked = false,
@@ -50,6 +48,7 @@ class RoleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(K.radiusRow),
@@ -100,16 +99,8 @@ class RoleRow extends StatelessWidget {
               style: AppText.meta.copyWith(color: themeState.textTertiary),
             ),
             if (onMoveUp != null || onMoveDown != null) ...[
-              _Move(
-                icon: Icons.keyboard_arrow_up_rounded,
-                themeState: themeState,
-                onTap: onMoveUp,
-              ),
-              _Move(
-                icon: Icons.keyboard_arrow_down_rounded,
-                themeState: themeState,
-                onTap: onMoveDown,
-              ),
+              _Move(icon: Icons.keyboard_arrow_up_rounded, onTap: onMoveUp),
+              _Move(icon: Icons.keyboard_arrow_down_rounded, onTap: onMoveDown),
             ],
           ],
         ),
@@ -120,13 +111,13 @@ class RoleRow extends StatelessWidget {
 
 class _Move extends StatelessWidget {
   final IconData icon;
-  final ThemeState themeState;
   final VoidCallback? onTap;
 
-  const _Move({required this.icon, required this.themeState, this.onTap});
+  const _Move({required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(K.radiusRow),

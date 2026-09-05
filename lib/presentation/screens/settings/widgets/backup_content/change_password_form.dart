@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
@@ -16,13 +15,11 @@ import '../../../../common/button_footer.dart';
 /// two halves ask completely different questions and share no fields — one
 /// proves who you are, the other decides what happens next.
 class ChangePasswordForm extends StatefulWidget {
-  final ThemeState themeState;
   final SupabaseBackupState state;
   final VoidCallback onCancel;
 
   const ChangePasswordForm({
     super.key,
-    required this.themeState,
     required this.state,
     required this.onCancel,
   });

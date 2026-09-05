@@ -343,7 +343,7 @@ class _ChatComposerState extends State<ChatComposer>
                       heightFactor: 1,
                       child: ComposerMentionMenu(
                         members: _mentions,
-                        themeState: themeState,
+
                         onSelected: _pickMention,
                       ),
                     ),
@@ -373,20 +373,15 @@ class _ChatComposerState extends State<ChatComposer>
           alignment: Alignment.bottomLeft,
           child: _staged.isEmpty
               ? const SizedBox(width: double.infinity)
-              : ComposerStagedRow(
-                  staged: _staged,
-                  themeState: themeState,
-                  onRemove: _removeStaged,
-                ),
+              : ComposerStagedRow(staged: _staged, onRemove: _removeStaged),
         ),
         // Above the bar, because the point of it is to be read *before*
         // the message goes.
-        if (_command != null)
-          ComposerPlaintextNotice(bot: _command!.bot, themeState: themeState),
+        if (_command != null) ComposerPlaintextNotice(bot: _command!.bot),
         if (_suggestions.isNotEmpty)
           ComposerCommandMenu(
             entries: _suggestions,
-            themeState: themeState,
+
             onSelected: (_, name) => _pickCommand(name),
           ),
         _buildBar(themeState),
@@ -437,14 +432,14 @@ class _ChatComposerState extends State<ChatComposer>
       child: _isRecording
           ? ComposerRecordingBar(
               elapsed: _elapsed,
-              themeState: themeState,
+
               onCancel: _cancelRecording,
               onStop: _stopRecording,
             )
           : ComposerInputRow(
               controller: _controller,
               focusNode: _focusNode,
-              themeState: themeState,
+
               enabled: widget.enabled,
               canSend:
                   widget.enabled &&

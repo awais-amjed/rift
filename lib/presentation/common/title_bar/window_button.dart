@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/custom_colors.dart';
 import '../../../data/constants.dart';
 import '../../theme/app_motion.dart';
+import '../../theme/theme_context.dart';
 
 /// One control in the title bar's right-hand cluster.
 ///
@@ -15,7 +15,6 @@ class WindowButton extends StatefulWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
-  final ThemeState themeState;
 
   /// Hover in the destructive colour instead of the neutral fill.
   final bool isClose;
@@ -25,7 +24,6 @@ class WindowButton extends StatefulWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
-    required this.themeState,
     this.isClose = false,
   });
 
@@ -40,7 +38,7 @@ class _WindowButtonState extends State<WindowButton> {
   Widget build(BuildContext context) {
     final hoverColor = widget.isClose
         ? CustomColors.error
-        : widget.themeState.bgHover;
+        : context.theme.bgHover;
 
     return Tooltip(
       message: widget.tooltip,
@@ -65,7 +63,7 @@ class _WindowButtonState extends State<WindowButton> {
               size: 15,
               color: _hovered && widget.isClose
                   ? Colors.white
-                  : widget.themeState.textTertiary,
+                  : context.theme.textTertiary,
             ),
           ),
         ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/message_banner.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// Start/stop button for the mic test, with the running indicator and whatever
 /// went wrong if the microphone could not be opened.
@@ -19,19 +19,17 @@ class MicTestControls extends StatelessWidget {
 
   final VoidCallback onToggle;
 
-  final ThemeState themeState;
-
   const MicTestControls({
     super.key,
     required this.testing,
     required this.busy,
     required this.error,
     required this.onToggle,
-    required this.themeState,
   });
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final error = this.error;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

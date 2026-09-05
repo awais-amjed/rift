@@ -83,7 +83,7 @@ class _PasswordStepState extends State<PasswordStep> {
                 subtitle:
                     'Choose a password to encrypt your identity. Everything '
                     'stays on this device — no email, no central server.',
-                themeState: theme,
+
                 badgeColor: CustomColors.success,
               ),
 

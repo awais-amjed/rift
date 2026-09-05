@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/panel_block.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// Key/value rows — a queue length, a score, a build number.
 ///
@@ -10,17 +10,13 @@ import '../../../theme/app_text.dart';
 /// that reflows them by width turns "3 items" into a puzzle about which label
 /// it belongs to.
 class PanelFields extends StatelessWidget {
-  final ThemeState themeState;
   final List<PanelField> fields;
 
-  const PanelFields({
-    super.key,
-    required this.themeState,
-    required this.fields,
-  });
+  const PanelFields({super.key, required this.fields});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Column(

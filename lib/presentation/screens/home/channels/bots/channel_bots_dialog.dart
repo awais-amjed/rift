@@ -7,7 +7,6 @@ import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
@@ -129,8 +128,6 @@ class _ChannelBotsDialogState extends State<ChannelBotsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
-
     return AppModal(
       title: 'Bots reading this',
       subtitle: '#${widget.channel.name}',
@@ -167,7 +164,6 @@ class _ChannelBotsDialogState extends State<ChannelBotsDialog> {
             ],
             for (final bot in _bots)
               ChannelBotRow(
-                themeState: themeState,
                 bot: bot,
                 granted: _granted.contains(bot.id),
                 busy: _busyId == bot.id,

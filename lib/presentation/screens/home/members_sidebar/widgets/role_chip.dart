@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/role.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/label_pill.dart';
 
 /// A member's most senior role, beside their name.
@@ -19,9 +18,7 @@ import '../../../../common/label_pill.dart';
 /// it is annotating off the row.
 class RoleChip extends StatelessWidget {
   final Role role;
-  final ThemeState themeState;
-
-  const RoleChip({super.key, required this.role, required this.themeState});
+  const RoleChip({super.key, required this.role});
 
   String get _label {
     final name = role.name.trim().toUpperCase();
@@ -33,10 +30,6 @@ class RoleChip extends StatelessWidget {
     // A role that was given no colour is drawn in the neutral fill, rather
     // than being invented one: leaving it uncoloured is a choice somebody made
     // in the editor.
-    return LabelPill(
-      label: _label,
-      color: role.displayColor,
-      themeState: themeState,
-    );
+    return LabelPill(label: _label, color: role.displayColor);
   }
 }

@@ -98,7 +98,7 @@ class CentralConversationList extends StatelessWidget {
     return DmConversationTile(
       conversation: conversation,
       isSelected: conversation.peerId == state.openPeerId,
-      themeState: themeState,
+
       unreadCount: state.unreadByPeer[conversation.peerId] ?? 0,
       level: state.levelFor(conversation.peerId),
       menuItems: [

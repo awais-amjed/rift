@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/custom_colors.dart';
@@ -11,6 +10,7 @@ import '../../../../theme/app_text.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'role_chip.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/theme_context.dart';
 
 /// One member in the right-hand sidebar: avatar, name, role/state badges.
 ///
@@ -19,7 +19,6 @@ import '../../../../../data/constants.dart';
 /// per user and apply the next time you share a voice channel.
 class MemberRow extends StatelessWidget {
   final ServerMember member;
-  final ThemeState themeState;
   final bool isOnline;
   final bool isMe;
   final ParticipantSetting? setting;
@@ -36,7 +35,6 @@ class MemberRow extends StatelessWidget {
   const MemberRow({
     super.key,
     required this.member,
-    required this.themeState,
     required this.isOnline,
     this.isMe = false,
     this.setting,
@@ -46,7 +44,7 @@ class MemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final row = _buildRow();
+    final row = _buildRow(context);
     // No point right-clicking yourself for a local mute.
     if (isMe) return row;
     return ContextMenuRegion(
@@ -58,7 +56,8 @@ class MemberRow extends StatelessWidget {
     );
   }
 
-  Widget _buildRow() {
+  Widget _buildRow(BuildContext context) {
+    final themeState = context.theme;
     final locallyMuted = setting?.muted ?? false;
     // Offline members stay on the list but recede — the roster should be a
     // stable thing you can right-click, not a list that reshuffles as people
@@ -79,7 +78,7 @@ class MemberRow extends StatelessWidget {
             child: Row(
               spacing: 9,
               children: [
-                _avatar(),
+                _avatar(context),
                 Expanded(
                   child: Text(
                     member.displayName,
@@ -103,7 +102,8 @@ class MemberRow extends StatelessWidget {
     );
   }
 
-  Widget _avatar() {
+  Widget _avatar(BuildContext context) {
+    final themeState = context.theme;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -112,7 +112,6 @@ class MemberRow extends StatelessWidget {
           name: member.displayName,
           seed: member.id,
           size: 28,
-          themeState: themeState,
         ),
         // Presence dot, ringed in the panel colour so it reads as a cut-out.
         Positioned(
@@ -141,7 +140,7 @@ class MemberRow extends StatelessWidget {
     // belongs in the members dialog, where there is room and where somebody
     // has gone looking.
     if (role case final role?) {
-      badges.add(RoleChip(role: role, themeState: themeState));
+      badges.add(RoleChip(role: role));
     }
     if (member.isMuted) {
       badges.add(

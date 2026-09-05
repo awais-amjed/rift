@@ -7,7 +7,6 @@ import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
@@ -120,7 +119,6 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
     final channels = _channelsIn(_channelIds);
     final heard = _channelsIn(_voiceChannelIds);
 
@@ -143,7 +141,6 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
             )
           else ...[
             BotAccessList(
-              themeState: themeState,
               label: 'Channels it can read',
               channels: channels,
               emptyIcon: Icons.visibility_off_outlined,
@@ -151,7 +148,6 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
                   'It reads nothing. It only sees messages sent to it — '
                   'commands, and presses on its own panels.',
               control: SettingToggleRow(
-                themeState: themeState,
                 title: 'Every public channel',
                 description:
                     'Including channels made later. A private channel is '
@@ -166,7 +162,6 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
             // a call there receives everything; here its token cannot subscribe
             // at all unless this list names the channel.
             BotAccessList(
-              themeState: themeState,
               label: 'Calls it can hear',
               channels: heard,
               emptyIcon: Icons.volume_off_outlined,

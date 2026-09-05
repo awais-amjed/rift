@@ -17,7 +17,12 @@ void main() {
     test('is five groups of five from the unambiguous alphabet', () {
       for (var i = 0; i < 50; i++) {
         final key = crypto.generateRecoveryKey();
-        expect(key, matches(RegExp(r'^[0-9A-HJKMNP-TV-Z]{5}(-[0-9A-HJKMNP-TV-Z]{5}){4}$')));
+        expect(
+          key,
+          matches(
+            RegExp(r'^[0-9A-HJKMNP-TV-Z]{5}(-[0-9A-HJKMNP-TV-Z]{5}){4}$'),
+          ),
+        );
         // The characters Crockford drops are the ones that get misread.
         expect(key.contains('I'), isFalse);
         expect(key.contains('L'), isFalse);
@@ -36,7 +41,8 @@ void main() {
       // the first symbols measurably more likely than the last.
       final counts = <String, int>{};
       for (var i = 0; i < 400; i++) {
-        for (final c in crypto.generateRecoveryKey().replaceAll('-', '').split('')) {
+        for (final c
+            in crypto.generateRecoveryKey().replaceAll('-', '').split('')) {
           counts[c] = (counts[c] ?? 0) + 1;
         }
       }
@@ -76,16 +82,27 @@ void main() {
     test('reads the confusable letters as the digits they look like', () {
       // Nothing generates an I, L or O — so seeing one means somebody typed
       // what they saw, and what they saw was a 1 or a 0.
-      expect(crypto.normalizeRecoveryKey('ABCDE1234SFGHJK67890MNPQR'),
-          crypto.normalizeRecoveryKey('ABCDEI234SFGHJK6789OMNPQR'));
+      expect(
+        crypto.normalizeRecoveryKey('ABCDE1234SFGHJK67890MNPQR'),
+        crypto.normalizeRecoveryKey('ABCDEI234SFGHJK6789OMNPQR'),
+      );
     });
 
-    test('rejects anything that is not a key, before spending Argon2id on it', () {
-      expect(crypto.normalizeRecoveryKey(''), isNull);
-      expect(crypto.normalizeRecoveryKey('too-short'), isNull);
-      expect(crypto.normalizeRecoveryKey('ABCDE12345FGHJK67890MNPQRZ'), isNull);
-      expect(crypto.normalizeRecoveryKey('ABCDE12345FGHJK67890MNPQ!'), isNull);
-    });
+    test(
+      'rejects anything that is not a key, before spending Argon2id on it',
+      () {
+        expect(crypto.normalizeRecoveryKey(''), isNull);
+        expect(crypto.normalizeRecoveryKey('too-short'), isNull);
+        expect(
+          crypto.normalizeRecoveryKey('ABCDE12345FGHJK67890MNPQRZ'),
+          isNull,
+        );
+        expect(
+          crypto.normalizeRecoveryKey('ABCDE12345FGHJK67890MNPQ!'),
+          isNull,
+        );
+      },
+    );
 
     test('formatting round-trips with normalising', () {
       final key = crypto.generateRecoveryKey();
@@ -110,7 +127,10 @@ void main() {
       final retyped = crypto.normalizeRecoveryKey(
         key.replaceAll('-', '').toLowerCase(),
       )!;
-      final openKey = await crypto.deriveVaultKey(password: retyped, salt: salt);
+      final openKey = await crypto.deriveVaultKey(
+        password: retyped,
+        salt: salt,
+      );
       final opened = await crypto.decrypt(
         ciphertext: wrapped.ciphertext,
         key: openKey,
@@ -133,56 +153,64 @@ void main() {
       );
     });
 
-    test('password and recovery blobs are independent doors on one seed',
-        () async {
-      // The property the whole design rests on: changing one wrapping does
-      // not disturb the other, because the plaintext under both is the seed
-      // and the seed never changes.
-      final seed = CryptoRepository.toBase64(crypto.generateMasterSeed());
+    test(
+      'password and recovery blobs are independent doors on one seed',
+      () async {
+        // The property the whole design rests on: changing one wrapping does
+        // not disturb the other, because the plaintext under both is the seed
+        // and the seed never changes.
+        final seed = CryptoRepository.toBase64(crypto.generateMasterSeed());
 
-      final passSalt = crypto.generateSalt();
-      final passKey = await crypto.deriveVaultKey(
-        password: 'first-password',
-        salt: passSalt,
-      );
-      final byPassword = await crypto.encrypt(plaintext: seed, key: passKey);
+        final passSalt = crypto.generateSalt();
+        final passKey = await crypto.deriveVaultKey(
+          password: 'first-password',
+          salt: passSalt,
+        );
+        final byPassword = await crypto.encrypt(plaintext: seed, key: passKey);
 
-      final recKey = crypto.generateRecoveryKey();
-      final recSalt = crypto.generateSalt();
-      final recWrapKey = await crypto.deriveVaultKey(
-        password: crypto.normalizeRecoveryKey(recKey)!,
-        salt: recSalt,
-      );
-      final byRecovery = await crypto.encrypt(plaintext: seed, key: recWrapKey);
-
-      // Re-wrap under a new password, as a password change does.
-      final newSalt = crypto.generateSalt();
-      final newPassKey = await crypto.deriveVaultKey(
-        password: 'second-password',
-        salt: newSalt,
-      );
-      final rewrapped = await crypto.encrypt(plaintext: seed, key: newPassKey);
-
-      // Old password blob is dead; new one and the untouched recovery blob
-      // both still open the same seed.
-      expect(
-        await crypto.decrypt(
-          ciphertext: rewrapped.ciphertext,
-          key: newPassKey,
-          iv: rewrapped.iv,
-        ),
-        seed,
-      );
-      expect(
-        await crypto.decrypt(
-          ciphertext: byRecovery.ciphertext,
+        final recKey = crypto.generateRecoveryKey();
+        final recSalt = crypto.generateSalt();
+        final recWrapKey = await crypto.deriveVaultKey(
+          password: crypto.normalizeRecoveryKey(recKey)!,
+          salt: recSalt,
+        );
+        final byRecovery = await crypto.encrypt(
+          plaintext: seed,
           key: recWrapKey,
-          iv: byRecovery.iv,
-        ),
-        seed,
-      );
-      expect(byPassword.ciphertext, isNot(rewrapped.ciphertext));
-    });
+        );
+
+        // Re-wrap under a new password, as a password change does.
+        final newSalt = crypto.generateSalt();
+        final newPassKey = await crypto.deriveVaultKey(
+          password: 'second-password',
+          salt: newSalt,
+        );
+        final rewrapped = await crypto.encrypt(
+          plaintext: seed,
+          key: newPassKey,
+        );
+
+        // Old password blob is dead; new one and the untouched recovery blob
+        // both still open the same seed.
+        expect(
+          await crypto.decrypt(
+            ciphertext: rewrapped.ciphertext,
+            key: newPassKey,
+            iv: rewrapped.iv,
+          ),
+          seed,
+        );
+        expect(
+          await crypto.decrypt(
+            ciphertext: byRecovery.ciphertext,
+            key: recWrapKey,
+            iv: byRecovery.iv,
+          ),
+          seed,
+        );
+        expect(byPassword.ciphertext, isNot(rewrapped.ciphertext));
+      },
+    );
   });
 
   group('the backup file', () {

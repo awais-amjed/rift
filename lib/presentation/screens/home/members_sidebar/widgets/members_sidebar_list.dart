@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/member_roster.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import 'member_row.dart';
@@ -22,7 +21,6 @@ import 'member_row.dart';
 /// bot is a program somebody runs, so there are a handful; and Online is
 /// bounded by who is actually connected, not by who has ever joined.
 class MembersSidebarList extends StatelessWidget {
-  final ThemeState themeState;
   final AppState appState;
   final ServerMembersState roster;
   final Set<String> onlineIds;
@@ -34,7 +32,6 @@ class MembersSidebarList extends StatelessWidget {
 
   const MembersSidebarList({
     super.key,
-    required this.themeState,
     required this.appState,
     required this.roster,
     required this.onlineIds,
@@ -110,7 +107,7 @@ class MembersSidebarList extends StatelessWidget {
       for (final member in members)
         MemberRow(
           member: member,
-          themeState: themeState,
+
           // Takes the online set rather than a flag, because the Bots group
           // holds both — its rows are grouped by *being a bot* and lit by
           // whether that bot is currently connected.

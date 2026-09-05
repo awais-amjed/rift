@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 
 /// A short word in a tinted pill: a role beside a name, a Bot tag, a Banned
 /// mark. One recipe for all of them, so a tag reads as a tag wherever it is.
@@ -12,17 +12,11 @@ import '../theme/app_text.dart';
 class LabelPill extends StatelessWidget {
   final String label;
   final Color? color;
-  final ThemeState themeState;
-
-  const LabelPill({
-    super.key,
-    required this.label,
-    required this.themeState,
-    this.color,
-  });
+  const LabelPill({super.key, required this.label, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final themeState = context.theme;
     final colour = color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Replacing the recovery key.
 ///
@@ -18,9 +18,7 @@ import '../../../../theme/app_text.dart';
 /// second copy waiting to leak. Replacing it is the honest operation: it mints
 /// a new key, rewraps the seed, and the old key stops working.
 class RecoveryKeyPanel extends StatefulWidget {
-  final ThemeState themeState;
-
-  const RecoveryKeyPanel({super.key, required this.themeState});
+  const RecoveryKeyPanel({super.key});
 
   @override
   State<RecoveryKeyPanel> createState() => _RecoveryKeyPanelState();
@@ -72,12 +70,12 @@ class _RecoveryKeyPanelState extends State<RecoveryKeyPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.themeState;
+    final theme = context.theme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Recovery Key', themeState: theme),
+        SectionTitle(label: 'Recovery Key'),
         const SizedBox(height: 4),
         Text(
           'The key you were shown when this vault was created. It unlocks your '
