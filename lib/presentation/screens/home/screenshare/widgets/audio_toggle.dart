@@ -53,7 +53,7 @@ class AudioToggle extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Share Audio',
+                        'Share audio',
                         style: AppText.row.copyWith(
                           color: shareAudio
                               ? themeState.textPrimary

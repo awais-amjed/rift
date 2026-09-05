@@ -19,7 +19,7 @@ class AudioProcessingSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Audio Processing'),
+        SectionTitle(label: 'Audio processing'),
         const SizedBox(height: 12),
         SettingToggleRow(
           title: 'Noise suppression',

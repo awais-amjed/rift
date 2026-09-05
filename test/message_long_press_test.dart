@@ -93,9 +93,9 @@ void main() {
     await tester.longPress(find.text('hello there'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Copy Text'), findsOneWidget);
-    expect(find.text('Edit Message'), findsOneWidget);
-    expect(find.text('Delete Message'), findsOneWidget);
+    expect(find.text('Copy text'), findsOneWidget);
+    expect(find.text('Edit message'), findsOneWidget);
+    expect(find.text('Delete message'), findsOneWidget);
   });
 
   testWidgets('the menu carries React, which only the hover toolbar had', (
@@ -105,7 +105,7 @@ void main() {
     await tester.longPress(find.text('hello there'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Add Reaction'), findsOneWidget);
+    expect(find.text('Add reaction'), findsOneWidget);
   });
 
   testWidgets('someone else\'s message offers only what it should', (
@@ -117,9 +117,9 @@ void main() {
 
     // Still copyable and still reactable; not editable by someone who did not
     // write it. A menu that offered it would be offering a refusal.
-    expect(find.text('Copy Text'), findsOneWidget);
-    expect(find.text('Add Reaction'), findsOneWidget);
-    expect(find.text('Edit Message'), findsNothing);
+    expect(find.text('Copy text'), findsOneWidget);
+    expect(find.text('Add reaction'), findsOneWidget);
+    expect(find.text('Edit message'), findsNothing);
   });
 
   testWidgets('a desktop keeps its selectable text', (tester) async {
@@ -144,7 +144,7 @@ void main() {
     await tester.longPress(find.text('hello there'));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Copy Text'), findsNothing);
-    expect(find.text('Add Reaction'), findsNothing);
+    expect(find.text('Copy text'), findsNothing);
+    expect(find.text('Add reaction'), findsNothing);
   });
 }

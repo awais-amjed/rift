@@ -118,7 +118,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
   @override
   Widget build(BuildContext context) {
     return AppModal(
-      title: 'Create Server',
+      title: 'Create server',
       subtitle: 'Set up your own server with Supabase and LiveKit',
       maxWidth: K.dialogWidthWide,
       content: Column(
@@ -152,8 +152,8 @@ class _CreateServerModalState extends State<CreateServerModal> {
 
           AppTextField(
             controller: _nameCtrl,
-            label: 'Server Name',
-            hint: 'My Server',
+            label: 'Server name',
+            hint: 'My server',
             enabled: !_isLoading,
             autofocus: true,
             onChanged: (_) => setState(() {}),
@@ -166,7 +166,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
           ModalColumns(
             children: [
               CredentialGroup(
-                label: 'Supabase Configuration',
+                label: 'Supabase configuration',
                 fields: [
                   AppTextField(
                     controller: _supabaseUrlCtrl,
@@ -177,7 +177,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
                   ),
                   AppTextField(
                     controller: _setupSecretCtrl,
-                    label: 'Service Role Key',
+                    label: 'Service role key',
                     hint: 'Your Supabase service_role key',
                     obscureText: true,
                     enabled: !_isLoading,
@@ -205,7 +205,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
                   AppTextField(
                     controller: _secretKeyCtrl,
                     label: 'LiveKit Secret Key',
-                    hint: 'Secret Key',
+                    hint: 'Secret key',
                     obscureText: true,
                     enabled: !_isLoading,
                     onChanged: (_) => setState(() {}),

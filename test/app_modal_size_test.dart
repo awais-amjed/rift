@@ -57,7 +57,7 @@ void main() {
         create: (_) => ThemeCubit(),
         child: MaterialApp(
           home: AppModal(
-            title: 'Add Server',
+            title: 'Add server',
             maxWidth: maxWidth,
             content: SizedBox(height: contentHeight, width: double.infinity),
             actions: actions,

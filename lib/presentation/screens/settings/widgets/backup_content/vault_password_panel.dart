@@ -52,7 +52,7 @@ class VaultPasswordPanelState extends State<VaultPasswordPanel> {
         const SizedBox(height: 16),
         AppTextField(
           controller: _passwordController,
-          label: 'Vault Password',
+          label: 'Vault password',
           hint: 'Enter your vault password',
           obscureText: true,
           enabled: !isProcessing,

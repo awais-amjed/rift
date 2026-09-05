@@ -49,7 +49,7 @@ class NoServerButton extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'No Server Selected',
+                          'No server selected',
                           style: AppText.strong.copyWith(
                             color: themeState.textTertiary,
                           ),

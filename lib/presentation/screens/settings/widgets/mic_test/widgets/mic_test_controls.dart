@@ -37,7 +37,7 @@ class MicTestControls extends StatelessWidget {
         Row(
           children: [
             AppButton(
-              label: testing ? 'Stop Test' : 'Test Mic',
+              label: testing ? 'Stop test' : 'Test mic',
               onPressed: busy ? null : onToggle,
               variant: testing
                   ? AppButtonVariant.secondary

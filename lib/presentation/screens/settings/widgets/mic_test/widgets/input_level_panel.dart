@@ -31,7 +31,7 @@ class InputLevelPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Input Level',
+          'Input level',
           style: AppText.row.copyWith(color: themeState.textPrimary),
         ),
         const SizedBox(height: 4),

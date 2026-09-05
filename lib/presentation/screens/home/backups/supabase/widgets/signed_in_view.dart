@@ -39,7 +39,7 @@ class SignedInView extends StatelessWidget {
         // ── Save backup ───────────────────────────────────────
         const SectionHeader(
           icon: Icons.cloud_upload_outlined,
-          title: 'Save Backup to Cloud',
+          title: 'Save backup to cloud',
           description:
               'Uploads your current encrypted backup to the central server. '
               'Your password is never sent — only the encrypted blob.',

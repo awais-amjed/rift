@@ -88,7 +88,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return AppModal(
-          title: 'Create Your Account',
+          title: 'Create your account',
           subtitle: 'Set up your profile for this server',
           titleIcon: Container(
             width: 40,
@@ -122,8 +122,8 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
               _fieldHint('Unique identifier for this server', themeState),
               AppTextField(
                 controller: _displayNameCtrl,
-                label: 'Display Name',
-                hint: 'My Display Name',
+                label: 'Display name',
+                hint: 'My display name',
                 enabled: !_isLoading,
                 onChanged: (_) => setState(() {}),
               ),
@@ -137,7 +137,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
               onPressed: _isLoading ? null : _dismiss,
             ),
             AppButton(
-              label: _isLoading ? 'Creating...' : 'Create Account',
+              label: _isLoading ? 'Creating...' : 'Create account',
               isLoading: _isLoading,
               onPressed: _canSubmit && !_isLoading ? _submit : null,
             ),

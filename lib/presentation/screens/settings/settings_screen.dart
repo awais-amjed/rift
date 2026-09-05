@@ -49,8 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String get _tabTitle => switch (_activeTab) {
     SettingsTab.appearance => 'Appearance',
-    SettingsTab.voiceAndAudio => 'Voice & Audio',
-    SettingsTab.backup => 'Cloud Backup',
+    SettingsTab.voiceAndAudio => 'Voice & audio',
+    SettingsTab.backup => 'Cloud backup',
   };
 
   IconData get _tabIcon => switch (_activeTab) {
@@ -64,7 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _resetVault() async {
     final confirmed = await showConfirmDialog(
       context: context,
-      title: 'Reset Vault?',
+      title: 'Reset vault?',
       message:
           'This wipes all keys and saved servers from this device and returns '
           'you to onboarding. If you have no cloud backup, your identity will '

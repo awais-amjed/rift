@@ -227,7 +227,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     return AppModal(
-      title: 'Server Settings',
+      title: 'Server settings',
       // Named, because this dialog opens for any server in the rail — not only
       // the one whose channels are on screen behind it.
       subtitle: 'Connection, limits and discovery for ${widget.server.name}',

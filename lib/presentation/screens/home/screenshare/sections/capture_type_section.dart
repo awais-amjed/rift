@@ -17,7 +17,7 @@ class CaptureTypeSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsSection(
-      label: 'Capture Type',
+      label: 'Capture type',
       children: [
         Row(
           children: [

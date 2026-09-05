@@ -158,7 +158,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
     final chosen = _prefilled != null;
 
     return AppModal(
-      title: listing == null ? 'Join Server' : 'Join ${listing.name}',
+      title: listing == null ? 'Join server' : 'Join ${listing.name}',
       subtitle: chosen
           ? 'Pick how you will appear on ${_host ?? 'this server'}'
           : 'Join a server with an invite link',
@@ -179,7 +179,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
           if (!chosen) ...[
             AppTextField(
               controller: _inviteLinkCtrl,
-              label: 'Invite Link',
+              label: 'Invite link',
               hint: 'Paste the invite link you received',
               enabled: !_isLoading,
               autofocus: true,
@@ -199,7 +199,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
           const SizedBox(height: 12),
           AppTextField(
             controller: _displayNameCtrl,
-            label: 'Display Name',
+            label: 'Display name',
             hint: 'How others will see you',
             enabled: !_isLoading,
             onChanged: (_) => setState(() {}),

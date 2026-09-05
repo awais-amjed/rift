@@ -73,9 +73,9 @@ class SettingsSidebar extends StatelessWidget {
         _tab(
           SettingsTab.voiceAndAudio,
           Icons.headset_outlined,
-          'Voice & Audio',
+          'Voice & audio',
         ),
-        _tab(SettingsTab.backup, Icons.cloud_outlined, 'Cloud Backup'),
+        _tab(SettingsTab.backup, Icons.cloud_outlined, 'Cloud backup'),
       ],
     );
   }

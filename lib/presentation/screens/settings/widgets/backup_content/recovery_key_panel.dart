@@ -75,7 +75,7 @@ class _RecoveryKeyPanelState extends State<RecoveryKeyPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Recovery Key'),
+        SectionTitle(label: 'Recovery key'),
         const SizedBox(height: 4),
         Text(
           'The key you were shown when this vault was created. It unlocks your '

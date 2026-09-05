@@ -123,7 +123,7 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
           const SizedBox(height: 16),
           AppTextField(
             controller: _passwordController,
-            label: _useRecoveryKey ? 'Recovery Key' : 'Vault Password',
+            label: _useRecoveryKey ? 'Recovery key' : 'Vault password',
             hint: _useRecoveryKey
                 ? 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX'
                 : 'Password used when the backup was created',

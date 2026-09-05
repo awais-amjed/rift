@@ -52,7 +52,7 @@ class VoiceAudioContent extends StatelessWidget {
               MicTestSection(),
               _divider(context),
               if (_isWindows) ...[
-                SectionTitle(label: 'Audio Ducking'),
+                SectionTitle(label: 'Audio ducking'),
                 const SizedBox(height: 12),
                 SettingToggleRow(
                   title: 'Disable automatic volume lowering',

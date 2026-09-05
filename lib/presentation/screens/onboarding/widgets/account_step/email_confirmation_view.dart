@@ -28,7 +28,7 @@ class EmailConfirmationView extends StatelessWidget {
         children: [
           FeatureHeader(
             icon: Icons.mark_email_unread_rounded,
-            title: 'Check Your Inbox',
+            title: 'Check your inbox',
             subtitle:
                 'We sent a confirmation link to ${state.email ?? 'your email'}. '
                 'Confirm it, then sign in to continue.',

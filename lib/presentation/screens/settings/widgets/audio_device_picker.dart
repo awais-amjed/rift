@@ -77,7 +77,7 @@ class AudioDevicePicker extends StatelessWidget {
               // the sound ends up.
               const DropdownMenuItem<String>(
                 value: null,
-                child: Text('System Default', overflow: TextOverflow.ellipsis),
+                child: Text('System default', overflow: TextOverflow.ellipsis),
               ),
               // Devices WebRTC cannot open stay on the list and say so, rather
               // than disappearing: they are real devices the user can see in

@@ -58,28 +58,28 @@ Future<MessageMenuAction?> showMessageContextMenu({
         _item(
           MessageMenuAction.react,
           Icons.add_reaction_outlined,
-          'Add Reaction',
+          'Add reaction',
           themeState.textSecondary,
         ),
       if (canCopy)
         _item(
           MessageMenuAction.copy,
           Icons.copy_rounded,
-          'Copy Text',
+          'Copy text',
           themeState.textSecondary,
         ),
       if (canEdit)
         _item(
           MessageMenuAction.edit,
           Icons.edit_outlined,
-          'Edit Message',
+          'Edit message',
           themeState.textSecondary,
         ),
       if (canDelete)
         _item(
           MessageMenuAction.delete,
           Icons.delete_outline_rounded,
-          'Delete Message',
+          'Delete message',
           CustomColors.error,
         ),
     ],

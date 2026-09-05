@@ -19,7 +19,7 @@ class FrameRateSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsSection(
-      label: 'Frame Rate',
+      label: 'Frame rate',
       children: [
         Wrap(
           spacing: 8,

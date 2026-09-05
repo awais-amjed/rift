@@ -24,7 +24,7 @@ class StopWatchingButton extends StatelessWidget {
               Icon(Icons.stop_circle, size: 18, color: Colors.white),
               SizedBox(width: 6),
               Text(
-                'Stop Watching',
+                'Stop watching',
                 style: AppText.row.copyWith(color: Colors.white),
               ),
             ],

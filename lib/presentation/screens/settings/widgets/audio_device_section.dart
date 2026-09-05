@@ -183,7 +183,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
           mainAxisSize: MainAxisSize.min,
           children: [
             AudioDevicePicker(
-              label: 'Input Device',
+              label: 'Input device',
               icon: Icons.mic_rounded,
               devices: _inputDevices,
               formats: _inputFormats,
@@ -194,7 +194,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
             ),
             const SizedBox(height: 22),
             AudioDevicePicker(
-              label: 'Output Device',
+              label: 'Output device',
               icon: Icons.headset_rounded,
               devices: _outputDevices,
               formats: _outputFormats,

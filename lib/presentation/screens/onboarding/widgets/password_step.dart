@@ -117,7 +117,7 @@ class _PasswordStepState extends State<PasswordStep> {
 
                     AppTextField(
                       controller: _confirmController,
-                      label: 'Confirm Password',
+                      label: 'Confirm password',
                       hint: 'Re-enter your password',
                       obscureText: true,
                       enabled: !isProcessing,

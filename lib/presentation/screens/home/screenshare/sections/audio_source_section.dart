@@ -42,7 +42,7 @@ class AudioSourceSection extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return SettingsSection(
-          label: 'Audio Source',
+          label: 'Audio source',
           children: [
             if (isLoading)
               const Center(

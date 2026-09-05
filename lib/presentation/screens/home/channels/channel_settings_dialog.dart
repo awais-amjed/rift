@@ -128,7 +128,7 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
           ],
           AppTextField(
             controller: _nameCtrl,
-            label: 'Channel Name',
+            label: 'Channel name',
             hint: 'general',
             enabled: !_isLoading,
             autofocus: true,

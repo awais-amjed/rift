@@ -50,7 +50,7 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
         children: [
           FeatureHeader(
             icon: Icons.lock_open_rounded,
-            title: 'Unlock Your Backup',
+            title: 'Unlock your backup',
             subtitle:
                 'We found your backup, but it\'s protected by a separately '
                 'chosen vault password (privacy mode). Enter it once — '
@@ -64,7 +64,7 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
               children: [
                 AppTextField(
                   controller: _vaultPasswordController,
-                  label: 'Vault Password',
+                  label: 'Vault password',
                   hint: 'Enter your vault password',
                   obscureText: true,
                   enabled: !isProcessing,

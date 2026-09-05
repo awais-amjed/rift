@@ -36,8 +36,8 @@ class ServerConnectionSection extends StatelessWidget {
         const SizedBox(height: 14),
         AppTextField(
           controller: nameCtrl,
-          label: 'Server Name',
-          hint: 'My Server',
+          label: 'Server name',
+          hint: 'My server',
           enabled: enabled,
         ),
         const SizedBox(height: 16),

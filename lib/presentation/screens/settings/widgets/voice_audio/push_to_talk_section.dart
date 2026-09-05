@@ -79,10 +79,10 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Push-to-Talk'),
+        SectionTitle(label: 'Push-to-talk'),
         const SizedBox(height: 12),
         SettingToggleRow(
-          title: 'Enable Push-to-Talk',
+          title: 'Enable push-to-talk',
           description: 'Hold the configured key to transmit your mic.',
           value: appState.pushToTalkEnabled,
           onChanged: context.read<AppCubit>().setPushToTalkEnabled,

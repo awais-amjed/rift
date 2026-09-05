@@ -93,7 +93,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                       if (stats.avgRttMs != null) ...[
                         const SizedBox(height: 6),
                         _StatRow(
-                          label: 'Average Ping',
+                          label: 'Average ping',
                           value: '${stats.avgRttMs!.toStringAsFixed(0)} ms',
                           isWarning: stats.avgRttMs! > 200,
                         ),
@@ -101,7 +101,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                       if (stats.packetLossPercent != null) ...[
                         const SizedBox(height: 6),
                         _StatRow(
-                          label: 'Packet Loss',
+                          label: 'Packet loss',
                           value:
                               '${stats.packetLossPercent!.toStringAsFixed(1)}%',
                           isWarning: stats.packetLossPercent! > 5,

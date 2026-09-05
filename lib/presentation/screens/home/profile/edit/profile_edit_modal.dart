@@ -143,7 +143,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
         final server = context.read<ServerCubit>().state.selectedServer;
         final user = server?.user;
         return AppModal(
-          title: 'Edit Profile',
+          title: 'Edit profile',
           subtitle: 'How you appear on ${server?.name ?? 'this server'}',
           content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,7 +155,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
               Center(child: _avatarPicker(themeState, user?.avatarPath)),
               const SizedBox(height: 18),
               Text(
-                'Display Name',
+                'Display name',
                 style: AppText.secondaryStrong.copyWith(
                   color: themeState.textTertiary,
                 ),

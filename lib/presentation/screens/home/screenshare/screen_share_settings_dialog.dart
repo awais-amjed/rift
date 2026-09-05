@@ -195,7 +195,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                       ),
                       const SizedBox(width: 10),
                       AppButton(
-                        label: 'Start Sharing',
+                        label: 'Start sharing',
                         onPressed:
                             (!Platform.isLinux &&
                                 _draft.selectedVideoSourceIndex == null)

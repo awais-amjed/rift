@@ -65,7 +65,7 @@ class _AddServerDialogState extends State<AddServerDialog> {
       // The picker is cards that are their own commit, so this step has no
       // footer to put one in.
       _Step.pick => AppModal(
-        title: 'Add Server',
+        title: 'Add server',
         subtitle:
             'Find a server, join one you were invited to, or make your own',
         maxWidth: K.dialogWidth,

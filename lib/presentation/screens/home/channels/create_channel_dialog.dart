@@ -112,7 +112,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return AppModal(
-          title: 'Create Channel',
+          title: 'Create channel',
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +123,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               ],
               AppTextField(
                 controller: _nameCtrl,
-                label: 'Channel Name',
+                label: 'Channel name',
                 hint: 'general',
                 enabled: !_isLoading,
                 autofocus: true,
@@ -177,7 +177,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
               onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
             ),
             AppButton(
-              label: _isLoading ? 'Creating...' : 'Create Channel',
+              label: _isLoading ? 'Creating...' : 'Create channel',
               isLoading: _isLoading,
               onPressed: _canSubmit && !_isLoading ? _submit : null,
             ),
