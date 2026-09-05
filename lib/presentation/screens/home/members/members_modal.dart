@@ -12,10 +12,13 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/member_roster_pager.dart';
 import '../../../theme/app_text.dart';
+import '../../../common/app_modal.dart';
+import '../../../common/app_modal_header.dart';
+import '../../../common/icon_tile.dart';
+import '../../../common/loading_dots.dart';
 import '../../../common/message_banner.dart';
 import '../roles/roles_dialog.dart';
 import 'widgets/members_list.dart';
-import 'widgets/members_modal_header.dart';
 import 'widgets/members_search_field.dart';
 
 /// Members dialog — lists everyone on [server] with their permissions and
@@ -234,42 +237,44 @@ class _MembersModalState extends State<MembersModal> {
         final viewerIsModerator =
             viewerIsAdmin || (viewerPerms?.isChannelManager ?? false);
 
-        return Dialog(
-          // The panel surface, like every other dialog. On the canvas colour
-          // it read as a hole punched through the app rather than a card
-          // floating over it.
-          backgroundColor: themeState.bgSecondary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(K.radiusPanel),
-            side: BorderSide(color: themeState.borderElevated),
+        return AppModal(
+          title: 'Members',
+          count: _total,
+          subtitle: widget.server.name,
+          titleIcon: IconTile(
+            icon: Icons.group_outlined,
+            color: themeState.accentBright,
+            size: 36,
+            radius: K.radiusRow,
+            iconSize: 18,
           ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 448, maxHeight: 560),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                MembersModalHeader(
-                  count: _total,
-                  serverName: widget.server.name,
-                  themeState: themeState,
-                  onOpenRoles: () => _openRoles(context),
-                ),
-                Divider(height: 1, color: themeState.borderPrimary),
-                MembersSearchField(
-                  themeState: themeState,
-                  onChanged: (query) => unawaited(_search(query)),
-                ),
-                if (_error != null) _buildError(),
-                Flexible(
-                  child: _buildBody(
-                    themeState,
-                    viewer?.id,
-                    viewerIsAdmin,
-                    viewerIsModerator,
-                  ),
-                ),
-              ],
+          headerActions: [
+            // Roles live here rather than in server settings because a role
+            // is a thing people hold, and this is the screen about people.
+            AppModalHeaderButton(
+              icon: Icons.shield_outlined,
+              tooltip: 'Roles',
+              onPressed: () => _openRoles(context),
             ),
+          ],
+          maxHeight: 560,
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MembersSearchField(
+                themeState: themeState,
+                onChanged: (query) => unawaited(_search(query)),
+              ),
+              if (_error != null) _buildError(),
+              Flexible(
+                child: _buildBody(
+                  themeState,
+                  viewer?.id,
+                  viewerIsAdmin,
+                  viewerIsModerator,
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -288,9 +293,11 @@ class _MembersModalState extends State<MembersModal> {
     bool viewerIsModerator,
   ) {
     if (_searching || (!_pager.isLoaded && !_isSearching)) {
-      return const Padding(
-        padding: EdgeInsets.all(32),
-        child: Center(child: CircularProgressIndicator()),
+      return Padding(
+        padding: const EdgeInsets.all(32),
+        child: Center(
+          child: LoadingDots(color: themeState.accentBright, dotSize: 6),
+        ),
       );
     }
 
@@ -308,6 +315,7 @@ class _MembersModalState extends State<MembersModal> {
 
     return MembersList(
       members: rows,
+      themeState: themeState,
       // A search is one ranked answer, not the first of many: `search_members`
       // caps it and there is no coherent cursor into a ranked order.
       hasMore: !_isSearching && _pager.hasMore,

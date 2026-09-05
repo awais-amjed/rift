@@ -9,6 +9,7 @@ import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../members_sidebar/widgets/role_chip.dart';
+import '../../../../common/label_pill.dart';
 import 'member_badge.dart';
 import 'member_manage_panel.dart';
 import '../../../../../data/constants.dart';
@@ -133,6 +134,15 @@ class MemberRow extends StatelessWidget {
                             MemberBadge(
                               icon: Icons.headset_off,
                               tooltip: 'Deafened by a moderator',
+                              color: CustomColors.error,
+                              themeState: themeState,
+                            ),
+                          // This is the one list a banned member appears in,
+                          // and the only place a ban can be lifted; the row
+                          // has to say so.
+                          if (member.isBanned)
+                            LabelPill(
+                              label: 'Banned',
                               color: CustomColors.error,
                               themeState: themeState,
                             ),

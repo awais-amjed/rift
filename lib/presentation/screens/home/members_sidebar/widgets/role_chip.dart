@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/role.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../../data/constants.dart';
+import '../../../../common/label_pill.dart';
 
 /// A member's most senior role, beside their name.
 ///
@@ -31,25 +30,13 @@ class RoleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A role that was given no colour is drawn in the neutral fill this chip
-    // has always used, rather than being invented one: leaving it uncoloured is
-    // a choice somebody made in the editor.
-    final colour = role.displayColor;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: colour == null
-            ? themeState.bgHover
-            : colour.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(K.radiusPill),
-      ),
-      child: Text(
-        _label,
-        style: AppText.roleChip.copyWith(
-          color: colour ?? themeState.textTertiary,
-        ),
-      ),
+    // A role that was given no colour is drawn in the neutral fill, rather
+    // than being invented one: leaving it uncoloured is a choice somebody made
+    // in the editor.
+    return LabelPill(
+      label: _label,
+      color: role.displayColor,
+      themeState: themeState,
     );
   }
 }

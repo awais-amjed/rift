@@ -32,14 +32,19 @@ class ButtonFooter extends StatelessWidget {
     return Row(
       mainAxisAlignment: alignment,
       children: [
-        IntrinsicWidth(
-          child: Row(
-            children: [
-              for (var i = 0; i < buttons.length; i++) ...[
-                if (i > 0) const SizedBox(width: gap),
-                Expanded(child: buttons[i]),
+        // Flexible, so the pair is bounded by the row: a Row hands a plain
+        // child infinite width, and two long labels would then overflow
+        // rather than share what there is and ellipsise.
+        Flexible(
+          child: IntrinsicWidth(
+            child: Row(
+              children: [
+                for (var i = 0; i < buttons.length; i++) ...[
+                  if (i > 0) const SizedBox(width: gap),
+                  Expanded(child: buttons[i]),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ],

@@ -8,7 +8,7 @@ import 'app_button.dart';
 import 'app_modal.dart';
 import 'context_menu_region.dart';
 import '../theme/app_text.dart';
-import 'button_footer.dart';
+import 'icon_tile.dart';
 
 /// Ask the user to confirm one action, and answer `true` only if they did.
 ///
@@ -76,71 +76,39 @@ class _ConfirmDialog extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         final accent = isDestructive ? CustomColors.error : themeState.primary;
-        return Dialog(
-          // The canvas colour would make a dialog read as a hole punched in
-          // the app; it sits on the panel surface like every other dialog,
-          // and the shadow does the lifting.
-          backgroundColor: themeState.bgSecondary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(K.radiusPanel),
-            side: BorderSide(color: themeState.borderElevated),
+        return AppModal(
+          title: title,
+          // The icon once, in the header badge; it used to be here and on
+          // the confirm button both.
+          titleIcon: IconTile(
+            icon: icon,
+            color: accent,
+            size: 36,
+            radius: K.radiusRow,
+            iconSize: 18,
           ),
-          child: ConstrainedBox(
-            // Wide enough that a two-word confirm ("Delete channel", "Sign
-            // out") fits beside Cancel at half the width, rather than being
-            // ellipsised down to something the button no longer explains.
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Padding(
-              padding: const EdgeInsets.all(26),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(K.radiusCard),
-                    ),
-                    child: Icon(icon, color: accent, size: 22),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: AppText.sectionTitle.copyWith(
-                      color: themeState.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: AppText.body.copyWith(
-                      color: themeState.textTertiary,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  ButtonFooter(
-                    buttons: [
-                      AppButton(
-                        label: cancelLabel,
-                        variant: AppButtonVariant.secondary,
-                        onPressed: () => Navigator.of(context).pop(false),
-                      ),
-                      AppButton(
-                        label: confirmLabel,
-                        variant: isDestructive
-                            ? AppButtonVariant.danger
-                            : AppButtonVariant.primary,
-                        onPressed: () => Navigator.of(context).pop(true),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+          // Wide enough that a two-word confirm ("Delete channel", "Sign
+          // out") fits beside Cancel at the same width, rather than being
+          // ellipsised down to something the button no longer explains.
+          maxWidth: 400,
+          content: Text(
+            message,
+            style: AppText.body.copyWith(color: themeState.textSecondary),
+          ),
+          actions: [
+            AppButton(
+              label: cancelLabel,
+              variant: AppButtonVariant.secondary,
+              onPressed: () => Navigator.of(context).pop(false),
             ),
-          ),
+            AppButton(
+              label: confirmLabel,
+              variant: isDestructive
+                  ? AppButtonVariant.danger
+                  : AppButtonVariant.primary,
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
         );
       },
     );

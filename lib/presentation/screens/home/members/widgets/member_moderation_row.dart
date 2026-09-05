@@ -48,7 +48,7 @@ class MemberModerationRow extends StatelessWidget {
                 Expanded(
                   child: ModerationButton(
                     icon: member.isMuted ? Icons.mic : Icons.mic_off,
-                    label: member.isMuted ? 'Unmute' : 'Server Mute',
+                    label: member.isMuted ? 'Unmute' : 'Server mute',
                     isActive: member.isMuted,
                     themeState: themeState,
                     onTap: isBusy
@@ -60,7 +60,7 @@ class MemberModerationRow extends StatelessWidget {
                 Expanded(
                   child: ModerationButton(
                     icon: member.isDeafened ? Icons.headset : Icons.headset_off,
-                    label: member.isDeafened ? 'Undeafen' : 'Server Deafen',
+                    label: member.isDeafened ? 'Undeafen' : 'Server deafen',
                     isActive: member.isDeafened,
                     themeState: themeState,
                     onTap: isBusy

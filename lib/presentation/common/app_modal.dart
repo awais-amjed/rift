@@ -7,6 +7,7 @@ import '../../logic/cubits/theme/theme_cubit.dart';
 import '../responsive/shell_scope.dart';
 import '../theme/app_motion.dart';
 import 'app_modal_header.dart';
+import 'button_footer.dart';
 import 'context_menu_region.dart';
 
 /// Shows a dialog that:
@@ -103,12 +104,33 @@ Future<T?> showDialogFromMenu<T>({
   );
 }
 
-/// Base modal used for most dialogs in the app.
+/// Base modal used for every dialog in the app.
+///
+/// A dialog is either a form, which goes in [content] and scrolls as a whole
+/// when the window is short, or a list, which goes in [body] and scrolls
+/// itself. The shell — surface, radius, header, footer — is the same either
+/// way, which is the point: a dialog that hand-rolls its chrome because its
+/// body scrolls is a second dialog design.
 class AppModal extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? titleIcon;
-  final Widget content;
+
+  /// A figure beside the title. See [AppModalHeader.count].
+  final int? count;
+
+  /// Icon buttons in the header, before the close button.
+  final List<Widget> headerActions;
+
+  /// A form: padded, and scrolled as a whole when there is not room for it.
+  /// Exactly one of [content] and [body] is given.
+  final Widget? content;
+
+  /// A body that owns its own scrolling — a `ListView` with a search row
+  /// above it, say. Given the remaining height and no padding; what is inside
+  /// decides both.
+  final Widget? body;
+
   final List<Widget>? actions;
   final double maxWidth;
 
@@ -129,11 +151,17 @@ class AppModal extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.titleIcon,
-    required this.content,
+    this.count,
+    this.headerActions = const [],
+    this.content,
+    this.body,
     this.actions,
     this.maxWidth = 448,
     this.maxHeight,
-  });
+  }) : assert(
+         (content == null) != (body == null),
+         'Give a modal a content form or a self-scrolling body, not both',
+       );
 
   @override
   Widget build(BuildContext context) {
@@ -172,31 +200,26 @@ class AppModal extends StatelessWidget {
                   title: title,
                   subtitle: subtitle,
                   titleIcon: titleIcon,
+                  count: count,
+                  actions: headerActions,
                 ),
                 Divider(height: 1, color: borderColor),
-                // Content
                 Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 18,
-                    ),
-                    child: content,
-                  ),
+                  child:
+                      body ??
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 18,
+                        ),
+                        child: content,
+                      ),
                 ),
-                // Actions, each the width of its own label and gathered at the
-                // trailing edge. Dividing the footer between them instead
-                // sizes a button by how many others there happen to be, which
-                // is how Cancel ended up as wide as the thing it cancels.
                 if (actions != null) ...[
                   Divider(height: 1, color: borderColor),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      spacing: 10,
-                      children: actions!,
-                    ),
+                    child: ButtonFooter(buttons: actions!),
                   ),
                 ],
               ],

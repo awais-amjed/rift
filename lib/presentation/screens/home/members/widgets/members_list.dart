@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/loading_dots.dart';
 import 'member_row.dart';
 import '../../../../../data/classes/role.dart';
 
@@ -11,6 +13,7 @@ import '../../../../../data/classes/role.dart';
 /// *viewer* — who they are and what they may do — which no single row knows.
 class MembersList extends StatelessWidget {
   final List<ServerMember> members;
+  final ThemeState themeState;
 
   /// Whether another page of the roster exists. Draws a footer, and is what
   /// makes [onLoadMore] worth calling.
@@ -47,6 +50,7 @@ class MembersList extends StatelessWidget {
   const MembersList({
     super.key,
     required this.members,
+    required this.themeState,
     required this.hasMore,
     required this.onLoadMore,
     required this.memberRoles,
@@ -117,14 +121,10 @@ class MembersList extends StatelessWidget {
 
   /// The spinner at the end of a page, which is also the thing whose appearing
   /// tells somebody the list has not simply stopped.
-  Widget _buildFooter() => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 18),
+  Widget _buildFooter() => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 18),
     child: Center(
-      child: SizedBox(
-        width: 18,
-        height: 18,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
+      child: LoadingDots(color: themeState.accentBright, dotSize: 5),
     ),
   );
 }

@@ -30,6 +30,8 @@ class ModerationButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isActive ? themeState.textSecondary : CustomColors.error;
 
+    // Same height and hairline ring as a secondary AppButton, so the panel
+    // reads as a row of the app's buttons rather than three of its own.
     return Material(
       color: isActive
           ? Colors.transparent
@@ -39,8 +41,16 @@ class ModerationButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(K.radiusRow),
         hoverColor: themeState.bgHover,
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Container(
+          height: K.controlHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(K.radiusRow),
+            border: Border.all(
+              color: isActive
+                  ? themeState.borderElevated
+                  : CustomColors.error.withValues(alpha: 0.25),
+            ),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

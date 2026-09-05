@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_motion.dart';
 import '../../theme/app_text.dart';
+import '../loading_dots.dart';
 
 /// A slim "… is typing" strip shown just above the composer. Renders nothing
 /// when [names] is empty, so callers can place it unconditionally.
@@ -56,7 +57,7 @@ class TypingIndicator extends StatelessWidget {
         children: [
           // Accent-tinted rather than grey: the dots are the one moving thing
           // above the composer, and the design has them read as live.
-          _TypingDots(color: themeState.accentBright),
+          LoadingDots(color: themeState.accentBright),
           const SizedBox(width: 8),
           Flexible(
             child: Text.rich(
@@ -77,61 +78,6 @@ class TypingIndicator extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Three dots that pulse in sequence.
-class _TypingDots extends StatefulWidget {
-  final Color color;
-  const _TypingDots({required this.color});
-
-  @override
-  State<_TypingDots> createState() => _TypingDotsState();
-}
-
-class _TypingDotsState extends State<_TypingDots>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1100),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) {
-            // Each dot lags the previous by a third of the cycle.
-            final phase = (_controller.value - i * 0.2) % 1.0;
-            // Ease up then back down over the phase for a gentle pulse.
-            final t = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-            return Padding(
-              padding: EdgeInsets.only(right: i < 2 ? 3 : 0),
-              child: Opacity(
-                opacity: 0.3 + 0.7 * t,
-                child: Container(
-                  width: 4,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: widget.color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            );
-          }),
-        );
-      },
     );
   }
 }
