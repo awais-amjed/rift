@@ -8,7 +8,10 @@ import '../../logic/cubits/theme/theme_cubit.dart';
 ///
 /// Selection is shown by *tinting* the option rather than filling it: a solid
 /// accent block reads as a button you still have to press, when the point is
-/// that this one is already chosen. The ring carries the emphasis instead.
+/// that this one is already chosen. A 1px accent border carries the rest —
+/// the same width as the resting hairline, so nothing shifts on selection.
+/// This is the app's one selection language; rows and cards use the same
+/// tint and border.
 ///
 /// Icon and label colours are set here via [IconTheme] and [DefaultTextStyle],
 /// so callers supply only size and weight and can't drift on the palette.
@@ -45,9 +48,8 @@ class SelectableSurface extends StatelessWidget {
                 borderRadius: borderRadius,
                 border: Border.all(
                   color: selected
-                      ? themeState.primary.withValues(alpha: 0.4)
+                      ? themeState.channelActiveBorder
                       : themeState.borderElevated,
-                  width: selected ? 1.5 : 1,
                 ),
               ),
               child: IconTheme(

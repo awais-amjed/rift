@@ -29,9 +29,9 @@ class SettingsChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       child: Text(
         label,
-        style: AppText.secondary.copyWith(
-          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-        ),
+        style: active
+            ? AppText.secondaryStrong
+            : AppText.secondary.copyWith(fontWeight: FontWeight.w500),
       ),
     );
   }

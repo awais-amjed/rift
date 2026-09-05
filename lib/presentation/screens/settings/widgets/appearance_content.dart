@@ -20,29 +20,34 @@ class AppearanceContent extends StatelessWidget {
       children: [
         SectionTitle(label: 'Theme', themeState: themeState),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            ThemeCard(
-              label: 'Dark',
-              icon: Icons.dark_mode_outlined,
-              isSelected: themeState.isDarkTheme,
-              themeState: themeState,
-              onTap: () => context.read<ThemeCubit>().setTheme(ThemeMode.dark),
-            ),
-            const SizedBox(width: 12),
-            ThemeCard(
-              label: 'Light',
-              icon: Icons.light_mode_outlined,
-              isSelected: themeState.isLightTheme,
-              themeState: themeState,
-              onTap: () => context.read<ThemeCubit>().setTheme(ThemeMode.light),
-            ),
-          ],
+        // One segmented row, not two cards: it is a two-way choice, and the
+        // segment is how the app spells those (channel type, sign in / create).
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 300),
+          child: Row(
+            spacing: 8,
+            children: [
+              _ModeSegment(
+                label: 'Dark',
+                icon: Icons.dark_mode_outlined,
+                selected: themeState.isDarkTheme,
+                onTap: () =>
+                    context.read<ThemeCubit>().setTheme(ThemeMode.dark),
+              ),
+              _ModeSegment(
+                label: 'Light',
+                icon: Icons.light_mode_outlined,
+                selected: themeState.isLightTheme,
+                onTap: () =>
+                    context.read<ThemeCubit>().setTheme(ThemeMode.light),
+              ),
+            ],
+          ),
         ),
 
         const SizedBox(height: 28),
 
-        SectionTitle(label: 'Color Palette', themeState: themeState),
+        SectionTitle(label: 'Colour palette', themeState: themeState),
         const SizedBox(height: 4),
         Text(
           'Changes the accent and surface tones across the whole app.',
@@ -67,6 +72,45 @@ class AppearanceContent extends StatelessWidget {
   }
 }
 
+/// One half of the Dark / Light segment.
+class _ModeSegment extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ModeSegment({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: SelectableSurface(
+        selected: selected,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(K.radiusRow),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: 7,
+          children: [
+            Icon(icon, size: 16),
+            Text(label, style: selected ? AppText.row : AppText.rowQuiet),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A palette, previewed as the piece of UI it actually changes: a channel row
+/// in that palette's own surfaces, selected in its accent, with an unread
+/// badge. Three swatches said which colours a palette had; this says what
+/// the app looks like in it.
 class _PaletteCard extends StatelessWidget {
   final AppPalette palette;
   final bool isSelected;
@@ -82,8 +126,8 @@ class _PaletteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Preview swatches always show the palette's own colors for the current
-    // brightness, regardless of the active palette.
+    // The preview is drawn in the palette's own colours for the current
+    // brightness, whichever palette is active.
     final preview = themeState.isDarkTheme ? palette.dark : palette.light;
 
     return SizedBox(
@@ -92,43 +136,38 @@ class _PaletteCard extends StatelessWidget {
         selected: isSelected,
         onTap: onTap,
         borderRadius: BorderRadius.circular(K.radiusCard),
-        padding: const EdgeInsets.all(13),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Swatch row: ground, panel, accent
+            _PalettePreview(colors: preview),
+            const SizedBox(height: 10),
             Row(
-              spacing: 6,
               children: [
-                _swatch(preview.bgPrimary, themeState.borderElevated),
-                _swatch(preview.bgSecondary, themeState.borderElevated),
-                _swatch(preview.primary, Colors.transparent),
-                const Spacer(),
+                Expanded(
+                  child: Text(
+                    palette.name,
+                    // The name stays plain in both states — the border and the
+                    // check already say which one is chosen, and tinting the
+                    // name too would make the selected card read as a link.
+                    style: (isSelected ? AppText.strong : AppText.row).copyWith(
+                      color: themeState.textPrimary,
+                    ),
+                  ),
+                ),
                 if (isSelected)
                   Icon(
                     Icons.check_circle_rounded,
-                    size: 17,
+                    size: 16,
                     color: themeState.accentBright,
                   ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              palette.name,
-              // The name stays plain white in both states — the ring and the
-              // check already say which one is chosen, and tinting the name
-              // too would make the selected card read as a link.
-              style: AppText.row.copyWith(
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                color: themeState.textPrimary,
-              ),
-            ),
             const SizedBox(height: 2),
             Text(
               palette.description,
-              style: AppText.label.copyWith(
-                fontWeight: FontWeight.w400,
+              style: AppText.secondary.copyWith(
                 height: 1.4,
                 color: themeState.textTertiary,
               ),
@@ -138,58 +177,97 @@ class _PaletteCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _swatch(Color color, Color border) {
+/// A miniature of the sidebar: the panel surface on the canvas, one channel
+/// row selected in the accent, one at rest with a count.
+class _PalettePreview extends StatelessWidget {
+  final PaletteColors colors;
+
+  const _PalettePreview({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: 20,
-      height: 20,
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: color,
+        color: colors.bgPrimary,
         borderRadius: BorderRadius.circular(K.radiusRow),
-        border: Border.all(color: border),
+        border: Border.all(color: colors.borderElevated),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: colors.bgSecondary,
+          borderRadius: BorderRadius.circular(K.radiusRow - 2),
+          border: Border.all(color: colors.border),
+        ),
+        child: Column(
+          spacing: 3,
+          children: [
+            _PreviewRow(label: 'general', selected: true, colors: colors),
+            _PreviewRow(label: 'design', count: 2, colors: colors),
+          ],
+        ),
       ),
     );
   }
 }
 
-class ThemeCard extends StatelessWidget {
+class _PreviewRow extends StatelessWidget {
   final String label;
-  final IconData icon;
-  final bool isSelected;
-  final ThemeState themeState;
-  final VoidCallback onTap;
+  final bool selected;
+  final int? count;
+  final PaletteColors colors;
 
-  const ThemeCard({
-    super.key,
+  const _PreviewRow({
     required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.themeState,
-    required this.onTap,
+    required this.colors,
+    this.selected = false,
+    this.count,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 130,
-      child: SelectableSurface(
-        selected: isSelected,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(K.radiusCard),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 26),
-            const SizedBox(height: 8),
-            Text(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: selected ? colors.channelActiveBg : null,
+        borderRadius: BorderRadius.circular(K.radiusRow - 4),
+      ),
+      child: Row(
+        spacing: 5,
+        children: [
+          Icon(
+            Icons.tag,
+            size: 11,
+            color: selected ? colors.accentBright : colors.textQuaternary,
+          ),
+          Expanded(
+            child: Text(
               label,
-              style: AppText.row.copyWith(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.chip.copyWith(
+                color: selected
+                    ? colors.channelActiveText
+                    : colors.textSecondary,
               ),
             ),
-          ],
-        ),
+          ),
+          if (count != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: colors.primary,
+                borderRadius: BorderRadius.circular(K.radiusPill),
+              ),
+              child: Text(
+                '$count',
+                style: AppText.badge.copyWith(color: colors.onPrimary),
+              ),
+            ),
+        ],
       ),
     );
   }

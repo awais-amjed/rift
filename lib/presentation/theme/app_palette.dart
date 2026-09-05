@@ -114,12 +114,6 @@ class PaletteColors {
     end: Alignment.bottomRight,
     colors: [primary, gradientPartner],
   );
-
-  /// Fill behind a selected channel/DM row — fades out to the right so the
-  /// row reads as lit from its leading edge rather than as a solid block.
-  LinearGradient get activeRowGradient => LinearGradient(
-    colors: [primary.withValues(alpha: 0.14), primary.withValues(alpha: 0.05)],
-  );
 }
 
 /// A user-selectable color palette: accent + neutrals for both modes.

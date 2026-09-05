@@ -6,7 +6,6 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../responsive/shell_scope.dart';
-import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 
@@ -51,20 +50,11 @@ class ServerHeader extends StatelessWidget {
             child: Row(
               spacing: 11,
               children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    boxShadow: AppShadows.accentGlow(
-                      themeState.primary,
-                      blurRadius: 16,
-                      dy: 4,
-                    ),
-                  ),
-                  child: SquircleAvatar(
-                    name: server.name,
-                    seed: server.id,
-                    imageUrl: server.iconUrl,
-                    size: 38,
-                  ),
+                SquircleAvatar(
+                  name: server.name,
+                  seed: server.id,
+                  imageUrl: server.iconUrl,
+                  size: 38,
                 ),
                 Expanded(child: _buildIdentity(themeState)),
                 if (onOpenSettings != null) _buildSettingsButton(themeState),

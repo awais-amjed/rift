@@ -64,12 +64,7 @@ class _TypeButton extends StatelessWidget {
           spacing: 7,
           children: [
             Icon(icon, size: 15),
-            Text(
-              label,
-              style: AppText.row.copyWith(
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-              ),
-            ),
+            Text(label, style: selected ? AppText.row : AppText.rowQuiet),
           ],
         ),
       ),

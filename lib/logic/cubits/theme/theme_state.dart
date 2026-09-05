@@ -44,9 +44,6 @@ class ThemeState {
   /// Server icons and the local user's avatar.
   LinearGradient get identityGradient => colors.identityGradient;
 
-  /// Fill behind a selected channel/DM row.
-  LinearGradient get activeRowGradient => colors.activeRowGradient;
-
   // Backgrounds — see PaletteColors for what each rung of the ladder is for.
   Color get bgPrimary => colors.bgPrimary;
 

@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
-import '../theme/app_shadows.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
 
@@ -12,8 +11,9 @@ enum AppButtonVariant { primary, secondary, danger }
 /// Themed button used throughout the app.
 ///
 /// The three variants differ only in how they carry weight: primary is the
-/// lit action gradient, danger is a flat red, and secondary is a hairline
-/// ring over a barely-there fill so it recedes beside either of them.
+/// flat accent, danger is a flat red, and secondary is a hairline ring over
+/// a barely-there fill so it recedes beside either of them. No gradient and
+/// no glow on the primary — the accent is the ornament.
 class AppButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -88,10 +88,12 @@ class AppButton extends StatelessWidget {
     Widget button = FilledButton(
       onPressed: isLoading ? null : onPressed,
       style: ButtonStyle(
-        // Primary paints its gradient behind the button, so the button itself
-        // stays transparent — a solid fill would cover it.
         backgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (isPrimary) return Colors.transparent;
+          if (isPrimary) {
+            return states.contains(WidgetState.hovered)
+                ? themeState.accentBright
+                : themeState.primary;
+          }
           if (variant == AppButtonVariant.danger) {
             return states.contains(WidgetState.hovered)
                 ? CustomColors.errorDark
@@ -129,19 +131,6 @@ class AppButton extends StatelessWidget {
       ),
       child: child,
     );
-
-    if (isPrimary) {
-      button = DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: themeState.actionGradient,
-          borderRadius: BorderRadius.circular(K.radiusRow),
-          boxShadow: enabled
-              ? AppShadows.accentGlow(themeState.primary, blurRadius: 12, dy: 2)
-              : null,
-        ),
-        child: button,
-      );
-    }
 
     // Dimmed as a whole rather than by swapping the fill, so a disabled button
     // keeps its shape instead of turning into a different-looking control.

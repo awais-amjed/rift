@@ -140,8 +140,7 @@ class VoiceChannelTile extends StatelessWidget {
       // are cards, so the difference says which call is yours. A drag hovering
       // over it borrows the accent border — where this drop would land.
       decoration: BoxDecoration(
-        color: isSelected ? null : themeState.bgHover,
-        gradient: isSelected ? themeState.activeRowGradient : null,
+        color: isSelected ? themeState.channelActiveBg : themeState.bgHover,
         borderRadius: BorderRadius.circular(K.radiusCard),
         border: Border.all(
           color: isTargeted

@@ -36,9 +36,9 @@ class ChipSelector extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           child: Text(
             options[i],
-            style: AppText.secondary.copyWith(
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
+            style: selected
+                ? AppText.secondaryStrong
+                : AppText.secondary.copyWith(fontWeight: FontWeight.w500),
           ),
         );
       }),

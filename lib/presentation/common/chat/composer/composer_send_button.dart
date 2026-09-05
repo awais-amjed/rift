@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/app_shadows.dart';
 
-/// The send button: the action gradient once there's something to send, a
-/// muted ghost arrow otherwise.
+/// The send button: solid accent once there's something to send, a muted
+/// ghost arrow otherwise.
 ///
 /// A rounded square the same size and radius as the other composer controls,
 /// not a circle — it sits in a row of them, and the only thing that should
@@ -52,23 +51,12 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
           width: K.composerControlSize,
           height: K.composerControlSize,
           decoration: BoxDecoration(
-            // Enabled, this is the app's one action gradient, lit from below —
-            // the loudest control on screen, which is right for the only
-            // irreversible thing in the composer.
-            gradient: enabled ? themeState.actionGradient : null,
+            // Enabled, this is the accent, flat: the one filled control in
+            // the composer is loud enough without a glow under it.
+            color: enabled ? themeState.primary : null,
             borderRadius: radius,
-            // Hovering makes it louder rather than tinting it — brightening a
-            // gradient muddies it, and the glow is what this control already
-            // says "press me" with.
-            boxShadow: enabled
-                ? AppShadows.accentGlow(
-                    themeState.primary,
-                    blurRadius: lit ? 18 : 12,
-                    dy: 2,
-                  )
-                : null,
           ),
-          // A thin scrim over the gradient, which is the only way to lift a
+          // A thin scrim over the fill, which is the only way to lift a
           // control whose own surface is opaque.
           foregroundDecoration: BoxDecoration(
             color: lit

@@ -53,12 +53,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     SettingsTab.backup => 'Cloud Backup',
   };
 
-  String get _tabSubtitle => switch (_activeTab) {
-    SettingsTab.appearance => 'Customize the look of the app.',
-    SettingsTab.voiceAndAudio => 'Configure voice input behavior.',
-    SettingsTab.backup => 'Save or restore your vault backup.',
-  };
-
   IconData get _tabIcon => switch (_activeTab) {
     SettingsTab.appearance => Icons.palette_outlined,
     SettingsTab.voiceAndAudio => Icons.headset_outlined,
@@ -120,17 +114,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // No subtitle: the nav row already named the tab, and a
+                // sentence under the title said the same thing again.
                 Text(
                   _tabTitle,
                   style: AppText.sectionTitle.copyWith(
                     color: themeState.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  _tabSubtitle,
-                  style: AppText.secondary.copyWith(
-                    color: themeState.textTertiary,
                   ),
                 ),
               ],

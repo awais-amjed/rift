@@ -110,10 +110,7 @@ class DmConversationTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: radius,
-            gradient: isSelected ? themeState.activeRowGradient : null,
-            border: isSelected
-                ? Border.all(color: themeState.channelActiveBorder)
-                : null,
+            color: isSelected ? themeState.channelActiveBg : null,
           ),
           child: Row(
             spacing: 10,

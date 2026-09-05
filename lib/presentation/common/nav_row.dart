@@ -11,9 +11,11 @@ import '../theme/app_text.dart';
 ///
 /// Three states, and they are not interchangeable: *selected* is where you
 /// are, *unread* is where something happened, at rest is everything else.
-/// Selected takes the accent gradient with a ring; unread only brightens the
-/// text and adds a count, so a long list still reads as one selected row
-/// among many rather than a wall of highlights.
+/// Selected takes the accent tint and nothing else — the glyph and label
+/// already carry the accent, and a border on top would signal one state four
+/// ways; unread only brightens the text and adds a count, so a long list
+/// still reads as one selected row among many rather than a wall of
+/// highlights.
 class NavRow extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -67,12 +69,7 @@ class NavRow extends StatelessWidget {
               curve: AppMotion.settle,
               decoration: BoxDecoration(
                 borderRadius: radius,
-                // The gradient fades left-to-right so the row reads as lit
-                // from its leading edge, not filled like a button.
-                gradient: isSelected ? themeState.activeRowGradient : null,
-                border: isSelected
-                    ? Border.all(color: themeState.channelActiveBorder)
-                    : null,
+                color: isSelected ? themeState.channelActiveBg : null,
               ),
               // Padding sits inside, so only the fill animates. Handed to the
               // AnimatedContainer it would animate too — and this padding is a
