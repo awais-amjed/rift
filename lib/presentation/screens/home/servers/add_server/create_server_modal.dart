@@ -134,6 +134,22 @@ class _CreateServerModalState extends State<CreateServerModal> {
               ),
             ),
 
+          // Everything below asks for credentials the person filling this in
+          // has to go and find. Somebody running the self-hosted stack does
+          // not have to: their console generated all four and can make the
+          // server itself, handing back an invite link instead. Said here
+          // rather than in the docs because this form is exactly where
+          // somebody discovers how long it is.
+          const MessageBanner(
+            message:
+                'Running the self-hosted Docker stack? Its console makes '
+                'servers for you — none of this to fill in. Open it at '
+                'http://localhost:8080, create the server there, and join with '
+                'the invite link it gives you.',
+            kind: MessageBannerKind.info,
+          ),
+          const SizedBox(height: 18),
+
           AppTextField(
             controller: _nameCtrl,
             label: 'Server Name',

@@ -44,6 +44,16 @@ class _AddServerDialogState extends State<AddServerDialog> {
 
   void _handleSuccess() => Navigator.of(context).pop();
 
+  /// Where a finished join goes next.
+  ///
+  /// An ordinary joiner is done — whether the server is findable is not their
+  /// call. An admin is not: joining is how somebody arrives at a server the
+  /// self-hosted console made for them, and that route skipped every question
+  /// the create flow asks. So they get the same last step, from the same
+  /// place, rather than having to find it later under a context menu.
+  void _handleJoined({required bool joinedAsAdmin}) =>
+      joinedAsAdmin ? _go(_Step.publish) : _handleSuccess();
+
   void _go(_Step step, {PublicServer? listing}) => setState(() {
     _step = step;
     _picked = listing;
@@ -72,14 +82,15 @@ class _AddServerDialogState extends State<AddServerDialog> {
       _Step.join => JoinServerModal(
         listing: _picked,
         inviteLink: widget.inviteLink,
-        onSuccess: _handleSuccess,
+        onSuccess: _handleJoined,
         // Back where you came from: the browser if you picked a server there,
         // the picker if you typed a link.
         onCancel: () =>
             _go(_picked == null ? _Step.pick : _Step.browse, listing: _picked),
       ),
-      // Creating one asks whether it should be findable; joining one doesn't,
-      // because that is not the joiner's call to make.
+      // Creating one asks whether it should be findable, and so does joining
+      // one *as its admin* — see [_handleJoined]. An ordinary joiner is not
+      // asked, because it is not their call to make.
       _Step.create => CreateServerModal(
         onSuccess: () => _go(_Step.publish),
         onCancel: () => _go(_Step.pick),

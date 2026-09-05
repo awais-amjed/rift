@@ -17,8 +17,16 @@ import '../../../../common/no_central_account.dart';
 import '../../../../common/tag_editor.dart';
 import '../../../../theme/app_text.dart';
 
-/// The last step of [AddServerDialog]'s create flow: offering the server you
-/// have just made to the directory.
+/// The last step of [AddServerDialog] for anybody who ends up an admin:
+/// offering the server to the directory, and describing it.
+///
+/// Reached two ways, and the second is the one that is easy to miss. Creating
+/// a server lands here, obviously. So does *joining* one as its admin — which
+/// is how somebody arrives at a server the self-hosted console made for them,
+/// a route that skips the create form entirely and so skipped every question
+/// on this page. Until it did, those servers had no description, no tags and
+/// no listing, and their admin had no idea any of that had been asked of
+/// anyone else.
 ///
 /// This is where the choice belongs. Public-or-not is a decision about the
 /// server, and the moment you make one is the moment you know the answer —

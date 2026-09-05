@@ -20,7 +20,13 @@ import '../../../../common/message_banner.dart';
 /// fills in [listing] and this becomes the same form with one fewer field,
 /// rather than a second registration path that could drift from this one.
 class JoinServerModal extends StatefulWidget {
-  final VoidCallback onSuccess;
+  /// Called once the join has landed.
+  ///
+  /// [joinedAsAdmin] is what lets the flow ask an admin the questions the
+  /// create flow asks — description, tags, whether to list it. Somebody whose
+  /// server was made for them by the self-hosted console joins their own
+  /// server rather than creating it, and was never offered any of them.
+  final void Function({required bool joinedAsAdmin}) onSuccess;
   final VoidCallback onCancel;
 
   /// The server picked in the browser, or null when the link is typed.
@@ -136,7 +142,14 @@ class _JoinServerModalState extends State<JoinServerModal> {
     setState(() => _isLoading = false);
 
     HelperMethods.showSuccess(message: 'Joined server successfully!');
-    widget.onSuccess();
+
+    // Read off the register response rather than the roster, which has not
+    // been fetched yet at this point.
+    final permissions =
+        (data['user'] as Map?)?['permissions'] as Map<String, dynamic>?;
+    widget.onSuccess(
+      joinedAsAdmin: permissions?['is_server_admin'] == true,
+    );
   }
 
   @override
