@@ -4,8 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/services/connection_failure.dart';
 import '../../../../common/app_button.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../../data/constants.dart';
+import '../../../../common/button_footer.dart';
+import '../../../../common/empty_state.dart';
 
 /// Shown when a voice channel could not be joined.
 ///
@@ -40,90 +40,29 @@ class ErrorView extends StatelessWidget {
       builder: (context, themeState) {
         return Container(
           color: themeState.bgSecondary,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.cloud_off_rounded,
-                    size: 44,
-                    color: themeState.textQuaternary,
+          child: EmptyState(
+            icon: Icons.cloud_off_rounded,
+            title: failure.title,
+            message: failure.message,
+            detail: failure.detail,
+            action: onRetry == null && onLeave == null
+                ? null
+                : ButtonFooter(
+                    alignment: MainAxisAlignment.center,
+                    buttons: [
+                      if (onLeave != null)
+                        AppButton(
+                          label: 'Leave channel',
+                          variant: AppButtonVariant.secondary,
+                          onPressed: onLeave,
+                        ),
+                      if (onRetry != null)
+                        AppButton(label: 'Try again', onPressed: onRetry),
+                    ],
                   ),
-                  const SizedBox(height: 18),
-                  Text(
-                    failure.title,
-                    textAlign: TextAlign.center,
-                    style: AppText.sectionTitle.copyWith(
-                      color: themeState.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    failure.message,
-                    textAlign: TextAlign.center,
-                    style: AppText.secondary.copyWith(
-                      color: themeState.textTertiary,
-                    ),
-                  ),
-                  if (failure.detail != null) ...[
-                    const SizedBox(height: 14),
-                    _buildDetail(themeState),
-                  ],
-                  if (onRetry != null || onLeave != null) ...[
-                    const SizedBox(height: 22),
-                    _buildActions(),
-                  ],
-                ],
-              ),
-            ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildDetail(ThemeState themeState) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: themeState.bgPrimary,
-        borderRadius: BorderRadius.circular(K.radiusRow),
-        border: Border.all(color: themeState.borderPrimary),
-      ),
-      child: Text(
-        failure.detail!,
-        textAlign: TextAlign.center,
-        maxLines: 4,
-        overflow: TextOverflow.ellipsis,
-        style: AppText.figure.copyWith(color: themeState.textTertiary),
-      ),
-    );
-  }
-
-  Widget _buildActions() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      spacing: 10,
-      children: [
-        if (onLeave != null)
-          AppButton(
-            label: 'Leave channel',
-            variant: AppButtonVariant.secondary,
-            onPressed: onLeave,
-          ),
-        if (onRetry != null)
-          AppButton(
-            label: 'Try again',
-            icon: const Icon(
-              Icons.refresh_rounded,
-              size: 15,
-              color: Colors.white,
-            ),
-            onPressed: onRetry,
-          ),
-      ],
     );
   }
 }

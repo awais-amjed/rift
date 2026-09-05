@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../../data/constants.dart';
+import '../../../../common/app_button.dart';
 
-/// Button to start watching a screenshare stream
+/// Starts watching a screen share: the app's primary button, over the tile.
+///
+/// It used to be its own black-70% pill with its own radius and elevation —
+/// the only button in the app not drawn like the others, on the one surface
+/// where it is the only thing to press.
 class WatchStreamButton extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -13,41 +14,16 @@ class WatchStreamButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Center(
-          child: Material(
-            color: Colors.black.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(K.radiusRow),
-            elevation: 2,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(K.radiusRow),
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.play_circle_filled,
-                      size: 20,
-                      color: Colors.white,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Watch Stream',
-                      style: AppText.strong.copyWith(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+    return Center(
+      child: AppButton(
+        label: 'Watch stream',
+        icon: const Icon(
+          Icons.play_arrow_rounded,
+          size: 17,
+          color: Colors.white,
+        ),
+        onPressed: onTap,
+      ),
     );
   }
 }

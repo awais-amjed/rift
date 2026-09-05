@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import 'loading_dots.dart';
 
 /// What a list shows when it has nothing in it.
 ///
@@ -17,8 +18,21 @@ import '../theme/app_text.dart';
 ///
 /// Centred rather than parked at the top for the same reason: content stacks
 /// from the top, so anything up there is read as the first item of a list.
+///
+/// The same recipe serves the voice stage's waiting, connecting and failed
+/// states — a 46px tinted glyph, a 15px title, a 12px line — so an empty
+/// panel and a failed join read as the same kind of moment rather than four
+/// hand-rolled columns at four sizes.
 class EmptyState extends StatelessWidget {
   final IconData icon;
+
+  /// Something is happening: the glyph gives way to the loading dots.
+  final bool busy;
+
+  /// The raw cause, kept under the sentence that interprets it, so a bug
+  /// report still carries what actually happened. Mono, legible, and cut to
+  /// two lines — the useful part of an exception is at its start.
+  final String? detail;
 
   /// Three or four words. The state, not an instruction.
   final String title;
@@ -35,7 +49,9 @@ class EmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     this.message,
+    this.detail,
     this.action,
+    this.busy = false,
   });
 
   @override
@@ -61,7 +77,14 @@ class EmptyState extends StatelessWidget {
                 color: themeState.primary.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(K.radiusCard),
               ),
-              child: Icon(icon, size: 21, color: themeState.accentBright),
+              child: busy
+                  ? Center(
+                      child: LoadingDots(
+                        color: themeState.accentBright,
+                        dotSize: 6,
+                      ),
+                    )
+                  : Icon(icon, size: 21, color: themeState.accentBright),
             ),
             const SizedBox(height: 14),
             Text(
@@ -88,7 +111,29 @@ class EmptyState extends StatelessWidget {
                 ),
               ),
             ],
-            if (action != null) ...[const SizedBox(height: 14), action!],
+            if (detail != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                constraints: const BoxConstraints(maxWidth: 360),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: themeState.bgPrimary,
+                  borderRadius: BorderRadius.circular(K.radiusRow),
+                  border: Border.all(color: themeState.borderPrimary),
+                ),
+                child: Text(
+                  detail!,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.code.copyWith(color: themeState.textSecondary),
+                ),
+              ),
+            ],
+            if (action != null) ...[const SizedBox(height: 16), action!],
           ],
         ),
       ),
