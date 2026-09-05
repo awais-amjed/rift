@@ -10,6 +10,7 @@ import '../section_title.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../common/button_footer.dart';
 import '../../../../theme/theme_context.dart';
+import '../../../../common/segmented_control.dart';
 
 class AuthPanel extends StatefulWidget {
   final SupabaseBackupState state;
@@ -30,8 +31,24 @@ class AuthPanelState extends State<AuthPanel>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: SegmentedControl<bool>(
+            value: isSignUp,
+            onChanged: isProcessing
+                ? null
+                : (signUp) => setState(() => isSignUp = signUp),
+            options: const [
+              SegmentOption(value: false, label: 'Sign in'),
+              SegmentOption(value: true, label: 'Create account'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
         SectionTitle(
-          label: isSignUp ? 'Create Backup Account' : 'Sign In to Cloud Backup',
+          label: isSignUp
+              ? 'Create a backup account'
+              : 'Sign in to cloud backup',
         ),
         const SizedBox(height: 4),
         Text(
@@ -68,24 +85,12 @@ class AuthPanelState extends State<AuthPanel>
           ),
         ],
         const SizedBox(height: 16),
-        Row(
-          children: [
-            TextButton(
-              onPressed: isProcessing ? null : toggleAuthMode,
-              child: Text(
-                isSignUp ? 'Already have an account?' : 'Create an account',
-                style: AppText.secondary.copyWith(color: theme.primary),
-              ),
-            ),
-            const Spacer(),
-            ButtonFooter(
-              buttons: [
-                AppButton(
-                  label: isSignUp ? 'Create account' : 'Sign in',
-                  isLoading: isProcessing,
-                  onPressed: isProcessing ? null : submitCredentials,
-                ),
-              ],
+        ButtonFooter(
+          buttons: [
+            AppButton(
+              label: isSignUp ? 'Create account' : 'Sign in',
+              isLoading: isProcessing,
+              onPressed: isProcessing ? null : submitCredentials,
             ),
           ],
         ),

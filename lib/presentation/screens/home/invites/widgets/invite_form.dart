@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../../../theme/custom_colors.dart';
+import '../../../../common/message_banner.dart';
+import '../../../../common/segmented_control.dart';
 import 'chip_selector.dart';
 import 'copyable_field.dart';
 import 'field_label.dart';
 import 'invite_options.dart';
 import '../../../../theme/app_text.dart';
-import '../../../settings/widgets/setting_toggle_row.dart';
 import '../../../../../data/classes/role.dart';
 import 'invite_role_picker.dart';
 import '../../../../theme/theme_context.dart';
@@ -60,7 +60,41 @@ class InviteForm extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FieldLabel(label: 'Expires In', textColor: themeState.textTertiary),
+        // A decision, not a setting: `is_bot` is fixed when the link is minted
+        // and there is no UPDATE grant on invites, so one link can never
+        // quietly become the other kind (migration 014). So it is asked
+        // first, as a choice, rather than found as a switch between the
+        // fields. The line under it says what actually differs, because
+        // "it's a bot" tells somebody nothing about what the thing will and
+        // will not be able to read.
+        SegmentedControl<bool>(
+          value: isBot,
+          onChanged: onIsBotChanged,
+          options: const [
+            SegmentOption(
+              value: false,
+              label: 'Person',
+              icon: Icons.person_outline_rounded,
+            ),
+            SegmentOption(
+              value: true,
+              label: 'Bot',
+              icon: Icons.smart_toy_outlined,
+            ),
+          ],
+        ),
+        if (isBot) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Bots are listed separately and can never be given a '
+            'channel\u2019s encryption key — they only see messages sent '
+            'to them.',
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
+          ),
+        ],
+        const SizedBox(height: 16),
+
+        FieldLabel(label: 'Expires in', textColor: themeState.textTertiary),
         const SizedBox(height: 8),
         ChipSelector(
           options: inviteExpiryOptions.map((e) => e.label).toList(),
@@ -69,7 +103,7 @@ class InviteForm extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        FieldLabel(label: 'Max Uses', textColor: themeState.textTertiary),
+        FieldLabel(label: 'Max uses', textColor: themeState.textTertiary),
         const SizedBox(height: 8),
         ChipSelector(
           options: inviteUsesOptions.map((e) => e.label).toList(),
@@ -78,11 +112,6 @@ class InviteForm extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // A decision, not a setting: `is_bot` is fixed when the link is minted
-        // and there is no UPDATE grant on invites, so one link can never
-        // quietly become the other kind (migration 014). The description says
-        // what actually differs, because "it's a bot" tells somebody nothing
-        // about what the thing will and will not be able to read.
         InviteRolePicker(
           roles: roles,
           selectedId: roleId,
@@ -90,40 +119,22 @@ class InviteForm extends StatelessWidget {
         ),
         if (roles.isNotEmpty) const SizedBox(height: 16),
 
-        SettingToggleRow(
-          title: 'This invite is for a bot',
-          description:
-              'Bots are listed separately and can never be given a '
-              'channel\u2019s encryption key — they only see messages sent '
-              'to them.',
-          value: isBot,
-          onChanged: onIsBotChanged,
-        ),
-        const SizedBox(height: 16),
-
         // One field, server URL and code combined, so the invitee pastes a
         // single thing.
-        FieldLabel(label: 'Invite Link', textColor: themeState.textTertiary),
+        FieldLabel(label: 'Invite link', textColor: themeState.textTertiary),
         const SizedBox(height: 6),
         CopyableField(
           value: inviteLink,
           placeholder: isGenerating
-              ? 'Generating...'
-              : 'Click generate to create an invite link',
+              ? 'Generating…'
+              : 'Generate a link to share',
           copied: copied,
           onCopy: onCopy,
-          bgColor: themeState.bgSecondary,
-          borderColor: themeState.borderPrimary,
-          textColor: themeState.textTertiary,
-          placeholderColor: themeState.textQuaternary,
         ),
 
         if (error != null) ...[
           const SizedBox(height: 8),
-          Text(
-            error!,
-            style: AppText.secondary.copyWith(color: CustomColors.error),
-          ),
+          MessageBanner(message: error!, kind: MessageBannerKind.error),
         ],
 
         const SizedBox(height: 10),

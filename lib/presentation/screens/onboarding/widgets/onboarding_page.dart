@@ -19,9 +19,20 @@ class OnboardingPage extends StatelessWidget {
   /// the interstitial views (email confirmation) that aren't their own step.
   final int? step;
 
-  static const int stepCount = 3;
+  /// What this step is — "account", "vault" — so the dots say which of the
+  /// two paths you are on rather than counting three steps that are never
+  /// all walked.
+  final String? stepLabel;
 
-  const OnboardingPage({super.key, required this.child, this.step});
+  /// Welcome, then one step: the account or the vault.
+  static const int stepCount = 2;
+
+  const OnboardingPage({
+    super.key,
+    required this.child,
+    this.step,
+    this.stepLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +70,11 @@ class OnboardingPage extends StatelessWidget {
                         ),
                         if (step != null) ...[
                           const SizedBox(height: 20),
-                          StepDots(step: step!, count: stepCount),
+                          StepDots(
+                            step: step!,
+                            count: stepCount,
+                            label: stepLabel,
+                          ),
                         ],
                       ],
                     ),

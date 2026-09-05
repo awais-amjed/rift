@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../theme/custom_colors.dart';
-import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
+import '../../../../common/app_button.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
+/// A value meant to be copied exactly — an invite link — with the button that
+/// copies it.
+///
+/// Mono at full contrast: an invite code is exactly what mono is for, and
+/// tertiary ink on the one string somebody is about to read aloud was the
+/// wrong place to be quiet. The button is a real button beside the field
+/// rather than an icon inside it; "Copied" is the button's own label for a
+/// moment, where the eye already is.
 class CopyableField extends StatelessWidget {
   final String? value;
   final String? placeholder;
   final bool copied;
   final VoidCallback? onCopy;
-  final Color bgColor;
-  final Color borderColor;
-  final Color textColor;
-  final Color? placeholderColor;
 
   const CopyableField({
     super.key,
@@ -22,67 +25,54 @@ class CopyableField extends StatelessWidget {
     this.placeholder,
     required this.copied,
     this.onCopy,
-    required this.bgColor,
-    required this.borderColor,
-    required this.textColor,
-    this.placeholderColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(K.radiusCard),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: value != null
-                    ? Text(
-                        value!,
-                        // An invite code is exactly what mono is for — and
-                        // 'monospace' was asking the platform for whatever it
-                        // had, which is the inconsistency bundling Geist Mono
-                        // was meant to end.
-                        style: AppText.code.copyWith(
-                          color: textColor,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      )
-                    : Text(
-                        placeholder ?? '',
-                        style: AppText.rowQuiet.copyWith(
-                          fontStyle: FontStyle.italic,
-                          color: placeholderColor ?? textColor,
-                        ),
-                      ),
-              ),
-              if (onCopy != null)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(K.radiusRow),
-                    hoverColor: themeState.bgHover,
-                    onTap: onCopy,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        copied ? Icons.check : Icons.copy,
-                        size: 15,
-                        color: copied ? CustomColors.success : textColor,
-                      ),
+    final theme = context.theme;
+    return Row(
+      spacing: 8,
+      children: [
+        Expanded(
+          child: Container(
+            height: K.fieldHeight,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            alignment: Alignment.centerLeft,
+            decoration: BoxDecoration(
+              color: theme.bgTertiary,
+              borderRadius: BorderRadius.circular(K.radiusRow),
+              border: Border.all(color: theme.borderPrimary),
+            ),
+            child: value != null
+                ? Text(
+                    value!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.code.copyWith(color: theme.textPrimary),
+                  )
+                : Text(
+                    placeholder ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.secondary.copyWith(
+                      color: theme.textTertiary,
                     ),
                   ),
-                ),
-            ],
           ),
-        );
-      },
+        ),
+        if (onCopy != null)
+          AppButton(
+            label: copied ? 'Copied' : 'Copy',
+            variant: AppButtonVariant.secondary,
+            height: K.fieldHeight,
+            icon: Icon(
+              copied ? Icons.check_rounded : Icons.copy_rounded,
+              size: 14,
+              color: theme.textSecondary,
+            ),
+            onPressed: value == null ? null : onCopy,
+          ),
+      ],
     );
   }
 }

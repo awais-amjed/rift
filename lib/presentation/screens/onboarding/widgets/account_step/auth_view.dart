@@ -12,6 +12,7 @@ import '../password_strength_indicator.dart';
 import '../../../../common/feature_header.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../common/segmented_control.dart';
 
 /// The account step's form: sign in, or create an account.
 ///
@@ -19,8 +20,8 @@ import '../../../../common/button_footer.dart';
 /// vault, and that is as often a reinstall or a second device as it is a
 /// genuinely new account — for the first group, creating a second account is
 /// the one thing they must not do, because the vault they are trying to reach
-/// is behind the first one. Someone with no account has "New here? Create an
-/// account" a line below and loses two seconds; someone who signs up twice
+/// is behind the first one. Someone with no account has "Create account" in
+/// the segment at the top and loses two seconds; someone who signs up twice
 /// loses their servers.
 class AuthView extends StatefulWidget {
   final SupabaseBackupState state;
@@ -86,14 +87,36 @@ class AuthViewState extends State<AuthView>
 
     return OnboardingPage(
       step: 1,
+      stepLabel: 'account',
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Named up front, so the confirm field and the strength meter do
+          // not appear unannounced when the mode changes under the form.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: SegmentedControl<bool>(
+              value: isSignUp,
+              onChanged: isProcessing
+                  ? null
+                  : (signUp) => setState(() {
+                      isSignUp = signUp;
+                      _validationError = null;
+                    }),
+              options: const [
+                SegmentOption(value: false, label: 'Sign in'),
+                SegmentOption(value: true, label: 'Create account'),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
           FeatureHeader(
             icon: isSignUp
                 ? Icons.person_add_rounded
                 : Icons.cloud_sync_rounded,
-            title: isSignUp ? 'Create Your Account' : 'Sign In to Rift',
+            title: isSignUp ? 'Create your account' : 'Sign in to Rift',
             subtitle: isSignUp
                 ? 'One password for everything. It also protects your '
                       'encrypted backup and never leaves this device.'
@@ -138,7 +161,7 @@ class AuthViewState extends State<AuthView>
                   const SizedBox(height: 20),
                   AppTextField(
                     controller: _confirmController,
-                    label: 'Confirm Password',
+                    label: 'Confirm password',
                     hint: 'Re-enter your password',
                     obscureText: true,
                     enabled: !isProcessing,
@@ -208,21 +231,6 @@ class AuthViewState extends State<AuthView>
                       ),
                     ),
                   ),
-
-                TextButton(
-                  onPressed: isProcessing
-                      ? null
-                      : () => setState(() {
-                          isSignUp = !isSignUp;
-                          _validationError = null;
-                        }),
-                  child: Text(
-                    isSignUp
-                        ? 'Already have an account? Sign in'
-                        : 'New here? Create an account',
-                    style: AppText.secondary.copyWith(color: theme.primary),
-                  ),
-                ),
               ],
             ),
           ),

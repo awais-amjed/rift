@@ -27,5 +27,6 @@ const List<InviteUsesOption> inviteUsesOptions = [
   InviteUsesOption('5', 5),
   InviteUsesOption('10', 10),
   InviteUsesOption('25', 25),
-  InviteUsesOption('∞', null),
+  // Spelled out: it was the only glyph standing in for a word in the app.
+  InviteUsesOption('Unlimited', null),
 ];

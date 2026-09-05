@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_text_field.dart';
 import '../../../../../common/message_banner.dart';
 import '../../../../../common/resend_confirmation_button.dart';
 import '../../../../../common/supabase_auth_form_state.dart';
 import '../../../../../common/feature_header.dart';
-import '../../../../../theme/app_text.dart';
 import '../../../../../common/button_footer.dart';
+import '../../../../../common/segmented_control.dart';
 
 /// Sign-up / sign-in form shown when the user is not yet authenticated.
 ///
@@ -35,14 +34,28 @@ class _AuthViewState extends State<AuthView>
       return _EmailConfirmationView(state: widget.state);
     }
 
-    final theme = context.read<ThemeCubit>().state;
     final isProcessing = widget.state.isProcessing;
 
     return Column(
       children: [
+        SegmentedControl<bool>(
+          value: isSignUp,
+          onChanged: isProcessing
+              ? null
+              : (signUp) => setState(() => isSignUp = signUp),
+          options: const [
+            SegmentOption(value: false, label: 'Sign in'),
+            SegmentOption(value: true, label: 'Create account'),
+          ],
+        ),
+
+        const SizedBox(height: 24),
+
         FeatureHeader(
           icon: Icons.cloud_upload_rounded,
-          title: isSignUp ? 'Create Backup Account' : 'Sign In to Cloud Backup',
+          title: isSignUp
+              ? 'Create a backup account'
+              : 'Sign in to cloud backup',
           subtitle: isSignUp
               ? 'Your encrypted backup is stored on our central server. '
                     'Only you can decrypt it.'
@@ -92,18 +105,6 @@ class _AuthViewState extends State<AuthView>
             ),
           ],
         ),
-
-        const SizedBox(height: 16),
-
-        TextButton(
-          onPressed: isProcessing ? null : toggleAuthMode,
-          child: Text(
-            isSignUp
-                ? 'Already have an account? Sign in'
-                : "Don't have an account? Sign up",
-            style: AppText.rowQuiet.copyWith(color: theme.primary),
-          ),
-        ),
       ],
     );
   }
@@ -125,7 +126,7 @@ class _EmailConfirmationView extends StatelessWidget {
       children: [
         FeatureHeader(
           icon: Icons.mark_email_unread_rounded,
-          title: 'Check Your Email',
+          title: 'Check your email',
           subtitle: email != null
               ? 'A confirmation link was sent to $email.\n'
                     'Click the link then sign in below.'

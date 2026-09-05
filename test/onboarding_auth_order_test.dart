@@ -85,27 +85,29 @@ void main() {
   testWidgets('the form opens on sign in', (tester) async {
     await pump(tester);
 
-    expect(find.text('Sign In to Rift'), findsOneWidget);
-    expect(find.text('Sign in'), findsOneWidget);
-    expect(find.text('Create Your Account'), findsNothing);
+    expect(find.text('Sign in to Rift'), findsOneWidget);
+    // The segment and the primary button both say it.
+    expect(find.text('Sign in'), findsNWidgets(2));
+    expect(find.text('Create your account'), findsNothing);
     // The surest tell, because it exists only on the sign-up form.
     // Upper-cased: that is how `AppTextField` draws a label.
     expect(find.text('CONFIRM PASSWORD'), findsNothing);
   });
 
-  testWidgets('and offers the other way without hiding it', (tester) async {
+  testWidgets('and names the other way up front', (tester) async {
     await pump(tester);
-    expect(find.text('New here? Create an account'), findsOneWidget);
+    expect(find.text('Create account'), findsOneWidget);
   });
 
   testWidgets('which switches to sign up when taken', (tester) async {
     await pump(tester);
-    await tester.tap(find.text('New here? Create an account'));
+    await tester.tap(find.text('Create account'));
     await tester.pump();
 
-    expect(find.text('Create Your Account'), findsOneWidget);
+    expect(find.text('Create your account'), findsOneWidget);
     expect(find.text('CONFIRM PASSWORD'), findsOneWidget);
-    expect(find.text('Already have an account? Sign in'), findsOneWidget);
+    // Still there to go back by, not a link that disappeared.
+    expect(find.text('Sign in'), findsOneWidget);
   });
 
   testWidgets('a greeting nobody has earned yet is not shown', (tester) async {

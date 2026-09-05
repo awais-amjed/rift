@@ -23,8 +23,6 @@ mixin SupabaseAuthFormState<T extends StatefulWidget> on State<T> {
     super.dispose();
   }
 
-  void toggleAuthMode() => setState(() => isSignUp = !isSignUp);
-
   /// Submit whatever is in the fields. Callers that validate first (onboarding)
   /// should do so before calling this.
   void submitCredentials() {

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/segmented_control.dart';
 import '../../../common/selectable_surface.dart';
 import 'section_title.dart';
 import '../../../theme/app_palette.dart';
@@ -24,22 +25,19 @@ class AppearanceContent extends StatelessWidget {
         // segment is how the app spells those (channel type, sign in / create).
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 300),
-          child: Row(
-            spacing: 8,
-            children: [
-              _ModeSegment(
+          child: SegmentedControl<ThemeMode>(
+            value: themeState.themeMode,
+            onChanged: context.read<ThemeCubit>().setTheme,
+            options: const [
+              SegmentOption(
+                value: ThemeMode.dark,
                 label: 'Dark',
                 icon: Icons.dark_mode_outlined,
-                selected: themeState.isDarkTheme,
-                onTap: () =>
-                    context.read<ThemeCubit>().setTheme(ThemeMode.dark),
               ),
-              _ModeSegment(
+              SegmentOption(
+                value: ThemeMode.light,
                 label: 'Light',
                 icon: Icons.light_mode_outlined,
-                selected: themeState.isLightTheme,
-                onTap: () =>
-                    context.read<ThemeCubit>().setTheme(ThemeMode.light),
               ),
             ],
           ),
@@ -68,41 +66,6 @@ class AppearanceContent extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-/// One half of the Dark / Light segment.
-class _ModeSegment extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ModeSegment({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: SelectableSurface(
-        selected: selected,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(K.radiusRow),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          spacing: 7,
-          children: [
-            Icon(icon, size: 16),
-            Text(label, style: selected ? AppText.row : AppText.rowQuiet),
-          ],
-        ),
-      ),
     );
   }
 }
