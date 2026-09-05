@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
-import '../../../../../src/rust/api/screenshare/audio_linux.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../sections/audio_source_section.dart';
 import '../sections/bitrate_section.dart';

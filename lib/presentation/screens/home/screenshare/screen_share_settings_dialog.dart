@@ -10,7 +10,6 @@ import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/screen_share_sources.dart';
-import '../../../../../src/rust/api/screenshare/audio_linux.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../common/app_button.dart';
 import 'widgets/screen_share_settings_form.dart';

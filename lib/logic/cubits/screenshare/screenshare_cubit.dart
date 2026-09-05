@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 
 import '../../../data/classes/screen_share_settings.dart';
-import '../../../data/participant_identity.dart';
 import '../../services/call_foreground_service.dart';
 import '../../services/host_platform.dart';
 import '../../../src/rust/api/screenshare.dart';
@@ -170,13 +169,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         return;
       }
 
+      // The token carries the identity, including the per-device segment
+      // that keeps the base and screenshare connections paired.
       final livekitToken = response.data['token'] as String;
-      // Use the identity the server embedded in this token (it carries the
-      // per-device segment that keeps the base and screenshare connections
-      // paired); fall back to the legacy form only if it's absent.
-      final identityWithScreenshare =
-          response.data['identity'] as String? ??
-          '${user.id}${ParticipantIdentity.screenshareSuffix}';
 
       // The call's key, for the second connection this is about to open into
       // the same encrypted room.
@@ -196,16 +191,13 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       final config = ScreenShareConfig(
         livekitUrl: livekitUrl,
         livekitToken: livekitToken,
-        channelId: channelId,
-        identity: identityWithScreenshare,
-        displayName: user.displayName,
         resolution: settings.resolution,
         fps: settings.fps,
         bitrate: settings.bitrate,
         shareAudio: settings.shareAudio,
         captureFullScreen: settings.captureFullScreen,
         selectedVideoSourceIndex: settings.selectedVideoSourceIndex,
-        codec: settings.codec,
+        codec: settings.videoCodec,
         selectedAudioSourceIndex: settings.selectedAudioSource?.index,
         selectedAudioSourceSink: settings.selectedAudioSource?.sink,
         selectedAudioSourcePid: settings.selectedVideoSourcePid,

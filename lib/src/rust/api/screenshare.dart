@@ -7,33 +7,45 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'screenshare/types.dart';
 
-// These functions are ignored because they are not marked as `pub`: `wait_for_resolution`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `emit_screenshare_event`
+// These functions are ignored because they are not marked as `pub`: `emit_screenshare_event`
 
 /// Subscribe to screenshare lifecycle events (e.g. the shared window closing).
 /// Flutter listens to the returned stream for the app's lifetime.
 Stream<ScreenshareEvent> screenshareEventStream() =>
     RustLib.instance.api.crateApiScreenshareScreenshareEventStream();
 
-/// Start screen sharing with the given configuration.
-/// Connects to LiveKit room with the provided token.
+/// Connect a second participant to the call's room and publish the chosen
+/// screen or window (and, if asked, its audio) as screen-share tracks.
+///
+/// Only one share runs at a time; a second call while one is up is an error
+/// rather than a replacement. Off the desktop it fails outright: the caller is
+/// about to show a "sharing" state for a stream that would never arrive.
 Future<String> startScreenshare({required ScreenShareConfig config}) =>
     RustLib.instance.api.crateApiScreenshareStartScreenshare(config: config);
 
-/// Stop screen sharing and disconnect from LiveKit.
+/// Stop the share and leave the room. Succeeds when nothing was running: a
+/// teardown that errors would make every disconnect look like a failure.
 Future<String> stopScreenshare() =>
     RustLib.instance.api.crateApiScreenshareStopScreenshare();
 
-/// List desktop capture sources for either full-screen or window sharing.
+/// Screens, or windows, in the order their indexes refer to.
 Future<List<CaptureSource>> listCaptureSources({
   required bool captureFullScreen,
 }) => RustLib.instance.api.crateApiScreenshareListCaptureSources(
   captureFullScreen: captureFullScreen,
 );
 
-/// Lifecycle events pushed from the Rust screenshare layer up to Flutter.
-enum ScreenshareEvent {
-  /// The captured window was closed/destroyed, so capture stopped at the
-  /// source. Flutter should tear the session down and update its UI.
-  sourceClosed,
-}
+/// A small JPEG preview of one source, at most 320 px wide. Windows only so
+/// far; elsewhere `None`, which the picker renders as a plain tile.
+Future<Uint8List?> getCaptureSourceThumbnail({
+  required bool captureFullScreen,
+  required int sourceIndex,
+}) => RustLib.instance.api.crateApiScreenshareGetCaptureSourceThumbnail(
+  captureFullScreen: captureFullScreen,
+  sourceIndex: sourceIndex,
+);
+
+/// Applications currently playing audio, for Linux window-capture audio.
+/// Empty elsewhere: Windows chooses by the window's process id instead.
+Future<List<AudioSource>> listAudioSources() =>
+    RustLib.instance.api.crateApiScreenshareListAudioSources();

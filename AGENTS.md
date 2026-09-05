@@ -32,7 +32,8 @@ lib/
     theme/        # app_palette.dart + palettes/ (themed colors), app_text.dart (type),
                   # app_shadows.dart (depth), custom_colors.dart (status colors)
   src/rust/       # GENERATED flutter_rust_bridge bindings — never edit by hand
-rust/src/api/     # Rust API surface exposed to Flutter
+rust/src/api/     # Rust API surface exposed to Flutter — bridge functions and types only
+rust/src/screenshare/  # What those functions call: session, capture, audio/ per platform
 server_migrations/  # Numbered SQL migrations (001_..., 002_...)
 schema.md           # DB schema doc — update when tables/buckets change
 edge_functions.md   # Edge Function API doc — update when functions change
@@ -196,9 +197,18 @@ edge_functions.md   # Edge Function API doc — update when functions change
 
 ## Rust side (`rust/`)
 
-- Public API surface for Flutter lives in `rust/src/api/`; platform-specific code is split per
-  file (`audio_windows.rs`, `audio_linux.rs`) with `#[cfg]` guards.
+- `rust/src/api/` is *only* the bridge: each function Dart can call exists there exactly once,
+  on every platform, and dispatches into `rust/src/screenshare/`. The codegen scans `api/`, so
+  nothing internal may be `pub` there — internals are `pub(crate)` and live outside it.
+- `cfg(desktop)` (emitted by `rust/build.rs` for Windows/Linux/macOS) gates everything that
+  touches LiveKit; per-OS code sits in its own file (`audio/linux.rs`, `audio/windows.rs`,
+  `thumbnail.rs`) gated at the `mod` line, not item by item.
 - Functions crossing the bridge return `Result<T, String>` — errors are plain strings for Dart.
+- Log with `log::` (`info!`/`warn!`), never `println!`: `init_app` installs a logger on every
+  platform and stdout goes nowhere in a Windows release build.
+- Pure logic (frame sizing, pixel sampling, sample conversion) is a plain function with unit
+  tests; `cargo test` runs them anywhere. `cargo test live_ -- --ignored` runs a real share
+  against a LiveKit server (see `rust/src/screenshare/live_test.rs`).
 - `rust/src/frb_generated.rs` and `lib/src/rust/` are generated. After changing the API surface,
   regenerate with flutter_rust_bridge codegen (config in `flutter_rust_bridge.yaml`,
   pinned to flutter_rust_bridge 2.11.1 — keep the Dart package and codegen versions in lockstep).

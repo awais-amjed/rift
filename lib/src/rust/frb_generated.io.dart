@@ -5,9 +5,6 @@
 
 import 'api/audio_endpoints.dart';
 import 'api/screenshare.dart';
-import 'api/screenshare/audio_linux.dart';
-import 'api/screenshare/audio_windows.dart';
-import 'api/screenshare/capture.dart';
 import 'api/screenshare/types.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -41,9 +38,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioSource dco_decode_audio_source(dynamic raw);
 
   @protected
-  AudioSourceWindows dco_decode_audio_source_windows(dynamic raw);
-
-  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -63,9 +57,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AudioSource> dco_decode_list_audio_source(dynamic raw);
-
-  @protected
-  List<AudioSourceWindows> dco_decode_list_audio_source_windows(dynamic raw);
 
   @protected
   List<CaptureSource> dco_decode_list_capture_source(dynamic raw);
@@ -95,6 +86,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  VideoCodec dco_decode_video_codec(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
@@ -110,11 +104,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AudioSource sse_decode_audio_source(SseDeserializer deserializer);
-
-  @protected
-  AudioSourceWindows sse_decode_audio_source_windows(
-    SseDeserializer deserializer,
-  );
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
@@ -140,11 +129,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AudioSource> sse_decode_list_audio_source(SseDeserializer deserializer);
-
-  @protected
-  List<AudioSourceWindows> sse_decode_list_audio_source_windows(
-    SseDeserializer deserializer,
-  );
 
   @protected
   List<CaptureSource> sse_decode_list_capture_source(
@@ -178,6 +162,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
+  VideoCodec sse_decode_video_codec(SseDeserializer deserializer);
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -197,12 +184,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_audio_source(AudioSource self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_audio_source_windows(
-    AudioSourceWindows self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -231,12 +212,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_audio_source(
     List<AudioSource> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_audio_source_windows(
-    List<AudioSourceWindows> self,
     SseSerializer serializer,
   );
 
@@ -281,6 +256,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_video_codec(VideoCodec self, SseSerializer serializer);
 }
 
 // Section: wire_class

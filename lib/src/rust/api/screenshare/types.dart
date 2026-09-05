@@ -6,15 +6,52 @@
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CaptureCommand`, `ScreenShareSession`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `check`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`
 
-/// Represents a desktop capture source (screen or window).
+/// A PulseAudio sink-input: one application's playback stream. Linux only;
+/// Windows picks audio by process id from [`CaptureSource`] instead.
+class AudioSource {
+  final int index;
+  final int sink;
+  final String appName;
+  final String binary;
+  final String mediaName;
+
+  const AudioSource({
+    required this.index,
+    required this.sink,
+    required this.appName,
+    required this.binary,
+    required this.mediaName,
+  });
+
+  @override
+  int get hashCode =>
+      index.hashCode ^
+      sink.hashCode ^
+      appName.hashCode ^
+      binary.hashCode ^
+      mediaName.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AudioSource &&
+          runtimeType == other.runtimeType &&
+          index == other.index &&
+          sink == other.sink &&
+          appName == other.appName &&
+          binary == other.binary &&
+          mediaName == other.mediaName;
+}
+
+/// A screen or window that can be captured.
 class CaptureSource {
   final int index;
   final String title;
 
-  /// Windows-only PID used for automatic app-loopback audio capture.
+  /// Windows only: the owning process, for app-loopback audio capture.
   final int? audioSourcePid;
 
   const CaptureSource({
@@ -39,28 +76,25 @@ class CaptureSource {
 class ScreenShareConfig {
   final String livekitUrl;
   final String livekitToken;
-  final String channelId;
-  final String identity;
-  final String displayName;
+
+  /// Height cap in rows (720, 1080, ...). A smaller capture is not upscaled.
   final int resolution;
   final int fps;
+
+  /// Megabits per second.
   final int bitrate;
   final bool shareAudio;
   final bool captureFullScreen;
 
-  /// Selected desktop capture source index from `list_capture_sources`.
+  /// Index into `list_capture_sources` for the same `capture_full_screen`.
   final int? selectedVideoSourceIndex;
+  final VideoCodec codec;
 
-  /// Video codec to use: "H264", "VP8", "VP9", or "AV1"
-  final String codec;
-
-  /// Selected audio source sink-input index (Linux PulseAudio)
+  /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
   final int? selectedAudioSourceIndex;
-
-  /// Selected audio source sink index (Linux PulseAudio)
   final int? selectedAudioSourceSink;
 
-  /// Selected audio source process ID (Windows WASAPI)
+  /// Windows: the process whose audio to capture; none means the whole mix.
   final int? selectedAudioSourcePid;
 
   /// The channel key this call is encrypted with, and the LiveKit key-ring
@@ -77,9 +111,6 @@ class ScreenShareConfig {
   const ScreenShareConfig({
     required this.livekitUrl,
     required this.livekitToken,
-    required this.channelId,
-    required this.identity,
-    required this.displayName,
     required this.resolution,
     required this.fps,
     required this.bitrate,
@@ -98,9 +129,6 @@ class ScreenShareConfig {
   int get hashCode =>
       livekitUrl.hashCode ^
       livekitToken.hashCode ^
-      channelId.hashCode ^
-      identity.hashCode ^
-      displayName.hashCode ^
       resolution.hashCode ^
       fps.hashCode ^
       bitrate.hashCode ^
@@ -121,9 +149,6 @@ class ScreenShareConfig {
           runtimeType == other.runtimeType &&
           livekitUrl == other.livekitUrl &&
           livekitToken == other.livekitToken &&
-          channelId == other.channelId &&
-          identity == other.identity &&
-          displayName == other.displayName &&
           resolution == other.resolution &&
           fps == other.fps &&
           bitrate == other.bitrate &&
@@ -137,3 +162,14 @@ class ScreenShareConfig {
           e2EeKey == other.e2EeKey &&
           e2EeKeyIndex == other.e2EeKeyIndex;
 }
+
+/// Lifecycle events pushed from Rust up to Flutter.
+enum ScreenshareEvent {
+  /// The captured window was closed, so capture stopped at the source.
+  /// Flutter should tear the session down and update its UI.
+  sourceClosed,
+}
+
+/// Codec for the published video track. The Dart settings store these same
+/// names as strings, so the mapping there is by name.
+enum VideoCodec { h264, vp8, vp9 }

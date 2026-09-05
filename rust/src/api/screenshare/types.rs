@@ -1,38 +1,32 @@
-//! Types shared across the screenshare module.
-//!
-//! [`ScreenShareConfig`] and [`CaptureSource`] cross the bridge and so exist
-//! everywhere. The session below holds a live LiveKit `Room` and a capture
-//! thread, neither of which has a meaning off the desktop — see the desktop
-//! dependency note in Cargo.toml.
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-use livekit::prelude::*;
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-use std::sync::mpsc::Sender;
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-use std::sync::Mutex;
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-use std::thread;
+//! What crosses the bridge. Everything here exists on every platform because
+//! the bindings are generated once; what happens behind it is desktop-only.
+
+/// Codec for the published video track. The Dart settings store these same
+/// names as strings, so the mapping there is by name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VideoCodec {
+    H264,
+    VP8,
+    VP9,
+}
 
 pub struct ScreenShareConfig {
     pub livekit_url: String,
     pub livekit_token: String,
-    pub channel_id: String,
-    pub identity: String,
-    pub display_name: String,
-    pub resolution: i32,
-    pub fps: i32,
-    pub bitrate: i32,
+    /// Height cap in rows (720, 1080, ...). A smaller capture is not upscaled.
+    pub resolution: u32,
+    pub fps: u32,
+    /// Megabits per second.
+    pub bitrate: u32,
     pub share_audio: bool,
     pub capture_full_screen: bool,
-    /// Selected desktop capture source index from `list_capture_sources`.
+    /// Index into `list_capture_sources` for the same `capture_full_screen`.
     pub selected_video_source_index: Option<u32>,
-    /// Video codec to use: "H264", "VP8", "VP9", or "AV1"
-    pub codec: String,
-    /// Selected audio source sink-input index (Linux PulseAudio)
+    pub codec: VideoCodec,
+    /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
     pub selected_audio_source_index: Option<u32>,
-    /// Selected audio source sink index (Linux PulseAudio)
     pub selected_audio_source_sink: Option<u32>,
-    /// Selected audio source process ID (Windows WASAPI)
+    /// Windows: the process whose audio to capture; none means the whole mix.
     pub selected_audio_source_pid: Option<u32>,
     /// The channel key this call is encrypted with, and the LiveKit key-ring
     /// slot it occupies (ARCHITECTURE.md §5).
@@ -46,36 +40,94 @@ pub struct ScreenShareConfig {
     pub e2ee_key_index: i32,
 }
 
-/// Represents a desktop capture source (screen or window).
+/// A screen or window that can be captured.
 #[derive(Clone, Debug)]
 pub struct CaptureSource {
     pub index: u32,
     pub title: String,
-    /// Windows-only PID used for automatic app-loopback audio capture.
+    /// Windows only: the owning process, for app-loopback audio capture.
     pub audio_source_pid: Option<u32>,
 }
 
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[flutter_rust_bridge::frb(ignore)]
-pub enum CaptureCommand {
-    Terminate,
+/// A PulseAudio sink-input: one application's playback stream. Linux only;
+/// Windows picks audio by process id from [`CaptureSource`] instead.
+#[derive(Clone, Debug)]
+pub struct AudioSource {
+    pub index: u32,
+    pub sink: u32,
+    pub app_name: String,
+    pub binary: String,
+    pub media_name: String,
 }
 
-// Global state to hold the room connection and capture thread
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[flutter_rust_bridge::frb(ignore)]
-pub struct ScreenShareSession {
-    pub room: Room,
-    pub capture_tx: Sender<CaptureCommand>,
-    pub capture_handle: thread::JoinHandle<()>,
-    #[cfg(target_os = "linux")]
-    pub audio_handle: Option<super::audio_linux::AudioCaptureHandle>,
-    #[cfg(target_os = "windows")]
-    pub audio_handle: Option<super::audio_windows::AudioCaptureHandle>,
-    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
-    pub audio_handle: Option<()>,
+/// Lifecycle events pushed from Rust up to Flutter.
+pub enum ScreenshareEvent {
+    /// The captured window was closed, so capture stopped at the source.
+    /// Flutter should tear the session down and update its UI.
+    SourceClosed,
 }
 
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[flutter_rust_bridge::frb(ignore)]
-pub static SESSION: Mutex<Option<ScreenShareSession>> = Mutex::new(None);
+const FPS_LIMIT: u32 = 240;
+const KEY_BYTES: usize = 32;
+
+/// Refuse a configuration that would fail later in a less legible way: a zero
+/// fps is a division by zero in the capture timer, a missing key would connect
+/// and then encrypt for nobody.
+pub(crate) fn check(config: &ScreenShareConfig) -> Result<(), String> {
+    if config.fps == 0 || config.fps > FPS_LIMIT {
+        return Err(format!("fps must be between 1 and {FPS_LIMIT}"));
+    }
+    if config.resolution < 2 {
+        return Err("resolution must be at least 2 rows".to_string());
+    }
+    if config.bitrate == 0 {
+        return Err("bitrate must be at least 1 Mbps".to_string());
+    }
+    if config.e2ee_key.len() != KEY_BYTES {
+        return Err("Missing the channel key for this call".to_string());
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config() -> ScreenShareConfig {
+        ScreenShareConfig {
+            livekit_url: String::new(),
+            livekit_token: String::new(),
+            resolution: 1080,
+            fps: 60,
+            bitrate: 10,
+            share_audio: false,
+            capture_full_screen: true,
+            selected_video_source_index: None,
+            codec: VideoCodec::VP9,
+            selected_audio_source_index: None,
+            selected_audio_source_sink: None,
+            selected_audio_source_pid: None,
+            e2ee_key: vec![0; 32],
+            e2ee_key_index: 0,
+        }
+    }
+
+    #[test]
+    fn a_sane_config_passes() {
+        assert!(check(&config()).is_ok());
+    }
+
+    #[test]
+    fn zero_fps_is_refused() {
+        let mut c = config();
+        c.fps = 0;
+        assert!(check(&c).is_err());
+    }
+
+    #[test]
+    fn a_short_key_is_refused() {
+        let mut c = config();
+        c.e2ee_key = vec![0; 16];
+        assert!(check(&c).unwrap_err().contains("key"));
+    }
+}

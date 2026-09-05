@@ -1,4 +1,4 @@
-import '../../src/rust/api/screenshare/audio_linux.dart';
+import '../../src/rust/api/screenshare/types.dart';
 
 class ScreenShareSettings {
   final int resolution; // height in px (720, 1080, 1440, 2160)
@@ -8,7 +8,7 @@ class ScreenShareSettings {
   final bool captureFullScreen; // true = full screen, false = window
   final int? selectedVideoSourceIndex;
   final int? selectedVideoSourcePid; // Windows-only PID for selected window
-  final String codec; // "VP8", "H264", "VP9", "AV1"
+  final String codec; // "VP8", "H264" or "VP9", as the picker shows it
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
 
   const ScreenShareSettings({
@@ -46,6 +46,20 @@ class ScreenShareSettings {
     'selectedVideoSourceIndex': selectedVideoSourceIndex,
     'selectedVideoSourcePid': selectedVideoSourcePid,
     'codec': codec,
+  };
+
+  /// [codec] as the Rust side takes it. The string is what is persisted and
+  /// shown, so an unknown one — an old build's "AV1", a hand-edited file —
+  /// falls back to the default rather than failing at share time.
+  VideoCodec get videoCodec => codecFromName(codec);
+
+  static const defaultCodec = VideoCodec.vp9;
+
+  static VideoCodec codecFromName(String name) => switch (name.toUpperCase()) {
+    'H264' => VideoCodec.h264,
+    'VP8' => VideoCodec.vp8,
+    'VP9' => VideoCodec.vp9,
+    _ => defaultCodec,
   };
 
   /// Human label for [resolution], as shown in the settings summary.
