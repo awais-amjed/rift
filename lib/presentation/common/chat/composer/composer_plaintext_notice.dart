@@ -4,6 +4,7 @@ import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
+import '../../../../data/constants.dart';
 
 /// Sits above the composer while what is typed will be sent **in the clear**.
 ///
@@ -37,7 +38,7 @@ class ComposerPlaintextNotice extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
       decoration: BoxDecoration(
         color: CustomColors.warning.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(color: CustomColors.warning.withValues(alpha: 0.3)),
       ),
       child: Row(

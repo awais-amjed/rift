@@ -114,7 +114,7 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
               constraints: const BoxConstraints(maxWidth: 520, maxHeight: 420),
               decoration: BoxDecoration(
                 color: themeState.bgElevated,
-                borderRadius: BorderRadius.circular(K.radiusDialog),
+                borderRadius: BorderRadius.circular(K.radiusPanel),
                 border: Border.all(color: themeState.borderElevated),
                 boxShadow: AppShadows.dialog,
               ),

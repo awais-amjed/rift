@@ -155,7 +155,7 @@ class AppModal extends StatelessWidget {
             vertical: 24,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(K.radiusDialog),
+            borderRadius: BorderRadius.circular(K.radiusPanel),
             side: BorderSide(color: themeState.borderElevated),
           ),
           child: ConstrainedBox(

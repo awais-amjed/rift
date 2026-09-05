@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
 import '../../theme/custom_colors.dart';
+import '../../../data/constants.dart';
 
 /// One row in a context menu.
 ///
@@ -35,7 +36,7 @@ class ContextMenuItem extends StatelessWidget {
         final color = isDangerous
             ? CustomColors.error
             : themeState.textSecondary;
-        final radius = BorderRadius.circular(9);
+        final radius = BorderRadius.circular(K.radiusRow);
 
         return Material(
           color: isDangerous

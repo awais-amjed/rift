@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/custom_colors.dart';
+import '../../../../data/constants.dart';
 
 /// The floating actions revealed at a message's top-right corner on hover.
 ///
@@ -35,7 +36,7 @@ class MessageHoverToolbar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: themeState.bgElevated,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(color: themeState.borderElevated),
         boxShadow: AppShadows.floatingBar,
       ),
@@ -43,7 +44,7 @@ class MessageHoverToolbar extends StatelessWidget {
       // instead of squaring them off, and given its own transparent Material
       // so that fill paints on the toolbar rather than behind it.
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         child: Material(
           color: Colors.transparent,
           child: Row(

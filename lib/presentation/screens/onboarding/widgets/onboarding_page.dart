@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_shadows.dart';
 import 'step_dots.dart';
+import '../../../../data/constants.dart';
 
 /// Shared layout for every onboarding page: a card floating on the canvas,
 /// vertically centred while the window is tall enough and scrollable (rather
@@ -48,7 +49,7 @@ class OnboardingPage extends StatelessWidget {
                             color: themeState.bgSecondary.withValues(
                               alpha: 0.85,
                             ),
-                            borderRadius: BorderRadius.circular(22),
+                            borderRadius: BorderRadius.circular(K.radiusPanel),
                             border: Border.all(
                               color: themeState.borderElevated,
                             ),

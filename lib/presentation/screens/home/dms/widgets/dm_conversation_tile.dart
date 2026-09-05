@@ -96,7 +96,7 @@ class DmConversationTile extends StatelessWidget {
   Widget _tile() {
     // A step rounder than a channel row: this tile carries two lines and an
     // avatar, and at the row radius it reads as a cramped version of one.
-    final radius = BorderRadius.circular(K.radiusButton);
+    final radius = BorderRadius.circular(K.radiusRow);
     final preview = conversation.lastMessage?.text;
 
     return Material(

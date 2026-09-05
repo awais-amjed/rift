@@ -81,7 +81,7 @@ class _ConfirmDialog extends StatelessWidget {
           // and the shadow does the lifting.
           backgroundColor: themeState.bgSecondary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(K.radiusDialog),
+            borderRadius: BorderRadius.circular(K.radiusPanel),
             side: BorderSide(color: themeState.borderElevated),
           ),
           child: ConstrainedBox(
@@ -99,7 +99,7 @@ class _ConfirmDialog extends StatelessWidget {
                     height: 46,
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(K.radiusCard),
                     ),
                     child: Icon(icon, color: accent, size: 22),
                   ),

@@ -240,7 +240,7 @@ class _MembersModalState extends State<MembersModal> {
           // floating over it.
           backgroundColor: themeState.bgSecondary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(K.radiusDialog),
+            borderRadius: BorderRadius.circular(K.radiusPanel),
             side: BorderSide(color: themeState.borderElevated),
           ),
           child: ConstrainedBox(

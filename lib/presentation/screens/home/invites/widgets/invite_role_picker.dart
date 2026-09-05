@@ -5,6 +5,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/selectable_surface.dart';
 import '../../../../theme/app_text.dart';
 import '../../members_sidebar/widgets/role_chip.dart';
+import '../../../../../data/constants.dart';
 
 /// Which role, if any, the link hands out.
 ///
@@ -80,7 +81,7 @@ class _Option extends StatelessWidget {
     return SelectableSurface(
       selected: selected,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(K.radiusRow),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: child,
     );

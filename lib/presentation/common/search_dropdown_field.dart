@@ -191,7 +191,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: themeState.bgHover,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(
           color: _focusNode.hasFocus
               ? themeState.primary.withValues(alpha: 0.55)

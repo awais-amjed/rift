@@ -8,6 +8,7 @@ import '../../../../../theme/custom_colors.dart';
 import 'message_banner.dart';
 import 'section_header.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../../data/constants.dart';
 
 /// Actions view shown when the user is signed in to the backup server.
 ///
@@ -94,7 +95,7 @@ class _SignedInBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: CustomColors.success.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(color: CustomColors.success.withValues(alpha: 0.25)),
       ),
       child: Row(

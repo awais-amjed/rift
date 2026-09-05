@@ -10,6 +10,7 @@ import '../../../../theme/custom_colors.dart';
 import '../../../../theme/app_text.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'role_chip.dart';
+import '../../../../../data/constants.dart';
 
 /// One member in the right-hand sidebar: avatar, name, role/state badges.
 ///
@@ -68,9 +69,9 @@ class MemberRow extends StatelessWidget {
       opacity: dim,
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           hoverColor: themeState.bgHover,
           onTap: () {},
           child: Padding(

@@ -9,6 +9,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../roles/member_roles_dialog.dart';
 import 'member_moderation_row.dart';
 import '../../channels/bots/bot_access_dialog.dart';
+import '../../../../../data/constants.dart';
 
 /// Expanded management controls under a member row: permission toggles
 /// (server admins only), mute/deafen moderation buttons (admins and channel
@@ -85,7 +86,7 @@ class MemberManagePanel extends StatelessWidget {
           margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
           decoration: BoxDecoration(
             color: themeState.bgSecondary,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(K.radiusCard),
             border: Border.all(color: themeState.borderPrimary),
           ),
           child: Column(

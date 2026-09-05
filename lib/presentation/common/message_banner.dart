@@ -37,7 +37,7 @@ class MessageBanner extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(K.radiusButton),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
           child: Row(

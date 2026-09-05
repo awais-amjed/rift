@@ -5,6 +5,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import 'panel_actions.dart';
 import 'panel_fields.dart';
+import '../../../../data/constants.dart';
 
 /// A bot's panel, drawn with Rift's own widgets from a fixed vocabulary.
 ///
@@ -39,7 +40,7 @@ class PanelView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: themeState.bgSecondary,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(color: themeState.borderPrimary),
       ),
       child: Column(

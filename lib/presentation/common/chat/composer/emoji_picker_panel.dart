@@ -7,6 +7,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
+import '../../../../data/constants.dart';
 
 /// The emoji picker's contents: a search row, a flat row of category icons,
 /// and the grid.
@@ -333,7 +334,7 @@ class _CategoryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(K.radiusRow),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(2),
@@ -351,7 +352,7 @@ class _EmojiCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(7);
+    final radius = BorderRadius.circular(K.radiusRow);
     return Material(
       color: Colors.transparent,
       borderRadius: radius,

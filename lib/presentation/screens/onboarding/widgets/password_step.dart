@@ -12,6 +12,7 @@ import 'password_strength_indicator.dart';
 import '../../../common/restore_file_dialog.dart';
 import '../../../common/feature_header.dart';
 import '../../../theme/app_text.dart';
+import '../../../../data/constants.dart';
 
 /// Privacy-mode onboarding step — create a local-only vault.
 ///
@@ -145,7 +146,7 @@ class _PasswordStepState extends State<PasswordStep> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: CustomColors.warning.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(K.radiusRow),
                         border: Border.all(
                           color: CustomColors.warning.withValues(alpha: 0.25),
                         ),

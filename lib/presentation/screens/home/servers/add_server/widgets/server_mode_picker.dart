@@ -72,7 +72,7 @@ class _ModeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final radius = BorderRadius.circular(14);
+        final radius = BorderRadius.circular(K.radiusCard);
 
         return Material(
           color: themeState.bgHover,

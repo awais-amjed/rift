@@ -7,6 +7,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_motion.dart';
 import 'attachment_image_viewer.dart';
 import 'attachment_loader.dart';
+import '../../../../data/constants.dart';
 
 /// An image attachment, decrypted on demand and shown as a rounded thumbnail.
 /// Tapping opens it full-screen.
@@ -136,7 +137,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
               bytes,
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(K.radiusCard),
               // `cover` only where the box is known to be the image's own
               // aspect ratio. Without dimensions the box is a guess, and
               // cropping to a guess would cut the picture.
@@ -167,7 +168,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
       height: box == null ? AttachmentImageThumb._fallbackHeight : null,
       decoration: BoxDecoration(
         color: widget.themeState.bgTertiary,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(K.radiusCard),
         border: Border.all(color: widget.themeState.borderPrimary),
       ),
       child: child,

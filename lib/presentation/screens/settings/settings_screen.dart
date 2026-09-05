@@ -113,7 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: _tabIcon,
             color: themeState.accentBright,
             size: 36,
-            radius: K.radiusButton,
+            radius: K.radiusRow,
             iconSize: 19,
           ),
           Expanded(

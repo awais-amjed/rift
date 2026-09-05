@@ -12,6 +12,7 @@ import '../../../../theme/custom_colors.dart';
 
 import '../section_title.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 class SignedInPanel extends StatelessWidget {
   final ThemeState themeState;
@@ -67,7 +68,7 @@ class SignedInPanel extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: CustomColors.success.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             border: Border.all(
               color: CustomColors.success.withValues(alpha: 0.25),
             ),

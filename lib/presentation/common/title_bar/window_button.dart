@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/custom_colors.dart';
+import '../../../data/constants.dart';
 
 /// One control in the title bar's right-hand cluster.
 ///
@@ -56,7 +57,7 @@ class _WindowButtonState extends State<WindowButton> {
             height: 26,
             decoration: BoxDecoration(
               color: _hovered ? hoverColor : Colors.transparent,
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(K.radiusRow),
             ),
             child: Icon(
               widget.icon,

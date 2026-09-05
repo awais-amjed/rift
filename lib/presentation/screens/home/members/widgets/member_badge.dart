@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../data/constants.dart';
 
 /// Small icon badge with tooltip used in member rows (admin, manager,
 /// muted, deafened, ...).
@@ -28,7 +29,7 @@ class MemberBadge extends StatelessWidget {
         height: 22,
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(K.radiusRow),
         ),
         child: Icon(icon, size: 13, color: color),
       ),

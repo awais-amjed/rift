@@ -5,6 +5,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/services/connection_failure.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// Shown when a voice channel could not be joined.
 ///
@@ -88,7 +89,7 @@ class ErrorView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: themeState.bgPrimary,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(color: themeState.borderPrimary),
       ),
       child: Text(

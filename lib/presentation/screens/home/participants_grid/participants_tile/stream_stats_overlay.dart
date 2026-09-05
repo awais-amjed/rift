@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../../logic/services/video_stats_sampler.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// Live receive-side statistics for one video track, drawn over the tile.
 ///
@@ -87,7 +88,7 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
 
     return Material(
       color: Colors.black.withValues(alpha: 0.7),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(

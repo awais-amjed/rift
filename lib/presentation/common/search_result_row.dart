@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 import 'squircle_avatar.dart';
+import '../../data/constants.dart';
 
 /// One person in a [SearchDropdownField] result list.
 ///
@@ -45,7 +46,7 @@ class SearchResultRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
     final enabled = onTap != null;
-    final radius = BorderRadius.circular(9);
+    final radius = BorderRadius.circular(K.radiusRow);
 
     return Opacity(
       opacity: enabled ? 1 : 0.5,

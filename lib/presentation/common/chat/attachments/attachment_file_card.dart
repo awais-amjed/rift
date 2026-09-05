@@ -50,7 +50,7 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
   @override
   Widget build(BuildContext context) {
     final theme = widget.themeState;
-    final radius = BorderRadius.circular(K.radiusAttachment);
+    final radius = BorderRadius.circular(K.radiusCard);
     // Card outside, ink inside. With the InkWell wrapping the card its hover
     // was painted on whatever Material was under the message row and then
     // covered by the card's own fill, so a control the size of a paragraph

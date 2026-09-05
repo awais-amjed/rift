@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import '../../data/constants.dart';
 
 /// The title strip at the top of an [AppModal]: name, optional one-line
 /// explanation, optional leading icon, and the close button.
@@ -61,7 +62,7 @@ class AppModalHeader extends StatelessWidget {
                 icon: Icon(Icons.close, color: textTertiary, size: 20),
                 style: IconButton.styleFrom(
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(K.radiusRow),
                   ),
                 ),
               ),

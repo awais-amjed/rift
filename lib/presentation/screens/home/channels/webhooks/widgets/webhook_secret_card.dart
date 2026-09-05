@@ -5,6 +5,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
+import '../../../../../../data/constants.dart';
 
 /// The URL of a webhook that was just created — shown once, and then gone.
 ///
@@ -32,7 +33,7 @@ class WebhookSecretCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: CustomColors.warning.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(color: CustomColors.warning.withValues(alpha: 0.35)),
       ),
       child: Column(
@@ -69,7 +70,7 @@ class WebhookSecretCard extends StatelessWidget {
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: themeState.bgPrimary,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(K.radiusRow),
               border: Border.all(color: themeState.borderElevated),
             ),
             child: SelectableText(

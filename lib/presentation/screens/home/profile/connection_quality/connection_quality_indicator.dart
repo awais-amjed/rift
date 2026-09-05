@@ -7,6 +7,7 @@ import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
 import 'connection_quality_popup.dart';
 import 'connection_quality_style.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// Compact signal-strength line rendered inside the user dock (under the
 /// display name) while in a voice channel. Tapping it opens a popup with
@@ -121,9 +122,9 @@ class _ConnectionQualityIndicatorState
                 return Material(
                   key: _buttonKey,
                   color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(K.radiusRow),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(K.radiusRow),
                     hoverColor: themeState.bgHover,
                     onTap: stats.isAlone ? null : _toggle,
                     child: Row(

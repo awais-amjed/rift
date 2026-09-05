@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../../data/constants.dart';
 
 /// Shown in place of a server's content when that server has banned you.
 ///
@@ -37,7 +38,7 @@ class BannedNotice extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: CustomColors.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(K.radiusCard),
                   ),
                   child: const Icon(
                     Icons.gavel_rounded,

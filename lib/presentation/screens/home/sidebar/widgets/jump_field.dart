@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// The "Jump to…" pill under the server header — the entry point to the quick
 /// switcher.
@@ -29,16 +30,16 @@ class JumpField extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
           child: Material(
             color: themeState.bgHover,
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             child: InkWell(
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(K.radiusRow),
               hoverColor: themeState.bgActive,
               onTap: onTap,
               child: Container(
                 height: 32,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(K.radiusRow),
                   border: Border.all(color: themeState.borderPrimary),
                 ),
                 child: Row(

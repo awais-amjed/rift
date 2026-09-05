@@ -30,7 +30,7 @@ class HintCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: themeState.bgHover,
-            borderRadius: BorderRadius.circular(K.radiusButton),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             border: Border.all(color: themeState.borderPrimary),
           ),
           child: Column(

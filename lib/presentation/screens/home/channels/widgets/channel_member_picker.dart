@@ -8,6 +8,7 @@ import '../../../../../logic/services/member_selection.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../theme/app_text.dart';
 import 'member_pick_row.dart';
+import '../../../../../data/constants.dart';
 
 /// Who else is in a private channel.
 ///
@@ -140,7 +141,7 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
           height: 168,
           decoration: BoxDecoration(
             color: widget.themeState.bgSecondary,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             border: Border.all(color: widget.themeState.borderPrimary),
           ),
           child: visible.isEmpty ? _message() : _list(visible),

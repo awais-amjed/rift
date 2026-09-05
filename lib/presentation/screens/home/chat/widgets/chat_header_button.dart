@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../data/constants.dart';
 
 /// A square control in a panel header.
 ///
@@ -29,7 +30,7 @@ class ChatHeaderButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final radius = BorderRadius.circular(9);
+        final radius = BorderRadius.circular(K.radiusRow);
         final size = isPrimary ? 30.0 : 32.0;
 
         final fill = isPrimary

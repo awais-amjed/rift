@@ -57,7 +57,7 @@ class _TypeButton extends StatelessWidget {
       child: SelectableSurface(
         selected: selected,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(K.radiusButton),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

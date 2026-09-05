@@ -14,6 +14,7 @@ import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../common/app_button.dart';
 import 'widgets/screen_share_settings_form.dart';
 import 'widgets/settings_dialog_header.dart';
+import '../../../../data/constants.dart';
 
 /// Dialog for configuring screen share settings (resolution, fps, bitrate,
 /// audio) before a share starts.
@@ -149,7 +150,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
         return Dialog(
           backgroundColor: themeState.bgElevated,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(K.radiusPanel),
             side: BorderSide(color: themeState.borderPrimary),
           ),
           child: ConstrainedBox(

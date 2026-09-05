@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../../src/rust/api/screenshare/types.dart';
 import '../widgets/source_thumbnail_grid.dart';
+import '../../../../../data/constants.dart';
 
 /// Section for selecting the capture source (screen or window).
 ///
@@ -106,7 +107,9 @@ class _SourceDropdown extends StatelessWidget {
       initialValue: selectedSource?.index,
       isExpanded: true,
       decoration: InputDecoration(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(K.radiusRow),
+        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 10,

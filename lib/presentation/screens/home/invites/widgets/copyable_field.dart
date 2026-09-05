@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 class CopyableField extends StatelessWidget {
   final String? value;
@@ -35,7 +36,7 @@ class CopyableField extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(K.radiusCard),
             border: Border.all(color: borderColor),
           ),
           child: Row(
@@ -65,7 +66,7 @@ class CopyableField extends StatelessWidget {
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(K.radiusRow),
                     hoverColor: themeState.bgHover,
                     onTap: onCopy,
                     child: Padding(

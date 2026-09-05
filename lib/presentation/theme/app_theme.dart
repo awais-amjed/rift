@@ -5,6 +5,7 @@ import 'app_palette.dart';
 import 'app_shadows.dart';
 import 'app_text.dart';
 import 'custom_colors.dart';
+import '../../data/constants.dart';
 
 class AppTheme {
   /// Builds the Material [ThemeData] for one brightness of a palette.
@@ -58,7 +59,7 @@ class AppTheme {
         margin: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: colors.bgElevated,
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           border: Border.all(color: colors.borderElevated),
           boxShadow: AppShadows.popover,
         ),
@@ -73,15 +74,15 @@ class AppTheme {
         filled: true,
         fillColor: colors.bgTertiary,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           borderSide: BorderSide(color: colors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           borderSide: BorderSide(color: colors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           borderSide: BorderSide(color: colors.primary, width: 1.5),
         ),
         labelStyle: AppText.secondary.copyWith(color: colors.textTertiary),

@@ -11,6 +11,7 @@ import '../../../../theme/custom_colors.dart';
 import '../../members_sidebar/widgets/role_chip.dart';
 import 'member_badge.dart';
 import 'member_manage_panel.dart';
+import '../../../../../data/constants.dart';
 
 /// One member in the members dialog: avatar, names, permission/moderation
 /// badges — expandable into a [MemberManagePanel] when the viewer may manage
@@ -56,9 +57,9 @@ class MemberRow extends StatelessWidget {
           children: [
             Material(
               color: isExpanded ? themeState.bgSecondary : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(K.radiusRow),
               child: InkWell(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(K.radiusRow),
                 hoverColor: themeState.bgHover,
                 onTap: _expandable ? onTap : null,
                 child: Padding(

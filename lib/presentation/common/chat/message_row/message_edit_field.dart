@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import '../../../../data/constants.dart';
 
 /// Inline editor that replaces a message's text while it is being edited —
 /// Discord-style, rather than lifting the message into a dialog.
@@ -95,15 +96,15 @@ class _MessageEditFieldState extends State<MessageEditField> {
                 vertical: 8,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(K.radiusRow),
                 borderSide: BorderSide(color: theme.borderPrimary),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(K.radiusRow),
                 borderSide: BorderSide(color: theme.borderPrimary),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(K.radiusRow),
                 borderSide: BorderSide(color: theme.primary, width: 1.5),
               ),
             ),

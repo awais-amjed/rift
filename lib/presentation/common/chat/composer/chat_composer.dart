@@ -23,6 +23,7 @@ import 'composer_input_row.dart';
 import 'composer_plaintext_notice.dart';
 import 'composer_recording_bar.dart';
 import 'composer_staged_row.dart';
+import '../../../../data/constants.dart';
 
 /// Message input row: attach + emoji buttons, the text field, a mic and the
 /// send button, with a strip of staged-attachment chips above it once files
@@ -424,7 +425,7 @@ class _ChatComposerState extends State<ChatComposer>
       padding: const EdgeInsets.fromLTRB(8, 6, 6, 6),
       decoration: BoxDecoration(
         color: themeState.bgTertiary,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(K.radiusCard),
         border: Border.all(
           // Focus is carried by the accent ring rather than a caret alone —
           // the composer is the one place the whole bar should answer.

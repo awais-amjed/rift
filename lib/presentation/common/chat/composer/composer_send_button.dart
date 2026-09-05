@@ -38,7 +38,7 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
     final themeState = widget.themeState;
     final enabled = widget.enabled;
     final lit = enabled && _hovering;
-    final radius = BorderRadius.circular(K.composerControlRadius);
+    final radius = BorderRadius.circular(K.radiusRow);
 
     return Tooltip(
       message: 'Send',

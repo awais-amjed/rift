@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../../data/constants.dart';
 
 /// Icon + title + description header used before each action section.
 class SectionHeader extends StatelessWidget {
@@ -29,7 +30,7 @@ class SectionHeader extends StatelessWidget {
           height: 40,
           decoration: BoxDecoration(
             color: theme.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(K.radiusRow),
           ),
           child: Icon(icon, size: 20, color: theme.primary),
         ),

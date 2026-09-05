@@ -101,7 +101,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: theme.bgTertiary,
-        borderRadius: BorderRadius.circular(K.radiusAttachment),
+        borderRadius: BorderRadius.circular(K.radiusCard),
         border: Border.all(color: theme.borderElevated),
       ),
       child: Row(

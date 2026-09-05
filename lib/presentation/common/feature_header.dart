@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import '../../data/constants.dart';
 
 /// The hero block that opens a full-screen step or a first-run panel: an
 /// accent-tinted icon badge, a title, and an optional explanatory line.
@@ -49,7 +50,7 @@ class FeatureHeader extends StatelessWidget {
           height: _badgeSize,
           decoration: BoxDecoration(
             color: accent.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(K.radiusCard),
             // The ring is what stops the badge dissolving into the card at
             // this tint — a 10% wash on a translucent panel is barely there.
             border: Border.all(color: accent.withValues(alpha: 0.25)),

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_switch.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// Audio sharing toggle widget
 class AudioToggle extends StatelessWidget {
@@ -29,7 +30,7 @@ class AudioToggle extends StatelessWidget {
               color: shareAudio
                   ? themeState.primary.withValues(alpha: 0.08)
                   : themeState.bgTertiary,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(K.radiusCard),
               border: Border.all(
                 color: shareAudio
                     ? themeState.primary.withValues(alpha: 0.35)

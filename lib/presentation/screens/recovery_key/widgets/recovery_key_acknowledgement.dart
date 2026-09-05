@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import '../../../../data/constants.dart';
 
 /// The "I have saved it" confirmation, as a row you press anywhere on.
 ///
@@ -24,7 +25,7 @@ class RecoveryKeyAcknowledgement extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         child: Row(

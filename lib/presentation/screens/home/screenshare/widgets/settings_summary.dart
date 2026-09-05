@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// Summary display of selected screen share settings
 class SettingsSummary extends StatelessWidget {
@@ -31,7 +32,7 @@ class SettingsSummary extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: themeState.bgTertiary,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             border: Border.all(color: themeState.borderPrimary),
           ),
           child: Center(

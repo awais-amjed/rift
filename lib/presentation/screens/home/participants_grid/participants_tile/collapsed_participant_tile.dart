@@ -7,6 +7,7 @@ import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
 import 'watch_stream_button.dart';
+import '../../../../../data/constants.dart';
 
 /// A participant as they appear in the grid: video or avatar in a rounded
 /// card, name badge always visible, and a speaking ring that lights up.
@@ -47,7 +48,7 @@ class CollapsedParticipantTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(14);
+    final radius = BorderRadius.circular(K.radiusCard);
 
     return SpeakingRing(
       isSpeaking: isSpeaking,
@@ -68,7 +69,7 @@ class CollapsedParticipantTile extends StatelessWidget {
           ),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(13),
+          borderRadius: BorderRadius.circular(K.radiusCard - 1),
           child: Stack(
             fit: StackFit.expand,
             children: [

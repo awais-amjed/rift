@@ -91,7 +91,7 @@ class _PaletteCard extends StatelessWidget {
       child: SelectableSurface(
         selected: isSelected,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(K.radiusAttachment),
+        borderRadius: BorderRadius.circular(K.radiusCard),
         padding: const EdgeInsets.all(13),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +145,7 @@ class _PaletteCard extends StatelessWidget {
       height: 20,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(color: border),
       ),
     );
@@ -175,7 +175,7 @@ class ThemeCard extends StatelessWidget {
       child: SelectableSurface(
         selected: isSelected,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(K.radiusAttachment),
+        borderRadius: BorderRadius.circular(K.radiusCard),
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,

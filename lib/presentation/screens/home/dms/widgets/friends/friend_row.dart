@@ -39,7 +39,7 @@ class FriendRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
-    final radius = BorderRadius.circular(K.radiusButton);
+    final radius = BorderRadius.circular(K.radiusRow);
 
     return Material(
       color: Colors.transparent,

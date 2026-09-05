@@ -45,7 +45,7 @@ class MembersModalHeader extends StatelessWidget {
             icon: Icons.group_outlined,
             color: themeState.accentBright,
             size: 36,
-            radius: K.radiusButton,
+            radius: K.radiusRow,
             iconSize: 18,
           ),
           const SizedBox(width: 12),

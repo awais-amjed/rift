@@ -70,7 +70,7 @@ class PanelActions extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             color: themeState.bgHover,
-            borderRadius: BorderRadius.circular(K.radiusButton),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             border: Border.all(color: themeState.borderPrimary),
           ),
           child: Row(
@@ -117,10 +117,10 @@ class _Button extends StatelessWidget {
         color: action.style == PanelButtonStyle.normal
             ? themeState.bgHover
             : _foreground.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(K.radiusButton),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(K.radiusButton),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             child: Text(

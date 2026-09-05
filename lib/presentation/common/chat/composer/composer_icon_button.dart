@@ -46,7 +46,7 @@ class ComposerIconButton extends StatelessWidget {
           onTap: onPressed,
           // Rounded squares, matching the send button beside them — a row of
           // circles around one square reads as a mistake.
-          borderRadius: BorderRadius.circular(K.composerControlRadius),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           hoverColor: themeState.bgHover,
           child: SizedBox(
             width: K.composerControlSize,

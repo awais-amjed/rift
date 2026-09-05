@@ -5,6 +5,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../context_menu/context_menu_panel.dart';
 import '../../user_avatar.dart';
+import '../../../../data/constants.dart';
 
 /// The `@` menu: who is here, and what they are actually called.
 ///
@@ -52,7 +53,7 @@ class ComposerMentionMenu extends StatelessWidget {
   /// Deliberately the geometry of [ContextMenuItem] — 9px radius, the same
   /// padding, the same hover — with an avatar where its icon goes.
   Widget _row(ServerMember member) {
-    final radius = BorderRadius.circular(9);
+    final radius = BorderRadius.circular(K.radiusRow);
 
     return Material(
       color: Colors.transparent,

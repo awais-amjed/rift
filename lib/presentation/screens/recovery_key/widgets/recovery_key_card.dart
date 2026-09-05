@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
+import '../../../../data/constants.dart';
 
 /// The key itself, sized and spaced to be copied off a screen by hand.
 ///
@@ -45,7 +46,7 @@ class _RecoveryKeyCardState extends State<RecoveryKeyCard> {
           decoration: BoxDecoration(
             color: theme.bgTertiary,
             border: Border.all(color: theme.borderPrimary),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(K.radiusCard),
           ),
           child: Wrap(
             alignment: WrapAlignment.center,

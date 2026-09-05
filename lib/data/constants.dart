@@ -1,34 +1,22 @@
 class K {
   // ── Radii ─────────────────────────────────────────────────
-  /// The floating panels (sidebar, content, members).
-  static const double radiusPanel = 16;
-  static const double radiusDialog = 20;
-
-  /// Cards, context menus, popovers.
-  static const double radiusCard = 12;
-
-  /// Attachment cards inside a message. A step above a plain card, so they
-  /// read as objects dropped into the message rather than part of its text.
-  static const double radiusAttachment = 13;
-
-  /// List rows, icon buttons, small controls.
+  // Four steps. A surface picks the one for what it is, never a value of
+  // its own: a fifth radius is how the scale grew to eight.
+  /// List rows, buttons, fields, chips, icon buttons — anything you press.
   static const double radiusRow = 10;
 
-  /// Buttons, segmented options and expiry chips. One step above a row, so a
-  /// button reads as pressable next to the rows it sits among.
-  static const double radiusButton = 11;
+  /// Cards, context menus, popovers, attachments, icon badges.
+  static const double radiusCard = 14;
 
-  /// Squircle avatars and server chips are radius ≈ size/3; the rail's 40px
-  /// chips land on 13.
-  static const double radiusRailChip = 13;
+  /// The floating panels, dialogs and the voice control bar.
+  static const double radiusPanel = 20;
 
-  /// Fully round — chips, pills, badges, presence dots.
+  /// Fully round — pills, presence dots, colour swatches.
   static const double radiusPill = 999;
 
-  /// The floating voice control bar. Softer than a panel but stopping well
-  /// short of a stadium, so the row of square buttons inside still reads as a
-  /// row rather than as something poured into a capsule.
-  static const double radiusVoicePill = 18;
+  /// Not a step of the scale: the rail's server chips are squircles, and a
+  /// squircle's radius follows its size (see [avatarRadiusRatio]).
+  static const double radiusRailChip = serverRailChipSize * avatarRadiusRatio;
 
   /// Avatars are squircles rather than circles: radius is this fraction of
   /// the avatar's size.
@@ -178,8 +166,7 @@ class K {
   /// Every control in the composer row (attach, emoji, mic, send) is a square
   /// of this size, and the text field is floored to it, so the icons and the
   /// text share one centre line whatever the font's metrics are.
-  static const double composerControlSize = 34;
-  static const double composerControlRadius = 10;
+  static const double composerControlSize = 36;
   static const double composerIconSize = 19;
   static const double composerLineHeight = 1.4;
 

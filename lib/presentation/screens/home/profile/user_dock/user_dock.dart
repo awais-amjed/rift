@@ -11,6 +11,7 @@ import '../connection_quality/connection_quality_indicator.dart';
 import '../edit/profile_edit_modal.dart';
 import 'widgets/dock_avatar_button.dart';
 import 'widgets/dock_icon_button.dart';
+import '../../../../../data/constants.dart';
 
 /// You, at the bottom of the sidebar: who you are, how your connection is
 /// doing, and the two controls you reach for mid-call.
@@ -35,7 +36,7 @@ class UserDock extends StatelessWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: themeState.bgHover,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(K.radiusCard),
                 border: Border.all(color: themeState.borderElevated),
               ),
               child: Row(

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// Button to start watching a screenshare stream
 class WatchStreamButton extends StatelessWidget {
@@ -17,10 +18,10 @@ class WatchStreamButton extends StatelessWidget {
         return Center(
           child: Material(
             color: Colors.black.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             elevation: 2,
             child: InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(K.radiusRow),
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.symmetric(

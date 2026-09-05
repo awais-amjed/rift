@@ -4,6 +4,7 @@ import '../../../../data/classes/chat_message.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/app_text.dart';
+import '../../../../data/constants.dart';
 
 /// What a message context-menu entry asked for.
 enum MessageMenuAction { react, copy, edit, delete }
@@ -48,7 +49,7 @@ Future<MessageMenuAction?> showMessageContextMenu({
     surfaceTintColor: Colors.transparent,
     elevation: 6,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(K.radiusCard),
       side: BorderSide(color: themeState.borderPrimary),
     ),
     constraints: const BoxConstraints(minWidth: 172),

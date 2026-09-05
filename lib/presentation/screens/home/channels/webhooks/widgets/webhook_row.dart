@@ -4,6 +4,7 @@ import '../../../../../../data/classes/webhook.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
+import '../../../../../../data/constants.dart';
 
 /// One existing webhook in the list: its name, when it last posted, and the
 /// only thing that can still be done to it.
@@ -42,7 +43,7 @@ class WebhookRow extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
       decoration: BoxDecoration(
         color: themeState.bgTertiary,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(color: themeState.borderElevated),
       ),
       child: Row(

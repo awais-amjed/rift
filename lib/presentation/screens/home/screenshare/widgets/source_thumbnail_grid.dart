@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../../../src/rust/api/screenshare/types.dart';
+import '../../../../../data/constants.dart';
 
 /// Thumbnail grid for selecting a capture source (Windows only).
 class SourceThumbnailGrid extends StatelessWidget {
@@ -86,7 +87,7 @@ class _SourceCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           border: Border.all(
             color: isSelected
                 ? colorScheme.primary
@@ -103,7 +104,7 @@ class _SourceCard extends StatelessWidget {
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(7),
+                  top: Radius.circular(K.radiusRow - 1),
                 ),
                 child: thumbnail != null
                     ? Image.memory(

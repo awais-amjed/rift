@@ -6,7 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toastification/toastification.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
-import '../../../../../data/constants.dart';
+import '../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -167,7 +167,7 @@ class _ControlBarContent extends StatelessWidget {
         final bgColor = themeState.bgElevated;
         final compact = context.layoutMode.isCompact;
 
-        final radius = BorderRadius.circular(K.radiusVoicePill);
+        final radius = BorderRadius.circular(K.radiusPanel);
 
         // Glass, not a slab: the pill floats over live video, so it blurs
         // what's behind it rather than hiding it. The shadow sits outside the
@@ -246,9 +246,9 @@ class _ControlBarContent extends StatelessWidget {
                     // Leave
                     Material(
                       color: CustomColors.error,
-                      borderRadius: BorderRadius.circular(K.radiusCard),
+                      borderRadius: BorderRadius.circular(K.radiusRow),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(K.radiusCard),
+                        borderRadius: BorderRadius.circular(K.radiusRow),
                         // Opaque, so hovering deepens the red rather than
                         // washing it — the one control here you can't undo.
                         hoverColor: CustomColors.errorDark,
@@ -336,9 +336,9 @@ class _ControlButton extends StatelessWidget {
           message: tooltip,
           child: Material(
             color: bgColor,
-            borderRadius: BorderRadius.circular(K.radiusCard),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             child: InkWell(
-              borderRadius: BorderRadius.circular(K.radiusCard),
+              borderRadius: BorderRadius.circular(K.radiusRow),
               hoverColor: themeState.bgHover,
               onTap: onTap,
               child: SizedBox(

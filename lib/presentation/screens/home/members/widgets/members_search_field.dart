@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// The search row under the members dialog's header.
 ///
@@ -69,7 +70,7 @@ class _MembersSearchFieldState extends State<MembersSearchField> {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: theme.bgHover,
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           border: Border.all(color: theme.borderPrimary),
         ),
         child: Row(

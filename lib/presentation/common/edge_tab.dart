@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../../data/constants.dart';
 
 /// Which edge a tab hangs off.
 enum EdgeTabSide {
@@ -43,7 +44,7 @@ class _EdgeTabState extends State<EdgeTab> {
   @override
   Widget build(BuildContext context) {
     final isLeft = widget.side.isLeft;
-    final rounded = Radius.circular(9);
+    final rounded = Radius.circular(K.radiusRow);
 
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {

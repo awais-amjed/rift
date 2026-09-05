@@ -118,7 +118,7 @@ class AppButton extends StatelessWidget {
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(K.radiusButton),
+            borderRadius: BorderRadius.circular(K.radiusRow),
           ),
         ),
         side: variant == AppButtonVariant.secondary
@@ -134,7 +134,7 @@ class AppButton extends StatelessWidget {
       button = DecoratedBox(
         decoration: BoxDecoration(
           gradient: themeState.actionGradient,
-          borderRadius: BorderRadius.circular(K.radiusButton),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           boxShadow: enabled
               ? AppShadows.accentGlow(themeState.primary, blurRadius: 12, dy: 2)
               : null,

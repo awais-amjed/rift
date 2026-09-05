@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../emoji_text.dart';
 import '../../popover_surface.dart';
+import '../../../../data/constants.dart';
 
 /// Curated quick-reaction emojis. A compact popup — not the full picker — since
 /// reactions are usually one of a common handful.
@@ -88,7 +89,7 @@ class _EmojiCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(8);
+    final radius = BorderRadius.circular(K.radiusRow);
     return Material(
       color: Colors.transparent,
       borderRadius: radius,

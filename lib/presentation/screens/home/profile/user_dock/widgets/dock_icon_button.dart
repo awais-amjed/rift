@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/custom_colors.dart';
+import '../../../../../../data/constants.dart';
 
 /// One of the small square controls on the right of the user dock.
 ///
@@ -27,7 +28,7 @@ class DockIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        final radius = BorderRadius.circular(8);
+        final radius = BorderRadius.circular(K.radiusRow);
 
         return Tooltip(
           message: tooltip,

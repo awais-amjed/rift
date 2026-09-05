@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../../data/constants.dart';
 
 /// One moderation control in the members dialog.
 ///
@@ -33,9 +34,9 @@ class ModerationButton extends StatelessWidget {
       color: isActive
           ? Colors.transparent
           : CustomColors.error.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(K.radiusRow),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(K.radiusRow),
         hoverColor: themeState.bgHover,
         onTap: onTap,
         child: Padding(

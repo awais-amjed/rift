@@ -5,6 +5,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../src/rust/api/screenshare/types.dart';
 import '../widgets/settings_section.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// Section for selecting Linux audio source for screen sharing
 class AudioSourceSection extends StatelessWidget {
@@ -83,7 +84,7 @@ class AudioSourceSection extends StatelessWidget {
             else
               Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(K.radiusRow),
                   border: Border.all(color: themeState.borderPrimary),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -96,7 +97,7 @@ class AudioSourceSection extends StatelessWidget {
                       color: themeState.textSecondary,
                     ),
                     dropdownColor: themeState.bgElevated,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(K.radiusRow),
                     hint: Text(
                       'Select audio source',
                       style: AppText.rowQuiet.copyWith(

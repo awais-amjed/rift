@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// A row of swatches, and "none".
 ///
@@ -88,7 +89,7 @@ class _Swatch extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(K.radiusPill),
       child: Container(
         width: 26,
         height: 26,

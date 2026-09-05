@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// A member's most senior role, beside their name.
 ///
@@ -41,7 +42,7 @@ class RoleChip extends StatelessWidget {
         color: colour == null
             ? themeState.bgHover
             : colour.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(K.radiusPill),
       ),
       child: Text(
         _label,

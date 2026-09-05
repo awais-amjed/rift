@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../../data/constants.dart';
 
 /// One role in the list, with the dot that shows what colour it paints a name.
 ///
@@ -51,7 +52,7 @@ class RoleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         child: Row(
@@ -128,7 +129,7 @@ class _Move extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(
         padding: const EdgeInsets.all(2),
         child: Icon(icon, size: 16, color: themeState.textTertiary),

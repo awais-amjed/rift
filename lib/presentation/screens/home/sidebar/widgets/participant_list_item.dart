@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/participant_info.dart';
 import '../../../../../../data/classes/participant_setting.dart';
-import '../../../../../../data/constants.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu_region.dart';
@@ -47,9 +47,9 @@ class ParticipantListItem extends StatelessWidget {
 
         Widget content = Material(
           color: isSpeaking ? themeState.primary.withValues(alpha: 0.08) : null,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(K.radiusRow),
           child: InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(K.radiusRow),
             hoverColor: hoverColor,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
