@@ -5,9 +5,10 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/app_text.dart';
 
-/// Visual password strength meter.
-///
-/// Shows a row of colored bars that fill based on the calculated strength.
+/// Visual password strength meter: four bars and, on the same row, the word
+/// for what they show. One row rather than bars over a label — the label is
+/// short, and a second line under every password field was 12px of height
+/// spent on nothing.
 class PasswordStrengthIndicator extends StatelessWidget {
   final String password;
 
@@ -18,31 +19,28 @@ class PasswordStrengthIndicator extends StatelessWidget {
     final theme = context.read<ThemeCubit>().state;
     final strength = _calculateStrength(password);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        // Bars
-        Row(
-          children: List.generate(4, (i) {
-            final active = i < strength.level;
-            return Expanded(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
-                height: 4,
-                margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
-                decoration: BoxDecoration(
-                  color: active ? strength.color : theme.borderPrimary,
-                  borderRadius: BorderRadius.circular(2),
+        Expanded(
+          child: Row(
+            children: List.generate(4, (i) {
+              final active = i < strength.level;
+              return Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  height: 4,
+                  margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+                  decoration: BoxDecoration(
+                    color: active ? strength.color : theme.borderPrimary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-            );
-          }),
+              );
+            }),
+          ),
         ),
-
-        const SizedBox(height: 8),
-
-        // Label
+        const SizedBox(width: 10),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
           child: Text(
@@ -92,7 +90,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
     return switch (level) {
       1 => _PasswordStrength(1, 'Weak', CustomColors.error),
       2 => _PasswordStrength(2, 'Fair', CustomColors.warning),
-      3 => _PasswordStrength(3, 'Strong', const Color(0xFF4ADE80)),
+      3 => _PasswordStrength(3, 'Strong', CustomColors.success),
       _ => _PasswordStrength(4, 'Very strong', CustomColors.success),
     };
   }

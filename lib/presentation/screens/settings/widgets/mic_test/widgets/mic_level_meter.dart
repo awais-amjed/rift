@@ -20,13 +20,10 @@ class MicLevelMeter extends StatelessWidget {
 
   static const _segments = 24;
   static const _height = 14.0;
-  static const _green = Color(0xFF3BA55D);
-  static const _amber = Color(0xFFFAA61A);
-
   Color _colorFor(int index) {
     final t = index / (_segments - 1);
-    if (t < 0.6) return _green;
-    if (t < 0.85) return _amber;
+    if (t < 0.6) return CustomColors.success;
+    if (t < 0.85) return CustomColors.warning;
     return CustomColors.error;
   }
 
