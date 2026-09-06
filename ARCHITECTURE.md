@@ -72,6 +72,11 @@ Four properties are load-bearing:
   and their history unreadable. A DNS name is the indirection that makes this a
   non-issue: repoint the record and the host never changed. `rift-self-host`
   states it as a rule.
+- **A client stores that address once and never asks again.** `supabaseUrl` is
+  captured when the invite is resolved, and every HTTP address — the API,
+  attachments, avatars — is built from it. The one address a client takes
+  *from* the server is `servers.livekit_url`, which is why voice is the only
+  thing a server can move without moving its members.
 - **Argon2id runs off the UI thread**, and the seed lives in platform secure
   storage — never in HydratedBloc state.
 
