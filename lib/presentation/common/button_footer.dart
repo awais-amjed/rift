@@ -15,8 +15,10 @@ import 'package:flutter/material.dart';
 class ButtonFooter extends StatelessWidget {
   final List<Widget> buttons;
 
-  /// Trailing by default. Start-aligned only where the footer sits under a
-  /// left-aligned form inside a settings pane and nothing else is trailing.
+  /// Trailing by default, which is right for a dialog: the buttons sit at
+  /// the corner the eye ends on. Start-aligned in a settings pane, where a
+  /// form is left-aligned in a panel that can be twice as wide as it is and
+  /// a button at the far edge reads as belonging to nothing.
   final MainAxisAlignment alignment;
 
   const ButtonFooter({

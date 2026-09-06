@@ -51,6 +51,7 @@ class ConfirmEmailPanel extends StatelessWidget {
         // Sign in is what almost everybody is here to do; Resend is the
         // fallback for the one whose first email never arrived.
         ButtonFooter(
+          alignment: MainAxisAlignment.start,
           buttons: [
             ResendConfirmationButton(
               availableAt: state.resendAvailableAt,

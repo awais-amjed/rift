@@ -86,6 +86,7 @@ class AuthPanelState extends State<AuthPanel>
         ],
         const SizedBox(height: 16),
         ButtonFooter(
+          alignment: MainAxisAlignment.start,
           buttons: [
             AppButton(
               label: isSignUp ? 'Create account' : 'Sign in',

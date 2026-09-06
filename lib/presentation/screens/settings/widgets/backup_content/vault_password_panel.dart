@@ -69,6 +69,7 @@ class VaultPasswordPanelState extends State<VaultPasswordPanel> {
         ],
         const SizedBox(height: 16),
         ButtonFooter(
+          alignment: MainAxisAlignment.start,
           buttons: [
             AppButton(
               label: 'Cancel',

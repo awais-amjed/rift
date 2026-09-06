@@ -90,6 +90,7 @@ class FileBackupPanelState extends State<FileBackupPanel> {
         ),
         const SizedBox(height: 12),
         ButtonFooter(
+          alignment: MainAxisAlignment.start,
           buttons: [
             AppButton(
               label: 'Export',

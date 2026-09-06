@@ -73,6 +73,7 @@ class SignedInPanel extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         ButtonFooter(
+          alignment: MainAxisAlignment.start,
           buttons: [
             AppButton(
               label: 'Save',

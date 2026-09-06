@@ -140,6 +140,7 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
 
         const SizedBox(height: 16),
         ButtonFooter(
+          alignment: MainAxisAlignment.start,
           buttons: [
             AppButton(
               label: 'Cancel',

@@ -44,6 +44,7 @@ class ConflictPanel extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         ButtonFooter(
+          alignment: MainAxisAlignment.start,
           buttons: [
             AppButton(
               label: 'Keep cloud',
