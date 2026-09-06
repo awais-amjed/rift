@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../data/classes/public_server.dart';
+import '../../../../../data/classes/resolved_invite.dart';
 import '../../../../../data/constants.dart';
 import '../../../../common/app_modal.dart';
 import 'browse_servers_modal.dart';
 import 'create_server_modal.dart';
+import 'invite_link_modal.dart';
 import 'join_server_modal.dart';
 import 'publish_new_server_modal.dart';
 import 'widgets/server_mode_picker.dart';
 
-enum _Step { pick, browse, join, create, publish }
+enum _Step { pick, browse, link, join, create, publish }
 
 /// Getting onto a server: pick how, then do it.
 ///
@@ -36,11 +37,14 @@ class AddServerDialog extends StatefulWidget {
 }
 
 class _AddServerDialogState extends State<AddServerDialog> {
-  late _Step _step = widget.inviteLink == null ? _Step.pick : _Step.join;
+  late _Step _step = widget.inviteLink == null ? _Step.pick : _Step.link;
 
-  /// The listing picked in the browser, carried into the join step so it can
-  /// skip the invite field. Null when the link was typed.
-  PublicServer? _picked;
+  /// The invite the join step is for, once the link step — or the browser —
+  /// has produced one.
+  ResolvedInvite? _invite;
+
+  /// Whether [_invite] came from the browser, which is where Back goes then.
+  bool _fromBrowser = false;
 
   void _handleSuccess() => Navigator.of(context).pop();
 
@@ -54,10 +58,14 @@ class _AddServerDialogState extends State<AddServerDialog> {
   void _handleJoined({required bool joinedAsAdmin}) =>
       joinedAsAdmin ? _go(_Step.publish) : _handleSuccess();
 
-  void _go(_Step step, {PublicServer? listing}) => setState(() {
-    _step = step;
-    _picked = listing;
-  });
+  void _go(_Step step) => setState(() => _step = step);
+
+  void _join(ResolvedInvite invite, {required bool fromBrowser}) =>
+      setState(() {
+        _invite = invite;
+        _fromBrowser = fromBrowser;
+        _step = _Step.join;
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -71,22 +79,30 @@ class _AddServerDialogState extends State<AddServerDialog> {
         maxWidth: K.dialogWidth,
         content: ServerModePicker(
           onBrowse: () => _go(_Step.browse),
-          onJoin: () => _go(_Step.join),
+          onJoin: () => _go(_Step.link),
           onCreate: () => _go(_Step.create),
         ),
       ),
       _Step.browse => BrowseServersModal(
-        onJoin: (listing) => _go(_Step.join, listing: listing),
+        // A listing already names its server and carries a working invite,
+        // so it skips the link step entirely.
+        onJoin: (listing) =>
+            _join(ResolvedInvite.fromListing(listing), fromBrowser: true),
+        onCancel: () => _go(_Step.pick),
+      ),
+      // The link on its own first, so a bad one is refused before anybody has
+      // typed a name for it. A tapped invite arrives here already filled in.
+      _Step.link => InviteLinkModal(
+        initialLink: widget.inviteLink,
+        onResolved: (invite) => _join(invite, fromBrowser: false),
         onCancel: () => _go(_Step.pick),
       ),
       _Step.join => JoinServerModal(
-        listing: _picked,
-        inviteLink: widget.inviteLink,
+        invite: _invite!,
         onSuccess: _handleJoined,
         // Back where you came from: the browser if you picked a server there,
-        // the picker if you typed a link.
-        onCancel: () =>
-            _go(_picked == null ? _Step.pick : _Step.browse, listing: _picked),
+        // the link if you typed one.
+        onCancel: () => _go(_fromBrowser ? _Step.browse : _Step.link),
       ),
       // Creating one asks whether it should be findable, and so does joining
       // one *as its admin* — see [_handleJoined]. An ordinary joiner is not

@@ -10,6 +10,8 @@ import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/member_page.dart';
 import '../../../data/classes/role.dart';
+import '../../../data/classes/resolved_invite.dart';
+import '../../../data/invite_link.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';

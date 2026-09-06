@@ -14,12 +14,16 @@ mixin SupabaseAuthFormState<T extends StatefulWidget> on State<T> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  /// Only read when creating an account: the name other people find it by.
+  final TextEditingController handleController = TextEditingController();
+
   bool isSignUp = false;
 
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    handleController.dispose();
     super.dispose();
   }
 
@@ -30,7 +34,11 @@ mixin SupabaseAuthFormState<T extends StatefulWidget> on State<T> {
     final password = passwordController.text;
     final cubit = context.read<SupabaseBackupCubit>();
     if (isSignUp) {
-      cubit.signUp(email: email, password: password);
+      cubit.signUp(
+        email: email,
+        password: password,
+        handle: handleController.text,
+      );
     } else {
       cubit.signIn(email: email, password: password);
     }

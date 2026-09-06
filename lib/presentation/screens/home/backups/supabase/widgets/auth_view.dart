@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_text_field.dart';
+import '../../../../../common/handle_field.dart';
 import '../../../../../common/message_banner.dart';
 import '../../../../../common/resend_confirmation_button.dart';
 import '../../../../../common/supabase_auth_form_state.dart';
@@ -83,8 +84,19 @@ class _AuthViewState extends State<AuthView>
           hint: 'Enter your password',
           obscureText: true,
           enabled: !isProcessing,
-          onEditingComplete: isProcessing ? null : submitCredentials,
+          onEditingComplete: (isProcessing || isSignUp)
+              ? null
+              : submitCredentials,
         ),
+
+        if (isSignUp) ...[
+          const SizedBox(height: 16),
+          HandleField(
+            controller: handleController,
+            enabled: !isProcessing,
+            onEditingComplete: isProcessing ? null : submitCredentials,
+          ),
+        ],
 
         if (widget.state.error != null) ...[
           const SizedBox(height: 12),

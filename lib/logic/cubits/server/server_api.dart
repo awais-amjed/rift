@@ -193,10 +193,43 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     }
   }
 
-  /// Validate an invite code without registering a user.
-  Future<({bool success, String? error, String? serverId, String? serverName})>
-  validateInvite(String supabaseUrl, String inviteCode) async {
-    return (success: true, error: null, serverId: null, serverName: null);
+  /// Read an invite link and ask its server what it opens, without using it.
+  ///
+  /// The first of the two join steps. A link that does not parse is refused
+  /// here, in words; one that parses is put to the server, which answers with
+  /// the name — or with why not, which is the same answer registration would
+  /// have given a screen later, after a username had been typed for nothing.
+  Future<({ResolvedInvite? invite, String? error})> resolveInvite(
+    String rawLink,
+  ) async {
+    final link = InviteLink.parse(rawLink);
+    if (link == null) {
+      return (
+        invite: null,
+        error:
+            "That doesn't look like a complete invite link. Ask the server "
+            'admin for a new one.',
+      );
+    }
+    final resolved = await _repository.resolveInvite(
+      link.serverUrl,
+      link.inviteCode,
+    );
+    if (!resolved.success || resolved.serverId == null) {
+      return (
+        invite: null,
+        error: resolved.error ?? 'That invite cannot be used any more.',
+      );
+    }
+    return (
+      invite: ResolvedInvite(
+        serverUrl: link.serverUrl,
+        inviteCode: link.inviteCode,
+        serverId: resolved.serverId!,
+        serverName: resolved.serverName ?? link.serverUrl,
+      ),
+      error: null,
+    );
   }
 
   /// Update the settings of [serverId], or of the selected server (admin only).

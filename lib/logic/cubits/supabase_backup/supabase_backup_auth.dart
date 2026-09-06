@@ -20,8 +20,36 @@ mixin _SupabaseBackupAuthMixin on Cubit<SupabaseBackupState> {
   /// If the server requires email confirmation the state transitions to
   /// [SupabaseBackupState.needsEmailConfirmation]; the sync then runs on the
   /// sign-in that follows confirmation.
-  Future<void> signUp({required String email, required String password}) async {
+  /// Creates the account, with the handle other people will find it by.
+  ///
+  /// The handle is checked here in the same words the DM tab would use, and
+  /// asked of central before the account is made — a taken name refused on
+  /// this form is a correction; one refused after the confirmation mail is a
+  /// mystery on another screen.
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String handle,
+  }) async {
+    final normalizedHandle = CentralHandle.normalize(handle);
+    if (!CentralHandle.isValid(normalizedHandle)) {
+      emit(state.copyWith(error: CentralHandle.rule));
+      return;
+    }
     emit(state.copyWith(isProcessing: true, clearMessage: true));
+
+    final availability = await _repo.isHandleAvailable(normalizedHandle);
+    if (!availability.success || availability.data != true) {
+      emit(
+        state.copyWith(
+          isProcessing: false,
+          error: availability.success
+              ? 'That handle is already taken'
+              : availability.error,
+        ),
+      );
+      return;
+    }
 
     final keys = await _crypto.deriveAccountKeys(
       email: email,
@@ -31,6 +59,7 @@ mixin _SupabaseBackupAuthMixin on Cubit<SupabaseBackupState> {
     final response = await _repo.signUp(
       email: email,
       password: keys.authPassword,
+      handle: normalizedHandle,
     );
     if (!response.success) {
       emit(state.copyWith(isProcessing: false, error: response.error));

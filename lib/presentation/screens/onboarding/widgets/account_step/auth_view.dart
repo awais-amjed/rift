@@ -5,6 +5,7 @@ import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/handle_field.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/supabase_auth_form_state.dart';
 import '../onboarding_page.dart';
@@ -171,6 +172,12 @@ class AuthViewState extends State<AuthView>
                         setState(() => _validationError = null);
                       }
                     },
+                  ),
+                  const SizedBox(height: 16),
+                  HandleField(
+                    controller: handleController,
+                    enabled: !isProcessing,
+                    onEditingComplete: isProcessing ? null : _submit,
                   ),
                 ],
 

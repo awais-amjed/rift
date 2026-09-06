@@ -1,25 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/classes/public_server.dart';
+import '../../../../../data/classes/resolved_invite.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../data/invite_link.dart';
+import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
+import '../../../../../logic/services/join_defaults.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 
-/// The join step of [AddServerDialog]: one invite link (server URL and code
-/// combined) plus the username and display name to join under.
+/// The second join step: how you will appear on a server that has already
+/// answered to its invite.
+///
+/// Takes a [ResolvedInvite] rather than a link, so there is nothing here to
+/// validate but two names — and both start filled in where they can be: the
+/// username from the central handle, the display name from the last server
+/// joined ([JoinDefaults]). Someone on their fifth server should be pressing
+/// one button, not retyping who they are.
 ///
 /// Also the last step of the browser. A listing is an address and an invite
-/// code, which is exactly what a link is — so arriving from the directory
-/// fills in [listing] and this becomes the same form with one fewer field,
-/// rather than a second registration path that could drift from this one.
+/// code, which is exactly what a resolved invite holds — so arriving from the
+/// directory lands here directly rather than on a second registration path.
 class JoinServerModal extends StatefulWidget {
+  final ResolvedInvite invite;
+
   /// Called once the join has landed.
   ///
   /// [joinedAsAdmin] is what lets the flow ask an admin the questions the
@@ -29,19 +37,11 @@ class JoinServerModal extends StatefulWidget {
   final void Function({required bool joinedAsAdmin}) onSuccess;
   final VoidCallback onCancel;
 
-  /// The server picked in the browser, or null when the link is typed.
-  final PublicServer? listing;
-
-  /// An invite that arrived from outside the app — a tapped link. Same
-  /// standing as a listing: something already chosen, so the field goes away.
-  final String? inviteLink;
-
   const JoinServerModal({
     super.key,
+    required this.invite,
     required this.onSuccess,
     required this.onCancel,
-    this.listing,
-    this.inviteLink,
   });
 
   @override
@@ -49,42 +49,29 @@ class JoinServerModal extends StatefulWidget {
 }
 
 class _JoinServerModalState extends State<JoinServerModal> {
-  final _inviteLinkCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
   final _displayNameCtrl = TextEditingController();
 
   bool _isLoading = false;
   String? _error;
 
-  /// The listing's link, when we arrived from the browser. Held rather than
-  /// put in the field: it is not something to edit, and showing an invite code
-  /// in a box invites someone to try.
-  String? get _prefilled => widget.inviteLink ?? widget.listing?.inviteLink;
-
-  /// The host the invite points at.
-  ///
-  /// The one line of provenance someone should see before handing over a
-  /// username: a listing names itself, and a tapped link has to be read for
-  /// it. Null when the link is still to be typed — there is nothing to say yet.
-  String? get _host {
-    final listing = widget.listing;
-    if (listing != null) return listing.host;
-
-    final link = widget.inviteLink;
-    if (link == null) return null;
-    final parsed = InviteLink.parse(link);
-    if (parsed == null) return null;
-    return Uri.tryParse(parsed.serverUrl)?.host ?? parsed.serverUrl;
-  }
-
   bool get _canSubmit =>
-      (_prefilled != null || _inviteLinkCtrl.text.trim().isNotEmpty) &&
       _usernameCtrl.text.trim().isNotEmpty &&
       _displayNameCtrl.text.trim().isNotEmpty;
 
   @override
+  void initState() {
+    super.initState();
+    final defaults = JoinDefaults.of(
+      centralHandle: context.read<CentralDmCubit>().state.myHandle,
+      servers: context.read<ServerCubit>().state.servers,
+    );
+    _usernameCtrl.text = defaults.username;
+    _displayNameCtrl.text = defaults.displayName;
+  }
+
+  @override
   void dispose() {
-    _inviteLinkCtrl.dispose();
     _usernameCtrl.dispose();
     _displayNameCtrl.dispose();
     super.dispose();
@@ -92,35 +79,18 @@ class _JoinServerModalState extends State<JoinServerModal> {
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
-
-    final link = InviteLink.parse(_prefilled ?? _inviteLinkCtrl.text);
-    if (link == null) {
-      setState(() {
-        _error =
-            "That doesn't look like a complete invite link. Ask the "
-            'server admin for a new one.';
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    final supabaseUrl = link.serverUrl;
-    final inviteCode = link.inviteCode;
-    final username = _usernameCtrl.text.trim();
-    final displayName = _displayNameCtrl.text.trim();
-
-    // Register using cryptographic identity
+    final invite = widget.invite;
     final result = await context.read<VaultCubit>().registerOnServer(
-      supabaseUrl: supabaseUrl,
-      inviteCode: inviteCode,
-      username: username,
-      displayName: displayName,
+      supabaseUrl: invite.serverUrl,
+      inviteCode: invite.inviteCode,
+      username: _usernameCtrl.text.trim(),
+      displayName: _displayNameCtrl.text.trim(),
     );
-
     if (!mounted) return;
 
     if (!result.success) {
@@ -131,17 +101,14 @@ class _JoinServerModalState extends State<JoinServerModal> {
       return;
     }
 
-    // register now returns full server context — add directly
+    // register returns the full server context — add directly.
     final data = result.data!;
     final token = data['token'] as String;
-    final serverCubit = context.read<ServerCubit>();
-    serverCubit.addServer(supabaseUrl, token, data);
-
+    context.read<ServerCubit>().addServer(invite.serverUrl, token, data);
     if (!mounted) return;
 
     setState(() => _isLoading = false);
-
-    HelperMethods.showSuccess(message: 'Joined server successfully!');
+    HelperMethods.showSuccess(message: 'Joined ${invite.serverName}');
 
     // Read off the register response rather than the roster, which has not
     // been fetched yet at this point.
@@ -152,16 +119,10 @@ class _JoinServerModalState extends State<JoinServerModal> {
 
   @override
   Widget build(BuildContext context) {
-    final listing = widget.listing;
-    // Chosen already — from the browser, or by tapping an invite. Either way
-    // the link is not something to ask for or to edit.
-    final chosen = _prefilled != null;
-
+    final invite = widget.invite;
     return AppModal(
-      title: listing == null ? 'Join server' : 'Join ${listing.name}',
-      subtitle: chosen
-          ? 'Pick how you will appear on ${_host ?? 'this server'}'
-          : 'Join a server with an invite link',
+      title: 'Join ${invite.serverName}',
+      subtitle: 'Pick how you will appear on ${invite.host}',
       maxWidth: K.dialogWidth,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,25 +136,12 @@ class _JoinServerModalState extends State<JoinServerModal> {
                 kind: MessageBannerKind.error,
               ),
             ),
-
-          if (!chosen) ...[
-            AppTextField(
-              controller: _inviteLinkCtrl,
-              label: 'Invite link',
-              hint: 'Paste the invite link you received',
-              enabled: !_isLoading,
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 16),
-          ],
-
           AppTextField(
             controller: _usernameCtrl,
             label: 'Username',
             hint: 'myusername',
             enabled: !_isLoading,
-            autofocus: chosen,
+            autofocus: _usernameCtrl.text.isEmpty,
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -202,7 +150,9 @@ class _JoinServerModalState extends State<JoinServerModal> {
             label: 'Display name',
             hint: 'How others will see you',
             enabled: !_isLoading,
+            autofocus: _usernameCtrl.text.isNotEmpty,
             onChanged: (_) => setState(() {}),
+            onEditingComplete: _canSubmit && !_isLoading ? _submit : null,
           ),
         ],
       ),

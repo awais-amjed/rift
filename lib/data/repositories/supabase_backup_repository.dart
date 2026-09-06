@@ -41,15 +41,21 @@ class SupabaseBackupRepository {
   ///
   /// On success [APIResponse.data] is a map:
   ///   `{ 'user': User?, 'needsConfirmation': bool }`
+  /// [handle] rides in the auth user's metadata rather than being claimed
+  /// here: the directory row needs two public keys that only a signed-in
+  /// session with the seed can derive, and with confirmation on there is no
+  /// session yet. `CentralDmCubit` claims it the first time there is one.
   Future<APIResponse> signUp({
     required String email,
     required String password,
+    required String handle,
   }) async {
     try {
       final response = await _client.auth.signUp(
         email: email,
         password: password,
         emailRedirectTo: SupabaseConfig.emailConfirmationRedirect,
+        data: {'handle': handle},
       );
 
       // Session is null → email confirmation required.
@@ -64,6 +70,21 @@ class SupabaseBackupRepository {
       return APIResponse.success({'user': user, 'needsConfirmation': false});
     } on AuthException catch (e) {
       return _authFailure(e);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
+  /// Whether nobody has [handle] yet (central migration 016). Answerable
+  /// before there is an account, which is the point: the refusal belongs on
+  /// the sign-up form, not on the DM tab a day later.
+  Future<APIResponse> isHandleAvailable(String handle) async {
+    try {
+      final free = await _client.rpc(
+        'is_handle_available',
+        params: {'p_handle': handle},
+      );
+      return APIResponse.success(free == true);
     } catch (e) {
       return APIResponse.error(e);
     }

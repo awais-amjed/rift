@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/handle_field.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/supabase_auth_form_state.dart';
 
@@ -75,8 +76,18 @@ class AuthPanelState extends State<AuthPanel>
           hint: 'Enter your password',
           obscureText: true,
           enabled: !isProcessing,
-          onEditingComplete: isProcessing ? null : submitCredentials,
+          onEditingComplete: (isProcessing || isSignUp)
+              ? null
+              : submitCredentials,
         ),
+        if (isSignUp) ...[
+          const SizedBox(height: 12),
+          HandleField(
+            controller: handleController,
+            enabled: !isProcessing,
+            onEditingComplete: isProcessing ? null : submitCredentials,
+          ),
+        ],
         if (widget.state.error != null) ...[
           const SizedBox(height: 10),
           MessageBanner(
