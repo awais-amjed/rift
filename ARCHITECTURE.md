@@ -67,6 +67,11 @@ Four properties are load-bearing:
   all of that unreadable. The signing key above carries a version; this one
   deliberately does not.
 - **`stable_id` outlives keys**, so rotating a keypair cannot launder a ban.
+- **A server's address is therefore permanent.** Everything above is keyed on
+  the host, so moving a server to a new address makes every member a stranger
+  and their history unreadable. A DNS name is the indirection that makes this a
+  non-issue: repoint the record and the host never changed. `rift-self-host`
+  states it as a rule.
 - **Argon2id runs off the UI thread**, and the seed lives in platform secure
   storage — never in HydratedBloc state.
 
