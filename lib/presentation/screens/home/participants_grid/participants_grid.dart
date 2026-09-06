@@ -19,6 +19,11 @@ class ParticipantsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AppCubit, AppState>(
+      // One field of thirty, and everything below it is the whole call view.
+      // Without this a hover flag or a local mute rebuilt the grid, the tiles
+      // and every video surface in it.
+      buildWhen: (previous, current) =>
+          previous.selectedChannelId != current.selectedChannelId,
       builder: (context, appState) {
         if (appState.selectedChannelId == null) {
           return const NoChannelView();

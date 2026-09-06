@@ -39,6 +39,21 @@ class VoiceChannelTile extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return BlocBuilder<AppCubit, AppState>(
+          // This tile reads two of `AppState`'s thirty fields, and there is one
+          // of it per voice channel in the sidebar. Without this, a hover flag
+          // or an audio preference rebuilt every one of them, along with each
+          // tile's whole roster.
+          //
+          // `identical` is the right test rather than `==`: the cubit replaces
+          // both wholesale — `participantSettings` is copied into a new map on
+          // every change — so a shared instance really does mean unchanged, and
+          // neither has a value equality to fall back on anyway.
+          buildWhen: (previous, current) =>
+              !identical(previous.participants, current.participants) ||
+              !identical(
+                previous.participantSettings,
+                current.participantSettings,
+              ),
           builder: (context, appState) {
             return BlocBuilder<ChannelPresenceCubit, ChannelPresenceState>(
               builder: (context, presenceState) {

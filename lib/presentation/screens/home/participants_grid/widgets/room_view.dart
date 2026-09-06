@@ -77,6 +77,14 @@ class _RoomViewState extends State<RoomView> {
         final participants = livekitState.participants;
 
         return BlocBuilder<AppCubit, AppState>(
+          // The one field this reads. `identical` because the cubit copies the
+          // map wholesale on every change, so a shared instance means nobody's
+          // local mute or volume moved — and without the test, anything at all
+          // in `AppState` rebuilt the whole call surface.
+          buildWhen: (previous, current) => !identical(
+            previous.participantSettings,
+            current.participantSettings,
+          ),
           builder: (context, appState) {
             return Listener(
               behavior: HitTestBehavior.translucent,
