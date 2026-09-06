@@ -22,8 +22,9 @@ class MarkupSpan {
   /// `@nobody` as though it reached someone.
   final String? mention;
 
-  /// The address an `http(s)://` stretch points at, or null for ordinary
-  /// text. The text is the link as typed; this is where a tap goes.
+  /// Where a tap on this stretch goes, or null for ordinary text. Always
+  /// carries a scheme: [text] is the link as typed, which for `flutter.dev`
+  /// is not something a browser can open on its own.
   final String? link;
 
   const MarkupSpan(this.text, {this.marks = const {}, this.mention, this.link});

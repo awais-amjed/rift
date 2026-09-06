@@ -220,6 +220,35 @@ void main() {
       expect(parse('xhttps://a.example').single.link, isNull);
     });
 
+    test('a bare domain links under a known top-level domain', () {
+      final spans = parse('try flutter.dev today');
+      expect(spans[1].text, 'flutter.dev');
+      expect(spans[1].link, 'https://flutter.dev');
+      expect(
+        parse('joinrift.app/join#x').single.link,
+        'https://joinrift.app/join#x',
+      );
+      expect(parse('www.anything.zz').single.link, 'https://www.anything.zz');
+    });
+
+    test('dotted words that are not addresses stay words', () {
+      for (final word in [
+        'main.dart',
+        'config.yml',
+        'v2.0',
+        'node.js',
+        'e.g.',
+      ]) {
+        expect(
+          parse('see \$word here').every((s) => s.link == null),
+          isTrue,
+          reason: word,
+        );
+      }
+      // Somebody's mail is not a site.
+      expect(parse('mail a@b.com now').every((s) => s.link == null), isTrue);
+    });
+
     test('a link inside bold keeps both', () {
       final spans = parse('**https://a.example**');
       expect(spans.single.link, 'https://a.example');

@@ -11,7 +11,12 @@ void main() {
         'https://a.example/x',
       );
       expect(LinkDetector.firstUrl('ftp://files.example/x'), isNull);
-      expect(LinkDetector.firstUrl('just example.com here'), isNull);
+      // A bare domain under a known top-level domain counts, given a scheme.
+      expect(
+        LinkDetector.firstUrl('just example.com here').toString(),
+        'https://example.com',
+      );
+      expect(LinkDetector.firstUrl('open main.dart here'), isNull);
     });
 
     test('sentence punctuation is not part of the address', () {

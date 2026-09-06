@@ -8,8 +8,9 @@
 /// Deliberately not a Markdown implementation. There is no `[text](url)`,
 /// no headings, no lists: a chat line is not a document, and every construct
 /// added here is one more way for someone's plain text to come out looking
-/// like something they did not write. A bare `http(s)://` address is the one
-/// exception — it is recognised as itself, never rewritten, and made
+/// like something they did not write. An address is the one exception —
+/// `http(s)://` anything, or a bare `flutter.dev` under a well-known
+/// top-level domain — recognised as itself, never rewritten, and made
 /// tappable.
 ///
 /// Pure, so the awkward parts — unmatched delimiters, `snake_case`, code that
@@ -18,6 +19,7 @@
 library;
 
 import '../../data/classes/markup_span.dart';
+import 'link_tlds.dart';
 
 export '../../data/classes/markup_span.dart';
 
@@ -39,26 +41,51 @@ const Set<String> _escapable = {'*', '_', '~', '`', '@', r'\'};
 /// mean a name this parser had never heard of silently losing its highlight.
 final RegExp _mention = RegExp(r'^@([A-Za-z0-9_.-]{1,32})');
 
-/// A bare address. `http(s)://` and nothing else: `example.com` is as likely
-/// to be a filename, and a scheme the app would not open is not a link.
-final RegExp _link = RegExp(r'''^https?://[^\s<>"']+''', caseSensitive: false);
+/// An address with its scheme: `http(s)://` and whatever follows.
+final RegExp _schemed = RegExp(
+  r'''^https?://[^\s<>"']+''',
+  caseSensitive: false,
+);
 
-/// The address at [i], with the punctuation that belongs to the sentence
-/// rather than the link taken off the end, or null.
+/// A bare address: `www.` or a dotted host, then an optional port and path.
+/// The last label is checked against [linkTopLevelDomains] afterwards.
+final RegExp _bare = RegExp(
+  r'''^(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d{2,5})?(?:/[^\s<>"']*)?''',
+  caseSensitive: false,
+);
+
+/// The address at [i] and what it opens, or null.
 ///
-/// A closing bracket stays when it balances one inside the address, which
-/// is how Wikipedia writes half its URLs.
-String? linkAt(String s, int i) {
-  final m = _link.firstMatch(s.substring(i));
-  if (m == null) return null;
-  var raw = m.group(0)!;
-  while (raw.isNotEmpty && '.,;:!?)]}'.contains(raw[raw.length - 1])) {
+/// [text] is the stretch as typed, [url] the same with a scheme in front
+/// where one was missing. Punctuation that belongs to the sentence is taken
+/// off the end; a closing bracket stays when it balances one inside the
+/// address, which is how Wikipedia writes half its URLs.
+({String text, String url})? linkAt(String s, int i) {
+  final rest = s.substring(i);
+  var raw = _schemed.firstMatch(rest)?.group(0);
+  var bare = false;
+  if (raw == null) {
+    raw = _bare.firstMatch(rest)?.group(0);
+    if (raw == null) return null;
+    bare = true;
+  }
+  while (raw!.isNotEmpty && '.,;:!?)]}'.contains(raw[raw.length - 1])) {
     if (raw.endsWith(')') && raw.contains('(')) break;
     raw = raw.substring(0, raw.length - 1);
   }
-  final uri = Uri.tryParse(raw);
+  if (bare) {
+    final host = raw.split(RegExp(r'[/:]')).first.toLowerCase();
+    final tld = host.substring(host.lastIndexOf('.') + 1);
+    if (!host.startsWith('www.') && !linkTopLevelDomains.contains(tld)) {
+      return null;
+    }
+    // A word glued straight on after the match is not the end of a link.
+    if (_isWordish(s, i + raw.length)) return null;
+  }
+  final url = bare ? 'https://$raw' : raw;
+  final uri = Uri.tryParse(url);
   if (uri == null || uri.host.isEmpty) return null;
-  return raw;
+  return (text: raw, url: url);
 }
 
 /// Splits [input] into the stretches it should be drawn as.
@@ -115,12 +142,14 @@ void _parse(String s, Set<Marker> marks, List<MarkupSpan> out) {
 
     // An address is one stretch: no markup is read inside it, so an
     // underscore in a path does not start italics halfway through a link.
-    if (s[i] == 'h' && !_isWordish(s, i - 1)) {
+    // Only at the start of a word, and never right after an `@` — the
+    // `b.com` in `a@b.com` is somebody's mail, not a site.
+    if (_isWordish(s, i) && !_isWordish(s, i - 1) && !_isAt(s, i - 1)) {
       final link = linkAt(s, i);
       if (link != null) {
         flush();
-        out.add(MarkupSpan(link, marks: marks, link: link));
-        i += link.length;
+        out.add(MarkupSpan(link.text, marks: marks, link: link.url));
+        i += link.text.length;
         continue;
       }
     }
@@ -197,6 +226,8 @@ _Match? _markedSpan(String s, int i, Set<Marker> marks) {
 
 bool _isSpace(String s, int at) =>
     at < 0 || at >= s.length || RegExp(r'\s').hasMatch(s[at]);
+
+bool _isAt(String s, int at) => at >= 0 && at < s.length && s[at] == '@';
 
 bool _isWordish(String s, int at) =>
     at >= 0 && at < s.length && RegExp(r'[A-Za-z0-9]').hasMatch(s[at]);
