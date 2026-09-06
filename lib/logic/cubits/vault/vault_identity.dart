@@ -77,7 +77,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
 
       // 1. Resolve the invite to its server id BEFORE deriving the identity:
       //    with multiple servers per Supabase project the identity is scoped to
-      //    (host, serverId), so we must know the server first (see auth.md).
+      //    (host, serverId), so we must know the server first — ARCHITECTURE.md §1.
       final resolved = await _serverRepo.resolveInvite(supabaseUrl, inviteCode);
       if (!resolved.success || resolved.serverId == null) {
         return (

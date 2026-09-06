@@ -107,7 +107,8 @@ mixin _IdentityCryptoMixin {
   /// whatever server it is for.
   ///
   /// `Chain ID: solana:mainnet` and the base64 signature encoding are required
-  /// by GoTrue's web3 grant (verified against the local stack — see auth.md).
+  /// by GoTrue's web3 grant. `API.md` in `rift-self-host` explains which of its
+  /// four gates each field is there to clear.
   Future<({String message, String signatureBase64})> signSiws({
     required SimpleKeyPair keyPair,
     required Uint8List publicKeyBytes,
