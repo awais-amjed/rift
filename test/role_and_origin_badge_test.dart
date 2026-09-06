@@ -3,15 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/chat_message.dart';
-import 'package:rift/data/enums/message_origin.dart';
-import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/data/classes/role.dart';
+import 'package:rift/data/enums/message_origin.dart';
 import 'package:rift/data/enums/server_permission.dart';
-import 'package:rift/presentation/common/status_chip.dart';
-import 'package:rift/presentation/theme/custom_colors.dart';
-import 'package:rift/presentation/theme/app_theme.dart';
+import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/chat/message_row/message_origin_badge.dart';
+import 'package:rift/presentation/common/status_chip.dart';
 import 'package:rift/presentation/screens/home/members_sidebar/widgets/role_chip.dart';
+import 'package:rift/presentation/theme/app_theme.dart';
+import 'package:rift/presentation/theme/custom_colors.dart';
 
 import 'support/memory_storage.dart';
 

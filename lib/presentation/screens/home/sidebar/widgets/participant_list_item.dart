@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/participant_info.dart';
 import '../../../../../../data/classes/participant_setting.dart';
-import '../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../data/constants.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/speaking_ring.dart';
 import '../../../../common/squircle_avatar.dart';

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server_user.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -11,7 +12,6 @@ import '../connection_quality/connection_quality_indicator.dart';
 import '../edit/profile_edit_modal.dart';
 import 'widgets/dock_avatar_button.dart';
 import 'widgets/dock_icon_button.dart';
-import '../../../../../data/constants.dart';
 
 /// You, at the bottom of the sidebar: who you are, how your connection is
 /// doing, and the two controls you reach for mid-call.

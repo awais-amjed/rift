@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../../data/classes/public_server.dart';
 import '../../data/constants.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 import 'app_button.dart';
 import 'app_text_field.dart';
-import '../theme/theme_context.dart';
 
 /// The tags on a public listing: the ones already chosen, and a field to add
 /// another.

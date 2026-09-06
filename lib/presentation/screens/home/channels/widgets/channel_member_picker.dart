@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/services/member_selection.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../theme/app_text.dart';
-import 'member_pick_row.dart';
-import '../../../../../data/constants.dart';
 import '../../../../theme/theme_context.dart';
+import 'member_pick_row.dart';
 
 /// Who else is in a private channel.
 ///

@@ -61,7 +61,7 @@ class KeySweepDoorbell {
     _client = null;
     try {
       await channel?.unsubscribe();
-      client?.removeAllChannels();
+      await client?.removeAllChannels();
       await client?.dispose();
     } catch (_) {}
   }

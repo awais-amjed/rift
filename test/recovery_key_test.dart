@@ -1,11 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rift_crypto/rift_crypto.dart';
-
 import 'package:rift/data/classes/backup_file.dart';
 import 'package:rift/data/classes/encrypted_seed.dart';
 import 'package:rift/data/classes/encrypted_vault.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 
 /// The recovery key is a second door onto the master seed. These hold it to
 /// the two things that makes true: that a key generated here opens the blob it

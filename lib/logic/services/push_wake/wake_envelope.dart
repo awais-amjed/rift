@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
-import '../../../data/classes/message_body.dart';
 import 'package:rift_crypto/rift_crypto.dart';
+
+import '../../../data/classes/message_body.dart';
 
 /// Open and verify one envelope from the push background isolate, returning
 /// its text.

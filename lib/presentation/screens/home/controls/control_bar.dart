@@ -6,19 +6,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toastification/toastification.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
-import '../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/host_platform.dart';
+import '../../../../data/constants.dart';
 import '../../../common/app_modal.dart';
-import '../../../theme/app_shadows.dart';
-import '../../../theme/custom_colors.dart';
-import '../screenshare/screen_share_settings_dialog.dart';
-import '../../../theme/app_text.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
+import '../../../theme/app_shadows.dart';
+import '../../../theme/app_text.dart';
+import '../../../theme/custom_colors.dart';
+import '../screenshare/screen_share_settings_dialog.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 ///

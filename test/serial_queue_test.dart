@@ -81,10 +81,12 @@ void main() {
       final queue = SerialQueue();
       final log = <String>[];
 
-      queue.add(() async {
-        log.add('first');
-        throw StateError('boom');
-      });
+      unawaited(
+        queue.add(() async {
+          log.add('first');
+          throw StateError('boom');
+        }),
+      );
       await queue.add(() async => log.add('second'));
 
       expect(log, ['first', 'second']);
@@ -94,10 +96,12 @@ void main() {
       final queue = SerialQueue();
       var done = false;
 
-      queue.add(() async {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-        done = true;
-      });
+      unawaited(
+        queue.add(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          done = true;
+        }),
+      );
       await queue.idle;
 
       expect(done, isTrue);

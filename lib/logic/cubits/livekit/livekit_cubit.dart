@@ -7,20 +7,15 @@ import 'package:livekit_client/livekit_client.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/channel.dart';
-import '../../../data/classes/server.dart';
 import '../../../data/classes/participant_info.dart';
+import '../../../data/classes/server.dart';
 import '../../../data/participant_identity.dart';
-import '../app/app_cubit.dart';
-import '../screenshare/screenshare_cubit.dart';
-import '../server/server_cubit.dart';
-import '../token/token_cubit.dart';
-import '../vault/vault_cubit.dart';
 import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';
-import '../../services/channel_keyring.dart';
-import '../../services/key_sweep_doorbell.dart';
 import '../../services/call_foreground_service.dart';
+import '../../services/channel_keyring.dart';
 import '../../services/connection_failure.dart';
+import '../../services/key_sweep_doorbell.dart';
 import '../../services/level_throttle.dart';
 import '../../services/mic_tap_format.dart';
 import '../../services/participant_roster.dart';
@@ -34,15 +29,20 @@ import '../../services/sound_service.dart';
 import '../../services/speech_detector.dart';
 import '../../services/voice_keys.dart';
 import '../../services/voice_signal.dart';
+import '../app/app_cubit.dart';
+import '../screenshare/screenshare_cubit.dart';
+import '../server/server_cubit.dart';
+import '../token/token_cubit.dart';
+import '../vault/vault_cubit.dart';
 
-part 'livekit_state.dart';
 part 'livekit_connection.dart';
 part 'livekit_e2ee.dart';
 part 'livekit_leave.dart';
 part 'livekit_media_controls.dart';
 part 'livekit_participants.dart';
-part 'livekit_screenshare.dart';
 part 'livekit_room_events.dart';
+part 'livekit_screenshare.dart';
+part 'livekit_state.dart';
 part 'livekit_voice_activity.dart';
 
 /// Cubit managing LiveKit room connections, participants, and media controls.

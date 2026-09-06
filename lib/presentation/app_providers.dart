@@ -5,7 +5,6 @@ import '../logic/cubits/app/app_cubit.dart';
 import '../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../logic/cubits/channel_presence/channel_presence_cubit.dart';
-import '../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
 import '../logic/cubits/livekit/livekit_cubit.dart';
 import '../logic/cubits/notifications/server_notifications_cubit.dart';
@@ -18,6 +17,7 @@ import '../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../logic/cubits/theme/theme_cubit.dart';
 import '../logic/cubits/token/token_cubit.dart';
 import '../logic/cubits/vault/vault_cubit.dart';
+import '../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../logic/cubits/voice_stats/voice_stats_cubit.dart';
 
 /// Every app-wide cubit, and the callbacks that wire them to each other.

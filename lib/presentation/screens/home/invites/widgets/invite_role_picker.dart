@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/role.dart';
+import '../../../../../data/constants.dart';
 import '../../../../common/selectable_surface.dart';
 import '../../../../theme/app_text.dart';
-import '../../members_sidebar/widgets/role_chip.dart';
-import '../../../../../data/constants.dart';
 import '../../../../theme/theme_context.dart';
+import '../../members_sidebar/widgets/role_chip.dart';
 
 /// Which role, if any, the link hands out.
 ///

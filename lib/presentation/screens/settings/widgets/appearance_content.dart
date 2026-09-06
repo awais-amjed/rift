@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../data/constants.dart';
 import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/segmented_control.dart';
 import '../../../common/selectable_surface.dart';
-import 'section_title.dart';
-import 'setting_toggle_row.dart';
 import '../../../theme/app_palette.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import 'section_title.dart';
+import 'setting_toggle_row.dart';
 
 class AppearanceContent extends StatelessWidget {
   const AppearanceContent({super.key});

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../theme/app_motion.dart';
 import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
 import 'stream_stats_overlay.dart';
 import 'watch_stream_button.dart';
-import '../../../../theme/app_motion.dart';
 
 /// A participant filling the stage. Same content as the grid tile without the
 /// card chrome, plus a stats overlay and controls that fade out while the

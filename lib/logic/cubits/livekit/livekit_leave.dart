@@ -32,7 +32,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
         await _screenshareCubit?.stopScreenShare();
       }
 
-      SoundService.instance.playLeave();
+      unawaited(SoundService.instance.playLeave());
       _appCubit.setParticipants([]);
       _appCubit.setSelectedChannelId(null);
 
@@ -84,7 +84,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
       }
       for (final l in listeners) {
         try {
-          l.dispose();
+          await l.dispose();
         } catch (e) {
           HelperMethods.printDebug('Error disposing listener: $e');
         }

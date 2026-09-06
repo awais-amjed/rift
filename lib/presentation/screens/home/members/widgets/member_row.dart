@@ -3,15 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/label_pill.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../members_sidebar/widgets/role_chip.dart';
-import '../../../../common/label_pill.dart';
 import 'member_badge.dart';
 import 'member_manage_panel.dart';
-import '../../../../../data/constants.dart';
 
 /// One member in the members dialog: avatar, names, permission/moderation
 /// badges — expandable into a [MemberManagePanel] when the viewer may manage

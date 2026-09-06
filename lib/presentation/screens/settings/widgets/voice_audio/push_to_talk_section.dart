@@ -4,11 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../common/app_button.dart';
+import '../../../../common/button_footer.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 import '../setting_toggle_row.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../common/button_footer.dart';
-import '../../../../theme/theme_context.dart';
 
 /// Push-to-talk: the enable switch, the current keybind, and the capture
 /// button that listens for the next key pressed.

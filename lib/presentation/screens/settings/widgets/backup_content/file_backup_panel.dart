@@ -9,12 +9,11 @@ import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
-import '../../../../common/restore_file_dialog.dart';
-
-import '../section_title.dart';
-import '../../../../theme/app_text.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../common/restore_file_dialog.dart';
+import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import '../section_title.dart';
 
 class FileBackupPanel extends StatefulWidget {
   const FileBackupPanel({super.key});

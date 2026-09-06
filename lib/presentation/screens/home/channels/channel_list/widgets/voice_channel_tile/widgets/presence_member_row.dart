@@ -8,8 +8,8 @@ import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/squircle_avatar.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/custom_colors.dart';
-import '../../../../../sidebar/widgets/participant_context_menu.dart';
 import '../../../../../../../theme/theme_context.dart';
+import '../../../../../sidebar/widgets/participant_context_menu.dart';
 
 /// A member of a voice channel you're not in — rendered from Realtime
 /// presence, so we only have their name (no live mic/speaking state).

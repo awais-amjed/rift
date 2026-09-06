@@ -3,15 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/role.dart';
 import '../../../../data/classes/server_member.dart';
+import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/app_text.dart';
+import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/message_banner.dart';
+import '../../../theme/app_text.dart';
 import 'widgets/role_row.dart';
-import '../../../../logic/services/role_ladder.dart';
-import '../../../../data/enums/server_permission.dart';
 
 /// Which roles one member holds.
 ///

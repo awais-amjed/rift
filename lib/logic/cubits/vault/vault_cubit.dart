@@ -2,23 +2,23 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/backup_file.dart';
 import '../../../data/classes/encrypted_seed.dart';
 import '../../../data/classes/encrypted_vault.dart';
 import '../../../data/enums/auth_status.dart';
-import '../../../logic/helper_methods.dart';
-import '../../../logic/services/attachment_cache.dart';
-import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_repository.dart';
+import '../../../logic/helper_methods.dart';
+import '../../../logic/services/attachment_cache.dart';
 
-part 'vault_state.dart';
-part 'vault_creation.dart';
-part 'vault_identity.dart';
 part 'vault_auth.dart';
 part 'vault_backup.dart';
+part 'vault_creation.dart';
+part 'vault_identity.dart';
 part 'vault_recovery.dart';
+part 'vault_state.dart';
 
 /// Manages the user's encrypted vault: creation, server identity derivation,
 /// SIWS login, and backup export/import.

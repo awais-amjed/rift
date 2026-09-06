@@ -1,23 +1,22 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import '../../services/central_handle.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, User;
 
 import '../../../data/enums/auth_status.dart';
 import '../../../data/enums/error_code.dart';
-import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/repositories/supabase_backup_repository.dart';
 import '../../../logic/helper_methods.dart';
+import '../../services/central_handle.dart';
 import '../vault/vault_cubit.dart';
 
-part 'supabase_backup_state.dart';
-part 'supabase_backup_auth.dart';
-part 'supabase_backup_restore.dart';
-part 'supabase_backup_transfer.dart';
-part 'supabase_backup_password.dart';
 part 'supabase_backup_account_recovery.dart';
+part 'supabase_backup_auth.dart';
+part 'supabase_backup_password.dart';
+part 'supabase_backup_restore.dart';
+part 'supabase_backup_state.dart';
+part 'supabase_backup_transfer.dart';
 
 /// Manages the central-server account and cloud backup sync.
 ///

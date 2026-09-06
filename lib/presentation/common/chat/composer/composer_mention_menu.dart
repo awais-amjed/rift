@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/server_member.dart';
+import '../../../../data/constants.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 import '../../context_menu/context_menu_panel.dart';
 import '../../user_avatar.dart';
-import '../../../../data/constants.dart';
-import '../../../theme/theme_context.dart';
 
 /// The `@` menu: who is here, and what they are actually called.
 ///

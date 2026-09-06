@@ -5,15 +5,15 @@ import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/button_footer.dart';
+import '../../../../common/feature_header.dart';
 import '../../../../common/handle_field.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../common/segmented_control.dart';
 import '../../../../common/supabase_auth_form_state.dart';
+import '../../../../theme/app_text.dart';
 import '../onboarding_page.dart';
 import '../password_strength_indicator.dart';
-import '../../../../common/feature_header.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../common/button_footer.dart';
-import '../../../../common/segmented_control.dart';
 
 /// The account step's form: sign in, or create an account.
 ///

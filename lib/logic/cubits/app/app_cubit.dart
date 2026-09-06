@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
-import '../../../data/constants.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
+import '../../../data/constants.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
 import '../../services/windows_audio_ducking/windows_audio_ducking.dart';
 
 part 'app_cubit.g.dart';
-
 part 'app_state.dart';
 
 class AppCubit extends HydratedCubit<AppState> {

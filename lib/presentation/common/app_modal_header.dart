@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
-import '../../data/constants.dart';
 
 /// The title strip at the top of an [AppModal]: name, optional one-line
 /// explanation, optional leading icon, optional count, any header actions,

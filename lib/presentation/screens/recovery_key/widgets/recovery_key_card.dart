@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../theme/app_text.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 
 /// The key itself, sized and spaced to be copied off a screen by hand.

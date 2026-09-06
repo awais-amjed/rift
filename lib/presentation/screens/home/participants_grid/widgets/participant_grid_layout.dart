@@ -4,8 +4,8 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../../data/participant_identity.dart';
 import '../../../../../logic/services/room_tiles.dart';
 import '../../../../../logic/services/voice_tiles.dart';
-import '../participants_tile/participant_tile.dart';
 import '../../../../responsive/shell_scope.dart';
+import '../participants_tile/participant_tile.dart';
 
 /// Grid view displaying all participants with adaptive column count.
 class ParticipantGridLayout extends StatefulWidget {

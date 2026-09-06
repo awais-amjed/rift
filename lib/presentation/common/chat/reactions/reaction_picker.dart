@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../emoji_text.dart';
 import '../../popover_surface.dart';
-import '../../../../data/constants.dart';
 
 /// Curated quick-reaction emojis. A compact popup — not the full picker — since
 /// reactions are usually one of a common handful.

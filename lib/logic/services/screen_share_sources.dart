@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import '../../src/rust/api/screenshare/types.dart';
 import '../../src/rust/api/screenshare.dart';
+import '../../src/rust/api/screenshare/types.dart';
 import '../helper_methods.dart';
 
 /// Enumerating what a screen share can capture — screens, windows, and (on

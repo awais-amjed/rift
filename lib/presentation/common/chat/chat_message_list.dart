@@ -4,10 +4,10 @@ import 'package:intl/intl.dart';
 
 import '../../../data/classes/chat_message.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
+import '../../theme/app_text.dart';
 import 'attachments/attachment_loader.dart';
 import 'date_divider.dart';
 import 'message_row/chat_message_row.dart';
-import '../../theme/app_text.dart';
 
 /// Scrollable message history, newest at the bottom (reversed list, so it
 /// stays pinned to the latest message). Consecutive messages from the same

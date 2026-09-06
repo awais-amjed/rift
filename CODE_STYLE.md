@@ -9,7 +9,7 @@ guess its contents from its name.**
 
 ## 1. Size budgets
 
-| Kind of file | Comfortable | Split before |
+| Kind of file | Comfortable | Look again at |
 | --- | --- | --- |
 | Widget | < 150 lines | 200 |
 | Cubit part / mixin | < 200 lines | 250 |
@@ -17,8 +17,14 @@ guess its contents from its name.**
 | Repository | < 250 lines | 350 |
 | Pure model / helper | < 150 lines | 200 |
 
-These are guides, not lint rules — a 210-line widget that is genuinely one thing is fine.
-A 180-line file holding three unrelated things is not. **Refactor toward these shapes
+These are guides, not lint rules. **The split trigger is a second responsibility you can
+name, not a line count.** A composer or a message row that genuinely needs everything in
+one place can run to 400 or 500 lines and stay; a 180-line file holding three unrelated
+things is the problem. When a file is over its budget and is one job, say so in a line at
+the top of its doc comment so the next reader does not re-ask.
+
+`scripts/style_check.sh` lists what is over budget. It is a report for the reviewer, not
+a gate: the question at each line is "is this one job?". **Refactor toward these shapes
 whenever you touch a file**, not in a separate "cleanup" pass that never comes.
 
 ## 2. One widget per file
@@ -61,7 +67,8 @@ chat/
 ## 4. Central variables — no loose literals
 
 - **Colours**: `context.theme` getters, or `CustomColors` for semantic status. Never a
-  `Color(0x…)` in a widget, and never `ThemeState` as a constructor parameter.
+  `Color(0x…)` outside `presentation/theme/`, and never `ThemeState` as a constructor
+  parameter.
 - **Type sizes**: an `AppText` token, never `copyWith(fontSize:)`. **Radii**: `K.radiusRow` /
   `radiusCard` / `radiusPanel` / `radiusPill`, never a literal.
 - **Layout numbers reused across files**: `K` in `data/constants.dart`, under a banner
@@ -75,7 +82,8 @@ chat/
 ## 5. Cubits: split by seam, not by size
 
 Large cubits become `part` files with private mixins (`AGENTS.md` §State management). The
-seams that have worked for chat, in order:
+general rule: split by a responsibility the reader can name from the file name, never by
+"this file got long". For chat the seams that have worked, in order, are:
 
 1. `*_conversations.dart` — the list of things you can open.
 2. `*_history.dart` — opening one, paging it, decrypting rows.
@@ -105,7 +113,34 @@ network work belong in `logic/services/` or `data/repositories/`, and the widget
 only what it needs to *render* (`VoiceNoteRecorder` is the model to copy). This keeps
 widgets testable and lets a service be reused by a second surface later.
 
-## 7. Comments that earn their place
+## 7. Rebuilds and lists
+
+- `const` constructors and `const` children wherever the compiler lets you; a widget whose
+  fields are all final and has no `const` constructor is a bug.
+- Any list that can grow is `ListView.builder` / `.separated` (or a sliver), never a plain
+  `ListView(children:)` or a `Column` in a `SingleChildScrollView`. Items get a `key` when
+  they can reorder or be removed.
+- Read the narrowest slice of state a widget needs: `context.select`, or `BlocBuilder` with
+  `buildWhen`. Watching a whole state at the top of a screen rebuilds every row on every
+  typing indicator. `home_screen.dart` shows the pattern.
+- Nothing heavy in `build`: no decoding, sorting, filtering or JSON parsing. Do it once
+  where the data changes (the cubit, or the state class) and hand the widget the result.
+- Anything expensive per frame (image decode, crypto, classification) runs off the main
+  isolate — see `ImageSafetyWorker` and `CryptoRepository`.
+
+## 8. Async lifecycle
+
+- Every `StreamSubscription`, `Timer` and controller a cubit or `State` owns is cancelled or
+  disposed in `close()` / `dispose()`. The `cancel_subscriptions` and `close_sinks` lints
+  catch the obvious cases; the rest is on you.
+- After an `await` in a widget, check `mounted` before touching `context` or calling
+  `setState`. In a cubit, check `isClosed` before `emit`.
+- A future you deliberately drop is wrapped in `unawaited(...)`; the `unawaited_futures`
+  lint refuses a bare one. If you cannot say why it is safe to drop, await it.
+- Errors reach the user through `HelperMethods.showError` and debug output through
+  `HelperMethods.printDebug` (Dart) / `log::` (Rust) — never `print` or `println!`.
+
+## 9. Comments that earn their place
 
 - `///` on every public class/member: what it is for and any non-obvious constraint.
 - Inline `//` only for *why*, especially where the obvious code would be wrong (why the
@@ -113,7 +148,7 @@ widgets testable and lets a service be reused by a second surface later.
 - Section banners inside longer files: `// ── Section ─────────────`.
 - Delete stale comments as you edit — a wrong comment is worse than none.
 
-## 8. Shared UI: use the kit
+## 10. Shared UI: use the kit
 
 Before hand-rolling chrome, check `presentation/common/`:
 
@@ -138,12 +173,14 @@ Before hand-rolling chrome, check `presentation/common/`:
 Nothing hand-rolls dialog chrome: a body that scrolls internally goes in
 `AppModal(body:)`, which is what the slot is for.
 
-## 9. Before you commit
+## 11. Before you commit
 
 1. `flutter analyze` clean — the tree is at **zero issues**, including infos, so
-   any output is yours.
+   any output is yours. Vendored (`rust_builder/`) and untracked (`tool/`) code is
+   excluded in `analysis_options.yaml`.
 2. `flutter test` green; add pure tests for any pure logic you extracted or fixed.
 3. `dart format` on what you touched.
-4. Did the file you edited get *closer* to the shapes above, or further away?
-5. Update `AGENTS.md` / `schema.md` / `edge_functions.md` if you changed a convention,
+4. `scripts/style_check.sh` — anything new on that report is yours to justify or fix.
+5. Did the file you edited get *closer* to the shapes above, or further away?
+6. Update `AGENTS.md` / `schema.md` / `edge_functions.md` if you changed a convention,
    a table, or an endpoint.

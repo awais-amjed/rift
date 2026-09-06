@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:go_router/go_router.dart';
 import 'package:keyboard_dismisser/keyboard_dismisser.dart';
@@ -6,15 +7,14 @@ import 'package:sizer/sizer.dart';
 import 'package:toastification/toastification.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'app_bootstrap.dart';
-import 'logic/services/host_platform.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
+import 'logic/services/host_platform.dart';
 import 'logic/services/window_focus_service.dart';
 import 'presentation/app_providers.dart';
 import 'presentation/common/title_bar_overlay.dart';

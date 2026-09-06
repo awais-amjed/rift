@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../common/selectable_surface.dart';
 import '../../../../theme/app_text.dart';
-import '../../../../../data/constants.dart';
 
 /// A chip for picking one value in the screen-share settings — a resolution,
 /// a frame rate, a codec.

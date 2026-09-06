@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/sidebar_sizing.dart';
+import '../../../../data/constants.dart';
 import '../../../common/app_panel.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
 import 'widgets/sidebar_content.dart';
 import 'widgets/sidebar_resize_handle.dart';
-import '../../../responsive/shell_scope.dart';
 
 /// The left sidebar, and the strip you drag to resize it.
 ///

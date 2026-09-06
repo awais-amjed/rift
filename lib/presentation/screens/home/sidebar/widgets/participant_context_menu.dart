@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../data/participant_identity.dart';
 import '../../../../../../data/enums/home_surface.dart';
+import '../../../../../../data/participant_identity.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
@@ -61,7 +61,7 @@ class ParticipantContextMenu extends StatelessWidget {
 
     // Only one DM surface is open at a time.
     centralCubit.closeConversation();
-    dmCubit.openConversation(
+    await dmCubit.openConversation(
       peerId: userId,
       peerName: member?.displayName ?? name,
       peerChatKey: member?.chatPublicKey,

@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
-import 'rail_unread_badge.dart';
 import '../../../../../theme/app_motion.dart';
+import 'rail_unread_badge.dart';
 
 /// A rail slot holding an icon rather than an identity — Home, add-server,
 /// settings.

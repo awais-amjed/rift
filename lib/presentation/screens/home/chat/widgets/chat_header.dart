@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/channel.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/status_chip.dart';
-import 'channel_listeners_chip.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
-import '../../../../responsive/shell_scope.dart';
-import '../../../../../data/classes/channel.dart';
 import '../../channels/channel_list/widgets/channel_context_menu.dart';
+import 'channel_listeners_chip.dart';
 import 'chat_header_button.dart';
 import 'header_pane_buttons.dart';
-import '../../../../../data/constants.dart';
 
 /// The chat panel's top bar: which channel you're in, that it's encrypted, and
 /// the controls that change what the panel shows.

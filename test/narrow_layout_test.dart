@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift/data/classes/role.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/app_button.dart';
 import 'package:rift/presentation/common/app_modal_header.dart';
@@ -9,9 +10,8 @@ import 'package:rift/presentation/common/context_menu/context_menu_item.dart';
 import 'package:rift/presentation/common/hint_card.dart';
 import 'package:rift/presentation/common/message_banner.dart';
 import 'package:rift/presentation/common/nav_row.dart';
-import 'package:rift/data/classes/role.dart';
-import 'package:rift/presentation/screens/home/members_sidebar/widgets/role_chip.dart';
 import 'package:rift/presentation/common/status_chip.dart';
+import 'package:rift/presentation/screens/home/members_sidebar/widgets/role_chip.dart';
 
 /// In-memory stand-in so [ThemeCubit] (a HydratedCubit) can be built in tests.
 class _MemoryStorage implements Storage {

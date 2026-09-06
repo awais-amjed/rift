@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../../common/app_text_field.dart';
 import '../../../../../theme/app_text.dart';
-import '../../../../settings/widgets/section_title.dart';
 import '../../../../../theme/theme_context.dart';
+import '../../../../settings/widgets/section_title.dart';
 
 /// The identity + LiveKit half of the server settings dialog.
 ///

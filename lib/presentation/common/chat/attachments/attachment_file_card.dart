@@ -4,11 +4,11 @@ import '../../../../data/classes/attachment.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 import '../../icon_tile.dart';
 import 'attachment_download.dart';
 import 'attachment_loader.dart';
-import '../../../theme/app_text.dart';
-import '../../../theme/theme_context.dart';
 
 /// A non-media attachment: name, size, and a tap to decrypt and save it.
 /// The card owns the in-flight state so a slow download shows a spinner in

@@ -225,7 +225,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
           onLeave: disconnect,
         ),
       );
-      SoundService.instance.playJoin();
+      unawaited(SoundService.instance.playJoin());
       _syncParticipants();
       _applyStoredSettings();
     } catch (e) {

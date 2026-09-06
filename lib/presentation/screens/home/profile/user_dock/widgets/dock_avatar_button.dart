@@ -4,8 +4,8 @@ import '../../../../../../data/classes/server_user.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/user_avatar.dart';
-import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/app_motion.dart';
+import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
 
 /// Your avatar in the dock, and the way into the profile editor.

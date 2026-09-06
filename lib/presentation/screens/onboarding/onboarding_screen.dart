@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../common/canvas_backdrop.dart';
+import '../../theme/app_motion.dart';
 import 'widgets/account_step/account_step.dart';
 import 'widgets/password_step.dart';
 import 'widgets/welcome_step.dart';
-import '../../theme/app_motion.dart';
 
 /// Full-screen onboarding flow for first-time users.
 ///

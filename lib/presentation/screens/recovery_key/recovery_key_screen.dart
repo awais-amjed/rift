@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../common/app_button.dart';
+import '../../common/button_footer.dart';
 import '../../common/canvas_backdrop.dart';
 import '../../common/feature_header.dart';
 import '../../common/message_banner.dart';
 import 'widgets/recovery_key_acknowledgement.dart';
 import 'widgets/recovery_key_card.dart';
-import '../../common/button_footer.dart';
 
 /// Shown once, immediately after a vault is created, and not skippable.
 ///

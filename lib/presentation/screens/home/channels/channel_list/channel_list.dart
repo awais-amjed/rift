@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/channel.dart';
-import '../../../../../../data/enums/home_surface.dart';
 import '../../../../../../data/enums/channel_type.dart';
+import '../../../../../../data/enums/home_surface.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../data/enums/server_permission.dart';
 import '../../../../common/app_modal.dart';
 import '../create_channel_dialog.dart';
 import 'widgets/empty_channels_view.dart';
 import 'widgets/section_header.dart';
 import 'widgets/text_channel_tile.dart';
 import 'widgets/voice_channel_tile/voice_channel_tile.dart';
-import '../../../../../data/enums/server_permission.dart';
 
 /// Lists all channels grouped by type. Voice channels show live participants.
 class ChannelList extends StatelessWidget {

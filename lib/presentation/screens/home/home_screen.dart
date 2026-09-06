@@ -19,11 +19,11 @@ import '../../common/canvas_backdrop.dart';
 import '../../common/overlay_scrim.dart';
 import '../../responsive/shell_scope.dart';
 import 'main_content/main_content.dart';
-import 'servers/add_server/add_server_dialog.dart';
 import 'members_sidebar/members_sidebar.dart';
+import 'servers/add_server/add_server_dialog.dart';
 import 'sidebar/sidebar.dart';
-import 'sidebar/widgets/sidebar_tab.dart';
 import 'sidebar/widgets/sidebar_header.dart';
+import 'sidebar/widgets/sidebar_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

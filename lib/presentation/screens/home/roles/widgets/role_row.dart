@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/role.dart';
-import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
 /// One role in the list, with the dot that shows what colour it paints a name.

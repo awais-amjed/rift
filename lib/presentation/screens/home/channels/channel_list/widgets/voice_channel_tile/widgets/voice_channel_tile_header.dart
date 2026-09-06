@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../../../../../../data/classes/channel.dart';
 import '../../../../../../../../data/constants.dart';
 import '../../../../../../../theme/app_text.dart';
+import '../../../../../../../theme/theme_context.dart';
 import '../../channel_lock_badge.dart';
 import 'live_badge.dart';
 import 'voice_listening_badge.dart';
-import '../../../../../../../theme/theme_context.dart';
 
 /// The clickable row at the top of an occupied voice channel's card: the
 /// channel's name, its lock, whether a bot can hear it, and the LIVE tag.

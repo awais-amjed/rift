@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
+import '../../../../../common/button_footer.dart';
 import '../../../../../common/masked_email_text.dart';
+import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import 'message_banner.dart';
 import 'section_header.dart';
-import '../../../../../theme/app_text.dart';
-import '../../../../../../data/constants.dart';
-import '../../../../../common/button_footer.dart';
 
 /// Actions view shown when the user is signed in to the backup server.
 ///

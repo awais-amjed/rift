@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math' show max;
 import 'dart:typed_data';
@@ -11,10 +12,10 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/screen_share_sources.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
+import '../../../../data/constants.dart';
 import '../../../common/app_button.dart';
 import 'widgets/screen_share_settings_form.dart';
 import 'widgets/settings_dialog_header.dart';
-import '../../../../data/constants.dart';
 
 /// Dialog for configuring screen share settings (resolution, fps, bitrate,
 /// audio) before a share starts.
@@ -78,7 +79,8 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
             );
     });
 
-    if (Platform.isWindows) _loadThumbnails(sources);
+    // Thumbnails trickle in behind the list; the list does not wait for them.
+    if (Platform.isWindows) unawaited(_loadThumbnails(sources));
   }
 
   /// Fetches JPEG thumbnails one source at a time (Windows only), updating

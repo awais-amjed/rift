@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/role.dart';
+import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/services/role_ladder.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
-import '../../../../../logic/services/role_ladder.dart';
-import '../../../../../data/enums/server_permission.dart';
 
 /// The submenu behind "Roles" — one row per role, ticked when held.
 ///

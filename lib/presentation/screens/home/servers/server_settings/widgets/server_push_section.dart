@@ -4,8 +4,8 @@ import '../../../../../common/app_switch.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/no_central_account.dart';
 import '../../../../../theme/app_text.dart';
-import '../../../../settings/widgets/section_title.dart';
 import '../../../../../theme/theme_context.dart';
+import '../../../../settings/widgets/section_title.dart';
 
 /// Whether this server may wake its members' phones, in the settings dialog.
 ///

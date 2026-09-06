@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../theme/custom_colors.dart';
 import '../../../../../logic/services/video_stats_sampler.dart';
 import '../../../../theme/app_text.dart';
-import '../../../../../data/constants.dart';
+import '../../../../theme/custom_colors.dart';
 
 /// Live receive-side statistics for one video track, drawn over the tile.
 ///

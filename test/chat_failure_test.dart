@@ -14,7 +14,7 @@ void main() {
         ),
       );
 
-      expect(failure.title, contains("reach this server"));
+      expect(failure.title, contains('reach this server'));
       expect(failure.message, contains('offline'));
       expect(failure.offline, isTrue);
       // The channel key is a red herring here — nothing is wrong with the

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import '../../chat/widgets/chat_header.dart';
 import '../../chat/widgets/header_pane_buttons.dart';
-import '../../../../theme/theme_context.dart';
 
 /// The bar above a DM conversation list: what the list is, and what it belongs
 /// to.

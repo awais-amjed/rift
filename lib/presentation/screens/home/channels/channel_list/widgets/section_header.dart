@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../theme/app_text.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../theme/app_text.dart';
 
 /// The uppercase divider above a group of rows — TEXT, VOICE, ONLINE — with
 /// the group's own "add" affordance on the right where one exists.

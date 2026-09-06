@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_text.dart';
 import '../../data/constants.dart';
+import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
 
 /// The hero block that opens a full-screen step or a first-run panel: an

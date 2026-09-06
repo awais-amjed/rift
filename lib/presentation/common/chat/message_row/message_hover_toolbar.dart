@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../data/constants.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/custom_colors.dart';
-import '../../../../data/constants.dart';
 import '../../../theme/theme_context.dart';
 
 /// The floating actions revealed at a message's top-right corner on hover.

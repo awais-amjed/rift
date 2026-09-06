@@ -5,11 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../../logic/cubits/vault/vault_cubit.dart';
 import '../../logic/helper_methods.dart';
+import '../theme/app_text.dart';
 import 'app_button.dart';
 import 'app_modal.dart';
 import 'app_text_field.dart';
 import 'message_banner.dart';
-import '../theme/app_text.dart';
 
 /// Dialog for restoring a vault from an exported backup file.
 ///

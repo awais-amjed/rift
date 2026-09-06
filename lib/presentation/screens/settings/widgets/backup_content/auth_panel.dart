@@ -3,15 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/button_footer.dart';
 import '../../../../common/handle_field.dart';
 import '../../../../common/message_banner.dart';
-import '../../../../common/supabase_auth_form_state.dart';
-
-import '../section_title.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../common/button_footer.dart';
-import '../../../../theme/theme_context.dart';
 import '../../../../common/segmented_control.dart';
+import '../../../../common/supabase_auth_form_state.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
+import '../section_title.dart';
 
 class AuthPanel extends StatefulWidget {
   final SupabaseBackupState state;

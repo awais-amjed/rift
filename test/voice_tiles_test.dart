@@ -47,7 +47,7 @@ void main() {
     expect(result[1].participant.identity, 'bob~phone');
   });
 
-  test("a share sits beside its owner, not at the end of the grid", () {
+  test('a share sits beside its owner, not at the end of the grid', () {
     final result = tiles([
       const P('alice~dev1'),
       const P('bob~phone', sharing: true),

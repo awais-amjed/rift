@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../../../logic/services/host_platform.dart';
 import '../../../../../theme/app_text.dart';
-import 'mic_level_meter.dart';
 import '../../../../../theme/theme_context.dart';
+import 'mic_level_meter.dart';
 
 /// The input-level meter with the wording that says what it is for.
 ///

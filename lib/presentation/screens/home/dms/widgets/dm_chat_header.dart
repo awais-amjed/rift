@@ -5,10 +5,10 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../common/status_chip.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../chat/widgets/chat_header.dart';
-import '../../../../responsive/shell_scope.dart';
 import '../../chat/widgets/chat_header_button.dart';
 import '../../chat/widgets/header_pane_buttons.dart';
 

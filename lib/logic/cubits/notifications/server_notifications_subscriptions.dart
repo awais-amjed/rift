@@ -125,7 +125,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
     unawaited(() async {
       try {
         await sub.channel.unsubscribe();
-        sub.client.removeAllChannels();
+        await sub.client.removeAllChannels();
         await sub.client.dispose();
       } catch (_) {}
     }());

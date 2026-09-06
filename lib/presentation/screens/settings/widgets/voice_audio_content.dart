@@ -6,13 +6,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/host_platform.dart';
+import '../../../theme/theme_context.dart';
 import 'audio_device_section.dart';
 import 'mic_test/mic_test_section.dart';
 import 'section_title.dart';
 import 'setting_toggle_row.dart';
 import 'voice_audio/audio_processing_section.dart';
 import 'voice_audio/push_to_talk_section.dart';
-import '../../../theme/theme_context.dart';
 
 /// The Voice & Audio settings tab: devices, mic processing, the mic test,
 /// and the two Windows-only sections.

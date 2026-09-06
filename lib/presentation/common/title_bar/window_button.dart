@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/custom_colors.dart';
 import '../../../data/constants.dart';
 import '../../theme/app_motion.dart';
+import '../../theme/custom_colors.dart';
 import '../../theme/theme_context.dart';
 
 /// One control in the title bar's right-hand cluster.

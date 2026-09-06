@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
-import 'message_origin_badge.dart';
 import '../../../theme/theme_context.dart';
+import 'message_origin_badge.dart';
 
 /// The author + timestamp line that opens a group of messages.
 ///

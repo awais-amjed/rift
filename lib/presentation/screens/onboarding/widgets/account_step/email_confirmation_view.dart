@@ -3,10 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_button.dart';
+import '../../../../common/feature_header.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/resend_confirmation_button.dart';
 import '../onboarding_page.dart';
-import '../../../../common/feature_header.dart';
 
 class EmailConfirmationView extends StatelessWidget {
   final SupabaseBackupState state;

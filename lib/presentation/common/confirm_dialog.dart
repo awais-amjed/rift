@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
 import 'app_button.dart';
 import 'app_modal.dart';
 import 'context_menu_region.dart';
-import '../theme/app_text.dart';
 import 'icon_tile.dart';
 
 /// Ask the user to confirm one action, and answer `true` only if they did.

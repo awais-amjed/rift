@@ -5,10 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 
 import '../../../data/classes/screen_share_settings.dart';
-import '../../services/call_foreground_service.dart';
-import '../../services/host_platform.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
+import '../../services/call_foreground_service.dart';
+import '../../services/host_platform.dart';
 import '../livekit/livekit_cubit.dart';
 import '../server/server_cubit.dart';
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server_member.dart';
-import 'moderation_button.dart';
 import '../../../../theme/theme_context.dart';
+import 'moderation_button.dart';
 
 /// The mute / deafen / ban half of a member's management panel.
 ///

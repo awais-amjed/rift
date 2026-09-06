@@ -22,6 +22,10 @@ class InviteLinkListener {
   static final InviteLinkListener instance = InviteLinkListener._();
 
   final AppLinks _appLinks = AppLinks();
+
+  // Lives as long as the process: this is the one listener for links
+  // arriving from outside, and there is no moment to stop wanting them.
+  // ignore: cancel_subscriptions
   StreamSubscription<String>? _subscription;
 
   /// An invite that arrived with no one to receive it — a cold start.

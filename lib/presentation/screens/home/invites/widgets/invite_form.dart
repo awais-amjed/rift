@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/classes/role.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/segmented_control.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import 'chip_selector.dart';
 import 'copyable_field.dart';
 import 'field_label.dart';
 import 'invite_options.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../../data/classes/role.dart';
 import 'invite_role_picker.dart';
-import '../../../../theme/theme_context.dart';
 
 /// The body of the invite modal: the two pickers and the generated link.
 ///

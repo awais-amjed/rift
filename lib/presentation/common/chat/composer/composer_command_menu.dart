@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/server_member.dart';
 import '../../../theme/app_text.dart';
-import '../../popover_surface.dart';
 import '../../../theme/theme_context.dart';
+import '../../popover_surface.dart';
 
 /// The `/` menu: which bots are here and what they answer to.
 ///

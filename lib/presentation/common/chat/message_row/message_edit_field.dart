@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../theme/app_text.dart';
 import '../../../../data/constants.dart';
+import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 
 /// Inline editor that replaces a message's text while it is being edited —

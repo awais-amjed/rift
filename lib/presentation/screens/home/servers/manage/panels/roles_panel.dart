@@ -4,12 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/role.dart';
 import '../../../../../../data/enums/server_permission.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/services/role_ladder.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../roles/role_editor_dialog.dart';
 import '../../../roles/widgets/role_row.dart';
 import '../widgets/manage_panel.dart';
-import '../../../../../../logic/services/role_ladder.dart';
 
 /// Every role on the server, most senior first.
 ///
@@ -98,7 +98,7 @@ class _RolesPanelState extends State<RolesPanel> {
         child: RoleEditorDialog(role: role, newPosition: _newPosition),
       ),
     );
-    if (changed == true) _load();
+    if (changed == true) await _load();
   }
 
   /// Swap two adjacent roles' positions.

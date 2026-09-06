@@ -6,10 +6,10 @@ import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/squircle_avatar.dart';
-import 'rail_unread_badge.dart';
-import 'server_chip_menu.dart';
 import '../../../../../theme/app_motion.dart';
 import '../../../../../theme/theme_context.dart';
+import 'rail_unread_badge.dart';
+import 'server_chip_menu.dart';
 
 /// One server in the rail.
 ///

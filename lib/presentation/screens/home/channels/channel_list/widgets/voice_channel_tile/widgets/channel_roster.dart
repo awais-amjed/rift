@@ -11,8 +11,8 @@ import '../../../../../../../../logic/cubits/voice_listeners/voice_listeners_cub
 import '../../../../../sidebar/widgets/draggable_member.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
 import '../../../../../sidebar/widgets/participant_list_item.dart';
-import 'summoned_bot_row.dart';
 import 'presence_member_row.dart';
+import 'summoned_bot_row.dart';
 
 /// The people inside one voice channel, from both of the places we know about
 /// them: LiveKit when it's the call we're in, Realtime presence when it isn't.

@@ -12,14 +12,14 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_panel.dart';
 import '../../../responsive/shell_scope.dart';
 import '../chat/channel_chat_view.dart';
-import 'home_view.dart';
 import '../chat/widgets/header_pane_buttons.dart';
 import '../dms/central_dm_view.dart';
 import '../dms/server_dm_view.dart';
 import '../members_sidebar/members_sidebar.dart';
 import '../members_sidebar/widgets/members_sidebar_tab.dart';
-import 'widgets/banned_notice.dart';
 import '../participants_grid/participants_grid.dart';
+import 'home_view.dart';
+import 'widgets/banned_notice.dart';
 
 /// The centre pane's panel. Content panels sit one rung above the canvas on
 /// their own surface, which is what separates them from the chrome panels

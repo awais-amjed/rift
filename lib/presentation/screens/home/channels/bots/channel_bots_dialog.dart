@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/enums/server_permission.dart';
+import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
@@ -13,7 +14,6 @@ import '../../../../common/confirm_dialog.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/message_banner.dart';
 import 'widgets/channel_bot_row.dart';
-import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 
 /// Which bots hold the key to this channel.
 ///

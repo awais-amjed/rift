@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
-import '../theme/app_shadows.dart';
 import '../theme/app_motion.dart';
+import '../theme/app_shadows.dart';
 
 /// Wraps anything that should glow while its owner is talking — a voice tile,
 /// an avatar in the sidebar roster.

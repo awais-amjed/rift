@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../theme/app_text.dart';
 import 'widgets/auth_view.dart';
 import 'widgets/signed_in_view.dart';
-import '../../../../theme/app_text.dart';
 
 /// Full-screen view for managing Supabase cloud backups.
 ///

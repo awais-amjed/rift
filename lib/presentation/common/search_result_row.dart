@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 import 'squircle_avatar.dart';
-import '../../data/constants.dart';
 
 /// One person in a [SearchDropdownField] result list.
 ///

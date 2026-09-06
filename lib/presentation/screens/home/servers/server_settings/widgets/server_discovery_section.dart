@@ -8,9 +8,9 @@ import '../../../../../common/hint_card.dart';
 import '../../../../../common/no_central_account.dart';
 import '../../../../../common/tag_editor.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 import '../../../../settings/widgets/section_title.dart';
 import '../listing_draft.dart';
-import '../../../../../theme/theme_context.dart';
 
 /// The discovery third of the server settings dialog: whether this server is
 /// in the central browser, and how it reads there.

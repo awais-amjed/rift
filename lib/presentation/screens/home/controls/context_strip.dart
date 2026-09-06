@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/participant_identity.dart';
-import '../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/app_text.dart';
+import '../../../../data/constants.dart';
 import '../../../responsive/shell_scope.dart';
+import '../../../theme/app_text.dart';
 
 /// Slim strip above the participant grid: channel name, live participant
 /// count, and session timer. Keeps chrome to one row so the video area stays

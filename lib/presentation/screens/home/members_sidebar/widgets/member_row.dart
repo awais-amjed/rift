@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/constants.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/user_avatar.dart';
-import '../../../../theme/custom_colors.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'role_chip.dart';
-import '../../../../../data/constants.dart';
-import '../../../../theme/theme_context.dart';
 
 /// One member in the right-hand sidebar: avatar, name, role/state badges.
 ///

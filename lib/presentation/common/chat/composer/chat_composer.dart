@@ -5,29 +5,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/attachment.dart';
-import '../../../../data/classes/server_member.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
+import '../../../../data/classes/server_member.dart';
+import '../../../../data/constants.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
-import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/attachment_staging.dart';
+import '../../../../logic/services/bot_command.dart';
 import '../../../../logic/services/link_preview_fetcher.dart';
 import '../../../../logic/services/link_preview_parser.dart';
-import '../../../../logic/services/bot_command.dart';
 import '../../../../logic/services/mention_suggestions.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
 import '../../../theme/app_motion.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
 import 'composer_command_menu.dart';
-import 'composer_mention_menu.dart';
 import 'composer_input_row.dart';
+import 'composer_link_preview.dart';
+import 'composer_mention_menu.dart';
 import 'composer_plaintext_notice.dart';
 import 'composer_recording_bar.dart';
-import 'composer_link_preview.dart';
 import 'composer_staged_row.dart';
-import '../../../../data/constants.dart';
 
 /// Message input row: attach + emoji buttons, the text field, a mic and the
 /// send button, with a strip of staged-attachment chips above it once files

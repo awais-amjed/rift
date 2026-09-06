@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/message_reaction.dart';
-import 'reaction_chip.dart';
 import '../../../theme/theme_context.dart';
+import 'reaction_chip.dart';
 
 /// The row of emoji-reaction chips shown under a message, plus a small "add
 /// reaction" button. Tapping a chip toggles the local user's reaction; the "+"

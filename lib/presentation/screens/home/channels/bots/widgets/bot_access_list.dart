@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../theme/app_text.dart';
-import 'bot_channel_row.dart';
 import '../../../../../theme/theme_context.dart';
+import 'bot_channel_row.dart';
 
 /// One labelled list of channels a bot can reach.
 ///

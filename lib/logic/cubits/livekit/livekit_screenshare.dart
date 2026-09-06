@@ -20,7 +20,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       if (pub.source == TrackSource.screenShareVideo) {
         try {
           await pub.subscribe();
-          pub.setVideoQuality(VideoQuality.HIGH);
+          await pub.setVideoQuality(VideoQuality.HIGH);
           debugPrint('✓ Subscribed to screenshare video from $identity');
           subscribedAny = true;
         } catch (e) {

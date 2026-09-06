@@ -3,9 +3,9 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../logic/services/audio_devices.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 import 'device_dropdown.dart';
 import 'section_title.dart';
-import '../../../theme/theme_context.dart';
 
 /// One labelled dropdown of audio devices — input or output.
 ///

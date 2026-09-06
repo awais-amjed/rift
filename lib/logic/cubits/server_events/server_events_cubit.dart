@@ -158,7 +158,7 @@ class ServerEventsCubit extends Cubit<int> {
     unawaited(() async {
       try {
         await channel?.unsubscribe();
-        client?.removeAllChannels();
+        await client?.removeAllChannels();
         await client?.dispose();
       } catch (_) {}
     }());

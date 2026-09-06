@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../../logic/services/host_platform.dart';
 import 'app_palette.dart';
 import 'app_shadows.dart';
 import 'app_text.dart';
 import 'custom_colors.dart';
-import '../../data/constants.dart';
 
 class AppTheme {
   /// Builds the Material [ThemeData] for one brightness of a palette.

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../common/loading_dots.dart';
-import 'member_row.dart';
-import '../../../../../data/classes/role.dart';
 import '../../../../theme/theme_context.dart';
+import 'member_row.dart';
 
 /// The roster inside the members dialog: one [MemberRow] per member, and the
 /// rules about which of them the viewer may act on.

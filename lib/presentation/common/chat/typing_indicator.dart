@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_motion.dart';
 import '../../theme/app_text.dart';
-import '../loading_dots.dart';
 import '../../theme/theme_context.dart';
+import '../loading_dots.dart';
 
 /// A slim "… is typing" strip shown just above the composer. Renders nothing
 /// when [names] is empty, so callers can place it unconditionally.

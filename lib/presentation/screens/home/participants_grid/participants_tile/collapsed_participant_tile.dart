@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../common/speaking_ring.dart';
+import '../../../../theme/app_motion.dart';
+import '../../../../theme/theme_context.dart';
 import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
 import 'watch_stream_button.dart';
-import '../../../../../data/constants.dart';
-import '../../../../theme/app_motion.dart';
-import '../../../../theme/theme_context.dart';
 
 /// A participant as they appear in the grid: video or avatar in a rounded
 /// card, name badge always visible, and a speaking ring that lights up.

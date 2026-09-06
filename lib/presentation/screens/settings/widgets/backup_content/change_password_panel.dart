@@ -6,11 +6,10 @@ import '../../../../../logic/services/masked_email.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
-
-import '../section_title.dart';
 import '../../../../theme/app_text.dart';
-import 'change_password_form.dart';
 import '../../../../theme/theme_context.dart';
+import '../section_title.dart';
+import 'change_password_form.dart';
 
 /// Changing the password that guards the vault, and the account if there is
 /// one.

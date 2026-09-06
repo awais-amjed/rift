@@ -3,32 +3,32 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../data/constants.dart';
 import '../../../../data/classes/chat_message.dart';
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/host_platform.dart';
 import '../../../../logic/services/message_permissions.dart';
+import '../../../theme/app_motion.dart';
+import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 import '../../confirm_dialog.dart';
 import '../../message_markup_text.dart';
 import '../attachments/attachment_loader.dart';
 import '../attachments/message_attachments.dart';
+import '../link_preview_card.dart';
+import '../panel/panel_view.dart';
 import '../reactions/message_reactions_bar.dart';
 import '../reactions/reaction_picker.dart';
+import 'guarded_message_text.dart';
+import 'link_tap_recognizers.dart';
 import 'message_context_menu.dart';
 import 'message_edit_field.dart';
 import 'message_hover_toolbar.dart';
-import 'message_row_avatar.dart';
 import 'message_locked_body.dart';
+import 'message_row_avatar.dart';
 import 'message_row_header.dart';
-import '../link_preview_card.dart';
-import 'guarded_message_text.dart';
-import 'link_tap_recognizers.dart';
 import 'message_text.dart';
-import '../../../theme/app_motion.dart';
-import '../../../theme/app_text.dart';
-import '../panel/panel_view.dart';
-import '../../../theme/theme_context.dart';
 
 /// One message in the chat list — flat Discord-style row, not a bubble.
 ///

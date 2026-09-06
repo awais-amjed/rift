@@ -166,7 +166,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     try {
       await voice?.dispose();
       await channel?.unsubscribe();
-      client?.removeAllChannels();
+      await client?.removeAllChannels();
       await client?.dispose();
     } catch (_) {}
     _tearingDown = false;

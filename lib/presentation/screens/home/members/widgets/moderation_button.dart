@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
-import '../../../../../data/constants.dart';
 import '../../../../theme/theme_context.dart';
 
 /// One moderation control in the members dialog.

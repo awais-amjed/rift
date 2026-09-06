@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, User;
-
 import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/repositories/supabase_backup_repository.dart';
 import 'package:rift/logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/cubits/vault/vault_cubit.dart';
 import 'package:rift/presentation/screens/onboarding/widgets/account_step/auth_view.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, User;
 
 class _MemoryStorage implements Storage {
   final Map<String, dynamic> _data = {};

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
     show AuthState, RealtimeChannel;
 
@@ -11,38 +12,37 @@ import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/friend.dart';
 import '../../../data/classes/friend_buckets.dart';
-import '../../../data/classes/paged.dart';
 import '../../../data/classes/message_body.dart';
+import '../../../data/classes/paged.dart';
 import '../../../data/classes/pending_attachment.dart';
-import '../../services/link_preview_fetcher.dart';
-import '../../../data/repositories/central_dm_repository.dart';
-import 'package:rift_crypto/rift_crypto.dart';
-import '../../../supabase_config.dart';
-import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/friendship_state.dart';
+import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/notification_level.dart';
+import '../../../data/repositories/central_dm_repository.dart';
+import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
-import '../../services/central_handle.dart';
-import '../../services/push_service.dart';
 import '../../services/attachment_cache.dart';
 import '../../services/attachment_cleanup.dart';
+import '../../services/central_handle.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/link_preview_fetcher.dart';
 import '../../services/notification_service.dart';
-import '../../services/window_focus_service.dart';
 import '../../services/outbox.dart';
+import '../../services/push_service.dart';
+import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';
 import '../vault/vault_cubit.dart';
 
-part 'central_dm_state.dart';
-part 'central_dm_ready.dart';
 part 'central_dm_conversations.dart';
-part 'central_dm_friends.dart';
-part 'central_dm_unread.dart';
 part 'central_dm_decrypt.dart';
-part 'central_dm_history.dart';
-part 'central_dm_send.dart';
 part 'central_dm_edit.dart';
+part 'central_dm_friends.dart';
+part 'central_dm_history.dart';
+part 'central_dm_ready.dart';
+part 'central_dm_send.dart';
+part 'central_dm_state.dart';
+part 'central_dm_unread.dart';
 
 /// Central DMs — the discovery/first-contact tier (ARCHITECTURE.md §4).
 ///

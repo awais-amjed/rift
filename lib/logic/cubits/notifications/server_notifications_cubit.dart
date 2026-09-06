@@ -266,7 +266,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   Future<void> _notifyBackgroundDm(String serverId, String peerId) async {
     final name = await _peerDisplayName(serverId, peerId);
     if (isClosed || WindowFocusService.instance.isFocused) return;
-    NotificationService.instance.showMessage(
+    await NotificationService.instance.showMessage(
       title: _serverById(serverId)?.name ?? 'Rift',
       body: name != null ? '$name sent you a message' : 'New direct message',
     );

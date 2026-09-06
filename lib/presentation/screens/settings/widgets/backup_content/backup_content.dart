@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-
 import 'auth_panel.dart';
 import 'change_password_panel.dart';
 import 'confirm_email_panel.dart';
 import 'conflict_panel.dart';
-import 'recovery_key_panel.dart';
 import 'file_backup_panel.dart';
+import 'recovery_key_panel.dart';
 import 'signed_in_panel.dart';
 import 'this_device_section.dart';
 import 'vault_password_panel.dart';

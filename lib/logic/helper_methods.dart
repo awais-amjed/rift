@@ -74,7 +74,7 @@ class HelperMethods {
     Duration autoCloseDuration = const Duration(seconds: 3),
   }) {
     showToast(
-      title: "Error",
+      title: 'Error',
       description: '$error',
       type: ToastificationType.error,
       autoClose: autoClose,

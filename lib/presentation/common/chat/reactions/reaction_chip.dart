@@ -4,8 +4,8 @@ import '../../../../data/classes/message_reaction.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
-import '../../emoji_text.dart';
 import '../../../theme/theme_context.dart';
+import '../../emoji_text.dart';
 
 /// One emoji-reaction chip: the emoji, how many people picked it, and whether
 /// you are one of them.

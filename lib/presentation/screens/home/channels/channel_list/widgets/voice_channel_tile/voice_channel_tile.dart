@@ -10,11 +10,11 @@ import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../../common/nav_row.dart';
 import '../channel_context_menu.dart';
+import '../channel_lock_badge.dart';
 import 'widgets/channel_drop_target.dart';
 import 'widgets/channel_roster.dart';
 import 'widgets/voice_channel_tile_header.dart';
 import 'widgets/voice_listening_badge.dart';
-import '../channel_lock_badge.dart';
 
 /// A voice channel in the sidebar — Discord-style, showing who is in it.
 ///

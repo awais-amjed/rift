@@ -3,15 +3,17 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+
 import 'api/audio_endpoints.dart';
 import 'api/screenshare.dart';
 import 'api/screenshare/types.dart';
-import 'dart:async';
-import 'dart:convert';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
 class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
@@ -144,8 +146,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiScreenshareGetCaptureSourceThumbnailConstMeta =>
       const TaskConstMeta(
-        debugName: "get_capture_source_thumbnail",
-        argNames: ["captureFullScreen", "sourceIndex"],
+        debugName: 'get_capture_source_thumbnail',
+        argNames: ['captureFullScreen', 'sourceIndex'],
       );
 
   @override
@@ -173,7 +175,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiInitAppConstMeta =>
-      const TaskConstMeta(debugName: "init_app", argNames: []);
+      const TaskConstMeta(debugName: 'init_app', argNames: []);
 
   @override
   Future<List<AudioSource>> crateApiScreenshareListAudioSources() {
@@ -200,7 +202,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiScreenshareListAudioSourcesConstMeta =>
-      const TaskConstMeta(debugName: "list_audio_sources", argNames: []);
+      const TaskConstMeta(debugName: 'list_audio_sources', argNames: []);
 
   @override
   Future<List<CaptureSource>> crateApiScreenshareListCaptureSources({
@@ -231,8 +233,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiScreenshareListCaptureSourcesConstMeta =>
       const TaskConstMeta(
-        debugName: "list_capture_sources",
-        argNames: ["captureFullScreen"],
+        debugName: 'list_capture_sources',
+        argNames: ['captureFullScreen'],
       );
 
   @override
@@ -260,7 +262,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAudioEndpointsListInputEndpointsConstMeta =>
-      const TaskConstMeta(debugName: "list_input_endpoints", argNames: []);
+      const TaskConstMeta(debugName: 'list_input_endpoints', argNames: []);
 
   @override
   Future<List<AudioEndpoint>> crateApiAudioEndpointsListOutputEndpoints() {
@@ -287,7 +289,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAudioEndpointsListOutputEndpointsConstMeta =>
-      const TaskConstMeta(debugName: "list_output_endpoints", argNames: []);
+      const TaskConstMeta(debugName: 'list_output_endpoints', argNames: []);
 
   @override
   Stream<ScreenshareEvent> crateApiScreenshareScreenshareEventStream() {
@@ -320,8 +322,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiScreenshareScreenshareEventStreamConstMeta =>
       const TaskConstMeta(
-        debugName: "screenshare_event_stream",
-        argNames: ["sink"],
+        debugName: 'screenshare_event_stream',
+        argNames: ['sink'],
       );
 
   @override
@@ -352,7 +354,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiScreenshareStartScreenshareConstMeta =>
-      const TaskConstMeta(debugName: "start_screenshare", argNames: ["config"]);
+      const TaskConstMeta(debugName: 'start_screenshare', argNames: ['config']);
 
   @override
   Future<String> crateApiScreenshareStopScreenshare() {
@@ -379,7 +381,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiScreenshareStopScreenshareConstMeta =>
-      const TaskConstMeta(debugName: "stop_screenshare", argNames: []);
+      const TaskConstMeta(debugName: 'stop_screenshare', argNames: []);
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_shadows.dart';
 import 'step_dots.dart';
-import '../../../../data/constants.dart';
 
 /// Shared layout for every onboarding page: a card floating on the canvas,
 /// vertically centred while the window is tall enough and scrollable (rather

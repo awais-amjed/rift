@@ -4,10 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/button_footer.dart';
+import '../../../../common/feature_header.dart';
 import '../../../../common/message_banner.dart';
 import '../onboarding_page.dart';
-import '../../../../common/feature_header.dart';
-import '../../../../common/button_footer.dart';
 
 class VaultPasswordView extends StatefulWidget {
   final SupabaseBackupState state;

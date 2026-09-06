@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
-import '../../../theme/custom_colors.dart';
-import 'composer_icon_button.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
+import 'composer_icon_button.dart';
 
 /// What the composer bar shows while a voice note is being recorded.
 ///

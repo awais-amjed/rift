@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/panel_block.dart';
+import '../../../../data/constants.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 import 'panel_actions.dart';
 import 'panel_fields.dart';
-import '../../../../data/constants.dart';
-import '../../../theme/theme_context.dart';
 
 /// A bot's panel, drawn with Rift's own widgets from a fixed vocabulary.
 ///

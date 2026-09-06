@@ -4,16 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/attachment.dart';
-import '../../../theme/app_motion.dart';
-import 'attachment_image_viewer.dart';
+import '../../../../data/constants.dart';
 import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/image_safety.dart';
 import '../../../../logic/services/image_safety_classifier.dart';
+import '../../../theme/app_motion.dart';
+import '../../../theme/theme_context.dart';
+import 'attachment_image_viewer.dart';
 import 'attachment_loader.dart';
 import 'sensitive_image_cover.dart';
-import '../../../../data/constants.dart';
-import '../../../theme/theme_context.dart';
 
 /// An image attachment, decrypted on demand and shown as a rounded thumbnail.
 /// Tapping opens it full-screen.

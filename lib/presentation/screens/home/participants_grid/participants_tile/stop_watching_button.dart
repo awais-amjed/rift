@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../theme/app_text.dart';
+
 import '../../../../../data/constants.dart';
+import '../../../../theme/app_text.dart';
 
 /// Button to stop watching a screenshare stream
 class StopWatchingButton extends StatelessWidget {

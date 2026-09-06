@@ -6,10 +6,10 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/attachment.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import 'attachment_loader.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import 'attachment_loader.dart';
 
 /// Inline player for an audio attachment (voice note or attached audio file).
 /// Bytes are fetched + decrypted lazily on first play via [loader]; playback is

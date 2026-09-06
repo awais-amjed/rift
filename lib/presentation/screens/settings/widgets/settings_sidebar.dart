@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../data/constants.dart';
 import '../../../common/nav_row.dart';
 import '../../../theme/app_text.dart';
-import 'settings_tab.dart';
 import '../../../theme/theme_context.dart';
+import 'settings_tab.dart';
 
 class SettingsSidebar extends StatelessWidget {
   final SettingsTab activeTab;

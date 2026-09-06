@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
+import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
 /// The search row under the members dialog's header.

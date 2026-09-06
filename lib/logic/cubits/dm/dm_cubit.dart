@@ -2,35 +2,35 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase/supabase.dart';
 
+import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/message_body.dart';
-import '../../../data/classes/api_response.dart';
 import '../../../data/classes/pending_attachment.dart';
-import '../../services/link_preview_fetcher.dart';
 import '../../../data/classes/server.dart';
-import 'package:rift_crypto/rift_crypto.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
-import '../../services/chat_attachment_uploader.dart';
 import '../../services/broadcast_payload.dart';
+import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/link_preview_fetcher.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
 import '../../services/reaction_ops.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
-part 'dm_state.dart';
 part 'dm_conversations.dart';
 part 'dm_decrypt.dart';
-part 'dm_history.dart';
-part 'dm_send.dart';
 part 'dm_edit.dart';
+part 'dm_history.dart';
 part 'dm_reactions.dart';
+part 'dm_send.dart';
+part 'dm_state.dart';
 
 /// E2E direct messages between members of the selected server
 /// (ARCHITECTURE.md §4, Design 1 — encrypt to identity).
@@ -186,7 +186,7 @@ class DmCubit extends Cubit<DmState>
     _rtClient = null;
     _peerTopic = null;
     try {
-      client?.removeAllChannels();
+      await client?.removeAllChannels();
       await client?.dispose();
     } catch (_) {}
   }

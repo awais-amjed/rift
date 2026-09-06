@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/custom_colors.dart';
-import '../../../../../../data/constants.dart';
 
 /// One of the small square controls on the right of the user dock.
 ///

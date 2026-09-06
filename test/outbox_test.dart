@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:supabase/supabase.dart' show PostgrestException;
 import 'package:rift/data/classes/chat_message.dart';
 import 'package:rift/data/enums/error_code.dart';
-import 'package:rift/logic/services/chat_message_ops.dart';
 import 'package:rift/data/repositories/server_db.dart';
+import 'package:rift/logic/services/chat_message_ops.dart';
 import 'package:rift/logic/services/outbox.dart';
+import 'package:supabase/supabase.dart' show PostgrestException;
 
 /// A send that fails used to take the typed text with it: the optimistic row
 /// was removed, a toast said "Failed to send message", and the sentence was

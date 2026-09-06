@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rift/data/classes/friend.dart';
 import 'package:rift/data/classes/dm_conversation.dart';
+import 'package:rift/data/classes/friend.dart';
 import 'package:rift/data/classes/friend_buckets.dart';
 import 'package:rift/data/classes/paged.dart';
 import 'package:rift/data/enums/friendship_state.dart';

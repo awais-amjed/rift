@@ -5,8 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
-import '../../../../common/message_banner.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../common/message_banner.dart';
 
 /// The second half of a password change: the emailed code, where there is one,
 /// and the new password.

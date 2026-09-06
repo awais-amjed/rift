@@ -6,14 +6,14 @@ import '../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
+import '../../../common/button_footer.dart';
+import '../../../common/feature_header.dart';
+import '../../../common/message_banner.dart';
+import '../../../common/restore_file_dialog.dart';
+import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import 'onboarding_page.dart';
 import 'password_strength_indicator.dart';
-import '../../../common/restore_file_dialog.dart';
-import '../../../common/feature_header.dart';
-import '../../../common/message_banner.dart';
-import '../../../theme/app_text.dart';
-import '../../../common/button_footer.dart';
 
 /// Privacy-mode onboarding step — create a local-only vault.
 ///

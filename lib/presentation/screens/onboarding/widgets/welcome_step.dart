@@ -5,10 +5,10 @@ import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_mark.dart';
-import 'onboarding_page.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
+import 'onboarding_page.dart';
 
 /// First step of onboarding — welcome & app overview.
 class WelcomeStep extends StatelessWidget {

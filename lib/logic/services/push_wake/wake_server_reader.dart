@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:rift_crypto/rift_crypto.dart';
+
 import '../../../data/classes/api_response.dart';
 import '../../../data/enums/notification_level.dart';
-import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../chat_notice.dart';
 import '../mentions.dart';

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
 
 /// A square control in a panel header.
 ///

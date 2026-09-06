@@ -1,7 +1,7 @@
 import 'package:cryptography/cryptography.dart' show SimpleKeyPair;
+import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/enums/notification_level.dart';
-import 'package:rift_crypto/rift_crypto.dart';
 import '../chat_notice.dart';
 import 'wake_envelope.dart';
 import 'wake_item.dart';

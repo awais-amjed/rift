@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/chat_message.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/custom_colors.dart';
-import '../../../theme/app_text.dart';
 import '../../../../data/constants.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_text.dart';
+import '../../../theme/custom_colors.dart';
 
 /// What a message context-menu entry asked for.
 enum MessageMenuAction { react, copy, edit, delete }

@@ -7,11 +7,11 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/services/host_platform.dart';
+import '../../../../theme/app_motion.dart';
 import '../../controls/context_strip.dart';
 import '../../controls/control_bar.dart';
 import 'participant_grid_layout.dart';
 import 'waiting_view.dart';
-import '../../../../theme/app_motion.dart';
 
 /// Room is connected — shows participant tiles + control bar.
 ///

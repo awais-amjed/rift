@@ -4,11 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
 import '../../../../common/popover_surface.dart';
+import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 import 'connection_quality_style.dart';
 import 'ping_graph.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../theme/theme_context.dart';
 
 /// Popup panel shown above the connection quality indicator.
 /// Shows ping, average ping, packet loss, and a 5-minute ping history graph.

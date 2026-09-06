@@ -4,10 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
+import '../../../../../data/constants.dart';
+import '../../../../theme/app_text.dart';
 import 'connection_quality_popup.dart';
 import 'connection_quality_style.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../../data/constants.dart';
 
 /// Compact signal-strength line rendered inside the user dock (under the
 /// display name) while in a voice channel. Tapping it opens a popup with

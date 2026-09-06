@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/chat_message.dart';
 import 'package:rift/data/enums/message_origin.dart';
+import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/chat/chat_message_list.dart';
 import 'package:rift/presentation/common/chat/message_row/message_origin_badge.dart';

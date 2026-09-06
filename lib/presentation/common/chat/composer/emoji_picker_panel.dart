@@ -2,14 +2,14 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
-import '../../../../data/constants.dart';
-import '../../../theme/app_motion.dart';
-import '../../../theme/theme_context.dart';
 
 /// The emoji picker's contents: a search row, a flat row of category icons,
 /// and the grid.

@@ -3,12 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_button.dart';
-import '../../../../common/message_banner.dart';
-
-import '../section_title.dart';
-import '../../../../theme/app_text.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../common/message_banner.dart';
+import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import '../section_title.dart';
 
 class ConflictPanel extends StatelessWidget {
   final SupabaseBackupState state;

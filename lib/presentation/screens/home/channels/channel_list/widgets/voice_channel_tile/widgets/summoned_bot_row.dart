@@ -4,8 +4,8 @@ import '../../../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/squircle_avatar.dart';
 import '../../../../../../../theme/app_text.dart';
-import '../../../../../sidebar/widgets/participant_bot_section.dart';
 import '../../../../../../../theme/theme_context.dart';
+import '../../../../../sidebar/widgets/participant_bot_section.dart';
 
 /// A bot that was called into this call but is not in it.
 ///
