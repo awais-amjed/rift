@@ -48,6 +48,9 @@ class ThemeState extends ThemeExtension<ThemeState> {
   // Accent
   Color get primary => colors.primary;
 
+  /// [primary] under the pointer. See `PaletteColors.primaryHover`.
+  Color get primaryHover => colors.primaryHover;
+
   Color get onPrimary => colors.onPrimary;
 
   /// Accent tuned for text and icons — [primary] is too dim at label sizes.

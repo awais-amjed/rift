@@ -101,6 +101,12 @@ class PaletteColors {
 
   // ── Derived tints ─────────────────────────────────────────────────────────
 
+  /// The accent under the pointer: a shade deeper, not a shade paler. A
+  /// hover that lightens a filled button washes it toward white, which reads
+  /// as the button fading rather than answering; pressing into the colour
+  /// reads as contact.
+  Color get primaryHover => Color.lerp(primary, const Color(0xFF000000), 0.14)!;
+
   /// Half a hover, for a surface the pointer is always crossing — a message
   /// row. The full [bgHover] there turns reading into a strobe; this only has
   /// to say which row the toolbar belongs to.

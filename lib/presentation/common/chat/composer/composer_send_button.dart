@@ -52,15 +52,9 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
           decoration: BoxDecoration(
             // Enabled, this is the accent, flat: the one filled control in
             // the composer is loud enough without a glow under it.
-            color: enabled ? themeState.primary : null,
-            borderRadius: radius,
-          ),
-          // A thin scrim over the fill, which is the only way to lift a
-          // control whose own surface is opaque.
-          foregroundDecoration: BoxDecoration(
-            color: lit
-                ? themeState.onPrimary.withValues(alpha: 0.12)
-                : Colors.transparent,
+            color: enabled
+                ? (lit ? themeState.primaryHover : themeState.primary)
+                : null,
             borderRadius: radius,
           ),
           // Centred rather than filling the box, so the icon's bounds are the

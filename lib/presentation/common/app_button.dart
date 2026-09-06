@@ -45,7 +45,7 @@ class AppButton extends StatelessWidget {
     final enabled = !isLoading && onPressed != null;
 
     final fgColor = switch (variant) {
-      AppButtonVariant.primary => Colors.white,
+      AppButtonVariant.primary => themeState.onPrimary,
       AppButtonVariant.secondary => themeState.textSecondary,
       AppButtonVariant.danger => Colors.white,
     };
@@ -91,7 +91,7 @@ class AppButton extends StatelessWidget {
         backgroundColor: WidgetStateProperty.resolveWith((states) {
           if (isPrimary) {
             return states.contains(WidgetState.hovered)
-                ? themeState.accentBright
+                ? themeState.primaryHover
                 : themeState.primary;
           }
           if (variant == AppButtonVariant.danger) {
