@@ -20,7 +20,7 @@ class K {
 
   /// Avatars are squircles rather than circles: radius is this fraction of
   /// the avatar's size.
-  static const double avatarRadiusRatio = 1 / 3;
+  static const double avatarRadiusRatio = 0.28;
 
   /// The bar across the top of a pane: the chat header and the voice
   /// stage's context strip. One height, so switching panes does not jump
