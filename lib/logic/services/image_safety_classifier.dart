@@ -1,9 +1,11 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_litert/flutter_litert.dart';
 
 import 'image_safety.dart';
+import 'image_safety_worker.dart';
 
 /// The on-device NSFW classifier: `image-safety-classifier-xs`, a 3.5M
 /// parameter SwiftFormer converted to LiteRT (see `~/dev/rift-models`).
@@ -14,10 +16,11 @@ import 'image_safety.dart';
 /// after the decrypt, and the only thing it decides is whether *this* device
 /// draws the picture plainly.
 ///
-/// One interpreter for the app, loaded on first use and kept. Inference goes
-/// through an isolate on native platforms so a burst of thumbnails cannot
-/// stall the frame; the web has no isolates and runs it inline, where a
-/// model this small is still a few milliseconds.
+/// One model for the app, loaded on first use and kept. On native platforms
+/// it is LiteRT Next's compiled path on a worker isolate
+/// ([ImageSafetyWorker]) — four times faster than the classic interpreter
+/// here, and off the UI thread so a burst of thumbnails cannot stall a
+/// frame. The web has no isolates and keeps the classic interpreter inline.
 class ImageSafetyClassifier {
   ImageSafetyClassifier._();
 
@@ -29,8 +32,8 @@ class ImageSafetyClassifier {
   /// letterboxed — the same stretch the model card's own example uses.
   static const int side = 224;
 
+  ImageSafetyWorker? _worker;
   Interpreter? _interpreter;
-  IsolateInterpreter? _isolate;
   Future<bool>? _loading;
   bool _channelsFirst = false;
 
@@ -56,23 +59,25 @@ class ImageSafetyClassifier {
       return null;
     }
 
-    final input = _channelsFirst
-        ? pixels.reshape([1, 3, side, side])
-        : pixels.reshape([1, side, side, 3]);
-    final output = [List<double>.filled(3, 0)];
+    final List<double> scores;
     try {
-      final isolate = _isolate;
-      if (isolate != null) {
-        await isolate.run(input, output);
+      final worker = _worker;
+      if (worker != null) {
+        scores = await worker.run(pixels);
       } else {
+        final input = _channelsFirst
+            ? pixels.reshape([1, 3, side, side])
+            : pixels.reshape([1, side, side, 3]);
+        final output = [List<double>.filled(3, 0)];
         _interpreter!.run(input, output);
+        scores = output[0];
       }
     } catch (e) {
       debugPrint('ImageSafetyClassifier: inference failed – $e');
       return null;
     }
 
-    final verdict = ImageSafetyVerdict.fromScores(output[0]);
+    final verdict = ImageSafetyVerdict.fromScores(scores);
     _verdicts[id] = verdict;
     return verdict;
   }
@@ -81,17 +86,24 @@ class ImageSafetyClassifier {
 
   Future<bool> _loadOnce() async {
     try {
-      final options = InterpreterOptions()..threads = 2;
-      final interpreter = await Interpreter.fromAsset(asset, options: options);
-      final shape = interpreter.getInputTensors().first.shape;
+      final bytes = (await rootBundle.load(asset)).buffer.asUint8List();
       // The converter is asked for NHWC, but a model that kept the ONNX
       // layout is still usable — the pixels are just packed the other way.
+      // The classic interpreter is opened either way: it is what reads the
+      // shape, and what answers on the web or if the worker will not start.
+      final interpreter = Interpreter.fromBuffer(
+        bytes,
+        options: InterpreterOptions()..threads = 2,
+      );
+      final shape = interpreter.getInputTensors().first.shape;
       _channelsFirst = shape.length == 4 && shape[1] == 3;
       _interpreter = interpreter;
       if (!kIsWeb) {
-        _isolate = await IsolateInterpreter.create(
-          address: interpreter.address,
-        );
+        try {
+          _worker = await ImageSafetyWorker.start(bytes);
+        } catch (e) {
+          debugPrint('ImageSafetyClassifier: compiled path unavailable – $e');
+        }
       }
       return true;
     } catch (e) {

@@ -5,6 +5,7 @@ import 'package:flutter_litert/flutter_litert.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/logic/services/image_safety.dart';
 import 'package:rift/logic/services/image_safety_classifier.dart';
+import 'package:rift/logic/services/image_safety_worker.dart';
 
 /// The shipped model, run the way the app runs it, against the scores the
 /// ONNX original gives the same picture (see rift-models/verify.py). This is
@@ -49,5 +50,17 @@ void main() {
     expect(verdict.safe, closeTo(0.94, 0.05));
     expect(verdict.isSensitive, isFalse);
     interpreter.close();
+
+    // The compiled path the app actually runs on native, on its isolate,
+    // must say the same thing — LiteRT Next is documented to miscompute
+    // some models, and this is the check that it is not one of them.
+    final worker = await ImageSafetyWorker.start(
+      File(ImageSafetyClassifier.asset).readAsBytesSync(),
+    );
+    final scores = await worker.run(pixels);
+    worker.close();
+    for (var i = 0; i < 3; i++) {
+      expect(scores[i], closeTo(output[0][i], 1e-4));
+    }
   });
 }
