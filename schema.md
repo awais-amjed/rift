@@ -1,14 +1,14 @@
 # Database Schema
 
-Two databases, and only one of them is in this repository:
+Two databases, neither of them in this repository:
 
-- **self-hosted server** — `self_hosted_server_migrations/`, one per community.
+- **self-hosted server** — `migrations/` in the `rift-self-host` repository, one per community.
 - **central** — the shared discovery tier, now `migrations/` in the
   `rift-central` repository. Described below for the shapes the client depends
   on; the migrations there are the source of truth.
 
-The migrations are the source of truth and are written to be read in order; this file is the
-reference view. Access rules are not repeated here — every table's grants and policies live in
+The migrations are the source of truth and are written to be read in order. This file stays
+here because the client is the one thing that depends on both, and it is the reference view. Access rules are not repeated here — every table's grants and policies live in
 that folder's `002_security.sql`, deliberately in one place.
 
 Where the two schemas hold the same idea they now use the same names: `users`, `dm_messages`,

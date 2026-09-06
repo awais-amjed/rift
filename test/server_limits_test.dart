@@ -13,7 +13,7 @@ void main() {
     });
 
     test('the size cap defaults to the bucket ceiling that predated it', () {
-      // 25 MB — what self_hosted_server_migrations/005_storage.sql hardcoded
+      // 25 MB — what the server's 005_storage.sql hardcoded
       // before 007 made it a column.
       expect(ServerLimits.defaults.maxAttachmentBytes, 26214400);
     });

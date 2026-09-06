@@ -36,7 +36,6 @@ rust/src/api/     # Rust API surface exposed to Flutter — bridge functions and
 rust/src/screenshare/  # What those functions call: session, capture, audio/ per platform
 server_migrations/  # Numbered SQL migrations (001_..., 002_...)
 schema.md           # DB schema doc — update when tables/buckets change
-edge_functions.md   # Edge Function API doc — update when functions change
 ```
 
 ## State management — Bloc/Cubit only
@@ -232,7 +231,8 @@ edge_functions.md   # Edge Function API doc — update when functions change
   and update `schema.md`.
 - Edge Function changes: keep the `{success, data, error}` 200-always envelope, enforce
   permissions server-side (`is_server_admin` / `is_channel_manager` / `can_create_tokens`,
-  delegation rule: you can only grant what you hold), and update `edge_functions.md`.
+  delegation rule: you can only grant what you hold), and update `API.md` in
+  `rift-self-host`.
 
 ## Git
 
@@ -285,15 +285,14 @@ integration tests, and don't mock the backend, unless asked — backend behaviou
 verified against the local stack (see `LOCAL_DEV.md`), not with mocks. When you fix a
 logic bug in one of these pure areas, add a case that would have caught it.
 
-**The database has its own suite**, because RLS is security and Dart cannot see it:
-`./scripts/db_test.sh` runs `self_hosted_server_migrations/tests/policies_test.sql`
-against the local stack. The central tier's suite moved with its schema and is
-`./scripts/db_test.sh` in the `rift-central` repository, against a scratch
-database it creates and drops. Each test impersonates a user by
-setting `request.jwt.claims` and `SET LOCAL ROLE authenticated`, so it exercises the
-same path PostgREST takes; both files run in one transaction ending in `ROLLBACK`.
-Run it after touching any migration, and add a case whenever you add a policy, a
-grant or a `SECURITY DEFINER` function.
+**The databases have their own suites, and they are not in this repository.**
+RLS is security and Dart cannot see it, so each schema tests itself where it
+lives: `./scripts/db_test.sh` in `rift-self-host` for a server, and the same
+path in `rift-central` for the shared tier. Each test impersonates a user by
+setting `request.jwt.claims` and `SET LOCAL ROLE authenticated`, so it exercises
+the same path PostgREST takes, and runs in one transaction ending in `ROLLBACK`.
+Run the relevant one after touching a migration, and add a case whenever you add
+a policy, a grant or a `SECURITY DEFINER` function.
 
 **Live behaviour is recorded in `MANUAL_TESTING.md`.** Realtime delivery, cross-device
 key distribution, presence, LiveKit, the Android foreground service and per-width

@@ -182,5 +182,5 @@ Nothing hand-rolls dialog chrome: a body that scrolls internally goes in
 3. `dart format` on what you touched.
 4. `scripts/style_check.sh` — anything new on that report is yours to justify or fix.
 5. Did the file you edited get *closer* to the shapes above, or further away?
-6. Update `AGENTS.md` / `schema.md` / `edge_functions.md` if you changed a convention,
+6. Update `AGENTS.md` / `schema.md` if you changed a convention,
    a table, or an endpoint.

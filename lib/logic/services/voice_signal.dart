@@ -16,7 +16,8 @@ import 'dart:convert';
 class VoiceSignal {
   VoiceSignal._();
 
-  /// Keep in sync with `edge_functions/supabase/functions/move_user/index.ts`.
+  /// Keep in sync with `functions/move_user/index.ts` in the `rift-self-host`
+  /// repository, which is where the server's endpoints live.
   static const String moveTopic = 'rift.move';
   static const int version = 1;
 
