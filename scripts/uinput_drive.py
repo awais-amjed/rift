@@ -229,6 +229,31 @@ class Device:
         self.syn()
         time.sleep(0.05)
 
+    def drag(self, x1, y1, x2, y2, button=BTN_LEFT):
+        """Press at (x1, y1), move to (x2, y2) in small steps, release.
+
+        Stepped rather than jumped: a resize handle reads the pointer every
+        frame and clamps as it goes, and a single 300px jump would land as one
+        update the widget may treat as a fling."""
+        # Arrive, then nudge a pixel and come back: a press that follows a
+        # long jump can be recorded at the pointer's old position, and the
+        # first drag update then carries the whole journey as one delta.
+        self.move(x1 + 2, y1)
+        time.sleep(0.15)
+        self.move(x1, y1)
+        time.sleep(0.3)
+        self.emit(EV_KEY, button, 1)
+        self.syn()
+        time.sleep(0.08)
+        steps = max(1, int(max(abs(x2 - x1), abs(y2 - y1)) / 8))
+        for i in range(1, steps + 1):
+            self.move(x1 + (x2 - x1) * i // steps, y1 + (y2 - y1) * i // steps)
+            time.sleep(0.012)
+        time.sleep(0.08)
+        self.emit(EV_KEY, button, 0)
+        self.syn()
+        time.sleep(0.05)
+
     def tap(self, code, mods=()):
         for m in mods:
             self.emit(EV_KEY, m, 1)
@@ -289,6 +314,8 @@ def run(dev, cmd, args):
         if cmd == 'dclick':
             time.sleep(0.06)
             dev.click(button)
+    elif cmd == 'drag':
+        dev.drag(int(args[0]), int(args[1]), int(args[2]), int(args[3]))
     elif cmd == 'type':
         dev.clear_mods()
         dev.type(args[0])

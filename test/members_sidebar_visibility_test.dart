@@ -10,6 +10,7 @@ import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/members_sidebar/members_sidebar.dart';
+import 'package:rift/presentation/screens/home/sidebar/widgets/sidebar_resize_handle.dart';
 
 import 'shell_scope_harness.dart';
 
@@ -217,5 +218,70 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getSize(find.byType(MembersSidebar)).width, 0);
     expect(tester.takeException(), isNull);
+  });
+
+  // The handle is looked up through offstage widgets: the panel's content
+  // sits in an OverflowBox pinned wider than the animating container, which
+  // the default finder treats as offstage even when it is fully on screen.
+  // And the cubit is hydrated from a store the tests above share, so the
+  // panel is opened explicitly rather than assumed open.
+  group('resizing', () {
+    AppCubit openCubit() {
+      final cubit = AppCubit();
+      if (!cubit.state.membersSidebarOpen) cubit.toggleMembersSidebar();
+      return cubit;
+    }
+
+    testWidgets('dragging the handle left widens the panel', (tester) async {
+      final appCubit = openCubit();
+      await _pump(tester, appCubit);
+      await tester.pumpAndSettle();
+      final before = tester.getSize(find.byType(MembersSidebar)).width;
+
+      await tester.drag(
+        find.byType(SidebarResizeHandle, skipOffstage: false),
+        const Offset(-100, 0),
+      );
+      await tester.pumpAndSettle();
+
+      // Less than the full 100: the first few pixels are the drag slop.
+      expect(
+        tester.getSize(find.byType(MembersSidebar)).width,
+        greaterThan(before + 60),
+      );
+      expect(
+        appCubit.state.membersSidebarWidth,
+        greaterThan(K.membersSidebarWidth + 60),
+      );
+    });
+
+    testWidgets('a double-click puts it back', (tester) async {
+      final appCubit = openCubit()
+        ..setMembersSidebarWidth(K.membersSidebarWidth + 80);
+      await _pump(tester, appCubit);
+      await tester.pumpAndSettle();
+
+      final handle = find.byType(SidebarResizeHandle, skipOffstage: false);
+      await tester.tap(handle);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(handle);
+      await tester.pumpAndSettle();
+
+      expect(appCubit.state.membersSidebarWidth, K.membersSidebarWidth);
+    });
+
+    testWidgets('it stops at the floor', (tester) async {
+      final appCubit = openCubit();
+      await _pump(tester, appCubit);
+      await tester.pumpAndSettle();
+
+      await tester.drag(
+        find.byType(SidebarResizeHandle, skipOffstage: false),
+        const Offset(500, 0),
+      );
+      await tester.pumpAndSettle();
+
+      expect(appCubit.state.membersSidebarWidth, K.membersSidebarMinWidth);
+    });
   });
 }
