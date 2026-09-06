@@ -22,7 +22,10 @@ mixin _RoleApiMixin {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final rows = await db
           .from('roles')
-          .select('id, name, color, position, permissions, is_everyone')
+          .select(
+            'id, name, color, position, permissions, is_everyone, '
+            'is_default, is_owner',
+          )
           .order('position', ascending: false);
       return {'roles': rows};
     });
@@ -70,7 +73,10 @@ mixin _RoleApiMixin {
             'permissions': permissions,
             'color': color,
           })
-          .select('id, name, color, position, permissions, is_everyone')
+          .select(
+            'id, name, color, position, permissions, is_everyone, '
+            'is_default, is_owner',
+          )
           .single();
       return row;
     });

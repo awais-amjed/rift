@@ -73,6 +73,7 @@ two people, and neither of them should be deciding how long the other's messages
 | is_server_admin    | boolean     | Default: false                     | Whether user has server admin privileges         |
 | is_channel_manager | boolean     | Default: false                     | Whether user can manage channels                 |
 | can_create_tokens  | boolean     | Default: false                     | Whether user can create invites                  |
+| is_owner           | boolean     | Default: false                     | Holds the server's owner role (migration 013). Cached beside the three above by the same trigger |
 | is_bot             | boolean     | Required, default `false`            | A program, not a person (migration 014). Pinned after registration |
 | is_muted           | boolean     | Default: false                     | Moderation: enforced in get_channel_token grants  |
 | is_deafened        | boolean     | Default: false                     | Moderation: enforced in get_channel_token grants  |
@@ -475,7 +476,26 @@ not actually being revoked.
 taken back, only rotated past. 031's note that this grant was revocable was true only while voice
 was unencrypted.
 
-### member_role_list (migration 033 exposes `is_default`)
+### roles.is_owner — one owner per server (migration 013)
+
+A fifth seeded role, `Owner`, at position 400 with `ADMINISTRATOR`. Exactly one per server (a
+partial unique index), held by exactly one person, and never handed out: `app.may_assign_role`
+refuses it, so neither a `member_roles` write nor an `invites.role_id` can name it — the
+administrator's own-rank exemption included. It goes to the **first person who registers** on a
+server with no owner (`register_user`), which on a console-provisioned server is whoever redeems
+the setup invite, and it moves only through `transfer_ownership`.
+
+Three triggers keep it that way: `roles_protect_owner` pins the role's position and permissions
+and refuses its deletion; `member_roles_refuse_second_owner` refuses a second holder or a bot;
+`users_refuse_owner_leaving` refuses deleting the owner's row. All three step aside when the
+server's own row is being deleted, because the cascade has to get through — and so, since 013,
+does the `@everyone` guard from 006, which nothing had ever needed to get past before.
+
+Why a role and not `servers.owner_id`: every delegation rule since 006 is decided on position,
+so a role at 400 outranks admins (300) by the rule that already exists. A column would have been
+a second ladder with its own "outranks everyone" clause in every policy.
+
+### member_role_list (migration 033 exposes `is_default`; 013 adds `is_owner`)
 
 Which roles each member holds, joined to the role's own columns so a client draws a name and a
 colour without a second query.
@@ -929,6 +949,20 @@ Ordering is by message **id**, not by a timestamp, and that is what makes the cu
 list reorders itself every time anybody speaks, so an OFFSET into it means something different a
 second later. `p_limit` is clamped to 1..100 (default 30) rather than refused, and the query
 over-fetches one row so `has_more` is proved rather than guessed from a page coming back full.
+
+### transfer_ownership(p_user uuid) — migration 013
+
+Owner only. Takes the owner role off the caller and gives it to `p_user`, who must be a human,
+unbanned member of the same server and not the caller. The caller is left holding the most senior
+non-owner role that carries `ADMINISTRATOR`, if the server has one — stepping down from owning the
+place is not stepping down from running it. Raises `not_owner`, `user_not_found`,
+`cannot_transfer_to_self`, `bot_cannot_own`, `user_banned`.
+
+### delete_server() — migration 013
+
+Owner only. Deletes the server's row, which cascades to everything it holds, and returns its id.
+Raises `not_owner`. Called through the `delete_server` edge function, which is what clears the
+LiveKit rooms and the storage bucket the cascade cannot reach.
 
 ## Tables (central)
 

@@ -31,6 +31,14 @@ class Role {
   /// distinguishes nobody and only crowds out the roles that do.
   final bool isDefault;
 
+  /// The one role that is held by exactly one person (migration 013).
+  ///
+  /// Nobody hands it out and nobody edits it: it goes to the first person who
+  /// registers, and moves only through `transfer_ownership`. It outranks every
+  /// other role by position alone, which is why the ladder needs no special
+  /// case for it — only the screens that would offer to assign it do.
+  final bool isOwner;
+
   const Role({
     required this.id,
     required this.name,
@@ -39,6 +47,7 @@ class Role {
     this.color,
     this.isEveryone = false,
     this.isDefault = false,
+    this.isOwner = false,
   });
 
   bool carries(ServerPermission permission) => permissions.carries(permission);
@@ -59,6 +68,7 @@ class Role {
     permissions: (json['permissions'] as num?)?.toInt() ?? 0,
     isEveryone: json['is_everyone'] == true,
     isDefault: json['is_default'] == true,
+    isOwner: json['is_owner'] == true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -69,6 +79,7 @@ class Role {
     'permissions': permissions,
     'is_everyone': isEveryone,
     'is_default': isDefault,
+    'is_owner': isOwner,
   };
 
   Role copyWith({
@@ -85,5 +96,6 @@ class Role {
     permissions: permissions ?? this.permissions,
     isEveryone: isEveryone,
     isDefault: isDefault,
+    isOwner: isOwner,
   );
 }

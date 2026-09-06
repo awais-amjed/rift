@@ -84,7 +84,11 @@ SQL
 number_of() { basename "$1" | cut -d_ -f1 | sed 's/^0*//'; }
 
 # The first migration that has roles in it, and the point this test stops at.
-ROLES_MIGRATION=18
+# Was 18 under the old numbering; the compaction into 12 files made it 006,
+# and the number here was not moved with it — so every file applied *before*
+# the fixture, the backfill found nobody, and the test failed on a path no
+# server has ever taken.
+ROLES_MIGRATION=6
 
 # Everything before roles existed. Best-effort: the scheduling and storage
 # migrations need extensions only the real stack has, and nothing this test
@@ -158,8 +162,15 @@ BEGIN
     FROM member_roles mr JOIN roles r ON r.id = mr.role_id
     JOIN users u ON u.id = mr.user_id
    WHERE u.username = 'owner';
-  IF v_roles IS DISTINCT FROM 'Admin,Moderator,Members' THEN
+  -- 013 adds the top rung: the longest-standing admin owns the server.
+  IF v_roles IS DISTINCT FROM 'Owner,Admin,Moderator,Members' THEN
     RAISE EXCEPTION 'FAIL: the owner came out holding %', v_roles;
+  END IF;
+  IF NOT (SELECT is_owner FROM users WHERE username = 'owner') THEN
+    RAISE EXCEPTION 'FAIL: the owner is not cached as the owner';
+  END IF;
+  IF (SELECT is_owner FROM users WHERE username = 'mod') THEN
+    RAISE EXCEPTION 'FAIL: a second person came out owning the server';
   END IF;
   RAISE NOTICE 'ok  a server''s standings survive the move to roles';
 END $$;

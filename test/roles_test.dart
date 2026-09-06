@@ -133,7 +133,14 @@ void main() {
     );
     const mod = Role(id: 'o', name: 'Moderator', position: 200, permissions: 0);
     const admin = Role(id: 'a', name: 'Admin', position: 300, permissions: 0);
-    const all = [admin, mod, members, everyone];
+    const owner = Role(
+      id: 'w',
+      name: 'Owner',
+      position: 400,
+      permissions: 0,
+      isOwner: true,
+    );
+    const all = [owner, admin, mod, members, everyone];
 
     test('rank is the highest role actually held', () {
       expect(
@@ -184,6 +191,17 @@ void main() {
         mod,
         members,
       ]);
+    });
+
+    test('the owner role is nobody\'s to hand out, not even the owner\'s', () {
+      // Rank alone keeps it off an admin's list. The administrator exemption
+      // would let it through, and the database refuses it — so the ladder
+      // says so first.
+      expect(
+        RoleLadder.assignable(all, 400, isAdministrator: true),
+        isNot(contains(owner)),
+      );
+      expect(RoleLadder.below(all, 400), [admin, mod, members]);
     });
   });
 

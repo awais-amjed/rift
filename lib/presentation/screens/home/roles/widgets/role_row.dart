@@ -38,6 +38,7 @@ class RoleRow extends StatelessWidget {
 
   String? get _subtitle {
     if (role.isEveryone) return 'Everybody, always';
+    if (role.isOwner) return 'One person, who can end or hand on the server';
     return switch (memberCount) {
       null => null,
       0 => 'Nobody yet',
@@ -86,6 +87,12 @@ class RoleRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (role.isOwner)
+              Icon(
+                Icons.workspace_premium_outlined,
+                size: 14,
+                color: themeState.accentBright,
+              ),
             // Says which rows are out of reach before they are tapped, rather
             // than letting the database say it afterwards.
             if (locked)

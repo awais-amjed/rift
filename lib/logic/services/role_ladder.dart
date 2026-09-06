@@ -86,12 +86,20 @@ class RoleLadder {
   /// The asymmetry is easy to get wrong in one screen and not another, which
   /// is the whole reason it is written once. Taking a role *off* is governed by
   /// the same exemption, minus your own (026).
+  ///
+  /// The owner role is on neither list. It outranks everybody, so the rank
+  /// rule alone keeps it out of [below]; the administrator exemption here
+  /// would let it through, and the database (013) refuses it — so it is
+  /// named, rather than left to be offered and then refused.
   static List<Role> assignable(
     List<Role> roles,
     int rank, {
     required bool isAdministrator,
   }) => [
     for (final role in roles)
-      if (!role.isEveryone && (isAdministrator || role.position < rank)) role,
+      if (!role.isEveryone &&
+          !role.isOwner &&
+          (isAdministrator || role.position < rank))
+        role,
   ];
 }

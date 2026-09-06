@@ -5,6 +5,12 @@ class UserPermissions {
   final bool isChannelManager;
   final bool canCreateTokens;
 
+  /// Whether this member holds the server's owner role (migration 013) — a
+  /// fourth cached column beside the three above, kept by the same trigger.
+  /// Not a permission bit: an owner is an administrator who can also end the
+  /// server or hand it on, and those two are gated on this alone.
+  final bool isOwner;
+
   /// Everything this member holds, as `my_permissions()` returned it
   /// (migration 021).
   ///
@@ -20,6 +26,7 @@ class UserPermissions {
     this.isServerAdmin = false,
     this.isChannelManager = false,
     this.canCreateTokens = false,
+    this.isOwner = false,
     this.bits = 0,
   });
 
@@ -41,6 +48,7 @@ class UserPermissions {
       isServerAdmin: json['is_server_admin'] as bool? ?? false,
       isChannelManager: json['is_channel_manager'] as bool? ?? false,
       canCreateTokens: json['can_create_tokens'] as bool? ?? false,
+      isOwner: json['is_owner'] as bool? ?? false,
       bits: (json['permission_bits'] as num?)?.toInt() ?? 0,
     );
   }
@@ -49,6 +57,7 @@ class UserPermissions {
     'is_server_admin': isServerAdmin,
     'is_channel_manager': isChannelManager,
     'can_create_tokens': canCreateTokens,
+    'is_owner': isOwner,
     'permission_bits': bits,
   };
 
@@ -56,12 +65,14 @@ class UserPermissions {
     bool? isServerAdmin,
     bool? isChannelManager,
     bool? canCreateTokens,
+    bool? isOwner,
     int? bits,
   }) {
     return UserPermissions(
       isServerAdmin: isServerAdmin ?? this.isServerAdmin,
       isChannelManager: isChannelManager ?? this.isChannelManager,
       canCreateTokens: canCreateTokens ?? this.canCreateTokens,
+      isOwner: isOwner ?? this.isOwner,
       bits: bits ?? this.bits,
     );
   }

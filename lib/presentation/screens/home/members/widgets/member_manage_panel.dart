@@ -8,6 +8,7 @@ import '../../../../common/confirm_dialog.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../roles/member_roles_dialog.dart';
 import 'member_moderation_row.dart';
+import 'ownership_actions.dart';
 import '../../channels/bots/bot_access_dialog.dart';
 import '../../../../../data/constants.dart';
 import '../../../../theme/theme_context.dart';
@@ -111,6 +112,20 @@ class MemberManagePanel extends StatelessWidget {
                   icon: Icons.shield_outlined,
                   label: 'Roles',
                   onTap: isBusy ? null : () => _openRoles(context),
+                ),
+              // Owner only, and only for somebody who could hold it. Below
+              // roles rather than among them: it is not a role you hand out,
+              // it is the one you give up.
+              if (OwnershipActions.canTransferTo(
+                context.read<ServerCubit>(),
+                member,
+              ))
+                _PanelRow(
+                  icon: Icons.workspace_premium_outlined,
+                  label: 'Transfer ownership',
+                  onTap: isBusy
+                      ? null
+                      : () => OwnershipActions.transfer(context, member),
                 ),
               MemberModerationRow(
                 member: member,

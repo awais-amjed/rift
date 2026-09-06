@@ -43,6 +43,7 @@ class ServerUserRow {
       'is_server_admin': u['is_server_admin'],
       'is_channel_manager': u['is_channel_manager'],
       'can_create_tokens': u['can_create_tokens'],
+      'is_owner': u['is_owner'],
     },
   };
 

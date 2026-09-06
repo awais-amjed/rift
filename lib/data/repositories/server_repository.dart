@@ -21,6 +21,7 @@ part 'server_repository_channels.dart';
 part 'server_repository_chat.dart';
 part 'server_repository_chat_reads.dart';
 part 'server_repository_members.dart';
+part 'server_repository_ownership.dart';
 part 'server_repository_push.dart';
 part 'server_repository_reactions.dart';
 part 'server_repository_roles.dart';
@@ -59,6 +60,7 @@ class ServerRepository
         _PushApiMixin,
         _ReactionApiMixin,
         _RoleApiMixin,
+        _OwnershipApiMixin,
         _ServerApiMixin,
         _UnreadApiMixin,
         _VoiceApiMixin,

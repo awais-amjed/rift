@@ -37,6 +37,7 @@ part 'server_api.dart';
 part 'server_member_lookup_api.dart';
 part 'server_members_api.dart';
 part 'server_roles_api.dart';
+part 'server_ownership_api.dart';
 part 'server_channels_api.dart';
 part 'server_private_channels_api.dart';
 part 'server_chat_api.dart';
@@ -54,6 +55,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerMemberLookupApiMixin,
         _ServerMembersApiMixin,
         _ServerRolesApiMixin,
+        _ServerOwnershipApiMixin,
         _ServerBotsApiMixin,
         _ServerVoiceBotsApiMixin,
         _ServerChannelsApiMixin,

@@ -58,7 +58,8 @@ mixin _ServerApiMixin {
           .from('users')
           .select(
             'id, username, display_name, avatar_path, is_muted, is_deafened, '
-            'is_banned, is_server_admin, is_channel_manager, can_create_tokens',
+            'is_banned, is_server_admin, is_channel_manager, can_create_tokens, '
+            'is_owner',
           )
           .eq('id', ServerUserRow.uidOf(bearerToken) ?? '')
           .maybeSingle();
