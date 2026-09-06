@@ -1,3 +1,4 @@
+import 'package:rift/data/enums/error_code.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -272,7 +273,7 @@ class ChannelKeyring with _KeyringSealingMixin {
       currentVersion = 1;
       return const KeyringOutcome.ready();
     }
-    if (response.errorCode == 'keyring_conflict') {
+    if (response.errorCode == ErrorCode.keyringConflict) {
       // Not a failure: the caller refetches the winner's ring.
       return const KeyringOutcome.waiting();
     }

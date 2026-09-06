@@ -14,22 +14,13 @@ class ErrorCode {
   /// Token was not found in the database (e.g. manually deleted).
   static const String tokenInvalid = 'token_invalid';
 
-  /// Token exists but its TTL has passed.
+  /// The session has aged out. Minted by the client rather than sent by an
+  /// edge function: sessions are GoTrue's, so what actually arrives is a
+  /// PostgREST "JWT expired", which `ServerDb` turns into this so the rest
+  /// of the app has one thing to test.
   static const String tokenExpired = 'token_expired';
 
-  /// Token row has no associated user_id.
-  static const String tokenUnlinked = 'token_unlinked';
-
-  /// User exists but has no token row (unusual server-side state).
-  static const String noSession = 'no_session';
-
-  // ── Challenge / auth flow ────────────────────────────────────────────────────
-  /// Nonce not found or already consumed.
-  static const String challengeInvalid = 'challenge_invalid';
-
-  /// Nonce TTL has passed before verify was called.
-  static const String challengeExpired = 'challenge_expired';
-
+  // ── Auth flow ───────────────────────────────────────────────────────────────
   /// Ed25519 signature verification failed.
   static const String signatureInvalid = 'signature_invalid';
 
@@ -50,12 +41,22 @@ class ErrorCode {
   static const String channelNotFound = 'channel_not_found';
   static const String channelNameDuplicate = 'channel_name_duplicate';
   static const String channelTypeInvalid = 'channel_type_invalid';
-  static const String channelWrongServer = 'channel_wrong_server';
+  static const String messageNotFound = 'message_not_found';
 
-  // ── Key rotation ─────────────────────────────────────────────────────────────
-  static const String keySame = 'key_same';
-  static const String keyInUse = 'key_in_use';
+  // ── Chat ─────────────────────────────────────────────────────────────────────
+  /// Another writer registered this key version first. Not a failure on its
+  /// own: refetch the keyring, re-wrap against what is now current, post again.
+  static const String keyringConflict = 'keyring_conflict';
 
+  /// A message envelope was missing a field, or carried an oversized one.
+  static const String envelopeInvalid = 'envelope_invalid';
+
+  /// `chat_public_key` is not valid base64, or is not 32 bytes.
+  static const String chatKeyInvalid = 'chat_key_invalid';
+
+  /// A bot asked for a voice token before any member had sealed it a media
+  /// key. Clears by itself once a member has been in the channel.
+  static const String keyNotReady = 'key_not_ready';
   // ── Registration ─────────────────────────────────────────────────────────────
   static const String inviteInvalid = 'invite_invalid';
   static const String inviteExhausted = 'invite_exhausted';
@@ -120,7 +121,7 @@ class ErrorCode {
   /// Returns true for any code that means the session token is no longer
   /// valid and the client should attempt re-authentication.
   static bool isSessionInvalid(String? code) =>
-      code == tokenInvalid || code == tokenExpired || code == tokenUnlinked;
+      code == tokenInvalid || code == tokenExpired;
 
   /// Whether the same call, made again later, could plausibly succeed.
   ///
