@@ -47,7 +47,6 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
 
   Future<void> _load() async {
     final cubit = context.read<ServerCubit>();
-    final me = cubit.state.selectedServer?.user?.id;
     final roles = await cubit.listRoles();
     final assignments = await cubit.listMemberRoles();
     if (!mounted) return;
@@ -57,7 +56,6 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
       _assignable = {
         for (final role in RoleLadder.assignable(
           roles,
-          RoleLadder.rankOf(assignments, me),
           isAdministrator:
               (cubit.state.selectedServer?.user?.permissions.bits ?? 0).has(
                 ServerPermission.administrator,

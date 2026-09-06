@@ -2,21 +2,16 @@ import '../../../../../data/classes/user_permissions.dart';
 import '../../../../../data/enums/server_permission.dart';
 
 /// The pages of the manage-server dialog, in nav order.
-enum ServerManageTab {
-  overview,
-  roles,
-  members,
-  invites,
-  bots,
-  webhooks,
-  danger,
-}
+enum ServerManageTab { overview, roles, members, bots, webhooks, danger }
 
 /// Which pages somebody gets, decided on what they hold.
 ///
-/// One place rather than a condition per nav row, because the same answer
-/// decides whether the dialog is worth opening at all: the rail's menu offers
-/// "Manage server" only to somebody who would see more than the way out.
+/// One place rather than a condition per nav row. The dialog is for the
+/// people running the place: an administrator gets all of it, a channel
+/// manager the members (and any bot or webhook page their bits open), and
+/// the last page is the owner's alone. Inviting and leaving are not in here
+/// at all — they are the rail menu's, as they always were, because they are
+/// things a member does rather than things a server is managed by.
 class ServerManageTabs {
   const ServerManageTabs._();
 
@@ -24,18 +19,11 @@ class ServerManageTabs {
     final p = permissions ?? const UserPermissions();
     return [
       if (p.isServerAdmin) ServerManageTab.overview,
-      // Everybody may read the roles; editing them is gated inside.
-      ServerManageTab.roles,
+      if (p.isServerAdmin) ServerManageTab.roles,
       if (p.isServerAdmin || p.isChannelManager) ServerManageTab.members,
-      if (p.can(ServerPermission.createInvite)) ServerManageTab.invites,
       if (p.can(ServerPermission.manageBots)) ServerManageTab.bots,
       if (p.can(ServerPermission.manageWebhooks)) ServerManageTab.webhooks,
-      ServerManageTab.danger,
+      if (p.isOwner) ServerManageTab.danger,
     ];
   }
-
-  /// Whether there is anything here beyond looking and leaving.
-  static bool worthOpening(UserPermissions? permissions) => visible(
-    permissions,
-  ).any((t) => t != ServerManageTab.roles && t != ServerManageTab.danger);
 }

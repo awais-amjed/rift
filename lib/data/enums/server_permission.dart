@@ -41,12 +41,15 @@ enum ServerPermission {
     'Manage server',
     'Rename the server, change its icon, and set how long messages are kept.',
   ),
+
+  /// Retired by migration 015: roles are an administrator's to shape, and
+  /// the bit opens nothing any more. Kept so the number stays taken and an
+  /// old role carrying it still parses; hidden from the editor.
   manageRoles(
     2,
     PermissionGroup.server,
     'Manage roles',
-    'Create and edit roles below their own, and hand those roles out. Cannot '
-        'grant a permission they do not hold themselves.',
+    'Retired. Creating, editing and handing out roles is an administrator\'s.',
   ),
   manageChannels(
     3,
@@ -205,8 +208,11 @@ enum ServerPermission {
   /// Everything in [group], in bit order — which is the order the migration
   /// assigns them and the order they read best in.
   static List<ServerPermission> inGroup(PermissionGroup group) =>
-      values.where((p) => p.group == group).toList()
+      values.where((p) => p.group == group && !p.isRetired).toList()
         ..sort((a, b) => a.bit.compareTo(b.bit));
+
+  /// A bit the server no longer reads. Not offered, never granted.
+  bool get isRetired => this == manageRoles;
 }
 
 /// The bits a member or a role holds.

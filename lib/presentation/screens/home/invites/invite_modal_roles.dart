@@ -1,4 +1,4 @@
-part of 'invites_panel.dart';
+part of 'invite_modal.dart';
 
 /// The roles half of the invite dialog: which ones this member may hand out,
 /// and which one the link being minted names.
@@ -8,7 +8,7 @@ part of 'invites_panel.dart';
 /// many times it works, whether it makes a bot. This is about what the person
 /// on the other end becomes, and it is the only part that has to ask the server
 /// anything before the dialog can be drawn.
-mixin _InviteRolesMixin on State<InvitesPanel> {
+mixin _InviteRolesMixin on State<InviteModal> {
   /// The role this link hands out, or null for a plain one.
   String? roleId;
 
@@ -26,16 +26,13 @@ mixin _InviteRolesMixin on State<InvitesPanel> {
 
   Future<void> loadRoles() async {
     final cubit = context.read<ServerCubit>();
-    final me = cubit.state.selectedServer?.user?.id;
     final all = await cubit.listRoles();
-    final assignments = await cubit.listMemberRoles();
     if (!mounted) return;
 
     final bits = cubit.state.selectedServer?.user?.permissions.bits ?? 0;
     setState(() {
       roles = RoleLadder.assignable(
         all,
-        RoleLadder.rankOf(assignments, me),
         isAdministrator: bits.has(ServerPermission.administrator),
       );
     });

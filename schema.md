@@ -476,6 +476,14 @@ not actually being revoked.
 taken back, only rotated past. 031's note that this grant was revocable was true only while voice
 was unencrypted.
 
+### Roles are an administrator's (migration 015)
+
+`MANAGE_ROLES` (bit 2) is retired: `app.may_manage_role` and `app.may_assign_role` ask
+`ADMINISTRATOR` now, the bit is cleared from every role, and the client's permission editor no
+longer offers it. The rank rule is unchanged — strictly below to edit, at-or-below for an
+administrator to hand out, never the owner role. Inviting stays with `CREATE_INVITE` and an
+invite may name a role only if its author could assign it, which now means an administrator.
+
 ### Who may make a private channel (migration 014)
 
 `CREATE_PRIVATE_CHANNEL` (bit 21) sat on `@everyone` from 007. It is on `Moderator` by default now,

@@ -69,10 +69,8 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
   Widget build(BuildContext context) {
     final roster = context.watch<ServerMembersCubit>().state;
     final member = roster.byId[widget.userId];
-    final myId = context.read<ServerCubit>().state.selectedServer?.user?.id;
 
-    // Everything below the viewer's own highest role, which is the whole of
-    // the delegation rule (migration 018).
+    // An administrator's to hand out, and nobody else's (migration 015).
     final myBits =
         context
             .read<ServerCubit>()
@@ -85,7 +83,6 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
     final assignable = {
       for (final role in RoleLadder.assignable(
         roster.roles,
-        RoleLadder.rankOf(roster.memberRoles, myId),
         isAdministrator: myBits.has(ServerPermission.administrator),
       ))
         role.id,

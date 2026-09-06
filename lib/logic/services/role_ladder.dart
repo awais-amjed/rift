@@ -3,8 +3,9 @@ import '../../data/classes/role.dart';
 /// Where somebody stands on a server's role ladder, and what that lets them
 /// hand out.
 ///
-/// Every delegation rule in migration 018 is decided on position and nothing
-/// else — you may only touch a role strictly below your own — so this is the
+/// Every delegation rule since migration 006 is decided on position — you may
+/// only touch a role strictly below your own — and, since 015, on being an
+/// administrator at all. So this is the
 /// same two lines four different screens were each working out for themselves:
 /// the roles list, one member's roles, the participant menu and the invite
 /// dialog. Four copies of a rule is three chances to get it subtly wrong, and
@@ -65,41 +66,35 @@ class RoleLadder {
     return rank;
   }
 
-  /// Everything somebody at [rank] may **edit or reorder**, most senior first.
+  /// Everything an administrator at [rank] may **edit or reorder**, most
+  /// senior first. Empty for anybody else (015): the editor is an
+  /// administrator's, whatever bits somebody holds.
   ///
   /// The baseline is excluded. It is not a rung on the ladder — it is what
-  /// holding nothing already gets you — so it can be edited by whoever holds
-  /// `MANAGE_ROLES` but never assigned or reordered.
-  static List<Role> below(List<Role> roles, int rank) => [
-    for (final role in roles)
-      if (!role.isEveryone && role.position < rank) role,
-  ];
-
-  /// Everything they may **hand out**, which is not the same list.
-  ///
-  /// Editing is strictly-below for everybody: nobody rewrites the role they are
-  /// standing on. Assigning is strictly-below too, *except* for an
-  /// administrator — otherwise the only admin on a server could never make a
-  /// second one, which `set_user_permissions` allowed from 003 until 025 and
-  /// `member_roles_insert` has allowed since 018.
-  ///
-  /// The asymmetry is easy to get wrong in one screen and not another, which
-  /// is the whole reason it is written once. Taking a role *off* is governed by
-  /// the same exemption, minus your own (026).
-  ///
-  /// The owner role is on neither list. It outranks everybody, so the rank
-  /// rule alone keeps it out of [below]; the administrator exemption here
-  /// would let it through, and the database (013) refuses it — so it is
-  /// named, rather than left to be offered and then refused.
-  static List<Role> assignable(
+  /// holding nothing already gets you — so it can be edited but never
+  /// assigned or reordered.
+  static List<Role> below(
     List<Role> roles,
     int rank, {
     required bool isAdministrator,
   }) => [
-    for (final role in roles)
-      if (!role.isEveryone &&
-          !role.isOwner &&
-          (isAdministrator || role.position < rank))
-        role,
+    if (isAdministrator)
+      for (final role in roles)
+        if (!role.isEveryone && role.position < rank) role,
+  ];
+
+  /// Everything they may **hand out**, which is not the same list.
+  ///
+  /// Editing is strictly-below; assigning is at-or-below, so the only admin
+  /// on a server can make a second one. Both are an administrator's alone
+  /// since 015, and the owner role is on neither list — it outranks
+  /// everybody and moves only by transfer (013).
+  static List<Role> assignable(
+    List<Role> roles, {
+    required bool isAdministrator,
+  }) => [
+    if (isAdministrator)
+      for (final role in roles)
+        if (!role.isEveryone && !role.isOwner) role,
   ];
 }

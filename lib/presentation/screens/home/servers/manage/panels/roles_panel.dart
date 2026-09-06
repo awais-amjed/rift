@@ -44,7 +44,9 @@ class _RolesPanelState extends State<RolesPanel> {
           .bits ??
       0;
 
-  bool get _mayManage => _myPermissions.has(ServerPermission.manageRoles);
+  /// Administrators only (015). There used to be a bit for this; a ladder
+  /// anybody holding a bit could reshape was a ladder nobody had chosen.
+  bool get _mayManage => _myPermissions.has(ServerPermission.administrator);
 
   @override
   void initState() {
@@ -85,7 +87,8 @@ class _RolesPanelState extends State<RolesPanel> {
   }
 
   /// Everything the viewer may reorder, most senior first.
-  List<Role> get _manageable => RoleLadder.below(_roles, _myRank);
+  List<Role> get _manageable =>
+      RoleLadder.below(_roles, _myRank, isAdministrator: _mayManage);
 
   Future<void> _edit(Role? role) async {
     final changed = await showDialog<bool>(
@@ -159,8 +162,8 @@ class _RolesPanelState extends State<RolesPanel> {
               const HintCard(
                 icon: Icons.visibility_outlined,
                 text:
-                    'You can see what every role does. Changing them needs '
-                    'the manage-roles permission.',
+                    'You can see what every role does. Changing them is an '
+                    'administrator\'s.',
               ),
               const SizedBox(height: 12),
             ],

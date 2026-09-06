@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/notification_level.dart';
+import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/app_modal.dart';
@@ -13,6 +14,7 @@ import '../../../../../common/unread_badge.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
+import '../../../invites/invite_modal.dart';
 import '../../manage/server_manage_dialog.dart';
 import '../../manage/server_manage_tab.dart';
 
@@ -79,15 +81,24 @@ class ServerChipMenu extends StatelessWidget {
               );
             },
           ),
-        // The two most-reached-for pages, by name, and the dialog they are
-        // pages of. Each opens the same dialog on a different page; the rest
-        // of it is one click to the left once there.
         if (permissions?.canCreateTokens ?? false)
           ContextMenuItem(
             icon: Icons.person_add_outlined,
             label: 'Invite people',
-            onTap: () => _manage(context, ServerManageTab.invites),
+            onTap: () => showDialogFromMenu(
+              context: context,
+              build: (ctx) => MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(value: ctx.read<ServerCubit>()),
+                  BlocProvider.value(value: ctx.read<AppCubit>()),
+                ],
+                child: InviteModal(server: server),
+              ),
+            ),
           ),
+        // Members for whoever moderates them; the whole dialog for whoever
+        // runs the place. Both are the same dialog on a different page, and
+        // the rest of it is one click to the left once there.
         if ((permissions?.isServerAdmin ?? false) ||
             (permissions?.isChannelManager ?? false))
           ContextMenuItem(
@@ -95,16 +106,11 @@ class ServerChipMenu extends StatelessWidget {
             label: 'Manage members',
             onTap: () => _manage(context, ServerManageTab.members),
           ),
-        if (ServerManageTabs.worthOpening(permissions))
+        if (permissions?.isServerAdmin ?? false)
           ContextMenuItem(
             icon: Icons.settings_outlined,
             label: 'Manage server',
-            onTap: () => _manage(
-              context,
-              (permissions?.isServerAdmin ?? false)
-                  ? ServerManageTab.overview
-                  : null,
-            ),
+            onTap: () => _manage(context, ServerManageTab.overview),
           ),
         ContextMenuItem(
           icon: Icons.logout_rounded,

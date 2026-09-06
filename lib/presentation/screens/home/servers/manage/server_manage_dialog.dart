@@ -3,15 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../common/hint_card.dart';
 import '../../../../theme/theme_context.dart';
 import 'panels/bots_panel.dart';
 import 'panels/danger_zone_panel.dart';
-import 'panels/invites_panel.dart';
 import 'panels/members_panel.dart';
 import 'panels/overview_panel.dart';
 import 'panels/roles_panel.dart';
@@ -22,13 +21,14 @@ import 'widgets/manage_nav.dart';
 /// Everything about running [server], in one dialog with a page per concern.
 ///
 /// There used to be a dialog for each — settings here, roles behind a shield
-/// in the members list, invites and members on the rail's menu, bots and
-/// webhooks under each channel's right-click — and finding any of them meant
-/// already knowing where it was. Now the rail's menu and the sidebar's gear
-/// both open this, on whichever page the caller had in mind, and the rest are
-/// one click to the left.
+/// in the members list, bots and webhooks under each channel's right-click —
+/// and finding any of them meant already knowing where it was. Now the rail's
+/// menu and the sidebar's gear both open this, on whichever page the caller
+/// had in mind, and the rest are one click to the left.
 ///
-/// Which pages exist is [ServerManageTabs]; each page owns its own footer.
+/// It is for the people running the place. Inviting somebody and leaving are
+/// a member's own business and stay on the rail's menu; which pages exist
+/// beyond that is [ServerManageTabs], and each page owns its own footer.
 class ServerManageDialog extends StatefulWidget {
   final Server server;
   final ServerManageTab? initial;
@@ -50,6 +50,16 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
         context.watch<ServerCubit>().state.serverById(widget.server.id) ??
         widget.server;
     final tabs = ServerManageTabs.visible(server.user?.permissions);
+    if (tabs.isEmpty) {
+      return AppModal(
+        title: 'Manage server',
+        subtitle: server.name,
+        content: const HintCard(
+          icon: Icons.visibility_outlined,
+          text: 'Nothing here is yours to manage any more.',
+        ),
+      );
+    }
     final active = tabs.contains(_active)
         ? _active!
         : tabs.contains(widget.initial)
@@ -80,7 +90,6 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
     ServerManageTab.overview => OverviewPanel(server: server),
     ServerManageTab.roles => const RolesPanel(),
     ServerManageTab.members => MembersPanel(server: server),
-    ServerManageTab.invites => InvitesPanel(server: server),
     ServerManageTab.bots => BotsPanel(server: server),
     ServerManageTab.webhooks => WebhooksPanel(server: server),
     ServerManageTab.danger => DangerZonePanel(server: server),
@@ -89,9 +98,8 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
 
 /// The dialog with everything its pages read, for whichever route opens it.
 ///
-/// Four cubits rather than one because the pages reach four places: the
-/// server itself, the central listing and the account behind it, and the
-/// app's own settings for the invite form.
+/// Three cubits rather than one because the pages reach three places: the
+/// server itself, the central listing, and the account behind it.
 Widget serverManageDialog(
   BuildContext context, {
   required Server server,
@@ -102,7 +110,6 @@ Widget serverManageDialog(
       BlocProvider.value(value: context.read<ServerCubit>()),
       BlocProvider.value(value: context.read<PublicServersCubit>()),
       BlocProvider.value(value: context.read<SupabaseBackupCubit>()),
-      BlocProvider.value(value: context.read<AppCubit>()),
     ],
     child: ServerManageDialog(server: server, initial: initial),
   );

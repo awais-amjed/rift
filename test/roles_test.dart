@@ -46,12 +46,18 @@ void main() {
       }
     });
 
-    test('grouping loses nothing', () {
+    test('grouping loses nothing but the retired bit', () {
+      // `MANAGE_ROLES` keeps its number and its name so an old role still
+      // parses, and is the one bit the editor does not offer (015).
       final grouped = [
         for (final group in PermissionGroup.values)
           ...ServerPermission.inGroup(group),
       ];
-      expect(grouped.toSet(), ServerPermission.values.toSet());
+      expect(
+        grouped.toSet(),
+        ServerPermission.values.where((p) => !p.isRetired).toSet(),
+      );
+      expect(grouped, isNot(contains(ServerPermission.manageRoles)));
     });
   });
 
@@ -155,38 +161,38 @@ void main() {
       // `@everyone` does not count: it is never assigned. Zero is right —
       // nothing sits strictly below the ground.
       expect(RoleLadder.rankOf(const {}, 'u'), 0);
-      expect(RoleLadder.below(all, 0), isEmpty);
+      expect(RoleLadder.below(all, 0, isAdministrator: true), isEmpty);
     });
 
     test('a null user ranks zero rather than throwing', () {
       expect(RoleLadder.rankOf(const {}, null), 0);
     });
 
-    test('editing is strictly below, for everybody', () {
+    test('editing is strictly below, and an administrator\'s alone', () {
       // Including an administrator: nobody rewrites the role they are standing
       // on, or promotes another up to it.
-      expect(RoleLadder.below(all, 300), [mod, members]);
-      expect(RoleLadder.below(all, 200), [members]);
+      expect(RoleLadder.below(all, 300, isAdministrator: true), [mod, members]);
+      expect(RoleLadder.below(all, 200, isAdministrator: true), [members]);
+      // And nobody else edits anything, whatever their rank (015).
+      expect(RoleLadder.below(all, 300, isAdministrator: false), isEmpty);
     });
 
     test('the baseline is never on the ladder', () {
-      expect(RoleLadder.below(all, 300), isNot(contains(everyone)));
       expect(
-        RoleLadder.assignable(all, 300, isAdministrator: true),
+        RoleLadder.below(all, 300, isAdministrator: true),
+        isNot(contains(everyone)),
+      );
+      expect(
+        RoleLadder.assignable(all, isAdministrator: true),
         isNot(contains(everyone)),
       );
     });
 
-    test('assigning is the same, unless you are an administrator', () {
+    test('assigning is at-or-below, and an administrator\'s alone', () {
       // The exemption exists so the only admin on a server can make a second
-      // one. Without it that is impossible, and it stayed possible from 003
-      // through to 025 — so a screen that used the editing rule here would
-      // quietly take it away.
-      expect(RoleLadder.assignable(all, 300, isAdministrator: false), [
-        mod,
-        members,
-      ]);
-      expect(RoleLadder.assignable(all, 300, isAdministrator: true), [
+      // one. Everybody else hands out nothing, whatever they hold.
+      expect(RoleLadder.assignable(all, isAdministrator: false), isEmpty);
+      expect(RoleLadder.assignable(all, isAdministrator: true), [
         admin,
         mod,
         members,
@@ -194,14 +200,17 @@ void main() {
     });
 
     test('the owner role is nobody\'s to hand out, not even the owner\'s', () {
-      // Rank alone keeps it off an admin's list. The administrator exemption
-      // would let it through, and the database refuses it — so the ladder
-      // says so first.
+      // It outranks everybody and moves only by transfer; the database
+      // refuses it — so the ladder says so first.
       expect(
-        RoleLadder.assignable(all, 400, isAdministrator: true),
+        RoleLadder.assignable(all, isAdministrator: true),
         isNot(contains(owner)),
       );
-      expect(RoleLadder.below(all, 400), [admin, mod, members]);
+      expect(RoleLadder.below(all, 400, isAdministrator: true), [
+        admin,
+        mod,
+        members,
+      ]);
     });
   });
 
