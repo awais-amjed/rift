@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../../data/participant_identity.dart';
+import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../logic/services/room_tiles.dart';
 import '../../../../../logic/services/voice_tiles.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -10,7 +11,7 @@ import '../participants_tile/participant_tile.dart';
 /// Grid view displaying all participants with adaptive column count.
 class ParticipantGridLayout extends StatefulWidget {
   final List<Participant> participants;
-  final Map<String, dynamic> participantSettings;
+  final Map<String, ParticipantSetting> participantSettings;
 
   const ParticipantGridLayout({
     super.key,
@@ -36,16 +37,19 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   List<VoiceTile<Participant>> get _tiles =>
       roomVoiceTiles(widget.participants);
 
+  /// Whether this listener has muted [identity] for themselves.
+  ///
+  /// Absent means not muted: a person nobody has an opinion about has no row.
+  bool _mutedFor(String identity) =>
+      widget.participantSettings[ParticipantIdentity.userIdOf(identity)]
+          ?.muted ??
+      false;
+
   Widget _buildTile(VoiceTile<Participant> tile) {
-    final setting =
-        widget.participantSettings[ParticipantIdentity.userIdOf(
-          tile.participant.identity,
-        )];
-    final isMuted = (setting as dynamic)?.muted ?? false;
     return ParticipantTileWidget(
       participant: tile.participant,
       isScreenshare: tile.isScreenshare,
-      isMuted: isMuted,
+      isMuted: _mutedFor(tile.participant.identity),
       onTap: () => _onTileTapped(_keyOf(tile)),
     );
   }
@@ -72,16 +76,10 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
           if (mounted) setState(() => _expandedKey = null);
         });
       } else {
-        final setting =
-            widget.participantSettings[ParticipantIdentity.userIdOf(
-              expanded.participant.identity,
-            )];
-        final isMuted = (setting as dynamic)?.muted ?? false;
-
         return ParticipantTileWidget(
           participant: expanded.participant,
           isScreenshare: expanded.isScreenshare,
-          isMuted: isMuted,
+          isMuted: _mutedFor(expanded.participant.identity),
           onTap: () => _onTileTapped(_keyOf(expanded)),
           isExpanded: true,
         );
