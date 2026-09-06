@@ -18,6 +18,23 @@ class ServerState {
     );
   }
 
+  /// What this member may do on the selected server, or null when there is no
+  /// selected server — or when its profile has not loaded yet.
+  ///
+  /// One place for a chain that was being written out at fifteen call sites,
+  /// each of them four `?.` hops deep and each free to disagree about what an
+  /// absent link means. It is the same question every time: what may I do
+  /// here.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  UserPermissions? get myPermissions => selectedServer?.user?.permissions;
+
+  /// The same, as the bitfield `ServerPermission.has` takes.
+  ///
+  /// Zero when anything along the way is missing, which is the safe reading:
+  /// a member whose profile has not arrived may do nothing yet.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  int get myPermissionBits => myPermissions?.bits ?? 0;
+
   /// The joined server with [id], or null when this device has no such server.
   ///
   /// Deliberately without [selectedServer]'s fall back to the first server: a

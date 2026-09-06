@@ -46,15 +46,7 @@ class _VoiceBotsDialogState extends State<VoiceBotsDialog> {
   String? _error;
 
   bool get _mayManage =>
-      (context
-                  .read<ServerCubit>()
-                  .state
-                  .selectedServer
-                  ?.user
-                  ?.permissions
-                  .bits ??
-              0)
-          .has(ServerPermission.manageBots);
+      context.read<ServerCubit>().state.myPermissionBits.has(ServerPermission.manageBots);
 
   @override
   void initState() {

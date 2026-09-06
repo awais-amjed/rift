@@ -29,7 +29,7 @@ mixin _InviteRolesMixin on State<InviteModal> {
     final all = await cubit.listRoles();
     if (!mounted) return;
 
-    final bits = cubit.state.selectedServer?.user?.permissions.bits ?? 0;
+    final bits = cubit.state.myPermissionBits;
     setState(() {
       roles = RoleLadder.assignable(
         all,

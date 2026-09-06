@@ -45,7 +45,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   MemberSelection _selection = MemberSelection.empty;
 
   UserPermissions? get _permissions =>
-      context.read<ServerCubit>().state.selectedServer?.user?.permissions;
+      context.read<ServerCubit>().state.myPermissions;
 
   bool get _canSubmit => _nameCtrl.text.trim().isNotEmpty;
 

@@ -15,6 +15,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
+import '../../../data/classes/user_permissions.dart';
 import '../../../data/classes/webhook.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/invite_link.dart';

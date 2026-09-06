@@ -100,7 +100,7 @@ class ParticipantContextMenu extends StatelessWidget {
             // For local participant, use the LiveKit mic state
             final liveKitState = context.watch<LiveKitCubit>().state;
             final serverState = context.watch<ServerCubit>().state;
-            final permissions = serverState.selectedServer?.user?.permissions;
+            final permissions = serverState.myPermissions;
             final isServerAdmin = permissions?.isServerAdmin ?? false;
             final isModerator =
                 (permissions?.isChannelManager ?? false) || isServerAdmin;

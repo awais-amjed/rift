@@ -34,15 +34,7 @@ class _RolesPanelState extends State<RolesPanel> {
   int _myRank = 0;
   String? _movingId;
 
-  int get _myPermissions =>
-      context
-          .read<ServerCubit>()
-          .state
-          .selectedServer
-          ?.user
-          ?.permissions
-          .bits ??
-      0;
+  int get _myPermissions => context.read<ServerCubit>().state.myPermissionBits;
 
   /// Administrators only (015). There used to be a bit for this; a ladder
   /// anybody holding a bit could reshape was a ladder nobody had chosen.

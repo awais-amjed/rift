@@ -43,15 +43,7 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
   String? _error;
 
   bool get _mayManage =>
-      (context
-                  .read<ServerCubit>()
-                  .state
-                  .selectedServer
-                  ?.user
-                  ?.permissions
-                  .bits ??
-              0)
-          .has(ServerPermission.manageBots);
+      context.read<ServerCubit>().state.myPermissionBits.has(ServerPermission.manageBots);
 
   List<Channel> _channelsIn(Set<String> ids) {
     final all =

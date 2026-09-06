@@ -46,7 +46,7 @@ class ChannelRoster extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canMoveOthers = context.select<ServerCubit, bool>((cubit) {
-      final permissions = cubit.state.selectedServer?.user?.permissions;
+      final permissions = cubit.state.myPermissions;
       return (permissions?.isServerAdmin ?? false) ||
           (permissions?.isChannelManager ?? false);
     });

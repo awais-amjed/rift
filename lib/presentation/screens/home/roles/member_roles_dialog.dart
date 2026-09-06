@@ -57,7 +57,7 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
         for (final role in RoleLadder.assignable(
           roles,
           isAdministrator:
-              (cubit.state.selectedServer?.user?.permissions.bits ?? 0).has(
+              cubit.state.myPermissionBits.has(
                 ServerPermission.administrator,
               ),
         ))
