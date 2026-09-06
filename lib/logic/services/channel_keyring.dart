@@ -93,7 +93,11 @@ class ChannelKeyring with _KeyringSealingMixin {
     // The publish guard is per identity, not per app run: after a vault reset
     // + rejoin in the same run, the new user's key must still be published —
     // a stale guard here leaves the member unkeyed and unable to ever be
-    // granted channel access (ISSUES.md #1).
+    // granted channel access.
+    //
+    // Found the hard way. A guard keyed by server id survived the reset, so
+    // every publish was silently skipped, `chat_public_key` stayed null, and
+    // the member sat on "another member needs to come online" while one was.
     if (seed != _publishedChatKeySeed) {
       publishedChatKey.clear();
       _publishedChatKeySeed = seed;
