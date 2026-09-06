@@ -1,10 +1,10 @@
-import 'package:rift/data/enums/error_code.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../data/classes/server.dart';
+import '../../data/enums/error_code.dart';
 import '../cubits/server/server_cubit.dart';
 import '../cubits/vault/vault_cubit.dart';
 import '../helper_methods.dart';
@@ -271,6 +271,18 @@ class ChannelKeyring with _KeyringSealingMixin {
     if (response.success) {
       keys[1] = channelKey;
       currentVersion = 1;
+      // Seal the bots now, because the answer that sent us down this path
+      // could not have listed them. The server only computes `bots_missing`
+      // once a version exists, so the call that said "no key yet" carried an
+      // empty list by construction — and `loadOrBootstrap` returns here rather
+      // than falling through to the branch that seals.
+      //
+      // The member who *creates* a voice channel is usually the first one in
+      // it, so without this a bot summoned to a new channel stayed silent
+      // until somebody left and rejoined. Fire-and-forget, like every other
+      // seal: a bot short of a key is a bot nobody can hear yet, not a reason
+      // to fail opening the channel.
+      unawaited(sealMissingBotKeys(channelId));
       return const KeyringOutcome.ready();
     }
     if (response.errorCode == ErrorCode.keyringConflict) {
