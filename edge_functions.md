@@ -161,7 +161,7 @@ service role until they can be moved with care.
 
 ### Push runs on central, for everyone
 
-`push_send` lives on the central project (`central_edge_functions/`) and is the
+`push_send` lives on the central project (the `rift-central` repository) and is the
 only thing holding FCM credentials. It has to be: registration tokens are scoped
 to the Firebase project an app was built against, so only the holder of Rift's
 credentials can wake a Rift install — and self-hosted operators cannot be handed
@@ -230,7 +230,7 @@ Deploying it needs `TMPDIR` pointed somewhere Docker Desktop shares — `/tmp` i
 not, and the bundler fails with "path is not shared from the host":
 
 ```
-cd central_edge_functions
+cd ../rift-central          # the central tier is its own repository
 TMPDIR=$HOME/tmp supabase functions deploy push_send \
   --project-ref <ref> --no-verify-jwt     # the DB trigger calls it without a JWT
 ```
@@ -286,7 +286,7 @@ silent re-login still triggers.
 ## Database schema
 
 Defined by `self_hosted_server_migrations/`, run in order on a fresh instance. The central
-project has its own set in `central_server_migrations/`.
+project has its own set, in the `rift-central` repository.
 
 1. **001_schema.sql** — types, tables, indexes, and the attestation triggers. Notable shapes:
    `server_secrets` split out of `servers` so the rest of that row is safe to read directly;

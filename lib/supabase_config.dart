@@ -28,7 +28,7 @@ class SupabaseConfig {
   /// operator ever learns that it did.
   ///
   /// **It must resolve before push is enabled anywhere.** See
-  /// `relay/README.md` for what has to exist behind it; the client checks it
+  /// `relay/README.md` in `rift-central` for what has to exist behind it; the client checks it
   /// answers before writing it into a server, so a missing record is a
   /// sentence rather than a silence.
   static const String pushRelayEndpoint = 'https://push.joinrift.app';

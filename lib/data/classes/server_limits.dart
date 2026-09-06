@@ -27,7 +27,7 @@ class ServerLimits {
 
   /// The central tier's per-file cap. Not an operator setting and never will
   /// be — central pays for central's storage, so this is fixed here and in
-  /// `central_server_migrations/005_storage.sql`, which must agree.
+  /// `migrations/005_storage.sql` in the `rift-central` repo, which must agree.
   static const int centralMaxAttachmentBytes = 10485760; // 10 MB
 
   /// Per-file attachment cap in bytes.

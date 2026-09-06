@@ -1,9 +1,11 @@
 # Database Schema
 
-Two databases, each with its own migration folder:
+Two databases, and only one of them is in this repository:
 
 - **self-hosted server** — `self_hosted_server_migrations/`, one per community.
-- **central** — `central_server_migrations/`, the shared discovery tier.
+- **central** — the shared discovery tier, now `migrations/` in the
+  `rift-central` repository. Described below for the shapes the client depends
+  on; the migrations there are the source of truth.
 
 The migrations are the source of truth and are written to be read in order; this file is the
 reference view. Access rules are not repeated here — every table's grants and policies live in

@@ -287,8 +287,9 @@ logic bug in one of these pure areas, add a case that would have caught it.
 
 **The database has its own suite**, because RLS is security and Dart cannot see it:
 `./scripts/db_test.sh` runs `self_hosted_server_migrations/tests/policies_test.sql`
-against the local stack and `central_server_migrations/tests/policies_test.sql`
-against a scratch database it creates and drops. Each test impersonates a user by
+against the local stack. The central tier's suite moved with its schema and is
+`./scripts/db_test.sh` in the `rift-central` repository, against a scratch
+database it creates and drops. Each test impersonates a user by
 setting `request.jwt.claims` and `SET LOCAL ROLE authenticated`, so it exercises the
 same path PostgREST takes; both files run in one transaction ending in `ROLLBACK`.
 Run it after touching any migration, and add a case whenever you add a policy, a
