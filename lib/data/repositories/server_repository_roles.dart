@@ -13,6 +13,10 @@ mixin _RoleApiMixin {
   ServerDb get _db;
 
   /// Every role on the server, most senior first.
+  ///
+  /// Every column rather than a list: `is_owner` arrived with migration 013,
+  /// and naming it on a server that has not run it refuses the whole read.
+  /// `Role.fromJson` treats a missing flag as false, which is right.
   Future<APIResponse> listRoles(
     String supabaseUrl, {
     required String anonKey,
@@ -22,10 +26,7 @@ mixin _RoleApiMixin {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final rows = await db
           .from('roles')
-          .select(
-            'id, name, color, position, permissions, is_everyone, '
-            'is_default, is_owner',
-          )
+          .select()
           .order('position', ascending: false);
       return {'roles': rows};
     });
@@ -73,10 +74,7 @@ mixin _RoleApiMixin {
             'permissions': permissions,
             'color': color,
           })
-          .select(
-            'id, name, color, position, permissions, is_everyone, '
-            'is_default, is_owner',
-          )
+          .select()
           .single();
       return row;
     });

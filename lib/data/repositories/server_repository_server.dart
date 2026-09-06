@@ -54,15 +54,32 @@ mixin _ServerApiMixin {
       // Our own row first, because it is the only one a banned member can
       // still read (`users_select_self`) and it decides whether the rest is
       // worth asking for.
+      final uid = ServerUserRow.uidOf(bearerToken) ?? '';
       final user = await db
           .from('users')
           .select(
             'id, username, display_name, avatar_path, is_muted, is_deafened, '
-            'is_banned, is_server_admin, is_channel_manager, can_create_tokens, '
-            'is_owner',
+            'is_banned, is_server_admin, is_channel_manager, can_create_tokens',
           )
-          .eq('id', ServerUserRow.uidOf(bearerToken) ?? '')
+          .eq('id', uid)
           .maybeSingle();
+
+      // Best-effort, like `my_permissions` below: the column arrived with
+      // migration 013, and a server that has not run it refuses the whole
+      // select rather than one column — which took every older server's
+      // refresh down with it. Absent means "not the owner", which is right.
+      if (user != null) {
+        try {
+          final owner = await db
+              .from('users')
+              .select('is_owner')
+              .eq('id', uid)
+              .maybeSingle();
+          user['is_owner'] = owner?['is_owner'] == true;
+        } catch (_) {
+          user['is_owner'] = false;
+        }
+      }
 
       // A ban makes `app.server_id()` null, so every other policy on the
       // server stops matching — including the one over `servers` itself. Read

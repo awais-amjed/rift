@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:toastification/toastification.dart';
 
+import '../presentation/common/app_mark.dart';
+
 import '../presentation/routing/app_routes.dart';
 
 class HelperMethods {
@@ -107,7 +109,7 @@ class HelperMethods {
       type: type,
       closeOnClick: true,
       autoCloseDuration: autoClose ? Duration(seconds: 3) : null,
-      icon: Image.asset('assets/images/mimba_logo.png', width: 24, height: 24),
+      icon: const AppMark(size: 24),
       callbacks: ToastificationCallbacks(
         onTap: (_) {
           if (onTap != null) {
