@@ -110,8 +110,27 @@ class _RolesPanelState extends State<RolesPanel> {
 
     setState(() => _movingId = role.id);
     final cubit = context.read<ServerCubit>();
-    await cubit.updateRole(role.id, position: neighbour.position);
-    await cubit.updateRole(neighbour.id, position: role.position);
+
+    // Two writes for one swap, and neither result was being looked at. If the
+    // second is refused — the connection drops, or somebody else reshaped the
+    // ladder underneath us — the first has already landed and both roles claim
+    // the same position. That is a ladder nobody chose, and `RoleLadder` reads
+    // positions to decide who outranks whom.
+    //
+    // Putting the first one back is the best this side can do; the real fix is
+    // a swap that happens in one statement on the server, which does not exist
+    // yet. Either way `_load` below shows what actually happened rather than
+    // what was asked for.
+    final moved = await cubit.updateRole(role.id, position: neighbour.position);
+    if (moved.success) {
+      final swapped = await cubit.updateRole(
+        neighbour.id,
+        position: role.position,
+      );
+      if (!swapped.success) {
+        await cubit.updateRole(role.id, position: role.position);
+      }
+    }
     if (!mounted) return;
     setState(() => _movingId = null);
     await _load();
