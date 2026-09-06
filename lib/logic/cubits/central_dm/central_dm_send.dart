@@ -123,6 +123,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
               authorName: state.myHandle ?? 'me',
               text: trimmed,
               attachments: uploaded,
+              preview: sentPreview,
               sentAt: DateTime.parse(data['created_at'] as String),
               isMine: true,
             ),

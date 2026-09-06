@@ -111,6 +111,7 @@ mixin _DmSendMixin on Cubit<DmState> {
               authorName: user.displayName,
               text: trimmed,
               attachments: uploaded,
+              preview: sentPreview,
               sentAt: DateTime.parse(data['created_at'] as String),
               isMine: true,
             ),
