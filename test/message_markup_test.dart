@@ -184,4 +184,46 @@ void main() {
       expect(parse('@nobody_at_all').first.mention, 'nobody_at_all');
     });
   });
+
+  group('links', () {
+    test('a bare address is its own span, text kept as typed', () {
+      expect(parse('see https://a.example/x now'), [
+        const MarkupSpan('see '),
+        const MarkupSpan('https://a.example/x', link: 'https://a.example/x'),
+        const MarkupSpan(' now'),
+      ]);
+    });
+
+    test('sentence punctuation stays outside the link', () {
+      final spans = parse('go to https://a.example/p, then.');
+      expect(spans[1].link, 'https://a.example/p');
+      expect(spans[2].text, ', then.');
+    });
+
+    test('a bracket that closes one inside the address is kept', () {
+      expect(
+        parse('https://w.example/Foo_(bar)').single.link,
+        'https://w.example/Foo_(bar)',
+      );
+    });
+
+    test('markup is not read inside an address', () {
+      // The underscores would otherwise open italics halfway through.
+      final spans = parse('https://a.example/some_path_here');
+      expect(spans.single.marks, isEmpty);
+      expect(spans.single.link, isNotNull);
+    });
+
+    test('an address in code, or glued to a word, is not a link', () {
+      expect(parse('`https://a.example`').single.link, isNull);
+      expect(flat('xhttps://a.example'), 'xhttps://a.example');
+      expect(parse('xhttps://a.example').single.link, isNull);
+    });
+
+    test('a link inside bold keeps both', () {
+      final spans = parse('**https://a.example**');
+      expect(spans.single.link, 'https://a.example');
+      expect(spans.single.marks, {Marker.bold});
+    });
+  });
 }

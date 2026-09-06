@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../logic/cubits/theme/theme_cubit.dart';
@@ -14,12 +15,17 @@ import 'emoji_text.dart';
 /// Emoji stay on their own font throughout: [emojiTextSpan] is applied per
 /// stretch rather than to the whole line, so a bold message keeps its colour
 /// emoji instead of dropping to the monochrome outlines the text font carries.
+///
+/// [onLink] hands back the recognizer that answers a tap on an address; the
+/// caller owns and disposes it, because a span cannot. Without it, links are
+/// styled but inert — which is what a preview or a test wants.
 TextSpan messageMarkupSpan(
   String text, {
   required TextStyle base,
   required ThemeState theme,
   Set<String> mentionable = const {},
   Map<String, String> displayNames = const {},
+  GestureRecognizer Function(String url)? onLink,
 }) {
   final spans = parseMessageMarkup(text);
   return TextSpan(
@@ -30,6 +36,12 @@ TextSpan messageMarkupSpan(
           // Code is one span with no emoji pass: inside code, a run of
           // characters that happens to look like an emoji is characters.
           TextSpan(text: span.text, style: _codeStyle(base, theme))
+        else if (span.link case final link?)
+          TextSpan(
+            text: span.text,
+            style: _linkStyle(base, theme),
+            recognizer: onLink?.call(link),
+          )
         else
           emojiTextSpan(
             _display(span, displayNames),
@@ -38,6 +50,12 @@ TextSpan messageMarkupSpan(
     ],
   );
 }
+
+TextStyle _linkStyle(TextStyle base, ThemeState theme) => base.copyWith(
+  color: theme.accentBright,
+  decoration: TextDecoration.underline,
+  decorationColor: theme.accentBright.withValues(alpha: 0.5),
+);
 
 /// What a span reads as on screen.
 ///

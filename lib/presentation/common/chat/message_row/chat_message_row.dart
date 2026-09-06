@@ -23,6 +23,7 @@ import 'message_locked_body.dart';
 import 'message_row_header.dart';
 import '../link_preview_card.dart';
 import 'guarded_message_text.dart';
+import 'link_tap_recognizers.dart';
 import 'message_text.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
@@ -98,6 +99,16 @@ class ChatMessageRow extends StatefulWidget {
 }
 
 class _ChatMessageRowState extends State<ChatMessageRow> {
+  /// The tap handlers behind this message's links. Remade each build, so
+  /// an edited body does not keep answering with yesterday's addresses.
+  final LinkTapRecognizers _links = LinkTapRecognizers();
+
+  @override
+  void dispose() {
+    _links.dispose();
+    super.dispose();
+  }
+
   /// Whether to play the entrance, decided once when the row is created.
   ///
   /// Read here rather than from `widget` at build time: your own message is
@@ -210,6 +221,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
 
   @override
   Widget build(BuildContext context) {
+    _links.reset();
     final content = MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
@@ -374,6 +386,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                     theme: themeState,
                     mentionable: widget.mentionable,
                     displayNames: widget.mentionNames,
+                    onLink: _links.forUrl,
                   ),
                   if (message.isEdited)
                     TextSpan(

@@ -1,5 +1,7 @@
 import 'package:html/parser.dart' as html;
 
+import 'message_markup.dart';
+
 /// The parts of a page a preview is made of, as Open Graph or the page's
 /// own tags describe them.
 class PageMetadata {
@@ -86,26 +88,13 @@ class LinkPreviewParser {
 class LinkDetector {
   const LinkDetector._();
 
-  /// `http(s)://` and nothing else: a bare `example.com` is as likely to be
-  /// a filename, and a scheme the app would not open is not worth fetching.
-  static final RegExp _url = RegExp(
-    r'''https?://[^\s<>"']+''',
-    caseSensitive: false,
-  );
-
-  /// The first link in [text], with trailing punctuation that belongs to the
-  /// sentence rather than the address taken off.
+  /// The first address in [text], read by the same parser that draws it, so
+  /// the card and the tappable stretch always agree on what the link was.
   static Uri? firstUrl(String text) {
-    final match = _url.firstMatch(text);
-    if (match == null) return null;
-    var raw = match[0]!;
-    while (raw.isNotEmpty && '.,;:!?)]}'.contains(raw[raw.length - 1])) {
-      // A closing bracket balances an opening one inside the URL.
-      if (raw.endsWith(')') && raw.contains('(')) break;
-      raw = raw.substring(0, raw.length - 1);
+    for (final span in parseMessageMarkup(text)) {
+      final link = span.link;
+      if (link != null) return Uri.tryParse(link);
     }
-    final uri = Uri.tryParse(raw);
-    if (uri == null || uri.host.isEmpty) return null;
-    return uri;
+    return null;
   }
 }

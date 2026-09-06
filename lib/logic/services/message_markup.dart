@@ -5,10 +5,12 @@
 /// blocks — plus `@mentions`, parsed in the same pass because a mention can sit
 /// inside bold and two passes would have to agree about which one owned it.
 ///
-/// Deliberately not a Markdown implementation. There are no links, headings or
-/// lists: a chat line is not a document, and every construct added here is one
-/// more way for someone's plain text to come out looking like something they
-/// did not write.
+/// Deliberately not a Markdown implementation. There is no `[text](url)`,
+/// no headings, no lists: a chat line is not a document, and every construct
+/// added here is one more way for someone's plain text to come out looking
+/// like something they did not write. A bare `http(s)://` address is the one
+/// exception — it is recognised as itself, never rewritten, and made
+/// tappable.
 ///
 /// Pure, so the awkward parts — unmatched delimiters, `snake_case`, code that
 /// contains asterisks — are reachable in a test rather than only by typing into
@@ -36,6 +38,28 @@ const Set<String> _escapable = {'*', '_', '~', '`', '@', r'\'};
 /// Liberal on purpose — resolution happens later. Matching narrowly here would
 /// mean a name this parser had never heard of silently losing its highlight.
 final RegExp _mention = RegExp(r'^@([A-Za-z0-9_.-]{1,32})');
+
+/// A bare address. `http(s)://` and nothing else: `example.com` is as likely
+/// to be a filename, and a scheme the app would not open is not a link.
+final RegExp _link = RegExp(r'''^https?://[^\s<>"']+''', caseSensitive: false);
+
+/// The address at [i], with the punctuation that belongs to the sentence
+/// rather than the link taken off the end, or null.
+///
+/// A closing bracket stays when it balances one inside the address, which
+/// is how Wikipedia writes half its URLs.
+String? linkAt(String s, int i) {
+  final m = _link.firstMatch(s.substring(i));
+  if (m == null) return null;
+  var raw = m.group(0)!;
+  while (raw.isNotEmpty && '.,;:!?)]}'.contains(raw[raw.length - 1])) {
+    if (raw.endsWith(')') && raw.contains('(')) break;
+    raw = raw.substring(0, raw.length - 1);
+  }
+  final uri = Uri.tryParse(raw);
+  if (uri == null || uri.host.isEmpty) return null;
+  return raw;
+}
 
 /// Splits [input] into the stretches it should be drawn as.
 ///
@@ -89,6 +113,17 @@ void _parse(String s, Set<Marker> marks, List<MarkupSpan> out) {
       continue;
     }
 
+    // An address is one stretch: no markup is read inside it, so an
+    // underscore in a path does not start italics halfway through a link.
+    if (s[i] == 'h' && !_isWordish(s, i - 1)) {
+      final link = linkAt(s, i);
+      if (link != null) {
+        flush();
+        out.add(MarkupSpan(link, marks: marks, link: link));
+        i += link.length;
+        continue;
+      }
+    }
     // Not preceded by a word character, or `a@b.com` reads as a mention of
     // "b.com" and every email address in a message lights up.
     if (s[i] == '@' && !_isWordish(s, i - 1)) {
@@ -212,6 +247,8 @@ List<MarkupSpan> _merge(List<MarkupSpan> spans) {
     if (last != null &&
         last.mention == null &&
         span.mention == null &&
+        last.link == null &&
+        span.link == null &&
         last.marks.length == span.marks.length &&
         last.marks.containsAll(span.marks)) {
       out[out.length - 1] = MarkupSpan(

@@ -22,7 +22,11 @@ class MarkupSpan {
   /// `@nobody` as though it reached someone.
   final String? mention;
 
-  const MarkupSpan(this.text, {this.marks = const {}, this.mention});
+  /// The address an `http(s)://` stretch points at, or null for ordinary
+  /// text. The text is the link as typed; this is where a tap goes.
+  final String? link;
+
+  const MarkupSpan(this.text, {this.marks = const {}, this.mention, this.link});
 
   bool get isCode => marks.contains(Marker.code);
 
@@ -31,16 +35,18 @@ class MarkupSpan {
       other is MarkupSpan &&
       other.text == text &&
       other.mention == mention &&
+      other.link == link &&
       other.marks.length == marks.length &&
       other.marks.containsAll(marks);
 
   @override
   int get hashCode =>
-      Object.hash(text, mention, Object.hashAllUnordered(marks));
+      Object.hash(text, mention, link, Object.hashAllUnordered(marks));
 
   @override
   String toString() {
     final m = marks.isEmpty ? '' : ' ${marks.map((e) => e.name).join('+')}';
-    return 'MarkupSpan($text$m${mention == null ? '' : ' @$mention'})';
+    final l = link == null ? '' : ' -> $link';
+    return 'MarkupSpan($text$m${mention == null ? '' : ' @$mention'}$l)';
   }
 }
