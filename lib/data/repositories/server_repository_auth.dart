@@ -76,11 +76,6 @@ mixin _AuthApiMixin {
     }, bearerToken: bearerToken);
   }
 
-  /// Check whether a username is available on the given server.
-  Future<APIResponse> isUsernameAvailable(String supabaseUrl, String username) {
-    return _post(supabaseUrl, 'is_username_available', {'username': username});
-  }
-
   /// Create a plain invite code. Invites carry no permissions — members join
   /// with the baseline role and are given more from the roles editor
   /// afterwards.

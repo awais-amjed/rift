@@ -41,7 +41,7 @@ part 'server_repository_webhooks.dart';
 ///   * it needs a secret the client must never hold — `get_channel_token`
 ///     (LiveKit API secret), `create_server`, `login` (GoTrue admin grant);
 ///   * it runs before the caller is a member, or before they have a key at all
-///     — `resolve_invite`, `register`, `is_username_available`;
+///     — `resolve_invite`, `register`;
 ///   * key distribution (`get_channel_key`, `post_channel_keys`,
 ///     `sweep_channel_keys`), which enforces the channel-key version race and
 ///     is deliberately left alone until it can be moved with care.
