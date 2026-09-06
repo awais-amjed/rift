@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/chat_message.dart';
@@ -62,8 +63,12 @@ void main() {
 
   Future<void> pump(WidgetTester tester, List<ChatMessage> messages) {
     return tester.pumpWidget(
-      BlocProvider<ThemeCubit>(
-        create: (_) => ThemeCubit(),
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+          // The row's message cover reads the sensitive-content setting.
+          BlocProvider<AppCubit>(create: (_) => AppCubit()),
+        ],
         child: MaterialApp(
           home: Scaffold(body: ChatMessageList(messages: messages)),
         ),

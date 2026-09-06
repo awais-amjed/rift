@@ -70,12 +70,12 @@ class AppearanceContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        SectionTitle(label: 'Sensitive images'),
+        SectionTitle(label: 'Sensitive content'),
         const SizedBox(height: 4),
         Text(
-          'Pictures are checked on this device after they are decrypted — '
-          'nothing leaves it. Blur covers a flagged picture until you tap; '
-          'Hide keeps it covered.',
+          'Pictures and messages are checked on this device after they are '
+          'decrypted — nothing leaves it. Blur covers what is flagged until '
+          'you tap; Hide keeps it covered.',
           style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 12),

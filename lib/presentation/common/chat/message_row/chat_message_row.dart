@@ -21,6 +21,7 @@ import 'message_hover_toolbar.dart';
 import 'message_row_avatar.dart';
 import 'message_locked_body.dart';
 import 'message_row_header.dart';
+import 'guarded_message_text.dart';
 import 'message_text.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
@@ -357,25 +358,31 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
             onCancel: () => setState(() => _editing = false),
           )
         else if (message.text.isNotEmpty)
-          MessageText(
-            onSecondaryTap: _openContextMenu,
-            span: TextSpan(
-              children: [
-                messageMarkupSpan(
-                  message.text,
-                  base: AppText.body.copyWith(color: themeState.textSecondary),
-                  theme: themeState,
-                  mentionable: widget.mentionable,
-                  displayNames: widget.mentionNames,
-                ),
-                if (message.isEdited)
-                  TextSpan(
-                    text: '  (edited)',
-                    style: AppText.meta.copyWith(
-                      color: themeState.textTertiary,
+          GuardedMessageText(
+            messageId: message.id,
+            text: message.text,
+            child: MessageText(
+              onSecondaryTap: _openContextMenu,
+              span: TextSpan(
+                children: [
+                  messageMarkupSpan(
+                    message.text,
+                    base: AppText.body.copyWith(
+                      color: themeState.textSecondary,
                     ),
+                    theme: themeState,
+                    mentionable: widget.mentionable,
+                    displayNames: widget.mentionNames,
                   ),
-              ],
+                  if (message.isEdited)
+                    TextSpan(
+                      text: '  (edited)',
+                      style: AppText.meta.copyWith(
+                        color: themeState.textTertiary,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         if (message.attachments.isNotEmpty && widget.attachmentLoader != null)

@@ -2,3 +2,7 @@ image_safety.tflite is image-safety-classifier-xs by Owen Elliott
 (https://huggingface.co/OwenElliott/image-safety-classifier-xs), MIT
 licensed, converted from the ONNX export with onnx2tf. See ../../../rift-models
 for the conversion.
+
+profanity_en.json is the English list from dsojevic/profanity-list
+(https://github.com/dsojevic/profanity-list), MIT licensed,
+Copyright (c) 2021 David Sojevic. Shipped unchanged.

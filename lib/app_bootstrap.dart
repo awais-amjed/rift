@@ -13,6 +13,7 @@ import 'logic/services/browser_apis.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/push_service.dart';
+import 'logic/services/text_safety.dart';
 import 'logic/services/storage_namespace.dart';
 import 'logic/services/window_focus_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
@@ -56,6 +57,9 @@ class AppBootstrap {
     // After the local notifications it depends on: a push that arrives during
     // startup is handled by showing one.
     unawaited(PushService.instance.init());
+    // The profanity list, for covering flagged messages. Not awaited: until
+    // it lands every message is shown, and 60 KB lands before the first one.
+    unawaited(TextSafety.instance.load());
     // The web's stand-in for the WindowListener callbacks in main.dart, which
     // window_manager supplies everywhere else. Without it the tab is focused
     // forever and nothing ever notifies, because every trigger site gates on

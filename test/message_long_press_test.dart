@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/chat_message.dart';
@@ -63,8 +64,12 @@ void main() {
         // phone, which is what these are about.
         data: MediaQueryData(size: Size(windowWidth, 800)),
         child: MaterialApp(
-          home: BlocProvider(
-            create: (_) => ThemeCubit(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+              // The row's message cover reads the sensitive-content setting.
+              BlocProvider<AppCubit>(create: (_) => AppCubit()),
+            ],
             child: BlocBuilder<ThemeCubit, ThemeState>(
               builder: (context, themeState) => Scaffold(
                 body: ChatMessageRow(
