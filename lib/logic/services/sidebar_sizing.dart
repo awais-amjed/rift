@@ -51,3 +51,24 @@ class SidebarSizing {
     );
   }
 }
+
+/// The same two bounds for the member list, with its own numbers.
+///
+/// It is only ever docked when it is resizable — floating, it is a drawer at
+/// its default width — so there is no overlay case here.
+class MembersSidebarSizing {
+  const MembersSidebarSizing._();
+
+  static double maxFor(double windowWidth) {
+    final share = windowWidth * K.membersSidebarMaxWindowFraction;
+    return math.max(
+      K.membersSidebarMinWidth,
+      math.min(K.membersSidebarMaxWidth, share),
+    );
+  }
+
+  static double clamp(double width, {required double windowWidth}) {
+    if (!width.isFinite) return K.membersSidebarWidth;
+    return width.clamp(K.membersSidebarMinWidth, maxFor(windowWidth));
+  }
+}

@@ -110,6 +110,14 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(sidebarWidth: width));
   }
 
+  /// The member list's width, unclamped for the same reason as
+  /// [setSidebarWidth]; `MembersSidebarSizing.clamp` applies the bounds on
+  /// the way out.
+  void setMembersSidebarWidth(double width) {
+    if (!width.isFinite || width == state.membersSidebarWidth) return;
+    emit(state.copyWith(membersSidebarWidth: width));
+  }
+
   void toggleMembersSidebar() {
     emit(state.copyWith(membersSidebarOpen: !state.membersSidebarOpen));
   }

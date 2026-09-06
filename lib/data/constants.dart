@@ -154,6 +154,14 @@ class K {
   /// of window to keep for one icon. An [EdgeTab] brings it back instead.
   static const double membersSidebarWidth = 232;
 
+  /// How far the member list may be dragged. The floor keeps a name and its
+  /// role pill on one line; the ceiling, and the window share, keep it from
+  /// eating the chat it sits beside — it is the least-consulted of the three
+  /// panes, so it gets the smallest share.
+  static const double membersSidebarMinWidth = 200;
+  static const double membersSidebarMaxWidth = 420;
+  static const double membersSidebarMaxWindowFraction = 0.35;
+
   /// Settings' nav panel. Narrower than the home sidebar — it holds three
   /// labels, not a channel tree.
   static const double settingsNavWidth = 264;

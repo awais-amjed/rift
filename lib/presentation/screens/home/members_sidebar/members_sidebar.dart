@@ -14,7 +14,9 @@ import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
+import '../../../../logic/services/sidebar_sizing.dart';
 import '../chat/widgets/chat_header.dart';
+import '../sidebar/widgets/sidebar_resize_handle.dart';
 import 'widgets/members_sidebar_list.dart';
 
 /// The right-hand member list for the selected server — everyone who has
@@ -28,6 +30,11 @@ import 'widgets/members_sidebar_list.dart';
 /// [open] is passed in rather than read from [AppCubit] because where this is
 /// mounted decides what openness means — a saved preference while docked, and
 /// throwaway drawer state while overlaid. See `ShellScope`.
+///
+/// Docked, it is resizable the way the left sidebar is: the gutter between it
+/// and the content is the grab strip, the width is stored raw in [AppState]
+/// and clamped on read by [MembersSidebarSizing], and a double-click puts it
+/// back. Floating, it is a drawer at its default width.
 class MembersSidebar extends StatefulWidget {
   /// Whether the panel is showing. Animating, not mounting: see below.
   final bool open;
@@ -46,13 +53,39 @@ class _MembersSidebarState extends State<MembersSidebar> {
   /// Matches ChatHeader's bar height so the two align across the top.
   static const double _headerHeight = ChatHeader.height;
 
+  /// The width while a drag is in progress; null otherwise.
+  double? _dragWidth;
+
   /// The panel and the gutter that separates it from the content, which has to
   /// go with it — a 10px gap left hanging off the right of the window is the
   /// tell that something used to be there. Floating, there is content on both
   /// sides of it, so it takes a gutter on both — and on a phone there are no
-  /// gutters at all, so it is just the panel.
-  double _fullWidth(double gutter) =>
-      K.membersSidebarWidth + gutter * (widget.floating ? 2 : 1);
+  /// gutters at all, so it is just the panel. Docked, the gutter on the
+  /// content side is the resize handle, which is the same width.
+  double _fullWidth(double width, double gutter) =>
+      widget.floating ? width + gutter * 2 : width + K.sidebarResizeHandleWidth;
+
+  /// The pointer moves left to widen a panel on the right, so the delta is
+  /// subtracted.
+  void _onDrag(double delta, double stored, double windowWidth) {
+    setState(() {
+      _dragWidth = MembersSidebarSizing.clamp(
+        (_dragWidth ?? stored) - delta,
+        windowWidth: windowWidth,
+      );
+    });
+  }
+
+  void _onDragEnd() {
+    final width = _dragWidth;
+    if (width != null) context.read<AppCubit>().setMembersSidebarWidth(width);
+    setState(() => _dragWidth = null);
+  }
+
+  void _reset() {
+    setState(() => _dragWidth = null);
+    context.read<AppCubit>().setMembersSidebarWidth(K.membersSidebarWidth);
+  }
 
   /// Whether the contents are built. Dropped once a close has finished, and
   /// seeded from the launch state, because starting closed runs no animation
@@ -80,13 +113,26 @@ class _MembersSidebarState extends State<MembersSidebar> {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return BlocBuilder<AppCubit, AppState>(
-          buildWhen: (a, b) => a.participantSettings != b.participantSettings,
+          buildWhen: (a, b) =>
+              a.participantSettings != b.participantSettings ||
+              a.membersSidebarWidth != b.membersSidebarWidth,
           builder: (context, appState) {
             final mode = context.layoutMode;
             final gutter = mode.panelGutter;
-            final fullWidth = _fullWidth(gutter);
+            final windowWidth = MediaQuery.sizeOf(context).width;
+            // Floating, the drawer keeps its default width: it is covering
+            // the content, and a width dragged for sitting beside it does
+            // not carry over.
+            final width = widget.floating
+                ? K.membersSidebarWidth
+                : MembersSidebarSizing.clamp(
+                    _dragWidth ?? appState.membersSidebarWidth,
+                    windowWidth: windowWidth,
+                  );
+            final fullWidth = _fullWidth(width, gutter);
             return AnimatedContainer(
-              duration: K.sidebarMotion,
+              // A drag tracks the pointer exactly; see the left sidebar.
+              duration: _dragWidth != null ? Duration.zero : K.sidebarMotion,
               curve: AppMotion.panel,
               width: widget.open ? fullWidth : 0,
               onEnd: () {
@@ -108,9 +154,20 @@ class _MembersSidebarState extends State<MembersSidebar> {
                         maxWidth: fullWidth,
                         child: Row(
                           children: [
-                            SizedBox(width: gutter),
+                            if (widget.floating)
+                              SizedBox(width: gutter)
+                            else
+                              SidebarResizeHandle(
+                                onDrag: (delta) => _onDrag(
+                                  delta,
+                                  appState.membersSidebarWidth,
+                                  windowWidth,
+                                ),
+                                onDragEnd: _onDragEnd,
+                                onReset: _reset,
+                              ),
                             SizedBox(
-                              width: K.membersSidebarWidth,
+                              width: width,
                               // A panel in its own right — the same chrome as
                               // the left sidebar, floating beside the content
                               // rather than bordering it.

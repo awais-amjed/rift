@@ -140,4 +140,32 @@ void main() {
     // are tested down to.
     expect(K.sidebarMinWidth - K.serverRailWidth, greaterThan(120));
   });
+
+  group('the member list', () {
+    test('has its own range', () {
+      expect(MembersSidebarSizing.clamp(300, windowWidth: wide), 300);
+      expect(
+        MembersSidebarSizing.clamp(50, windowWidth: wide),
+        K.membersSidebarMinWidth,
+      );
+      expect(
+        MembersSidebarSizing.clamp(900, windowWidth: wide),
+        K.membersSidebarMaxWidth,
+      );
+    });
+
+    test('takes the smallest share of a narrow window', () {
+      expect(
+        MembersSidebarSizing.clamp(400, windowWidth: 1000),
+        1000 * K.membersSidebarMaxWindowFraction,
+      );
+    });
+
+    test('a corrupt width falls back to the default', () {
+      expect(
+        MembersSidebarSizing.clamp(double.nan, windowWidth: wide),
+        K.membersSidebarWidth,
+      );
+    });
+  });
 }

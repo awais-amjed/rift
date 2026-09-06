@@ -31,6 +31,9 @@ class AppState {
   /// on read by [SidebarSizing], because the window it was chosen in is not
   /// necessarily the window it will next be shown in.
   final double sidebarWidth;
+
+  /// The member list's dragged width, stored raw for the same reason.
+  final double membersSidebarWidth;
   final String? outputDeviceId;
   final String? inputDeviceId;
 
@@ -81,6 +84,7 @@ class AppState {
     this.recentEmojis = const [],
     this.membersSidebarOpen = true,
     this.sidebarWidth = K.sidebarWidth,
+    this.membersSidebarWidth = K.membersSidebarWidth,
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
@@ -114,6 +118,7 @@ class AppState {
     List<String>? recentEmojis,
     bool? membersSidebarOpen,
     double? sidebarWidth,
+    double? membersSidebarWidth,
     bool? isHovered,
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
@@ -152,6 +157,7 @@ class AppState {
       recentEmojis: recentEmojis ?? this.recentEmojis,
       membersSidebarOpen: membersSidebarOpen ?? this.membersSidebarOpen,
       sidebarWidth: sidebarWidth ?? this.sidebarWidth,
+      membersSidebarWidth: membersSidebarWidth ?? this.membersSidebarWidth,
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId
           ? null
