@@ -665,7 +665,7 @@ channel. Nothing else. That single rule is what "hears what you tell it" reduces
 
 ---
 
-## 11. The SDK — [Implemented, `bot_sdk_ts/`]
+## 11. The SDK — [Implemented, `rift-bot-sdk` repo]
 
 - ~~Derive an identity from a seed, SIWS login, keep the session refreshed~~ **done**
 - ~~Join from an invite link~~ **done** — `BotSession.join` takes the same link an admin
@@ -720,7 +720,7 @@ reason is not that it stopped working:
 Two SDKs at different depths is worse than one: it reads as a choice when it is really a trap. A
 second implementation is still worth having — it is the only thing that makes "they agree" mean
 anything — but the one that matters is the **app**, which is Dart, generates
-`test/wire_vectors.json`, and is held to it by `test/wire_test.dart`. `bot_sdk_ts` proves itself
+`test/wire_vectors.json`, and is held to it by `test/wire_test.dart`. The SDK proves itself
 against the same file. Nothing is lost by the deletion except a second copy of the easy half.
 
 Python comes next if anything does, and only because LiveKit Agents is Python-first: an AI that
@@ -829,7 +829,7 @@ to come back.
    The bot's own page answers "what does this thing see?" in one place: the server-wide toggle and
    every channel it holds a key to. Before it, that was discoverable a channel at a time, which is
    not an answer somebody can act on.
-10. ~~The TypeScript SDK~~ **done** (`bot_sdk_ts/`) — auth, commands, replies and panels. No build
+10. ~~The TypeScript SDK~~ **done** (`rift-bot-sdk`) — auth, commands, replies and panels. No build
     step and no dependencies for a text bot: Node runs TypeScript by stripping types, and every
     primitive a bot needs — voice included — is in `node:crypto`. It proves itself against `test/wire_vectors.json`, the same
     file the Dart implementation is checked against, reproducing one of its signatures byte for
@@ -844,7 +844,7 @@ to come back.
     the same query before either advances the cursor. One press counted as two votes. Both are
     guarded now.
 
-11. ~~Voice~~ **done** (migration 031, `bot_sdk_ts/src/voice.ts`) — `Bot.joinVoice`,
+11. ~~Voice~~ **done** (migration 031, `rift-bot-sdk`'s `src/voice.ts`) — `Bot.joinVoice`,
     `VoiceConnection.play`, and `@livekit/rtc-node` as an optional peer imported
     only by that call, so a text bot still installs nothing.
 

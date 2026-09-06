@@ -80,7 +80,17 @@ android/.kotlin/
 # tracked: it holds throwaway credentials paths and is written against whatever
 # was being debugged that day. Ignored rather than merely untracked, because a
 # `git add -A` catches it otherwise, and once did.
-tool/
+#
+# `tool/*` rather than `tool/`, because git does not descend into an excluded
+# directory and the negation below would never be reached.
+tool/*
+
+# The exception, and it has to be one: this is the documented way to regenerate
+# `test/wire_vectors.json` — WIRE.md, rift_crypto and wire_test.dart all name it
+# — and the contract it maintains now spans two repositories. A clone that
+# cannot run it cannot change the wire format at all. It reads nothing and
+# talks to nothing; it derives.
+!tool/gen_wire_vectors.dart
 
 # Build artefacts of the packages that are tracked.
 rift_crypto/.dart_tool/

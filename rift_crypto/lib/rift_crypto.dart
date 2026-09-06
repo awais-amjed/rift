@@ -7,7 +7,7 @@
 ///
 /// **This is the reference implementation.** `tool/gen_wire_vectors.dart`
 /// generates `test/wire_vectors.json` from this code, `test/wire_test.dart`
-/// holds it to them, and `bot_sdk_ts` proves itself against the same file
+/// holds it to them, and the `rift-bot-sdk` repo proves itself against the same file
 /// without reading a line of this one. Two implementations of a canonical
 /// payload are two things that can disagree, and the disagreement does not look
 /// like an error: a message signed over a payload differing by one character
