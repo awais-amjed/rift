@@ -29,9 +29,6 @@ class MembersSearchField extends StatefulWidget {
 }
 
 class _MembersSearchFieldState extends State<MembersSearchField> {
-  /// The same pause as every other search field in the app.
-  static const Duration _debounce = Duration(milliseconds: 250);
-
   final TextEditingController _controller = TextEditingController();
   Timer? _timer;
 
@@ -49,7 +46,7 @@ class _MembersSearchFieldState extends State<MembersSearchField> {
     if (value.trim().isEmpty) {
       widget.onChanged('');
     } else {
-      _timer = Timer(_debounce, () => widget.onChanged(value));
+      _timer = Timer(K.searchDebounce, () => widget.onChanged(value));
     }
     setState(() {});
   }

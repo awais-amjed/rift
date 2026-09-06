@@ -62,7 +62,7 @@ class _RailChipButtonState extends State<RailChipButton> {
 
         return Tooltip(
           message: widget.tooltip,
-          waitDuration: const Duration(milliseconds: 400),
+          waitDuration: K.tooltipDelay,
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
             onEnter: (_) => setState(() => _hovered = true),

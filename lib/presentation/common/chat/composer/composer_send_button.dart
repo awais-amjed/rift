@@ -40,7 +40,7 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
 
     return Tooltip(
       message: 'Send',
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: K.tooltipDelay,
       child: InkWell(
         onTap: enabled ? widget.onPressed : null,
         onHover: (value) => setState(() => _hovering = value),

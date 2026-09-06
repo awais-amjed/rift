@@ -53,7 +53,7 @@ class _RailServerChipState extends State<RailServerChip> {
           contextMenu: ServerChipMenu(server: widget.server),
           child: Tooltip(
             message: widget.server.name,
-            waitDuration: const Duration(milliseconds: 400),
+            waitDuration: K.tooltipDelay,
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               onEnter: (_) => setState(() => _hovered = true),

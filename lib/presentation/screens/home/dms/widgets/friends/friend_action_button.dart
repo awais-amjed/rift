@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/custom_colors.dart';
 import 'friend_row_action.dart';
@@ -28,7 +29,7 @@ class FriendActionButton extends StatelessWidget {
 
     return Tooltip(
       message: action.tooltip,
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: K.tooltipDelay,
       child: Material(
         color: action.isDangerous
             ? CustomColors.error.withValues(alpha: 0.1)

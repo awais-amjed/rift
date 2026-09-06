@@ -126,7 +126,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
       _removeOverlay();
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 250), () => _search(value));
+    _debounce = Timer(K.searchDebounce, () => _search(value));
   }
 
   Future<void> _search(String value) async {

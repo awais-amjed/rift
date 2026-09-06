@@ -42,8 +42,9 @@ class _ChannelBotsDialogState extends State<ChannelBotsDialog> {
   String? _busyId;
   String? _error;
 
-  bool get _mayManage =>
-      context.read<ServerCubit>().state.myPermissionBits.has(ServerPermission.manageBots);
+  bool get _mayManage => context.read<ServerCubit>().state.myPermissionBits.has(
+    ServerPermission.manageBots,
+  );
 
   @override
   void initState() {

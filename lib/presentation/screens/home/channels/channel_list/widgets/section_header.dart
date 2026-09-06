@@ -64,7 +64,7 @@ class _AddButton extends StatelessWidget {
 
     return Tooltip(
       message: tooltip,
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: K.tooltipDelay,
       child: InkWell(
         borderRadius: BorderRadius.circular(K.radiusRow),
         hoverColor: themeState.bgHover,

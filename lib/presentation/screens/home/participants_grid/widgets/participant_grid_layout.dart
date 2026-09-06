@@ -41,7 +41,8 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   ///
   /// Absent means not muted: a person nobody has an opinion about has no row.
   bool _mutedFor(String identity) =>
-      widget.participantSettings[ParticipantIdentity.userIdOf(identity)]
+      widget
+          .participantSettings[ParticipantIdentity.userIdOf(identity)]
           ?.muted ??
       false;
 

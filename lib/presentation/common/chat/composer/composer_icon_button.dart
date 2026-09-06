@@ -32,7 +32,7 @@ class ComposerIconButton extends StatelessWidget {
         : (enabled ? themeState.textTertiary : themeState.textQuaternary);
     return Tooltip(
       message: tooltip,
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: K.tooltipDelay,
       // An InkWell draws its hover and its splash on the nearest Material
       // above it in the tree, and the composer bar paints its own background
       // over whatever Material is below — so the highlight was being drawn on

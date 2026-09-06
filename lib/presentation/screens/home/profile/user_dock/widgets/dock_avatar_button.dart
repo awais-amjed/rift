@@ -40,7 +40,7 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
 
     return Tooltip(
       message: 'Edit profile',
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: K.tooltipDelay,
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/constants.dart';
 import '../../logic/services/masked_email.dart';
 import '../theme/theme_context.dart';
 
@@ -49,7 +50,7 @@ class _MaskedEmailTextState extends State<MaskedEmailText> {
         ),
         Tooltip(
           message: _shown ? 'Hide address' : 'Show address',
-          waitDuration: const Duration(milliseconds: 400),
+          waitDuration: K.tooltipDelay,
           child: InkWell(
             borderRadius: BorderRadius.circular(999),
             onTap: () => setState(() => _shown = !_shown),

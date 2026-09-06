@@ -19,7 +19,7 @@ class MemberBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: K.tooltipDelay,
       child: Container(
         width: 22,
         height: 22,

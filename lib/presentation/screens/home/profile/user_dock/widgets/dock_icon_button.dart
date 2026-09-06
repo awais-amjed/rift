@@ -32,7 +32,7 @@ class DockIconButton extends StatelessWidget {
 
         return Tooltip(
           message: tooltip,
-          waitDuration: const Duration(milliseconds: 400),
+          waitDuration: K.tooltipDelay,
           child: Material(
             color: isError
                 ? CustomColors.error.withValues(alpha: 0.12)

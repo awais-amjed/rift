@@ -153,6 +153,24 @@ class K {
   /// this file is meant to stay free of it.
   static const Duration sidebarMotion = Duration(milliseconds: 220);
 
+  /// How long a pointer has to rest before a tooltip appears.
+  ///
+  /// Written out at fourteen call sites, which is fourteen chances for one
+  /// button in a row of identical buttons to feel different from its
+  /// neighbours. Long enough that tooltips do not flicker up while somebody is
+  /// crossing a toolbar on the way somewhere else, short enough to answer a
+  /// deliberate hover.
+  static const Duration tooltipDelay = Duration(milliseconds: 400);
+
+  /// How long a search field waits after the last keystroke before asking the
+  /// server.
+  ///
+  /// Every search field in the app is meant to feel like the same control, and
+  /// two of the three that set this said so in a comment while holding their
+  /// own copy of the number. Long enough to skip the letters somebody types on
+  /// the way to a word, short enough that the results feel like a response.
+  static const Duration searchDebounce = Duration(milliseconds: 250);
+
   /// Right-hand member list. Narrower than the left sidebar — it holds one
   /// short name per row, not channel trees. Hidden it takes no width at all;
   /// it used to leave a 42px strip behind for its reopen button, which is a lot

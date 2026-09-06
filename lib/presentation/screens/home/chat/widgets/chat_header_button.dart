@@ -42,7 +42,7 @@ class ChatHeaderButton extends StatelessWidget {
 
         return Tooltip(
           message: tooltip,
-          waitDuration: const Duration(milliseconds: 400),
+          waitDuration: K.tooltipDelay,
           child: Material(
             color: fill,
             borderRadius: radius,

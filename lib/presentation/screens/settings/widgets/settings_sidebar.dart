@@ -111,7 +111,7 @@ class _BackButton extends StatelessWidget {
 
     return Tooltip(
       message: 'Back to home',
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: K.tooltipDelay,
       child: Material(
         color: themeState.bgHover,
         borderRadius: radius,

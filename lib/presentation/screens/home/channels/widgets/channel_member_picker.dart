@@ -66,10 +66,6 @@ class ChannelMemberPicker extends StatefulWidget {
 }
 
 class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
-  /// Matches the drop-down search elsewhere in the app, so the two fields feel
-  /// like the same control rather than two guesses at one.
-  static const Duration _debounce = Duration(milliseconds: 250);
-
   final TextEditingController _controller = TextEditingController();
   Timer? _timer;
   List<ServerMember> _results = const [];
@@ -93,7 +89,7 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
 
   void _onChanged(String value) {
     _timer?.cancel();
-    _timer = Timer(_debounce, () => unawaited(_search(value)));
+    _timer = Timer(K.searchDebounce, () => unawaited(_search(value)));
     // The clear button and the pinned rows both depend on the text, so the
     // field's own repaint cannot wait for the request to come back.
     setState(() {});
