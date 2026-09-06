@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -18,9 +15,6 @@ import 'voice_audio/push_to_talk_section.dart';
 /// and the two Windows-only sections.
 class VoiceAudioContent extends StatelessWidget {
   const VoiceAudioContent({super.key});
-
-  /// Audio ducking and push-to-talk both need Windows APIs.
-  static final bool _isWindows = !kIsWeb && Platform.isWindows;
 
   /// Picking an input and an output by name is a desktop idea, and on a phone
   /// it is two dead controls: WebRTC's Android device module does not
@@ -51,7 +45,7 @@ class VoiceAudioContent extends StatelessWidget {
               const SizedBox(height: 20),
               MicTestSection(),
               _divider(context),
-              if (_isWindows) ...[
+              if (HostPlatform.ducksOtherApps) ...[
                 SectionTitle(label: 'Audio ducking'),
                 const SizedBox(height: 12),
                 SettingToggleRow(
