@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/ping_sample.dart';
+import '../../../../theme/theme_context.dart';
 
 /// A small line graph that renders [PingSample] history.
 /// X-axis = last 5 minutes, Y-axis = ping in ms.
@@ -15,15 +16,30 @@ class PingGraph extends StatelessWidget {
     return SizedBox(
       height: height,
       width: double.infinity,
-      child: CustomPaint(painter: _PingGraphPainter(samples: samples)),
+      child: CustomPaint(
+        // The line follows the chosen accent. It was a literal indigo, so the
+        // graph stayed indigo whichever palette the reader had picked — the one
+        // place in the app where changing the accent did nothing.
+        painter: _PingGraphPainter(
+          samples: samples,
+          line: context.theme.primary,
+          grid: context.theme.borderPrimary,
+        ),
+      ),
     );
   }
 }
 
 class _PingGraphPainter extends CustomPainter {
   final List<PingSample> samples;
+  final Color line;
+  final Color grid;
 
-  const _PingGraphPainter({required this.samples});
+  const _PingGraphPainter({
+    required this.samples,
+    required this.line,
+    required this.grid,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -39,7 +55,7 @@ class _PingGraphPainter extends CustomPainter {
 
     // Horizontal guide lines
     final gridPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.06)
+      ..color = grid
       ..strokeWidth = 1;
 
     for (final lineMs in [50.0, 100.0, 150.0, 200.0]) {
@@ -91,15 +107,15 @@ class _PingGraphPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          const Color(0xFF6366F1).withValues(alpha: 0.35),
-          const Color(0xFF6366F1).withValues(alpha: 0.0),
+          line.withValues(alpha: 0.35),
+          line.withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawPath(fillPath, fillPaint);
 
     // Line
     final linePaint = Paint()
-      ..color = const Color(0xFF6366F1)
+      ..color = line
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -108,5 +124,6 @@ class _PingGraphPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_PingGraphPainter old) => old.samples != samples;
+  bool shouldRepaint(_PingGraphPainter old) =>
+      old.samples != samples || old.line != line || old.grid != grid;
 }
