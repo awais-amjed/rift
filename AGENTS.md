@@ -132,8 +132,8 @@ edge_functions.md   # Edge Function API doc — update when functions change
   `.copyWith(color: theme.textSecondary)`. Geist for UI; `figure`/`kbd`/`code`/`mnemonic` are
   mono, reserved for figures that line up or tick in place, keyboard chips and strings copied
   exactly. Timestamps (`meta`) are sans with tabular figures.
-- **Radius:** four steps in `K` — `radiusRow` (10, anything pressed), `radiusCard` (14),
-  `radiusPanel` (20, panels and dialogs), `radiusPill`. No literal radii in widgets.
+- **Radius:** four steps in `K` — `radiusRow` (8, anything pressed), `radiusCard` (12),
+  `radiusPanel` (12, panels and dialogs), `radiusPill`. No literal radii in widgets.
 - **Selection:** one language everywhere — a flat `channelActiveBg` tint and a 1px
   `channelActiveBorder`, the same width as the resting hairline (`SelectableSurface`, `NavRow`,
   the voice card). No gradients, no glow: primary buttons and the send control are solid accent.
