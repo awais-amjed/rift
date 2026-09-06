@@ -3,13 +3,13 @@ class K {
   // Four steps. A surface picks the one for what it is, never a value of
   // its own: a fifth radius is how the scale grew to eight.
   /// List rows, buttons, fields, chips, icon buttons — anything you press.
-  static const double radiusRow = 10;
+  static const double radiusRow = 8;
 
   /// Cards, context menus, popovers, attachments, icon badges.
-  static const double radiusCard = 14;
+  static const double radiusCard = 12;
 
   /// The floating panels, dialogs and the voice control bar.
-  static const double radiusPanel = 20;
+  static const double radiusPanel = 16;
 
   /// Fully round — pills, presence dots, colour swatches.
   static const double radiusPill = 999;
