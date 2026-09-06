@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/resolved_invite.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
+import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_modal.dart';
 import 'browse_servers_modal.dart';
 import 'create_server_modal.dart';
@@ -55,8 +58,25 @@ class _AddServerDialogState extends State<AddServerDialog> {
   /// self-hosted console made for them, and that route skipped every question
   /// the create flow asks. So they get the same last step, from the same
   /// place, rather than having to find it later under a context menu.
-  void _handleJoined({required bool joinedAsAdmin}) =>
-      joinedAsAdmin ? _go(_Step.publish) : _handleSuccess();
+  ///
+  /// Unless the question has been answered. A server picked out of the
+  /// browser is listed by definition, and one somebody else already listed
+  /// has nothing left to ask — a second "list publicly" would only be
+  /// refused as a duplicate.
+  Future<void> _handleJoined({required bool joinedAsAdmin}) async {
+    if (!joinedAsAdmin || _fromBrowser) return _handleSuccess();
+    final invite = _invite;
+    if (invite != null &&
+        context.read<SupabaseBackupCubit>().state.isSignedIn) {
+      final listed = await context.read<PublicServersCubit>().isListed(
+        supabaseUrl: invite.serverUrl,
+        serverId: invite.serverId,
+      );
+      if (!mounted) return;
+      if (listed) return _handleSuccess();
+    }
+    _go(_Step.publish);
+  }
 
   void _go(_Step step) => setState(() => _step = step);
 

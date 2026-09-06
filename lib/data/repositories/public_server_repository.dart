@@ -67,6 +67,27 @@ class PublicServerRepository {
 
   /// The caller's own listings, delisted ones included — this is the list the
   /// publish dialog manages, not the one the browser shows.
+  /// Whether anybody has listed [serverId] at [supabaseUrl], whoever that
+  /// was. Only a listed row is visible to somebody other than its publisher,
+  /// so a `false` here means "not findable", which is the question asked.
+  Future<APIResponse> isListed({
+    required String supabaseUrl,
+    required String serverId,
+  }) async {
+    try {
+      final row = await _client
+          .from(_table)
+          .select('id')
+          .eq('supabase_url', supabaseUrl)
+          .eq('server_id', serverId)
+          .eq('is_listed', true)
+          .maybeSingle();
+      return APIResponse.success(row != null);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
+
   Future<APIResponse> myListings() async {
     try {
       final uid = _uid;

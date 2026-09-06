@@ -125,6 +125,20 @@ class PublicServersCubit extends Cubit<PublicServersState> {
   // ── Publishing ────────────────────────────────────────────
 
   /// Load the caller's own listings and the cap they count against.
+  /// Whether the server is already in the directory, by anybody's hand.
+  /// Answers false when central cannot be asked: the join flow then offers
+  /// the listing page, which is the safe direction to be wrong in.
+  Future<bool> isListed({
+    required String supabaseUrl,
+    required String serverId,
+  }) async {
+    final response = await _repo.isListed(
+      supabaseUrl: supabaseUrl,
+      serverId: serverId,
+    );
+    return response.success && response.data == true;
+  }
+
   Future<void> loadMine() async {
     emit(state.copyWith(savingListing: true, clearError: true));
 
