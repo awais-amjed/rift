@@ -1,51 +1,48 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
-import '../theme/app_shadows.dart';
+import '../theme/theme_context.dart';
+import 'rift_mark_path.dart';
 
-/// Rift's brand mark: a squircle of the palette's identity gradient.
+/// Rift's brand mark, in the palette's identity gradient.
 ///
-/// Deliberately wordless and palette-driven — it is the same shape as a server
-/// chip or an avatar, so the app's own identity sits in the same visual family
-/// as everyone else's.
+/// The mark is two walls with the rift as the gap between them — see
+/// [riftMarkPath]. It is a shape, not a tile: no container, no glow, and the
+/// gap is whatever ground it sits on, so it holds on the canvas, on a panel
+/// and beside a server chip without being one. It themes with the app the
+/// way it always has, through the identity gradient; outside the app —
+/// installers, favicons — it is pinned to Indigo (`assets/brand/`).
+///
+/// Keep 0.2× the mark's width clear around it. Do not go below
+/// [riftMarkMinimumSize].
 class AppMark extends StatelessWidget {
   final double size;
 
-  /// Knocked out of the gradient in white. Only the large hero mark carries
-  /// one — at title-bar size a glyph would be mud.
-  final IconData? icon;
-
-  /// Casts the accent glow under the mark. For the hero mark, which has to
-  /// hold the middle of an otherwise empty canvas.
-  final bool glow;
-
-  const AppMark({super.key, this.size = 16, this.icon, this.glow = false});
+  const AppMark({super.key, this.size = 16})
+    : assert(size >= riftMarkMinimumSize, 'the mark closes up below 16px');
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            gradient: themeState.identityGradient,
-            borderRadius: BorderRadius.circular(size * K.avatarRadiusRatio),
-            boxShadow: glow
-                ? AppShadows.accentGlow(
-                    themeState.primary,
-                    blurRadius: 40,
-                    dy: 10,
-                  )
-                : null,
-          ),
-          child: icon == null
-              ? null
-              : Icon(icon, size: size / 2, color: Colors.white),
-        );
-      },
+    return CustomPaint(
+      size: Size.square(size),
+      painter: _MarkPainter(gradient: context.theme.identityGradient),
     );
   }
+}
+
+class _MarkPainter extends CustomPainter {
+  final LinearGradient gradient;
+
+  const _MarkPainter({required this.gradient});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final paint = Paint()
+      ..shader = gradient.createShader(rect)
+      ..isAntiAlias = true;
+    canvas.drawPath(riftMarkPath(size.width), paint);
+  }
+
+  @override
+  bool shouldRepaint(_MarkPainter old) => old.gradient != gradient;
 }

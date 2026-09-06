@@ -30,10 +30,9 @@ class WelcomeStep extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // The brand mark itself, not a tinted tile — this is the first thing
-          // anyone sees of Rift, and it should be the same gradient squircle
-          // that every server and avatar in the app is cut from.
-          const AppMark(size: 76, icon: Icons.headset_mic_rounded, glow: true),
+          // The mark itself, large and on the bare card — this is the first
+          // thing anyone sees of Rift, and the mark needs no tile to hold it.
+          const AppMark(size: 76),
 
           const SizedBox(height: 28),
 
