@@ -35,6 +35,11 @@ import 'friends/friend_menu_item.dart';
 /// silently stopped existing rather than sitting further down — and there was
 /// nothing to scroll to, because there was no cursor into a list nobody was
 /// querying.
+///
+/// And built lazily, for the same reason it pages. Every tile assembles its
+/// own context menu through `FriendActions.forFriend`, so drawing them all
+/// eagerly did that work for conversations nobody had scrolled to — on a list
+/// whose whole point is that it has no upper bound.
 class CentralConversationList extends StatelessWidget {
   const CentralConversationList({super.key});
 
@@ -53,22 +58,30 @@ class CentralConversationList extends StatelessWidget {
         // Never swallowed — the scrollbar is still listening.
         return false;
       },
-      child: ListView(
+      child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        children: [
-          const SectionHeader(label: 'Conversations'),
-          for (final conversation in conversations)
-            _tile(context, state, themeState, conversation),
-          if (state.hasMoreConversations) _buildFooter(),
-          const Padding(
+        // One header, the conversations, a spinner while there are more, and
+        // the note at the end.
+        itemCount: conversations.length + (state.hasMoreConversations ? 3 : 2),
+        itemBuilder: (context, index) {
+          if (index == 0) return const SectionHeader(label: 'Conversations');
+
+          final at = index - 1;
+          if (at < conversations.length) {
+            return _tile(context, state, themeState, conversations[at]);
+          }
+          if (state.hasMoreConversations && at == conversations.length) {
+            return _buildFooter();
+          }
+          return const Padding(
             padding: EdgeInsets.fromLTRB(2, 14, 2, 12),
             child: HintCard(
               text:
                   'Central DMs are for finding each other. For longer chats, '
                   'move to a server you share.',
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
