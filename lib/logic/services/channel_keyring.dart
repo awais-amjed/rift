@@ -5,6 +5,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../data/classes/server.dart';
 import '../../data/enums/error_code.dart';
+import '../../data/repositories/server_repository.dart';
 import '../cubits/server/server_cubit.dart';
 import '../cubits/vault/vault_cubit.dart';
 import '../helper_methods.dart';
@@ -111,7 +112,7 @@ class ChannelKeyring with _KeyringSealingMixin {
     if (!response.success) return false;
     publishedChatKey.add(server.id);
     final data = response.data as Map<String, dynamic>?;
-    return data?['newly_published'] == true;
+    return data?[publishedChatKeyIsNew] == true;
   }
 
   /// Pick up key versions minted since this channel was opened.

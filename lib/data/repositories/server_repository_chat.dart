@@ -11,6 +11,17 @@ part of 'server_repository.dart';
 /// sender and timestamp so a modified client can't post as someone else or
 /// backdate. The rules are the same ones the endpoints enforced; they are just
 /// written where the rows are.
+/// The field `publishChatKey` answers with, and the field
+/// `ChannelKeyring.ensureChatKeyPublished` reads to decide whether to ring the
+/// key-sweep doorbell.
+///
+/// Named once and shared, because the two halves disagreeing is not a
+/// hypothetical. The writer said `published`, the reader asked for
+/// `newly_published`, and neither side looked wrong on its own — so the ring
+/// that tells online members to seal a key for a new member never fired at
+/// all, and every new member waited for somebody to open a channel by hand.
+const String publishedChatKeyIsNew = 'newly_published';
+
 mixin _ChatApiMixin {
   ServerDb get _db;
 
@@ -22,6 +33,21 @@ mixin _ChatApiMixin {
   });
 
   /// Publish the caller's X25519 chat public key (idempotent).
+  ///
+  /// Answers [publishedChatKeyIsNew] beside `published`, and the difference is the
+  /// whole point of the call. A member whose key has just appeared is a member
+  /// nobody has sealed a channel key to, so
+  /// [ChannelKeyring.ensureChatKeyPublished] rings the key-sweep doorbell on
+  /// that answer and every online member wraps for them at once.
+  ///
+  /// It used to return `published` alone while the caller read
+  /// `newly_published`, so the answer was always null, the ring never fired,
+  /// and the comment saying "tell online members to wrap for us right away"
+  /// described something that had never happened. Nothing looked broken —
+  /// opening a text channel without a key rings the same doorbell, and that
+  /// second ring covered for the first everywhere except a call, where there
+  /// is no channel to open. A member whose first stop was voice waited until
+  /// somebody else opened that channel by hand.
   Future<APIResponse> publishChatKey(
     String supabaseUrl, {
     required String anonKey,
@@ -31,11 +57,24 @@ mixin _ChatApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      // Read, then write only if it differs, rather than filtering the update
+      // on the column: it is null for a member who has never published, and
+      // PostgREST's `neq` never matches a null — so the one case that has to
+      // answer "newly published" is exactly the one such a filter would skip.
+      // Once per server per run, so the extra round trip costs nobody anything.
+      final existing = await db
+          .from('users')
+          .select('chat_public_key')
+          .eq('id', userId)
+          .maybeSingle();
+      if (existing?['chat_public_key'] == chatPublicKey) {
+        return {'published': true, publishedChatKeyIsNew: false};
+      }
       await db
           .from('users')
           .update({'chat_public_key': chatPublicKey})
           .eq('id', userId);
-      return {'published': true};
+      return {'published': true, publishedChatKeyIsNew: true};
     });
   }
 
