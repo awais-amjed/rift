@@ -1,5 +1,6 @@
 import '../enums/message_origin.dart';
 import 'attachment.dart';
+import 'link_preview.dart';
 import 'message_reaction.dart';
 import 'panel_block.dart';
 
@@ -28,6 +29,10 @@ class ChatMessage {
   /// Decrypted attachments carried in the message body (images, audio, files).
   /// Empty for a plain text message.
   final List<Attachment> attachments;
+
+  /// The sender's preview of the first link, or null. Drawn as a card
+  /// under the text; never fetched here.
+  final LinkPreview? preview;
 
   /// Aggregated emoji reactions (NOT E2E — server-visible). Merged in
   /// separately from the message body via `list_reactions`.
@@ -143,6 +148,7 @@ class ChatMessage {
     required this.sentAt,
     required this.isMine,
     this.attachments = const [],
+    this.preview,
     this.reactions = const [],
     this.isPending = false,
     this.sendFailed = false,
@@ -170,6 +176,7 @@ class ChatMessage {
     sentAt: sentAt,
     isMine: isMine,
     attachments: attachments,
+    preview: preview,
     reactions: reactions ?? this.reactions,
     isPending: isPending,
     sendFailed: sendFailed ?? this.sendFailed,

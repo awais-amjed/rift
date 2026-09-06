@@ -35,6 +35,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   Future<void> sendMessage(
     String text, {
     List<PendingAttachment> attachments = const [],
+    PendingLinkPreview? preview,
     String? inVoiceChannel,
   }) async {
     final channelId = state.channelId;
@@ -88,10 +89,15 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     emit(state.copyWith(messages: [...state.messages, pending]));
 
     try {
+      Future<APIResponse> uploadOne(Uint8List bytes) =>
+          _serverCubit.uploadAttachment(scopePrefix: channelId, data: bytes);
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
-        uploadOne: (bytes) =>
-            _serverCubit.uploadAttachment(scopePrefix: channelId, data: bytes),
+        uploadOne: uploadOne,
+      );
+      final sentPreview = await ChatAttachmentUploader.uploadPreview(
+        pending: preview,
+        uploadOne: uploadOne,
       );
       if (state.channelId != channelId) return;
 
@@ -115,6 +121,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
               plaintext: MessageBody(
                 text: trimmed,
                 attachments: uploaded,
+                preview: sentPreview,
               ).encode(),
               messageKey: key,
               signingKeyPair: identity.keyPair,

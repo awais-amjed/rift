@@ -14,6 +14,7 @@ import '../../../data/classes/friend_buckets.dart';
 import '../../../data/classes/paged.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
+import '../../services/link_preview_fetcher.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import '../../../supabase_config.dart';

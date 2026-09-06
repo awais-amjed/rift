@@ -51,8 +51,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           ChatComposer(
             hintText: 'Message ${state.openPeerName ?? ''}',
             maxAttachmentBytes: _maxAttachmentBytes(),
-            onSend: (text, attachments) =>
-                context.read<DmCubit>().sendDm(text, attachments: attachments),
+            onSend: (text, attachments, preview) => context
+                .read<DmCubit>()
+                .sendDm(text, attachments: attachments, preview: preview),
             onTyping: () => context.read<DmCubit>().notifyTyping(),
           ),
         ],

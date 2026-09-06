@@ -21,6 +21,7 @@ import 'message_hover_toolbar.dart';
 import 'message_row_avatar.dart';
 import 'message_locked_body.dart';
 import 'message_row_header.dart';
+import '../link_preview_card.dart';
 import 'guarded_message_text.dart';
 import 'message_text.dart';
 import '../../../theme/app_motion.dart';
@@ -390,6 +391,8 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
             attachments: message.attachments,
             loader: widget.attachmentLoader!,
           ),
+        if (message.preview case final preview? when preview.hasContent)
+          LinkPreviewCard(preview: preview, loader: widget.attachmentLoader),
         if (showReactions)
           MessageReactionsBar(
             reactions: message.reactions,

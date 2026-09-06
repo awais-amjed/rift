@@ -27,6 +27,11 @@ class AppState {
   /// because the verdict is: the model runs on bytes only this device holds.
   final SensitiveContentMode sensitiveContentMode;
 
+  /// Whether this device builds a preview for a link as it is typed. The
+  /// fetch is made from here, by the sender, and nowhere else — so this is
+  /// a choice about what this device reaches out to.
+  final bool linkPreviewsEnabled;
+
   /// Whether the right-hand member sidebar is expanded. Persisted so the
   /// layout survives a restart.
   final bool membersSidebarOpen;
@@ -81,6 +86,7 @@ class AppState {
     this.disableAudioDucking = false,
     this.statsOverlayPinned = false,
     this.sensitiveContentMode = SensitiveContentMode.blur,
+    this.linkPreviewsEnabled = true,
     this.outputDeviceId,
     this.inputDeviceId,
     this.noiseSuppression = true,
@@ -114,6 +120,7 @@ class AppState {
     bool? disableAudioDucking,
     bool? statsOverlayPinned,
     SensitiveContentMode? sensitiveContentMode,
+    bool? linkPreviewsEnabled,
     String? outputDeviceId,
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
@@ -152,6 +159,7 @@ class AppState {
       disableAudioDucking: disableAudioDucking ?? this.disableAudioDucking,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,
+      linkPreviewsEnabled: linkPreviewsEnabled ?? this.linkPreviewsEnabled,
       outputDeviceId: clearOutputDeviceId
           ? null
           : (outputDeviceId ?? this.outputDeviceId),

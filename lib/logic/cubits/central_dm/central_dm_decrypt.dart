@@ -77,6 +77,7 @@ mixin _CentralDmDecryptMixin on Cubit<CentralDmState> {
         authorName: isMine ? (state.myHandle ?? 'me') : peerHandle,
         text: body.text,
         attachments: body.attachments,
+        preview: body.preview,
         sentAt: DateTime.parse(row['created_at'] as String),
         isMine: isMine,
         editedAt: DateTime.tryParse('${row['edited_at']}'),

@@ -43,6 +43,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
         plaintext: MessageBody(
           text: trimmed,
           attachments: existing.attachments,
+          preview: existing.preview,
         ).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/pending_attachment.dart';
+import '../../../../logic/services/link_preview_fetcher.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
@@ -58,8 +59,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       names: chatState.typingUsers.values.toList(),
                     ),
                     ChatComposer(
-                      onSend: (text, attachments) =>
-                          _send(context, text, attachments),
+                      onSend: (text, attachments, preview) =>
+                          _send(context, text, attachments, preview),
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
@@ -94,6 +95,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
     BuildContext context,
     String text,
     List<PendingAttachment> attachments,
+    PendingLinkPreview? preview,
   ) async {
     // Read at send time rather than watched: joining a call should not rebuild
     // the composer.
@@ -103,6 +105,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
     await context.read<ChannelChatCubit>().sendMessage(
       text,
       attachments: attachments,
+      preview: preview,
       inVoiceChannel: inVoice,
     );
 

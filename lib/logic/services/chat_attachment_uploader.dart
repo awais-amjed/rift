@@ -3,8 +3,10 @@ import 'dart:typed_data';
 
 import '../../data/classes/api_response.dart';
 import '../../data/classes/attachment.dart';
+import '../../data/classes/link_preview.dart';
 import '../../data/classes/pending_attachment.dart';
 import 'attachment_cache.dart';
+import 'link_preview_fetcher.dart';
 
 /// Shared "upload staged files → attachment metadata" step used by all three
 /// chat pipelines (channels, server DMs, central DMs). The only thing that
@@ -25,6 +27,27 @@ class ChatAttachmentUploader {
   ///
   /// [uploadOne] receives the raw bytes and must return an [APIResponse] whose
   /// `data` is `({String path, String keyB64, String nonceB64})` on success.
+  /// The sender's link preview with its thumbnail uploaded, or null when
+  /// there was none. The words travel in the body; only the picture needs
+  /// a blob, and it takes the same encrypted road as any attachment.
+  static Future<LinkPreview?> uploadPreview({
+    required PendingLinkPreview? pending,
+    required Future<APIResponse> Function(Uint8List data) uploadOne,
+  }) async {
+    if (pending == null) return null;
+    final image = pending.image;
+    final uploaded = image == null
+        ? const <Attachment>[]
+        : await uploadAll(pending: [image], uploadOne: uploadOne);
+    return LinkPreview(
+      url: pending.url,
+      title: pending.title,
+      description: pending.description,
+      siteName: pending.siteName,
+      image: uploaded.isEmpty ? null : uploaded.first,
+    );
+  }
+
   static Future<List<Attachment>> uploadAll({
     required List<PendingAttachment> pending,
     required Future<APIResponse> Function(Uint8List data) uploadOne,

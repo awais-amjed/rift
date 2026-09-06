@@ -84,6 +84,7 @@ mixin _DmDecryptMixin on Cubit<DmState> {
         authorAvatarPath: row['sender_avatar_path'] as String?,
         text: body.text,
         attachments: body.attachments,
+        preview: body.preview,
         sentAt: DateTime.parse(row['created_at'] as String),
         isMine: isMine,
         editedAt: DateTime.tryParse('${row['edited_at']}'),

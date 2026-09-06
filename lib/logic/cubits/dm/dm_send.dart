@@ -21,6 +21,7 @@ mixin _DmSendMixin on Cubit<DmState> {
   Future<void> sendDm(
     String text, {
     List<PendingAttachment> attachments = const [],
+    PendingLinkPreview? preview,
   }) async {
     final peerId = state.openPeerId;
     final server = _serverCubit.state.selectedServer;
@@ -56,16 +57,25 @@ mixin _DmSendMixin on Cubit<DmState> {
         user.id,
         peerId,
       ).replaceAll(':', '_');
+      Future<APIResponse> uploadOne(Uint8List bytes) =>
+          _serverCubit.uploadAttachment(scopePrefix: scope, data: bytes);
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
-        uploadOne: (bytes) =>
-            _serverCubit.uploadAttachment(scopePrefix: scope, data: bytes),
+        uploadOne: uploadOne,
+      );
+      final sentPreview = await ChatAttachmentUploader.uploadPreview(
+        pending: preview,
+        uploadOne: uploadOne,
       );
       if (state.openPeerId != peerId) return;
 
       final identity = await _vaultIdentityFor(server);
       final envelope = await _crypto.sealMessage(
-        plaintext: MessageBody(text: trimmed, attachments: uploaded).encode(),
+        plaintext: MessageBody(
+          text: trimmed,
+          attachments: uploaded,
+          preview: sentPreview,
+        ).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,
         contextId: DmCubit.conversationContext(user.id, peerId),

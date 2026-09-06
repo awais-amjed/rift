@@ -8,6 +8,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/segmented_control.dart';
 import '../../../common/selectable_surface.dart';
 import 'section_title.dart';
+import 'setting_toggle_row.dart';
 import '../../../theme/app_palette.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -66,6 +67,22 @@ class AppearanceContent extends StatelessWidget {
                 onTap: () => context.read<ThemeCubit>().setPalette(palette.id),
               ),
           ],
+        ),
+
+        const SizedBox(height: 28),
+
+        SectionTitle(label: 'Link previews'),
+        const SizedBox(height: 12),
+        SettingToggleRow(
+          title: 'Preview links you send',
+          description:
+              'When you paste a link, this device fetches the page once and '
+              'sends its title and picture inside the encrypted message. '
+              'Nobody reading it ever touches the site.',
+          value: context.select<AppCubit, bool>(
+            (c) => c.state.linkPreviewsEnabled,
+          ),
+          onChanged: (v) => context.read<AppCubit>().setLinkPreviewsEnabled(v),
         ),
 
         const SizedBox(height: 28),

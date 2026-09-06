@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
@@ -29,11 +30,15 @@ Future<void> _pumpComposer(WidgetTester tester) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: BlocProvider(
-          create: (_) => ThemeCubit(),
+        body: MultiBlocProvider(
+          providers: [
+            BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+            // The composer reads the link-preview setting as text changes.
+            BlocProvider<AppCubit>(create: (_) => AppCubit()),
+          ],
           child: Align(
             alignment: Alignment.bottomCenter,
-            child: ChatComposer(onSend: (_, _) {}),
+            child: ChatComposer(onSend: (_, _, _) {}),
           ),
         ),
       ),

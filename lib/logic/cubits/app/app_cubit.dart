@@ -64,6 +64,9 @@ class AppCubit extends HydratedCubit<AppState> {
   void setSensitiveContentMode(SensitiveContentMode mode) =>
       emit(state.copyWith(sensitiveContentMode: mode));
 
+  void setLinkPreviewsEnabled(bool value) =>
+      emit(state.copyWith(linkPreviewsEnabled: value));
+
   void setDisableAudioDucking(bool value) {
     emit(state.copyWith(disableAudioDucking: value));
     WindowsAudioDucking.apply(disable: value);

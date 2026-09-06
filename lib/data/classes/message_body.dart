@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'attachment.dart';
+import 'link_preview.dart';
 
 /// The structured content of a chat message — what actually gets sealed into a
 /// [MessageEnvelope] as the encrypted plaintext (ARCHITECTURE.md §4).
@@ -22,10 +23,15 @@ class MessageBody {
   final String text;
   final List<Attachment> attachments;
 
+  /// What the sender saw at the first link, if they chose to send it. Sealed
+  /// with the text, so readers never fetch the page — see [LinkPreview].
+  final LinkPreview? preview;
+
   const MessageBody({
     this.version = currentVersion,
     this.text = '',
     this.attachments = const [],
+    this.preview,
   });
 
   bool get isEmpty => text.trim().isEmpty && attachments.isEmpty;
@@ -39,6 +45,7 @@ class MessageBody {
     'text': text,
     if (attachments.isNotEmpty)
       'att': attachments.map((a) => a.toJson()).toList(),
+    if (preview != null) 'prev': preview!.toJson(),
   });
 
   /// Parse a decrypted plaintext into a body. Anything that isn't our tagged
@@ -54,10 +61,14 @@ class MessageBody {
                 .map(Attachment.fromJson)
                 .toList() ??
             const <Attachment>[];
+        final prev = decoded['prev'];
         return MessageBody(
           version: decoded['v'] as int? ?? currentVersion,
           text: decoded['text'] as String? ?? '',
           attachments: att,
+          preview: prev is Map<String, dynamic>
+              ? LinkPreview.fromJson(prev)
+              : null,
         );
       }
     } catch (_) {

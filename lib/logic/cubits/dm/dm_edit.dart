@@ -36,6 +36,7 @@ mixin _DmEditMixin on Cubit<DmState> {
         plaintext: MessageBody(
           text: trimmed,
           attachments: existing.attachments,
+          preview: existing.preview,
         ).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,

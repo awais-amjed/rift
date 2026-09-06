@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
@@ -39,8 +40,12 @@ void main() {
 
   Future<void> host(WidgetTester tester, Widget child) {
     return tester.pumpWidget(
-      BlocProvider<ThemeCubit>(
-        create: (_) => ThemeCubit(),
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+          // The composer reads the link-preview setting as text changes.
+          BlocProvider<AppCubit>(create: (_) => AppCubit()),
+        ],
         child: MaterialApp(
           home: Scaffold(
             body: Center(child: SizedBox(width: 460, child: child)),
@@ -68,11 +73,11 @@ void main() {
     Future<Rect> pumpComposer(
       WidgetTester tester, {
       bool enabled = true,
-      void Function(String, List)? onSend,
+      void Function(String, List, Object?)? onSend,
     }) async {
       await host(
         tester,
-        ChatComposer(enabled: enabled, onSend: onSend ?? (_, _) {}),
+        ChatComposer(enabled: enabled, onSend: onSend ?? (_, _, _) {}),
       );
       // The painted bar, not the outer padding around it.
       return tester.getRect(find.byType(TapToFocus));
@@ -111,7 +116,7 @@ void main() {
       // The whole point of deferring to the innermost recogniser: a tap that
       // lands on a control belongs to the control, not to the bar under it.
       var sent = 0;
-      final bar = await pumpComposer(tester, onSend: (_, _) => sent++);
+      final bar = await pumpComposer(tester, onSend: (_, _, _) => sent++);
 
       await tester.tapAt(bar.centerLeft + const Offset(60, 0));
       await tester.pump();

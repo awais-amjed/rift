@@ -63,9 +63,9 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
               enabled: !quotaEmpty,
               maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
               footer: const QuotaMeter(),
-              onSend: (text, attachments) => context
+              onSend: (text, attachments, preview) => context
                   .read<CentralDmCubit>()
-                  .sendDm(text, attachments: attachments),
+                  .sendDm(text, attachments: attachments, preview: preview),
             ),
             FriendshipState.incoming => FriendRequestBar(
               peerId: peerId,

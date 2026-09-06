@@ -10,7 +10,10 @@ import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/attachment_staging.dart';
+import '../../../../logic/services/link_preview_fetcher.dart';
+import '../../../../logic/services/link_preview_parser.dart';
 import '../../../../logic/services/bot_command.dart';
 import '../../../../logic/services/mention_suggestions.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
@@ -22,6 +25,7 @@ import 'composer_mention_menu.dart';
 import 'composer_input_row.dart';
 import 'composer_plaintext_notice.dart';
 import 'composer_recording_bar.dart';
+import 'composer_link_preview.dart';
 import 'composer_staged_row.dart';
 import '../../../../data/constants.dart';
 
@@ -33,11 +37,19 @@ import '../../../../data/constants.dart';
 /// with neither text nor attachments never sends. [footer] is an optional slot
 /// below the bar — central DMs put the quota meter there.
 part 'chat_composer_attachments.dart';
+part 'chat_composer_link_preview.dart';
 part 'chat_composer_recording.dart';
 
 class ChatComposer extends StatefulWidget {
-  /// Called with the trimmed text and any staged attachments.
-  final void Function(String text, List<PendingAttachment> attachments) onSend;
+  /// Called with the trimmed text, any staged attachments, and the preview
+  /// this device built for the first link — null when there was none, it
+  /// was dismissed, or previews are off.
+  final void Function(
+    String text,
+    List<PendingAttachment> attachments,
+    PendingLinkPreview? preview,
+  )
+  onSend;
 
   /// Who can be named, asked of the server for what has been typed after the
   /// `@` (migration 039).
@@ -98,7 +110,10 @@ class ChatComposer extends StatefulWidget {
 }
 
 class _ChatComposerState extends State<ChatComposer>
-    with _ComposerAttachmentsMixin, _ComposerRecordingMixin {
+    with
+        _ComposerAttachmentsMixin,
+        _ComposerRecordingMixin,
+        _ComposerLinkPreviewMixin {
   // Colours emoji as they are typed, matching how they render once sent.
   final TextEditingController _controller = EmojiTextEditingController();
   final FocusNode _focusNode = FocusNode();
@@ -277,6 +292,7 @@ class _ChatComposerState extends State<ChatComposer>
   void dispose() {
     _disposeRecording();
     _mentionDebounce?.cancel();
+    _disposeLinkPreview();
     _controller.removeListener(_syncMentionMenu);
     _controller.dispose();
     _focusNode.removeListener(_onFocusChanged);
@@ -290,10 +306,11 @@ class _ChatComposerState extends State<ChatComposer>
     if (!widget.enabled) return;
     if (text.isEmpty && _staged.isEmpty) return;
     final attachments = List<PendingAttachment>.from(_staged);
+    final preview = _takePreview();
     _controller.clear();
     _picked.clear();
     setState(_staged.clear);
-    widget.onSend(text, attachments);
+    widget.onSend(text, attachments, preview);
     _focusNode.requestFocus();
   }
 
@@ -301,6 +318,7 @@ class _ChatComposerState extends State<ChatComposer>
     // Rebuild so the send button enables/disables.
     setState(() {});
     if (value.trim().isNotEmpty) widget.onTyping?.call();
+    _syncLinkPreview(value);
   }
 
   // ── Build ─────────────────────────────────────────────────
@@ -375,6 +393,8 @@ class _ChatComposerState extends State<ChatComposer>
               ? const SizedBox(width: double.infinity)
               : ComposerStagedRow(staged: _staged, onRemove: _removeStaged),
         ),
+        if (_preview != null)
+          ComposerLinkPreview(preview: _preview!, onRemove: _dismissPreview),
         // Above the bar, because the point of it is to be read *before*
         // the message goes.
         if (_command != null) ComposerPlaintextNotice(bot: _command!.bot),

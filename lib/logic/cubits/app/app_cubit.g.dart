@@ -37,6 +37,7 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
         json['sensitiveContentMode'],
       ) ??
       SensitiveContentMode.blur,
+  linkPreviewsEnabled: json['linkPreviewsEnabled'] as bool? ?? true,
   outputDeviceId: json['outputDeviceId'] as String?,
   inputDeviceId: json['inputDeviceId'] as String?,
   noiseSuppression: json['noiseSuppression'] as bool? ?? true,
@@ -74,6 +75,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'statsOverlayPinned': instance.statsOverlayPinned,
   'sensitiveContentMode':
       _$SensitiveContentModeEnumMap[instance.sensitiveContentMode]!,
+  'linkPreviewsEnabled': instance.linkPreviewsEnabled,
   'membersSidebarOpen': instance.membersSidebarOpen,
   'sidebarWidth': instance.sidebarWidth,
   'membersSidebarWidth': instance.membersSidebarWidth,
