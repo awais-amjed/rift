@@ -106,10 +106,7 @@ class _PingGraphPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          line.withValues(alpha: 0.35),
-          line.withValues(alpha: 0.0),
-        ],
+        colors: [line.withValues(alpha: 0.35), line.withValues(alpha: 0.0)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawPath(fillPath, fillPaint);
 

@@ -45,7 +45,7 @@ mixin _VoiceApiMixin {
   }
 
   /// Apply the server's retention settings and remove the attachment blobs
-  /// left behind (migration 007).
+  /// left behind (`002_limits.sql`).
   ///
   /// An edge function rather than a table call, and not for the usual reason:
   /// this one needs the *Storage API*. `storage.protect_delete()` refuses a
@@ -111,7 +111,7 @@ mixin _VoiceApiMixin {
     );
   }
 
-  /// Ask a bot into a voice channel, or send it away (migration 037).
+  /// Ask a bot into a voice channel, or send it away (`010_bot_permissions.sql`).
   ///
   /// Not a key grant and not membership: it lets the bot take a token for this
   /// one channel and publish there. Hearing stays behind `MANAGE_BOTS`, so a

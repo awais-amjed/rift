@@ -65,7 +65,7 @@ mixin _ServerApiMixin {
           .maybeSingle();
 
       // Best-effort, like `my_permissions` below: the column arrived with
-      // migration 013, and a server that has not run it refuses the whole
+      // `004_webhooks.sql`, and a server that has not run it refuses the whole
       // select rather than one column — which took every older server's
       // refresh down with it. Absent means "not the owner", which is right.
       if (user != null) {
@@ -136,7 +136,7 @@ mixin _ServerApiMixin {
     });
   }
 
-  /// The operator-limit columns added in migration 007, in the order
+  /// The operator-limit columns added in `002_limits.sql`, in the order
   /// [ServerLimits] reads them.
   static const _limitColumns =
       'max_attachment_bytes, message_retention_days, message_history_cap';

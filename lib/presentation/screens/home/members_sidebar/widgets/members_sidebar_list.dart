@@ -9,7 +9,7 @@ import 'member_row.dart';
 
 /// The three groups inside the member sidebar: bots, online, offline.
 ///
-/// Its own widget because the offline group **pages** (migration 039). The
+/// Its own widget because the offline group **pages** (`011_directory.sql`). The
 /// sidebar used to be handed the whole roster and draw it, which was fine at
 /// fifty members and quietly wrong past a thousand — PostgREST cut the fetch
 /// there and the sidebar reported the truncation as the membership. Now

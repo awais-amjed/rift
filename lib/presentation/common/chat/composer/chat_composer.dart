@@ -52,7 +52,7 @@ class ChatComposer extends StatefulWidget {
   onSend;
 
   /// Who can be named, asked of the server for what has been typed after the
-  /// `@` (migration 039).
+  /// `@` (`011_directory.sql`).
   ///
   /// Null turns the menu off, which is right where there is nobody to name —
   /// a DM has one other person and they are the conversation.

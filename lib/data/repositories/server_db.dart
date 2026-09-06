@@ -62,7 +62,7 @@ class ServerDb {
         );
       }
       // A RAISE EXCEPTION in a trigger or an RPC arrives as P0001 with the
-      // raised text as the message — so `quota_exceeded` from migration 007's
+      // raised text as the message — so `quota_exceeded` from `002_limits.sql`'s
       // trigger would otherwise reach callers as the code "P0001", which no
       // caller can act on. The migrations raise bare snake_case tokens by
       // convention (`quota_exceeded`, `not_a_member`, `not_authenticated`), so

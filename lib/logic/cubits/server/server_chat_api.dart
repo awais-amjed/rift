@@ -16,7 +16,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     Future<APIResponse> Function(String token) call,
   );
 
-  /// Each server owns its own attachment bucket (migration 008), named for its
+  /// Each server owns its own attachment bucket (`002_limits.sql`), named for its
   /// id. One Supabase project can host several servers, and a shared bucket
   /// could carry only one `file_size_limit` between them — and let a member of
   /// one read another's objects. A bucket each makes both exact.

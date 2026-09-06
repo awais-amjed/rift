@@ -1,4 +1,4 @@
-/// The limits a self-hosted server's admin has set (migration 007).
+/// The limits a self-hosted server's admin has set (`002_limits.sql`).
 ///
 /// Central imposes its limits because central pays for central; a self-hosted
 /// server imposes whatever its operator decides, which is usually nothing. So
@@ -43,7 +43,7 @@ class ServerLimits {
   /// [Channel.historyCap].
   final int messageHistoryCap;
 
-  /// The DM override for [messageRetentionDays] (migration 009). Null inherits
+  /// The DM override for [messageRetentionDays] (`002_limits.sql`). Null inherits
   /// it; [unlimited] keeps DMs while channels are still being swept.
   ///
   /// Nullable where the two above are not, for the same reason

@@ -8,7 +8,7 @@ class DmState {
   final bool conversationsLoading;
 
   /// Whether another page of conversations follows — proved by the spare row
-  /// `dm_conversations` over-fetched (migration 041), never inferred from a
+  /// `dm_conversations` over-fetched (`011_directory.sql`), never inferred from a
   /// page being full.
   final bool hasMoreConversations;
 

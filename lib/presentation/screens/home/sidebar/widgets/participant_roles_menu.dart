@@ -70,7 +70,7 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
     final roster = context.watch<ServerMembersCubit>().state;
     final member = roster.byId[widget.userId];
 
-    // An administrator's to hand out, and nobody else's (migration 015).
+    // An administrator's to hand out, and nobody else's (`005_bots.sql`).
     final myBits =
         context
             .read<ServerCubit>()

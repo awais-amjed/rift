@@ -3,7 +3,7 @@ import '../../data/classes/role.dart';
 /// Where somebody stands on a server's role ladder, and what that lets them
 /// hand out.
 ///
-/// Every delegation rule since migration 006 is decided on position — you may
+/// Every delegation rule since `001_core.sql` is decided on position — you may
 /// only touch a role strictly below your own — and, since 015, on being an
 /// administrator at all. So this is the
 /// same two lines four different screens were each working out for themselves:

@@ -29,7 +29,7 @@ class _MemoryStorage implements Storage {
   Future<void> close() async {}
 }
 
-/// The server-DM list pages (migration 041), and the panel is the half of that
+/// The server-DM list pages (`011_directory.sql`), and the panel is the half of that
 /// nobody notices until it is wrong: a footer that never appears makes a list
 /// that has more behind it look finished, and a scroll that never asks makes
 /// the cursor decorative.

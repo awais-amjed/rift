@@ -1,6 +1,6 @@
 part of 'server_cubit.dart';
 
-/// What a bot may *hear* — the voice half of BOTS.md §6 (migration 031).
+/// What a bot may *hear* — the voice half of BOTS.md §6 (`009_bot_voice.sql`).
 ///
 /// Its own file rather than more of [_ServerBotsApiMixin], because the two
 /// grants are not the same promise and the code should not suggest they are.
@@ -46,7 +46,7 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
     return (success: true, error: null);
   }
 
-  /// Ask [botId] into [channelId], or send it away (migration 037).
+  /// Ask [botId] into [channelId], or send it away (`010_bot_permissions.sql`).
   ///
   /// Distinct from [setBotVoiceListen] in the way that matters: this one is
   /// `SUMMON_BOTS`, which `@everyone` holds, because a summoned bot publishes
@@ -129,7 +129,7 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
     return byChannel;
   }
 
-  /// Bots summoned into each voice channel, by name (migration 038).
+  /// Bots summoned into each voice channel, by name (`010_bot_permissions.sql`).
   ///
   /// The same one round trip as [voiceListenersByChannel] and deliberately a
   /// separate one: they answer different questions and a client draws them

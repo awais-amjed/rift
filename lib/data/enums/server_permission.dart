@@ -9,7 +9,7 @@ enum PermissionGroup {
   const PermissionGroup(this.label);
 }
 
-/// One bit of `roles.permissions` (migration 018).
+/// One bit of `roles.permissions` (`006_roles.sql`).
 ///
 /// The numbers are a wire contract, not an implementation detail: they are
 /// assigned once in `app.perm_bit` and never reused, and a retired permission
@@ -42,7 +42,7 @@ enum ServerPermission {
     'Rename the server, change its icon, and set how long messages are kept.',
   ),
 
-  /// Retired by migration 015: roles are an administrator's to shape, and
+  /// Retired by `005_bots.sql`: roles are an administrator's to shape, and
   /// the bit opens nothing any more. Kept so the number stays taken and an
   /// old role carrying it still parses; hidden from the editor.
   manageRoles(

@@ -13,7 +13,7 @@ class Server {
   final ServerUser? user;
   final List<Channel> channels;
 
-  /// The operator limits this server reports (migration 007). Never null — a
+  /// The operator limits this server reports (`002_limits.sql`). Never null — a
   /// server that has never had them set, or is too old to have the columns,
   /// reports [ServerLimits.defaults].
   final ServerLimits limits;

@@ -25,7 +25,7 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
   /// Create a new channel in the selected server.
   ///
   /// [memberIds] is only read when [isPrivate], and never has to include the
-  /// creator: `create_channel` seats them itself (migration 022).
+  /// creator: `create_channel` seats them itself (`007_channels.sql`).
   Future<({bool success, String? error})> createChannel({
     required String name,
     required String channelType,

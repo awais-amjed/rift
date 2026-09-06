@@ -414,7 +414,7 @@ void main() {
   group('reading a row that is not a sealed envelope', () {
     // Found by opening a channel that held one. A command written straight
     // against the schema leaves `nonce` and `signature` null — both are
-    // nullable from migration 013 — and casting them to String threw. Because
+    // nullable from `004_webhooks.sql` — and casting them to String threw. Because
     // the throw happened outside the decrypt loop's try, it took the whole
     // channel with it: no list, no error, a spinner forever.
     test('a null nonce and signature read as empty, not as a crash', () {

@@ -5,7 +5,7 @@ part of 'server_repository.dart';
 /// The first three run *before* the caller is a member — or before they have a
 /// key at all — which is the whole reason they are edge functions rather than
 /// table calls: there is no row yet for a policy to check them against.
-/// Everything after is ordinary PostgREST under migration 002.
+/// Everything after is ordinary PostgREST under `001_core.sql`.
 mixin _AuthApiMixin {
   ServerDb get _db;
 
@@ -104,11 +104,11 @@ mixin _AuthApiMixin {
             'max_uses': maxUses,
             // Decided when the link is minted and never afterwards — there is
             // no UPDATE grant on invites, so one link cannot quietly become the
-            // other kind (migration 014).
+            // other kind (`005_bots.sql`).
             'is_bot': isBot,
             // The role this link hands out, or nothing for a plain one. The
             // policy refuses a role the minter does not outrank, so a link can
-            // still never carry more than its maker holds (migration 025).
+            // still never carry more than its maker holds (`008_role_management.sql`).
             'role_id': ?roleId,
             if (expiresInSeconds != null)
               'expires_at': DateTime.now()

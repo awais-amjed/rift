@@ -20,7 +20,7 @@ class MemberRoster {
   /// the row and not in the grouping.
   ///
   /// The two sources for people are not interchangeable, which is why they
-  /// arrive separately (migration 039):
+  /// arrive separately (`011_directory.sql`):
   ///
   ///  * [known] is whoever the client has resolved **by id** — Realtime
   ///    presence, a call's participants, an author in the scrollback. It is

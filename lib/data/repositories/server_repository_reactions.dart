@@ -61,7 +61,7 @@ mixin _ReactionApiMixin {
   /// batch form remains for the fallback path, where a client rang without
   /// saying which.
   ///
-  /// Counted by the database (migration 040) rather than here. This used to ask
+  /// Counted by the database (`011_directory.sql`) rather than here. This used to ask
   /// for one row per person per emoji across the whole batch, and PostgREST
   /// caps a response at 1000 rows — fifty messages with twenty reactors each is
   /// a lively channel, not an extreme one, and past that point the answer was

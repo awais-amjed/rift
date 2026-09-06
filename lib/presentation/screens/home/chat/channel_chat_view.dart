@@ -120,7 +120,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
   /// people who can open it. Doing it any other way means being a second copy
   /// of `channel_eligible`, and the server strips a mention of an outsider on
   /// the way in anyway — so offering them was offering a ping that would not
-  /// happen (migration 034).
+  /// happen (`010_bot_permissions.sql`).
   ///
   /// **People, not bots.** A bot is addressed with `/`, which has its own menu
   /// one key away; offering it here would teach the `@bot` habit and then

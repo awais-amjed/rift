@@ -11,7 +11,7 @@ part of 'server_cubit.dart';
 /// **Nothing here returns the whole roster.** It used to — one call, every
 /// member, and PostgREST silently cut the answer at 1000 rows, so every reader
 /// was built on the assumption that a member absent from that list did not
-/// exist. Migration 039 replaced it with bounded questions. This file holds the
+/// exist. `011_directory.sql` replaced it with bounded questions. This file holds the
 /// browsing half; `_ServerMemberLookupApiMixin` holds the resolving half, which
 /// is what lets a caller name somebody it never paged in.
 mixin _ServerMembersApiMixin on Cubit<ServerState> {

@@ -17,7 +17,7 @@ import '../../server_settings/widgets/server_settings_form.dart';
 import '../widgets/manage_panel.dart';
 
 /// The overview page of the manage-server dialog: display name, the LiveKit
-/// connection, the operator limits from migration 007, and whether the server
+/// connection, the operator limits from `002_limits.sql`, and whether the server
 /// is in the central directory.
 ///
 /// Takes the server rather than reading the selection, because the dialog

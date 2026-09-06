@@ -5,7 +5,7 @@ import 'server_member.dart';
 ///
 /// The roster used to arrive whole, so nothing needed a type: a list was the
 /// answer and the end of it was the end of the server. Now it arrives in pages
-/// (migration 039), and the two facts a caller needs — the rows, and whether
+/// (`011_directory.sql`), and the two facts a caller needs — the rows, and whether
 /// there are more — travel together or they drift apart. A "load more" button
 /// wired to a bare list has to guess, and guessing from a full page is the bug
 /// [Paging.split] exists to avoid.

@@ -79,7 +79,7 @@ class ErrorCode {
   static const String limitInvalid = 'limit_invalid';
 
   /// The sender is out of daily messages for this channel or for DMs. Raised by
-  /// the quota trigger in migration 007, and by central's `send_dm` RPC — one
+  /// the quota trigger in `002_limits.sql`, and by central's `send_dm` RPC — one
   /// code for the same wall on either tier.
   static const String quotaExceeded = 'quota_exceeded';
 

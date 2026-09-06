@@ -1,5 +1,5 @@
 /// One incoming webhook: a secret URL an outside service posts to, which lands
-/// in a channel as an unencrypted message (migration 013, BOTS.md §7).
+/// in a channel as an unencrypted message (`004_webhooks.sql`, BOTS.md §7).
 ///
 /// **The secret is not here, and cannot be.** It is stored hashed and returned
 /// exactly once, by `create_webhook`, at the moment it is minted — see

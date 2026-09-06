@@ -12,7 +12,7 @@ import '../../../../common/search_result_row.dart';
 ///
 /// Unlike the central directory this is a set worth browsing, so focusing the
 /// field lists people and typing narrows it. Both halves are the database's
-/// answer (`search_members`, migration 039): an empty query is the first
+/// answer (`search_members`, `011_directory.sql`): an empty query is the first
 /// alphabetical page, and a query is a ranked search.
 ///
 /// It used to fetch the roster once and filter it in Dart, memoised on the

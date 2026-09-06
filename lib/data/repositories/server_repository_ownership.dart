@@ -1,6 +1,6 @@
 part of 'server_repository.dart';
 
-/// The two things only an owner does (migration 013): hand the server on, and
+/// The two things only an owner does (`004_webhooks.sql`): hand the server on, and
 /// end it.
 ///
 /// Transfer is an RPC because the policies refuse the owner role in both

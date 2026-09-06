@@ -44,7 +44,9 @@ mixin _RecoveryCryptoMixin {
     final buffer = StringBuffer();
     for (var g = 0; g < _groups; g++) {
       if (g > 0) buffer.write('-');
-      buffer.write(chars.sublist(g * _groupLength, (g + 1) * _groupLength).join());
+      buffer.write(
+        chars.sublist(g * _groupLength, (g + 1) * _groupLength).join(),
+      );
     }
     return buffer.toString();
   }

@@ -14,7 +14,7 @@ import '../../../../../sidebar/widgets/participant_bot_section.dart';
 /// participant. A bot that is down, or slow, or has crashed mid-track leaves
 /// one behind — and "Send away" lives on the participant menu, which needs the
 /// bot to be in the call, so without this the summon could be neither seen nor
-/// cleared. A summon expires after an hour (migration 038); this is what makes
+/// cleared. A summon expires after an hour (`010_bot_permissions.sql`); this is what makes
 /// the hour visible rather than something to wait out.
 ///
 /// Dimmed, and with no volume or mute: there is nothing to hear yet. It says

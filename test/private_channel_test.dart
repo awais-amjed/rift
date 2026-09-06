@@ -71,7 +71,7 @@ void main() {
     late List<String> asked;
 
     /// [results] answers whatever is typed. The picker's search is the
-    /// database's now (migration 039), so what a test can check here is that
+    /// database's now (`011_directory.sql`), so what a test can check here is that
     /// the question is asked and the answer drawn — not that a local filter
     /// matched, which is the thing that stopped working past a thousand
     /// members.

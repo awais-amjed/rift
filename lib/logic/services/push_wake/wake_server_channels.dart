@@ -99,7 +99,7 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
       final keyVersion = row['key_version'] as int?;
       if (keyVersion == null) continue;
 
-      // An unencrypted row (a webhook — migration 013) has no key to fetch and
+      // An unencrypted row (a webhook — `004_webhooks.sql`) has no key to fetch and
       // no signature to verify, so the whole block below would look up key
       // version 0, fail, and `continue`. Left like that the phone would be
       // woken by the ring trigger and then find nothing to say — the one

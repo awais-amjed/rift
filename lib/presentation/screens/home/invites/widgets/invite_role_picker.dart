@@ -12,7 +12,7 @@ import '../../members_sidebar/widgets/role_chip.dart';
 /// Only roles the minter outranks are offered — the policy refuses the rest,
 /// and an option that always fails is worse than no option. That is the same
 /// rule as "an invite can never carry more than its maker holds", which is what
-/// three booleans used to say (migration 025).
+/// three booleans used to say (`008_role_management.sql`).
 ///
 /// "No role" is first and selected by default. Handing somebody a role by link
 /// is the deliberate case; joining as an ordinary member is the common one.

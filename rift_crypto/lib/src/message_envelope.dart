@@ -24,7 +24,7 @@ class MessageEnvelope {
 
   /// Reads a row.
   ///
-  /// `nonce` and `signature` are nullable in the schema from migration 013
+  /// `nonce` and `signature` are nullable in the schema from `004_webhooks.sql`
   /// onward — an unencrypted body has no nonce, and a webhook has no signer —
   /// so they arrive as null rather than as a string. Casting straight to
   /// `String` threw on the first such row and, because this is called outside

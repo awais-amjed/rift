@@ -26,7 +26,7 @@ class MessageOriginBadge extends StatelessWidget {
   const MessageOriginBadge({super.key, required this.message});
 
   /// Whether [message] needs one at all. A member's sealed message — every
-  /// message before migration 013 — does not.
+  /// message before `004_webhooks.sql` — does not.
   static bool isNeededFor(ChatMessage message) =>
       !message.isEncrypted || !message.origin.isMember || message.isEphemeral;
 

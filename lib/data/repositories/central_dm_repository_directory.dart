@@ -3,7 +3,7 @@ part of 'central_dm_repository.dart';
 /// The central `users` table — the account row, and the handle and public keys
 /// behind it.
 ///
-/// It stopped being a *directory* in migration 012. Rows used to be readable
+/// It stopped being a *directory* in `003_push.sql`. Rows used to be readable
 /// by every signed-in account, which made the whole membership enumerable by
 /// anyone who had signed up; now the policy is relationship-scoped and there is
 /// nothing here that searches. Turning a handle into a person is
@@ -74,7 +74,7 @@ mixin _CentralDmDirectoryMixin {
   /// an existing conversation list.
   ///
   /// Through `directory_profiles` rather than a table read, because since
-  /// migration 012 what a table read answers depends on a policy — and the
+  /// `003_push.sql` what a table read answers depends on a policy — and the
   /// question this asks is narrower and more stable than the policy's.
   ///
   /// The RPC answers for people the caller has already exchanged messages

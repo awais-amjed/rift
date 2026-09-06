@@ -62,7 +62,7 @@ class InviteForm extends StatelessWidget {
       children: [
         // A decision, not a setting: `is_bot` is fixed when the link is minted
         // and there is no UPDATE grant on invites, so one link can never
-        // quietly become the other kind (migration 014). So it is asked
+        // quietly become the other kind (`005_bots.sql`). So it is asked
         // first, as a choice, rather than found as a switch between the
         // fields. The line under it says what actually differs, because
         // "it's a bot" tells somebody nothing about what the thing will and

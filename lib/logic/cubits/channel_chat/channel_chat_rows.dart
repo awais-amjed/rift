@@ -44,7 +44,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       final keyVersion = row['key_version'] as int;
 
       // Version 0 is a body that was never sealed — today, only a webhook
-      // (migration 013). There is no key to look up and no signature to check,
+      // (`004_webhooks.sql`). There is no key to look up and no signature to check,
       // so it must branch out before any of the envelope machinery below, which
       // would drop it for being unopenable and unsigned.
       //
@@ -163,7 +163,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
     String? localUserId,
   ) async {
     // A press is not a message, including for the person who pressed. The
-    // policy already keeps it from everybody else (migration 029); this is the
+    // policy already keeps it from everybody else (`009_bot_voice.sql`); this is the
     // half that keeps the presser's own view from filling with the log a panel
     // exists to replace.
     if (row['is_interaction'] == true) return null;
@@ -234,7 +234,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
   /// Scoped to the channel, so a name belonging to somebody outside a private
   /// one resolves to nothing and is drawn as plain text. That is the same set
   /// `validate_message_mentions` keeps, so what lights up is what was
-  /// delivered (migration 034).
+  /// delivered (`010_bot_permissions.sql`).
   Future<void> _resolveMentionNames(List<ChatMessage> messages) async {
     final channelId = state.channelId;
     if (channelId == null) return;

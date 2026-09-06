@@ -8,7 +8,7 @@ part of 'central_dm_repository.dart';
 /// stop trusting. RLS is own-row, so nobody learns that they have been muted.
 ///
 /// The same table, with the same `scope`/`scope_id` shape, is what a
-/// self-hosted server uses for its channels and DMs (migration 012 there,
+/// self-hosted server uses for its channels and DMs (`003_push.sql` there,
 /// 011 here).
 mixin _CentralDmPrefsMixin {
   SupabaseClient get _client;

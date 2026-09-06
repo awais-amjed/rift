@@ -9,7 +9,7 @@ import '../../../common/app_modal.dart';
 import '../../../common/limit_field.dart';
 import '../../../common/message_banner.dart';
 
-/// How much history this server's DMs keep (migration 009).
+/// How much history this server's DMs keep (`002_limits.sql`).
 ///
 /// The sibling of `ChannelSettingsDialog`, and deliberately shaped like it: the
 /// same two boxes, the same three-valued rule, the same helper line spelling out

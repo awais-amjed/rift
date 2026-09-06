@@ -17,7 +17,7 @@ import 'dm_list_header.dart';
 /// are scoped to the server whose channels the sidebar is already showing, so
 /// they open as a pane inside the content panel instead.
 ///
-/// It **pages** (migration 041), like central's does. The list is bounded by
+/// It **pages** (`011_directory.sql`), like central's does. The list is bounded by
 /// how many people you have talked to rather than by how much was said, so it
 /// was the slowest of the app's reads to become a problem — and the only one
 /// that never truncated, since it comes back as one JSONB value rather than as

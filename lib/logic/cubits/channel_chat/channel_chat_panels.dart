@@ -18,7 +18,7 @@ mixin _ChannelChatPanelsMixin on Cubit<ChannelChatState> {
   /// same job before panels existed — the bot holds no channel key, so a sealed
   /// press is one it could not open. The channel sees the panel change and not
   /// the press: `is_interaction` keeps the row out of everybody else's view
-  /// (migration 029).
+  /// (`009_bot_voice.sql`).
   ///
   /// Fire-and-forget, and deliberately without an optimistic anything. What
   /// the press *does* is entirely the bot's business — it may change the panel,

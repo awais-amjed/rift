@@ -1,6 +1,6 @@
 part of 'server_repository.dart';
 
-/// What a bot may read, and what it may hear (BOTS.md §6, migrations 017, 028,
+/// What a bot may read, and what it may hear (BOTS.md §6, `005_bots.sql` and `009_bot_voice.sql`,
 /// 030 and 031).
 ///
 /// Split out of the webhook file next door, which is the opposite thing wearing
@@ -56,7 +56,7 @@ mixin _BotApiMixin {
   /// One RPC rather than a loop of per-channel calls, and not for speed: the
   /// grant is *standing*, so a channel created next week is covered too. A
   /// client looping over today's channels would produce a bot that silently
-  /// stops working in tomorrow's (migration 030).
+  /// stops working in tomorrow's (`009_bot_voice.sql`).
   Future<APIResponse> setBotServerKey(
     String supabaseUrl, {
     required String anonKey,
@@ -111,7 +111,7 @@ mixin _BotApiMixin {
   /// and a revoke drops the sealed rows so the sweep sees a bot with no grant
   /// and rotates. Neither is a fact a client could work out, and
   /// `bot_channel_keys` has no write grant at all so neither can be faked
-  /// (migrations 017, 028).
+  /// (`005_bots.sql` and `009_bot_voice.sql`).
   Future<APIResponse> setBotChannelKey(
     String supabaseUrl, {
     required String anonKey,
@@ -135,7 +135,7 @@ mixin _BotApiMixin {
   /// everybody who ever speaks in that room pays for it, so this is readable by
   /// every member who can see the channel rather than by the person who
   /// granted it.
-  /// Bots summoned into voice channels, with the name to draw (migration 038).
+  /// Bots summoned into voice channels, with the name to draw (`010_bot_permissions.sql`).
   ///
   /// The sibling of [listVoiceListeners] and the same shape, but not the same
   /// meaning: a listener is a warning and a summon is furniture. It exists so a
@@ -221,7 +221,7 @@ mixin _BotApiMixin {
   /// hour no matter what the table says — so revoking without the live push
   /// would leave it listening for up to an hour behind a light drawn as off.
   /// The function calls the RPC with the caller's JWT, so the permission rules
-  /// stay in the database (migration 031).
+  /// stay in the database (`009_bot_voice.sql`).
   Future<APIResponse> setBotVoiceListen(
     String supabaseUrl, {
     required String anonKey,

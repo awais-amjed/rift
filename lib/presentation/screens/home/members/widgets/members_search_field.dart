@@ -9,7 +9,7 @@ import '../../../../theme/theme_context.dart';
 /// The search row under the members dialog's header.
 ///
 /// It exists because the list below it is a page rather than the whole roster
-/// (migration 039). Scrolling to somebody is fine at fifty members and useless
+/// (`011_directory.sql`). Scrolling to somebody is fine at fifty members and useless
 /// at five thousand, so the way to reach a person is to name them — and the
 /// answer comes from the database, which is the only thing that has seen all of
 /// them.

@@ -66,7 +66,7 @@ enum NotificationLevel {
   /// it is what makes muting a whole server usable rather than something you
   /// turn on once and then fight. Four readers depend on agreeing about it
   /// (the ring trigger, this app's notifier, its badges, and the push
-  /// isolate), so `app.notify_level` in migration 012 resolves it in exactly
+  /// isolate), so `app.notify_level` in `003_push.sql` resolves it in exactly
   /// this order and this is the only copy on the client.
   static NotificationLevel resolve({
     NotificationLevel? scope,

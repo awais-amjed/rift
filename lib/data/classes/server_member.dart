@@ -12,7 +12,7 @@ class ServerMember {
   final bool isDeafened;
   final bool isBanned;
 
-  /// A program, not a person (migration 014). Set at registration from the
+  /// A program, not a person (`005_bots.sql`). Set at registration from the
   /// invite and never afterwards.
   ///
   /// It changes more than a label: a bot is listed apart from the members
@@ -20,7 +20,7 @@ class ServerMember {
   /// reasons about "who can read this room" has to know the difference.
   final bool isBot;
 
-  /// What this bot says it can do (migration 015). [BotManifest.empty] for a
+  /// What this bot says it can do (`005_bots.sql`). [BotManifest.empty] for a
   /// person, and for a bot that has published nothing.
   final BotManifest manifest;
 
@@ -67,7 +67,7 @@ class ServerMember {
 
   /// The members inside a `{'users': [...]}` envelope.
   ///
-  /// Every call in the member directory (migration 039) answers in that shape —
+  /// Every call in the member directory (`011_directory.sql`) answers in that shape —
   /// a page, a search, a batch of resolved ids — so the parse is here once
   /// rather than repeated per call. A missing or malformed envelope is an empty
   /// list, not a throw: these feed lists and typeaheads, and a search box is
@@ -94,7 +94,7 @@ class ServerMember {
       isMuted: isMuted ?? this.isMuted,
       isDeafened: isDeafened ?? this.isDeafened,
       isBanned: isBanned ?? this.isBanned,
-      // Not a parameter: `is_bot` is pinned server-side (migration 014) and a
+      // Not a parameter: `is_bot` is pinned server-side (`005_bots.sql`) and a
       // copyWith that could change it would be the one place in the client
       // where a person turns into a program.
       isBot: isBot,

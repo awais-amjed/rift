@@ -108,7 +108,7 @@ mixin _CentralDmFriendsMixin {
   /// It resolves and asks in one statement, and that is the design rather than
   /// a shortcut. A `find_user(handle)` that merely answered with an id would be
   /// a cheap, silent, repeatable oracle over the whole membership — the
-  /// enumeration migration 012 removed, minus the typing. Here the answer *is*
+  /// enumeration `003_push.sql` removed, minus the typing. Here the answer *is*
   /// the request: every successful lookup lands in somebody's Pending list,
   /// under the caller's handle, where it can be declined or blocked.
   ///

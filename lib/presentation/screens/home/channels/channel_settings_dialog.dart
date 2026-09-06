@@ -20,7 +20,7 @@ import '../../../common/message_banner.dart';
 ///
 /// Both retention boxes are three-valued and the helper line under each is what
 /// makes that legible: blank inherits the server's number, 0 opts this channel
-/// out of it, and a number sets its own. See migration 007.
+/// out of it, and a number sets its own. See `002_limits.sql`.
 class ChannelSettingsDialog extends StatefulWidget {
   final Channel channel;
 

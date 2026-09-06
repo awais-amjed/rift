@@ -22,7 +22,7 @@ part 'server_members_state.dart';
 /// refresh — which covers renames, new avatars, permission changes and bans as
 /// well as joins.
 ///
-/// **What changed with migration 039.** That refresh used to be three
+/// **What changed with `011_directory.sql`.** That refresh used to be three
 /// full-table reads: every member, every role, every role assignment, on every
 /// `users` row event. Somebody else changing their nickname cost the whole
 /// roster, and the roster was silently cut at 1000 rows anyway. Now:

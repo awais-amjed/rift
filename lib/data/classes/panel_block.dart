@@ -1,4 +1,4 @@
-/// The fixed vocabulary a bot draws a panel with (BOTS.md §5, migration 029).
+/// The fixed vocabulary a bot draws a panel with (BOTS.md §5, `009_bot_voice.sql`).
 ///
 /// A bot never controls a pixel, only a structure. The alternative — letting it
 /// send markup or a URL to render — is a stranger's code inside every member's

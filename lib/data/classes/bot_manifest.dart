@@ -1,5 +1,5 @@
 /// What a bot says it can do, published on its own `users.manifest`
-/// (migration 015, BOTS.md §4).
+/// (`005_bots.sql`, BOTS.md §4).
 ///
 /// **Advertisement, not evidence.** Nothing here authorises anything: a client
 /// renders it so `/play` can be offered without asking the bot — which matters

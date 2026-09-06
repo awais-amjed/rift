@@ -1,6 +1,6 @@
 part of 'server_repository.dart';
 
-/// Roles and who holds them (migration 018).
+/// Roles and who holds them (`006_roles.sql`).
 ///
 /// All direct table calls. There is no RPC here and there does not need to be:
 /// the two delegation rules — you may only touch a role below your own, and
@@ -14,7 +14,7 @@ mixin _RoleApiMixin {
 
   /// Every role on the server, most senior first.
   ///
-  /// Every column rather than a list: `is_owner` arrived with migration 013,
+  /// Every column rather than a list: `is_owner` arrived with `004_webhooks.sql`,
   /// and naming it on a server that has not run it refuses the whole read.
   /// `Role.fromJson` treats a missing flag as false, which is right.
   Future<APIResponse> listRoles(
