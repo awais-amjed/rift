@@ -9,7 +9,7 @@ class K {
   static const double radiusCard = 12;
 
   /// The floating panels, dialogs and the voice control bar.
-  static const double radiusPanel = 16;
+  static const double radiusPanel = 12;
 
   /// Fully round — pills, presence dots, colour swatches.
   static const double radiusPill = 999;
