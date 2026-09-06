@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../../data/constants.dart';
 import 'attachment_download.dart';
 
 /// Opens a decrypted image full-screen, pannable and zoomable, with a save
@@ -24,22 +25,54 @@ Future<void> showAttachmentImageViewer(
           Positioned(
             top: 8,
             right: 8,
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.download_rounded, color: Colors.white),
-                  tooltip: 'Save',
-                  onPressed: () => saveToDisk(context, name, bytes),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
+            child: _ViewerActions(
+              onSave: () => saveToDisk(context, name, bytes),
+              onClose: () => Navigator.of(context).pop(),
             ),
           ),
         ],
       ),
     ),
   );
+}
+
+/// Save and close, on a dark pill of their own.
+///
+/// White glyphs straight on the picture vanished on a white picture — a
+/// screenshot, a chart, a page — which is most of what gets shared. The
+/// pill is the same darkness whatever is underneath, so the two buttons
+/// read on any image and cost nothing on a dark one.
+class _ViewerActions extends StatelessWidget {
+  final VoidCallback onSave;
+  final VoidCallback onClose;
+
+  const _ViewerActions({required this.onSave, required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(K.radiusPill),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.download_rounded, color: Colors.white),
+              tooltip: 'Save',
+              onPressed: onSave,
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white),
+              tooltip: 'Close',
+              onPressed: onClose,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
