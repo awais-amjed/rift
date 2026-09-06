@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
+import '../../../../data/enums/sensitive_content_mode.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/segmented_control.dart';
 import '../../../common/selectable_surface.dart';
@@ -64,6 +66,32 @@ class AppearanceContent extends StatelessWidget {
                 onTap: () => context.read<ThemeCubit>().setPalette(palette.id),
               ),
           ],
+        ),
+
+        const SizedBox(height: 28),
+
+        SectionTitle(label: 'Sensitive images'),
+        const SizedBox(height: 4),
+        Text(
+          'Pictures are checked on this device after they are decrypted — '
+          'nothing leaves it. Blur covers a flagged picture until you tap; '
+          'Hide keeps it covered.',
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: 360,
+          child: SegmentedControl<SensitiveContentMode>(
+            value: context.select<AppCubit, SensitiveContentMode>(
+              (c) => c.state.sensitiveContentMode,
+            ),
+            onChanged: (mode) =>
+                context.read<AppCubit>().setSensitiveContentMode(mode),
+            options: [
+              for (final mode in SensitiveContentMode.values)
+                SegmentOption(value: mode, label: mode.label),
+            ],
+          ),
         ),
       ],
     );

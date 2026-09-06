@@ -23,6 +23,10 @@ class AppState {
   final bool disableAudioDucking;
   final bool statsOverlayPinned;
 
+  /// What to do with an image the on-device classifier flags. Per device,
+  /// because the verdict is: the model runs on bytes only this device holds.
+  final SensitiveContentMode sensitiveContentMode;
+
   /// Whether the right-hand member sidebar is expanded. Persisted so the
   /// layout survives a restart.
   final bool membersSidebarOpen;
@@ -76,6 +80,7 @@ class AppState {
     this.windowY,
     this.disableAudioDucking = false,
     this.statsOverlayPinned = false,
+    this.sensitiveContentMode = SensitiveContentMode.blur,
     this.outputDeviceId,
     this.inputDeviceId,
     this.noiseSuppression = true,
@@ -108,6 +113,7 @@ class AppState {
     double? windowY,
     bool? disableAudioDucking,
     bool? statsOverlayPinned,
+    SensitiveContentMode? sensitiveContentMode,
     String? outputDeviceId,
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
@@ -145,6 +151,7 @@ class AppState {
       windowY: windowY ?? this.windowY,
       disableAudioDucking: disableAudioDucking ?? this.disableAudioDucking,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
+      sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,
       outputDeviceId: clearOutputDeviceId
           ? null
           : (outputDeviceId ?? this.outputDeviceId),

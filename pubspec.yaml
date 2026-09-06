@@ -89,6 +89,7 @@ dependencies:
   web: ^1.1.1
   firebase_core: ^4.13.0
   firebase_messaging: ^16.5.0
+  flutter_litert: ^3.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -105,6 +106,7 @@ flutter:
   assets:
     - assets/images/
     - assets/audio/
+    - assets/models/
 
   # Bundled rather than fetched at runtime: without this the app inherits
   # whatever the platform picks, so the same build renders differently on

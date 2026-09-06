@@ -1,0 +1,4 @@
+image_safety.tflite is image-safety-classifier-xs by Owen Elliott
+(https://huggingface.co/OwenElliott/image-safety-classifier-xs), MIT
+licensed, converted from the ONNX export with onnx2tf. See ../../../rift-models
+for the conversion.

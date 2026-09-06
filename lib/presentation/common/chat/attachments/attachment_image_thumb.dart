@@ -1,11 +1,17 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/attachment.dart';
 import '../../../theme/app_motion.dart';
 import 'attachment_image_viewer.dart';
+import '../../../../data/enums/sensitive_content_mode.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/services/image_safety.dart';
+import '../../../../logic/services/image_safety_classifier.dart';
 import 'attachment_loader.dart';
+import 'sensitive_image_cover.dart';
 import '../../../../data/constants.dart';
 import '../../../theme/theme_context.dart';
 
@@ -57,13 +63,24 @@ class AttachmentImageThumb extends StatefulWidget {
   State<AttachmentImageThumb> createState() => _AttachmentImageThumbState();
 }
 
+/// The bytes, and what the classifier made of them — null where it was not
+/// asked, could not answer, or the setting is off.
+typedef _Loaded = ({Uint8List? bytes, ImageSafetyVerdict? verdict});
+
 class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
-  late Future<Uint8List?> _bytes;
+  late Future<_Loaded> _loaded;
+
+  /// Read once, when the fetch starts. The verdict is decided with the bytes
+  /// rather than at draw time, because the classifier is the slow part and
+  /// the placeholder is already up: the picture should land classified, not
+  /// land and then be covered a beat later.
+  late SensitiveContentMode _mode;
 
   @override
   void initState() {
     super.initState();
-    _bytes = widget.loader(widget.attachment);
+    _mode = context.read<AppCubit>().state.sensitiveContentMode;
+    _loaded = _load();
   }
 
   @override
@@ -73,8 +90,20 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
     // rebuilt the widget must not.
     if (old.attachment.id != widget.attachment.id ||
         old.loader != widget.loader) {
-      _bytes = widget.loader(widget.attachment);
+      _loaded = _load();
     }
+  }
+
+  Future<_Loaded> _load() async {
+    final bytes = await widget.loader(widget.attachment);
+    if (bytes == null || _mode == SensitiveContentMode.off) {
+      return (bytes: bytes, verdict: null);
+    }
+    final verdict = await ImageSafetyClassifier.instance.classify(
+      widget.attachment.id,
+      bytes,
+    );
+    return (bytes: bytes, verdict: verdict);
   }
 
   /// The box the thumbnail occupies, or null when the sender recorded no
@@ -91,8 +120,8 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
   @override
   Widget build(BuildContext context) {
     final box = _box;
-    final content = FutureBuilder<Uint8List?>(
-      future: _bytes,
+    final content = FutureBuilder<_Loaded>(
+      future: _loaded,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return _placeholder(
@@ -109,7 +138,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
             ),
           );
         }
-        final bytes = snap.data;
+        final bytes = snap.data?.bytes;
         if (bytes == null) {
           return _placeholder(
             box,
@@ -126,29 +155,43 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
         // swap lands at an unpredictable moment — and a picture appearing
         // instantly mid-scroll reads as a glitch rather than as a load
         // finishing.
+        final image = ClipRRect(
+          borderRadius: BorderRadius.circular(K.radiusCard),
+          // `cover` only where the box is known to be the image's own
+          // aspect ratio. Without dimensions the box is a guess, and
+          // cropping to a guess would cut the picture.
+          child: box == null
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: AttachmentImageThumb.maxSize,
+                    maxHeight: AttachmentImageThumb.maxSize,
+                  ),
+                  child: Image.memory(bytes),
+                )
+              : Image.memory(bytes, fit: BoxFit.cover),
+        );
+        // The cover goes *inside* the tap: a covered picture opens nothing
+        // until it is revealed, and a hidden one never does.
+        final sensitive = snap.data?.verdict?.isSensitive ?? false;
         return _FadeIn(
-          child: GestureDetector(
-            onTap: () => showAttachmentImageViewer(
-              context,
-              widget.attachment.name,
-              bytes,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(K.radiusCard),
-              // `cover` only where the box is known to be the image's own
-              // aspect ratio. Without dimensions the box is a guess, and
-              // cropping to a guess would cut the picture.
-              child: box == null
-                  ? ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: AttachmentImageThumb.maxSize,
-                        maxHeight: AttachmentImageThumb.maxSize,
-                      ),
-                      child: Image.memory(bytes),
-                    )
-                  : Image.memory(bytes, fit: BoxFit.cover),
-            ),
-          ),
+          child: sensitive
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(K.radiusCard),
+                  child: SensitiveImageCover(
+                    attachmentId: widget.attachment.id,
+                    mode: _mode,
+                    child: _Openable(
+                      bytes: bytes,
+                      name: widget.attachment.name,
+                      child: image,
+                    ),
+                  ),
+                )
+              : _Openable(
+                  bytes: bytes,
+                  name: widget.attachment.name,
+                  child: image,
+                ),
         );
       },
     );
@@ -171,6 +214,25 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
       child: child,
     );
   }
+}
+
+/// A tap opens the full-size viewer.
+class _Openable extends StatelessWidget {
+  final Uint8List bytes;
+  final String name;
+  final Widget child;
+
+  const _Openable({
+    required this.bytes,
+    required this.name,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () => showAttachmentImageViewer(context, name, bytes),
+    child: child,
+  );
 }
 
 /// Fades its child up once, on first build.

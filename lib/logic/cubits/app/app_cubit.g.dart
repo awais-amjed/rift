@@ -31,6 +31,12 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   windowY: (json['windowY'] as num?)?.toDouble(),
   disableAudioDucking: json['disableAudioDucking'] as bool? ?? false,
   statsOverlayPinned: json['statsOverlayPinned'] as bool? ?? false,
+  sensitiveContentMode:
+      $enumDecodeNullable(
+        _$SensitiveContentModeEnumMap,
+        json['sensitiveContentMode'],
+      ) ??
+      SensitiveContentMode.blur,
   outputDeviceId: json['outputDeviceId'] as String?,
   inputDeviceId: json['inputDeviceId'] as String?,
   noiseSuppression: json['noiseSuppression'] as bool? ?? true,
@@ -66,6 +72,8 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'windowY': instance.windowY,
   'disableAudioDucking': instance.disableAudioDucking,
   'statsOverlayPinned': instance.statsOverlayPinned,
+  'sensitiveContentMode':
+      _$SensitiveContentModeEnumMap[instance.sensitiveContentMode]!,
   'membersSidebarOpen': instance.membersSidebarOpen,
   'sidebarWidth': instance.sidebarWidth,
   'membersSidebarWidth': instance.membersSidebarWidth,
@@ -75,4 +83,10 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'echoCancellation': instance.echoCancellation,
   'autoGainControl': instance.autoGainControl,
   'recentEmojis': instance.recentEmojis,
+};
+
+const _$SensitiveContentModeEnumMap = {
+  SensitiveContentMode.off: 'off',
+  SensitiveContentMode.blur: 'blur',
+  SensitiveContentMode.hide: 'hide',
 };

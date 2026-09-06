@@ -7,6 +7,7 @@ import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/enums/home_surface.dart';
+import '../../../data/enums/sensitive_content_mode.dart';
 import '../../services/windows_audio_ducking/windows_audio_ducking.dart';
 
 part 'app_cubit.g.dart';
@@ -59,6 +60,9 @@ class AppCubit extends HydratedCubit<AppState> {
   void setScreenShareSettings(ScreenShareSettings settings) {
     emit(state.copyWith(screenShareSettings: settings));
   }
+
+  void setSensitiveContentMode(SensitiveContentMode mode) =>
+      emit(state.copyWith(sensitiveContentMode: mode));
 
   void setDisableAudioDucking(bool value) {
     emit(state.copyWith(disableAudioDucking: value));
