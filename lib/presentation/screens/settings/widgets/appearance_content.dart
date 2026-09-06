@@ -96,8 +96,11 @@ class AppearanceContent extends StatelessWidget {
           style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          width: 360,
+        // A ceiling, not a width. Three segments spread across a desktop
+        // settings pane read as a lost control, but a fixed 360 is wider than
+        // a small phone's whole content column and overflowed it.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
           child: SegmentedControl<SensitiveContentMode>(
             value: context.select<AppCubit, SensitiveContentMode>(
               (c) => c.state.sensitiveContentMode,
