@@ -10,6 +10,7 @@ mixin _ServerOwnershipApiMixin on Cubit<ServerState> {
 
   Future<({bool success, String? error})> refreshServerDetails();
   void removeServer(String serverId);
+  void Function(String serverId)? get _onServerEvent;
 
   /// Hand the selected server to [userId]. We stay an admin; they become the
   /// one person who can do this next.
@@ -31,8 +32,11 @@ mixin _ServerOwnershipApiMixin on Cubit<ServerState> {
       return (success: false, error: _transferFailure(response.error));
     }
     // Our own row changed under us: the cached owner flag, and the rank every
-    // roles screen decides on.
+    // roles screen decides on. The new owner's row changed too, and they are
+    // the one person this has to reach at once — the doorbell is what makes
+    // every other client re-read its standing.
     await refreshServerDetails();
+    _onServerEvent?.call(server.id);
     return (success: true, error: null);
   }
 

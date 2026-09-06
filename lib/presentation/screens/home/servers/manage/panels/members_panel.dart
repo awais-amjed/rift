@@ -205,51 +205,68 @@ class _MembersPanelState extends State<MembersPanel> {
     });
   }
 
+  /// Forget every chip and ask again for the rows on screen.
+  ///
+  /// After a transfer, two rows' roles changed at once — ours and the new
+  /// owner's — and the chips are the one thing on this page that would go on
+  /// saying otherwise.
+  Future<void> _reloadRoles() async {
+    setState(() => _memberRoles = const {});
+    await _loadRoles(_rows);
+  }
+
+  bool _ownsIt(ServerState state) =>
+      state.serverById(widget.server.id)?.user?.permissions.isOwner ?? false;
+
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        // Live rather than read off the passed-in snapshot, so being demoted
-        // while the dialog is open takes the controls away.
-        final viewer = context
-            .watch<ServerCubit>()
-            .state
-            .serverById(widget.server.id)
-            ?.user;
-        final viewerPerms = viewer?.permissions;
-        final viewerIsAdmin = viewerPerms?.isServerAdmin ?? false;
-        final viewerIsModerator =
-            viewerIsAdmin || (viewerPerms?.isChannelManager ?? false);
+    return BlocListener<ServerCubit, ServerState>(
+      listenWhen: (previous, next) => _ownsIt(previous) != _ownsIt(next),
+      listener: (_, _) => unawaited(_reloadRoles()),
+      child: BlocBuilder<ThemeCubit, ThemeState>(builder: _build),
+    );
+  }
 
-        return ManagePanel(
-          title: 'Members',
-          subtitle: switch (_total) {
-            null => widget.server.name,
-            1 => '1 member',
-            final n => '$n members',
-          },
-          body: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
-                child: MembersSearchField(
-                  onChanged: (query) => unawaited(_search(query)),
-                ),
-              ),
-              if (_error != null) _buildError(),
-              Expanded(
-                child: _buildBody(
-                  themeState,
-                  viewer?.id,
-                  viewerIsAdmin,
-                  viewerIsModerator,
-                ),
-              ),
-            ],
-          ),
-        );
+  Widget _build(BuildContext context, ThemeState themeState) {
+    // Live rather than read off the passed-in snapshot, so being demoted
+    // while the dialog is open takes the controls away.
+    final viewer = context
+        .watch<ServerCubit>()
+        .state
+        .serverById(widget.server.id)
+        ?.user;
+    final viewerPerms = viewer?.permissions;
+    final viewerIsAdmin = viewerPerms?.isServerAdmin ?? false;
+    final viewerIsModerator =
+        viewerIsAdmin || (viewerPerms?.isChannelManager ?? false);
+
+    return ManagePanel(
+      title: 'Members',
+      subtitle: switch (_total) {
+        null => widget.server.name,
+        1 => '1 member',
+        final n => '$n members',
       },
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+            child: MembersSearchField(
+              onChanged: (query) => unawaited(_search(query)),
+            ),
+          ),
+          if (_error != null) _buildError(),
+          Expanded(
+            child: _buildBody(
+              themeState,
+              viewer?.id,
+              viewerIsAdmin,
+              viewerIsModerator,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
