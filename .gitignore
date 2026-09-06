@@ -56,6 +56,7 @@ LOCAL_DEV.md
 TODO.md
 ISSUES.md
 auth.md
+REVIEW.html
 
 # Short cargo target dir, kept near the root to stay under MAX_PATH on Windows
 /ck/
