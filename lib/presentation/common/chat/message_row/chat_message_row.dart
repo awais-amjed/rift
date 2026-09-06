@@ -144,8 +144,24 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
     unawaited(_openContextMenu(position));
   }
 
+  /// Whether the menu is up. A right-click reaches this twice on a row whose
+  /// text holds a mention: the text's own listener answers the pointer-down
+  /// and, with a mention span breaking the selection recognizer's hold on the
+  /// gesture, the row's detector answers the same click as a secondary tap.
+  /// Two menus then stack, and it takes two clicks to be rid of them.
+  bool _menuOpen = false;
+
   Future<void> _openContextMenu(Offset position) async {
-    if (message.isPending) return;
+    if (message.isPending || _menuOpen) return;
+    _menuOpen = true;
+    try {
+      await _showContextMenu(position);
+    } finally {
+      _menuOpen = false;
+    }
+  }
+
+  Future<void> _showContextMenu(Offset position) async {
     final action = await showMessageContextMenu(
       context: context,
       position: position,

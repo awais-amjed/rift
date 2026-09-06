@@ -11,15 +11,19 @@ import 'button_footer.dart';
 import 'context_menu_region.dart';
 
 /// Shows a dialog that:
-/// - Cannot be dismissed by tapping the barrier
+/// - Cannot be dismissed by tapping the barrier, unless [barrierDismissible]
+///   — right for a form, where a stray click outside would lose what was
+///   typed, and wrong for a picker like the quick switcher, which holds
+///   nothing and should go away when the eye moves on
 /// - CAN be dismissed by pressing Escape
 Future<T?> showCustomDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
+  bool barrierDismissible = false,
 }) {
   return showDialog<T>(
     context: context,
-    barrierDismissible: false,
+    barrierDismissible: barrierDismissible,
     builder: (ctx) => CallbackShortcuts(
       bindings: {
         SingleActivator(LogicalKeyboardKey.escape): () =>
