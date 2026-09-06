@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart' show SupabaseClient;
 
 /// Reshaping a `users` row into what the client models expect.
 ///
@@ -60,4 +61,27 @@ class ServerUserRow {
       'permission_bits': bits,
     },
   };
+
+  /// Mark the private channels among [channels] that [uid] holds the manage
+  /// seat for (`channel_members.can_manage`).
+  ///
+  /// One read for the whole list rather than one per channel, and only when
+  /// there is a private channel to ask about — most servers have none, and
+  /// the refresh should cost them nothing for it.
+  static Future<void> stampManagedChannels(
+    SupabaseClient db,
+    List<dynamic> channels,
+    String uid,
+  ) async {
+    if (!channels.any((c) => c['is_private'] == true)) return;
+    final rows = await db
+        .from('channel_members')
+        .select('channel_id')
+        .eq('user_id', uid)
+        .eq('can_manage', true);
+    final managed = {for (final r in rows as List) r['channel_id'] as String};
+    for (final channel in channels) {
+      channel['can_manage'] = managed.contains(channel['id']);
+    }
+  }
 }

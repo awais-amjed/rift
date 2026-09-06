@@ -79,7 +79,10 @@ class ChannelContextMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final isVoice = channel.channelType == ChannelType.voice;
     final serverId = context.watch<ServerCubit>().state.selectedServerId;
-    final canManage =
+    // A private channel is run from inside it: the seat its creator was
+    // given, not the server-wide permission, which holds no key to the room
+    // and is refused by the server for it. A public one is the permission.
+    final isChannelManager =
         context
             .watch<ServerCubit>()
             .state
@@ -88,6 +91,7 @@ class ChannelContextMenu extends StatelessWidget {
             ?.permissions
             .isChannelManager ??
         false;
+    final canManage = channel.isPrivate ? channel.canManage : isChannelManager;
 
     return ContextMenuPanel(
       heading: isVoice ? 'Voice channel' : 'Text channel',

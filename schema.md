@@ -476,6 +476,16 @@ not actually being revoked.
 taken back, only rotated past. 031's note that this grant was revocable was true only while voice
 was unencrypted.
 
+### Who may make a private channel (migration 014)
+
+`CREATE_PRIVATE_CHANNEL` (bit 21) sat on `@everyone` from 007. It is on `Moderator` by default now,
+and off the baseline — on new servers by the seed, on existing ones by name. Still a bit like any
+other: put it back on `@everyone` in the roles editor for a server that wants everybody making
+rooms. Whoever makes a private channel still runs it, and running it includes deleting it:
+`channels_delete_managers` asks `app.can_manage_channel`, which for a private channel is the
+`channel_members.can_manage` seat and not the server-wide permission. The client reads that seat
+onto each private channel (`can_manage` in the details response) so the menu can offer it.
+
 ### roles.is_owner — one owner per server (migration 013)
 
 A fifth seeded role, `Owner`, at position 400 with `ADMINISTRATOR`. Exactly one per server (a

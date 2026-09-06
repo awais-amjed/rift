@@ -109,6 +109,7 @@ mixin _ServerApiMixin {
             'id, name, channel_type, retention_days, history_cap, is_private',
           )
           .order('name');
+      await ServerUserRow.stampManagedChannels(db, channels, uid);
 
       // Best-effort: a server that predates 021 has no such function, and the
       // three cached booleans on the user row still answer the three questions

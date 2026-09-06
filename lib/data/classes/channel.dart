@@ -27,6 +27,17 @@ class Channel {
   /// a public room, not open a private one.
   final bool isPrivate;
 
+  /// Whether we hold this private channel's own manage seat
+  /// (`channel_members.can_manage`) — whoever made it, and whoever they
+  /// handed it to. Meaningless on a public channel, where managing is the
+  /// server-wide permission; the menu asks [ServerPermission] there.
+  ///
+  /// It is on the channel rather than looked up by the menu because the
+  /// server's delete policy has asked this seat since migration 007, and a
+  /// menu that did not know about it offered the creator of a room no way to
+  /// end it.
+  final bool canManage;
+
   const Channel({
     required this.id,
     required this.name,
@@ -34,6 +45,7 @@ class Channel {
     this.retentionDays,
     this.historyCap,
     this.isPrivate = false,
+    this.canManage = false,
   });
 
   /// Whether this channel holds messages at all, and so whether the retention
@@ -50,6 +62,7 @@ class Channel {
       retentionDays: (json['retention_days'] as num?)?.toInt(),
       historyCap: (json['history_cap'] as num?)?.toInt(),
       isPrivate: json['is_private'] == true,
+      canManage: json['can_manage'] == true,
     );
   }
 
@@ -60,5 +73,6 @@ class Channel {
     'retention_days': retentionDays,
     'history_cap': historyCap,
     'is_private': isPrivate,
+    'can_manage': canManage,
   };
 }
