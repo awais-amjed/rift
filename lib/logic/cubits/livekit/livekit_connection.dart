@@ -236,6 +236,11 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
           failure: ConnectionFailure.from(e),
         ),
       );
+      // The key material, and the doorbell subscription [_prepareE2EE] may
+      // have opened to ask for it, both belong to a call that is not
+      // happening. Nothing used to be held this early, so nothing had to be
+      // let go here.
+      _clearE2EE();
       await room.disconnect();
       await room.dispose();
     }

@@ -88,12 +88,35 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     final keyring = _keyring;
     if (keyring == null) return null;
 
-    final outcome = await keyring.loadOrBootstrap(channelId);
+    var outcome = await keyring.loadOrBootstrap(channelId);
+
+    // Nobody has sealed this channel's key to us yet, which is the ordinary
+    // state of a member joining their first call. Somebody online can seal it,
+    // and the key-sweep doorbell is how they are told to — which is exactly
+    // what the text path does when it opens a channel it has no key for.
+    //
+    // Voice used to only refuse. So a member whose first stop was a call sat on
+    // "waiting for this channel's key" until another member happened to open
+    // that channel by hand, and the "Try again" button could not help, because
+    // trying again rang nothing either.
+    final server = _serverCubit?.state.selectedServer;
+    if (outcome.isWaiting && server != null) {
+      // Subscribing before ringing: an unsubscribed doorbell has no client to
+      // ring with, and the heal being asked for is announced on the same topic.
+      _watchKeyRotations(server, channelId);
+      _rotations.ring();
+      outcome = await _awaitHeal(keyring, channelId);
+    }
+
     final key = keyring.currentKey;
     if (!outcome.isReady || key == null) {
       HelperMethods.printDebug(
         '[LiveKit] no channel key for $channelId — refusing to join',
       );
+      // Nothing is connecting, so nothing should be left holding a
+      // subscription — the connect path is what hands this one over to the
+      // call, and it is not being reached.
+      unawaited(_rotations.stop());
       return null;
     }
 
@@ -106,6 +129,37 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     final provider = await BaseKeyProvider.create(sharedKey: false);
     _keyProvider = provider;
     return E2EEOptions(keyProvider: provider);
+  }
+
+  /// How long to wait for another member's client to seal us in.
+  ///
+  /// The budget the text path allows for the same exchange — a ring, a sweep on
+  /// somebody else's device, and a round trip back. Long enough for that to
+  /// land on a normal connection, short enough that a channel nobody can heal
+  /// says so rather than spinning.
+  static const _healGrace = Duration(seconds: 4);
+  static const _healPoll = Duration(milliseconds: 700);
+
+  /// Re-ask for the keyring until somebody seals us in, or the grace runs out.
+  ///
+  /// Polled rather than driven by the doorbell it just rang. The ring that
+  /// announces a heal is the same ring that announces a rotation, and this
+  /// client is not in a call yet — so driving it from [_onKeyDoorbell] would
+  /// give that handler a second meaning and a second lifetime to get right. A
+  /// handful of requests over four seconds is the cheaper of the two.
+  Future<KeyringOutcome> _awaitHeal(
+    ChannelKeyring keyring,
+    String channelId,
+  ) async {
+    final deadline = DateTime.now().add(_healGrace);
+    var outcome = const KeyringOutcome.waiting();
+    while (DateTime.now().isBefore(deadline)) {
+      await Future.delayed(_healPoll);
+      if (isClosed) break;
+      outcome = await keyring.loadOrBootstrap(channelId);
+      if (!outcome.isWaiting) return outcome;
+    }
+    return outcome;
   }
 
   /// The key the current call is encrypted with, and its ring slot.
