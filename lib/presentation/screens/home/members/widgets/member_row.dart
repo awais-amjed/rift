@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../../logic/services/role_ladder.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
@@ -47,8 +46,7 @@ class MemberRow extends StatelessWidget {
 
   bool get _expandable => canManagePermissions || canModerate;
 
-  /// What actually earns a chip — see [RoleLadder.badges].
-  List<Role> get _badges => RoleLadder.badges(roles);
+  List<Role> get _badges => roles;
 
   @override
   Widget build(BuildContext context) {

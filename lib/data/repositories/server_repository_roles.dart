@@ -47,7 +47,7 @@ mixin _RoleApiMixin {
       final rows = await db
           .from('member_role_list')
           .select(
-            'user_id, role_id, name, color, position, permissions, is_default',
+            'user_id, role_id, name, color, position, permissions, is_owner',
           );
       return {'assignments': rows};
     });

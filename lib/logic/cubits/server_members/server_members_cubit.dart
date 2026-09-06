@@ -7,7 +7,6 @@ import '../../../data/classes/role.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_member.dart';
 import '../../services/member_roster_pager.dart';
-import '../../services/role_ladder.dart';
 import '../../services/server_table_watcher.dart';
 import '../server/server_cubit.dart';
 

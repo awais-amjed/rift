@@ -476,6 +476,14 @@ not actually being revoked.
 taken back, only rotated past. 031's note that this grant was revocable was true only while voice
 was unencrypted.
 
+### No Members role (migration 016)
+
+The role every human was given on registration is gone, along with `roles.is_default`. Its one
+bit, `CREATE_INVITE`, sits on `@everyone` now — on new servers by the seed, on existing ones by
+update — and the role is deleted from every server, its assignments with it. Somebody who
+registers through an invite that names no role holds no role; what they can do is the baseline.
+Inviting is still a permission: take the bit off `@everyone` for a server that wants it narrower.
+
 ### Roles are an administrator's (migration 015)
 
 `MANAGE_ROLES` (bit 2) is retired: `app.may_manage_role` and `app.may_assign_role` ask
@@ -513,7 +521,7 @@ Why a role and not `servers.owner_id`: every delegation rule since 006 is decide
 so a role at 400 outranks admins (300) by the rule that already exists. A column would have been
 a second ladder with its own "outranks everyone" clause in every policy.
 
-### member_role_list (migration 033 exposes `is_default`; 013 adds `is_owner`)
+### member_role_list (013 adds `is_owner`; 016 drops `is_default`)
 
 Which roles each member holds, joined to the role's own columns so a client draws a name and a
 colour without a second query.

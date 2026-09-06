@@ -23,14 +23,6 @@ class Role {
   /// out or taken away, only edited.
   final bool isEveryone;
 
-  /// The role every member is given when they register (migration 025).
-  ///
-  /// Unlike [isEveryone] it is a real assignment — it can be taken away, and it
-  /// shows in the roles editor and the per-member menu like any other. What it
-  /// is *not* is worth a chip beside somebody's name: everybody has it, so it
-  /// distinguishes nobody and only crowds out the roles that do.
-  final bool isDefault;
-
   /// The one role that is held by exactly one person (migration 013).
   ///
   /// Nobody hands it out and nobody edits it: it goes to the first person who
@@ -46,7 +38,6 @@ class Role {
     required this.permissions,
     this.color,
     this.isEveryone = false,
-    this.isDefault = false,
     this.isOwner = false,
   });
 
@@ -67,7 +58,6 @@ class Role {
     position: (json['position'] as num?)?.toInt() ?? 0,
     permissions: (json['permissions'] as num?)?.toInt() ?? 0,
     isEveryone: json['is_everyone'] == true,
-    isDefault: json['is_default'] == true,
     isOwner: json['is_owner'] == true,
   );
 
@@ -78,7 +68,6 @@ class Role {
     'position': position,
     'permissions': permissions,
     'is_everyone': isEveryone,
-    'is_default': isDefault,
     'is_owner': isOwner,
   };
 
@@ -95,7 +84,6 @@ class Role {
     position: position ?? this.position,
     permissions: permissions ?? this.permissions,
     isEveryone: isEveryone,
-    isDefault: isDefault,
     isOwner: isOwner,
   );
 }

@@ -163,7 +163,8 @@ BEGIN
     JOIN users u ON u.id = mr.user_id
    WHERE u.username = 'owner';
   -- 013 adds the top rung: the longest-standing admin owns the server.
-  IF v_roles IS DISTINCT FROM 'Owner,Admin,Moderator,Members' THEN
+  -- 016 takes the bottom one away: Members is gone, its one bit on @everyone.
+  IF v_roles IS DISTINCT FROM 'Owner,Admin,Moderator' THEN
     RAISE EXCEPTION 'FAIL: the owner came out holding %', v_roles;
   END IF;
   IF NOT (SELECT is_owner FROM users WHERE username = 'owner') THEN

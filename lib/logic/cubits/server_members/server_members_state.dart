@@ -92,13 +92,10 @@ class ServerMembersState {
     return null;
   }
 
-  /// The most senior role [userId] holds that is worth showing — what a chip
-  /// beside their name says, colour or not.
-  ///
-  /// Skips the default role: everybody has it, so a chip for it labelled every
-  /// row in the sidebar with the same word (see [RoleLadder.badges]).
-  Role? topRoleFor(String userId) =>
-      RoleLadder.badges(memberRoles[userId] ?? const <Role>[]).firstOrNull;
+  /// The most senior role [userId] holds — what a chip beside their name
+  /// says, colour or not. Null for somebody holding none, which since 016 is
+  /// what most members are: the baseline is not a role anybody holds.
+  Role? topRoleFor(String userId) => memberRoles[userId]?.firstOrNull;
 
   /// The current display name for [userId].
   ///
