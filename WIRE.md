@@ -222,6 +222,25 @@ read is a call where everybody connects, every track publishes, and nobody hears
 anyone — with no error reported anywhere. It is the most quietly broken thing in
 this document, which is why it is in it.
 
+**A bot is the exception, and always encrypts in slot 0** — whatever version its
+key is:
+
+```
+keyIndex = 0        for a bot's own media
+keyIndex = keyVersion % 16   for a member's
+```
+
+That is not a preference, it is what an SDK can do. A frame cryptor is created
+when its track is published and keeps the index it was born with; moving it
+needs `FrameCryptor.setKeyIndex`, which throws in `@livekit/rtc-node` because
+the request it builds omits a `track_sid` the native side requires. So the rule
+is the slot, and members read a bot's key from 0 for exactly this reason
+(`livekit_e2ee.dart`, `bot_sdk_ts/src/voice.ts`).
+
+A port that applied the arithmetic above to a bot's key would put it in slot 1
+on a channel at version 1 and the bot would be inaudible — which is the failure
+this section exists to prevent, arrived at by following this section.
+
 ---
 
 ## Out of scope
