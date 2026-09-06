@@ -1,7 +1,7 @@
 import '../invite_link.dart';
 
 /// One row of the central directory — a self-hosted server whose admin chose
-/// to be findable (schema.md, `public_servers`).
+/// to be findable — central's `public_servers` table.
 ///
 /// Everything here is plaintext, and that is the point: a listing is an
 /// advertisement. It carries the address and an ordinary invite code, never any

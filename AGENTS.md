@@ -35,7 +35,6 @@ lib/
 rust/src/api/     # Rust API surface exposed to Flutter — bridge functions and types only
 rust/src/screenshare/  # What those functions call: session, capture, audio/ per platform
 server_migrations/  # Numbered SQL migrations (001_..., 002_...)
-schema.md           # DB schema doc — update when tables/buckets change
 ```
 
 ## State management — Bloc/Cubit only
@@ -228,7 +227,7 @@ schema.md           # DB schema doc — update when tables/buckets change
 ## Backend
 
 - DB changes: add a new numbered file in `server_migrations/` (never edit an applied migration)
-  and update `schema.md`.
+  and update the migration's own prose — it is the reference now.
 - Edge Function changes: keep the `{success, data, error}` 200-always envelope, enforce
   permissions server-side (`is_server_admin` / `is_channel_manager` / `can_create_tokens`,
   delegation rule: you can only grant what you hold), and update `API.md` in

@@ -4,7 +4,7 @@ import '../../logic/services/paging.dart';
 import '../classes/api_response.dart';
 import '../classes/public_server.dart';
 
-/// The central server directory (schema.md, `public_servers`).
+/// The central server directory — central's `public_servers` table.
 ///
 /// Runs over the same central Supabase client the DM tier uses, with the user's
 /// GoTrue session: browsing is a policy-checked read, publishing is the

@@ -5,12 +5,22 @@ Reference for how authentication and encryption work across the system. Each sec
 
 ## Components
 
-| Component | Role |
-|---|---|
-| Flutter app | UI on all platforms; all cryptography runs client-side (`CryptoRepository`) |
-| Rust core (`rust/`) | Screen capture + audio pipeline, publishes to LiveKit via flutter_rust_bridge |
-| Self-hosted server | One Supabase project (Postgres + Edge Functions) + one LiveKit server. Anyone can run one; holds users, channels, messages, and E2E keyring material |
-| Central Supabase | Optional convenience service run by the project: account (email+password) + encrypted vault backups. Never required — privacy mode works without it |
+| Component | Role | Repository |
+|---|---|---|
+| Flutter app | UI on all platforms; all cryptography runs client-side (`CryptoRepository`) | `rift` |
+| Rust core (`rust/`) | Screen capture + audio pipeline, publishes to LiveKit via flutter_rust_bridge | `rift` |
+| Self-hosted server | One Supabase project (Postgres + Edge Functions) + one LiveKit server. Anyone can run one; holds users, channels, messages, and E2E keyring material | `rift-self-host` |
+| Central Supabase | Optional convenience service run by the project: account (email+password) + encrypted vault backups. Never required — privacy mode works without it | `rift-central` |
+| Bot SDK | TypeScript. A second implementation of the wire format, not a binding | `rift-bot-sdk` |
+
+The schema and the endpoints for both servers are in their own repositories, so a
+migration named here is a file there. They are the source of truth; this document
+is the reasoning behind them.
+
+Where the two schemas hold the same idea they use the same names — `users`,
+`dm_messages`, `read_state`. Central's account row was `dm_profiles` until it was
+written down as migrations: it is the account, and it holds more than a directory
+profile.
 
 The trust model in one line: **self-hosted server admins are trusted with membership and (plaintext
 metadata of) their own server; the central server and hosting providers are trusted with nothing** —
@@ -23,10 +33,16 @@ everything they store is encrypted client-side.
 Every user's entire identity derives from a single **256-bit master seed**, generated on-device at
 vault creation. Nothing about identity is ever created server-side.
 
-The whole of it lives in `rift_crypto/`, a package with no Flutter in it, so a
-headless bot SDK depends on the same copy the app does rather than on a second
-implementation. `WIRE.md` describes the formats and `test/wire_vectors.json`
-freezes them.
+The whole of it lives in `rift_crypto/`, a package with no Flutter in it, so
+anything headless that has to sign a string can use it without a Flutter SDK —
+the vector generator does exactly that.
+
+It is also the **reference implementation**. There is a second one: the
+TypeScript bot SDK, in the `rift-bot-sdk` repository, which reimplements this
+rather than depending on it — it has to, being a different language. The two
+never read each other. They meet at `test/wire_vectors.json`, generated from
+this code and checked by both, which is the only arrangement in which "they
+agree" means anything. `WIRE.md` describes the formats that file freezes.
 
 ### Key derivation tree
 
@@ -37,6 +53,7 @@ master seed (random 32 B) ◄──AES-256-GCM decrypt┘        (EncryptedSeed 
    │
    ├─ HMAC-SHA256(seed, "<host>:<server_id>:<version>") ──► child seed ──► Ed25519 keypair (SIWS login + signing)
    ├─ HMAC-SHA256(seed, "<host>:<server_id>:identity")  ──► stable_id (permanent per-server identity)
+   ├─ HMAC-SHA256(seed, "<host>:chat:<version>")        ──► child seed ──► X25519 keypair (sealing: DMs, channel keys)
    └─ HMAC-SHA256(seed, "vault:v1")                     ──► vault blob key (AES-256-GCM)
 ```
 
@@ -46,6 +63,10 @@ master seed (random 32 B) ◄──AES-256-GCM decrypt┘        (EncryptedSeed 
   (The central host derives per-host, without a `<server_id>`.)
 - `<version>` is retained only as a derivation hook for a future crypto migration — it's always
   `v1` now (key rotation was removed; see §2). `stable_id` is version-independent.
+- **The chat keypair is scoped per *host*, not per server**, and pinned at `v1` even though the
+  signing key above carries a version. Everything sealed to somebody — every DM, every wrapped
+  channel key — is opened with it, so rotating it would make all of that unreadable. See
+  `WIRE.md` §2, which freezes the distinction.
 - Argon2id runs in a background isolate (`Isolate.run`) — never on the UI thread.
 - The master seed lives in platform secure storage (`flutter_secure_storage`), never in
   HydratedBloc/JSON state.
@@ -87,12 +108,13 @@ seed-derived secret ever reaches the server (auth is a signature). Full design i
    JWT) triggers a silent re-login — the key is derived from the seed, so it never prompts.
    `server.token` holds the JWT.
 4. **Authorization** is RLS, for almost everything. The client talks to PostgREST directly under
-   the policies in `002_security.sql`; `anon` is revoked from every table, members get
+   the policies in `migrations/002_security.sql` (in `rift-self-host`); `anon` is revoked
+   from every table, members get
    column-level grants, and the `app.*` helpers each re-check ban state, so a ban bites on the
    next statement rather than at token expiry. Edge Functions remain only where a call holds a
    secret (LiveKit credentials, the GoTrue admin grant) or runs before the caller is a member
    (`resolve_invite`, `register`); those verify the JWT locally against the stack's JWKS (ES256,
-   no GoTrue round-trip — `_shared/jwt.ts`) and load the `users` row on every call.
+   no GoTrue round-trip — the server's `_shared/jwt.ts`) and load the `users` row on every call.
 
 **Permissions** are three user flags — `is_server_admin`, `is_channel_manager`,
 `can_create_tokens` — with the delegation rule: *you can only grant what you hold*.
@@ -365,7 +387,8 @@ Every state change is an RPC (`friend_request`, `friend_request_by_handle`,
 INSERT/UPDATE/DELETE grant on either table**. Each change carries a rule with it — a request may
 not be accepted by whoever sent it, a block has to tear the friendship down with it — and a rule
 spelled in a policy has to be re-derived by every policy that reads the table afterwards.
-Reading it is `friend_counts()` plus `friend_bucket()` a tab at a time (central migration 014).
+Reading it is `friend_counts()` plus `friend_bucket()` a tab at a time
+(central's `014_friend_paging.sql`).
 It used to be `friend_list()`, all four buckets at once, because everything on screen was drawn
 from all of it — until the counts took over the badge and the tab labels, and the per-peer state
 moved onto the conversation row. What was left is three lists that only their own tab reads.
@@ -412,7 +435,8 @@ filling the disk, and had no way to say so.
 
 So limits exist here too — as columns an admin sets from Server Settings, with **every sweep
 defaulting to off**. A server that is upgraded and never touched behaves exactly as before.
-Migration 007 is the feature; 009 extends it to DMs.
+`002_limits.sql` on a self-hosted server carries both the feature and the
+DM extension.
 
 **There is deliberately no daily message quota.** A quota is a rate limit, not a storage
 bound: N messages a day, forever, is still unbounded — it only takes longer to get there. The
@@ -431,7 +455,7 @@ explicitly opts *out* of a server-wide sweep. NULL and 0 are different answers a
 them apart. Voice channels carry the columns and ignore them — they hold no messages, so their
 settings dialog shows the name alone rather than a switch wired to nothing.
 
-#### DMs get the same override [Migration 009]
+#### DMs get the same override [`002_limits.sql`]
 
 007 gave channels an override and left DMs with only the server-wide numbers, which made the
 obvious policy — trim the busy channels, keep the DMs — inexpressible. 009 adds
@@ -448,7 +472,7 @@ set the base case, exactly like the channel-level pair.
 The cap counts a conversation, not a sender: both people's messages together, one bucket seen
 from either side.
 
-#### A bucket per server [Migration 008]
+#### A bucket per server [`002_limits.sql`]
 
 Attachments used to land in one project-wide `chat-attachments` bucket, and since
 one Supabase project can host several servers (001 says so, and identity is derived per
@@ -829,7 +853,7 @@ too, and it is the difference between "I don't want to be interrupted" and
 - Client asks its self-hosted server for a channel token (`get_channel_token`); the Edge Function
   mints a LiveKit JWT (room = channel id, identity = user id, 1 h TTL, `roomAdmin` for channel
   managers). Screenshare sessions use the same flow with an `_screenshare` identity suffix.
-- **Media is end-to-end encrypted** (migrations 031–032). Frames are AES-GCM encrypted with the
+- **Media is end-to-end encrypted** (`009_bot_voice.sql`). Frames are AES-GCM encrypted with the
   channel's **own key** — the same key the text keyring seals per member (§4) — so the SFU
   forwards packets it cannot open. DTLS-SRTP still protects the hop; this protects the room.
 - This used to be the one place the server could read what members said to each other. The SFU sees

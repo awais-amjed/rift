@@ -1,7 +1,7 @@
 # BOTS.md — Bots, commands & webhooks
 
 Design reference for third-party integrations. **Everything in the §13 build order is
-implemented** — migrations 013 through 017 for the bot itself, 028 through 032 for panels, the
+implemented** — `005_bots.sql` for the bot itself, `009_bot_voice.sql` for panels, the
 grants and encrypted voice, plus both SDKs (§11). What is left is listed in §12 and in each SDK's
 README, and it is choices rather than a backlog: reading over realtime instead of polling,
 attachments, joining from an invite link, and an `image` block that points at this server's own
@@ -104,8 +104,8 @@ from the bot — and an AI bot forwarding to an outside service takes it there e
 ### Storage
 
 `key_version = 0` means "this body is not encrypted". The column already exists, every client
-already branches on it, and the `CHECK (key_version >= 1)` becomes `>= 0`. Migration 013 does this,
-along with four CHECKs that keep the two message shapes from blurring — `schema.md` lists them.
+already branches on it, and the `CHECK (key_version >= 1)` becomes `>= 0`. `005_bots.sql` does this,
+along with four CHECKs that keep the two message shapes from blurring — `005_bots.sql` defines them.
 
 The `ciphertext` column then holds plain text, which makes its name a small lie. Worth a comment in
 the migration rather than a second column and a two-way `CHECK` — the alternative loosens
@@ -192,7 +192,7 @@ the bot and both work while the bot is asleep.
 
 ---
 
-## 5. Replies — [Implemented — channel and ephemeral in migration 016, panels in 029]
+## 5. Replies — [Implemented — channel and ephemeral in `005_bots.sql`, panels in `009_bot_voice.sql`]
 
 Three shapes, because bot output is three different things and Discord flattens them all into
 chat messages for want of anywhere else to put them.
@@ -253,7 +253,7 @@ the widgets, and the button-press row.
 
 ---
 
-## 6. Moderation bots — the one real exception — [Implemented — migrations 017, 028, 030 and 035]
+## 6. Moderation bots — the one real exception — [Implemented — `005_bots.sql` and `010_bot_permissions.sql`]
 
 A moderation bot has to read everything. There is no cryptographic middle ground: it either holds
 the channel key or it does not.
@@ -265,7 +265,7 @@ rotations that are what make it forward-only.
 
 Five rules make it safe enough to offer.
 
-### Bots are excluded from the healing sweep — [Implemented as a refusal, migration 014]
+### Bots are excluded from the healing sweep — [Implemented as a refusal, `005_bots.sql`]
 
 `get_channel_key` returns `members_missing` — members with a published chat key and no entry at the
 current version — and any member's client heals them. That is how people get keys without anyone
@@ -348,11 +348,11 @@ The server-wide grant is stored as intent, not as a snapshot:
 of them, drop the one. An exception list would also work, and would leave somebody a year later
 asking why one channel is not covered by a grant that says *whole server*.
 
-### Reading it — [migration 035, and `ChannelReader` in the SDK]
+### Reading it — [`010_bot_permissions.sql`, and `ChannelReader` in the SDK]
 
 Everything above is about the **key**. None of it is what lets a bot read a message, and for a
 long time nothing did: `messages_select` restricted every bot to what it was addressed and what it
-wrote, since migration 015, and 017 never touched that line. A fully granted bot, in a public
+wrote, since `005_bots.sql`, and the grant never touched that line. A fully granted bot, in a public
 channel, holding the channel key, got zero rows — while `grant_bot_channel_key` posted *"It can
 read every message sent here from now on"* into the channel. The grant machinery was complete and
 the feature did nothing.
@@ -392,7 +392,7 @@ anything over, and **stops rather than skips** at a version whose key has not be
 rotation is sealed by the next member to open the channel, so a cursor that jumped the gap would
 drop precisely the stretch a moderation bot was granted to see.
 
-### Summoning one into a call — [migration 037]
+### Summoning one into a call — [`010_bot_permissions.sql`]
 
 The thing people most want a bot for, and it did not work in a private voice channel at all. Two
 walls, both keyed on `channel_members`, which `set_channel_members` refuses to seat a bot into:
@@ -421,7 +421,7 @@ playing music. `set_bot_voice_summon` pushes `removeParticipant` for the one cha
 shape and the same reason as `set_bot_voice_listen`'s push. Summoning pushes nothing: there is no
 connection yet, and the bot's own poll is what brings it in.
 
-**A summon ends when its reason does** (migration 038). Closing a channel drops its summons, the
+**A summon ends when its reason does** (`010_bot_permissions.sql`). Closing a channel drops its summons, the
 same as 031 does for listening grants — without it a bot called into a public call could still take
 a token after the channel was closed. And an hour of nobody answering one drops it too: a summon is
 a request to come and play *now*, and one left behind by a bot that was down would otherwise wait
@@ -474,7 +474,7 @@ says *automod is metadata-only*; this is that decision arriving.
 
 ---
 
-## 6b. What a bot may hear in a call — [Implemented — migrations 031, 032]
+## 6b. What a bot may hear in a call — [Implemented — `009_bot_voice.sql`]
 
 The rule at the top of this document was false in exactly one place, and it took
 building the SDK's voice support to notice.
@@ -676,9 +676,9 @@ channel. Nothing else. That single rule is what "hears what you tell it" reduces
 - ~~Its DMs~~ **done**. The one place a bot opens and seals rather than writing plaintext:
   the conversation key falls out of an X25519 exchange between the two identities, so
   nothing is stored and nothing is sent
-- ~~Publish audio into a voice channel~~ **done** (migrations 031-032), where
+- ~~Publish audio into a voice channel~~ **done** (`009_bot_voice.sql`), where
   `@livekit/rtc-node` is an optional dependency loaded only by `joinVoice`
-- ~~Read a channel it was granted~~ **done** (migration 035) — `watchChannel`, the one
+- ~~Read a channel it was granted~~ **done** (`010_bot_permissions.sql`) — `watchChannel`, the one
   place a bot opens something nobody sealed for it alone. It is also the only part of the
   SDK whose absence was invisible: the grant existed, the reading did not, and a bot
   waiting on a channel it had been granted looked no different from a quiet one
@@ -767,17 +767,17 @@ badge. Both are fixed; both have tests.
 **Then bots**, in this order:
 
 1. ~~`is_bot`, bot invites, the sidebar section — a bot that exists and does nothing~~ **done**
-   (migration 014). The sweep exclusion landed as a *refusal on the row* rather than only a
+   (`005_bots.sql`). The sweep exclusion landed as a *refusal on the row* rather than only a
    filter in the three edge functions that walk the member list: filters are the half that gets
    forgotten, and the fourth thing to read `users` will not know it was supposed to have one.
 2. ~~Commands: `to_bot`, `/` completion, the right-click menu, the composer marker~~ **done**
-   (migration 015), except the right-click menu — the `/` list covers discovery for now and the
+   (`005_bots.sql`), except the right-click menu — the `/` list covers discovery for now and the
    sidebar entry is the next cheap win. One thing the design did not anticipate: a command is
    *signed* though not sealed, and the read path verifies it. A webhook's message cannot be
    verified and is never shown as a person; a command is attributed to one, so it has to be.
-3. ~~Replies: channel message, then ephemeral~~ **done** (migration 016). Panels are item 8.
+3. ~~Replies: channel message, then ephemeral~~ **done** (`005_bots.sql`). Panels are item 8.
 4. ~~The Dart SDK, extracted from what the first three needed~~ **done, and since deleted**. It polled rather than subscribing — no reconnect logic to get wrong, nothing spent from the server-wide event budget — and it proved the design before there was a second implementation to check it against. It could never publish audio, and it fell a feature behind every session after that; see §11.
-5. ~~Moderation grants~~ **done** (migrations 017 and 035). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see. Nothing called them at first — `grant_bot_channel_key` and `revoke_bot_channel_key` appeared only in the migration, so an admin granted by writing SQL. Item 9 gave them a UI.
+5. ~~Moderation grants~~ **done** (`005_bots.sql` and `010_bot_permissions.sql`). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see. Nothing called them at first — `grant_bot_channel_key` and `revoke_bot_channel_key` appeared only in the migration, so an admin granted by writing SQL. Item 9 gave them a UI.
 
    **And for a year of commits the bot could not read a word.** All four rules were about the *key*; `messages_select` still restricted every bot to what it was addressed, so a fully granted bot got zero rows while the channel announced it could read everything. The lesson worth keeping is not "check the policy" — it is that a section marked *Implemented* on the strength of its hardest half is the one nobody re-reads. 035 is the other half, and §6 says which line does it.
 
@@ -786,7 +786,7 @@ feature in their own right. But the server-wide grant in §6 is *defined* as "no
 building the carve-out before the thing it carves out means writing it once instead of remembering
 to come back.
 
-6. ~~Private text and voice channels~~ **server side done** (migrations 018, 020, 021). Granular
+6. ~~Private text and voice channels~~ **server side done** (`007_channels.sql`). Granular
    permissions came with them rather than after: private channels need *who may create one* and
    *who may add members*, and building those against three booleans would have been doing the work
    twice. `get_channel_token` now checks membership, which it never did — harmless while every
@@ -798,7 +798,7 @@ to come back.
    failure that actually happens. Red-checked by changing the payload separator and the identity
    scope string; each is caught, and by nothing else in the suite, because everything else signs
    and verifies with the same changed code and agrees with itself.
-8. ~~Panels~~ **done** (migration 029). Seven block types, `Bot.panel` / `Bot.editPanel`, and a
+8. ~~Panels~~ **done** (`009_bot_voice.sql`). Seven block types, `Bot.panel` / `Bot.editPanel`, and a
    press that is deliberately *not* a message: `is_interaction` keeps the row out of every view but
    the presser's and the bot's, wakes nobody's phone, and does not count as unread — so pressing
    skip forty times leaves the channel looking exactly as it did.
@@ -812,7 +812,7 @@ to come back.
    silently kept showing the state it had when the channel was opened. And the press rendered as a
    message to the person who pressed it: the policy hid it from everybody else, and "everybody
    else" was the wrong set.
-9. ~~The grant UI~~ **done** (migrations 028, 030). "Bots reading this" on a text channel's menu, a
+9. ~~The grant UI~~ **done** (`009_bot_voice.sql`). "Bots reading this" on a text channel's menu, a
    confirm that says what a key costs before it is handed over, and the system message rule 4 asked
    for — which needed a `messages.is_system` column, because a system message and a webhook's are
    the same shape and badging one WEBHOOK says an integration somebody installed is involved when
@@ -844,7 +844,7 @@ to come back.
     the same query before either advances the cursor. One press counted as two votes. Both are
     guarded now.
 
-11. ~~Voice~~ **done** (migration 031, `rift-bot-sdk`'s `src/voice.ts`) — `Bot.joinVoice`,
+11. ~~Voice~~ **done** (`009_bot_voice.sql`, `rift-bot-sdk`'s `src/voice.ts`) — `Bot.joinVoice`,
     `VoiceConnection.play`, and `@livekit/rtc-node` as an optional peer imported
     only by that call, so a text bot still installs nothing.
 
@@ -862,7 +862,7 @@ to come back.
     itself, so the README's own `npm install @livekit/rtc-node` did nothing
     inside this repo — the examples get it as a devDependency instead.
 
-12. ~~Encrypting voice~~ **done** (migrations 031-032). Calls now use the
+12. ~~Encrypting voice~~ **done** (`009_bot_voice.sql`). Calls now use the
     channel's own key, so the SFU forwards frames it cannot open — the last
     place in Rift where the server could read what members said to each other.
 
