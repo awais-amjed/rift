@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
+import '../../../../../common/masked_email_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import 'message_banner.dart';
 import 'section_header.dart';
@@ -111,8 +112,9 @@ class _SignedInBanner extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              'Signed in as ${email ?? 'unknown'}',
+            child: MaskedEmailText(
+              email: email,
+              prefix: 'Signed in as ',
               style: AppText.rowQuiet.copyWith(color: theme.textSecondary),
             ),
           ),

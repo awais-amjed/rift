@@ -10,6 +10,7 @@ import '../section_title.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../../data/constants.dart';
 import '../../../../common/button_footer.dart';
+import '../../../../common/masked_email_text.dart';
 import '../../../../theme/theme_context.dart';
 
 class SignedInPanel extends StatelessWidget {
@@ -49,8 +50,9 @@ class SignedInPanel extends StatelessWidget {
               // device, and it lives with the other one of those, under
               // "This device" below.
               Expanded(
-                child: Text(
-                  'Signed in as ${state.email ?? 'unknown'}',
+                child: MaskedEmailText(
+                  email: state.email,
+                  prefix: 'Signed in as ',
                   style: AppText.secondary.copyWith(color: theme.textSecondary),
                 ),
               ),

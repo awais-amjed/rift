@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import '../../../../../logic/services/masked_email.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
@@ -75,7 +76,8 @@ class _ChangePasswordPanelState extends State<ChangePasswordPanel> {
         Text(
           state.isSignedIn
               ? 'One password signs you in and unlocks your encrypted backup. '
-                    'Changing it needs a code emailed to ${state.email}.'
+                    'Changing it needs a code emailed to '
+                    '${MaskedEmail.of(state.email ?? '')}.'
               : 'The password that unlocks your vault on this device.',
           style: AppText.secondary.copyWith(
             color: theme.textTertiary,
