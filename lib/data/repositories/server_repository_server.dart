@@ -84,7 +84,7 @@ mixin _ServerApiMixin {
           .limit(1)
           .maybeSingle();
       if (server == null) {
-        throw const PostgrestException(message: 'Server not found');
+        throw const PostgrestException(message: ServerDb.serverGone);
       }
       final channels = await db
           .from('channels')

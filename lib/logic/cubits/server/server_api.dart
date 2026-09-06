@@ -2,6 +2,7 @@ part of 'server_cubit.dart';
 
 mixin _ServerApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
+  void removeServer(String serverId);
 
   /// The selected server's anon key — what a direct PostgREST call needs on top
   /// of a bearer token, for the calls that are about the current server.
@@ -300,6 +301,20 @@ mixin _ServerApiMixin on Cubit<ServerState> {
         bearerToken: token,
       ),
     );
+
+    // The server's row is invisible to somebody it no longer knows — our own
+    // row is what scopes every read — so "not found" from a server we were on
+    // yesterday means it was deleted, or we were removed. Either way there is
+    // nothing left here to refresh, and keeping the rail chip would leave a
+    // server nobody can leave.
+    if (!response.success && response.error == ServerDb.serverGone) {
+      removeServer(server.id);
+      HelperMethods.showToast(
+        title: 'No longer on ${server.name}',
+        description: 'The server was deleted, or you were removed from it.',
+      );
+      return (success: false, error: response.error);
+    }
 
     if (response.success) {
       final data = response.data as Map<String, dynamic>;

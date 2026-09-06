@@ -18,6 +18,11 @@ import '../enums/error_code.dart';
 /// each call because it rotates underneath us — a silent SIWS re-login hands
 /// back a new JWT and the next call must carry it.
 class ServerDb {
+  /// What a details read answers when the server has no row for us: it was
+  /// deleted, or we were removed. Named, because the cubit acts on exactly
+  /// this string and nothing else.
+  static const String serverGone = 'Server not found';
+
   final Map<String, SupabaseClient> _clients = {};
 
   SupabaseClient client(String url, String anonKey, String? bearerToken) {
