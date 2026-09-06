@@ -3,36 +3,32 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/member_page.dart';
-import '../../../../data/classes/role.dart';
-import '../../../../data/classes/server.dart';
-import '../../../../data/classes/server_member.dart';
-import '../../../../data/constants.dart';
-import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../logic/services/member_roster_pager.dart';
-import '../../../theme/app_text.dart';
-import '../../../common/app_modal.dart';
-import '../../../common/app_modal_header.dart';
-import '../../../common/icon_tile.dart';
-import '../../../common/loading_dots.dart';
-import '../../../common/message_banner.dart';
-import '../roles/roles_dialog.dart';
-import 'widgets/members_list.dart';
-import 'widgets/members_search_field.dart';
+import '../../../../../../data/classes/member_page.dart';
+import '../../../../../../data/classes/role.dart';
+import '../../../../../../data/classes/server.dart';
+import '../../../../../../data/classes/server_member.dart';
+import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../../logic/services/member_roster_pager.dart';
+import '../../../../../theme/app_text.dart';
+import '../../../../../common/loading_dots.dart';
+import '../../../../../common/message_banner.dart';
+import '../../../members/widgets/members_list.dart';
+import '../../../members/widgets/members_search_field.dart';
+import '../widgets/manage_panel.dart';
 
-/// Members dialog — lists everyone on [server] with their permissions and
-/// moderation state. Server admins manage permissions here (Discord-style:
+/// The members page of the manage-server dialog — everyone on [server] with
+/// their roles and moderation state. Server admins manage permissions here (Discord-style:
 /// invites grant nothing, promotion happens after joining); admins and
 /// channel managers get mute/deafen controls.
 ///
-/// Takes the server rather than reading the selection: it opens from the rail's
-/// menu, which can be a server you are not currently looking at. Every call it
+/// Takes the server rather than reading the selection: the dialog opens from
+/// the rail's menu, which can be a server you are not currently looking at. Every call it
 /// makes names that server, so the roster and the permission writes cannot drift
 /// onto a different one.
 ///
 /// **The roster is paged, and searching is the database's job** (migration
-/// 039). This dialog used to read every member in one call, which PostgREST cut
+/// 039). This page used to read every member in one call, which PostgREST cut
 /// at 1000 rows — so on a large server the last members alphabetically could
 /// not be moderated at all, and the header confidently reported a membership of
 /// exactly a thousand. Now it walks pages as you scroll, counts with
@@ -40,16 +36,16 @@ import 'widgets/members_search_field.dart';
 ///
 /// Banned members are included on purpose, here and nowhere else: lifting a ban
 /// means finding the person it is on.
-class MembersModal extends StatefulWidget {
+class MembersPanel extends StatefulWidget {
   final Server server;
 
-  const MembersModal({super.key, required this.server});
+  const MembersPanel({super.key, required this.server});
 
   @override
-  State<MembersModal> createState() => _MembersModalState();
+  State<MembersPanel> createState() => _MembersPanelState();
 }
 
-class _MembersModalState extends State<MembersModal> {
+class _MembersPanelState extends State<MembersPanel> {
   late final MemberRosterPager _pager = MemberRosterPager(
     fetchPage: _fetchPage,
   );
@@ -209,18 +205,6 @@ class _MembersModalState extends State<MembersModal> {
     });
   }
 
-  /// The roles list, on top of this one rather than replacing it — you come
-  /// here to look at a person, and the roles are what explains them.
-  void _openRoles(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<ServerCubit>(),
-        child: const RolesDialog(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
@@ -237,35 +221,24 @@ class _MembersModalState extends State<MembersModal> {
         final viewerIsModerator =
             viewerIsAdmin || (viewerPerms?.isChannelManager ?? false);
 
-        return AppModal(
+        return ManagePanel(
           title: 'Members',
-          count: _total,
-          subtitle: widget.server.name,
-          titleIcon: IconTile(
-            icon: Icons.group_outlined,
-            color: themeState.accentBright,
-            size: 36,
-            radius: K.radiusRow,
-            iconSize: 18,
-          ),
-          headerActions: [
-            // Roles live here rather than in server settings because a role
-            // is a thing people hold, and this is the screen about people.
-            AppModalHeaderButton(
-              icon: Icons.shield_outlined,
-              tooltip: 'Roles',
-              onPressed: () => _openRoles(context),
-            ),
-          ],
-          maxHeight: 560,
+          subtitle: switch (_total) {
+            null => widget.server.name,
+            1 => '1 member',
+            final n => '$n members',
+          },
           body: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              MembersSearchField(
-                onChanged: (query) => unawaited(_search(query)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+                child: MembersSearchField(
+                  onChanged: (query) => unawaited(_search(query)),
+                ),
               ),
               if (_error != null) _buildError(),
-              Flexible(
+              Expanded(
                 child: _buildBody(
                   themeState,
                   viewer?.id,
@@ -281,7 +254,7 @@ class _MembersModalState extends State<MembersModal> {
   }
 
   Widget _buildError() => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+    padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
     child: MessageBanner(message: _error!, kind: MessageBannerKind.error),
   );
 

@@ -4,14 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
-import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../servers/widgets/no_server_button.dart';
 import '../../servers/add_server/add_server_dialog.dart';
-import '../../servers/server_settings/server_settings_dialog.dart';
+import '../../servers/manage/server_manage_dialog.dart';
+import '../../servers/manage/server_manage_tab.dart';
 import '../quick_switcher/quick_switcher_dialog.dart';
 import 'jump_field.dart';
 import 'server_header.dart';
@@ -51,21 +50,13 @@ class SidebarHeader extends StatelessWidget {
     );
   }
 
-  /// Admin-only settings for [server] — here, always the one this header is
-  /// showing: connection, limits, and its listing in the central directory.
+  /// Everything about running [server] — here, always the one this header is
+  /// showing — opened on its overview.
   void _openServerSettings(BuildContext context, Server server) {
-    showCustomDialog(
-      context: context,
-      builder: (_) => MultiBlocProvider(
-        providers: [
-          BlocProvider.value(value: context.read<ServerCubit>()),
-          BlocProvider.value(value: context.read<ThemeCubit>()),
-          // The discovery column lives on central rather than on the server.
-          BlocProvider.value(value: context.read<PublicServersCubit>()),
-          BlocProvider.value(value: context.read<SupabaseBackupCubit>()),
-        ],
-        child: ServerSettingsDialog(server: server),
-      ),
+    showServerManageDialog(
+      context,
+      server: server,
+      initial: ServerManageTab.overview,
     );
   }
 

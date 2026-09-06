@@ -1,29 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/classes/server.dart';
-import '../../../../../data/classes/server_limits.dart';
-import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/helper_methods.dart';
-import '../../../../common/app_button.dart';
-import '../../../../common/app_modal.dart';
-import 'listing_actions.dart';
-import 'listing_draft.dart';
-import 'push_toggle.dart';
-import 'server_limits_controllers.dart';
-import 'server_settings_save.dart';
-import 'widgets/server_settings_form.dart';
+import '../../../../../../data/classes/server.dart';
+import '../../../../../../data/classes/server_limits.dart';
+import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
+import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import '../../../../../../logic/helper_methods.dart';
+import '../../../../../common/app_button.dart';
+import '../../server_settings/listing_actions.dart';
+import '../../server_settings/listing_draft.dart';
+import '../../server_settings/push_toggle.dart';
+import '../../server_settings/server_limits_controllers.dart';
+import '../../server_settings/server_settings_save.dart';
+import '../../server_settings/widgets/server_settings_form.dart';
+import '../widgets/manage_panel.dart';
 
-/// Admin-only settings for [server]: display name, the LiveKit connection, the
-/// operator limits from migration 007, and whether the server is in the central
-/// directory.
+/// The overview page of the manage-server dialog: display name, the LiveKit
+/// connection, the operator limits from migration 007, and whether the server
+/// is in the central directory.
 ///
-/// Takes the server rather than reading the selection, because it opens from the
-/// rail's menu for any server — including one you are not looking at. Every
-/// write below names it.
+/// Takes the server rather than reading the selection, because the dialog
+/// opens from the rail's menu for any server — including one you are not
+/// looking at. Every write below names it.
 ///
 /// The limits live here rather than anywhere else for the same reason the
 /// LiveKit credentials do — saving the attachment cap also has to move the
@@ -37,16 +36,16 @@ import 'widgets/server_settings_form.dart';
 /// a reason to hide a setting from the screen it belongs on. Save runs the
 /// server's update first and the listing second ([ListingActions]), and says
 /// which half landed rather than pretending it is one write.
-class ServerSettingsDialog extends StatefulWidget {
+class OverviewPanel extends StatefulWidget {
   final Server server;
 
-  const ServerSettingsDialog({super.key, required this.server});
+  const OverviewPanel({super.key, required this.server});
 
   @override
-  State<ServerSettingsDialog> createState() => _ServerSettingsDialogState();
+  State<OverviewPanel> createState() => _OverviewPanelState();
 }
 
-class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
+class _OverviewPanelState extends State<OverviewPanel> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _livekitUrlCtrl;
   final _apiKeyCtrl = TextEditingController();
@@ -204,8 +203,13 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
       return;
     }
 
+    // The page stays up: the secret fields are cleared because the server has
+    // them now and a form that kept showing a secret is a form that pastes it
+    // again on the next Save.
+    _apiKeyCtrl.clear();
+    _secretCtrl.clear();
+    setState(() => _isLoading = false);
     HelperMethods.showSuccess(message: 'Server settings updated');
-    Navigator.of(context).pop();
   }
 
   Future<void> _removeListing() async {
@@ -226,13 +230,17 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AppModal(
-      title: 'Server settings',
-      // Named, because this dialog opens for any server in the rail — not only
-      // the one whose channels are on screen behind it.
-      subtitle: 'Connection, limits and discovery for ${widget.server.name}',
-      maxWidth: K.dialogWidthWidest,
-      content: ServerSettingsForm(
+    return ManagePanel(
+      title: 'Overview',
+      subtitle: 'Connection, limits and discovery',
+      footer: [
+        AppButton(
+          label: 'Save',
+          isLoading: _isLoading,
+          onPressed: _isLoading ? null : _submit,
+        ),
+      ],
+      child: ServerSettingsForm(
         nameCtrl: _nameCtrl,
         livekitUrlCtrl: _livekitUrlCtrl,
         apiKeyCtrl: _apiKeyCtrl,
@@ -247,18 +255,6 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
         pushEnabled: _pushEnabled,
         onPushChanged: _setPush,
       ),
-      actions: [
-        AppButton(
-          label: 'Cancel',
-          variant: AppButtonVariant.secondary,
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-        ),
-        AppButton(
-          label: 'Save',
-          isLoading: _isLoading,
-          onPressed: _isLoading ? null : _submit,
-        ),
-      ],
     );
   }
 }

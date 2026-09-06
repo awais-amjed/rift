@@ -1,0 +1,136 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../../../data/classes/server.dart';
+import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/helper_methods.dart';
+import '../../../../../common/app_button.dart';
+import '../../../../../common/confirm_dialog.dart';
+import '../../../../../common/hint_card.dart';
+import '../widgets/danger_row.dart';
+import '../widgets/manage_panel.dart';
+
+/// The last page: the two things that end your relationship with the server.
+///
+/// Leaving is local — the server keeps the account, this device forgets it.
+/// Deleting is the owner's alone, and it is the one action here that reaches
+/// everybody else, so it asks in those words.
+class DangerZonePanel extends StatefulWidget {
+  final Server server;
+
+  const DangerZonePanel({super.key, required this.server});
+
+  @override
+  State<DangerZonePanel> createState() => _DangerZonePanelState();
+}
+
+class _DangerZonePanelState extends State<DangerZonePanel> {
+  bool _isBusy = false;
+
+  Future<void> _leave() async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Leave ${widget.server.name}?',
+      message:
+          'This removes the server and its keys from this device. You will '
+          'need a new invite to rejoin.',
+      confirmLabel: 'Leave',
+      icon: Icons.logout_rounded,
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    context.read<ServerCubit>().removeServer(widget.server.id);
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Delete ${widget.server.name}?',
+      message:
+          'Every channel, message and member goes with it, for everybody, '
+          'and nothing can bring it back. If you only want to stop running '
+          'it yourself, hand it to somebody else instead: open Members, '
+          'expand them, and choose Transfer ownership.',
+      confirmLabel: 'Delete server',
+      icon: Icons.delete_forever_rounded,
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _isBusy = true);
+    final result = await context.read<ServerCubit>().deleteServer();
+    if (!mounted) return;
+    setState(() => _isBusy = false);
+
+    if (!result.success) {
+      HelperMethods.showError(error: result.error ?? 'Could not delete');
+      return;
+    }
+    HelperMethods.showSuccess(message: '${widget.server.name} is gone');
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Live, so a transfer made on the members page takes the delete row away
+    // (or brings it) without reopening the dialog.
+    final isOwner =
+        context
+            .watch<ServerCubit>()
+            .state
+            .serverById(widget.server.id)
+            ?.user
+            ?.permissions
+            .isOwner ??
+        false;
+
+    return ManagePanel(
+      title: 'Danger zone',
+      subtitle: 'Leaving, and ending it',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        spacing: 12,
+        children: [
+          if (isOwner)
+            const HintCard(
+              icon: Icons.workspace_premium_outlined,
+              text:
+                  'You own this server. To step down without ending it, hand '
+                  'it to another member from the Members page.',
+            ),
+          DangerRow(
+            icon: Icons.logout_rounded,
+            title: 'Leave server',
+            detail: isOwner
+                ? 'Forgets it on this device. The server stays, and so does '
+                      'your ownership — transfer it first if you are going '
+                      'for good.'
+                : 'Forgets it on this device. You need a new invite to come '
+                      'back.',
+            action: AppButton(
+              label: 'Leave',
+              variant: AppButtonVariant.danger,
+              onPressed: _isBusy ? null : _leave,
+            ),
+          ),
+          if (isOwner)
+            DangerRow(
+              icon: Icons.delete_forever_rounded,
+              title: 'Delete server',
+              detail:
+                  'Ends it for everybody. Channels, messages and members are '
+                  'gone for good.',
+              action: AppButton(
+                label: 'Delete server',
+                variant: AppButtonVariant.danger,
+                isLoading: _isBusy,
+                onPressed: _isBusy ? null : _delete,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

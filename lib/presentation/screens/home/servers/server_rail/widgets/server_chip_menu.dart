@@ -3,11 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/notification_level.dart';
-import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
-import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu_region.dart';
@@ -16,9 +13,8 @@ import '../../../../../common/unread_badge.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
-import '../../../invites/invite_modal.dart';
-import '../../../members/members_modal.dart';
-import '../../server_settings/server_settings_dialog.dart';
+import '../../manage/server_manage_dialog.dart';
+import '../../manage/server_manage_tab.dart';
 
 /// Right-click menu on a rail chip.
 ///
@@ -83,53 +79,31 @@ class ServerChipMenu extends StatelessWidget {
               );
             },
           ),
+        // The two most-reached-for pages, by name, and the dialog they are
+        // pages of. Each opens the same dialog on a different page; the rest
+        // of it is one click to the left once there.
         if (permissions?.canCreateTokens ?? false)
           ContextMenuItem(
             icon: Icons.person_add_outlined,
             label: 'Invite people',
-            onTap: () => showDialogFromMenu(
-              context: context,
-              build: (ctx) => MultiBlocProvider(
-                providers: [
-                  BlocProvider.value(value: ctx.read<ServerCubit>()),
-                  BlocProvider.value(value: ctx.read<AppCubit>()),
-                ],
-                child: InviteModal(server: server),
-              ),
-            ),
+            onTap: () => _manage(context, ServerManageTab.invites),
           ),
-        // Only for the people who can actually change something. Everyone
-        // else already sees the roster in the members panel, and this dialog
-        // adds nothing to it but controls they can't use.
         if ((permissions?.isServerAdmin ?? false) ||
             (permissions?.isChannelManager ?? false))
           ContextMenuItem(
             icon: Icons.manage_accounts_outlined,
             label: 'Manage members',
-            onTap: () => showDialogFromMenu(
-              context: context,
-              build: (ctx) => BlocProvider.value(
-                value: ctx.read<ServerCubit>(),
-                child: MembersModal(server: server),
-              ),
-            ),
+            onTap: () => _manage(context, ServerManageTab.members),
           ),
-        if (permissions?.isServerAdmin ?? false)
+        if (ServerManageTabs.worthOpening(permissions))
           ContextMenuItem(
             icon: Icons.settings_outlined,
-            label: 'Server settings',
-            onTap: () => showDialogFromMenu(
-              context: context,
-              build: (ctx) => MultiBlocProvider(
-                providers: [
-                  BlocProvider.value(value: ctx.read<ServerCubit>()),
-                  // Settings' third column is the server's public listing,
-                  // which lives on central rather than on the server.
-                  BlocProvider.value(value: ctx.read<PublicServersCubit>()),
-                  BlocProvider.value(value: ctx.read<SupabaseBackupCubit>()),
-                ],
-                child: ServerSettingsDialog(server: server),
-              ),
+            label: 'Manage server',
+            onTap: () => _manage(
+              context,
+              (permissions?.isServerAdmin ?? false)
+                  ? ServerManageTab.overview
+                  : null,
             ),
           ),
         ContextMenuItem(
@@ -141,6 +115,12 @@ class ServerChipMenu extends StatelessWidget {
       ],
     );
   }
+
+  void _manage(BuildContext context, ServerManageTab? tab) =>
+      showDialogFromMenu(
+        context: context,
+        build: (ctx) => serverManageDialog(ctx, server: server, initial: tab),
+      );
 
   Future<void> _leave(BuildContext context) async {
     final dismiss = ContextMenuScope.of(context);

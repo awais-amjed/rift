@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/role.dart';
-import '../../../../data/enums/server_permission.dart';
-import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../common/app_button.dart';
-import '../../../common/app_modal.dart';
-import '../../../common/hint_card.dart';
-import 'role_editor_dialog.dart';
-import 'widgets/role_row.dart';
-import '../../../../logic/services/role_ladder.dart';
+import '../../../../../../data/classes/role.dart';
+import '../../../../../../data/enums/server_permission.dart';
+import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../common/app_button.dart';
+import '../../../../../common/hint_card.dart';
+import '../../../roles/role_editor_dialog.dart';
+import '../../../roles/widgets/role_row.dart';
+import '../widgets/manage_panel.dart';
+import '../../../../../../logic/services/role_ladder.dart';
 
 /// Every role on the server, most senior first.
 ///
 /// Open to anybody. What roles exist and who holds them is not a secret from
 /// the people they are exercised on — and a member who cannot see the ladder
 /// cannot tell whether the person muting them was meant to be able to.
-class RolesDialog extends StatefulWidget {
-  const RolesDialog({super.key});
+class RolesPanel extends StatefulWidget {
+  const RolesPanel({super.key});
 
   @override
-  State<RolesDialog> createState() => _RolesDialogState();
+  State<RolesPanel> createState() => _RolesPanelState();
 }
 
-class _RolesDialogState extends State<RolesDialog> {
+class _RolesPanelState extends State<RolesPanel> {
   List<Role> _roles = const [];
   Map<String, int> _counts = const {};
   bool _isLoading = true;
@@ -136,11 +136,16 @@ class _RolesDialogState extends State<RolesDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AppModal(
+    return ManagePanel(
       title: 'Roles',
       subtitle: 'What each one can do, and who holds it',
-      maxWidth: 520,
-      content: Column(
+      footer: [
+        // A rank of 1 is the lowest a role can sit above the baseline, so
+        // somebody at rank 1 has nothing left below them to create.
+        if (_mayManage && _myRank > 1)
+          AppButton(label: 'New role', onPressed: () => _edit(null)),
+      ],
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -176,17 +181,6 @@ class _RolesDialogState extends State<RolesDialog> {
           ],
         ],
       ),
-      actions: [
-        AppButton(
-          label: 'Close',
-          variant: AppButtonVariant.secondary,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        // A rank of 1 is the lowest a role can sit above the baseline, so
-        // somebody at rank 1 has nothing left below them to create.
-        if (_mayManage && _myRank > 1)
-          AppButton(label: 'New role', onPressed: () => _edit(null)),
-      ],
     );
   }
 }

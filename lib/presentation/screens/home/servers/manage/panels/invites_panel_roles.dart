@@ -1,4 +1,4 @@
-part of 'invite_modal.dart';
+part of 'invites_panel.dart';
 
 /// The roles half of the invite dialog: which ones this member may hand out,
 /// and which one the link being minted names.
@@ -8,7 +8,7 @@ part of 'invite_modal.dart';
 /// many times it works, whether it makes a bot. This is about what the person
 /// on the other end becomes, and it is the only part that has to ask the server
 /// anything before the dialog can be drawn.
-mixin _InviteRolesMixin on State<InviteModal> {
+mixin _InviteRolesMixin on State<InvitesPanel> {
   /// The role this link hands out, or null for a plain one.
   String? roleId;
 

@@ -54,6 +54,11 @@ class K {
   /// still happens, correctly, on a narrow window.
   static const double dialogWidthWidest = 1040;
 
+  /// The manage-server dialog's height. Fixed rather than the modal's
+  /// fraction of the window, because its pages swap inside one frame and a
+  /// frame that resized with each page would make the nav jump.
+  static const double manageDialogHeight = 640;
+
   // ── Touch ─────────────────────────────────────────────────
   /// The shortest a row may be where a finger is the pointer.
   ///

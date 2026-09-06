@@ -105,7 +105,7 @@ edge_functions.md   # Edge Function API doc — update when functions change
   badged one. Group by `ChatMessage.groupKey`, never by `authorId`.
 - **Keep widget files small — one widget per file wherever possible.** A component gets its own
   folder containing its main file plus one file per helper widget (e.g.
-  `invite_modal/invite_modal.dart` + `invite_modal/permission_row.dart`). Helper widgets that are
+  `manage/panels/invites_panel.dart` + `invites/widgets/invite_form.dart`). Helper widgets that are
   genuinely a few lines may stay private (`_Foo`) in the same file, but a file approaching a few
   hundred lines with multiple widget classes must be split into a folder. Refactor files toward
   this shape whenever you touch them.
