@@ -228,7 +228,6 @@ Start with the smallest useful set and add on demand:
 | `text` | a paragraph |
 | `fields` | key/value rows |
 | `progress` | a bar, `0.0`–`1.0` |
-| `image` | one picture, by URL |
 | `divider` | a rule |
 | `actions` | a row of `button`s |
 | `select` | a dropdown |
@@ -236,6 +235,12 @@ Start with the smallest useful set and add on demand:
 The bot sends that as JSON and the app draws each block with its own widget. The vocabulary is
 fixed and versioned, because third-party bots make it public API — **anything not in the list
 cannot be drawn**, which is the safety property rather than a shortcoming of the first version.
+`WIRE.md` §5 freezes the seven, field by field.
+
+**There is no `image` block, and that is a decision rather than an omission.** A URL a bot chose
+makes every member's client fetch from it, which hands a third party the IP address of everybody
+in the room and a per-member read receipt. It comes back when it can point at the server's own
+attachment bucket.
 
 ### The round trip
 
@@ -639,49 +644,12 @@ grants.
 
 ---
 
-## 10. Schema sketch
+## 10. The SDK — [Implemented, `rift-bot-sdk` repo]
 
-Nothing here is final; it is the shape the sections above imply.
-
-| Change | Why |
-|---|---|
-| `users.is_bot BOOLEAN NOT NULL DEFAULT false` | the type distinction, and the sweep exclusion in §6 |
-| `users.manifest JSONB` | published command list + data declaration (§4, §8) |
-| `invites.is_bot BOOLEAN NOT NULL DEFAULT false` | chosen when the invite is minted |
-| `messages.key_version CHECK (>= 0)` | 0 means the body is not encrypted (§3) |
-| `messages.to_bot UUID REFERENCES users(id)` | which bot a command is addressed to |
-| `messages.webhook_id UUID` | origin for an unsigned row (§3) |
-| `webhooks` table | §7 |
-| `bot_channel_keys` table | the §6 grant: `(bot_id, channel_id, from_key_version)`, admin-gated |
-| `bot_server_grants` table | a server-wide grant held as intent, materialised per public channel |
-| `channels.is_private BOOLEAN NOT NULL DEFAULT false` | written before private channels exist, so the bulk carve-out cannot be forgotten |
-| `messages.blocks JSONB` | a panel's body (§5); button presses come back through `to_bot` |
-| `bot_voice_grants` table | §6b: `(channel_id, bot_id)` — who may hear a call |
-| `bot_voice_keys` table | §6b: the key a bot *speaks* with, sealed to it by a member |
-
-**The policy that carries the design:** a bot may `SELECT` a message only where
-`to_bot = auth.uid()`, or where it is the sender, or where it holds a keyring entry for that
-channel. Nothing else. That single rule is what "hears what you tell it" reduces to.
-
----
-
-## 11. The SDK — [Implemented, `rift-bot-sdk` repo]
-
-- ~~Derive an identity from a seed, SIWS login, keep the session refreshed~~ **done**
-- ~~Join from an invite link~~ **done** — `BotSession.join` takes the same link an admin
-  would send a person, in any of its three shapes, and comes back a member
-- ~~Receive commands addressed to it~~ **done**, by polling rather than subscribing
-- ~~Reply — channel, ephemeral, or panel~~ **done**
-- ~~Publish a manifest~~ **done**
-- ~~Its DMs~~ **done**. The one place a bot opens and seals rather than writing plaintext:
-  the conversation key falls out of an X25519 exchange between the two identities, so
-  nothing is stored and nothing is sent
-- ~~Publish audio into a voice channel~~ **done** (`009_bot_voice.sql`), where
-  `@livekit/rtc-node` is an optional dependency loaded only by `joinVoice`
-- ~~Read a channel it was granted~~ **done** (`010_bot_permissions.sql`) — `watchChannel`, the one
-  place a bot opens something nobody sealed for it alone. It is also the only part of the
-  SDK whose absence was invisible: the grant existed, the reading did not, and a bot
-  waiting on a channel it had been granted looked no different from a quiet one
+Everything in this document that a bot has to *do* is in that package: identity
+from a seed, SIWS login, joining from an invite link, commands, replies, panels,
+DMs, publishing audio, and reading a channel it was granted. Its README is the
+reference; what follows is why it exists in the shape it does.
 
 ### The contract comes before the second implementation
 
@@ -729,7 +697,7 @@ are what would make a community port trustworthy.
 
 ---
 
-## 12. Accepted limitations
+## 11. Accepted limitations
 
 Documented honestly, not to be "fixed":
 
@@ -755,132 +723,3 @@ Documented honestly, not to be "fixed":
   safer Rift; it is no leveling bot, ever, and a community that goes back to Discord for one.
 
 ---
-
-## 13. Build order
-
-**Webhooks first — done.** `key_version 0` + the badge + one edge function + a management UI.
-It was the whole plaintext-message path, proven end to end, with no bot in sight — and it turned up
-two bugs that the bot work would otherwise have inherited: the push trigger going silent against a
-NULL sender, and the chat list grouping two different webhooks under one name and therefore one
-badge. Both are fixed; both have tests.
-
-**Then bots**, in this order:
-
-1. ~~`is_bot`, bot invites, the sidebar section — a bot that exists and does nothing~~ **done**
-   (`005_bots.sql`). The sweep exclusion landed as a *refusal on the row* rather than only a
-   filter in the three edge functions that walk the member list: filters are the half that gets
-   forgotten, and the fourth thing to read `users` will not know it was supposed to have one.
-2. ~~Commands: `to_bot`, `/` completion, the right-click menu, the composer marker~~ **done**
-   (`005_bots.sql`), except the right-click menu — the `/` list covers discovery for now and the
-   sidebar entry is the next cheap win. One thing the design did not anticipate: a command is
-   *signed* though not sealed, and the read path verifies it. A webhook's message cannot be
-   verified and is never shown as a person; a command is attributed to one, so it has to be.
-3. ~~Replies: channel message, then ephemeral~~ **done** (`005_bots.sql`). Panels are item 8.
-4. ~~The Dart SDK, extracted from what the first three needed~~ **done, and since deleted**. It polled rather than subscribing — no reconnect logic to get wrong, nothing spent from the server-wide event budget — and it proved the design before there was a second implementation to check it against. It could never publish audio, and it fell a feature behind every session after that; see §11.
-5. ~~Moderation grants~~ **done** (`005_bots.sql` and `010_bot_permissions.sql`). All four rules are enforced where the row is, not by clients agreeing: the refusal, forward-only, revoke-rotates, and the standing marker every member can see. Nothing called them at first — `grant_bot_channel_key` and `revoke_bot_channel_key` appeared only in the migration, so an admin granted by writing SQL. Item 9 gave them a UI.
-
-   **And for a year of commits the bot could not read a word.** All four rules were about the *key*; `messages_select` still restricted every bot to what it was addressed, so a fully granted bot got zero rows while the channel announced it could read everything. The lesson worth keeping is not "check the policy" — it is that a section marked *Implemented* on the strength of its hardest half is the one nobody re-reads. 035 is the other half, and §6 says which line does it.
-
-**Then, in this order.** Private channels come first, and not because bots need them — they are a
-feature in their own right. But the server-wide grant in §6 is *defined* as "not private", and
-building the carve-out before the thing it carves out means writing it once instead of remembering
-to come back.
-
-6. ~~Private text and voice channels~~ **server side done** (`007_channels.sql`). Granular
-   permissions came with them rather than after: private channels need *who may create one* and
-   *who may add members*, and building those against three booleans would have been doing the work
-   twice. `get_channel_token` now checks membership, which it never did — harmless while every
-   channel was public, a hole the moment one is not. The app has no UI for any of it yet.
-7. ~~The wire spec and test vectors~~ **done** — `WIRE.md`, `test/wire_vectors.json` and
-   `test/wire_test.dart`. The vectors were generated from the Dart implementation, so they catch
-   *drift*, not original error: they cannot say the format was right the day it was written, only
-   that it has not moved and that a second implementation agrees with the first — which is the
-   failure that actually happens. Red-checked by changing the payload separator and the identity
-   scope string; each is caught, and by nothing else in the suite, because everything else signs
-   and verifies with the same changed code and agrees with itself.
-8. ~~Panels~~ **done** (`009_bot_voice.sql`). Seven block types, `Bot.panel` / `Bot.editPanel`, and a
-   press that is deliberately *not* a message: `is_interaction` keeps the row out of every view but
-   the presser's and the bot's, wakes nobody's phone, and does not count as unread — so pressing
-   skip forty times leaves the channel looking exactly as it did.
-
-   `image` is not in v1, and that is a decision rather than an omission: a URL a bot chose makes
-   every member's client fetch from it, which hands a third party the IP of everybody in the room
-   and a per-member read receipt. It comes back pointing at this server's own attachment bucket.
-
-   Two things found by pressing the button. A panel redraw rang `new_message`, which makes a client
-   fetch what is *newer* than it has — and a panel being redrawn is not newer than anything, so it
-   silently kept showing the state it had when the channel was opened. And the press rendered as a
-   message to the person who pressed it: the policy hid it from everybody else, and "everybody
-   else" was the wrong set.
-9. ~~The grant UI~~ **done** (`009_bot_voice.sql`). "Bots reading this" on a text channel's menu, a
-   confirm that says what a key costs before it is handed over, and the system message rule 4 asked
-   for — which needed a `messages.is_system` column, because a system message and a webhook's are
-   the same shape and badging one WEBHOOK says an integration somebody installed is involved when
-   nothing outside the server is. The grant also moved from `app.is_admin()` to `MANAGE_BOTS`, and
-   from "is this channel on my server" to `app.can_see_channel` — an administrator standing outside
-   a private channel was able to key a bot into it.
-
-   The server-wide grant landed in 030 with the `is_private` carve-out intact, and one thing the
-   design had not anticipated: the downgrade cannot be a trigger on `bot_channel_keys`. Every
-   deletion of that row looks the same to a trigger, and only one of them is somebody deciding — so
-   closing a channel, which drops the bot's row for it, would have cancelled the grant on all the
-   others. It lives in `revoke_bot_channel_key` instead. Red-checked by putting the trigger back.
-
-   The bot's own page answers "what does this thing see?" in one place: the server-wide toggle and
-   every channel it holds a key to. Before it, that was discoverable a channel at a time, which is
-   not an answer somebody can act on.
-10. ~~The TypeScript SDK~~ **done** (`rift-bot-sdk`) — auth, commands, replies and panels. No build
-    step and no dependencies for a text bot: Node runs TypeScript by stripping types, and every
-    primitive a bot needs — voice included — is in `node:crypto`. It proves itself against `test/wire_vectors.json`, the same
-    file the Dart implementation is checked against, reproducing one of its signatures byte for
-    byte — which is the whole reason item 7 came first.
-
-    Voice is still not wrapped, and the reason is now a choice rather than a limitation: a bot can
-    already get a LiveKit token, and the media itself belongs to `@livekit/rtc-node` rather than to
-    this package. A text bot should not pay for a media dependency it never loads.
-
-    Found by running it: both SDKs delivered the same message twice under load. `setInterval` and
-    `Timer.periodic` do not wait for the previous callback, so a slow handler lets two ticks run
-    the same query before either advances the cursor. One press counted as two votes. Both are
-    guarded now.
-
-11. ~~Voice~~ **done** (`009_bot_voice.sql`, `rift-bot-sdk`'s `src/voice.ts`) — `Bot.joinVoice`,
-    `VoiceConnection.play`, and `@livekit/rtc-node` as an optional peer imported
-    only by that call, so a text bot still installs nothing.
-
-    Found by building it, and the reason this item was worth more than a wrapper:
-    **`get_channel_token` never asked what the caller was**, so a bot in a call
-    could hear everybody. §6b is the fix and the reasoning. Shipping the media
-    wrapper without it would have been shipping a music-bot SDK that doubles as a
-    call recorder.
-
-    Two smaller things the build turned up. The migration-path test selected
-    files by glob — `0[12][0-9]_*.sql` for "everything from 018 on" — which
-    silently stopped at 029, so 030 had never once been applied by it; the globs
-    are a number comparison now, and it covers six migrations it was skipping.
-    And npm will not install a package the root declares as an optional peer of
-    itself, so the README's own `npm install @livekit/rtc-node` did nothing
-    inside this repo — the examples get it as a devDependency instead.
-
-12. ~~Encrypting voice~~ **done** (`009_bot_voice.sql`). Calls now use the
-    channel's own key, so the SFU forwards frames it cannot open — the last
-    place in Rift where the server could read what members said to each other.
-
-    It cost item 11 its central property for a while, which is the interesting
-    part. Encrypting is what makes a bot audible, and with one key per room the
-    key that encrypts also decrypts — §2, arriving in voice. Two keys and a
-    one-way function bought it back: `HMAC(channelKey, "voicebot:v1:<botId>")`,
-    which every member derives and no bot inverts. Verified by playing a tone
-    from a bot and listening three ways at once — audible with the derived key,
-    silent with the channel key, silent with a random one.
-
-    Two holes found on the way, both of the same shape: something that used to
-    be true of voice because voice held no keys. `sweep_channel_keys` filtered
-    to text channels, so a banned member's voice key would never have rotated.
-    And screen share is a second connection into the same room — LiveKit skips
-    the frame cryptor for a track declaring no encryption, so an unencrypted
-    share would not have failed, it would have handed the server the one stream
-    nobody meant it to have.
-
-Games are not on this list. Discord's run in a browser already, Linux desktop has no usable web
-view, and the sandboxing is a project of its own.

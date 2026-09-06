@@ -187,6 +187,14 @@ Future<void> main() async {
   if (sdk.parent.existsSync()) {
     sdk.writeAsStringSync(json);
     stdout.writeln('wrote ${sdk.path}');
+
+    // WIRE.md goes with the numbers. It is the other half of the same contract
+    // — the prose the vectors freeze — and it was vendored by hand once, which
+    // is exactly long enough for it to drift by a line nobody noticed.
+    final spec = File('../rift-bot-sdk/WIRE.md');
+    spec.writeAsStringSync(File('WIRE.md').readAsStringSync());
+    stdout.writeln('wrote ${spec.path}');
+
     stdout.writeln('  now run its tests: (cd ../rift-bot-sdk && npm test)');
   } else {
     stdout.writeln(

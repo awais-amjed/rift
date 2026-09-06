@@ -2,7 +2,7 @@
 ///
 /// This was inside the app package, which meant anything headless that needed
 /// to sign a string had to pull in a Flutter SDK to get at it. It came out for
-/// the Dart bot SDK, which has since been deleted (BOTS.md §11) — and it stays
+/// the Dart bot SDK, which has since been deleted (BOTS.md §10) — and it stays
 /// out for a better reason than the one it left for.
 ///
 /// **This is the reference implementation.** `tool/gen_wire_vectors.dart`
