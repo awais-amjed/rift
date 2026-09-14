@@ -29,6 +29,7 @@ import '../../services/serial_queue.dart';
 import '../../services/sound_service.dart';
 import '../../services/speech_detector.dart';
 import '../../services/voice_keys.dart';
+import '../../services/voice_rejoin.dart';
 import '../../services/voice_signal.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';

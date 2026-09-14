@@ -3,7 +3,16 @@ part of 'livekit_cubit.dart';
 mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   List<EventsListener<RoomEvent>> get _listeners;
   AppCubit get _appCubit;
+  TokenCubit get _tokenCubit;
   void _syncParticipants();
+
+  /// Implemented by [_LiveKitConnectionMixin]; a dropped call joins again
+  /// through the same path as a click.
+  Future<void> connectToChannel({
+    required String channelId,
+    bool? micEnabled,
+    bool? cameraEnabled,
+  });
 
   void _applyStoredSettings();
   void _applyScreenshareQualitySettings(Participant participant);
@@ -107,16 +116,27 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       })
       ..on<RoomDisconnectedEvent>((e) {
         // Only handle unexpected disconnects; intentional disconnects set state beforehand.
-        if (state.connectionState == LiveKitConnectionState.connected) {
-          _appCubit.setSelectedChannelId(null);
-          emit(
-            state.copyWith(
-              connectionState: LiveKitConnectionState.disconnected,
-              clearRoom: true,
-              participants: [],
-            ),
-          );
+        if (state.connectionState != LiveKitConnectionState.connected) return;
+
+        // The connection gave out rather than somebody ending the call, so
+        // join the same channel again with a fresh token instead of leaving
+        // the user outside it without a word. The token the SDK spent its
+        // retries on is the likeliest reason those retries failed.
+        final channelId = state.currentChannelId;
+        if (channelId != null && VoiceRejoin.rejoinsAfter(e.reason)) {
+          _tokenCubit.invalidateToken(channelId);
+          unawaited(connectToChannel(channelId: channelId));
+          return;
         }
+
+        _appCubit.setSelectedChannelId(null);
+        emit(
+          state.copyWith(
+            connectionState: LiveKitConnectionState.disconnected,
+            clearRoom: true,
+            participants: [],
+          ),
+        );
       });
   }
 

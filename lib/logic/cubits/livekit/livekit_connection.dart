@@ -2,6 +2,9 @@ part of 'livekit_cubit.dart';
 
 /// Joining and leaving a LiveKit room, and tearing the room down cleanly.
 ///
+/// Over the mixin budget and still one job: every step of a join depends on
+/// the one before it, and splitting them would scatter a single sequence.
+///
 /// Connecting always cleans up any previous room first, and emits
 /// `connecting` before it does — otherwise the disconnect event fired during
 /// cleanup reads as an unexpected drop and clears the new channel.
@@ -230,19 +233,44 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       _applyStoredSettings();
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] room.connect() threw: $e');
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          failure: ConnectionFailure.from(e),
-        ),
-      );
+      // A cached token the server refuses is most often one minted before the
+      // voice credentials were replaced, and a freshly minted one gets straight
+      // in — so that case is tried once more before anyone sees an error. The
+      // second attempt has no cached token to reach for, so it cannot loop.
+      // See [VoiceRejoin].
+      final mintAgain = cached != null && VoiceRejoin.refusedCachedToken(e);
+      if (!mintAgain) {
+        emit(
+          state.copyWith(
+            connectionState: LiveKitConnectionState.error,
+            failure: ConnectionFailure.from(e),
+          ),
+        );
+      }
       // The key material, and the doorbell subscription [_prepareE2EE] may
       // have opened to ask for it, both belong to a call that is not
       // happening. Nothing used to be held this early, so nothing had to be
       // let go here.
       _clearE2EE();
-      await room.disconnect();
-      await room.dispose();
+      // Caught, because a room that never connected does not always report its
+      // own disconnect, and `disconnect` then times out waiting for it. The
+      // exception used to escape from here, past everything below: nobody saw
+      // it while the error had already been shown, but it skipped the second
+      // attempt and left "Connecting…" on screen for good.
+      try {
+        await room.disconnect();
+        await room.dispose();
+      } catch (e) {
+        HelperMethods.printDebug('[LiveKit] teardown after a failed join: $e');
+      }
+      if (mintAgain) {
+        _tokenCubit.invalidateToken(channelId);
+        await connectToChannel(
+          channelId: channelId,
+          micEnabled: micEnabled,
+          cameraEnabled: cameraEnabled,
+        );
+      }
     }
   }
 
