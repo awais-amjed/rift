@@ -125,13 +125,16 @@ class CentralDmRepository
   /// `sender_id` filter). Central DMs write straight to the table rather than
   /// through the quota RPC: an edit isn't a new message, so it must not cost
   /// quota. Returns the new `edited_at`.
+  ///
+  /// `edited_at` is not sent: central's `attest_dm` trigger stamps it, and
+  /// members hold an UPDATE grant on the four envelope columns only — naming
+  /// `edited_at` here made Postgres refuse the whole edit.
   Future<APIResponse> editDm({
     required int messageId,
     required Map<String, dynamic> envelope,
   }) async {
     try {
       final myId = _client.auth.currentUser!.id;
-      final editedAt = DateTime.now().toUtc().toIso8601String();
       final rows = await _client
           .from('dm_messages')
           .update({
@@ -139,7 +142,6 @@ class CentralDmRepository
             'nonce': envelope['nonce'],
             'signature': envelope['signature'],
             'key_version': envelope['key_version'],
-            'edited_at': editedAt,
           })
           .eq('id', messageId)
           .eq('sender_id', myId)
