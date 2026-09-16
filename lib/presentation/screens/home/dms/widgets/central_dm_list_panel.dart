@@ -102,13 +102,18 @@ class CentralDmListPanel extends StatelessWidget {
 
   Widget _buildList(CentralDmState state, bool ready) {
     if (state.status == CentralDmStatus.signedOut) {
-      return const Padding(
-        padding: EdgeInsets.all(12),
-        child: HintCard(
-          icon: Icons.cloud_off_outlined,
-          text:
-              'Sign in to your Rift account (Settings → Cloud Backup) to '
-              'message people across servers.',
+      // Top-aligned: in the column's Expanded slot a bare card is handed the
+      // whole height and stretches into a tall empty box.
+      return const Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: HintCard(
+            icon: Icons.cloud_off_outlined,
+            text:
+                'Sign in to your Rift account (Settings → Cloud Backup) to '
+                'message people across servers.',
+          ),
         ),
       );
     }
