@@ -7,6 +7,7 @@ import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_submenu_item.dart';
+import '../../../../theme/app_text.dart';
 import 'participant_move_menu.dart';
 import 'participant_removal_items.dart';
 import 'participant_roles_menu.dart';
@@ -86,6 +87,19 @@ class ParticipantAdminSection extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Named, so the staff half of a long menu reads as a group of its
+            // own rather than more of the same list — on a phone this menu is
+            // a sheet most of a screen tall.
+            Divider(height: 9, color: themeState.borderPrimary),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+              child: Text(
+                'MODERATION',
+                style: AppText.sectionLabel.copyWith(
+                  color: themeState.textTertiary,
+                ),
+              ),
+            ),
             if (isModerator && isLive) ...[
               ContextMenuItem(
                 icon: isServerMuted ? Icons.mic : Icons.mic_off,

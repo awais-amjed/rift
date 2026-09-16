@@ -7,7 +7,9 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/services/host_platform.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_motion.dart';
+import '../../controls/call_idle_pill.dart';
 import '../../controls/context_strip.dart';
 import '../../controls/control_bar.dart';
 import 'participant_grid_layout.dart';
@@ -130,6 +132,11 @@ class _RoomViewState extends State<RoomView> {
                     ],
                   ),
                   ControlBar(visible: _chromeVisible),
+                  // A phone hides the bar under a thumb's worth of video, so
+                  // the two facts you cannot afford to lose stay behind in a
+                  // pill: how long, and whether you are muted.
+                  if (context.layoutMode.isCompact)
+                    CallIdlePill(visible: !_chromeVisible),
                 ],
               ),
             );
