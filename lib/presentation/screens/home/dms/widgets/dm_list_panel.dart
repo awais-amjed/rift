@@ -122,7 +122,9 @@ class DmListPanel extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(K.radiusCard),
                 ),
-                icon: const Icon(Icons.edit_square, size: 20),
+                // Outlined, like every other glyph in the app: Material ships
+                // edit_square filled only, which read as a solid block here.
+                icon: const Icon(Icons.edit_outlined, size: 19),
                 label: Text(
                   'New',
                   style: AppText.row.copyWith(
