@@ -201,9 +201,25 @@ class _HomeScreenState extends State<HomeScreen> {
           // A phone is a different shell, not a squeezed desktop: the list is
           // the screen and everything else is pushed over it.
           child: context.layoutMode.isCompact
-              ? const MobileShell()
+              ? _QuickSwitcherShortcut(child: _buildPhone())
               : _QuickSwitcherShortcut(child: _buildDesktop(context)),
         ),
+      ),
+    );
+  }
+
+  /// The phone shell — also what a desktop window narrowed to a phone's width
+  /// gets, which has the app's own title bar painted over its top edge to
+  /// step out from under.
+  Widget _buildPhone() {
+    if (!HostPlatform.drawsOwnWindowChrome) return const MobileShell();
+    return BlocBuilder<AppCubit, AppState>(
+      buildWhen: (a, b) => a.titleBarVisible != b.titleBarVisible,
+      builder: (context, appState) => Padding(
+        padding: EdgeInsets.only(
+          top: appState.titleBarVisible ? _titleBarHeight : 0,
+        ),
+        child: const MobileShell(),
       ),
     );
   }
