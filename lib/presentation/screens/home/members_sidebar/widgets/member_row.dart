@@ -4,8 +4,11 @@ import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
+import '../../../../common/context_menu/context_menu_button.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../common/hover_builder.dart';
 import '../../../../common/user_avatar.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
@@ -44,19 +47,23 @@ class MemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final row = _buildRow(context);
     // No point right-clicking yourself for a local mute.
-    if (isMe) return row;
+    if (isMe) return _buildRow(context, null, false);
+    final menu = ParticipantContextMenu(
+      identity: member.id,
+      name: member.displayName,
+    );
     return ContextMenuRegion(
-      contextMenu: ParticipantContextMenu(
-        identity: member.id,
-        name: member.displayName,
+      contextMenu: menu,
+      child: HoverBuilder(
+        builder: (context, hovered) => _buildRow(context, menu, hovered),
       ),
-      child: row,
     );
   }
 
-  Widget _buildRow(BuildContext context) {
+  /// [menu] also opens from a ••• on hover — local mute and volume are in it,
+  /// and nothing on the row said so.
+  Widget _buildRow(BuildContext context, Widget? menu, bool hovered) {
     final themeState = context.theme;
     final locallyMuted = setting?.muted ?? false;
     // Offline members stay on the list but recede — the roster should be a
@@ -94,6 +101,8 @@ class MemberRow extends StatelessWidget {
                   ),
                 ),
                 ..._badges(locallyMuted),
+                if (menu != null && !context.layoutMode.isCompact)
+                  ContextMenuButton(menu: menu, visible: hovered),
               ],
             ),
           ),

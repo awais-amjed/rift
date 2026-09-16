@@ -97,6 +97,7 @@ class VoiceChannelTile extends StatelessWidget {
                       context: context,
                       channel: channel,
                       child: NavRow(
+                        overflowMenu: ChannelContextMenu(channel: channel),
                         icon: Icons.volume_up_rounded,
                         // An empty voice channel is a plain row, not the card
                         // below, so the lock has to be put on twice. Missing
@@ -177,6 +178,7 @@ class VoiceChannelTile extends StatelessWidget {
             channel: channel,
             child: VoiceChannelTileHeader(
               channel: channel,
+              menu: ChannelContextMenu(channel: channel),
 
               isSelected: isSelected,
               listeners: context.watch<VoiceListenersCubit>().listening(

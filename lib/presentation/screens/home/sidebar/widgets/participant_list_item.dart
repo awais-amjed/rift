@@ -6,9 +6,12 @@ import '../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../data/constants.dart';
+import '../../../../common/context_menu/context_menu_button.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../common/hover_builder.dart';
 import '../../../../common/speaking_ring.dart';
 import '../../../../common/squircle_avatar.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 
@@ -27,6 +30,12 @@ class ParticipantListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return HoverBuilder(
+      builder: (context, hovered) => _build(context, hovered),
+    );
+  }
+
+  Widget _build(BuildContext context, bool hovered) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         final isMuted = setting?.muted ?? false;
@@ -116,6 +125,12 @@ class ParticipantListItem extends StatelessWidget {
                       isMuted: isMuted,
                       isMicEnabled: participant.isMicrophoneEnabled,
                     ),
+                  // Local mute and volume live in this menu, and nothing on
+                  // the row suggested they existed.
+                  if (contextMenu != null && !context.layoutMode.isCompact) ...[
+                    const SizedBox(width: 6),
+                    ContextMenuButton(menu: contextMenu!, visible: hovered),
+                  ],
                 ],
               ),
             ),
@@ -140,6 +155,12 @@ class _MicIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return HoverBuilder(
+      builder: (context, hovered) => _build(context, hovered),
+    );
+  }
+
+  Widget _build(BuildContext context, bool hovered) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         if (isMuted) {

@@ -47,6 +47,9 @@ class TextChannelTile extends StatelessWidget {
           context: context,
           channel: channel,
           child: NavRow(
+            // The same menu again, for the ••• — channel settings, who can
+            // see it, webhooks and bots are all in there.
+            overflowMenu: ChannelContextMenu(channel: channel),
             icon: Icons.tag_rounded,
             iconBadge: channel.isPrivate ? ChannelLockBadge() : null,
             label: channel.name,

@@ -4,8 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../../../common/context_menu/context_menu_button.dart';
 import '../../../../../../../common/context_menu_region.dart';
+import '../../../../../../../common/hover_builder.dart';
 import '../../../../../../../common/squircle_avatar.dart';
+import '../../../../../../../responsive/shell_scope.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/custom_colors.dart';
 import '../../../../../../../theme/theme_context.dart';
@@ -34,13 +37,21 @@ class PresenceMemberRow extends StatelessWidget {
       user.userId,
       user.displayName,
     );
+    final menu = ParticipantContextMenu(identity: user.userId, name: name);
     return ContextMenuRegion(
-      contextMenu: ParticipantContextMenu(identity: user.userId, name: name),
-      child: _buildRow(context, name),
+      contextMenu: menu,
+      child: HoverBuilder(
+        builder: (context, hovered) => _buildRow(context, name, menu, hovered),
+      ),
     );
   }
 
-  Widget _buildRow(BuildContext context, String name) {
+  Widget _buildRow(
+    BuildContext context,
+    String name,
+    Widget menu,
+    bool hovered,
+  ) {
     final themeState = context.theme;
     final isMuted = setting?.muted ?? false;
 
@@ -69,6 +80,8 @@ class PresenceMemberRow extends StatelessWidget {
               size: 13,
               color: CustomColors.error,
             ),
+          if (!context.layoutMode.isCompact)
+            ContextMenuButton(menu: menu, visible: hovered),
         ],
       ),
     );

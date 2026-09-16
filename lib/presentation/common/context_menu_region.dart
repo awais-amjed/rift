@@ -41,53 +41,11 @@ class ContextMenuRegion extends StatefulWidget {
 }
 
 class _ContextMenuRegionState extends State<ContextMenuRegion> {
-  OverlayEntry? _entry;
-
-  void _show(Offset globalPosition) {
-    _dismiss();
-
-    // A phone gets the same menu as a sheet: there is no pointer to hang a
-    // panel off, and a thumb needs rows the width of the screen.
-    if (context.layoutMode.isCompact) {
-      showContextMenuSheet(context, widget.contextMenu);
-      return;
-    }
-
-    _entry = OverlayEntry(
-      builder: (context) {
-        return Stack(
-          children: [
-            // Full-screen barrier to dismiss on tap
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: _dismiss,
-                onSecondaryTap: _dismiss,
-              ),
-            ),
-            _PositionedMenu(
-              position: globalPosition,
-              child: ContextMenuScope(
-                dismiss: _dismiss,
-                child: widget.contextMenu,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    Overlay.of(context).insert(_entry!);
-  }
-
-  void _dismiss() {
-    _entry?.remove();
-    _entry = null;
-  }
+  final ContextMenuOverlay _overlay = ContextMenuOverlay();
 
   @override
   void dispose() {
-    _dismiss();
+    _overlay.dismiss();
     super.dispose();
   }
 
@@ -98,16 +56,65 @@ class _ContextMenuRegionState extends State<ContextMenuRegion> {
   /// and long-press there is a fallback for a right-click that already worked.
   void _openByTouch(Offset position) {
     if (HostPlatform.isMobile) HapticFeedback.mediumImpact();
-    _show(position);
+    _overlay.show(context, widget.contextMenu, position);
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onSecondaryTapDown: (details) => _show(details.globalPosition),
+      onSecondaryTapDown: (details) =>
+          _overlay.show(context, widget.contextMenu, details.globalPosition),
       onLongPressStart: (details) => _openByTouch(details.globalPosition),
       child: widget.child,
     );
+  }
+}
+
+/// One open context menu, owned by whatever opened it.
+///
+/// Shared by the right-click region and the overflow button, so a menu opened
+/// either way is the same object: placed against the same point, dismissed by
+/// the same barrier, and shown as a bottom sheet on a phone. The owner calls
+/// [dismiss] when it goes away, so a menu never outlives the row it belongs to.
+class ContextMenuOverlay {
+  OverlayEntry? _entry;
+
+  bool get isOpen => _entry != null;
+
+  void show(BuildContext context, Widget menu, Offset globalPosition) {
+    dismiss();
+
+    // A phone gets the same menu as a sheet: there is no pointer to hang a
+    // panel off, and a thumb needs rows the width of the screen.
+    if (context.layoutMode.isCompact) {
+      showContextMenuSheet(context, menu);
+      return;
+    }
+
+    _entry = OverlayEntry(
+      builder: (_) => Stack(
+        children: [
+          // Full-screen barrier to dismiss on tap
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: dismiss,
+              onSecondaryTap: dismiss,
+            ),
+          ),
+          _PositionedMenu(
+            position: globalPosition,
+            child: ContextMenuScope(dismiss: dismiss, child: menu),
+          ),
+        ],
+      ),
+    );
+    Overlay.of(context).insert(_entry!);
+  }
+
+  void dismiss() {
+    _entry?.remove();
+    _entry = null;
   }
 }
 
