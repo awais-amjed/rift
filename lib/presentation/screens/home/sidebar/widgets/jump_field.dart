@@ -7,11 +7,13 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../theme/app_text.dart';
 
-/// The "Jump to…" pill under the server header — the entry point to the quick
+/// The "Jump to…" field under the server header — the entry point to the quick
 /// switcher.
 ///
 /// It looks like a search field but is a button: the field itself lives in the
-/// switcher, so there is only one place that owns the query.
+/// switcher, so there is only one place that owns the query. It takes the field
+/// height and outweighs the rows beneath it, because it is the fastest route to
+/// anything in the app and a pill shorter than a channel row said otherwise.
 class JumpField extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -36,25 +38,35 @@ class JumpField extends StatelessWidget {
               hoverColor: themeState.bgActive,
               onTap: onTap,
               child: Container(
-                height: 32,
+                height: K.fieldHeight,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(K.radiusRow),
-                  border: Border.all(color: themeState.borderPrimary),
+                  border: Border.all(color: themeState.borderElevated),
                 ),
                 child: Row(
                   spacing: 8,
                   children: [
                     Icon(
                       Icons.search_rounded,
-                      size: 15,
-                      color: themeState.textQuaternary,
+                      size: 16,
+                      color: themeState.textTertiary,
                     ),
                     Expanded(
                       child: Text(
-                        'Jump to…',
+                        // The switcher searches channels and people alike,
+                        // and the short label undersold it. A phone keeps it
+                        // short: there is no room for the rest.
+                        HostPlatform.isMobile
+                            ? 'Jump to…'
+                            : 'Jump to a channel or person…',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        // Tertiary, not quaternary: quaternary is placeholder
+                        // ink, and this is a control rather than an empty
+                        // field.
                         style: AppText.secondary.copyWith(
-                          color: themeState.textQuaternary,
+                          color: themeState.textTertiary,
                         ),
                       ),
                     ),
@@ -74,7 +86,7 @@ class JumpField extends StatelessWidget {
 
   Widget _buildKbdChip(ThemeState themeState) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: themeState.bgActive,
         borderRadius: BorderRadius.circular(4),
