@@ -13,11 +13,10 @@ import '../../../../theme/app_text.dart';
 /// screen of its own.
 ///
 /// A phone has no room for one column inside another: 280px of list against a
-/// 393px screen left the conversation a gutter to live in. So the split
-/// collapses there into the ordinary phone pattern — the list *is* the resting
-/// state, and opening a conversation replaces it. There is no "pick a
-/// conversation" panel in that mode because you would be reading it instead of
-/// the list it is telling you to use.
+/// 393px screen left the conversation a gutter to live in. So only the list is
+/// drawn there, and an open conversation is a page the phone shell pushes over
+/// it. There is no "pick a conversation" panel in that mode because you would
+/// be reading it instead of the list it is telling you to use.
 class DmSurface extends StatelessWidget {
   final Widget list;
 
@@ -42,7 +41,7 @@ class DmSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (context.layoutMode.isCompact) return conversation ?? list;
+    if (context.layoutMode.isCompact) return list;
 
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {

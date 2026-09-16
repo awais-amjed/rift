@@ -199,6 +199,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         state.copyWith(
           connectionState: LiveKitConnectionState.connected,
           room: room,
+          connectedAt: DateTime.now(),
           isMicEnabled: useMicEnabled,
           isCameraEnabled: useCameraEnabled,
         ),

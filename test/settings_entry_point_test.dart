@@ -15,14 +15,16 @@ List<String> _settingsCallers() {
 }
 
 void main() {
-  test('settings has exactly one way in, from the rail', () {
+  test('settings has one way in per shell', () {
     final callers = _settingsCallers();
 
     // A second button opening the same screen reads as a different
     // destination, and the two drift apart the moment one of them grows a
-    // condition the other doesn't. The path isn't pinned — moving the rail is
-    // fine, adding a second door is not.
-    expect(callers, hasLength(1), reason: 'opens settings: $callers');
-    expect(callers.single, contains('server_rail'));
+    // condition the other doesn't. A desktop has the rail's gear; a phone has
+    // no rail, so its gear is on the dock at the foot of the switcher — which
+    // is only offered there. The paths aren't pinned; a third door is the bug.
+    expect(callers, hasLength(2), reason: 'opens settings: $callers');
+    expect(callers.any((c) => c.contains('server_rail')), isTrue);
+    expect(callers.any((c) => c.contains('user_dock')), isTrue);
   });
 }

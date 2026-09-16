@@ -5,9 +5,7 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/sidebar_sizing.dart';
 import '../../../../data/constants.dart';
 import '../../../common/app_panel.dart';
-import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
-import '../../../theme/app_shadows.dart';
 import 'widgets/sidebar_content.dart';
 import 'widgets/sidebar_resize_handle.dart';
 
@@ -33,20 +31,7 @@ class Sidebar extends StatefulWidget {
   /// Whether the panel is showing. Animating, not mounting: see the class doc.
   final bool open;
 
-  /// Floating above the content rather than sitting beside it. Takes a shadow,
-  /// may run wider relative to the window, and drops the resize handle —
-  /// there is nothing beside it to trade width with. On a phone it is also
-  /// flush against the screen edge, square there and rounded only on the side
-  /// facing the content, the way a sheet that slid in from off-screen would
-  /// be.
-  final bool floating;
-
-  const Sidebar({
-    super.key,
-    required this.open,
-    this.topPadding = 0,
-    this.floating = false,
-  });
+  const Sidebar({super.key, required this.open, this.topPadding = 0});
 
   @override
   State<Sidebar> createState() => _SidebarState();
@@ -104,20 +89,12 @@ class _SidebarState extends State<Sidebar> {
     return BlocBuilder<AppCubit, AppState>(
       buildWhen: (prev, curr) => prev.sidebarWidth != curr.sidebarWidth,
       builder: (context, appState) {
-        final mode = context.layoutMode;
-        final gutter = mode.panelGutter;
         final windowWidth = MediaQuery.sizeOf(context).width;
         final width = SidebarSizing.clamp(
           _dragWidth ?? appState.sidebarWidth,
           windowWidth: windowWidth,
-          overlay: widget.floating,
         );
-        // Floating, the gutter is on both sides and the handle is gone, so the
-        // panel plus its gutters is all there is to reserve — and on a phone
-        // there are no gutters, so it is just the panel.
-        final full = widget.floating
-            ? width + gutter * 2
-            : width + K.sidebarResizeHandleWidth;
+        final full = width + K.sidebarResizeHandleWidth;
 
         return AnimatedContainer(
           // A drag is not a transition. Animating it would leave the panel a
@@ -145,35 +122,19 @@ class _SidebarState extends State<Sidebar> {
                     maxWidth: full,
                     child: Row(
                       children: [
-                        if (widget.floating) SizedBox(width: gutter),
                         AppPanel(
                           width: width,
-                          shadow: widget.floating
-                              ? AppShadows.overlayPane
-                              : null,
-                          // Square against the screen edge it is pinned to,
-                          // rounded on the edge the content is behind — the
-                          // shape a sheet that slid in from off-screen has.
-                          borderRadius:
-                              widget.floating && !mode.panelsAreIslands
-                              ? const BorderRadius.horizontal(
-                                  right: Radius.circular(K.radiusCard),
-                                )
-                              : null,
                           child: SidebarContent(topPadding: widget.topPadding),
                         ),
-                        if (widget.floating)
-                          SizedBox(width: gutter)
-                        else
-                          SidebarResizeHandle(
-                            onDrag: (delta) => _onDrag(
-                              delta,
-                              appState.sidebarWidth,
-                              windowWidth,
-                            ),
-                            onDragEnd: _onDragEnd,
-                            onReset: _reset,
+                        SidebarResizeHandle(
+                          onDrag: (delta) => _onDrag(
+                            delta,
+                            appState.sidebarWidth,
+                            windowWidth,
                           ),
+                          onDragEnd: _onDragEnd,
+                          onReset: _reset,
+                        ),
                       ],
                     ),
                   ),

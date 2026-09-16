@@ -5,6 +5,7 @@ import '../../../data/constants.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
 import '../../theme/custom_colors.dart';
+import 'context_menu_sheet.dart';
 
 /// One row in a context menu.
 ///
@@ -37,6 +38,9 @@ class ContextMenuItem extends StatelessWidget {
             ? CustomColors.error
             : themeState.textSecondary;
         final radius = BorderRadius.circular(K.radiusRow);
+        // A thumb's row in a sheet: past the 44px floor by padding, with the
+        // label at row size rather than a pointer menu's quieter one.
+        final inSheet = ContextMenuPresentation.isSheet(context);
 
         return Material(
           color: isDangerous
@@ -50,17 +54,21 @@ class ContextMenuItem extends StatelessWidget {
                 : themeState.bgHover,
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: inSheet ? 14 : 8,
+              ),
               child: Row(
-                spacing: 10,
+                spacing: inSheet ? 14 : 10,
                 children: [
-                  Icon(icon, size: 15, color: color),
+                  Icon(icon, size: inSheet ? 19 : 15, color: color),
                   Expanded(
                     child: Text(
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.rowQuiet.copyWith(color: color),
+                      style: (inSheet ? AppText.row : AppText.rowQuiet)
+                          .copyWith(color: color),
                     ),
                   ),
                   ?trailing,

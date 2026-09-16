@@ -6,6 +6,7 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/context_menu/context_menu_sheet.dart';
 import '../../../../common/status_chip.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
@@ -50,7 +51,7 @@ class ChatHeader extends StatelessWidget {
       child: Row(
         spacing: 10,
         children: [
-          const HeaderSidebarButton(),
+          const HeaderBackButton(),
           // The identity is one flexible group, so the controls sit hard
           // against the panel edge. A `Flexible` title beside a `Spacer`
           // splits the free space with it instead: the title takes only what
@@ -122,11 +123,24 @@ class ChatHeader extends StatelessWidget {
           // one you were meant to reach for. On a phone there is no edge tab,
           // so this is the only one.
           const HeaderMembersButton(),
-          ChatHeaderButton(
-            icon: Icons.close_rounded,
-            tooltip: 'Close chat',
-            onTap: () => context.read<ChannelChatCubit>().closeChannel(),
-          ),
+          // On a phone back is the way out, so a close beside it would be a
+          // second button for the same thing. The channel's menu takes the
+          // slot instead: there is no sidebar row there to long-press.
+          if (compact && channel != null)
+            ChatHeaderButton(
+              icon: Icons.more_vert_rounded,
+              tooltip: 'Channel options',
+              onTap: () => showContextMenuSheet(
+                context,
+                ChannelContextMenu(channel: channel),
+              ),
+            )
+          else if (!compact)
+            ChatHeaderButton(
+              icon: Icons.close_rounded,
+              tooltip: 'Close chat',
+              onTap: () => context.read<ChannelChatCubit>().closeChannel(),
+            ),
         ],
       ),
     );

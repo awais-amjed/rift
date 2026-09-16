@@ -9,6 +9,7 @@ import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../common/app_modal.dart';
+import '../../mobile/mobile_shell_scope.dart';
 import '../create_channel_dialog.dart';
 import 'widgets/empty_channels_view.dart';
 import 'widgets/section_header.dart';
@@ -101,6 +102,17 @@ class ChannelList extends StatelessWidget {
                 channel: ch,
                 isSelected: selectedChannelId == ch.id,
                 onTap: () {
+                  // On a phone the call is a page: tapping the one you are
+                  // already in takes you back into it.
+                  final shell = MobileShellScope.maybeOf(context);
+                  if (shell != null) {
+                    if (selectedChannelId == ch.id) {
+                      shell.openCall();
+                    } else {
+                      onChannelSelect?.call(ch.id);
+                    }
+                    return;
+                  }
                   // Joining voice brings the voice pane back to the front.
                   context.read<AppCubit>().setSurface(HomeSurface.server);
                   context.read<ChannelChatCubit>().closeChannel();

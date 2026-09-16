@@ -215,7 +215,10 @@ class CentralDmCubit extends Cubit<CentralDmState>
         // is on that page, and on a phone the pane it would land in is
         // showing the conversation list until something says otherwise.
         closeConversation: !empty,
-        friendsOpen: !empty,
+        // Only ever opens it. Consuming the seed clears the query, and that
+        // must not take the page away from under the person reading it — on
+        // a phone the page is a screen of its own, and it would simply shut.
+        friendsOpen: empty ? null : true,
         handleQuery: empty ? null : trimmed,
         clearHandleQuery: empty,
       ),

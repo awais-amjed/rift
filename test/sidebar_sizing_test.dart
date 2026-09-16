@@ -64,66 +64,6 @@ void main() {
     });
   });
 
-  // Overlaid, the sidebar is covering the content rather than sitting beside
-  // it, so the half-the-window rule that protects the content no longer has
-  // anything to protect — and on a phone it would spend most of the screen on
-  // scrim. A fixed peek is held back instead.
-  group('overlaid', () {
-    const phone = 390.0;
-
-    /// What is left beside the panel — the gap a thumb has to land in. No
-    /// gutters come off it: a sidebar is only overlaid on a phone, where the
-    /// panels are the screen and there are none.
-    double peekAt(double windowWidth) =>
-        windowWidth - SidebarSizing.maxFor(windowWidth, overlay: true);
-
-    test('runs wider than the docked share would allow', () {
-      expect(
-        SidebarSizing.maxFor(phone, overlay: true),
-        greaterThan(SidebarSizing.maxFor(phone)),
-      );
-    });
-
-    test('leaves the whole peek showing', () {
-      expect(peekAt(phone), K.sidebarOverlayPeek);
-      for (final width in [phone, 430.0, 600.0]) {
-        expect(
-          peekAt(width),
-          greaterThanOrEqualTo(K.sidebarOverlayPeek),
-          reason: 'a ${width}px window would be covered nearly edge to edge',
-        );
-      }
-    });
-
-    test('below the floor the peek gives way, but never vanishes', () {
-      // A 320px window cannot afford both the minimum panel and the full peek.
-      // The floor wins — a panel too narrow to read is worse than a thin gap —
-      // but there is still something left to tap, which is the part that would
-      // strand you if it went to zero.
-      expect(SidebarSizing.maxFor(320, overlay: true), K.sidebarMinWidth);
-      expect(peekAt(320), greaterThan(0));
-    });
-
-    test('is still held to the drag ceiling on a wide window', () {
-      expect(SidebarSizing.maxFor(2000, overlay: true), K.sidebarMaxWidth);
-    });
-
-    test('the floor still outranks the peek', () {
-      // A 200px window cannot honour both. Which one gives is the difference
-      // between a panel that runs off the edge and one too narrow to read.
-      expect(SidebarSizing.maxFor(200, overlay: true), K.sidebarMinWidth);
-    });
-
-    test('a docked width is not carried into the overlay unchanged', () {
-      // Same stored preference, two different windows to satisfy.
-      expect(
-        SidebarSizing.clamp(K.sidebarWidth, windowWidth: phone, overlay: true),
-        lessThan(K.sidebarWidth),
-      );
-      expect(peekAt(phone), K.sidebarOverlayPeek);
-    });
-  });
-
   // The stored value comes back through JSON, and a corrupt one shouldn't
   // leave the layout with a NaN width to lay out.
   test('a nonsense stored width falls back to the default', () {

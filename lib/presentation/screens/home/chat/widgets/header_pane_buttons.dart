@@ -1,35 +1,44 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../responsive/shell_scope.dart';
+import '../../../../theme/theme_context.dart';
+import '../../mobile/mobile_shell_scope.dart';
 import 'chat_header_button.dart';
 
-/// Opens the channel sidebar from a panel header, on the widths where it is a
-/// drawer rather than a fixed column.
+/// The way back out of a page on a phone — to the list, or to the call a
+/// conversation was opened over.
 ///
-/// The edge tabs on the window's sides are the way back to a *docked* pane and
-/// stay where they are. They are a poor fit for a drawer, though: a 6px strip
-/// against the frame is a mouse target, not a thumb one, and on a phone the
-/// top-left corner is the one place every app already puts this. So below the
-/// medium breakpoint the tabs stand down and these take over.
-///
-/// Renders nothing at all when the pane it controls is docked — the pane is
-/// already on screen, and a second control for it only makes it ambiguous
-/// which one you are meant to reach for.
-class HeaderSidebarButton extends StatelessWidget {
-  const HeaderSidebarButton({super.key});
+/// Draws nothing anywhere else: a desktop's panes sit side by side and there
+/// is nothing to go back to. It pops the shell's navigator rather than closing
+/// anything itself, so back from here and the system back gesture are one
+/// path, and the shell decides what closing the page means.
+class HeaderBackButton extends StatelessWidget {
+  const HeaderBackButton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    if (!context.layoutMode.sidebarIsOverlay) return const SizedBox.shrink();
-    return ChatHeaderButton(
-      icon: Icons.menu_rounded,
-      tooltip: 'Show channels',
-      onTap: ShellScope.of(context).toggleSidebar,
+    if (MobileShellScope.maybeOf(context) == null) {
+      return const SizedBox.shrink();
+    }
+    final navigator = Navigator.of(context);
+    if (!navigator.canPop()) return const SizedBox.shrink();
+    return SizedBox.square(
+      dimension: K.touchTargetMin,
+      child: IconButton(
+        tooltip: 'Back',
+        onPressed: navigator.maybePop,
+        icon: Icon(
+          Icons.arrow_back_rounded,
+          size: 22,
+          color: context.theme.textSecondary,
+        ),
+      ),
     );
   }
 }
 
-/// Opens the member list from a panel header. See [HeaderSidebarButton].
+/// Opens the member list from a panel header — a sheet, on a phone.
 ///
 /// Only on compact widths, not everywhere the list is overlaid: at medium the
 /// content still has room to spare and the edge tab is a perfectly good target

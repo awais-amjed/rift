@@ -16,22 +16,8 @@ class SidebarSizing {
   const SidebarSizing._();
 
   /// The widest the sidebar may be in a window of [windowWidth].
-  ///
-  /// [overlay] swaps the window share for a fixed peek. Half the window is the
-  /// right ceiling for a docked sidebar, whose whole purpose is to sit beside
-  /// the content — but an overlaid one is covering the content anyway, and on
-  /// a phone half of 390 is a channel list squeezed to nothing for the sake of
-  /// a scrim nobody needs that much of. [K.sidebarOverlayPeek] is what is held
-  /// back instead: enough content left showing to tap on, and to say what the
-  /// drawer is sitting in front of.
-  ///
-  /// Nothing is subtracted for gutters. A sidebar is only ever overlaid on a
-  /// phone, and a phone has none — the panels are the screen there, so the
-  /// peek is the whole of what is left beside the drawer.
-  static double maxFor(double windowWidth, {bool overlay = false}) {
-    final share = overlay
-        ? windowWidth - K.sidebarOverlayPeek
-        : windowWidth * K.sidebarMaxWindowFraction;
+  static double maxFor(double windowWidth) {
+    final share = windowWidth * K.sidebarMaxWindowFraction;
     return math.max(K.sidebarMinWidth, math.min(K.sidebarMaxWidth, share));
   }
 
@@ -39,16 +25,9 @@ class SidebarSizing {
   ///
   /// Applied when the width is *read*, not only when it is set: the stored
   /// value outlives the window it was chosen in.
-  static double clamp(
-    double width, {
-    required double windowWidth,
-    bool overlay = false,
-  }) {
+  static double clamp(double width, {required double windowWidth}) {
     if (!width.isFinite) return K.sidebarWidth;
-    return width.clamp(
-      K.sidebarMinWidth,
-      maxFor(windowWidth, overlay: overlay),
-    );
+    return width.clamp(K.sidebarMinWidth, maxFor(windowWidth));
   }
 }
 

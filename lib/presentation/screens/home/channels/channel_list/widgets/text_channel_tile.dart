@@ -11,6 +11,7 @@ import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/nav_row.dart';
 import '../../../../../common/unread_badge.dart';
+import '../../../../../responsive/shell_scope.dart';
 import 'channel_context_menu.dart';
 import 'channel_lock_badge.dart';
 
@@ -67,7 +68,9 @@ class TextChannelTile extends StatelessWidget {
               // Opening a channel chat leaves the Home (DMs) surface.
               context.read<AppCubit>().setSurface(HomeSurface.server);
               final cubit = context.read<ChannelChatCubit>();
-              if (isSelected) {
+              // A phone pushes the chat as a page, so the row is only ever a
+              // way in — the page's back is the way out.
+              if (isSelected && !context.layoutMode.isCompact) {
                 cubit.closeChannel();
               } else {
                 cubit.openChannel(channel.id);

@@ -31,6 +31,12 @@ class LiveKitState {
   final bool isServerMuted;
   final bool isServerDeafened;
 
+  /// When this call reached [LiveKitConnectionState.connected], so every
+  /// timer drawn for it — the call's own header and the bar that stands in
+  /// for it elsewhere — counts from the same moment rather than from whenever
+  /// each happened to be built. Null whenever the state is anything else.
+  final DateTime? connectedAt;
+
   const LiveKitState({
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
@@ -45,6 +51,7 @@ class LiveKitState {
     this.subscribedScreenshares = const {},
     this.isServerMuted = false,
     this.isServerDeafened = false,
+    this.connectedAt,
   });
 
   /// Whether the microphone is live: the user wants it on, hasn't deafened
@@ -95,12 +102,14 @@ class LiveKitState {
     Set<String>? subscribedScreenshares,
     bool? isServerMuted,
     bool? isServerDeafened,
+    DateTime? connectedAt,
     bool clearRoom = false,
     bool clearChannelId = false,
     bool clearFailure = false,
   }) {
+    final nextConnection = connectionState ?? this.connectionState;
     return LiveKitState(
-      connectionState: connectionState ?? this.connectionState,
+      connectionState: nextConnection,
       room: clearRoom ? null : (room ?? this.room),
       currentChannelId: clearChannelId
           ? null
@@ -116,6 +125,11 @@ class LiveKitState {
           subscribedScreenshares ?? this.subscribedScreenshares,
       isServerMuted: isServerMuted ?? this.isServerMuted,
       isServerDeafened: isServerDeafened ?? this.isServerDeafened,
+      // Tied to the connection rather than cleared by hand at each of the
+      // places a call can end, so no path out of a call can leave a stale one.
+      connectedAt: nextConnection == LiveKitConnectionState.connected
+          ? (connectedAt ?? this.connectedAt)
+          : null,
     );
   }
 }

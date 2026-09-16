@@ -9,6 +9,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../theme/app_text.dart';
+import '../mobile/widgets/mini_call_bar.dart';
 import 'widgets/dm_chat_header.dart';
 import 'widgets/friends/friend_request_bar.dart';
 import 'widgets/friends/not_friends_note.dart';
@@ -50,6 +51,8 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           onClose: () => context.read<CentralDmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),
+        // A phone's way back into a call, above the composer's slot.
+        const MiniCallBar(),
         // There is a composer here for exactly one of the five states, and
         // every other branch is a sentence saying what would have to change.
         // None of them is a disabled field: a greyed composer with a hint in

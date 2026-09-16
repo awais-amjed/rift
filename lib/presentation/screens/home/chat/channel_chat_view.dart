@@ -16,6 +16,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/typing_indicator.dart';
+import '../mobile/widgets/mini_call_bar.dart';
 import 'widgets/chat_header.dart';
 import 'widgets/chat_read_only_banner.dart';
 import 'widgets/chat_status_view.dart';
@@ -49,6 +50,10 @@ class _ChannelChatViewState extends State<ChannelChatView>
                 children: [
                   const ChatHeader(),
                   Expanded(child: _buildBody(context, chatState)),
+                  // A phone's way back into the call, just above whatever
+                  // holds the composer's slot. Nothing on a desktop.
+                  if (chatState.status != ChannelChatStatus.ready)
+                    const MiniCallBar(),
                   // Sending needs the key too, so read-only gets the banner
                   // in the composer's place rather than a composer that would
                   // refuse every message typed into it.
@@ -58,6 +63,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                     TypingIndicator(
                       names: chatState.typingUsers.values.toList(),
                     ),
+                    const MiniCallBar(),
                     ChatComposer(
                       onSend: (text, attachments, preview) =>
                           _send(context, text, attachments, preview),

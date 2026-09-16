@@ -3,14 +3,13 @@ import '../constants.dart';
 /// How much room the window has, and therefore which of the three panes can be
 /// docked at once.
 ///
-/// The app is one workspace at every size, not a desktop layout and a separate
-/// mobile one: the same sidebar and the same member list are shown either
-/// **docked**, taking their width out of the row, or **overlaid**, floating
-/// above the content with a scrim behind them. Only where they are mounted
-/// changes, which is why a phone and a half-width desktop window get the same
-/// treatment without either being a special case.
+/// Above [compact] the app is one workspace: the same sidebar and member list,
+/// either **docked**, taking their width out of the row, or **overlaid**,
+/// floating above the content with a scrim behind them. [compact] is the
+/// exception — a phone's shell of its own, built from the same widgets.
 enum LayoutMode {
-  /// Neither side pane fits. Content runs edge to edge and both overlay.
+  /// A phone, or a window as narrow as one. Not a squeezed desktop: the list
+  /// is the screen and everything else is pushed over it (`MobileShell`).
   compact,
 
   /// The sidebar fits; the member list does not.
@@ -29,9 +28,6 @@ enum LayoutMode {
     if (width >= K.breakpointMedium) return LayoutMode.medium;
     return LayoutMode.compact;
   }
-
-  /// Whether the left sidebar floats above the content instead of docking.
-  bool get sidebarIsOverlay => this == LayoutMode.compact;
 
   /// Whether the member list floats above the content instead of docking.
   bool get membersIsOverlay => this != LayoutMode.expanded;

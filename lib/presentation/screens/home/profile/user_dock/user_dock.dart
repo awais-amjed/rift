@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../../data/classes/server_user.dart';
 import '../../../../../data/constants.dart';
@@ -7,6 +8,7 @@ import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../routing/app_routes.dart';
 import '../../../../theme/app_text.dart';
 import '../connection_quality/connection_quality_indicator.dart';
 import '../edit/profile_edit_modal.dart';
@@ -20,7 +22,12 @@ import 'widgets/dock_icon_button.dart';
 /// edge — it belongs to the same family as the voice card above it, and both
 /// are things that sit *in* the sidebar rather than bound it.
 class UserDock extends StatelessWidget {
-  const UserDock({super.key});
+  /// Adds a gear for settings. On a phone the dock is at the foot of the
+  /// switcher and the rail that carried the gear on a desktop isn't built, so
+  /// this is where settings lives there.
+  final bool showSettings;
+
+  const UserDock({super.key, this.showSettings = false});
 
   @override
   Widget build(BuildContext context) {
@@ -128,10 +135,15 @@ class UserDock extends StatelessWidget {
               isError: deafened,
               onTap: () => context.read<LiveKitCubit>().toggleDeafen(),
             ),
-            // Settings is not here: the rail carries it, opening the same
-            // screen. Two doors to one room only make you wonder whether they
-            // lead somewhere different. What is left is what the dock is for
-            // — the two things you reach for without leaving the call.
+            // Settings only where there is no rail to carry it: two doors to
+            // one room only make you wonder whether they lead somewhere
+            // different.
+            if (showSettings)
+              DockIconButton(
+                icon: Icons.settings_outlined,
+                tooltip: 'Settings',
+                onTap: () => context.push(AppRoutes.settings),
+              ),
           ],
         );
       },

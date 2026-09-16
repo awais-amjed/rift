@@ -128,14 +128,6 @@ class K {
   static const double sidebarMaxWidth = 560;
   static const double sidebarMaxWindowFraction = 0.5;
 
-  /// How much content an overlaid sidebar leaves showing beside it.
-  ///
-  /// Wide enough to be a comfortable tap target for dismissing the drawer, and
-  /// — the part that decides the number — wide enough to read as content
-  /// behind a panel rather than as a docked column. On a dark theme the scrim
-  /// is dark on dark and does almost none of that work, so the gap has to.
-  static const double sidebarOverlayPeek = 72;
-
   /// The grab strip between the sidebar and the content. It occupies the
   /// gutter that used to be an empty [panelGutter] gap, so making the sidebar
   /// resizable cost no layout width.

@@ -21,7 +21,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// Disconnects from the current room.
   ///
   /// Runs at most once at a time. Clearing the selected channel below is the
-  /// same signal `MainContent` listens on to leave a call, so this re-enters
+  /// same signal `VoiceConnectionListener` listens on to leave a call, so this re-enters
   /// itself on every leave: the second call starts as soon as the first
   /// awaits, and both then tear down the same [Room].
   Future<void> disconnect() async {

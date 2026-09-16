@@ -64,7 +64,7 @@ class DmChatHeader extends StatelessWidget {
           return Row(
             spacing: 10,
             children: [
-              const HeaderSidebarButton(),
+              const HeaderBackButton(),
               // The identity is one flexible group, so the close button sits
               // hard against the panel edge. A `Flexible` title beside a
               // `Spacer` splits the free space with it instead: the title

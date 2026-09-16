@@ -11,6 +11,7 @@ import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../theme/app_text.dart';
+import '../mobile/widgets/mini_call_bar.dart';
 import 'widgets/dm_chat_header.dart';
 
 /// The open server-DM conversation: header + history + composer, on the
@@ -42,12 +43,14 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           onClose: () => context.read<DmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),
+        if (state.chatStatus != DmChatStatus.ready) const MiniCallBar(),
         if (state.chatStatus == DmChatStatus.ready) ...[
           TypingIndicator(
             names: state.typingPeerName != null
                 ? [state.typingPeerName!]
                 : const [],
           ),
+          const MiniCallBar(),
           ChatComposer(
             hintText: 'Message ${state.openPeerName ?? ''}',
             maxAttachmentBytes: _maxAttachmentBytes(),

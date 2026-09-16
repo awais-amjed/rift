@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
 import '../popover_surface.dart';
+import 'context_menu_sheet.dart';
 
 /// The floating card a context menu's rows sit in.
 ///
@@ -39,8 +40,42 @@ class ContextMenuPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sheet = ContextMenuPresentation.of(context);
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
+        // In a sheet the sheet is the surface: full width, no card of its own,
+        // and a rule under the heading because there is no card edge to end
+        // the heading against.
+        if (sheet != null) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (heading != null) ...[
+                  Row(
+                    children: [
+                      if (sheet.popSubmenu != null)
+                        IconButton(
+                          tooltip: 'Back',
+                          onPressed: sheet.popSubmenu,
+                          icon: Icon(
+                            Icons.arrow_back_rounded,
+                            size: 20,
+                            color: themeState.textSecondary,
+                          ),
+                        ),
+                      Expanded(child: _buildHeading(themeState)),
+                    ],
+                  ),
+                  Divider(height: 9, color: themeState.borderPrimary),
+                ],
+                ...children,
+              ],
+            ),
+          );
+        }
         return ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
           child: PopoverSurface(

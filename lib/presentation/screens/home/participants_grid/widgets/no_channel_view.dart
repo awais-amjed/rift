@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/empty_state.dart';
-import '../../../../responsive/shell_scope.dart';
 
 /// The voice stage with no channel selected.
 class NoChannelView extends StatelessWidget {
@@ -18,11 +17,7 @@ class NoChannelView extends StatelessWidget {
           child: EmptyState(
             icon: Icons.mic_none_rounded,
             title: 'No channel selected',
-            // "the sidebar" is a drawer on a phone, and pointing at a panel
-            // that is not on screen is worse than not pointing.
-            message: context.layoutMode.sidebarIsOverlay
-                ? 'Open the menu and pick a voice channel to join.'
-                : 'Pick a voice channel from the sidebar to join.',
+            message: 'Pick a voice channel from the sidebar to join.',
           ),
         );
       },

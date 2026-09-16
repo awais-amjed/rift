@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../logic/services/host_platform.dart';
+import '../responsive/shell_scope.dart';
+import 'context_menu/context_menu_sheet.dart';
 
 /// Lets menu content close the menu it lives in.
 ///
@@ -43,6 +45,13 @@ class _ContextMenuRegionState extends State<ContextMenuRegion> {
 
   void _show(Offset globalPosition) {
     _dismiss();
+
+    // A phone gets the same menu as a sheet: there is no pointer to hang a
+    // panel off, and a thumb needs rows the width of the screen.
+    if (context.layoutMode.isCompact) {
+      showContextMenuSheet(context, widget.contextMenu);
+      return;
+    }
 
     _entry = OverlayEntry(
       builder: (context) {

@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../context_menu_region.dart';
 import 'context_menu_item.dart';
+import 'context_menu_sheet.dart';
 
 /// A context-menu row that opens a second panel beside it, Windows-style.
 ///
@@ -120,8 +121,24 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
 
   @override
   Widget build(BuildContext context) {
+    final sheet = ContextMenuPresentation.of(context);
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
+        final chevron = Icon(
+          Icons.chevron_right_rounded,
+          size: 16,
+          color: themeState.textQuaternary,
+        );
+        // No room beside a sheet, so the submenu takes the sheet's place and
+        // its heading carries the way back.
+        if (sheet != null) {
+          return ContextMenuItem(
+            icon: widget.icon,
+            label: widget.label,
+            onTap: () => sheet.pushSubmenu(widget.submenuBuilder),
+            trailing: chevron,
+          );
+        }
         return MouseRegion(
           onEnter: (_) => _open(),
           onExit: (_) => _scheduleClose(),
@@ -131,11 +148,7 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
               icon: widget.icon,
               label: widget.label,
               onTap: () => _isOpen ? _close() : _open(),
-              trailing: Icon(
-                Icons.chevron_right_rounded,
-                size: 16,
-                color: themeState.textQuaternary,
-              ),
+              trailing: chevron,
             ),
           ),
         );

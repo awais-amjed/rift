@@ -110,7 +110,7 @@ void main() {
     );
   });
 
-  testWidgets('a phone gives the whole pane to the conversation', (
+  testWidgets('a phone keeps the list, even with a conversation open', (
     tester,
   ) async {
     await pump(
@@ -120,9 +120,10 @@ void main() {
       conversation: const Text('the conversation'),
     );
 
-    // The list steps aside rather than sharing: closing the conversation is
-    // what brings it back, which is the ordinary phone pattern.
-    expect(find.text('the conversation'), findsOneWidget);
-    expect(find.text('the list'), findsNothing);
+    // The conversation is a page the phone shell pushes over the list, so the
+    // list is what stays under it — drawing the conversation here as well
+    // would put a second copy of it beneath the page.
+    expect(find.text('the list'), findsOneWidget);
+    expect(find.text('the conversation'), findsNothing);
   });
 }

@@ -42,30 +42,10 @@ void main() {
   });
 
   group('what docks at each size', () {
-    test('the sidebar docks everywhere but a phone', () {
-      expect(LayoutMode.compact.sidebarIsOverlay, isTrue);
-      expect(LayoutMode.medium.sidebarIsOverlay, isFalse);
-      expect(LayoutMode.expanded.sidebarIsOverlay, isFalse);
-    });
-
     test('the member list docks only when everything fits', () {
       expect(LayoutMode.compact.membersIsOverlay, isTrue);
       expect(LayoutMode.medium.membersIsOverlay, isTrue);
       expect(LayoutMode.expanded.membersIsOverlay, isFalse);
-    });
-
-    test('a docked pane is never also overlaid', () {
-      // Both at once would mount the same panel twice — one in the row and one
-      // in the stack — and the second would silently win.
-      for (final mode in LayoutMode.values) {
-        expect(
-          mode.sidebarIsOverlay && !mode.membersIsOverlay,
-          isFalse,
-          reason:
-              '$mode would overlay the sidebar while docking the member list, '
-              'which is narrower and would have gone first',
-        );
-      }
     });
   });
 
