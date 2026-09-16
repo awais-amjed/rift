@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/central_handle.dart';
 import '../../../../common/app_button.dart';
@@ -135,4 +136,26 @@ class _ChangeHandleDialogState extends State<ChangeHandleDialog> {
       },
     );
   }
+}
+
+/// Opens [ChangeHandleDialog] for the signed-in central account.
+///
+/// The claim is an upsert, so re-claiming is the same call that made the
+/// handle; the dialog only has to ask for one and report what came back.
+void showChangeHandle(BuildContext context, String handle) {
+  final cubit = context.read<CentralDmCubit>();
+  showDialog<void>(
+    context: context,
+    builder: (_) => ChangeHandleDialog(
+      currentHandle: handle,
+      onSubmit: (next) async {
+        final ok = await cubit.claimHandle(next);
+        // The cubit puts the reason on its own state — a taken handle, a
+        // failed request — so take it from there rather than inventing one.
+        return ok
+            ? null
+            : (cubit.state.error ?? 'Could not change your handle.');
+      },
+    ),
+  );
 }

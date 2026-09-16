@@ -5,6 +5,7 @@ import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
+import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/squircle_avatar.dart';
@@ -13,20 +14,28 @@ import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
+import '../../dms/widgets/central_identity_line.dart';
+import '../../dms/widgets/change_handle_dialog.dart';
 import '../../sidebar/widgets/sidebar_header.dart';
 
 /// The top of a phone's list: where you are, and the way to anywhere else.
 ///
-/// The whole identity card is the switcher — there is no rail and no tab bar,
-/// so this is the one door out of the server you are standing in. It says so
-/// in words ("tap to switch") rather than trusting a chevron to, because it is
-/// the only way to reach every other server and Home.
+/// An app bar, not a field. It used to be a bordered box with a stepper glyph,
+/// which read as a settings dropdown and promised stepping through servers in
+/// place when what opens is a panel from the side. Now the name is the
+/// screen's title with a chevron against it — "this title is a menu" — and the
+/// whole left group is the one tap that opens the switcher.
+///
+/// The line under the name says something rather than teaching the gesture:
+/// how many people are online on a server, or which account Home belongs to,
+/// the one place people check who they are messaging as.
 ///
 /// A dot on the avatar is the only sign that something is happening
 /// somewhere else, so it counts every tier that isn't on screen.
 class SwitcherHeader extends StatelessWidget {
   const SwitcherHeader({super.key});
 
+  static const double height = 56;
   static const double _avatarSize = 36;
 
   @override
@@ -42,14 +51,11 @@ class SwitcherHeader extends StatelessWidget {
     final onHome = surface == HomeSurface.centralDms;
     final elsewhere = _unreadElsewhere(context, onHome ? null : server?.id);
 
-    final (title, subtitle) = onHome
-        ? ('Home', 'Central · tap to switch')
-        : server == null
-        ? ('No server', 'Tap to join or create one')
-        : (server.name, 'Encrypted · tap to switch');
+    final title = onHome ? 'Home' : (server?.name ?? 'No server');
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
+      height: height,
+      padding: const EdgeInsets.fromLTRB(4, 0, 6, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: theme.borderPrimary)),
       ),
@@ -58,16 +64,14 @@ class SwitcherHeader extends StatelessWidget {
         children: [
           Expanded(
             child: Material(
-              color: theme.bgHover,
-              borderRadius: BorderRadius.circular(K.radiusCard),
+              type: MaterialType.transparency,
               child: InkWell(
-                borderRadius: BorderRadius.circular(K.radiusCard),
+                borderRadius: BorderRadius.circular(K.radiusRow),
                 onTap: ShellScope.of(context).toggleSidebar,
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(K.radiusCard),
-                    border: Border.all(color: theme.borderElevated),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
                   child: Row(
                     spacing: 10,
@@ -94,44 +98,45 @@ class SwitcherHeader extends StatelessWidget {
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          spacing: 1,
                           children: [
-                            Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppText.panelTitle.copyWith(
-                                color: theme.textPrimary,
-                              ),
-                            ),
+                            // The chevron rides in the same row as the name,
+                            // so it tracks the ellipsis instead of sitting at
+                            // the far edge like a stepper.
                             Row(
                               spacing: 4,
                               children: [
-                                if (!onHome && server != null)
-                                  const Icon(
-                                    Icons.lock_outline,
-                                    size: 11,
-                                    color: CustomColors.success,
-                                  ),
                                 Flexible(
                                   child: Text(
-                                    subtitle,
+                                    title,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: AppText.label.copyWith(
-                                      color: theme.textTertiary,
+                                    style: AppText.pageTitle.copyWith(
+                                      color: theme.textPrimary,
                                     ),
                                   ),
                                 ),
+                                Icon(
+                                  Icons.expand_more_rounded,
+                                  size: 19,
+                                  color: theme.textTertiary,
+                                ),
                               ],
                             ),
+                            if (onHome)
+                              const _HomeLine()
+                            else if (server != null)
+                              _ServerLine(serverId: server.id)
+                            else
+                              Text(
+                                'Join or create one',
+                                style: AppText.label.copyWith(
+                                  color: theme.textTertiary,
+                                ),
+                              ),
                           ],
                         ),
-                      ),
-                      Icon(
-                        Icons.unfold_more_rounded,
-                        size: 18,
-                        color: theme.textTertiary,
                       ),
                     ],
                   ),
@@ -146,7 +151,7 @@ class SwitcherHeader extends StatelessWidget {
               onPressed: () => openQuickSwitcher(context),
               icon: Icon(
                 Icons.search_rounded,
-                size: 22,
+                size: 21,
                 color: theme.textSecondary,
               ),
             ),
@@ -167,6 +172,51 @@ class SwitcherHeader extends StatelessWidget {
       (c) => c.state.surface == HomeSurface.centralDms,
     );
     return otherServers > 0 || (!onHome && home > 0);
+  }
+}
+
+/// A server's second line: that it is encrypted, and who is here.
+///
+/// Presence is followed for the selected server only, which is the one this
+/// header names, so the count is live and costs nothing to read.
+class _ServerLine extends StatelessWidget {
+  final String serverId;
+
+  const _ServerLine({required this.serverId});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final online = context.select<ChannelPresenceCubit, int>(
+      (c) => c.state.onlineUserIds.length,
+    );
+    return Row(
+      spacing: 5,
+      children: [
+        const Icon(Icons.lock_outline, size: 11, color: CustomColors.success),
+        Text(
+          '$online online',
+          style: AppText.label.copyWith(color: theme.textTertiary),
+        ),
+      ],
+    );
+  }
+}
+
+/// Home's second line: the central account's handle, with the way to change
+/// it — the line the conversation list used to open with.
+class _HomeLine extends StatelessWidget {
+  const _HomeLine();
+
+  @override
+  Widget build(BuildContext context) {
+    final handle = context.select<CentralDmCubit, String?>(
+      (c) => c.state.myHandle,
+    );
+    return CentralIdentityLine(
+      handle: handle,
+      onChangeHandle: () => showChangeHandle(context, handle!),
+    );
   }
 }
 
@@ -211,7 +261,7 @@ class _HomeMark extends StatelessWidget {
       ),
       child: Icon(
         isHome ? Icons.forum_rounded : Icons.add_rounded,
-        size: 19,
+        size: 18,
         color: isHome ? theme.onPrimary : theme.textSecondary,
       ),
     );
