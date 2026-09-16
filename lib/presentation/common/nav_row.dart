@@ -43,6 +43,11 @@ class NavRow extends StatefulWidget {
 
   final VoidCallback? onTap;
 
+  /// Whether tapping the row opens a page of its own on a phone, which gets a
+  /// chevron to say so. A desktop's rows fill a pane beside the list instead,
+  /// so it never draws one.
+  final bool pushes;
+
   /// The menu the ••• opens. Null draws no button. Not on a phone, where
   /// long-press already opens it and there is no hover to reveal one.
   final Widget? overflowMenu;
@@ -57,6 +62,7 @@ class NavRow extends StatefulWidget {
     this.iconBadge,
     this.onTap,
     this.overflowMenu,
+    this.pushes = false,
   });
 
   @override
@@ -77,7 +83,21 @@ class _NavRowState extends State<NavRow> {
   Widget? _trailing(BuildContext context) {
     final trailing = widget.trailing;
     final menu = widget.overflowMenu;
-    if (menu == null || context.layoutMode.isCompact) return trailing;
+    if (context.layoutMode.isCompact) {
+      if (!widget.pushes) return trailing;
+      final chevron = Icon(
+        Icons.chevron_right_rounded,
+        size: 18,
+        color: context.read<ThemeCubit>().state.textQuaternary,
+      );
+      if (trailing == null) return chevron;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 8,
+        children: [trailing, chevron],
+      );
+    }
+    if (menu == null) return trailing;
 
     final active = _hovered || isSelected;
     final button = ContextMenuButton(menu: menu, visible: active);
