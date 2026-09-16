@@ -65,6 +65,8 @@ class _BrowseServersModalState extends State<BrowseServersModal> {
     );
 
     return AppModal(
+      pageOnPhone: true,
+      onBack: widget.onCancel,
       title: 'Browse servers',
       subtitle: 'Public servers you can join without an invite',
       maxWidth: signedIn ? K.dialogWidthWide : K.dialogWidth,

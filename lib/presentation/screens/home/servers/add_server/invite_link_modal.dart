@@ -88,6 +88,8 @@ class _InviteLinkModalState extends State<InviteLinkModal> {
   @override
   Widget build(BuildContext context) {
     return AppModal(
+      pageOnPhone: true,
+      onBack: _isLoading ? null : widget.onCancel,
       title: 'Join server',
       subtitle: 'Paste the invite link you were given',
       maxWidth: K.dialogWidth,

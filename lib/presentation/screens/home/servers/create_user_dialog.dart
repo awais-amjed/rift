@@ -5,9 +5,11 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
+import '../../../../data/constants.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
+import '../../../common/icon_tile.dart';
 import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
 
@@ -90,18 +92,14 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
         return AppModal(
           title: 'Create your account',
           subtitle: 'Set up your profile for this server',
-          titleIcon: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: themeState.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.person_outline,
-              size: 20,
-              color: themeState.primary,
-            ),
+          // The rounded tile every other dialog opens with. It was a circle
+          // here alone, which read as a different app's dialog.
+          titleIcon: IconTile(
+            icon: Icons.person_outline,
+            color: themeState.primary,
+            size: 36,
+            radius: K.radiusRow,
+            iconSize: 18,
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,

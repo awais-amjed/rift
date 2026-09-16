@@ -6,6 +6,7 @@ import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../responsive/shell_scope.dart';
 import '../theme/app_motion.dart';
+import '../theme/app_text.dart';
 import 'app_button_height.dart';
 import 'app_modal_header.dart';
 import 'button_footer.dart';
@@ -156,6 +157,18 @@ class AppModal extends StatelessWidget {
   /// dialog is for, and a sheet would be too easy to dismiss by accident.
   final bool staysDialogOnPhone;
 
+  /// Shows a phone a page rather than a card: the screen edge to edge, an
+  /// arrow for the way back, the title set large, and only the commit in the
+  /// footer. For a step in a flow — adding a server — where each step is a
+  /// place you move between rather than a box over the app.
+  ///
+  /// When a page has more than one action, the first is taken to be the way
+  /// back and is left to the arrow; a single action is the way back itself.
+  final bool pageOnPhone;
+
+  /// What the arrow does on a [pageOnPhone] page. Closes the modal if null.
+  final VoidCallback? onBack;
+
   const AppModal({
     super.key,
     required this.title,
@@ -169,6 +182,8 @@ class AppModal extends StatelessWidget {
     this.maxWidth = 448,
     this.maxHeight,
     this.staysDialogOnPhone = false,
+    this.pageOnPhone = false,
+    this.onBack,
   }) : assert(
          (content == null) != (body == null),
          'Give a modal a content form or a self-scrolling body, not both',
@@ -177,7 +192,9 @@ class AppModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.layoutMode.isCompact && !staysDialogOnPhone) {
-      return _buildForPhone(context);
+      return pageOnPhone
+          ? _buildPageForPhone(context)
+          : _buildForPhone(context);
     }
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
@@ -302,6 +319,89 @@ class AppModal extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  /// See [pageOnPhone].
+  Widget _buildPageForPhone(BuildContext context) {
+    final themeState = context.watch<ThemeCubit>().state;
+    final actions = this.actions ?? const <Widget>[];
+    final commit = actions.length >= 2 ? actions.last : null;
+
+    final onBack = this.onBack;
+    return PopScope(
+      // The system back gesture is the arrow: a step goes back a step rather
+      // than closing the whole flow out from under it.
+      canPop: onBack == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) onBack?.call();
+      },
+      child: Dialog.fullscreen(
+        backgroundColor: themeState.bgSecondary,
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox.square(
+                    dimension: K.touchTargetMin,
+                    child: IconButton(
+                      tooltip: 'Back',
+                      onPressed: onBack ?? () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.arrow_back_rounded,
+                        size: 22,
+                        color: themeState.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 4,
+                  children: [
+                    Text(
+                      title,
+                      style: AppText.pageTitle.copyWith(
+                        color: themeState.textPrimary,
+                      ),
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: AppText.body.copyWith(
+                          color: themeState.textTertiary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child:
+                    body ??
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                      child: content,
+                    ),
+              ),
+              if (commit != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: AppButtonHeight(
+                    height: K.thumbCtaHeight,
+                    child: SizedBox(width: double.infinity, child: commit),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

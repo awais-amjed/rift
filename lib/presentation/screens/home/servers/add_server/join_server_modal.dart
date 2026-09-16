@@ -121,6 +121,8 @@ class _JoinServerModalState extends State<JoinServerModal> {
   Widget build(BuildContext context) {
     final invite = widget.invite;
     return AppModal(
+      pageOnPhone: true,
+      onBack: _isLoading ? null : widget.onCancel,
       title: 'Join ${invite.serverName}',
       subtitle: 'Pick how you will appear on ${invite.host}',
       maxWidth: K.dialogWidth,
