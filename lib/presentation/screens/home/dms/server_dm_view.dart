@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
+import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/hint_card.dart';
+import 'new_server_dm_modal.dart';
 import 'server_dm_chat_view.dart';
 import 'widgets/dm_list_panel.dart';
 import 'widgets/dm_surface.dart';
@@ -85,6 +87,8 @@ class _ServerDmViewState extends State<ServerDmView> {
                           'unlimited — unlike central DMs, they stay on the '
                           'server.',
               ),
+        onlineFor: context.watch<ChannelPresenceCubit>().state.isOnline,
+        onNew: server == null ? null : () => showNewServerDm(context),
         onOpen: (c) {
           // Only one DM surface is open at a time.
           context.read<CentralDmCubit>().closeConversation();

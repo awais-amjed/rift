@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/dm_conversation.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../data/enums/notification_level.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../responsive/shell_scope.dart';
+import '../../../../theme/app_text.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import 'dm_conversation_tile.dart';
 import 'dm_list_header.dart';
@@ -57,6 +60,13 @@ class DmListPanel extends StatelessWidget {
   /// Called when a row's menu picks a level.
   final void Function(String peerId, NotificationLevel level)? onLevelChanged;
 
+  /// Whether a peer is online, for the dot on each avatar. Null draws none.
+  final bool Function(String peerId)? onlineFor;
+
+  /// Starting a conversation on a phone, where the list is the whole screen
+  /// and [search] would push it down: a button in the thumb's corner instead.
+  final VoidCallback? onNew;
+
   const DmListPanel({
     super.key,
     required this.title,
@@ -71,6 +81,8 @@ class DmListPanel extends StatelessWidget {
     this.unreadFor,
     this.levelFor,
     this.onLevelChanged,
+    this.onlineFor,
+    this.onNew,
   });
 
   /// How close to the bottom counts as "nearly there" — about three tiles.
@@ -80,23 +92,53 @@ class DmListPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return Column(
+        final compact = context.layoutMode.isCompact;
+        final list = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             DmListHeader(title: title, subtitle: subtitle),
-            if (search != null)
+            if (search != null && !(compact && this.onNew != null))
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
                 child: search!,
               ),
-            Expanded(child: _buildList(themeState)),
+            Expanded(child: _buildList(themeState, compact)),
+          ],
+        );
+        final onNew = this.onNew;
+        if (!compact || onNew == null) return list;
+        return Stack(
+          children: [
+            Positioned.fill(child: list),
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: FloatingActionButton.extended(
+                heroTag: null,
+                onPressed: onNew,
+                backgroundColor: themeState.primary,
+                foregroundColor: themeState.onPrimary,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(K.radiusCard),
+                ),
+                icon: const Icon(Icons.edit_square, size: 20),
+                label: Text(
+                  'New',
+                  style: AppText.row.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: themeState.onPrimary,
+                  ),
+                ),
+              ),
+            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildList(ThemeState themeState) {
+  Widget _buildList(ThemeState themeState, bool compact) {
     if (conversations.isEmpty) {
       return SingleChildScrollView(
         padding: const EdgeInsets.all(12),
@@ -118,10 +160,17 @@ class DmListPanel extends StatelessWidget {
         return false;
       },
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        // Room at the foot on a phone, so the last row can scroll clear of
+        // the New button over it.
+        padding: EdgeInsets.fromLTRB(8, 4, 8, compact ? 88 : 4),
         itemCount: conversations.length + (hasMore ? 2 : 1),
         itemBuilder: (context, index) {
-          if (index == 0) return const SectionHeader(label: 'Conversations');
+          // The tabs above already name the list on a phone.
+          if (index == 0) {
+            return compact
+                ? const SizedBox(height: 4)
+                : const SectionHeader(label: 'Conversations');
+          }
           if (index > conversations.length) return _buildFooter();
           return _tile(themeState, conversations[index - 1]);
         },
@@ -154,6 +203,7 @@ class DmListPanel extends StatelessWidget {
           ? null
           : (level) => onLevelChanged(conversation.peerId, level),
       onTap: () => onOpen(conversation),
+      isOnline: onlineFor?.call(conversation.peerId),
     );
   }
 }

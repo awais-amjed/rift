@@ -178,7 +178,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
     );
   }
 
-  /// The whole 32px pill focuses the field, magnifier included — the text
+  /// The whole field focuses, magnifier and padding, magnifier included — the text
   /// itself is only about half its height, and the icon reads as part of the
   /// field to everyone who is not looking at the widget tree.
   Widget _buildField(ThemeState themeState) {
@@ -187,7 +187,9 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
 
   Widget _buildFieldBox(ThemeState themeState) {
     return Container(
-      height: 32,
+      // The shared field height: this is a field, and at its own 32 it sat
+      // shorter than the rows beneath it and under a thumb's minimum.
+      height: K.fieldHeight,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: themeState.bgHover,

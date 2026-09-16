@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/notification_level.dart';
+import '../../../../../logic/services/conversation_time.dart';
 import '../../../../common/context_menu/context_menu_button.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
@@ -12,6 +13,7 @@ import '../../../../common/squircle_avatar.dart';
 import '../../../../common/unread_badge.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 
 /// One conversation in the Home panel: who it's with, and what was last said.
@@ -47,6 +49,10 @@ class DmConversationTile extends StatelessWidget {
   /// offer. An empty list is that tier saying so.
   final List<Widget> menuItems;
 
+  /// Whether the peer is online, for the dot on their avatar. Null draws no
+  /// dot — a tier that doesn't know shouldn't guess.
+  final bool? isOnline;
+
   const DmConversationTile({
     super.key,
     required this.conversation,
@@ -56,6 +62,7 @@ class DmConversationTile extends StatelessWidget {
     this.level = NotificationLevel.dmDefault,
     this.onLevelChanged,
     this.menuItems = const [],
+    this.isOnline,
   });
 
   @override
@@ -110,7 +117,9 @@ class DmConversationTile extends StatelessWidget {
     // avatar, and at the row radius it reads as a cramped version of one.
     final radius = BorderRadius.circular(K.radiusRow);
     final preview = conversation.lastMessage?.text;
-    final showButton = menu != null && !context.layoutMode.isCompact;
+    final compact = context.layoutMode.isCompact;
+    final showButton = menu != null && !compact;
+    final sentAt = conversation.lastMessage?.sentAt;
 
     return Material(
       color: Colors.transparent,
@@ -120,19 +129,20 @@ class DmConversationTile extends StatelessWidget {
         hoverColor: themeState.bgHover,
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+          // A phone's row is a thumb's: taller, a bigger face, and the time
+          // it last moved over the count.
+          padding: EdgeInsets.symmetric(
+            horizontal: 9,
+            vertical: compact ? 10 : 8,
+          ),
           decoration: BoxDecoration(
             borderRadius: radius,
             color: isSelected ? themeState.channelActiveBg : null,
           ),
           child: Row(
-            spacing: 10,
+            spacing: compact ? 12 : 10,
             children: [
-              SquircleAvatar(
-                name: conversation.peerName,
-                seed: conversation.peerId,
-                size: 34,
-              ),
+              _avatar(context, compact ? 44 : 34),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +174,30 @@ class DmConversationTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (unreadCount > 0 && !(showButton && hovered))
+              if (compact)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 4,
+                  children: [
+                    if (sentAt != null)
+                      Text(
+                        formatConversationTime(sentAt, DateTime.now()),
+                        style: AppText.meta.copyWith(
+                          color: themeState.textTertiary,
+                        ),
+                      ),
+                    if (unreadCount > 0)
+                      UnreadBadge(count: unreadCount, isMuted: level.isMuted)
+                    else if (level.isMuted)
+                      Icon(
+                        Icons.notifications_off_outlined,
+                        size: 14,
+                        color: themeState.textTertiary,
+                      ),
+                  ],
+                )
+              else if (unreadCount > 0 && !(showButton && hovered))
                 UnreadBadge(count: unreadCount, isMuted: level.isMuted)
               else if (level.isMuted)
                 Icon(
@@ -178,6 +211,38 @@ class DmConversationTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _avatar(BuildContext context, double size) {
+    final avatar = SquircleAvatar(
+      name: conversation.peerName,
+      seed: conversation.peerId,
+      size: size,
+    );
+    final online = isOnline;
+    if (online == null) return avatar;
+    final theme = context.theme;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        avatar,
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: online
+                  ? CustomColors.userStatusOnline
+                  : theme.textQuaternary,
+              shape: BoxShape.circle,
+              border: Border.all(color: theme.bgSecondary, width: 2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
