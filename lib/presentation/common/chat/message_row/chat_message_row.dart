@@ -9,6 +9,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/host_platform.dart';
 import '../../../../logic/services/message_permissions.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -22,6 +23,7 @@ import '../reactions/message_reactions_bar.dart';
 import '../reactions/reaction_picker.dart';
 import 'guarded_message_text.dart';
 import 'link_tap_recognizers.dart';
+import 'message_action_sheet.dart';
 import 'message_context_menu.dart';
 import 'message_edit_field.dart';
 import 'message_hover_toolbar.dart';
@@ -175,6 +177,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
   }
 
   Future<void> _showContextMenu(Offset position) async {
+    if (context.layoutMode.isCompact) return _showActionSheet();
     final action = await showMessageContextMenu(
       context: context,
       position: position,
@@ -195,6 +198,32 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       case MessageMenuAction.edit:
         setState(() => _editing = true);
       case MessageMenuAction.delete:
+        await _confirmDelete();
+    }
+  }
+
+  /// A phone's long press: the same actions as a sheet, with the quick
+  /// reactions across its top, and the full picker behind "Add reaction".
+  Future<void> _showActionSheet() async {
+    final choice = await showMessageActionSheet(
+      context: context,
+      message: message,
+      canReact: _canReact,
+      canEdit: _canEdit,
+      canDelete: _canDelete,
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case QuickReaction(:final emoji):
+        _toggle(emoji);
+      case MenuActionChoice(action: MessageMenuAction.react):
+        final emoji = await showEmojiReactionSheet(context);
+        if (mounted && emoji != null) _toggle(emoji);
+      case MenuActionChoice(action: MessageMenuAction.copy):
+        await _copy();
+      case MenuActionChoice(action: MessageMenuAction.edit):
+        setState(() => _editing = true);
+      case MenuActionChoice(action: MessageMenuAction.delete):
         await _confirmDelete();
     }
   }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../responsive/shell_scope.dart';
 
 /// A square control in a panel header.
 ///
@@ -31,7 +32,11 @@ class ChatHeaderButton extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         final radius = BorderRadius.circular(K.radiusRow);
-        final size = isPrimary ? 30.0 : 32.0;
+        // A thumb's target on a phone; a pointer's on a desktop, where the
+        // header is a strip of chrome rather than the top of the screen.
+        final size = context.layoutMode.isCompact
+            ? K.touchTargetMin
+            : (isPrimary ? 30.0 : 32.0);
 
         final fill = isPrimary
             ? themeState.primary.withValues(alpha: 0.12)
