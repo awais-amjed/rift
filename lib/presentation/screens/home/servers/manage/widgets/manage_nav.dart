@@ -10,14 +10,19 @@ import '../server_manage_tab.dart';
 /// is. Only the rows are here; which of them exist is [ServerManageTabs].
 class ManageNav extends StatelessWidget {
   final List<ServerManageTab> tabs;
-  final ServerManageTab active;
+  final ServerManageTab? active;
   final ValueChanged<ServerManageTab> onSelected;
+
+  /// The whole width, as a phone's list of pages rather than a column beside
+  /// one.
+  final bool expand;
 
   const ManageNav({
     super.key,
     required this.tabs,
     required this.active,
     required this.onSelected,
+    this.expand = false,
   });
 
   static const double width = 196;
@@ -26,7 +31,7 @@ class ManageNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return Container(
-      width: width,
+      width: expand ? null : width,
       color: themeState.bgSecondary,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       child: Column(
@@ -38,7 +43,10 @@ class ManageNav extends StatelessWidget {
               child: NavRow(
                 icon: _icon(tab),
                 label: _label(tab),
-                isSelected: tab == active,
+                // Nothing is selected in a phone's list — it is the way in,
+                // and the page opened is on its own screen.
+                isSelected: !expand && tab == active,
+                pushes: expand,
                 onTap: () => onSelected(tab),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../common/button_footer.dart';
+import '../../../../../common/hint_card.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -12,6 +13,9 @@ import '../../../../../theme/theme_context.dart';
 /// one mints a link, one only lists — and a shared footer would be a row of
 /// buttons that mean something on one page and nothing on the next. The
 /// footer sits on the left, as it does in settings.
+///
+/// Under a [ManageReadOnly], the page is shown but can't be changed: a note
+/// says so, the page's controls take no input, and its footer isn't drawn.
 class ManagePanel extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -36,6 +40,8 @@ class ManagePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    final readOnly = ManageReadOnly.of(context);
+    final child = this.child;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -67,10 +73,27 @@ class ManagePanel extends StatelessWidget {
               body ??
               SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 18),
-                child: child,
+                child: readOnly
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: 16,
+                        children: [
+                          const HintCard(
+                            icon: Icons.visibility_outlined,
+                            text:
+                                'View only on a phone. This page is easy to '
+                                'get wrong on a small screen, so changing it '
+                                'needs Rift on a computer.',
+                          ),
+                          // Inside the scroll view, so the page still scrolls
+                          // while nothing on it can be pressed.
+                          AbsorbPointer(child: ExcludeFocus(child: child!)),
+                        ],
+                      )
+                    : child,
               ),
         ),
-        if (footer.isNotEmpty) ...[
+        if (footer.isNotEmpty && !readOnly) ...[
           Divider(height: 1, color: themeState.borderPrimary),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 14, 24, 16),
@@ -83,4 +106,21 @@ class ManagePanel extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Marks the manage pages below it as view-only — a phone's server
+/// management, where only Members stays editable.
+///
+/// The roles editor's permission grid, retention limits and listing details
+/// are each one mistap from a change nobody meant, on a screen where the
+/// reader can see a fraction of the page at once. Showing the current state
+/// keeps them useful for checking; changing them waits for a bigger screen.
+class ManageReadOnly extends InheritedWidget {
+  const ManageReadOnly({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ManageReadOnly>() != null;
+
+  @override
+  bool updateShouldNotify(ManageReadOnly old) => false;
 }

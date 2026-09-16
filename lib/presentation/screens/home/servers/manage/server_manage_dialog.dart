@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/hint_card.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/theme_context.dart';
 import 'panels/bots_panel.dart';
 import 'panels/danger_zone_panel.dart';
@@ -17,6 +18,7 @@ import 'panels/roles_panel.dart';
 import 'panels/webhooks_panel.dart';
 import 'server_manage_tab.dart';
 import 'widgets/manage_nav.dart';
+import 'widgets/manage_panel.dart';
 
 /// Everything about running [server], in one dialog with a page per concern.
 ///
@@ -66,6 +68,8 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
         ? widget.initial!
         : tabs.first;
 
+    if (context.layoutMode.isCompact) return _buildForPhone(server, tabs);
+
     return AppModal(
       title: 'Manage server',
       subtitle: server.name,
@@ -82,6 +86,49 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
           VerticalDivider(width: 1, color: themeState.borderPrimary),
           Expanded(child: _page(active, server)),
         ],
+      ),
+    );
+  }
+
+  /// A phone: the pages as a list, and one page at a time with a way back.
+  ///
+  /// Only Members can be changed here — see [ManageReadOnly]. It is the page
+  /// somebody running a server needs from wherever they are, when a member has
+  /// to be muted or removed now.
+  Widget _buildForPhone(Server server, List<ServerManageTab> tabs) {
+    final open = tabs.contains(_active) ? _active : null;
+    final themeState = context.theme;
+    if (open == null) {
+      return AppModal(
+        title: 'Manage server',
+        subtitle: server.name,
+        body: SingleChildScrollView(
+          child: ManageNav(
+            tabs: tabs,
+            active: null,
+            expand: true,
+            onSelected: (tab) => setState(() => _active = tab),
+          ),
+        ),
+      );
+    }
+    final page = _page(open, server);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _active = null);
+      },
+      child: AppModal(
+        title: 'Manage server',
+        subtitle: server.name,
+        pageOnPhone: true,
+        onBack: () => setState(() => _active = null),
+        body: ColoredBox(
+          color: themeState.bgSecondary,
+          child: open == ServerManageTab.members
+              ? page
+              : ManageReadOnly(child: page),
+        ),
       ),
     );
   }
