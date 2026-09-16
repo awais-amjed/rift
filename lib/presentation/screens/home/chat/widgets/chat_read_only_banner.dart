@@ -17,8 +17,14 @@ import '../../../../theme/app_text.dart';
 /// Taking the composer's slot rather than sitting above the list is the point:
 /// the thing it explains is the thing that is missing, and an explanation
 /// somewhere else would leave a hole with no caption.
+///
+/// [waitingForKey] is the same slot before any history can be shown at all.
+/// It has nothing to retry — the key arrives on its own, and the page above
+/// says who it is waiting on — so it only promises that this will work.
 class ChatReadOnlyBanner extends StatelessWidget {
-  const ChatReadOnlyBanner({super.key});
+  final bool waitingForKey;
+
+  const ChatReadOnlyBanner({super.key, this.waitingForKey = false});
 
   @override
   Widget build(BuildContext context) {
@@ -42,25 +48,28 @@ class ChatReadOnlyBanner extends StatelessWidget {
             ),
             Expanded(
               child: Text(
-                'You cannot read or send here yet — another member needs to '
-                'come online to grant you this channel’s key.',
+                waitingForKey
+                    ? 'You can read and send here once the key arrives'
+                    : 'You cannot read or send here yet — another member needs '
+                          'to come online to grant you this channel’s key.',
                 style: AppText.meta.copyWith(color: themeState.textSecondary),
               ),
             ),
-            TextButton(
-              onPressed: () => context.read<ChannelChatCubit>().retry(),
-              style: TextButton.styleFrom(
-                foregroundColor: themeState.primary,
-                visualDensity: VisualDensity.compact,
-              ),
-              child: Text(
-                'Retry',
-                style: AppText.meta.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: themeState.primary,
+            if (!waitingForKey)
+              TextButton(
+                onPressed: () => context.read<ChannelChatCubit>().retry(),
+                style: TextButton.styleFrom(
+                  foregroundColor: themeState.primary,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: Text(
+                  'Retry',
+                  style: AppText.meta.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: themeState.primary,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

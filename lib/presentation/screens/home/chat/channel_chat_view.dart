@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/channel.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/classes/server_member.dart';
@@ -20,6 +21,7 @@ import '../mobile/widgets/mini_call_bar.dart';
 import 'widgets/chat_header.dart';
 import 'widgets/chat_read_only_banner.dart';
 import 'widgets/chat_status_view.dart';
+import 'widgets/key_holder_list.dart';
 
 /// Center-pane chat for the open text channel: header, message history,
 /// composer. All content shown here has already been decrypted and
@@ -57,8 +59,13 @@ class _ChannelChatViewState extends State<ChannelChatView>
                   // Sending needs the key too, so read-only gets the banner
                   // in the composer's place rather than a composer that would
                   // refuse every message typed into it.
+                  // Waiting keeps the slot too: a composer that is plainly
+                  // coming says "this will work later", where an absent one
+                  // says this channel has none.
                   if (chatState.status == ChannelChatStatus.readOnly)
-                    const ChatReadOnlyBanner(),
+                    const ChatReadOnlyBanner()
+                  else if (chatState.status == ChannelChatStatus.waitingForKey)
+                    const ChatReadOnlyBanner(waitingForKey: true),
                   if (chatState.status == ChannelChatStatus.ready) ...[
                     TypingIndicator(
                       names: chatState.typingUsers.values.toList(),
@@ -151,6 +158,15 @@ class _ChannelChatViewState extends State<ChannelChatView>
               ServerLimits.defaults)
           .maxAttachmentBytes;
 
+  /// The open channel, once the server's channel list has it.
+  Channel? _channel(BuildContext context, String? channelId) => context
+      .read<ServerCubit>()
+      .state
+      .selectedServer
+      ?.channels
+      .where((c) => c.id == channelId)
+      .firstOrNull;
+
   /// Channel managers and server admins may delete anyone's message here.
   bool _isModerator(BuildContext context) {
     final permissions = context
@@ -196,13 +212,24 @@ class _ChannelChatViewState extends State<ChannelChatView>
       case ChannelChatStatus.healingKey:
         return const Center(child: CircularProgressIndicator());
       case ChannelChatStatus.waitingForKey:
-        return const ChatStatusView(
-          icon: Icons.key_outlined,
-          title: 'Waiting for channel access',
-          message:
-              'Another member needs to come online to grant you the '
-              'encryption key for this channel.',
-          showRetry: true,
+        final channel = _channel(context, chatState.channelId);
+        return ChatStatusView(
+          icon: Icons.key_rounded,
+          title: 'Waiting for the channel key',
+          // Why it is waiting, and that nobody has to do anything: stating
+          // the state alone left people unsure whether they were meant to act,
+          // which is what made it read as broken.
+          message: channel == null
+              ? 'A member who already has the key has to be online for it to '
+                    'be handed to you — this happens automatically, and '
+                    'nothing here needs doing.'
+              : 'You\'ve been added to #${channel.name}. A member who already '
+                    'has the key has to be online for it to be handed to you — '
+                    'this happens automatically, and nothing here needs doing.',
+          listening: 'Listening for a key holder',
+          detail: channel == null
+              ? null
+              : KeyHolderList(key: ValueKey(channel.id), channel: channel),
         );
       case ChannelChatStatus.error:
         final failure = chatState.failure ?? const ChatFailure.unknown();
