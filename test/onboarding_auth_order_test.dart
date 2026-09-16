@@ -90,7 +90,7 @@ void main() {
     expect(find.text('Create your account'), findsNothing);
     // The surest tell, because it exists only on the sign-up form.
     // Upper-cased: that is how `AppTextField` draws a label.
-    expect(find.text('CONFIRM PASSWORD'), findsNothing);
+    expect(find.text('HANDLE'), findsNothing);
   });
 
   testWidgets('and names the other way up front', (tester) async {
@@ -104,7 +104,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('Create your account'), findsOneWidget);
-    expect(find.text('CONFIRM PASSWORD'), findsOneWidget);
+    expect(find.text('HANDLE'), findsOneWidget);
+    // One password field with an eye, never a second one to retype it into.
+    expect(find.text('CONFIRM PASSWORD'), findsNothing);
     // Still there to go back by, not a link that disappeared.
     expect(find.text('Sign in'), findsOneWidget);
   });
