@@ -6,6 +6,7 @@ import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../responsive/shell_scope.dart';
 import '../theme/app_motion.dart';
+import 'app_button_height.dart';
 import 'app_modal_header.dart';
 import 'button_footer.dart';
 import 'context_menu_region.dart';
@@ -150,6 +151,11 @@ class AppModal extends StatelessWidget {
   /// How much of the window a modal may fill before it starts scrolling.
   static const _maxHeightFraction = 0.85;
 
+  /// Keeps the centred dialog on a phone, where every other modal fills the
+  /// screen. For a confirmation: a question with two answers is exactly what a
+  /// dialog is for, and a sheet would be too easy to dismiss by accident.
+  final bool staysDialogOnPhone;
+
   const AppModal({
     super.key,
     required this.title,
@@ -162,6 +168,7 @@ class AppModal extends StatelessWidget {
     this.actions,
     this.maxWidth = 448,
     this.maxHeight,
+    this.staysDialogOnPhone = false,
   }) : assert(
          (content == null) != (body == null),
          'Give a modal a content form or a self-scrolling body, not both',
@@ -169,6 +176,9 @@ class AppModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.layoutMode.isCompact && !staysDialogOnPhone) {
+      return _buildForPhone(context);
+    }
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         final borderColor = themeState.borderPrimary;
@@ -231,6 +241,69 @@ class AppModal extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  /// A phone: the whole screen, less a margin, with the footer pinned where a
+  /// thumb is.
+  ///
+  /// A 448px dialog in a 390px window has no margins left to float in, and a
+  /// form sized to its content leaves its buttons wherever the last field
+  /// happened to end. Filling the screen puts the commit at the bottom every
+  /// time, at the taller thumb height, and gives a long form one scroll.
+  Widget _buildForPhone(BuildContext context) {
+    final themeState = context.watch<ThemeCubit>().state;
+    final borderColor = themeState.borderPrimary;
+    final safe = MediaQuery.paddingOf(context);
+    const margin = 10.0;
+
+    return Dialog(
+      backgroundColor: themeState.bgSecondary,
+      insetPadding: EdgeInsets.fromLTRB(
+        margin,
+        margin + safe.top,
+        margin,
+        margin + safe.bottom,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(K.radiusCard),
+        side: BorderSide(color: themeState.borderElevated),
+      ),
+      child: SizedBox.expand(
+        child: Column(
+          children: [
+            AppModalHeader(
+              title: title,
+              subtitle: subtitle,
+              titleIcon: titleIcon,
+              count: count,
+              actions: headerActions,
+            ),
+            Divider(height: 1, color: borderColor),
+            Expanded(
+              child:
+                  body ??
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
+                    child: content,
+                  ),
+            ),
+            if (actions != null) ...[
+              Divider(height: 1, color: borderColor),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                child: AppButtonHeight(
+                  height: K.thumbCtaHeight,
+                  child: ButtonFooter(buttons: actions!),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

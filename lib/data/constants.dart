@@ -64,6 +64,13 @@ class K {
   /// left alone rather than squashed to this.
   static const double touchTargetMin = 44;
 
+  /// A call to action at the foot of a phone screen — a dialog's footer, an
+  /// onboarding step's Continue. A thumb at the bottom of a phone is not a
+  /// cursor. Only there: every other control, on a phone too, is
+  /// [controlHeight]. Applied by `AppButtonHeight`, never by passing it to
+  /// each button.
+  static const double thumbCtaHeight = 56;
+
   /// The slot the floating pane-menu button occupies at the top-left of a
   /// content pane that has no header of its own — the voice area.
   ///

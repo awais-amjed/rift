@@ -5,6 +5,7 @@ import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
+import 'app_button_height.dart';
 
 enum AppButtonVariant { primary, secondary, danger }
 
@@ -22,10 +23,10 @@ class AppButton extends StatelessWidget {
   final Widget? icon;
   final bool expanded;
 
-  /// Defaults to [K.controlHeight], which fields share, so a button lines up
-  /// beside them without being told to. Only a surface with its own size
-  /// system — a phone's footer call to action — passes something else.
-  final double height;
+  /// Defaults to what an enclosing [AppButtonHeight] asks for — a phone's
+  /// footer — and otherwise to [K.controlHeight], which fields share, so a
+  /// button lines up beside them without being told to.
+  final double? height;
 
   const AppButton({
     super.key,
@@ -35,12 +36,14 @@ class AppButton extends StatelessWidget {
     this.isLoading = false,
     this.icon,
     this.expanded = false,
-    this.height = K.controlHeight,
+    this.height,
   });
 
   @override
   Widget build(BuildContext context) {
     final themeState = context.read<ThemeCubit>().state;
+    final height =
+        this.height ?? AppButtonHeight.of(context) ?? K.controlHeight;
     final isPrimary = variant == AppButtonVariant.primary;
     final enabled = !isLoading && onPressed != null;
 

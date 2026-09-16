@@ -77,6 +77,7 @@ class _ConfirmDialog extends StatelessWidget {
       builder: (context, themeState) {
         final accent = isDestructive ? CustomColors.error : themeState.primary;
         return AppModal(
+          staysDialogOnPhone: true,
           title: title,
           // The icon once, in the header badge; it used to be here and on
           // the confirm button both.
