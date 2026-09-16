@@ -55,7 +55,7 @@ class AppPanel extends StatelessWidget {
     final islands = context.layoutMode.panelsAreIslands;
     final radius =
         borderRadius ??
-        (islands ? BorderRadius.circular(K.radiusPanel) : BorderRadius.zero);
+        (islands ? BorderRadius.circular(K.radiusCard) : BorderRadius.zero);
 
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
@@ -77,7 +77,7 @@ class AppPanel extends StatelessWidget {
             // width or children bleed over it at the corners. Nothing to
             // shrink by where there is no border.
             borderRadius: islands
-                ? BorderRadius.circular(K.radiusPanel - 1)
+                ? BorderRadius.circular(K.radiusCard - 1)
                 : radius,
             // Only where the panel is the screen. While it is an island the
             // workspace is already clear of everything, and a second inset

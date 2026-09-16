@@ -145,6 +145,12 @@ class _AppTextFieldState extends State<AppTextField> {
               horizontal: 12,
               vertical: 10,
             ),
+            // The shared control height, so a field and the button beside it
+            // are one size. A floor rather than a fixed height: a prose box
+            // still grows with its lines. Dense, or Material floors it at its
+            // own 48 first and the token never gets a say.
+            isDense: true,
+            constraints: const BoxConstraints(minHeight: K.fieldHeight),
             // Material's counter is a second line of text under the field, in
             // the wrong colour and at the wrong weight. Keep the count — it is
             // the point of setting a limit — and dress it like every other

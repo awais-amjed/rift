@@ -22,9 +22,9 @@ class AppButton extends StatelessWidget {
   final Widget? icon;
   final bool expanded;
 
-  /// Defaults to a standalone button, which is what a dialog footer is. Pass
-  /// [K.fieldHeight] only for a button standing *among* fields, so it lines up
-  /// with them rather than with the buttons elsewhere in the app.
+  /// Defaults to [K.controlHeight], which fields share, so a button lines up
+  /// beside them without being told to. Only a surface with its own size
+  /// system — a phone's footer call to action — passes something else.
   final double height;
 
   const AppButton({

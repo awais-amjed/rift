@@ -168,7 +168,7 @@ class _ControlBarContent extends StatelessWidget {
         final bgColor = themeState.bgElevated;
         final compact = context.layoutMode.isCompact;
 
-        final radius = BorderRadius.circular(K.radiusPanel);
+        final radius = BorderRadius.circular(K.radiusCard);
 
         // Glass, not a slab: the pill floats over live video, so it blurs
         // what's behind it rather than hiding it. The shadow sits outside the

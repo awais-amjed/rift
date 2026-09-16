@@ -92,7 +92,7 @@ void main() {
 
   testWidgets('a desktop keeps the island chrome', (tester) async {
     final d = await panelDecoration(tester, 1400);
-    expect(d.borderRadius, BorderRadius.circular(K.radiusPanel));
+    expect(d.borderRadius, BorderRadius.circular(K.radiusCard));
     expect(d.border, isNotNull);
   });
 

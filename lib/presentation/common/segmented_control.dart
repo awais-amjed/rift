@@ -39,29 +39,36 @@ class SegmentedControl<T> extends StatelessWidget {
       children: [
         for (final option in options)
           Expanded(
-            child: SelectableSurface(
-              selected: option.value == value,
-              onTap: onChanged == null ? null : () => onChanged!(option.value),
-              borderRadius: BorderRadius.circular(K.radiusRow),
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                spacing: 7,
-                children: [
-                  if (option.icon != null) Icon(option.icon, size: 15),
-                  // Flexible, so a long label on a narrow phone ellipsises
-                  // instead of pushing the segment wider than its half.
-                  Flexible(
-                    child: Text(
-                      option.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: option.value == value
-                          ? AppText.row
-                          : AppText.rowQuiet,
+            // The field height, not padding around the label: an option sits
+            // in a form beside fields and has to line up with them.
+            child: SizedBox(
+              height: K.fieldHeight,
+              child: SelectableSurface(
+                selected: option.value == value,
+                onTap: onChanged == null
+                    ? null
+                    : () => onChanged!(option.value),
+                borderRadius: BorderRadius.circular(K.radiusRow),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  spacing: 7,
+                  children: [
+                    if (option.icon != null) Icon(option.icon, size: 15),
+                    // Flexible, so a long label on a narrow phone ellipsises
+                    // instead of pushing the segment wider than its half.
+                    Flexible(
+                      child: Text(
+                        option.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: option.value == value
+                            ? AppText.row
+                            : AppText.rowQuiet,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

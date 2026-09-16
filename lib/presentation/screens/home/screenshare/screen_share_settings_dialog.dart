@@ -152,7 +152,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
         return Dialog(
           backgroundColor: themeState.bgElevated,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(K.radiusPanel),
+            borderRadius: BorderRadius.circular(K.radiusCard),
             side: BorderSide(color: themeState.borderPrimary),
           ),
           child: ConstrainedBox(

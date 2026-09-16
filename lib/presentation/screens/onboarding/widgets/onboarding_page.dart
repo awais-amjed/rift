@@ -60,7 +60,7 @@ class OnboardingPage extends StatelessWidget {
                             color: themeState.bgSecondary.withValues(
                               alpha: 0.85,
                             ),
-                            borderRadius: BorderRadius.circular(K.radiusPanel),
+                            borderRadius: BorderRadius.circular(K.radiusCard),
                             border: Border.all(
                               color: themeState.borderElevated,
                             ),

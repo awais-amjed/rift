@@ -1,15 +1,13 @@
 class K {
   // ── Radii ─────────────────────────────────────────────────
-  // Four steps. A surface picks the one for what it is, never a value of
+  // Three steps. A surface picks the one for what it is, never a value of
   // its own: a fifth radius is how the scale grew to eight.
   /// List rows, buttons, fields, chips, icon buttons — anything you press.
   static const double radiusRow = 8;
 
-  /// Cards, context menus, popovers, attachments, icon badges.
+  /// Cards, context menus, popovers, attachments, icon badges — and the
+  /// floating panels, dialogs and the voice control bar.
   static const double radiusCard = 12;
-
-  /// The floating panels, dialogs and the voice control bar.
-  static const double radiusPanel = 12;
 
   /// Fully round — pills, presence dots, colour swatches.
   static const double radiusPill = 999;
@@ -28,18 +26,15 @@ class K {
   static const double paneHeaderHeight = 52;
 
   // ── Controls ──────────────────────────────────────────────
-  /// A standalone button.
-  static const double controlHeight = 38;
+  /// A button. The same as [touchTargetMin], so the app has one control
+  /// height rather than a mouse one and a finger one.
+  static const double controlHeight = touchTargetMin;
 
-  /// Text fields, dropdowns and segmented options — one step taller than a
-  /// standalone button, so a form's controls line up with each other rather
-  /// than with the buttons scattered around the app. A dialog's footer
-  /// buttons are *not* form controls: they sit below the divider and take
-  /// [controlHeight].
-  static const double fieldHeight = 40;
+  /// Text fields, dropdowns and segmented options.
+  static const double fieldHeight = controlHeight;
 
   /// Square icon buttons.
-  static const double iconButtonSize = 36;
+  static const double iconButtonSize = 40;
 
   // ── Dialog widths ─────────────────────────────────────────
   /// A form dialog whose fields run in one column.

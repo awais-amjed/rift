@@ -56,13 +56,17 @@ void main() {
       expect(rect.height, K.controlHeight);
     });
 
-    testWidgets('honours a taller height for dialog footers', (tester) async {
-      await _pump(
-        tester,
-        const AppButton(label: 'Save', height: K.fieldHeight),
-      );
+    testWidgets('honours an explicit height', (tester) async {
+      await _pump(tester, const AppButton(label: 'Save', height: 56));
 
-      expect(tester.getRect(find.byType(AppButton)).height, K.fieldHeight);
+      expect(tester.getRect(find.byType(AppButton)).height, 56);
+    });
+
+    testWidgets('matches a field, so the two line up side by side', (
+      tester,
+    ) async {
+      expect(K.controlHeight, K.fieldHeight);
+      expect(K.controlHeight, K.touchTargetMin);
     });
 
     testWidgets('sizes to its label rather than filling the row', (

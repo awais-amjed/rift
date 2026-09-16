@@ -70,7 +70,7 @@ chat/
   `Color(0x…)` outside `presentation/theme/`, and never `ThemeState` as a constructor
   parameter.
 - **Type sizes**: an `AppText` token, never `copyWith(fontSize:)`. **Radii**: `K.radiusRow` /
-  `radiusCard` / `radiusPanel` / `radiusPill`, never a literal.
+  `radiusCard` / `radiusPill`, never a literal.
 - **Layout numbers reused across files**: `K` in `data/constants.dart`, under a banner
   section (e.g. `K.composerControlSize`). A number used in exactly one file may stay a
   `static const` at the top of that file — named, not inline.

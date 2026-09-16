@@ -157,7 +157,7 @@ class _SidebarState extends State<Sidebar> {
                           borderRadius:
                               widget.floating && !mode.panelsAreIslands
                               ? const BorderRadius.horizontal(
-                                  right: Radius.circular(K.radiusPanel),
+                                  right: Radius.circular(K.radiusCard),
                                 )
                               : null,
                           child: SidebarContent(topPadding: widget.topPadding),

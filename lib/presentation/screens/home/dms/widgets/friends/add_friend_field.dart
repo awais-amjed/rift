@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
@@ -114,7 +113,6 @@ class _AddFriendFieldState extends State<AddFriendField> {
               ),
               AppButton(
                 label: 'Send request',
-                height: K.fieldHeight,
                 isLoading: _sending,
                 onPressed: _controller.text.trim().isEmpty ? null : _submit,
               ),

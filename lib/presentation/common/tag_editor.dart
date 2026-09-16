@@ -94,7 +94,6 @@ class TagEditor extends StatelessWidget {
             AppButton(
               label: 'Add',
               variant: AppButtonVariant.secondary,
-              height: K.fieldHeight,
               onPressed: enabled && !_full && controller.text.trim().isNotEmpty
                   ? _add
                   : null,

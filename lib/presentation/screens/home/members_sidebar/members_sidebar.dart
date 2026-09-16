@@ -180,7 +180,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
                                 borderRadius:
                                     widget.floating && !mode.panelsAreIslands
                                     ? const BorderRadius.horizontal(
-                                        left: Radius.circular(K.radiusPanel),
+                                        left: Radius.circular(K.radiusCard),
                                       )
                                     : null,
                                 child: _buildList(
