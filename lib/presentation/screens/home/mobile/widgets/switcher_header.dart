@@ -22,9 +22,11 @@ import '../../sidebar/widgets/sidebar_header.dart';
 ///
 /// An app bar, not a field. It used to be a bordered box with a stepper glyph,
 /// which read as a settings dropdown and promised stepping through servers in
-/// place when what opens is a panel from the side. Now the name is the
-/// screen's title with a chevron against it — "this title is a menu" — and the
-/// whole left group is the one tap that opens the switcher.
+/// place when what opens is a panel from the side. Now the name is the bar's
+/// title with a chevron against it — "this title is a menu" — and the whole
+/// left group is the one tap that opens the switcher. At the panel title's
+/// size: this bar is a header, and the redesign took the chrome off rather
+/// than making the type bigger.
 ///
 /// The line under the name says something rather than teaching the gesture:
 /// how many people are online on a server, or which account Home belongs to,
@@ -112,7 +114,7 @@ class SwitcherHeader extends StatelessWidget {
                                     title,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: AppText.pageTitle.copyWith(
+                                    style: AppText.panelTitle.copyWith(
                                       color: theme.textPrimary,
                                     ),
                                   ),
