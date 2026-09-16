@@ -5,13 +5,13 @@ import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
-import '../../../../common/button_footer.dart';
 import '../../../../common/feature_header.dart';
 import '../../../../common/handle_field.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/segmented_control.dart';
 import '../../../../common/supabase_auth_form_state.dart';
 import '../../../../theme/app_text.dart';
+import '../onboarding_footer.dart';
 import '../onboarding_page.dart';
 import '../password_strength_indicator.dart';
 
@@ -78,6 +78,33 @@ class AuthViewState extends State<AuthView>
     return OnboardingPage(
       step: 1,
       stepLabel: 'account',
+      onBack: isProcessing ? null : widget.onBack,
+      footer: OnboardingFooter(
+        onBack: widget.onBack,
+        backEnabled: !isProcessing,
+        primary: AppButton(
+          label: isSignUp ? 'Create account' : 'Sign in',
+          isLoading: isProcessing,
+          onPressed: isProcessing ? null : _submit,
+        ),
+        // Only on sign in. Offering "recover your account" to somebody
+        // creating one is an invitation to reset an account they do not have.
+        secondary: isSignUp
+            ? null
+            : TextButton(
+                onPressed: isProcessing
+                    ? null
+                    : () => context
+                          .read<SupabaseBackupCubit>()
+                          .startAccountRecovery(
+                            email: emailController.text.trim(),
+                          ),
+                child: Text(
+                  'Forgotten your password?',
+                  style: AppText.secondary.copyWith(color: theme.textTertiary),
+                ),
+              ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -174,45 +201,6 @@ class AuthViewState extends State<AuthView>
                     kind: MessageBannerKind.caution,
                   ),
                 ],
-
-                const SizedBox(height: 24),
-
-                ButtonFooter(
-                  buttons: [
-                    AppButton(
-                      label: 'Back',
-                      variant: AppButtonVariant.secondary,
-                      onPressed: isProcessing ? null : widget.onBack,
-                    ),
-                    AppButton(
-                      label: isSignUp ? 'Create account' : 'Sign in',
-                      isLoading: isProcessing,
-                      onPressed: isProcessing ? null : _submit,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // Only on sign in. Offering "recover your account" to
-                // somebody creating one is an invitation to reset an account
-                // they do not have.
-                if (!isSignUp)
-                  TextButton(
-                    onPressed: isProcessing
-                        ? null
-                        : () => context
-                              .read<SupabaseBackupCubit>()
-                              .startAccountRecovery(
-                                email: emailController.text.trim(),
-                              ),
-                    child: Text(
-                      'Forgotten your password?',
-                      style: AppText.secondary.copyWith(
-                        color: theme.textTertiary,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),

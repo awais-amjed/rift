@@ -4,9 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
-import '../../../../common/button_footer.dart';
 import '../../../../common/feature_header.dart';
 import '../../../../common/message_banner.dart';
+import '../onboarding_footer.dart';
 import '../onboarding_page.dart';
 
 class VaultPasswordView extends StatefulWidget {
@@ -42,9 +42,26 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
   Widget build(BuildContext context) {
     final isProcessing = widget.state.isProcessing;
 
+    void back() {
+      final cubit = context.read<SupabaseBackupCubit>();
+      cubit.dismissPending();
+      cubit.signOut();
+      widget.onBack();
+    }
+
     return OnboardingPage(
       step: 1,
       stepLabel: 'account',
+      onBack: isProcessing ? null : back,
+      footer: OnboardingFooter(
+        onBack: back,
+        backEnabled: !isProcessing,
+        primary: AppButton(
+          label: 'Unlock',
+          isLoading: isProcessing,
+          onPressed: isProcessing ? null : _unlock,
+        ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -78,28 +95,6 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
                     kind: MessageBannerKind.error,
                   ),
                 ],
-                const SizedBox(height: 24),
-                ButtonFooter(
-                  buttons: [
-                    AppButton(
-                      label: 'Back',
-                      variant: AppButtonVariant.secondary,
-                      onPressed: isProcessing
-                          ? null
-                          : () {
-                              final cubit = context.read<SupabaseBackupCubit>();
-                              cubit.dismissPending();
-                              cubit.signOut();
-                              widget.onBack();
-                            },
-                    ),
-                    AppButton(
-                      label: 'Unlock',
-                      isLoading: isProcessing,
-                      onPressed: isProcessing ? null : _unlock,
-                    ),
-                  ],
-                ),
               ],
             ),
           ),

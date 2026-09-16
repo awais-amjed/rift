@@ -6,12 +6,12 @@ import '../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
-import '../../../common/button_footer.dart';
 import '../../../common/feature_header.dart';
 import '../../../common/message_banner.dart';
 import '../../../common/restore_file_dialog.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
+import 'onboarding_footer.dart';
 import 'onboarding_page.dart';
 import 'password_strength_indicator.dart';
 
@@ -65,6 +65,34 @@ class _PasswordStepState extends State<PasswordStep> {
         return OnboardingPage(
           step: 1,
           stepLabel: 'vault',
+          // Green on a phone, as the badge is: this step claims safety rather
+          // than counting.
+          progressColor: CustomColors.success,
+          onBack: isProcessing ? null : widget.onBack,
+          footer: OnboardingFooter(
+            onBack: widget.onBack,
+            backEnabled: !isProcessing,
+            primary: AppButton(
+              label: 'Create vault',
+              isLoading: isProcessing,
+              onPressed: isProcessing ? null : _submit,
+            ),
+            secondary: TextButton(
+              onPressed: isProcessing
+                  ? null
+                  : () => showCustomDialog(
+                      context: context,
+                      builder: (_) => BlocProvider.value(
+                        value: context.read<VaultCubit>(),
+                        child: const RestoreFileDialog(),
+                      ),
+                    ),
+              child: Text(
+                'Have a backup file? Restore it instead',
+                style: AppText.secondary.copyWith(color: theme.primary),
+              ),
+            ),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -131,10 +159,9 @@ class _PasswordStepState extends State<PasswordStep> {
                       kind: MessageBannerKind.caution,
                     ),
 
-                    const SizedBox(height: 24),
-
                     // Processing hint
                     if (isProcessing) ...[
+                      const SizedBox(height: 20),
                       Text(
                         'Setting up your account…',
                         textAlign: TextAlign.center,
@@ -142,42 +169,7 @@ class _PasswordStepState extends State<PasswordStep> {
                           color: theme.textQuaternary,
                         ),
                       ),
-                      const SizedBox(height: 16),
                     ],
-
-                    // Actions
-                    ButtonFooter(
-                      buttons: [
-                        AppButton(
-                          label: 'Back',
-                          variant: AppButtonVariant.secondary,
-                          onPressed: isProcessing ? null : widget.onBack,
-                        ),
-                        AppButton(
-                          label: 'Create vault',
-                          isLoading: isProcessing,
-                          onPressed: isProcessing ? null : _submit,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    TextButton(
-                      onPressed: isProcessing
-                          ? null
-                          : () => showCustomDialog(
-                              context: context,
-                              builder: (_) => BlocProvider.value(
-                                value: context.read<VaultCubit>(),
-                                child: const RestoreFileDialog(),
-                              ),
-                            ),
-                      child: Text(
-                        'Have a backup file? Restore it instead',
-                        style: AppText.secondary.copyWith(color: theme.primary),
-                      ),
-                    ),
                   ],
                 ),
               ),

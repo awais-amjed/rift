@@ -27,6 +27,43 @@ class WelcomeStep extends StatelessWidget {
 
     return OnboardingPage(
       step: 0,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Both CTAs share one width so they read as a stack of choices
+          // rather than two buttons that happen to sit above each other.
+          AppButton(
+            label: 'Continue with an account',
+            onPressed: onContinueWithAccount,
+            expanded: true,
+            icon: const Icon(
+              Icons.arrow_forward,
+              size: 17,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
+          AppButton(
+            label: 'Use privacy mode',
+            variant: AppButtonVariant.secondary,
+            onPressed: onContinuePrivately,
+            expanded: true,
+            icon: Icon(
+              Icons.shield_outlined,
+              size: 16,
+              color: theme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Privacy mode: no email, no central server — your identity '
+            'never leaves this device.',
+            textAlign: TextAlign.center,
+            style: AppText.label.copyWith(color: theme.textTertiary),
+          ),
+        ],
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -74,52 +111,9 @@ class WelcomeStep extends StatelessWidget {
           // Feature pills
           const _FeaturePillRow(),
 
-          const SizedBox(height: 36),
-
-          // Both CTAs share one width so they read as a stack of choices
-          // rather than two buttons that happen to sit above each other.
-          // A cap rather than a width: on a phone 340 is wider than what is
-          // left after the page's own padding.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 340),
-            child: Column(
-              spacing: 10,
-              children: [
-                AppButton(
-                  label: 'Continue with an account',
-                  onPressed: onContinueWithAccount,
-                  expanded: true,
-                  height: 44,
-                  icon: const Icon(
-                    Icons.arrow_forward,
-                    size: 17,
-                    color: Colors.white,
-                  ),
-                ),
-                AppButton(
-                  label: 'Use privacy mode',
-                  variant: AppButtonVariant.secondary,
-                  onPressed: onContinuePrivately,
-                  expanded: true,
-                  height: 44,
-                  icon: Icon(
-                    Icons.shield_outlined,
-                    size: 16,
-                    color: theme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          Text(
-            'Privacy mode: no email, no central server — your identity '
-            'never leaves this device.',
-            textAlign: TextAlign.center,
-            style: AppText.label.copyWith(color: theme.textTertiary),
-          ),
+          // The two ways on sit under this in the card, and at the foot of
+          // a phone where a thumb is — see [OnboardingPage.footer].
+          const SizedBox(height: 12),
         ],
       ),
     );

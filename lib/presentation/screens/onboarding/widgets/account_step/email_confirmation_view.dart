@@ -6,6 +6,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/feature_header.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/resend_confirmation_button.dart';
+import '../onboarding_footer.dart';
 import '../onboarding_page.dart';
 
 class EmailConfirmationView extends StatelessWidget {
@@ -22,7 +23,26 @@ class EmailConfirmationView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void back() {
+      context.read<SupabaseBackupCubit>().clearMessage();
+      onBack();
+    }
+
     return OnboardingPage(
+      onBack: back,
+      footer: OnboardingFooter(
+        onBack: back,
+        primary: AppButton(
+          label: 'I\'ve confirmed — sign in',
+          onPressed: onSignIn,
+        ),
+        // Under the commit rather than beside Back: it belongs to the
+        // confirming, not to going back.
+        secondary: ResendConfirmationButton(
+          availableAt: state.resendAvailableAt,
+          isProcessing: state.isProcessing,
+        ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -44,23 +64,6 @@ class EmailConfirmationView extends StatelessWidget {
             const SizedBox(height: 24),
             MessageBanner(message: state.error!, kind: MessageBannerKind.error),
           ],
-          const SizedBox(height: 32),
-          AppButton(label: 'I\'ve confirmed — sign in', onPressed: onSignIn),
-          // Between the two actions rather than below them: it belongs to the
-          // confirming, not to going back.
-          ResendConfirmationButton(
-            availableAt: state.resendAvailableAt,
-            isProcessing: state.isProcessing,
-          ),
-          const SizedBox(height: 12),
-          AppButton(
-            label: 'Back',
-            variant: AppButtonVariant.secondary,
-            onPressed: () {
-              context.read<SupabaseBackupCubit>().clearMessage();
-              onBack();
-            },
-          ),
         ],
       ),
     );

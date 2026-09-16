@@ -5,9 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
-import '../../../../common/button_footer.dart';
 import '../../../../common/feature_header.dart';
 import '../../../../common/message_banner.dart';
+import '../onboarding_footer.dart';
 import '../onboarding_page.dart';
 
 /// Getting back in without the password.
@@ -89,6 +89,22 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
     final busy = state.isProcessing;
 
     return OnboardingPage(
+      onBack: busy ? null : widget.onBack,
+      footer: OnboardingFooter(
+        onBack: widget.onBack,
+        backEnabled: !busy,
+        primary: AppButton(
+          label: _awaitingCode ? 'Recover account' : 'Send code',
+          isLoading: busy,
+          onPressed: busy
+              ? null
+              : () => _awaitingCode
+                    ? _finish()
+                    : context.read<SupabaseBackupCubit>().beginAccountRecovery(
+                        email: _email.text,
+                      ),
+        ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -172,28 +188,6 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
                       'you hold — resetting the password alone does not open '
                       'them.',
                   kind: MessageBannerKind.caution,
-                ),
-
-                const SizedBox(height: 22),
-                ButtonFooter(
-                  buttons: [
-                    AppButton(
-                      label: 'Back',
-                      variant: AppButtonVariant.secondary,
-                      onPressed: busy ? null : widget.onBack,
-                    ),
-                    AppButton(
-                      label: _awaitingCode ? 'Recover account' : 'Send code',
-                      isLoading: busy,
-                      onPressed: busy
-                          ? null
-                          : () => _awaitingCode
-                                ? _finish()
-                                : context
-                                      .read<SupabaseBackupCubit>()
-                                      .beginAccountRecovery(email: _email.text),
-                    ),
-                  ],
                 ),
               ],
             ),
