@@ -16,6 +16,7 @@ import '../../responsive/shell_scope.dart';
 import '../../theme/app_text.dart';
 import 'widgets/appearance_content.dart';
 import 'widgets/backup_content/backup_content.dart';
+import 'widgets/mobile_settings_list.dart';
 import 'widgets/settings_sidebar.dart';
 import 'widgets/settings_tab.dart';
 import 'widgets/voice_audio_content.dart';
@@ -134,84 +135,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return Scaffold(
-          body: BlocBuilder<AppCubit, AppState>(
-            buildWhen: (prev, curr) =>
-                prev.titleBarVisible != curr.titleBarVisible,
-            builder: (context, appState) {
-              final compact = context.layoutMode.isCompact;
-              final topOffset = !HostPlatform.drawsOwnWindowChrome
-                  ? 0.0
-                  : (appState.titleBarVisible ? K.titleBarHeight : 0.0);
-              final gutter = context.layoutMode.panelGutter;
-              return CanvasBackdrop(
-                child: Padding(
-                  // No gutter on a phone: the panel is the screen there and
-                  // holds its own content clear of the cutouts. See
-                  // `LayoutMode.panelsAreIslands`.
-                  padding: EdgeInsets.fromLTRB(
-                    gutter,
-                    topOffset == 0 ? gutter : topOffset,
-                    gutter,
-                    gutter,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // ── Left nav panel ───────────────────────────
-                      // Full width on a phone, where it is the list half of a
-                      // list-and-detail pair rather than a column beside one.
-                      if (!compact || !_detailOpen)
-                        _NavPanel(
-                          expand: compact,
-                          child: SettingsSidebar(
-                            activeTab: _activeTab,
-                            onTabSelected: (tab) =>
-                                _selectTab(tab, compact: compact),
-
-                            onBack: () => context.pop(),
-                          ),
-                        ),
-                      if (!compact) SizedBox(width: gutter),
-                      // ── Right content panel ──────────────────────
-                      if (!compact || _detailOpen)
-                        Expanded(
-                          child: AppPanel(
-                            color: themeState.bgContent,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildHeader(
-                                  themeState,
-                                  showBack: compact && _detailOpen,
-                                ),
-                                Divider(
-                                  height: 1,
-                                  color: themeState.borderPrimary,
-                                ),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    padding: EdgeInsets.all(compact ? 16 : 24),
-                                    child: switch (_activeTab) {
-                                      SettingsTab.appearance =>
-                                        AppearanceContent(),
-                                      SettingsTab.voiceAndAudio =>
-                                        VoiceAudioContent(),
-                                      SettingsTab.backup => BackupContent(
-                                        onResetVault: _resetVault,
-                                      ),
-                                    },
+        return PopScope(
+          // On a phone a section is a page in front of the list, so back
+          // returns to the list before it leaves settings.
+          canPop: !(context.layoutMode.isCompact && _detailOpen),
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) setState(() => _detailOpen = false);
+          },
+          child: Scaffold(
+            body: BlocBuilder<AppCubit, AppState>(
+              buildWhen: (prev, curr) =>
+                  prev.titleBarVisible != curr.titleBarVisible,
+              builder: (context, appState) {
+                final compact = context.layoutMode.isCompact;
+                final topOffset = !HostPlatform.drawsOwnWindowChrome
+                    ? 0.0
+                    : (appState.titleBarVisible ? K.titleBarHeight : 0.0);
+                final gutter = context.layoutMode.panelGutter;
+                return CanvasBackdrop(
+                  child: Padding(
+                    // No gutter on a phone: the panel is the screen there and
+                    // holds its own content clear of the cutouts. See
+                    // `LayoutMode.panelsAreIslands`.
+                    padding: EdgeInsets.fromLTRB(
+                      gutter,
+                      topOffset == 0 ? gutter : topOffset,
+                      gutter,
+                      gutter,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // ── Left nav panel ───────────────────────────
+                        // Full width on a phone, where it is the list half of a
+                        // list-and-detail pair rather than a column beside one.
+                        if (!compact || !_detailOpen)
+                          _NavPanel(
+                            expand: compact,
+                            child: compact
+                                ? SafeArea(
+                                    bottom: false,
+                                    child: MobileSettingsList(
+                                      onTabSelected: (tab) =>
+                                          _selectTab(tab, compact: true),
+                                      onBack: () => context.pop(),
+                                    ),
+                                  )
+                                : SettingsSidebar(
+                                    activeTab: _activeTab,
+                                    onTabSelected: (tab) =>
+                                        _selectTab(tab, compact: compact),
+                                    onBack: () => context.pop(),
                                   ),
-                                ),
-                              ],
+                          ),
+                        if (!compact) SizedBox(width: gutter),
+                        // ── Right content panel ──────────────────────
+                        if (!compact || _detailOpen)
+                          Expanded(
+                            child: AppPanel(
+                              color: themeState.bgContent,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SafeArea(
+                                    bottom: false,
+                                    child: _buildHeader(
+                                      themeState,
+                                      showBack: compact && _detailOpen,
+                                    ),
+                                  ),
+                                  Divider(
+                                    height: 1,
+                                    color: themeState.borderPrimary,
+                                  ),
+                                  Expanded(
+                                    child: SingleChildScrollView(
+                                      padding: EdgeInsets.all(
+                                        compact ? 16 : 24,
+                                      ),
+                                      child: switch (_activeTab) {
+                                        SettingsTab.appearance =>
+                                          AppearanceContent(),
+                                        SettingsTab.voiceAndAudio =>
+                                          VoiceAudioContent(),
+                                        SettingsTab.backup => BackupContent(
+                                          onResetVault: _resetVault,
+                                        ),
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         );
       },
