@@ -39,7 +39,6 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
   final _code = TextEditingController();
   final _recoveryKey = TextEditingController();
   final _password = TextEditingController();
-  final _confirm = TextEditingController();
   String? _validationError;
 
   @override
@@ -54,7 +53,6 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
     _code.dispose();
     _recoveryKey.dispose();
     _password.dispose();
-    _confirm.dispose();
     super.dispose();
   }
 
@@ -74,10 +72,6 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
       setState(
         () => _validationError = 'Password must be at least 8 characters',
       );
-      return;
-    }
-    if (_password.text != _confirm.text) {
-      setState(() => _validationError = 'Passwords do not match');
       return;
     }
     setState(() => _validationError = null);
@@ -149,14 +143,8 @@ class _AccountRecoveryViewState extends State<AccountRecoveryView> {
                     hint: 'Choose a strong password',
                     obscureText: true,
                     enabled: !busy,
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    controller: _confirm,
-                    label: 'Confirm password',
-                    hint: 'Re-enter the new password',
-                    obscureText: true,
-                    enabled: !busy,
+                    // No confirm field, as at sign-up: the eye lets you read
+                    // what you typed, which retyping it never did.
                     onSubmitted: (_) => busy ? null : _finish(),
                   ),
                 ],

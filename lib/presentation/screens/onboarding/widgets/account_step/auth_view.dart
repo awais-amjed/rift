@@ -36,7 +36,6 @@ class AuthView extends StatefulWidget {
 
 class AuthViewState extends State<AuthView>
     with SupabaseAuthFormState<AuthView> {
-  final _confirmController = TextEditingController();
   String? _validationError;
 
   @override
@@ -48,12 +47,6 @@ class AuthViewState extends State<AuthView>
     //
     // Coming back from there, prefill the address they used.
     emailController.text = widget.state.email ?? '';
-  }
-
-  @override
-  void dispose() {
-    _confirmController.dispose();
-    super.dispose();
   }
 
   /// Onboarding validates before handing over to the shared submit — it's the
@@ -72,10 +65,6 @@ class AuthViewState extends State<AuthView>
       );
       return;
     }
-    if (isSignUp && password != _confirmController.text) {
-      setState(() => _validationError = 'Passwords do not match');
-      return;
-    }
     setState(() => _validationError = null);
 
     submitCredentials();
@@ -92,8 +81,8 @@ class AuthViewState extends State<AuthView>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Named up front, so the confirm field and the strength meter do
-          // not appear unannounced when the mode changes under the form.
+          // Named up front, so the strength meter and the handle do not
+          // appear unannounced when the mode changes under the form.
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
             child: SegmentedControl<bool>(
@@ -151,28 +140,14 @@ class AuthViewState extends State<AuthView>
                   obscureText: true,
                   enabled: !isProcessing,
                   onChanged: isSignUp ? (_) => setState(() {}) : null,
-                  onEditingComplete: (isSignUp || isProcessing)
-                      ? null
-                      : _submit,
+                  // One password field with an eye, no confirm field: the
+                  // caution below carries what confirming was pretending to.
+                  onEditingComplete: isProcessing ? null : _submit,
                 ),
 
                 if (isSignUp) ...[
                   const SizedBox(height: 12),
                   PasswordStrengthIndicator(password: passwordController.text),
-                  const SizedBox(height: 20),
-                  AppTextField(
-                    controller: _confirmController,
-                    label: 'Confirm password',
-                    hint: 'Re-enter your password',
-                    obscureText: true,
-                    enabled: !isProcessing,
-                    onEditingComplete: isProcessing ? null : _submit,
-                    onChanged: (_) {
-                      if (_validationError != null) {
-                        setState(() => _validationError = null);
-                      }
-                    },
-                  ),
                   const SizedBox(height: 16),
                   HandleField(
                     controller: handleController,

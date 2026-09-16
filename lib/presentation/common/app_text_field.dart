@@ -12,7 +12,18 @@ class AppTextField extends StatefulWidget {
   final TextEditingController controller;
   final String? label;
   final String? hint;
+
+  /// A secret. It comes with a button to show what was typed — see
+  /// [canReveal].
   final bool obscureText;
+
+  /// Whether an [obscureText] field offers to show its contents.
+  ///
+  /// On by default. A password you cannot see is one you cannot check, and a
+  /// second "confirm" field only asks for the same invisible typo twice — so
+  /// the app checks a secret by letting you read it instead. Off only where
+  /// showing it would defeat the field.
+  final bool canReveal;
   final bool enabled;
   final TextInputType? keyboardType;
 
@@ -48,6 +59,7 @@ class AppTextField extends StatefulWidget {
     this.label,
     this.hint,
     this.obscureText = false,
+    this.canReveal = true,
     this.enabled = true,
     this.keyboardType,
     this.inputFormatters,
@@ -70,6 +82,11 @@ class _AppTextFieldState extends State<AppTextField> {
   final FocusNode _own = FocusNode();
 
   FocusNode get _node => widget.focusNode ?? _own;
+
+  /// Whether a secret is currently shown in the clear. Always starts hidden.
+  bool _revealed = false;
+
+  bool get _obscured => widget.obscureText && !_revealed;
 
   @override
   void dispose() {
@@ -108,7 +125,7 @@ class _AppTextFieldState extends State<AppTextField> {
         ],
         TextField(
           controller: widget.controller,
-          obscureText: widget.obscureText,
+          obscureText: _obscured,
           enabled: widget.enabled,
           keyboardType: widget.keyboardType,
           inputFormatters: widget.inputFormatters,
@@ -122,6 +139,18 @@ class _AppTextFieldState extends State<AppTextField> {
           style: AppText.input.copyWith(color: themeState.textPrimary),
           decoration: InputDecoration(
             hintText: widget.hint,
+            suffixIcon: widget.obscureText && widget.canReveal
+                ? _RevealButton(
+                    revealed: _revealed,
+                    onPressed: () => setState(() => _revealed = !_revealed),
+                  )
+                : null,
+            // The button sits inside the field's height rather than setting
+            // it, so a revealable field is no taller than a plain one.
+            suffixIconConstraints: const BoxConstraints.tightFor(
+              width: K.iconButtonSize,
+              height: K.iconButtonSize,
+            ),
             hintStyle: AppText.input.copyWith(color: themeState.textQuaternary),
             filled: true,
             fillColor: themeState.bgTertiary,
@@ -161,6 +190,29 @@ class _AppTextFieldState extends State<AppTextField> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The eye in a secret field's trailing edge.
+class _RevealButton extends StatelessWidget {
+  final bool revealed;
+  final VoidCallback onPressed;
+
+  const _RevealButton({required this.revealed, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeState = context.read<ThemeCubit>().state;
+    return IconButton(
+      tooltip: revealed ? 'Hide' : 'Show',
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      icon: Icon(
+        revealed ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+        size: 18,
+        color: themeState.textTertiary,
+      ),
     );
   }
 }

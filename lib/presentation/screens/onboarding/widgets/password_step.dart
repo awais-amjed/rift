@@ -30,28 +30,21 @@ class PasswordStep extends StatefulWidget {
 
 class _PasswordStepState extends State<PasswordStep> {
   final _passwordController = TextEditingController();
-  final _confirmController = TextEditingController();
   String? _validationError;
 
   @override
   void dispose() {
     _passwordController.dispose();
-    _confirmController.dispose();
     super.dispose();
   }
 
   void _submit() {
     final password = _passwordController.text;
-    final confirm = _confirmController.text;
 
     if (password.length < 8) {
       setState(
         () => _validationError = 'Password must be at least 8 characters',
       );
-      return;
-    }
-    if (password != confirm) {
-      setState(() => _validationError = 'Passwords do not match');
       return;
     }
 
@@ -96,6 +89,10 @@ class _PasswordStepState extends State<PasswordStep> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // One field, not two. Retyping a password you can't see
+                    // guards against a typo by asking for it twice; the eye
+                    // lets you read it instead, and the caution below says
+                    // why it matters.
                     AppTextField(
                       controller: _passwordController,
                       label: 'Password',
@@ -103,30 +100,16 @@ class _PasswordStepState extends State<PasswordStep> {
                       obscureText: true,
                       enabled: !isProcessing,
                       autofocus: true,
-                      onChanged: (_) => setState(() {}),
+                      onEditingComplete: _submit,
+                      onChanged: (_) => setState(() {
+                        _validationError = null;
+                      }),
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Strength indicator
                     PasswordStrengthIndicator(
                       password: _passwordController.text,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    AppTextField(
-                      controller: _confirmController,
-                      label: 'Confirm password',
-                      hint: 'Re-enter your password',
-                      obscureText: true,
-                      enabled: !isProcessing,
-                      onEditingComplete: _submit,
-                      onChanged: (_) {
-                        if (_validationError != null) {
-                          setState(() => _validationError = null);
-                        }
-                      },
                     ),
 
                     // Validation / API error

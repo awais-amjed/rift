@@ -66,4 +66,28 @@ void main() {
       K.fieldHeight,
     );
   });
+
+  testWidgets('a secret field can be shown, and is no taller for it', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'correct-horse');
+    addTearDown(controller.dispose);
+    await _pump(
+      tester,
+      AppTextField(controller: controller, obscureText: true),
+    );
+
+    EditableText editable() =>
+        tester.widget<EditableText>(find.byType(EditableText));
+    expect(editable().obscureText, isTrue);
+    expect(tester.getSize(find.byType(TextField)).height, K.fieldHeight);
+
+    await tester.tap(find.byTooltip('Show'));
+    await tester.pump();
+    expect(editable().obscureText, isFalse);
+
+    await tester.tap(find.byTooltip('Hide'));
+    await tester.pump();
+    expect(editable().obscureText, isTrue);
+  });
 }
