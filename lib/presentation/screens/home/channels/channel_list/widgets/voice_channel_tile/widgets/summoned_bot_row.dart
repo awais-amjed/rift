@@ -6,6 +6,7 @@ import '../../../../../../../common/squircle_avatar.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/theme_context.dart';
 import '../../../../../sidebar/widgets/participant_bot_section.dart';
+import 'roster_row_metrics.dart';
 
 /// A bot that was called into this call but is not in it.
 ///
@@ -49,19 +50,23 @@ class SummonedBotRow extends StatelessWidget {
       child: Opacity(
         opacity: 0.55,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+          padding: RosterRowMetrics.of(context).padding,
           child: Row(
             spacing: 8,
             children: [
-              SquircleAvatar(name: name, seed: botId, size: 22),
+              SquircleAvatar(
+                name: name,
+                seed: botId,
+                size: RosterRowMetrics.of(context).avatarSize,
+              ),
               Expanded(
                 child: Text(
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.secondary.copyWith(
-                    color: themeState.textSecondary,
-                  ),
+                  style: RosterRowMetrics.of(
+                    context,
+                  ).nameStyle.copyWith(color: themeState.textSecondary),
                 ),
               ),
               Text(

@@ -9,10 +9,10 @@ import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/hover_builder.dart';
 import '../../../../../../../common/squircle_avatar.dart';
 import '../../../../../../../responsive/shell_scope.dart';
-import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/custom_colors.dart';
 import '../../../../../../../theme/theme_context.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
+import 'roster_row_metrics.dart';
 
 /// A member of a voice channel you're not in — rendered from Realtime
 /// presence, so we only have their name (no live mic/speaking state).
@@ -56,17 +56,21 @@ class PresenceMemberRow extends StatelessWidget {
     final isMuted = setting?.muted ?? false;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+      padding: RosterRowMetrics.of(context).padding,
       child: Row(
         spacing: 8,
         children: [
-          SquircleAvatar(name: name, seed: user.userId, size: 22),
+          SquircleAvatar(
+            name: name,
+            seed: user.userId,
+            size: RosterRowMetrics.of(context).avatarSize,
+          ),
           Expanded(
             child: Text(
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppText.secondary.copyWith(
+              style: RosterRowMetrics.of(context).nameStyle.copyWith(
                 fontWeight: FontWeight.w500,
                 color: themeState.textSecondary,
               ),
@@ -75,9 +79,9 @@ class PresenceMemberRow extends StatelessWidget {
           // Locally muted, even though they're in another channel — otherwise
           // the mute is invisible until you next join them.
           if (isMuted)
-            const Icon(
+            Icon(
               Icons.volume_off_rounded,
-              size: 13,
+              size: RosterRowMetrics.of(context).iconSize + 2,
               color: CustomColors.error,
             ),
           if (!context.layoutMode.isCompact)

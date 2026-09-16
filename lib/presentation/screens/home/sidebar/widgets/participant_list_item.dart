@@ -12,8 +12,8 @@ import '../../../../common/hover_builder.dart';
 import '../../../../common/speaking_ring.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../responsive/shell_scope.dart';
-import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_row_metrics.dart';
 
 /// A single participant row inside an active voice channel.
 class ParticipantListItem extends StatelessWidget {
@@ -38,6 +38,7 @@ class ParticipantListItem extends StatelessWidget {
   Widget _build(BuildContext context, bool hovered) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
+        final metrics = RosterRowMetrics.of(context);
         final isMuted = setting?.muted ?? false;
         final isSpeaking = participant.isSpeaking && !isMuted;
 
@@ -55,13 +56,17 @@ class ParticipantListItem extends StatelessWidget {
         final hoverColor = themeState.bgHover;
 
         Widget content = Material(
-          color: isSpeaking ? themeState.primary.withValues(alpha: 0.08) : null,
+          // Transparent at rest, not null: a null Material paints the canvas
+          // colour, which drew a dark strip inside the channel's card.
+          color: isSpeaking
+              ? themeState.primary.withValues(alpha: 0.08)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(K.radiusRow),
           child: InkWell(
             borderRadius: BorderRadius.circular(K.radiusRow),
             hoverColor: hoverColor,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding: metrics.padding,
               child: Row(
                 children: [
                   // The avatar itself carries the speaking state — the same
@@ -69,12 +74,12 @@ class ParticipantListItem extends StatelessWidget {
                   SpeakingRing(
                     isSpeaking: isSpeaking,
                     borderRadius: BorderRadius.circular(
-                      22 * K.avatarRadiusRatio,
+                      metrics.avatarSize * K.avatarRadiusRatio,
                     ),
                     child: SquircleAvatar(
                       name: name,
                       seed: participant.userId,
-                      size: 22,
+                      size: metrics.avatarSize,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -82,7 +87,7 @@ class ParticipantListItem extends StatelessWidget {
                   Expanded(
                     child: Text(
                       participant.isLocal ? '$name (You)' : name,
-                      style: AppText.secondary.copyWith(
+                      style: RosterRowMetrics.of(context).nameStyle.copyWith(
                         fontWeight: isSpeaking
                             ? FontWeight.w600
                             : FontWeight.w500,
@@ -102,7 +107,7 @@ class ParticipantListItem extends StatelessWidget {
                       message: 'Deafened by a moderator',
                       child: Icon(
                         Icons.headset_off,
-                        size: 11,
+                        size: RosterRowMetrics.of(context).iconSize,
                         color: CustomColors.error.withValues(alpha: 0.85),
                       ),
                     ),
@@ -113,7 +118,7 @@ class ParticipantListItem extends StatelessWidget {
                       message: 'Muted by a moderator',
                       child: Icon(
                         Icons.mic_off,
-                        size: 11,
+                        size: RosterRowMetrics.of(context).iconSize,
                         color: CustomColors.error.withValues(alpha: 0.85),
                       ),
                     ),
@@ -166,14 +171,22 @@ class _MicIcon extends StatelessWidget {
         if (isMuted) {
           return Icon(
             Icons.volume_off,
-            size: 11,
+            size: RosterRowMetrics.of(context).iconSize,
             color: CustomColors.error.withValues(alpha: 0.7),
           );
         }
         if (isMicEnabled) {
-          return Icon(Icons.mic, size: 11, color: themeState.textQuaternary);
+          return Icon(
+            Icons.mic,
+            size: RosterRowMetrics.of(context).iconSize,
+            color: themeState.textQuaternary,
+          );
         }
-        return Icon(Icons.mic_off, size: 11, color: CustomColors.error);
+        return Icon(
+          Icons.mic_off,
+          size: RosterRowMetrics.of(context).iconSize,
+          color: CustomColors.error,
+        );
       },
     );
   }

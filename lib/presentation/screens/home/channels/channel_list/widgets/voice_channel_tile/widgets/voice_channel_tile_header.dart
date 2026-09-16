@@ -9,6 +9,7 @@ import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/theme_context.dart';
 import '../../channel_lock_badge.dart';
 import 'live_badge.dart';
+import 'roster_row_metrics.dart';
 import 'voice_listening_badge.dart';
 
 /// The clickable row at the top of an occupied voice channel's card: the
@@ -52,54 +53,62 @@ class VoiceChannelTileHeader extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(K.radiusRow),
           onTap: onTap,
-          child: Row(
-            spacing: 9,
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Icon(
-                      Icons.volume_up_rounded,
-                      size: 16,
-                      color: isSelected
-                          ? themeState.accentBright
-                          : themeState.textTertiary,
-                    ),
-                    if (channel.isPrivate)
-                      Positioned(
-                        right: -4,
-                        bottom: -3,
-                        child: ChannelLockBadge(),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: RosterRowMetrics.of(context).headerVerticalPadding,
+            ),
+            child: Row(
+              spacing: 9,
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        Icons.volume_up_rounded,
+                        size: 16,
+                        color: isSelected
+                            ? themeState.accentBright
+                            : themeState.textTertiary,
                       ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  channel.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.row.copyWith(
-                    color: isSelected
-                        ? themeState.channelActiveText
-                        : themeState.textSecondary,
+                      if (channel.isPrivate)
+                        Positioned(
+                          right: -4,
+                          bottom: -3,
+                          child: ChannelLockBadge(),
+                        ),
+                    ],
                   ),
                 ),
-              ),
-              // Before LIVE, not after: whether you can be heard by a bot is
-              // the thing to read before deciding to speak, and LIVE is about
-              // the call you already joined.
-              VoiceListeningBadge(listeners: listeners),
-              if (isSelected) const LiveBadge(),
-              // After the badges, not before: they describe the channel, and
-              // this acts on it. Only the header can be pressed, so the button
-              // belongs to its row rather than to the card.
-              if (menu != null && !context.layoutMode.isCompact)
-                ContextMenuButton(menu: menu!, visible: hovered || isSelected),
-            ],
+                Expanded(
+                  child: Text(
+                    channel.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.row.copyWith(
+                      color: isSelected
+                          ? themeState.channelActiveText
+                          : themeState.textSecondary,
+                    ),
+                  ),
+                ),
+                // Before LIVE, not after: whether you can be heard by a bot is
+                // the thing to read before deciding to speak, and LIVE is about
+                // the call you already joined.
+                VoiceListeningBadge(listeners: listeners),
+                if (isSelected) const LiveBadge(),
+                // After the badges, not before: they describe the channel, and
+                // this acts on it. Only the header can be pressed, so the button
+                // belongs to its row rather than to the card.
+                if (menu != null && !context.layoutMode.isCompact)
+                  ContextMenuButton(
+                    menu: menu!,
+                    visible: hovered || isSelected,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
