@@ -1,6 +1,8 @@
 //! Windows: WASAPI loopback, of one process or of the whole default output.
-use super::{samples_from_le_bytes, AudioCaptureHandle, Command, NUM_CHANNELS, SAMPLE_RATE};
-use crate::api::screenshare::types::ScreenShareConfig;
+use super::{
+    samples_from_le_bytes, AudioCaptureHandle, AudioSelection, Command, OnEnded, NUM_CHANNELS,
+    SAMPLE_RATE,
+};
 use livekit::prelude::*;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread::{self, JoinHandle};
@@ -20,8 +22,12 @@ const POLL: Duration = Duration::from_millis(5);
 const BUFFER_DURATION_HNS: i64 = 10_000_000;
 const READ_BUFFER_BYTES: usize = 16 * 1024;
 
-pub(crate) async fn start(room: &Room, config: &ScreenShareConfig) -> Option<AudioCaptureHandle> {
-    let pid = config.selected_audio_source_pid;
+pub(crate) async fn start(
+    room: &Room,
+    selection: AudioSelection,
+    on_ended: Option<OnEnded>,
+) -> Option<AudioCaptureHandle> {
+    let pid = selection.pid;
     match pid {
         Some(pid) => log::info!("audio: capturing process {pid}"),
         None => log::info!("audio: capturing the default output"),
@@ -29,6 +35,7 @@ pub(crate) async fn start(room: &Room, config: &ScreenShareConfig) -> Option<Aud
     super::publish_and_feed(
         room,
         Box::new(move |commands, frames| spawn_capture_thread(pid, commands, frames)),
+        on_ended,
     )
     .await
 }

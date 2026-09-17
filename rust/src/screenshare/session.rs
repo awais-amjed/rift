@@ -1,11 +1,10 @@
 //! One screen share at a time: bringing it up, and taking it down again.
-use super::audio::{self, AudioCaptureHandle};
 use super::capture::{self, Capture, CaptureRequest};
 use super::resolution::target_size;
 use super::track::publish_video_track;
 use crate::api::screenshare::types::{self, ScreenShareConfig};
-use livekit::e2ee::key_provider::{KeyProvider, KeyProviderOptions};
-use livekit::e2ee::{E2eeOptions, EncryptionType};
+use crate::sharing::audio::{self, AudioCaptureHandle, AudioSelection};
+use crate::sharing::room;
 use livekit::prelude::*;
 use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
 use livekit::webrtc::prelude::VideoResolution;
@@ -49,7 +48,13 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
         config.share_audio,
     );
 
-    let room = connect(&config).await?;
+    let room = room::connect(
+        &config.livekit_url,
+        &config.livekit_token,
+        &config.e2ee_key,
+        config.e2ee_key_index,
+    )
+    .await?;
     let room_name = room.name().to_string();
     let room_sid = room.sid().await.to_string();
     log::info!("screenshare: connected to room {room_name} ({room_sid})");
@@ -66,19 +71,9 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
         }
     };
 
-    // Point every cryptor at the slot the room is actually reading.
-    //
-    // The Rust SDK creates a sender's frame cryptor and never sets its key
-    // index, so it encrypts into libwebrtc's default slot 0 — while every Rift
-    // client looks this identity up at `keyVersion % 16`. The share then
-    // publishes happily and decrypts for nobody: the sharer sees "sharing", the
-    // room sees a black tile, and nothing anywhere reports an error.
-    //
-    // After both tracks, because a cryptor does not exist until its track does,
-    // and the system-audio track is published later than the video one.
-    for (_, cryptor) in room.e2ee_manager().frame_cryptors() {
-        cryptor.set_key_index(config.e2ee_key_index);
-    }
+    // After both tracks, because a cryptor does not exist until its track
+    // does, and the system-audio track is published later than the video one.
+    room::pin_key_index(&room, config.e2ee_key_index);
 
     *slot = Some(Session {
         room,
@@ -120,29 +115,6 @@ pub(crate) async fn stop() -> Result<String, String> {
     }
     log::info!("screenshare: stopped");
     Ok("Stopped successfully".to_string())
-}
-
-async fn connect(config: &ScreenShareConfig) -> Result<Room, String> {
-    // Same key as the rest of the call. `with_shared_key` is right here and not
-    // in the app: this connection publishes one track and subscribes to
-    // nothing, so it never needs anyone else's key — and the app's
-    // per-participant mode exists only so a bot can be given a different one.
-    let key_provider =
-        KeyProvider::with_shared_key(KeyProviderOptions::default(), config.e2ee_key.clone());
-    key_provider.set_shared_key(config.e2ee_key.clone(), config.e2ee_key_index);
-
-    // `RoomOptions` is non-exhaustive upstream, so it is built and then set
-    // rather than written as a literal.
-    let mut room_options = RoomOptions::default();
-    room_options.encryption = Some(E2eeOptions {
-        encryption_type: EncryptionType::Gcm,
-        key_provider,
-    });
-
-    let (room, _events) = Room::connect(&config.livekit_url, &config.livekit_token, room_options)
-        .await
-        .map_err(|e| format!("Failed to connect to LiveKit: {e:?}"))?;
-    Ok(room)
 }
 
 /// Everything after the room exists. On any error the capture thread is
@@ -200,8 +172,10 @@ async fn bring_up(
         return Err(stop_capture(capture, reason).await);
     }
 
+    // A screen share's sound has no `on_ended`: if the window stops playing,
+    // the picture is still worth watching.
     let audio = if config.share_audio {
-        audio::start(room, config).await
+        audio::start(room, AudioSelection::from(config), None).await
     } else {
         None
     };

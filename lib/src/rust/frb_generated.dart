@@ -11,6 +11,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'api/audio_endpoints.dart';
 import 'api/screenshare.dart';
 import 'api/screenshare/types.dart';
+import 'api/soundshare.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
@@ -70,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 196902348;
+  int get rustContentHash => -1957625525;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -100,11 +101,19 @@ abstract class RustLibApi extends BaseApi {
 
   Stream<ScreenshareEvent> crateApiScreenshareScreenshareEventStream();
 
+  Stream<SoundShareEvent> crateApiSoundshareSoundShareEventStream();
+
   Future<String> crateApiScreenshareStartScreenshare({
     required ScreenShareConfig config,
   });
 
+  Future<String> crateApiSoundshareStartSoundShare({
+    required SoundShareConfig config,
+  });
+
   Future<String> crateApiScreenshareStopScreenshare();
+
+  Future<String> crateApiSoundshareStopSoundShare();
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -327,6 +336,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Stream<SoundShareEvent> crateApiSoundshareSoundShareEventStream() {
+    final sink = RustStreamSink<SoundShareEvent>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_StreamSink_sound_share_event_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 8,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiSoundshareSoundShareEventStreamConstMeta,
+          argValues: [sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSoundshareSoundShareEventStreamConstMeta =>
+      const TaskConstMeta(
+        debugName: 'sound_share_event_stream',
+        argNames: ['sink'],
+      );
+
+  @override
   Future<String> crateApiScreenshareStartScreenshare({
     required ScreenShareConfig config,
   }) {
@@ -338,7 +382,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -357,6 +401,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'start_screenshare', argNames: ['config']);
 
   @override
+  Future<String> crateApiSoundshareStartSoundShare({
+    required SoundShareConfig config,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_sound_share_config(config, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSoundshareStartSoundShareConstMeta,
+        argValues: [config],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSoundshareStartSoundShareConstMeta =>
+      const TaskConstMeta(debugName: 'start_sound_share', argNames: ['config']);
+
+  @override
   Future<String> crateApiScreenshareStopScreenshare() {
     return handler.executeNormal(
       NormalTask(
@@ -365,7 +439,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 11,
             port: port_,
           );
         },
@@ -383,6 +457,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiScreenshareStopScreenshareConstMeta =>
       const TaskConstMeta(debugName: 'stop_screenshare', argNames: []);
 
+  @override
+  Future<String> crateApiSoundshareStopSoundShare() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSoundshareStopSoundShareConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSoundshareStopSoundShareConstMeta =>
+      const TaskConstMeta(debugName: 'stop_sound_share', argNames: []);
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -391,6 +492,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   RustStreamSink<ScreenshareEvent> dco_decode_StreamSink_screenshare_event_Sse(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<SoundShareEvent> dco_decode_StreamSink_sound_share_event_Sse(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -442,6 +551,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScreenShareConfig dco_decode_box_autoadd_screen_share_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_screen_share_config(raw);
+  }
+
+  @protected
+  SoundShareConfig dco_decode_box_autoadd_sound_share_config(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sound_share_config(raw);
   }
 
   @protected
@@ -536,6 +651,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SoundShareConfig dco_decode_sound_share_config(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return SoundShareConfig(
+      livekitUrl: dco_decode_String(arr[0]),
+      livekitToken: dco_decode_String(arr[1]),
+      selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[2]),
+      selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[3]),
+      selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[4]),
+      e2EeKey: dco_decode_list_prim_u_8_strict(arr[5]),
+      e2EeKeyIndex: dco_decode_i_32(arr[6]),
+    );
+  }
+
+  @protected
+  SoundShareEvent dco_decode_sound_share_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SoundShareEvent.values[raw as int];
+  }
+
+  @protected
   int dco_decode_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -568,6 +706,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   RustStreamSink<ScreenshareEvent> sse_decode_StreamSink_screenshare_event_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
+  RustStreamSink<SoundShareEvent> sse_decode_StreamSink_sound_share_event_Sse(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -625,6 +771,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_screen_share_config(deserializer));
+  }
+
+  @protected
+  SoundShareConfig sse_decode_box_autoadd_sound_share_config(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sound_share_config(deserializer));
   }
 
   @protected
@@ -774,6 +928,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SoundShareConfig sse_decode_sound_share_config(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_livekitUrl = sse_decode_String(deserializer);
+    var var_livekitToken = sse_decode_String(deserializer);
+    var var_selectedAudioSourceIndex = sse_decode_opt_box_autoadd_u_32(
+      deserializer,
+    );
+    var var_selectedAudioSourceSink = sse_decode_opt_box_autoadd_u_32(
+      deserializer,
+    );
+    var var_selectedAudioSourcePid = sse_decode_opt_box_autoadd_u_32(
+      deserializer,
+    );
+    var var_e2EeKey = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_e2EeKeyIndex = sse_decode_i_32(deserializer);
+    return SoundShareConfig(
+      livekitUrl: var_livekitUrl,
+      livekitToken: var_livekitToken,
+      selectedAudioSourceIndex: var_selectedAudioSourceIndex,
+      selectedAudioSourceSink: var_selectedAudioSourceSink,
+      selectedAudioSourcePid: var_selectedAudioSourcePid,
+      e2EeKey: var_e2EeKey,
+      e2EeKeyIndex: var_e2EeKeyIndex,
+    );
+  }
+
+  @protected
+  SoundShareEvent sse_decode_sound_share_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SoundShareEvent.values[inner];
+  }
+
+  @protected
   int sse_decode_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint32();
@@ -824,6 +1012,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_StreamSink_sound_share_event_Sse(
+    RustStreamSink<SoundShareEvent> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_sound_share_event,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
@@ -861,6 +1066,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_screen_share_config(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_sound_share_config(
+    SoundShareConfig self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sound_share_config(self, serializer);
   }
 
   @protected
@@ -977,6 +1191,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_screenshare_event(
     ScreenshareEvent self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_sound_share_config(
+    SoundShareConfig self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.livekitUrl, serializer);
+    sse_encode_String(self.livekitToken, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceIndex, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceSink, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourcePid, serializer);
+    sse_encode_list_prim_u_8_strict(self.e2EeKey, serializer);
+    sse_encode_i_32(self.e2EeKeyIndex, serializer);
+  }
+
+  @protected
+  void sse_encode_sound_share_event(
+    SoundShareEvent self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs

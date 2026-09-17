@@ -14,6 +14,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 import 'api/audio_endpoints.dart';
 import 'api/screenshare.dart';
 import 'api/screenshare/types.dart';
+import 'api/soundshare.dart';
 import 'frb_generated.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -33,6 +34,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<SoundShareEvent> dco_decode_StreamSink_sound_share_event_Sse(
+    dynamic raw,
+  );
+
+  @protected
   String dco_decode_String(dynamic raw);
 
   @protected
@@ -46,6 +52,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScreenShareConfig dco_decode_box_autoadd_screen_share_config(dynamic raw);
+
+  @protected
+  SoundShareConfig dco_decode_box_autoadd_sound_share_config(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
@@ -81,6 +90,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScreenshareEvent dco_decode_screenshare_event(dynamic raw);
 
   @protected
+  SoundShareConfig dco_decode_sound_share_config(dynamic raw);
+
+  @protected
+  SoundShareEvent dco_decode_sound_share_event(dynamic raw);
+
+  @protected
   int dco_decode_u_32(dynamic raw);
 
   @protected
@@ -101,6 +116,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<SoundShareEvent> sse_decode_StreamSink_sound_share_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
@@ -114,6 +134,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScreenShareConfig sse_decode_box_autoadd_screen_share_config(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SoundShareConfig sse_decode_box_autoadd_sound_share_config(
     SseDeserializer deserializer,
   );
 
@@ -157,6 +182,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScreenshareEvent sse_decode_screenshare_event(SseDeserializer deserializer);
 
   @protected
+  SoundShareConfig sse_decode_sound_share_config(SseDeserializer deserializer);
+
+  @protected
+  SoundShareEvent sse_decode_sound_share_event(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
@@ -181,6 +212,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_sound_share_event_Sse(
+    RustStreamSink<SoundShareEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
@@ -195,6 +232,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_screen_share_config(
     ScreenShareConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sound_share_config(
+    SoundShareConfig self,
     SseSerializer serializer,
   );
 
@@ -249,6 +292,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_screenshare_event(
     ScreenshareEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sound_share_config(
+    SoundShareConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sound_share_event(
+    SoundShareEvent self,
     SseSerializer serializer,
   );
 

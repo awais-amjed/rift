@@ -1,9 +1,9 @@
 //! The capture thread: asks libwebrtc for a frame on every tick and hands
 //! each one to the processing thread in `frames.rs`.
-use super::audio;
 use super::frames::{self, SendableFrame};
 use super::resolution::Size;
 use crate::api::screenshare::types::{CaptureSource, ScreenshareEvent};
+use crate::sharing::audio;
 use livekit::webrtc::desktop_capturer::{
     CaptureError, DesktopCaptureSourceType, DesktopCapturer, DesktopCapturerOptions,
 };

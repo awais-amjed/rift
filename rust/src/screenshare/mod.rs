@@ -4,8 +4,6 @@
 //! never sees any of it. Everything here is `cfg(desktop)` (see build.rs)
 //! except the pure helpers, which are compiled and tested everywhere.
 #[cfg(desktop)]
-pub(crate) mod audio;
-#[cfg(desktop)]
 pub(crate) mod capture;
 #[cfg(desktop)]
 mod frames;

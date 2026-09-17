@@ -1,16 +1,20 @@
-//! System-audio capture for a screen share: what both platforms share.
+//! Capturing an application's sound: what both platforms share.
 //!
 //! Each platform supplies one thing, a thread that produces 16-bit stereo PCM
 //! at 48 kHz. Publishing the track and feeding LiveKit is the same on both
-//! and lives here, so it exists once.
+//! and lives here, so it exists once — for the audio that rides along with a
+//! screen share, and for a sound share, which is only this.
 use crate::api::screenshare::types::{AudioSource, ScreenShareConfig};
+use crate::api::soundshare::SoundShareConfig;
 use livekit::options::TrackPublishOptions;
 use livekit::prelude::*;
 use livekit::track::{LocalAudioTrack, LocalTrack, TrackSource};
 use livekit::webrtc::audio_frame::AudioFrame;
 use livekit::webrtc::audio_source::native::NativeAudioSource;
 use livekit::webrtc::audio_source::{AudioSourceOptions, RtcAudioSource};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::Arc;
 use std::thread::JoinHandle;
 use tokio::sync::mpsc::Sender as FrameSender;
 use tokio::task::JoinHandle as TaskHandle;
@@ -34,20 +38,67 @@ pub(crate) enum Command {
     Terminate,
 }
 
+/// Which application's sound to capture, as each platform asks for it.
+///
+/// The two kinds of share choose it differently — a screen share takes the
+/// audio belonging to the window it is capturing, a sound share is the choice
+/// itself — so they both narrow down to this before any of the code below
+/// cares which one it is serving.
+// Each platform reads its own fields and ignores the others, so on any one of
+// them some of these are dead by definition.
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct AudioSelection {
+    /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
+    pub sink_input: Option<u32>,
+    pub sink: Option<u32>,
+    /// Windows: the process whose audio to capture; none means the whole mix.
+    pub pid: Option<u32>,
+}
+
+impl From<&ScreenShareConfig> for AudioSelection {
+    fn from(config: &ScreenShareConfig) -> Self {
+        Self {
+            sink_input: config.selected_audio_source_index,
+            sink: config.selected_audio_source_sink,
+            pid: config.selected_audio_source_pid,
+        }
+    }
+}
+
+impl From<&SoundShareConfig> for AudioSelection {
+    fn from(config: &SoundShareConfig) -> Self {
+        Self {
+            sink_input: config.selected_audio_source_index,
+            sink: config.selected_audio_source_sink,
+            pid: config.selected_audio_source_pid,
+        }
+    }
+}
+
 /// A platform's capture thread: reads audio until told to stop or until the
 /// receiver goes away, and sends interleaved samples down `frames`.
 pub(crate) type SpawnCapture =
     Box<dyn FnOnce(Receiver<Command>, FrameSender<Vec<i16>>) -> JoinHandle<()> + Send>;
+
+/// What a capture that stops on its own calls, on the feed task. The source
+/// going away — the application closing, the stream ending — reaches us as the
+/// capture thread finishing without having been asked to.
+pub(crate) type OnEnded = Box<dyn Fn() + Send + 'static>;
 
 /// A running audio capture: the platform thread plus the task feeding LiveKit.
 pub(crate) struct AudioCaptureHandle {
     command_tx: Sender<Command>,
     capture_thread: JoinHandle<()>,
     feed_task: TaskHandle<()>,
+    /// Set before the thread is asked to stop, so the feed task can tell a
+    /// teardown from the source disappearing underneath it.
+    stopping: Arc<AtomicBool>,
 }
 
 impl AudioCaptureHandle {
     pub(crate) fn terminate(self) {
+        self.stopping.store(true, Ordering::SeqCst);
         let _ = self.command_tx.send(Command::Terminate);
         // Dropping the feed task drops its receiver, which also unblocks a
         // capture thread that is mid-send.
@@ -58,21 +109,28 @@ impl AudioCaptureHandle {
     }
 }
 
-/// Start capturing whatever `config` asks for on this platform. `None` when
-/// nothing was selected or the platform could not open it; the video share
-/// carries on either way.
-pub(crate) async fn start(room: &Room, config: &ScreenShareConfig) -> Option<AudioCaptureHandle> {
+/// Start capturing [`selection`] on this platform and publish it into `room`.
+/// `None` when nothing was selected or the platform could not open it; a
+/// screen share carries on without its sound either way.
+///
+/// `on_ended` runs if the capture stops by itself — for a sound share, which
+/// *is* the capture, that is the share ending.
+pub(crate) async fn start(
+    room: &Room,
+    selection: AudioSelection,
+    on_ended: Option<OnEnded>,
+) -> Option<AudioCaptureHandle> {
     #[cfg(target_os = "linux")]
     {
-        linux::start(room, config).await
+        linux::start(room, selection, on_ended).await
     }
     #[cfg(target_os = "windows")]
     {
-        windows::start(room, config).await
+        windows::start(room, selection, on_ended).await
     }
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
-        let _ = (room, config);
+        let _ = (room, selection, on_ended);
         log::info!("audio: system audio capture is not available on this platform");
         None
     }
@@ -104,9 +162,15 @@ pub(crate) fn window_pids() -> Vec<(String, u32)> {
 }
 
 /// Publish a screen-share audio track and start the thread that fills it.
+///
+/// The source is `ScreenshareAudio` for a sound share too: LiveKit has no
+/// source for "an application's sound", and this is the one every client
+/// already treats as audio that is not somebody's microphone — including the
+/// server, which leaves it alone when it takes a muted member's mic away.
 pub(crate) async fn publish_and_feed(
     room: &Room,
     spawn: SpawnCapture,
+    on_ended: Option<OnEnded>,
 ) -> Option<AudioCaptureHandle> {
     let source = NativeAudioSource::new(
         AudioSourceOptions::default(),
@@ -137,6 +201,8 @@ pub(crate) async fn publish_and_feed(
     let (command_tx, command_rx) = mpsc::channel();
     let (frame_tx, mut frame_rx) = tokio::sync::mpsc::channel::<Vec<i16>>(FRAMES_IN_FLIGHT);
     let capture_thread = spawn(command_rx, frame_tx);
+    let stopping = Arc::new(AtomicBool::new(false));
+    let ended_flag = Arc::clone(&stopping);
     let feed_task = tokio::spawn(async move {
         while let Some(samples) = frame_rx.recv().await {
             let frame = AudioFrame {
@@ -149,11 +215,21 @@ pub(crate) async fn publish_and_feed(
                 log::warn!("audio: LiveKit refused a frame: {e}");
             }
         }
+        // The channel closed, so the capture thread is gone. If nobody asked
+        // it to stop, the source went away — the application quit, or the
+        // stream it was playing ended.
+        if !ended_flag.load(Ordering::SeqCst) {
+            log::info!("audio: the captured source stopped");
+            if let Some(on_ended) = on_ended {
+                on_ended();
+            }
+        }
     });
     Some(AudioCaptureHandle {
         command_tx,
         capture_thread,
         feed_task,
+        stopping,
     })
 }
 

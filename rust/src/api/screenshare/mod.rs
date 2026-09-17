@@ -11,7 +11,9 @@ pub mod types;
 #[cfg(target_os = "windows")]
 use crate::screenshare::thumbnail;
 #[cfg(desktop)]
-use crate::screenshare::{audio, capture, session};
+use crate::screenshare::{capture, session};
+#[cfg(desktop)]
+use crate::sharing::audio;
 
 use crate::frb_generated::StreamSink;
 use std::sync::Mutex;
