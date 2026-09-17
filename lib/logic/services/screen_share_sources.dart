@@ -58,7 +58,9 @@ class ScreenShareSources {
   /// uses loopback and never asks.
   static Future<List<AudioSource>> listAudio() async {
     try {
-      return await listAudioSources();
+      // A repeated entry would make the picker's value ambiguous, which the
+      // dropdown asserts on.
+      return (await listAudioSources()).toSet().toList();
     } catch (e) {
       HelperMethods.printDebug('Failed to load audio sources: $e');
       return const [];
@@ -76,6 +78,34 @@ class ScreenShareSources {
     if (sources.isEmpty) return null;
     for (final source in sources) {
       if (source.index == persistedIndex) return source;
+    }
+    return sources.first;
+  }
+
+  /// Which audio source to select after a (re)load, as the entry *from
+  /// [sources]*. Sources compare on every field, title included, and a title
+  /// changes whenever the track or tab does — so the previous choice is found
+  /// by its stream, then by its app, and never handed back as it was: a value
+  /// the list does not contain crashes the dropdown.
+  static AudioSource? pickAudioSource(
+    List<AudioSource> sources,
+    AudioSource? previous,
+  ) {
+    if (sources.isEmpty) return null;
+    if (previous != null) {
+      for (final source in sources) {
+        if (source.index == previous.index && source.sink == previous.sink) {
+          return source;
+        }
+      }
+      if (previous.binary.isNotEmpty || previous.appName.isNotEmpty) {
+        for (final source in sources) {
+          if (source.binary == previous.binary &&
+              source.appName == previous.appName) {
+            return source;
+          }
+        }
+      }
     }
     return sources.first;
   }

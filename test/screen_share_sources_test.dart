@@ -34,4 +34,55 @@ void main() {
       expect(ScreenShareSources.pickCaptureSource([], null), isNull);
     });
   });
+
+  group('ScreenShareSources.pickAudioSource', () {
+    AudioSource audio(
+      int index, {
+      int sink = 1,
+      String app = 'Firefox',
+      String binary = 'firefox',
+      String title = 'a tab',
+    }) => AudioSource(
+      index: index,
+      sink: sink,
+      appName: app,
+      binary: binary,
+      mediaName: title,
+    );
+
+    test(
+      'keeps the same stream, as the fresh entry, after its title moved',
+      () {
+        final fresh = audio(5, title: 'the next song');
+        final picked = ScreenShareSources.pickAudioSource([
+          audio(2, app: 'mpv', binary: 'mpv'),
+          fresh,
+        ], audio(5, title: 'a song'));
+        expect(identical(picked, fresh), isTrue);
+      },
+    );
+
+    test('follows the app when its stream was replaced', () {
+      final picked = ScreenShareSources.pickAudioSource([
+        audio(2, app: 'mpv', binary: 'mpv'),
+        audio(9),
+      ], audio(5));
+      expect(picked?.index, 9);
+    });
+
+    test('falls back to the first when the app is gone', () {
+      final picked = ScreenShareSources.pickAudioSource([
+        audio(2, app: 'mpv', binary: 'mpv'),
+      ], audio(5));
+      expect(picked?.index, 2);
+    });
+
+    test(
+      'picks the first when nothing was chosen, and nothing from nothing',
+      () {
+        expect(ScreenShareSources.pickAudioSource([audio(3)], null)?.index, 3);
+        expect(ScreenShareSources.pickAudioSource(const [], audio(3)), isNull);
+      },
+    );
+  });
 }

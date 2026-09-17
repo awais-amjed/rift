@@ -107,9 +107,13 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     setState(() {
       _audioSources = sources;
       _loadingAudioSources = false;
-      if (_draft.selectedAudioSource == null && sources.isNotEmpty) {
-        _draft = _draft.copyWith(selectedAudioSource: sources.first);
-      }
+      final selected = ScreenShareSources.pickAudioSource(
+        sources,
+        _draft.selectedAudioSource,
+      );
+      _draft = selected == null
+          ? _draft.copyWith(clearAudioSource: true)
+          : _draft.copyWith(selectedAudioSource: selected);
     });
   }
 
