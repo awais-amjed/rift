@@ -124,8 +124,22 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(membersSidebarWidth: width));
   }
 
+  /// Flips what the user sees. While focus has the list out of the way,
+  /// that is always "show it", and the choice is kept after focus ends.
   void toggleMembersSidebar() {
-    emit(state.copyWith(membersSidebarOpen: !state.membersSidebarOpen));
+    emit(
+      state.copyWith(
+        membersSidebarOpen: !state.membersSidebarShown,
+        membersHiddenForFocus: false,
+      ),
+    );
+  }
+
+  /// A call tile entered or left focus. Hides the member list for the
+  /// duration without touching the saved choice.
+  void setStageFocused(bool focused) {
+    if (focused == state.membersHiddenForFocus) return;
+    emit(state.copyWith(membersHiddenForFocus: focused));
   }
 
   void setOutputDeviceId(String? deviceId) {

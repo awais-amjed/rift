@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../../data/participant_identity.dart';
 import '../../../../../data/classes/participant_setting.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/room_tiles.dart';
 import '../../../../../logic/services/voice_tiles.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -29,6 +31,31 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   /// identity alone cannot say which of them was tapped.
   String? _expandedKey;
 
+  /// Held from [initState] so [dispose] can still reach it: leaving the call
+  /// with a tile focused must not leave the member list hidden behind it.
+  late final AppCubit _appCubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _appCubit = context.read<AppCubit>();
+  }
+
+  @override
+  void dispose() {
+    if (_expandedKey != null) _appCubit.setStageFocused(false);
+    super.dispose();
+  }
+
+  /// Focus one cell, or none. The member list follows: hidden while a cell
+  /// fills the stage, back to how it was after.
+  void _setExpanded(String? key) {
+    if (key == _expandedKey) return;
+    final wasFocused = _expandedKey != null;
+    setState(() => _expandedKey = key);
+    if (wasFocused != (key != null)) _appCubit.setStageFocused(key != null);
+  }
+
   static String _keyOf(VoiceTile<Participant> tile) =>
       '${tile.participant.identity}${tile.isScreenshare ? '#share' : ''}';
 
@@ -52,15 +79,15 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       isScreenshare: tile.isScreenshare,
       isMuted: _mutedFor(tile.participant.identity),
       onTap: () => _onTileTapped(_keyOf(tile)),
+      // Watching a share is asking to look at it, so it opens focused; a tap
+      // on it brings the others back.
+      onWatchStarted: () => _setExpanded(_keyOf(tile)),
     );
   }
 
-  void _onTileTapped(String key) {
-    setState(() {
-      // Collapse if already expanded, otherwise expand this one.
-      _expandedKey = _expandedKey == key ? null : key;
-    });
-  }
+  /// Collapse if already expanded, otherwise expand this one.
+  void _onTileTapped(String key) =>
+      _setExpanded(_expandedKey == key ? null : key);
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +101,7 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       if (expanded == null) {
         // The cell went away — the sharer stopped, or the participant left.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _expandedKey = null);
+          if (mounted) _setExpanded(null);
         });
       } else {
         return ParticipantTileWidget(
@@ -83,6 +110,8 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
           isMuted: _mutedFor(expanded.participant.identity),
           onTap: () => _onTileTapped(_keyOf(expanded)),
           isExpanded: true,
+          // Nothing left to focus on once the share is gone from this screen.
+          onWatchStopped: () => _setExpanded(null),
         );
       }
     }

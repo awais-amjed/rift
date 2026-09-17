@@ -232,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
       buildWhen: (prev, curr) =>
           prev.titleBarVisible != curr.titleBarVisible ||
           prev.sidebarOpen != curr.sidebarOpen ||
-          prev.membersSidebarOpen != curr.membersSidebarOpen,
+          prev.membersSidebarShown != curr.membersSidebarShown,
       builder: (context, appState) {
         final mode = context.layoutMode;
         final titleBarVisible = appState.titleBarVisible;
@@ -245,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
           sidebarOpen: appState.sidebarOpen,
           membersOpen: mode.membersIsOverlay
               ? _membersOverlayOpen
-              : appState.membersSidebarOpen,
+              : appState.membersSidebarShown,
           toggleSidebar: context.read<AppCubit>().toggleSidebar,
           toggleMembers: () => _toggleMembers(mode),
           dismissOverlays: _dismissOverlays,

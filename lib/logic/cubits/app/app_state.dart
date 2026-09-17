@@ -36,6 +36,10 @@ class AppState {
   /// layout survives a restart.
   final bool membersSidebarOpen;
 
+  /// Whether the docked member list is actually showing: the saved choice,
+  /// unless a focused call tile has it out of the way.
+  bool get membersSidebarShown => membersSidebarOpen && !membersHiddenForFocus;
+
   /// How wide the user has dragged the left sidebar. Stored raw and clamped
   /// on read by [SidebarSizing], because the window it was chosen in is not
   /// necessarily the window it will next be shown in.
@@ -69,6 +73,12 @@ class AppState {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final HomeSurface surface;
 
+  /// Whether the docked member list is out of the way for a focused call
+  /// tile. Kept apart from [membersSidebarOpen] so leaving focus puts back
+  /// whatever the user had, without anything remembering it.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool membersHiddenForFocus;
+
   const AppState({
     this.sidebarOpen = true,
     this.audioEnabled = true,
@@ -100,6 +110,7 @@ class AppState {
     this.selectedChannelId,
     this.participants = const [],
     this.surface = HomeSurface.server,
+    this.membersHiddenForFocus = false,
   });
 
   AppState copyWith({
@@ -137,6 +148,7 @@ class AppState {
     bool clearSelectedChannelId = false,
     List<ParticipantInfo>? participants,
     HomeSurface? surface,
+    bool? membersHiddenForFocus,
   }) {
     return AppState(
       sidebarOpen: sidebarOpen ?? this.sidebarOpen,
@@ -179,6 +191,8 @@ class AppState {
           : (selectedChannelId ?? this.selectedChannelId),
       participants: participants ?? this.participants,
       surface: surface ?? this.surface,
+      membersHiddenForFocus:
+          membersHiddenForFocus ?? this.membersHiddenForFocus,
     );
   }
 

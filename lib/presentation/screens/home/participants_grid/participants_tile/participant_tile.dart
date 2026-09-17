@@ -35,6 +35,12 @@ class ParticipantTileWidget extends StatefulWidget {
   final VoidCallback? onTap;
   final bool isExpanded;
 
+  /// Called once the viewer has asked to watch this screen share, and once
+  /// they have asked to stop. The grid uses them to take the share in and
+  /// out of focus.
+  final VoidCallback? onWatchStarted;
+  final VoidCallback? onWatchStopped;
+
   const ParticipantTileWidget({
     super.key,
     required this.participant,
@@ -42,6 +48,8 @@ class ParticipantTileWidget extends StatefulWidget {
     this.isMuted = false,
     this.onTap,
     this.isExpanded = false,
+    this.onWatchStarted,
+    this.onWatchStopped,
   });
 
   @override
@@ -149,13 +157,19 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     }
   }
 
-  Future<void> _subscribeToScreenshare() => context
-      .read<LiveKitCubit>()
-      .subscribeToScreenshare(widget.participant.identity);
+  Future<void> _subscribeToScreenshare() {
+    widget.onWatchStarted?.call();
+    return context.read<LiveKitCubit>().subscribeToScreenshare(
+      widget.participant.identity,
+    );
+  }
 
-  Future<void> _unsubscribeFromScreenshare() => context
-      .read<LiveKitCubit>()
-      .unsubscribeFromScreenshare(widget.participant.identity);
+  Future<void> _unsubscribeFromScreenshare() {
+    widget.onWatchStopped?.call();
+    return context.read<LiveKitCubit>().unsubscribeFromScreenshare(
+      widget.participant.identity,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
