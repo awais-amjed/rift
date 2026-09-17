@@ -69,11 +69,10 @@ class _ContextStripState extends State<ContextStrip> {
                 return BlocBuilder<LiveKitCubit, LiveKitState>(
                   builder: (context, lkState) {
                     // Count distinct users, not raw connections, so a user on
-                    // multiple devices (or their screenshare) counts once.
+                    // multiple devices (or sharing a screen or a track)
+                    // counts once.
                     final count = lkState.participants
-                        .where(
-                          (p) => !ParticipantIdentity.isScreenshare(p.identity),
-                        )
+                        .where((p) => !ParticipantIdentity.isShare(p.identity))
                         .map((p) => ParticipantIdentity.userIdOf(p.identity))
                         .toSet()
                         .length;

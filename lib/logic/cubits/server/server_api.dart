@@ -48,11 +48,13 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   Future<APIResponse> getChannelToken(
     String channelId, {
     bool screenShare = false,
+    bool soundShare = false,
   }) => _callWithAutoRefresh(
     (token) => _repository.getChannelToken(
       state.selectedServer!.supabaseUrl,
       channelId,
       screenShare: screenShare,
+      soundShare: soundShare,
       bearerToken: token,
     ),
   );

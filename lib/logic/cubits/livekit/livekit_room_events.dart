@@ -17,6 +17,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   void _applyStoredSettings();
   void _applyScreenshareQualitySettings(Participant participant);
 
+  /// Whether [identity] is a share this client started — see
+  /// [_LiveKitCubit._isOwnShare].
+  bool _isOwnShare(String identity);
+
   /// Public because the connection mixin wires this up when a room is
   /// created — cubit-internal, not part of the UI-facing API.
   void setupRoomListeners(Room room) {
@@ -30,7 +34,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         // participant drops their frames, and somebody who joined a moment
         // before you registered them would simply never be audible.
         unawaited(_registerParticipantKey(identity));
-        if (ParticipantIdentity.isScreenshare(identity)) {
+        if (ParticipantIdentity.isShare(identity)) {
           SoundService.instance.playStreamStarted();
         } else {
           SoundService.instance.playJoin();
@@ -40,7 +44,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       })
       ..on<ParticipantDisconnectedEvent>((e) {
         final identity = e.participant.identity;
-        if (ParticipantIdentity.isScreenshare(identity)) {
+        if (ParticipantIdentity.isShare(identity)) {
           SoundService.instance.playStreamEnded();
         } else {
           SoundService.instance.playLeave();
@@ -51,7 +55,16 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         _syncParticipants();
         _applyStoredSettings();
 
-        if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
+        if (ParticipantIdentity.isSoundShare(e.participant.identity)) {
+          // A shared track is heard like a person: subscribed by default, and
+          // turned down or off per listener. The one exception is the sharer,
+          // who is already listening to it out of their own speakers — their
+          // own share reaches them as any other participant would, so it has
+          // to be dropped explicitly or they hear themselves twice over.
+          if (_isOwnShare(e.participant.identity) && e.publication.subscribed) {
+            e.publication.unsubscribe();
+          }
+        } else if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
           if (!state.subscribedScreenshares.contains(e.participant.identity)) {
             // Prevent auto-subscription to unsubscribed screenshares.
             if (e.publication.subscribed) e.publication.unsubscribe();
@@ -74,7 +87,11 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         // silence — connected, subscribed, and decrypting nothing.
         unawaited(_registerSubscribedKey(e.participant.identity));
 
-        if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
+        if (ParticipantIdentity.isSoundShare(e.participant.identity)) {
+          if (_isOwnShare(e.participant.identity)) {
+            e.publication.unsubscribe();
+          }
+        } else if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
           if (e.publication.source == TrackSource.screenShareVideo) {
             if (state.subscribedScreenshares.contains(e.participant.identity)) {
               e.publication.setVideoQuality(VideoQuality.HIGH);

@@ -63,6 +63,58 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     _appCubit.setParticipantSetting(userId, muted: muted);
   }
 
+  /// Every connection carrying [identity]'s owner's shared sound. Keyed by
+  /// user like [_connectionsOf], so a share stays muted if its owner restarts
+  /// it — the identity's device segment is new every launch.
+  Iterable<RemoteParticipant> _soundShareConnectionsOf(String identity) {
+    final userId = ParticipantIdentity.userIdOf(identity);
+    return state.room?.remoteParticipants.values.where(
+          (p) =>
+              ParticipantIdentity.isSoundShare(p.identity) &&
+              ParticipantIdentity.userIdOf(p.identity) == userId,
+        ) ??
+        const [];
+  }
+
+  /// Locally mutes or unmutes somebody's shared sound (this listener only).
+  ///
+  /// Stored apart from the person's own mute: a room where one member has
+  /// music on should be able to turn the music down without also turning that
+  /// member down, which is the whole point of the share having a tile of its
+  /// own.
+  Future<void> setSoundShareMute(String identity, bool muted) async {
+    for (final participant in _soundShareConnectionsOf(identity)) {
+      for (final pub in participant.audioTrackPublications) {
+        final track = pub.track;
+        if (track != null) track.mediaStreamTrack.enabled = !muted;
+      }
+    }
+    _appCubit.setParticipantSetting(
+      ParticipantIdentity.soundShareSettingsKey(identity),
+      muted: muted,
+    );
+  }
+
+  /// Sets the local volume of somebody's shared sound — see
+  /// [setSoundShareMute] for why it is stored apart from their own.
+  Future<void> setSoundShareVolume(String identity, double volume) async {
+    for (final participant in _soundShareConnectionsOf(identity)) {
+      for (final pub in participant.audioTrackPublications) {
+        final track = pub.track;
+        if (track == null) continue;
+        try {
+          await rtc.Helper.setVolume(volume, track.mediaStreamTrack);
+        } catch (e) {
+          debugPrint('setSoundShareVolume error: $e');
+        }
+      }
+    }
+    _appCubit.setParticipantSetting(
+      ParticipantIdentity.soundShareSettingsKey(identity),
+      volume: volume,
+    );
+  }
+
   /// Sets the local volume for a remote participant's audio (this user only).
   /// Persisted per user and applied on their next join — see
   /// [setParticipantMute] for why [target] may be a bare user id.

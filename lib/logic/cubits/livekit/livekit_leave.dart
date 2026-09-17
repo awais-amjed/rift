@@ -15,6 +15,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// Implemented by the cubit and its other mixins.
   AppCubit get _appCubit;
   ScreenshareCubit? get _screenshareCubit;
+  SoundShareCubit? get _soundShareCubit;
   List<EventsListener<RoomEvent>> get _listeners;
   Future<void> _stopVoiceActivityMonitor();
 
@@ -30,6 +31,11 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
     try {
       if (_screenshareCubit?.state.isSharing == true) {
         await _screenshareCubit?.stopScreenShare();
+      }
+      // Same for a shared track: its connection outlives the call otherwise,
+      // playing to a room the sharer has left.
+      if (_soundShareCubit?.state.isSharing == true) {
+        await _soundShareCubit?.stopSoundShare();
       }
 
       unawaited(SoundService.instance.playLeave());

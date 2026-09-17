@@ -34,6 +34,7 @@ import '../../services/voice_signal.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
+import '../sound_share/sound_share_cubit.dart';
 import '../token/token_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -72,6 +73,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
   @override
   ScreenshareCubit? _screenshareCubit;
   @override
+  SoundShareCubit? _soundShareCubit;
+  @override
   final List<EventsListener<RoomEvent>> _listeners = [];
 
   /// Guards `disconnect` against re-entering itself — see its doc comment.
@@ -101,6 +104,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
   void setScreenshareCubit(ScreenshareCubit cubit) {
     _screenshareCubit = cubit;
+  }
+
+  void setSoundShareCubit(SoundShareCubit cubit) {
+    _soundShareCubit = cubit;
   }
 
   /// Keeps the call notification's mute button honest.
@@ -193,6 +200,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
         isCameraEnabled: p.isCameraEnabled(),
         isLocal: p is LocalParticipant,
         isScreenshare: ParticipantIdentity.isScreenshare(p.identity),
+        isSoundShare: ParticipantIdentity.isSoundShare(p.identity),
         isServerMuted: moderation.muted,
         isServerDeafened: moderation.deafened,
       );
@@ -212,7 +220,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
   void _syncSelfModeration(List<ParticipantInfo> infos) {
     ParticipantInfo? me;
     for (final info in infos) {
-      if (info.isLocal && !info.isScreenshare) {
+      if (info.isLocal && !info.isShare) {
         me = info;
         break;
       }
@@ -368,6 +376,14 @@ class LiveKitCubit extends Cubit<LiveKitState>
     }
   }
 
+  /// Whether [identity] is a share started by *this* client — the sharer's own
+  /// screen or track, arriving back as a second connection of theirs.
+  @override
+  bool _isOwnShare(String identity) => ParticipantIdentity.isShareOf(
+    identity,
+    state.room?.localParticipant?.identity,
+  );
+
   /// Re-applies persisted mute/volume settings to current remote participants.
   @override
   void _applyStoredSettings() {
@@ -378,12 +394,18 @@ class LiveKitCubit extends Cubit<LiveKitState>
     for (final participant in room.remoteParticipants.values) {
       final identity = participant.identity;
 
-      // Screenshare participants have their audio managed separately.
+      // A screen share's audio is subscribed to only while it is watched, so
+      // it is managed there rather than here.
       if (ParticipantIdentity.isScreenshare(identity)) continue;
 
       // Per-user local mute/volume is keyed by user id, not the raw identity
-      // (which carries a per-device segment).
-      final setting = settings[ParticipantIdentity.userIdOf(identity)];
+      // (which carries a per-device segment) — except for a shared track,
+      // which is stored under a key of its own so that turning the music down
+      // does not also turn its owner down.
+      final setting =
+          settings[ParticipantIdentity.isSoundShare(identity)
+              ? ParticipantIdentity.soundShareSettingsKey(identity)
+              : ParticipantIdentity.userIdOf(identity)];
       if (setting == null) continue;
 
       for (final pub in participant.audioTrackPublications) {

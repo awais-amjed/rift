@@ -57,14 +57,14 @@ class VoiceChannelTile extends StatelessWidget {
           builder: (context, appState) {
             return BlocBuilder<ChannelPresenceCubit, ChannelPresenceState>(
               builder: (context, presenceState) {
-                // Screenshare pseudo-participants aren't people, and anyone
+                // A share's connection isn't a person, and anyone
                 // who has since announced another channel has left this one —
                 // LiveKit just hasn't said so yet (ChannelPresenceState.
                 // isElsewhere).
                 final participants = isSelected
                     ? [
                         for (final participant in appState.participants)
-                          if (!participant.isScreenshare &&
+                          if (!participant.isShare &&
                               !presenceState.isElsewhere(
                                 participant.userId,
                                 channel.id,

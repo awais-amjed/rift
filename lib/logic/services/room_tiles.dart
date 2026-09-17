@@ -14,8 +14,15 @@ List<VoiceTile<Participant>> roomVoiceTiles(
 ) {
   return voiceTilesFor(
     participants,
-    hasScreenshareIdentity: (p) =>
-        ParticipantIdentity.isScreenshare(p.identity),
+    shareKindOf: (p) {
+      if (ParticipantIdentity.isScreenshare(p.identity)) {
+        return VoiceTileKind.screenshare;
+      }
+      if (ParticipantIdentity.isSoundShare(p.identity)) {
+        return VoiceTileKind.soundShare;
+      }
+      return null;
+    },
     publishesScreenshare: (p) => p.videoTrackPublications.any(
       (pub) => pub.source == TrackSource.screenShareVideo,
     ),

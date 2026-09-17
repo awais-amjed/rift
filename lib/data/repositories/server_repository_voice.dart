@@ -31,15 +31,22 @@ mixin _VoiceApiMixin {
   }
 
   /// Get a LiveKit JWT for joining a channel.
+  ///
+  /// [screenShare] and [soundShare] each ask for the identity of that kind of
+  /// share instead of the caller's own — a share is a second connection, and
+  /// the two kinds have suffixes of their own so one member can run both at
+  /// once without their connections kicking each other.
   Future<APIResponse> getChannelToken(
     String supabaseUrl,
     String channelId, {
     bool screenShare = false,
+    bool soundShare = false,
     String? bearerToken,
   }) {
     return _post(supabaseUrl, 'get_channel_token', {
       'channel_id': channelId,
       'screen_share': screenShare,
+      'sound_share': soundShare,
       'device_id': _deviceId,
     }, bearerToken: bearerToken);
   }

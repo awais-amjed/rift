@@ -4,14 +4,15 @@ import '../../data/classes/participant_info.dart';
 class ParticipantRoster {
   const ParticipantRoster._();
 
-  /// A user present from several devices appears once (and once more for their
-  /// screenshare). The surviving entry prefers the local participant, then a
-  /// speaking one, then a mic-enabled one — so the row reflects the device
-  /// they are actually talking from.
+  /// A user present from several devices appears once — and once more for
+  /// each kind of share they have running, which is a connection of theirs
+  /// rather than another of them. The surviving entry prefers the local
+  /// participant, then a speaking one, then a mic-enabled one, so the row
+  /// reflects the device they are actually talking from.
   static List<ParticipantInfo> dedupeByUser(List<ParticipantInfo> infos) {
     final byKey = <String, ParticipantInfo>{};
     for (final info in infos) {
-      final key = '${info.userId}|${info.isScreenshare}';
+      final key = '${info.userId}|${_kind(info)}';
       final existing = byKey[key];
       if (existing == null || _rank(info) > _rank(existing)) {
         byKey[key] = info;
@@ -40,6 +41,14 @@ class ParticipantRoster {
       if (info.identity == identity) return info.isSpeaking;
     }
     return fallback;
+  }
+
+  /// Which of a user's connections this is: themselves, their screen, or
+  /// their sound. Two of them must not collapse into one row.
+  static int _kind(ParticipantInfo p) {
+    if (p.isScreenshare) return 1;
+    if (p.isSoundShare) return 2;
+    return 0;
   }
 
   static int _rank(ParticipantInfo p) =>

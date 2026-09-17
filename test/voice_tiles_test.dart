@@ -12,7 +12,11 @@ class P {
 
 List<VoiceTile<P>> tiles(List<P> participants) => voiceTilesFor(
   participants,
-  hasScreenshareIdentity: (p) => p.identity.endsWith('_screenshare'),
+  shareKindOf: (p) {
+    if (p.identity.endsWith('_screenshare')) return VoiceTileKind.screenshare;
+    if (p.identity.endsWith('_soundshare')) return VoiceTileKind.soundShare;
+    return null;
+  },
   publishesScreenshare: (p) => p.sharing,
 );
 
@@ -83,6 +87,31 @@ void main() {
 
     expect(result, hasLength(1));
     expect(result.single.isScreenshare, isTrue);
+  });
+
+  // A sound share is a connection of its own too, and the grid has to tell it
+  // apart from a screen: one is watched, the other is only heard, and drawing
+  // a shared track as a screenshare gives it a Watch button over a black box.
+  test('a shared track is its own kind of cell', () {
+    final result = tiles([const P('alice~dev1_soundshare')]);
+
+    expect(result, hasLength(1));
+    expect(result.single.kind, VoiceTileKind.soundShare);
+    expect(result.single.isScreenshare, isFalse);
+  });
+
+  test('somebody can share a screen and a track at once', () {
+    final result = tiles([
+      const P('alice~dev1'),
+      const P('alice~dev1_screenshare'),
+      const P('alice~dev1_soundshare'),
+    ]);
+
+    expect(result.map((t) => t.kind), [
+      VoiceTileKind.person,
+      VoiceTileKind.screenshare,
+      VoiceTileKind.soundShare,
+    ]);
   });
 
   test('nobody in the room is no cells', () {

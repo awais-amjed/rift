@@ -50,6 +50,63 @@ void main() {
     });
   });
 
+  group('ParticipantIdentity sound shares', () {
+    const sound = '$userId~$device${ParticipantIdentity.soundShareSuffix}';
+    const screen = '$userId~$device${ParticipantIdentity.screenshareSuffix}';
+
+    test('a sound share is a share, mapped to the connection that made it', () {
+      expect(ParticipantIdentity.isSoundShare(sound), isTrue);
+      expect(ParticipantIdentity.isScreenshare(sound), isFalse);
+      expect(ParticipantIdentity.isShare(sound), isTrue);
+      expect(ParticipantIdentity.baseOf(sound), '$userId~$device');
+      expect(ParticipantIdentity.userIdOf(sound), userId);
+    });
+
+    // Turning the music down must not turn its owner down, so the two
+    // settings cannot share a key.
+    test('its settings key is not the owner’s', () {
+      expect(
+        ParticipantIdentity.soundShareSettingsKey(sound),
+        isNot(ParticipantIdentity.userIdOf(sound)),
+      );
+      // And it survives a restart, where the device segment does not.
+      expect(
+        ParticipantIdentity.soundShareSettingsKey(
+          '$userId~zzzzzzzz${ParticipantIdentity.soundShareSuffix}',
+        ),
+        ParticipantIdentity.soundShareSettingsKey(sound),
+      );
+    });
+
+    // Your own share reaches you as a remote connection. Missing this is the
+    // sharer hearing their own music back, a beat late.
+    group('isShareOf', () {
+      test('recognises this device’s own shares', () {
+        expect(ParticipantIdentity.isShareOf(sound, '$userId~$device'), isTrue);
+        expect(
+          ParticipantIdentity.isShareOf(screen, '$userId~$device'),
+          isTrue,
+        );
+      });
+
+      // The same person on a phone is not playing the music out loud, so
+      // they should hear the share like anybody else.
+      test('a share from another device of theirs is not this one’s', () {
+        expect(
+          ParticipantIdentity.isShareOf(sound, '$userId~otherdev'),
+          isFalse,
+        );
+      });
+
+      test('the connection itself is not one of its own shares', () {
+        expect(
+          ParticipantIdentity.isShareOf('$userId~$device', '$userId~$device'),
+          isFalse,
+        );
+      });
+    });
+  });
+
   // Local mute/volume used to find its target with an exact room-key match on
   // the identity it was handed. That silenced one connection: a member on two
   // devices stayed audible on the other, and muting from the members sidebar
@@ -71,6 +128,13 @@ void main() {
 
     test('leaves their screenshare out', () {
       expect(ParticipantIdentity.isVoiceConnectionOf(share, userId), isFalse);
+    });
+
+    // A shared track is somebody's music, not their voice. Muting the person
+    // must not silence it, and muting it must not silence the person.
+    test('leaves their shared sound out', () {
+      const sound = '$userId~$device${ParticipantIdentity.soundShareSuffix}';
+      expect(ParticipantIdentity.isVoiceConnectionOf(sound, userId), isFalse);
     });
 
     test('does not match somebody else', () {

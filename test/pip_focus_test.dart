@@ -11,8 +11,10 @@ class P {
   const P(this.name, {this.local = false, this.speaking = false});
 }
 
-VoiceTile<P> cell(P p, {bool screen = false}) =>
-    VoiceTile(participant: p, isScreenshare: screen);
+VoiceTile<P> cell(P p, {bool screen = false}) => VoiceTile(
+  participant: p,
+  kind: screen ? VoiceTileKind.screenshare : VoiceTileKind.person,
+);
 
 /// One rectangle, several candidates. What goes in it is the thing you left
 /// the app still wanting to see.
