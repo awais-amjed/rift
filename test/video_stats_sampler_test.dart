@@ -140,4 +140,25 @@ void main() {
       );
     });
   });
+
+  group('VideoStreamStats.qualityLabel', () {
+    test('names a window capture by its nearest picture class', () {
+      const stats = VideoStreamStats(width: 1920, height: 1048, fps: 59.4);
+      expect(stats.qualityLabel, '1080p · 60fps');
+    });
+
+    test('uses the shorter side for a tall picture', () {
+      const stats = VideoStreamStats(width: 720, height: 1280, fps: 30);
+      expect(stats.qualityLabel, '720p · 30fps');
+    });
+
+    test('leaves the rate out until there is one', () {
+      const stats = VideoStreamStats(width: 1280, height: 720);
+      expect(stats.qualityLabel, '720p');
+    });
+
+    test('says nothing without a picture size', () {
+      expect(const VideoStreamStats(fps: 60).qualityLabel, isNull);
+    });
+  });
 }

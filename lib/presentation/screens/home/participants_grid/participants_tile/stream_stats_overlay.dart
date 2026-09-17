@@ -1,8 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
@@ -12,17 +9,17 @@ import '../../../../theme/custom_colors.dart';
 
 /// Live receive-side statistics for one video track, drawn over the tile.
 ///
-/// Polls once a second and renders whatever the sampler could work out;
-/// rows for values it has no number for are simply absent. Pinning keeps the
+/// Renders whatever `StreamStatsPoller` could work out; rows for values it
+/// has no number for are simply absent. Pinning keeps the
 /// overlay up when the tile's other controls fade — it persists in
 /// [AppCubit] and is reported through [onPinnedChanged].
 class StreamStatsOverlay extends StatefulWidget {
-  final VideoTrack track;
+  final VideoStreamStats? stats;
   final ValueChanged<bool>? onPinnedChanged;
 
   const StreamStatsOverlay({
     super.key,
-    required this.track,
+    required this.stats,
     this.onPinnedChanged,
   });
 
@@ -31,45 +28,16 @@ class StreamStatsOverlay extends StatefulWidget {
 }
 
 class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
-  static const _pollInterval = Duration(seconds: 1);
-
   /// Above these, the value is drawn in warning colours.
   static const _highPingMs = 150.0;
   static const _highJitterMs = 30.0;
 
-  final _sampler = VideoStatsSampler();
-  Timer? _statsTimer;
-  VideoStreamStats? _stats;
   bool _pinned = false;
 
   @override
   void initState() {
     super.initState();
     _pinned = context.read<AppCubit>().state.statsOverlayPinned;
-    _statsTimer = Timer.periodic(_pollInterval, (_) => _updateStats());
-    _updateStats();
-  }
-
-  @override
-  void dispose() {
-    _statsTimer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _updateStats() async {
-    if (!mounted) return;
-    final receiver = widget.track.receiver;
-    if (receiver == null) return;
-
-    try {
-      final reports = await receiver.getStats();
-      if (!mounted) return;
-      final stats = _sampler.sample(reports);
-      if (stats != null) setState(() => _stats = stats);
-    } catch (_) {
-      // The track may not be subscribed yet, or stats may be unavailable.
-      // The next poll will pick them up.
-    }
   }
 
   void _togglePinned() {
@@ -80,7 +48,7 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final stats = _stats;
+    final stats = widget.stats;
     if (stats == null || !stats.hasResolution) return const SizedBox.shrink();
 
     final packetsLost = stats.packetsLost;

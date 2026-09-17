@@ -9,6 +9,8 @@ import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
 import 'shape_reporting_video.dart';
 import 'stop_watching_button.dart';
+import 'stream_quality_badge.dart';
+import 'stream_stats_poller.dart';
 import 'watch_stream_button.dart';
 
 /// A participant as they appear in the grid: video or avatar in a rounded
@@ -97,11 +99,23 @@ class CollapsedParticipantTile extends StatelessWidget {
               Positioned(
                 bottom: 12,
                 left: 12,
-                child: ParticipantNameBadge(
-                  name: name,
-                  isMicEnabled: isMicEnabled,
-                  isMuted: isMuted,
-                  isScreenshare: isScreenshare,
+                // Only someone else's share you are watching has receive
+                // stats; the poller does nothing for anything else.
+                child: StreamStatsPoller(
+                  track: showStopButton ? videoTrack : null,
+                  builder: (context, stats) => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: 6,
+                    children: [
+                      ParticipantNameBadge(
+                        name: name,
+                        isMicEnabled: isMicEnabled,
+                        isMuted: isMuted,
+                        isScreenshare: isScreenshare,
+                      ),
+                      StreamQualityBadge(stats: stats),
+                    ],
+                  ),
                 ),
               ),
             ],

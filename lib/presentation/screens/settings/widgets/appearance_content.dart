@@ -87,6 +87,20 @@ class AppearanceContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
+        SectionTitle(label: 'Streams'),
+        const SizedBox(height: 12),
+        SettingToggleRow(
+          title: 'Detailed stream stats',
+          description:
+              'Shows bitrate, ping, jitter, packet loss and codec over a '
+              'stream you are watching. The resolution and frame rate are '
+              'always shown beside the sharer\'s name.',
+          value: context.select<AppCubit, bool>((c) => c.state.showStreamStats),
+          onChanged: (v) => context.read<AppCubit>().setShowStreamStats(v),
+        ),
+
+        const SizedBox(height: 28),
+
         SectionTitle(label: 'Sensitive content'),
         const SizedBox(height: 4),
         Text(

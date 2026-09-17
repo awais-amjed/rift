@@ -103,6 +103,9 @@ class AppCubit extends HydratedCubit<AppState> {
     );
   }
 
+  void setShowStreamStats(bool value) =>
+      emit(state.copyWith(showStreamStats: value));
+
   void setStatsOverlayPinned(bool pinned) {
     emit(state.copyWith(statsOverlayPinned: pinned));
   }

@@ -31,6 +31,7 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   windowY: (json['windowY'] as num?)?.toDouble(),
   disableAudioDucking: json['disableAudioDucking'] as bool? ?? false,
   statsOverlayPinned: json['statsOverlayPinned'] as bool? ?? false,
+  showStreamStats: json['showStreamStats'] as bool? ?? false,
   sensitiveContentMode:
       $enumDecodeNullable(
         _$SensitiveContentModeEnumMap,
@@ -73,6 +74,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'windowY': instance.windowY,
   'disableAudioDucking': instance.disableAudioDucking,
   'statsOverlayPinned': instance.statsOverlayPinned,
+  'showStreamStats': instance.showStreamStats,
   'sensitiveContentMode':
       _$SensitiveContentModeEnumMap[instance.sensitiveContentMode]!,
   'linkPreviewsEnabled': instance.linkPreviewsEnabled,

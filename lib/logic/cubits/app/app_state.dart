@@ -23,6 +23,10 @@ class AppState {
   final bool disableAudioDucking;
   final bool statsOverlayPinned;
 
+  /// Whether a watched stream shows the full stats card. Off by default: the
+  /// quality badge beside the sharer's name covers what most people check.
+  final bool showStreamStats;
+
   /// What to do with an image the on-device classifier flags. Per device,
   /// because the verdict is: the model runs on bytes only this device holds.
   final SensitiveContentMode sensitiveContentMode;
@@ -95,6 +99,7 @@ class AppState {
     this.windowY,
     this.disableAudioDucking = false,
     this.statsOverlayPinned = false,
+    this.showStreamStats = false,
     this.sensitiveContentMode = SensitiveContentMode.blur,
     this.linkPreviewsEnabled = true,
     this.outputDeviceId,
@@ -130,6 +135,7 @@ class AppState {
     double? windowY,
     bool? disableAudioDucking,
     bool? statsOverlayPinned,
+    bool? showStreamStats,
     SensitiveContentMode? sensitiveContentMode,
     bool? linkPreviewsEnabled,
     String? outputDeviceId,
@@ -170,6 +176,7 @@ class AppState {
       windowY: windowY ?? this.windowY,
       disableAudioDucking: disableAudioDucking ?? this.disableAudioDucking,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
+      showStreamStats: showStreamStats ?? this.showStreamStats,
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,
       linkPreviewsEnabled: linkPreviewsEnabled ?? this.linkPreviewsEnabled,
       outputDeviceId: clearOutputDeviceId

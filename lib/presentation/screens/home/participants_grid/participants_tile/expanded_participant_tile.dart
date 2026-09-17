@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/services/video_stats_sampler.dart';
 import '../../../../theme/app_motion.dart';
 import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
+import 'stream_quality_badge.dart';
 import 'stream_stats_overlay.dart';
+import 'stream_stats_poller.dart';
 import 'watch_stream_button.dart';
 
 /// A participant filling the stage. Same content as the grid tile without the
@@ -69,57 +74,75 @@ class ExpandedParticipantTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showStats = context.select<AppCubit, bool>(
+      (c) => c.state.showStreamStats,
+    );
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerMove: (_) => onActivity(),
       onPointerHover: (_) => onActivity(),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (videoTrack != null)
-            VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain)
-          else if (!showWatchButton)
-            AvatarPlaceholder(name: name, seed: userId),
-          if (showStopButton && videoTrack != null)
-            AnimatedPositioned(
-              duration: _fade,
-              curve: Curves.easeInOut,
-              top: 12 + topInset,
-              right: 12,
-              // Pinned stats stay put even after the other overlays fade.
-              child: _fading(
-                visible: showOverlays || statsPinned,
-                child: StreamStatsOverlay(
-                  track: videoTrack!,
-                  onPinnedChanged: onStatsPinnedChanged,
-                ),
-              ),
-            ),
-          if (showWatchButton) WatchStreamButton(onTap: onWatch),
-          if (showStopButton)
-            Positioned(
-              bottom: 12,
-              right: 12,
-              child: _fading(
-                visible: showOverlays,
-                child: StopWatchingButton(onTap: onStopWatching),
-              ),
-            ),
-          Positioned(
-            bottom: 12,
-            left: 12,
+      // Only someone else's share you are watching has receive stats.
+      child: StreamStatsPoller(
+        track: showStopButton ? videoTrack : null,
+        builder: (context, stats) => _stage(stats, showStats: showStats),
+      ),
+    );
+  }
+
+  Widget _stage(VideoStreamStats? stats, {required bool showStats}) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (videoTrack != null)
+          VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain)
+        else if (!showWatchButton)
+          AvatarPlaceholder(name: name, seed: userId),
+        if (showStats && stats != null)
+          AnimatedPositioned(
+            duration: _fade,
+            curve: Curves.easeInOut,
+            top: 12 + topInset,
+            right: 12,
+            // Pinned stats stay put even after the other overlays fade.
             child: _fading(
-              visible: showOverlays,
-              child: ParticipantNameBadge(
-                name: name,
-                isMicEnabled: isMicEnabled,
-                isMuted: isMuted,
-                isScreenshare: isScreenshare,
+              visible: showOverlays || statsPinned,
+              child: StreamStatsOverlay(
+                stats: stats,
+                onPinnedChanged: onStatsPinnedChanged,
               ),
             ),
           ),
-        ],
-      ),
+        if (showWatchButton) WatchStreamButton(onTap: onWatch),
+        if (showStopButton)
+          Positioned(
+            bottom: 12,
+            right: 12,
+            child: _fading(
+              visible: showOverlays,
+              child: StopWatchingButton(onTap: onStopWatching),
+            ),
+          ),
+        Positioned(
+          bottom: 12,
+          left: 12,
+          child: _fading(
+            visible: showOverlays,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 6,
+              children: [
+                ParticipantNameBadge(
+                  name: name,
+                  isMicEnabled: isMicEnabled,
+                  isMuted: isMuted,
+                  isScreenshare: isScreenshare,
+                ),
+                StreamQualityBadge(stats: stats),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
