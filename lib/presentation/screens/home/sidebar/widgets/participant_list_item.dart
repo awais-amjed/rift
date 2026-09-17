@@ -12,8 +12,8 @@ import '../../../../common/hover_builder.dart';
 import '../../../../common/speaking_ring.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../responsive/shell_scope.dart';
-import '../../../../theme/custom_colors.dart';
 import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_row_metrics.dart';
+import 'voice_status_row_icons.dart';
 
 /// A single participant row inside an active voice channel.
 class ParticipantListItem extends StatelessWidget {
@@ -101,35 +101,11 @@ class ParticipantListItem extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Server-side moderation indicators
-                  if (participant.isServerDeafened) ...[
-                    Tooltip(
-                      message: 'Deafened by a moderator',
-                      child: Icon(
-                        Icons.headset_off,
-                        size: RosterRowMetrics.of(context).iconSize,
-                        color: CustomColors.error.withValues(alpha: 0.85),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  if (participant.isServerMuted) ...[
-                    Tooltip(
-                      message: 'Muted by a moderator',
-                      child: Icon(
-                        Icons.mic_off,
-                        size: RosterRowMetrics.of(context).iconSize,
-                        color: CustomColors.error.withValues(alpha: 0.85),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  // Mic icon
-                  if (!participant.isServerMuted)
-                    _MicIcon(
-                      isMuted: isMuted,
-                      isMicEnabled: participant.isMicrophoneEnabled,
-                    ),
+                  // What they are doing: sharing, deafened, muted.
+                  VoiceStatusRowIcons(
+                    participant: participant,
+                    mutedForYou: isMuted,
+                  ),
                   // Local mute and volume live in this menu, and nothing on
                   // the row suggested they existed.
                   if (contextMenu != null && !context.layoutMode.isCompact) ...[
@@ -147,46 +123,6 @@ class ParticipantListItem extends StatelessWidget {
         }
 
         return content;
-      },
-    );
-  }
-}
-
-class _MicIcon extends StatelessWidget {
-  final bool isMuted;
-  final bool isMicEnabled;
-
-  const _MicIcon({required this.isMuted, required this.isMicEnabled});
-
-  @override
-  Widget build(BuildContext context) {
-    return HoverBuilder(
-      builder: (context, hovered) => _build(context, hovered),
-    );
-  }
-
-  Widget _build(BuildContext context, bool hovered) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        if (isMuted) {
-          return Icon(
-            Icons.volume_off,
-            size: RosterRowMetrics.of(context).iconSize,
-            color: CustomColors.error.withValues(alpha: 0.7),
-          );
-        }
-        if (isMicEnabled) {
-          return Icon(
-            Icons.mic,
-            size: RosterRowMetrics.of(context).iconSize,
-            color: themeState.textQuaternary,
-          );
-        }
-        return Icon(
-          Icons.mic_off,
-          size: RosterRowMetrics.of(context).iconSize,
-          color: CustomColors.error,
-        );
       },
     );
   }

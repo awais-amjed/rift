@@ -26,8 +26,10 @@ import '../../services/pip_focus.dart';
 import '../../services/pip_service.dart';
 import '../../services/room_tiles.dart';
 import '../../services/serial_queue.dart';
+import '../../services/share_presence.dart';
 import '../../services/sound_service.dart';
 import '../../services/speech_detector.dart';
+import '../../services/voice_attributes.dart';
 import '../../services/voice_keys.dart';
 import '../../services/voice_rejoin.dart';
 import '../../services/voice_signal.dart';
@@ -179,12 +181,24 @@ class LiveKitCubit extends Cubit<LiveKitState>
       ),
     );
 
+    // Who has a screen or a track up, so each person's row can say so. Their
+    // share is a different connection, which is why this is a sweep of the
+    // whole room rather than something read off the participant.
+    final sharing = sharePresenceOf(
+      allParticipants,
+      identityOf: (p) => p.identity,
+      publishesScreenshare: (p) => p.videoTrackPublications.any(
+        (pub) => pub.source == TrackSource.screenShareVideo,
+      ),
+    );
+
     // Sync participant info to AppCubit for the UI.
     final infos = allParticipants.map((p) {
+      final userId = ParticipantIdentity.userIdOf(p.identity);
       final moderation = ParticipantInfo.moderationFromMetadata(p.metadata);
       return ParticipantInfo(
         identity: p.identity,
-        userId: ParticipantIdentity.userIdOf(p.identity),
+        userId: userId,
         name: p.name,
         // Only the *local* user is measured here. Doing it per remote track
         // meant one audio analyser per participant — CPU that scales with
@@ -202,6 +216,13 @@ class LiveKitCubit extends Cubit<LiveKitState>
         isScreenshare: ParticipantIdentity.isScreenshare(p.identity),
         isSoundShare: ParticipantIdentity.isSoundShare(p.identity),
         shareLabel: _shareLabelOf(p),
+        // Our own deafen is known here and now; everyone else's arrives as the
+        // attribute they publish, which is the only way it travels.
+        isDeafened: p is LocalParticipant
+            ? state.isDeafened
+            : VoiceAttributes.isDeafened(p.attributes),
+        isSharingScreen: sharing.sharesScreen(userId),
+        isSharingSound: sharing.sharesSound(userId),
         isServerMuted: moderation.muted,
         isServerDeafened: moderation.deafened,
       );
@@ -374,6 +395,24 @@ class LiveKitCubit extends Cubit<LiveKitState>
       if (pub.source == TrackSource.screenShareVideo) {
         pub.setVideoQuality(VideoQuality.HIGH);
       }
+    }
+  }
+
+  /// Tells the room what this client is doing that it cannot see for itself.
+  ///
+  /// Only deafening, so far. Failures are logged and dropped: the call is not
+  /// worse for a roster icon being wrong, and this runs on a toggle somebody
+  /// is watching the rest of the effects of.
+  @override
+  Future<void> _publishSelfState() async {
+    final local = state.room?.localParticipant;
+    if (local == null) return;
+    try {
+      await local.setAttributes(
+        VoiceAttributes.forSelf(deafened: state.isDeafened),
+      );
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] publishing own state: $e');
     }
   }
 

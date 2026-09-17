@@ -19,6 +19,10 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
 
   Future<void> _syncMicrophoneTransmission();
 
+  /// Implemented by the cubit: tells the room what this client is doing that
+  /// it cannot see for itself.
+  Future<void> _publishSelfState();
+
   /// Implemented by [_MediaControlsMixin]; needed here so the call
   /// notification's Mute button has something to press.
   Future<void> toggleMicrophone();
@@ -230,6 +234,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         ),
       );
       unawaited(SoundService.instance.playJoin());
+      // Joining already deafened is a state nobody else can see unless it is
+      // said — and rejoining while deafened is exactly what a reconnect does.
+      unawaited(_publishSelfState());
       _syncParticipants();
       _applyStoredSettings();
     } catch (e) {

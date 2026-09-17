@@ -118,6 +118,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       // Server-side moderation state arrives via participant metadata and
       // permission updates (moderate_user edge function).
       ..on<ParticipantMetadataUpdatedEvent>((e) => _syncParticipants())
+      // Somebody deafening themselves is published rather than visible —
+      // see [VoiceAttributes].
+      ..on<ParticipantAttributesChanged>((e) => _syncParticipants())
       ..on<ParticipantPermissionsUpdatedEvent>((e) => _syncParticipants())
       // Staff pulling us into another channel, sent by the `move_user` edge
       // function. Everything else on the data channel is somebody else's.

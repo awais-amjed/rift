@@ -20,6 +20,17 @@ class ParticipantInfo {
   /// which is what [isShare] asks.
   final bool isSoundShare;
 
+  /// Whether they have deafened *themselves*. Unlike a muted microphone,
+  /// which is visible as an unpublished track, this is a decision inside their
+  /// own client — it reaches the room as a participant attribute they publish.
+  final bool isDeafened;
+
+  /// Whether they have a screen or a track shared right now. Their share is a
+  /// separate connection (or, from a phone, a second track), so this is the
+  /// person's row being told what their other connections are doing.
+  final bool isSharingScreen;
+  final bool isSharingSound;
+
   /// What a sound share is playing: the name the sharer's client published its
   /// track under, which is the application it was taken from. Empty when the
   /// application named itself nothing, and for anything that is not a share.
@@ -41,6 +52,9 @@ class ParticipantInfo {
     this.isScreenshare = false,
     this.isSoundShare = false,
     this.shareLabel = '',
+    this.isDeafened = false,
+    this.isSharingScreen = false,
+    this.isSharingSound = false,
     this.isServerMuted = false,
     this.isServerDeafened = false,
   });

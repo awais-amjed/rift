@@ -16,6 +16,18 @@ part 'token_state.dart';
 class TokenCubit extends HydratedCubit<TokenState> {
   TokenCubit() : super(const TokenState());
 
+  /// Bumped whenever the server starts minting a *different* grant — a new
+  /// permission in the token, a new identity shape.
+  ///
+  /// A cached token carries the grant it was minted with, and nothing about a
+  /// server-side change reaches a client holding one: it keeps using the old
+  /// grant until the token expires, which is most of an hour of the new
+  /// behaviour quietly not working. Bumping this drops every token from before
+  /// the change on the first read after the app updates.
+  ///
+  /// 2 — `canUpdateOwnMetadata`, so a client can publish its own deafen.
+  static const grantVersion = 2;
+
   // ──────────────────────────────────────────────────────────
   // Public API
   // ──────────────────────────────────────────────────────────
@@ -38,6 +50,12 @@ class TokenCubit extends HydratedCubit<TokenState> {
       _evict(channelId);
       return null;
     }
+    // Minted with a grant this build no longer expects. Same treatment as
+    // another account's: it will never match again.
+    if (cached.grantVersion != grantVersion) {
+      _evict(channelId);
+      return null;
+    }
     if (!cached.isValid) {
       // Evict expired entry
       _evict(channelId);
@@ -56,6 +74,7 @@ class TokenCubit extends HydratedCubit<TokenState> {
   ) {
     final updated = Map<String, CachedToken>.from(state.tokens);
     updated[channelId] = CachedToken(
+      grantVersion: grantVersion,
       supabaseUrl: supabaseUrl,
       channelId: channelId,
       userId: userId,

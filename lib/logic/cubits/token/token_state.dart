@@ -19,12 +19,18 @@ class CachedToken {
   final String token;
   final DateTime createdAt;
 
+  /// Which shape of grant this token was minted with — see
+  /// [TokenCubit.grantVersion]. Null for entries persisted before the field
+  /// existed, which are therefore from an older one.
+  final int? grantVersion;
+
   const CachedToken({
     required this.supabaseUrl,
     required this.channelId,
     required this.userId,
     required this.token,
     required this.createdAt,
+    this.grantVersion,
   });
 
   /// Tokens have a 1-hour TTL; we consider them valid for 55 minutes.
@@ -36,6 +42,7 @@ class CachedToken {
     'userId': userId,
     'token': token,
     'createdAt': createdAt.toIso8601String(),
+    'grantVersion': grantVersion,
   };
 
   factory CachedToken.fromJson(Map<String, dynamic> json) => CachedToken(
@@ -44,6 +51,7 @@ class CachedToken {
     userId: json['userId'] as String?,
     token: json['token'] as String,
     createdAt: DateTime.parse(json['createdAt'] as String),
+    grantVersion: json['grantVersion'] as int?,
   );
 }
 

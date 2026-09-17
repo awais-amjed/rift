@@ -2,6 +2,7 @@ part of 'livekit_cubit.dart';
 
 mixin _MediaControlsMixin on Cubit<LiveKitState> {
   AppCubit get _appCubit;
+  Future<void> _publishSelfState();
   Future<void> _syncMicrophoneTransmission({bool syncParticipants = false});
   void _syncParticipants();
   Future<void> _updateVoiceActivityMonitor();
@@ -45,6 +46,10 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     } else if (wasDeafened) {
       await _restoreRemoteAudio();
     }
+
+    // Nobody can see a deafen — it is this client not listening — so it is
+    // published for everyone else's roster.
+    await _publishSelfState();
 
     // Republishes or drops the mic track according to the whole picture — own
     // toggle, own deafen, moderation, push-to-talk.
