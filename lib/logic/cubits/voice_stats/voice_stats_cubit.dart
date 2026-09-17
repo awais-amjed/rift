@@ -6,6 +6,7 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../../data/classes/ping_sample.dart';
 import '../../../data/enums/voice_quality.dart';
+import '../../../data/participant_identity.dart';
 import '../livekit/livekit_cubit.dart';
 
 part 'voice_stats_state.dart';
@@ -65,7 +66,12 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
       final samples = List<PingSample>.from(state.pingSamples)
         ..removeWhere((s) => s.time.isBefore(cutoff));
 
-      if (senderStats.isEmpty && receiverStats.isEmpty) {
+      // Being alone is about the room, not about the stats. It used to mean
+      // "no media to measure", which is also what a call where everybody
+      // happens to be muted looks like — so two people sitting quietly, one of
+      // them watching the other's screen, were both told they were waiting for
+      // somebody to arrive.
+      if (_isAlone(room)) {
         // Drop the live readings but keep the history. The graph covers five
         // minutes, and a gap in the stats is not a reason to throw away what
         // came before it — this used to reset and take the graph with it.
@@ -79,7 +85,12 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
         return;
       }
 
-      final rttMs = _readRtt(senderStats, receiverStats);
+      // Media first, and the transports only when the media had nothing to
+      // say — which is a call where nobody is talking, not a call in trouble.
+      var rttMs =
+          _iceRtt([senderStats, receiverStats]) ?? _rtcpRtt(senderStats);
+      rttMs ??= _iceRtt([await _collectTransportStats(room)]);
+      if (isClosed) return;
       final packetLossPercent = _readPacketLoss(senderStats);
 
       // Only record a genuinely new measurement. currentRoundTripTime is
@@ -106,6 +117,37 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
     } catch (_) {
       // Stats may be unavailable if tracks are not yet active; ignore.
     }
+  }
+
+  /// Whether anybody else is here. Shares are left out: a screen share is a
+  /// second connection of somebody already counted, and a room containing
+  /// only your own share is a room you are alone in.
+  bool _isAlone(Room room) => !room.remoteParticipants.values.any(
+    (p) => !ParticipantIdentity.isShare(p.identity),
+  );
+
+  /// Stats for the transports themselves.
+  ///
+  /// The two above can both come back empty in an ordinary call: nothing is
+  /// published while the microphone is muted, and nothing is received while
+  /// everybody else's is. The peer connections are up regardless — they carry
+  /// the signalling, and their ICE candidate pairs are being probed the whole
+  /// time — so this is where a ping comes from when no media is moving.
+  Future<List<StatsReport>> _collectTransportStats(Room room) async {
+    // ignore: invalid_use_of_internal_member
+    final engine = room.engine;
+    for (final transport in [
+      // ignore: invalid_use_of_internal_member
+      engine.publisher,
+      // ignore: invalid_use_of_internal_member
+      engine.subscriber,
+    ]) {
+      final pc = transport?.pc;
+      if (pc == null) continue;
+      final stats = await pc.getStats();
+      if (stats.isNotEmpty) return stats;
+    }
+    return const [];
   }
 
   /// Stats for what we are publishing — audio first, video as a fallback.
@@ -145,14 +187,14 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
     return const [];
   }
 
-  /// Round-trip time in milliseconds, preferring the publishing connection.
+  /// Round-trip time in milliseconds from an ICE candidate pair.
   ///
   /// LiveKit runs a publisher and a subscriber peer connection, each with its
-  /// own ICE candidate pair and its own round-trip time. Searching one and
-  /// then the other in a fixed order keeps the reading on a single connection
-  /// instead of flipping between two different numbers as tracks come and go.
-  double? _readRtt(List<StatsReport> sender, List<StatsReport> receiver) {
-    for (final reports in [sender, receiver]) {
+  /// own candidate pair and its own round-trip time. Searching them in a fixed
+  /// order keeps the reading on a single connection instead of flipping
+  /// between two different numbers as tracks come and go.
+  double? _iceRtt(List<List<StatsReport>> sources) {
+    for (final reports in sources) {
       for (final s in reports) {
         if (s.type != 'candidate-pair') continue;
         if (s.values['state'] != 'succeeded') continue;
@@ -163,8 +205,11 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
         return rtt * 1000;
       }
     }
-    // No usable ICE measurement — fall back to the RTCP round trip, which
-    // only exists while we are sending.
+    return null;
+  }
+
+  /// The RTCP round trip, which only exists while we are sending.
+  double? _rtcpRtt(List<StatsReport> sender) {
     for (final s in sender) {
       if (s.type != 'remote-inbound-rtp') continue;
       final rtt = s.values['roundTripTime'] as num?;
