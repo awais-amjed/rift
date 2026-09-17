@@ -7,6 +7,7 @@ import '../../../../theme/app_motion.dart';
 import '../../../../theme/theme_context.dart';
 import 'avatar_placeholder.dart';
 import 'participant_name_badge.dart';
+import 'shape_reporting_video.dart';
 import 'stop_watching_button.dart';
 import 'watch_stream_button.dart';
 
@@ -30,6 +31,10 @@ class CollapsedParticipantTile extends StatelessWidget {
   final VoidCallback onWatch;
   final VoidCallback onStopWatching;
 
+  /// Told the video's shape when one arrives. Null for tiles whose box does
+  /// not follow the picture.
+  final ValueChanged<double>? onAspectRatio;
+
   const CollapsedParticipantTile({
     super.key,
     required this.videoTrack,
@@ -43,6 +48,7 @@ class CollapsedParticipantTile extends StatelessWidget {
     required this.showStopButton,
     required this.onWatch,
     required this.onStopWatching,
+    this.onAspectRatio,
   });
 
   @override
@@ -71,7 +77,13 @@ class CollapsedParticipantTile extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              if (videoTrack != null)
+              if (videoTrack != null && onAspectRatio != null)
+                ShapeReportingVideo(
+                  key: ObjectKey(videoTrack),
+                  track: videoTrack!,
+                  onAspectRatio: onAspectRatio!,
+                )
+              else if (videoTrack != null)
                 VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain)
               else if (!showWatchButton)
                 AvatarPlaceholder(name: name, seed: userId),

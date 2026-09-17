@@ -5,6 +5,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../../data/participant_identity.dart';
 import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/services/fit_aspect.dart';
 import '../../../../../logic/services/room_tiles.dart';
 import '../../../../../logic/services/voice_tiles.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -34,6 +35,17 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   /// Held from [initState] so [dispose] can still reach it: leaving the call
   /// with a tile focused must not leave the member list hidden behind it.
   late final AppCubit _appCubit;
+
+  /// Each share's picture shape, by [_keyOf], once its first frame arrives.
+  final Map<String, double> _aspects = {};
+
+  /// What a share is drawn as until its picture says otherwise.
+  static const _defaultAspect = 16 / 9;
+
+  void _onAspectRatio(String key, double ratio) {
+    if (!mounted || _aspects[key] == ratio) return;
+    setState(() => _aspects[key] = ratio);
+  }
 
   @override
   void initState() {
@@ -74,6 +86,7 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       false;
 
   Widget _buildTile(VoiceTile<Participant> tile) {
+    final key = _keyOf(tile);
     return ParticipantTileWidget(
       participant: tile.participant,
       isScreenshare: tile.isScreenshare,
@@ -81,7 +94,10 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       onTap: () => _onTileTapped(_keyOf(tile)),
       // Watching a share is asking to look at it, so it opens focused; a tap
       // on it brings the others back.
-      onWatchStarted: () => _setExpanded(_keyOf(tile)),
+      onWatchStarted: () => _setExpanded(key),
+      onAspectRatio: tile.isScreenshare
+          ? (ratio) => _onAspectRatio(key, ratio)
+          : null,
     );
   }
 
@@ -116,51 +132,61 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       }
     }
 
-    // Screenshares get a hero layout: the share fills the width and camera
-    // tiles sit in a row underneath, centred behind the floating controls.
-    // Beneath rather than beside, so the share keeps the full width and its
-    // bottom edge — with Stop watching on it — ends above the controls
-    // instead of under them.
+    // Screenshares get a hero layout: each share's box is the shape of its
+    // picture, as large as fits, with the camera tiles in a row right under
+    // it. The row stays under the share rather than beside it so the share
+    // keeps the width, and on a tall share it lands behind the floating
+    // controls instead of pushing Stop watching under them.
     final shares = tiles.where((t) => t.isScreenshare).toList();
     final cameras = tiles.where((t) => !t.isScreenshare).toList();
     if (shares.isNotEmpty && cameras.isNotEmpty) {
-      // Tall enough on desktop that the share clears the control bar, which
-      // floats 28px up and is about 64px tall. A phone's bar hides under a
-      // thumb's worth of video anyway, and its height is scarcer.
+      // Tall enough on desktop that a full-height share clears the control
+      // bar, which floats 28px up and is about 64px tall. A phone's height
+      // is scarcer.
       final railHeight = context.layoutMode.isCompact ? 84.0 : 100.0;
-      return Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Column(
-                children: [
-                  for (var i = 0; i < shares.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 8),
-                    Expanded(child: _buildTile(shares[i])),
-                  ],
+      const padding = 12.0;
+      const gap = 8.0;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth - padding * 2;
+          final shareSpace =
+              constraints.maxHeight - padding * 2 - gap - railHeight;
+          final slot = (shareSpace - gap * (shares.length - 1)) / shares.length;
+          return Padding(
+            padding: const EdgeInsets.all(padding),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var i = 0; i < shares.length; i++) ...[
+                  if (i > 0) const SizedBox(height: gap),
+                  SizedBox.fromSize(
+                    size: fitAspect(
+                      _aspects[_keyOf(shares[i])] ?? _defaultAspect,
+                      Size(width, slot),
+                    ),
+                    child: _buildTile(shares[i]),
+                  ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: railHeight,
-              child: Center(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  scrollDirection: Axis.horizontal,
-                  itemCount: cameras.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) => AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: _buildTile(cameras[index]),
+                const SizedBox(height: gap),
+                SizedBox(
+                  height: railHeight,
+                  child: Center(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      scrollDirection: Axis.horizontal,
+                      itemCount: cameras.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: gap),
+                      itemBuilder: (context, index) => AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: _buildTile(cameras[index]),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       );
     }
 

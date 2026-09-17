@@ -41,6 +41,9 @@ class ParticipantTileWidget extends StatefulWidget {
   final VoidCallback? onWatchStarted;
   final VoidCallback? onWatchStopped;
 
+  /// Told the shape of the grid tile's video. See [ShapeReportingVideo].
+  final ValueChanged<double>? onAspectRatio;
+
   const ParticipantTileWidget({
     super.key,
     required this.participant,
@@ -50,6 +53,7 @@ class ParticipantTileWidget extends StatefulWidget {
     this.isExpanded = false,
     this.onWatchStarted,
     this.onWatchStopped,
+    this.onAspectRatio,
   });
 
   @override
@@ -289,6 +293,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           showStopButton: showStopButton,
           onWatch: _subscribeToScreenshare,
           onStopWatching: _unsubscribeFromScreenshare,
+          onAspectRatio: widget.onAspectRatio,
         );
       },
     );
