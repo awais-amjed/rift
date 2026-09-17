@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
+import '../../../../../logic/services/screen_share_sources.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -22,13 +23,11 @@ class AudioSourceRow extends StatelessWidget {
     required this.onTap,
   });
 
-  /// The application's own name, falling back to the binary, and to something
-  /// rather than an empty row if it offered neither.
+  /// The application's own name, and something rather than an empty row when
+  /// it offered none.
   static String titleOf(AudioSource source) {
-    for (final candidate in [source.appName, source.binary]) {
-      if (candidate.trim().isNotEmpty) return candidate.trim();
-    }
-    return 'Unknown application';
+    final label = ScreenShareSources.appLabel(source);
+    return label.isEmpty ? 'Unknown application' : label;
   }
 
   /// What it is playing right now, when it says — a track, a video, a tab.

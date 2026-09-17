@@ -2,8 +2,7 @@
 //! it plays to.
 use super::pulse::{self, Connection};
 use super::{
-    samples_from_le_bytes, AudioCaptureHandle, AudioSelection, Command, OnEnded, NUM_CHANNELS,
-    SAMPLE_RATE,
+    samples_from_le_bytes, AudioCapture, AudioCaptureHandle, Command, NUM_CHANNELS, SAMPLE_RATE,
 };
 use libpulse_binding as pa;
 use livekit::prelude::*;
@@ -17,12 +16,9 @@ use tokio::sync::mpsc::Sender as FrameSender;
 /// Ten milliseconds of audio, the size LiveKit likes its frames in.
 const FRAME_BYTES: usize = (SAMPLE_RATE as usize / 100) * NUM_CHANNELS as usize * 2;
 
-pub(crate) async fn start(
-    room: &Room,
-    selection: AudioSelection,
-    on_ended: Option<OnEnded>,
-) -> Option<AudioCaptureHandle> {
-    let (Some(sink_input), Some(sink)) = (selection.sink_input, selection.sink) else {
+pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCaptureHandle> {
+    let (Some(sink_input), Some(sink)) = (request.selection.sink_input, request.selection.sink)
+    else {
         log::info!("audio: sharing enabled but no application selected");
         return None;
     };
@@ -36,7 +32,8 @@ pub(crate) async fn start(
         Box::new(move |commands, frames| {
             spawn_capture_thread(sink_input, monitor, commands, frames)
         }),
-        on_ended,
+        &request.track_name,
+        request.on_ended,
     )
     .await
 }

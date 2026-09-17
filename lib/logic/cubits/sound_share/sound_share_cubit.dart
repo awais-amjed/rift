@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../../src/rust/api/soundshare.dart' as rust;
 import '../../services/host_platform.dart';
+import '../../services/screen_share_sources.dart';
 import '../livekit/livekit_cubit.dart';
 import '../server/server_cubit.dart';
 
@@ -94,6 +95,9 @@ class SoundShareCubit extends Cubit<SoundShareState> {
           livekitToken: response.data['token'] as String,
           selectedAudioSourceIndex: source.index,
           selectedAudioSourceSink: source.sink,
+          // Published as the track's name, which is how everyone else's tile
+          // says what is playing rather than only whose it is.
+          sourceLabel: ScreenShareSources.appLabel(source),
           e2EeKey: encryption.key,
           e2EeKeyIndex: encryption.index,
         ),

@@ -4,7 +4,7 @@
 //! story: there is no capturer to start, no first frame to wait for and no
 //! resolution to negotiate. Connect, publish one audio track, and hold on to
 //! the pieces until somebody stops it.
-use super::audio::{self, AudioCaptureHandle, AudioSelection};
+use super::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use super::room;
 use crate::api::soundshare::{self, SoundShareConfig, SoundShareEvent};
 use livekit::prelude::*;
@@ -39,14 +39,18 @@ pub(crate) async fn start(config: SoundShareConfig) -> Result<String, String> {
     let room_sid = room.sid().await.to_string();
     log::info!("sound share: connected to room {room_name} ({room_sid})");
 
-    // The application quitting mid-share reaches Flutter as an event rather
-    // than as a share that stays up publishing silence.
+    // The track carries the application's name, which is what everyone else's
+    // tile shows; and the application quitting mid-share reaches Flutter as an
+    // event rather than as a share that stays up publishing silence.
     let capture = audio::start(
         &room,
-        AudioSelection::from(&config),
-        Some(Box::new(|| {
-            soundshare::emit_event(SoundShareEvent::SourceEnded)
-        })),
+        AudioCapture {
+            selection: AudioSelection::from(&config),
+            track_name: config.source_label.clone(),
+            on_ended: Some(Box::new(|| {
+                soundshare::emit_event(SoundShareEvent::SourceEnded)
+            })),
+        },
     )
     .await;
 

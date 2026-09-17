@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/participant_identity.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../logic/services/sound_share_label.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../theme/theme_context.dart';
@@ -22,6 +23,10 @@ class SoundShareContextMenu extends StatelessWidget {
   /// Whose share it is, for the heading.
   final String ownerName;
 
+  /// The application it is playing, when it named itself — see
+  /// [soundShareLabel].
+  final String app;
+
   /// Your own share reaches you as any other connection would; there is
   /// nothing to turn down, because it was never subscribed to.
   final bool isOwn;
@@ -32,6 +37,7 @@ class SoundShareContextMenu extends StatelessWidget {
     super.key,
     required this.identity,
     required this.ownerName,
+    required this.app,
     required this.isOwn,
     this.onStopSharing,
   });
@@ -46,7 +52,7 @@ class SoundShareContextMenu extends StatelessWidget {
 
     return ContextMenuPanel(
       heading: 'Shared sound',
-      subheading: isOwn ? 'You are sharing' : '$ownerName’s sound',
+      subheading: soundShareLabel(owner: ownerName, app: app, isOwn: isOwn),
       leading: Icon(
         Icons.graphic_eq_rounded,
         size: 18,

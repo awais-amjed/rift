@@ -201,6 +201,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
         isLocal: p is LocalParticipant,
         isScreenshare: ParticipantIdentity.isScreenshare(p.identity),
         isSoundShare: ParticipantIdentity.isSoundShare(p.identity),
+        shareLabel: _shareLabelOf(p),
         isServerMuted: moderation.muted,
         isServerDeafened: moderation.deafened,
       );
@@ -374,6 +375,16 @@ class LiveKitCubit extends Cubit<LiveKitState>
         pub.setVideoQuality(VideoQuality.HIGH);
       }
     }
+  }
+
+  /// What a sound share's track is called, which is the application it came
+  /// from. A share publishes exactly one track, so the first is the one.
+  String _shareLabelOf(Participant participant) {
+    if (!ParticipantIdentity.isSoundShare(participant.identity)) return '';
+    for (final pub in participant.audioTrackPublications) {
+      if (pub.name.isNotEmpty) return pub.name;
+    }
+    return '';
   }
 
   /// Whether [identity] is a share started by *this* client — the sharer's own

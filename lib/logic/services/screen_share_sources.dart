@@ -67,6 +67,17 @@ class ScreenShareSources {
     }
   }
 
+  /// What to call an application: its own name, or the binary behind it, and
+  /// an empty string when it offered neither. The *media* name is deliberately
+  /// not used — it is the track or tab playing, so it changes under you.
+  static String appLabel(AudioSource source) {
+    for (final candidate in [source.appName, source.binary]) {
+      final trimmed = candidate.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return '';
+  }
+
   /// Which source to select after a (re)load: the one the user picked last
   /// time if it is still there, otherwise the first available, otherwise
   /// nothing. Keeping this pure is what makes "my window disappeared" a

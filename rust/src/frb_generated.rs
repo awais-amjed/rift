@@ -712,6 +712,7 @@ impl SseDecode for crate::api::soundshare::SoundShareConfig {
         let mut var_selectedAudioSourceIndex = <Option<u32>>::sse_decode(deserializer);
         let mut var_selectedAudioSourceSink = <Option<u32>>::sse_decode(deserializer);
         let mut var_selectedAudioSourcePid = <Option<u32>>::sse_decode(deserializer);
+        let mut var_sourceLabel = <String>::sse_decode(deserializer);
         let mut var_e2EeKey = <Vec<u8>>::sse_decode(deserializer);
         let mut var_e2EeKeyIndex = <i32>::sse_decode(deserializer);
         return crate::api::soundshare::SoundShareConfig {
@@ -720,6 +721,7 @@ impl SseDecode for crate::api::soundshare::SoundShareConfig {
             selected_audio_source_index: var_selectedAudioSourceIndex,
             selected_audio_source_sink: var_selectedAudioSourceSink,
             selected_audio_source_pid: var_selectedAudioSourcePid,
+            source_label: var_sourceLabel,
             e2ee_key: var_e2EeKey,
             e2ee_key_index: var_e2EeKeyIndex,
         };
@@ -988,6 +990,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::soundshare::SoundShareConfig 
                 .into_dart(),
             self.selected_audio_source_sink.into_into_dart().into_dart(),
             self.selected_audio_source_pid.into_into_dart().into_dart(),
+            self.source_label.into_into_dart().into_dart(),
             self.e2ee_key.into_into_dart().into_dart(),
             self.e2ee_key_index.into_into_dart().into_dart(),
         ]
@@ -1233,6 +1236,7 @@ impl SseEncode for crate::api::soundshare::SoundShareConfig {
         <Option<u32>>::sse_encode(self.selected_audio_source_index, serializer);
         <Option<u32>>::sse_encode(self.selected_audio_source_sink, serializer);
         <Option<u32>>::sse_encode(self.selected_audio_source_pid, serializer);
+        <String>::sse_encode(self.source_label, serializer);
         <Vec<u8>>::sse_encode(self.e2ee_key, serializer);
         <i32>::sse_encode(self.e2ee_key_index, serializer);
     }

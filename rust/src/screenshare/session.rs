@@ -3,7 +3,7 @@ use super::capture::{self, Capture, CaptureRequest};
 use super::resolution::target_size;
 use super::track::publish_video_track;
 use crate::api::screenshare::types::{self, ScreenShareConfig};
-use crate::sharing::audio::{self, AudioCaptureHandle, AudioSelection};
+use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use crate::sharing::room;
 use livekit::prelude::*;
 use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
@@ -173,9 +173,18 @@ async fn bring_up(
     }
 
     // A screen share's sound has no `on_ended`: if the window stops playing,
-    // the picture is still worth watching.
+    // the picture is still worth watching. Its track keeps the plain name it
+    // has always had — nothing reads it, because the picture says what this is.
     let audio = if config.share_audio {
-        audio::start(room, AudioSelection::from(config), None).await
+        audio::start(
+            room,
+            AudioCapture {
+                selection: AudioSelection::from(config),
+                track_name: "screen_share_audio".to_string(),
+                on_ended: None,
+            },
+        )
+        .await
     } else {
         None
     };

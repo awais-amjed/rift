@@ -40,6 +40,11 @@ class SoundShareConfig {
   /// Windows: the process whose audio to capture; none means the whole mix.
   final int? selectedAudioSourcePid;
 
+  /// What the application calls itself, published as the track's name so
+  /// that everyone else's tile can say what is playing and not merely whose
+  /// it is. Empty is allowed: the tile then falls back to its owner's name.
+  final String sourceLabel;
+
   /// The channel key this call is encrypted with, and the LiveKit key-ring
   /// slot it occupies (ARCHITECTURE.md §5) — the same pair a screen share
   /// carries, and for the same reason: a track published in the clear is
@@ -53,6 +58,7 @@ class SoundShareConfig {
     this.selectedAudioSourceIndex,
     this.selectedAudioSourceSink,
     this.selectedAudioSourcePid,
+    required this.sourceLabel,
     required this.e2EeKey,
     required this.e2EeKeyIndex,
   });
@@ -64,6 +70,7 @@ class SoundShareConfig {
       selectedAudioSourceIndex.hashCode ^
       selectedAudioSourceSink.hashCode ^
       selectedAudioSourcePid.hashCode ^
+      sourceLabel.hashCode ^
       e2EeKey.hashCode ^
       e2EeKeyIndex.hashCode;
 
@@ -77,6 +84,7 @@ class SoundShareConfig {
           selectedAudioSourceIndex == other.selectedAudioSourceIndex &&
           selectedAudioSourceSink == other.selectedAudioSourceSink &&
           selectedAudioSourcePid == other.selectedAudioSourcePid &&
+          sourceLabel == other.sourceLabel &&
           e2EeKey == other.e2EeKey &&
           e2EeKeyIndex == other.e2EeKeyIndex;
 }

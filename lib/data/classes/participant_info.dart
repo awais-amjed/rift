@@ -20,6 +20,11 @@ class ParticipantInfo {
   /// which is what [isShare] asks.
   final bool isSoundShare;
 
+  /// What a sound share is playing: the name the sharer's client published its
+  /// track under, which is the application it was taken from. Empty when the
+  /// application named itself nothing, and for anything that is not a share.
+  final String shareLabel;
+
   /// Server-side moderation state, broadcast via LiveKit participant
   /// metadata (set by get_channel_token / moderate_user).
   final bool isServerMuted;
@@ -35,6 +40,7 @@ class ParticipantInfo {
     this.isLocal = false,
     this.isScreenshare = false,
     this.isSoundShare = false,
+    this.shareLabel = '',
     this.isServerMuted = false,
     this.isServerDeafened = false,
   });

@@ -26,6 +26,11 @@ pub struct SoundShareConfig {
     pub selected_audio_source_sink: Option<u32>,
     /// Windows: the process whose audio to capture; none means the whole mix.
     pub selected_audio_source_pid: Option<u32>,
+
+    /// What the application calls itself, published as the track's name so
+    /// that everyone else's tile can say what is playing and not merely whose
+    /// it is. Empty is allowed: the tile then falls back to its owner's name.
+    pub source_label: String,
     /// The channel key this call is encrypted with, and the LiveKit key-ring
     /// slot it occupies (ARCHITECTURE.md §5) — the same pair a screen share
     /// carries, and for the same reason: a track published in the clear is
@@ -110,6 +115,7 @@ mod tests {
             selected_audio_source_index: Some(1),
             selected_audio_source_sink: Some(0),
             selected_audio_source_pid: None,
+            source_label: "Spotify".to_string(),
             e2ee_key: vec![0; 32],
             e2ee_key_index: 0,
         }

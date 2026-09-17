@@ -109,28 +109,35 @@ impl AudioCaptureHandle {
     }
 }
 
-/// Start capturing [`selection`] on this platform and publish it into `room`.
+/// One request to capture an application's sound.
+pub(crate) struct AudioCapture {
+    pub selection: AudioSelection,
+
+    /// What to call the published track. A sound share puts the application's
+    /// name here — it is the only way everyone else's tile can say what is
+    /// playing rather than just whose it is.
+    pub track_name: String,
+
+    /// Runs if the capture stops by itself — for a sound share, which *is* the
+    /// capture, that is the share ending.
+    pub on_ended: Option<OnEnded>,
+}
+
+/// Start capturing what [`request`] asks for and publish it into `room`.
 /// `None` when nothing was selected or the platform could not open it; a
 /// screen share carries on without its sound either way.
-///
-/// `on_ended` runs if the capture stops by itself — for a sound share, which
-/// *is* the capture, that is the share ending.
-pub(crate) async fn start(
-    room: &Room,
-    selection: AudioSelection,
-    on_ended: Option<OnEnded>,
-) -> Option<AudioCaptureHandle> {
+pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCaptureHandle> {
     #[cfg(target_os = "linux")]
     {
-        linux::start(room, selection, on_ended).await
+        linux::start(room, request).await
     }
     #[cfg(target_os = "windows")]
     {
-        windows::start(room, selection, on_ended).await
+        windows::start(room, request).await
     }
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
-        let _ = (room, selection, on_ended);
+        let _ = (room, request);
         log::info!("audio: system audio capture is not available on this platform");
         None
     }
@@ -170,6 +177,7 @@ pub(crate) fn window_pids() -> Vec<(String, u32)> {
 pub(crate) async fn publish_and_feed(
     room: &Room,
     spawn: SpawnCapture,
+    track_name: &str,
     on_ended: Option<OnEnded>,
 ) -> Option<AudioCaptureHandle> {
     let source = NativeAudioSource::new(
@@ -178,10 +186,8 @@ pub(crate) async fn publish_and_feed(
         NUM_CHANNELS,
         QUEUE_MS,
     );
-    let track = LocalAudioTrack::create_audio_track(
-        "screen_share_audio",
-        RtcAudioSource::Native(source.clone()),
-    );
+    let track =
+        LocalAudioTrack::create_audio_track(track_name, RtcAudioSource::Native(source.clone()));
     if let Err(e) = room
         .local_participant()
         .publish_track(
