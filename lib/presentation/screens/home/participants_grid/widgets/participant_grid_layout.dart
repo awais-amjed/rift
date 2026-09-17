@@ -116,35 +116,39 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       }
     }
 
-    // Screenshares get a hero layout: the share fills most of the width and
-    // camera tiles collapse into a scrollable rail on the right.
+    // Screenshares get a hero layout: the share fills the width and camera
+    // tiles sit in a row underneath, centred behind the floating controls.
+    // Beneath rather than beside, so the share keeps the full width and its
+    // bottom edge — with Stop watching on it — ends above the controls
+    // instead of under them.
     final shares = tiles.where((t) => t.isScreenshare).toList();
     final cameras = tiles.where((t) => !t.isScreenshare).toList();
     if (shares.isNotEmpty && cameras.isNotEmpty) {
-      final shareStack = Column(
-        children: [
-          for (var i = 0; i < shares.length; i++) ...[
-            if (i > 0) const SizedBox(height: 8),
-            Expanded(child: _buildTile(shares[i])),
-          ],
-        ],
-      );
-
-      // A phone is tall and narrow, so the rail goes underneath rather than
-      // beside: a quarter of a 390px screen is not a camera tile, it is a
-      // sliver, and it would take that quarter away from the thing everyone
-      // is actually looking at.
-      if (context.layoutMode.isCompact) {
-        return Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: shareStack),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 84,
+      // Tall enough on desktop that the share clears the control bar, which
+      // floats 28px up and is about 64px tall. A phone's bar hides under a
+      // thumb's worth of video anyway, and its height is scarcer.
+      final railHeight = context.layoutMode.isCompact ? 84.0 : 100.0;
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Column(
+                children: [
+                  for (var i = 0; i < shares.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 8),
+                    Expanded(child: _buildTile(shares[i])),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: railHeight,
+              child: Center(
                 child: ListView.separated(
+                  shrinkWrap: true,
                   scrollDirection: Axis.horizontal,
                   itemCount: cameras.length,
                   separatorBuilder: (_, _) => const SizedBox(width: 8),
@@ -152,28 +156,6 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
                     aspectRatio: 16 / 9,
                     child: _buildTile(cameras[index]),
                   ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-
-      return Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(flex: 4, child: shareStack),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 1,
-              child: ListView.separated(
-                itemCount: cameras.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, index) => AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: _buildTile(cameras[index]),
                 ),
               ),
             ),
