@@ -44,6 +44,9 @@ class ParticipantTileWidget extends StatefulWidget {
   /// Told the shape of the grid tile's video. See [ShapeReportingVideo].
   final ValueChanged<double>? onAspectRatio;
 
+  /// See [ExpandedParticipantTile.topInset].
+  final double topInset;
+
   const ParticipantTileWidget({
     super.key,
     required this.participant,
@@ -54,6 +57,7 @@ class ParticipantTileWidget extends StatefulWidget {
     this.onWatchStarted,
     this.onWatchStopped,
     this.onAspectRatio,
+    this.topInset = 0,
   });
 
   @override
@@ -244,6 +248,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                         onWatch: _subscribeToScreenshare,
                         onStopWatching: _unsubscribeFromScreenshare,
                         onStatsPinnedChanged: _onStatsPinnedChanged,
+                        topInset: widget.topInset,
                       )
                     : _buildCollapsed(
                         themeState: themeState,

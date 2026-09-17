@@ -35,6 +35,10 @@ class ExpandedParticipantTile extends StatelessWidget {
   final VoidCallback onStopWatching;
   final ValueChanged<bool> onStatsPinnedChanged;
 
+  /// How much of the top edge something else is covering right now — the
+  /// call's top bar floating over the stage. The stats move down past it.
+  final double topInset;
+
   const ExpandedParticipantTile({
     super.key,
     required this.videoTrack,
@@ -51,6 +55,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     required this.onWatch,
     required this.onStopWatching,
     required this.onStatsPinnedChanged,
+    this.topInset = 0,
   });
 
   /// Wraps an overlay so it fades out *and* stops taking pointer events —
@@ -76,8 +81,10 @@ class ExpandedParticipantTile extends StatelessWidget {
           else if (!showWatchButton)
             AvatarPlaceholder(name: name, seed: userId),
           if (showStopButton && videoTrack != null)
-            Positioned(
-              top: 12,
+            AnimatedPositioned(
+              duration: _fade,
+              curve: Curves.easeInOut,
+              top: 12 + topInset,
               right: 12,
               // Pinned stats stay put even after the other overlays fade.
               child: _fading(

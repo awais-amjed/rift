@@ -22,6 +22,10 @@ import '../../../theme/theme_context.dart';
 class ContextStrip extends StatefulWidget {
   const ContextStrip({super.key});
 
+  /// How tall the strip is; a phone's is taller for its back button.
+  static double heightFor({required bool compact}) =>
+      compact ? K.paneHeaderHeight + 8 : K.paneHeaderHeight;
+
   @override
   State<ContextStrip> createState() => _ContextStripState();
 }
@@ -94,7 +98,7 @@ class _ContextStripState extends State<ContextStrip> {
                       );
                     }
                     return Container(
-                      height: K.paneHeaderHeight,
+                      height: ContextStrip.heightFor(compact: false),
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       decoration: BoxDecoration(
                         border: Border(
@@ -174,7 +178,7 @@ class _PhoneStrip extends StatelessWidget {
     final theme = context.theme;
     final navigator = Navigator.of(context);
     return Container(
-      height: K.paneHeaderHeight + 8,
+      height: ContextStrip.heightFor(compact: true),
       padding: const EdgeInsets.fromLTRB(4, 0, 12, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: theme.borderPrimary)),

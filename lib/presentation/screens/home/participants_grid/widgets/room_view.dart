@@ -140,6 +140,12 @@ class _RoomViewState extends State<RoomView> {
                                 participants: participants,
                                 participantSettings:
                                     appState.participantSettings,
+                                // The strip floats over a focused tile.
+                                focusTopInset: _chromeVisible
+                                    ? ContextStrip.heightFor(
+                                        compact: context.layoutMode.isCompact,
+                                      )
+                                    : 0,
                                 onFocusChanged: (focused) =>
                                     setState(() => _focused = focused),
                               ),

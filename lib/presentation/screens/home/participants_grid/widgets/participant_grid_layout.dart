@@ -19,11 +19,15 @@ class ParticipantGridLayout extends StatefulWidget {
   /// Told when a cell starts or stops filling the stage.
   final ValueChanged<bool>? onFocusChanged;
 
+  /// How much of the top a floating bar covers while a cell is focused.
+  final double focusTopInset;
+
   const ParticipantGridLayout({
     super.key,
     required this.participants,
     required this.participantSettings,
     this.onFocusChanged,
+    this.focusTopInset = 0,
   });
 
   @override
@@ -132,6 +136,7 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
           isMuted: _mutedFor(expanded.participant.identity),
           onTap: () => _onTileTapped(_keyOf(expanded)),
           isExpanded: true,
+          topInset: widget.focusTopInset,
           // Nothing left to focus on once the share is gone from this screen.
           onWatchStopped: () => _setExpanded(null),
         );
