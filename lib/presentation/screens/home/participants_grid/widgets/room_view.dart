@@ -9,6 +9,7 @@ import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/services/host_platform.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_motion.dart';
+import '../../../../theme/theme_context.dart';
 import '../../controls/call_idle_pill.dart';
 import '../../controls/context_strip.dart';
 import '../../controls/control_bar.dart';
@@ -45,6 +46,10 @@ class _RoomViewState extends State<RoomView> {
   bool _chromeVisible = true;
   Timer? _hideTimer;
 
+  /// Whether one tile fills the stage. The context strip then floats over it
+  /// instead of taking a row, so showing it does not resize the video.
+  bool _focused = false;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +75,16 @@ class _RoomViewState extends State<RoomView> {
     if (!_chromeVisible) setState(() => _chromeVisible = true);
     _scheduleHide();
   }
+
+  /// The strip, fading with the control pill. Floating over video it needs
+  /// the panel's colour behind it, and that fades with it.
+  Widget _fadingStrip({Color? background}) => AnimatedOpacity(
+    opacity: _chromeVisible ? 1.0 : 0.0,
+    duration: AppMotion.enter,
+    child: background == null
+        ? const ContextStrip()
+        : ColoredBox(color: background, child: const ContextStrip()),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -106,20 +121,18 @@ class _RoomViewState extends State<RoomView> {
                   Column(
                     children: [
                       // Context strip fades and collapses with the control
-                      // pill so focus mode is truly edge-to-edge.
-                      ClipRect(
-                        child: AnimatedAlign(
-                          alignment: Alignment.topCenter,
-                          heightFactor: _chromeVisible ? 1.0 : 0.0,
-                          duration: AppMotion.enter,
-                          curve: Curves.easeInOut,
-                          child: AnimatedOpacity(
-                            opacity: _chromeVisible ? 1.0 : 0.0,
+                      // pill so the video goes edge-to-edge. In focus it is
+                      // drawn over the stage instead, below.
+                      if (!_focused)
+                        ClipRect(
+                          child: AnimatedAlign(
+                            alignment: Alignment.topCenter,
+                            heightFactor: _chromeVisible ? 1.0 : 0.0,
                             duration: AppMotion.enter,
-                            child: const ContextStrip(),
+                            curve: Curves.easeInOut,
+                            child: _fadingStrip(),
                           ),
                         ),
-                      ),
                       Expanded(
                         child: participants.isEmpty
                             ? const WaitingView()
@@ -127,10 +140,24 @@ class _RoomViewState extends State<RoomView> {
                                 participants: participants,
                                 participantSettings:
                                     appState.participantSettings,
+                                onFocusChanged: (focused) =>
+                                    setState(() => _focused = focused),
                               ),
                       ),
                     ],
                   ),
+                  if (_focused)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: IgnorePointer(
+                        ignoring: !_chromeVisible,
+                        child: _fadingStrip(
+                          background: context.theme.bgContent,
+                        ),
+                      ),
+                    ),
                   ControlBar(visible: _chromeVisible),
                   // A phone hides the bar under a thumb's worth of video, so
                   // the two facts you cannot afford to lose stay behind in a

@@ -16,10 +16,14 @@ class ParticipantGridLayout extends StatefulWidget {
   final List<Participant> participants;
   final Map<String, ParticipantSetting> participantSettings;
 
+  /// Told when a cell starts or stops filling the stage.
+  final ValueChanged<bool>? onFocusChanged;
+
   const ParticipantGridLayout({
     super.key,
     required this.participants,
     required this.participantSettings,
+    this.onFocusChanged,
   });
 
   @override
@@ -65,7 +69,9 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
     if (key == _expandedKey) return;
     final wasFocused = _expandedKey != null;
     setState(() => _expandedKey = key);
-    if (wasFocused != (key != null)) _appCubit.setStageFocused(key != null);
+    if (wasFocused == (key != null)) return;
+    _appCubit.setStageFocused(key != null);
+    widget.onFocusChanged?.call(key != null);
   }
 
   static String _keyOf(VoiceTile<Participant> tile) =>
