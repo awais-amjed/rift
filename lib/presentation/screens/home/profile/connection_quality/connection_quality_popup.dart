@@ -23,6 +23,11 @@ class ConnectionQualityPopup extends StatelessWidget {
 
         return BlocBuilder<VoiceStatsCubit, VoiceStatsState>(
           builder: (context, stats) {
+            // Whether there is a reading at all. Being the only one here is no
+            // longer a reason not to have one — the connection to the server
+            // is the same connection either way.
+            final measured = stats.rttMs != null;
+
             // The shared surface, not a hand-rolled copy of it: this is opened
             // into the Overlay, so it needs the Material that carries with it,
             // and it now picks up the popover radius and shadow everything
@@ -39,16 +44,16 @@ class ConnectionQualityPopup extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          stats.isAlone
-                              ? Icons.person_outline
-                              : ConnectionQualityStyle.icon(stats.quality),
+                          measured
+                              ? ConnectionQualityStyle.icon(stats.quality)
+                              : Icons.person_outline,
                           size: 13,
-                          color: stats.isAlone
-                              ? themeState.textQuaternary
-                              : ConnectionQualityStyle.color(
+                          color: measured
+                              ? ConnectionQualityStyle.color(
                                   stats.quality,
                                   themeState,
-                                ),
+                                )
+                              : themeState.textQuaternary,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -61,19 +66,21 @@ class ConnectionQualityPopup extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      stats.isAlone
-                          ? 'Waiting for others'
-                          : ConnectionQualityStyle.label(
+                      measured
+                          ? ConnectionQualityStyle.label(
                               stats.quality,
                               unknown: 'Connecting…',
-                            ),
+                            )
+                          : (stats.isAlone
+                                ? 'Waiting for others'
+                                : 'Connecting…'),
                       style: AppText.sectionTitle.copyWith(
-                        color: stats.isAlone
-                            ? themeState.textTertiary
-                            : ConnectionQualityStyle.color(
+                        color: measured
+                            ? ConnectionQualityStyle.color(
                                 stats.quality,
                                 themeState,
-                              ),
+                              )
+                            : themeState.textTertiary,
                       ),
                     ),
 

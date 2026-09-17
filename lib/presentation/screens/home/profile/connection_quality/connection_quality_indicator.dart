@@ -107,17 +107,21 @@ class _ConnectionQualityIndicatorState
           builder: (context, themeState) {
             return BlocBuilder<VoiceStatsCubit, VoiceStatsState>(
               builder: (context, stats) {
-                if (stats.isAlone) _dismiss();
-
                 final color = ConnectionQualityStyle.color(
                   stats.quality,
                   themeState,
                 );
-                final label = stats.isAlone
-                    ? 'Waiting for others…'
-                    : stats.rttMs != null
+                // A measurement is worth showing whoever else is here: the
+                // connection to the server is the same one either way, and
+                // being the first into a call is when you most want to know
+                // it is a good one. Only with nothing to show does the line
+                // fall back to saying who is missing.
+                final label = stats.rttMs != null
                     ? '${stats.rttMs!.toStringAsFixed(0)} ms · ${ConnectionQualityStyle.label(stats.quality, unknown: 'No data')}'
+                    : stats.isAlone
+                    ? 'Waiting for others…'
                     : 'Connecting…';
+                final measured = stats.rttMs != null;
 
                 return Material(
                   key: _buttonKey,
@@ -126,18 +130,16 @@ class _ConnectionQualityIndicatorState
                   child: InkWell(
                     borderRadius: BorderRadius.circular(K.radiusRow),
                     hoverColor: themeState.bgHover,
-                    onTap: stats.isAlone ? null : _toggle,
+                    onTap: measured ? _toggle : null,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          stats.isAlone
-                              ? Icons.person_outline
-                              : ConnectionQualityStyle.icon(stats.quality),
+                          measured
+                              ? ConnectionQualityStyle.icon(stats.quality)
+                              : Icons.person_outline,
                           size: 11,
-                          color: stats.isAlone
-                              ? themeState.textQuaternary
-                              : color,
+                          color: measured ? color : themeState.textQuaternary,
                         ),
                         const SizedBox(width: 5),
                         Flexible(

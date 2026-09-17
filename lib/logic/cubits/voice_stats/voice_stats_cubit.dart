@@ -71,19 +71,12 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
       // happens to be muted looks like — so two people sitting quietly, one of
       // them watching the other's screen, were both told they were waiting for
       // somebody to arrive.
-      if (_isAlone(room)) {
-        // Drop the live readings but keep the history. The graph covers five
-        // minutes, and a gap in the stats is not a reason to throw away what
-        // came before it — this used to reset and take the graph with it.
-        emit(
-          VoiceStatsState(
-            pingSamples: samples,
-            isConnected: true,
-            isAlone: true,
-          ),
-        );
-        return;
-      }
+      //
+      // It no longer stops the measuring either. The connection to the server
+      // is the same connection whether or not anybody else has arrived, and
+      // "is my network alright?" is a question people ask *before* a call as
+      // much as during one.
+      final alone = _isAlone(room);
 
       // Media first, and the transports only when the media had nothing to
       // say — which is a call where nobody is talking, not a call in trouble.
@@ -111,7 +104,7 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
           quality: _calcQuality(rttMs, packetLossPercent),
           pingSamples: samples,
           isConnected: true,
-          isAlone: false,
+          isAlone: alone,
         ),
       );
     } catch (_) {
