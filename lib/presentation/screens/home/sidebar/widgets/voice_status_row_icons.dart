@@ -61,7 +61,9 @@ class VoiceStatusRowIcons extends StatelessWidget {
   }
 
   IconData _icon(VoiceStatusIcon icon) => switch (icon) {
-    VoiceStatusIcon.sharingScreen => Icons.screen_share_rounded,
+    // The same screen the call controls show while you are sharing one, so
+    // the icon means one thing wherever it turns up.
+    VoiceStatusIcon.sharingScreen => Icons.monitor_outlined,
     VoiceStatusIcon.sharingSound => Icons.graphic_eq_rounded,
     VoiceStatusIcon.deafened ||
     VoiceStatusIcon.deafenedByModerator => Icons.headset_off,
