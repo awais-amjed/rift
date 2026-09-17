@@ -46,7 +46,9 @@ void main() {
   ) async {
     await _pump(tester, const Size(390, 844));
 
-    final button = tester.getRect(find.widgetWithText(AppButton, 'Create vault'));
+    final button = tester.getRect(
+      find.widgetWithText(AppButton, 'Create vault'),
+    );
     expect(button.height, K.thumbCtaHeight);
     expect(button.bottom, greaterThan(844 - 40));
     // Spanning the screen, less the page's margins.
@@ -62,7 +64,9 @@ void main() {
   ) async {
     await _pump(tester, const Size(1280, 800));
 
-    final button = tester.getRect(find.widgetWithText(AppButton, 'Create vault'));
+    final button = tester.getRect(
+      find.widgetWithText(AppButton, 'Create vault'),
+    );
     expect(button.height, K.controlHeight);
     expect(find.widgetWithText(AppButton, 'Back'), findsOneWidget);
     expect(find.byTooltip('Back'), findsNothing);

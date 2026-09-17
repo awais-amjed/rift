@@ -8,9 +8,11 @@ import 'package:toastification/toastification.dart';
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
+import '../../../../../logic/cubits/sound_share/sound_share_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/host_platform.dart';
+import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../data/constants.dart';
 import '../../../common/app_modal.dart';
 import '../../../responsive/shell_scope.dart';
@@ -19,6 +21,7 @@ import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../screenshare/screen_share_settings_dialog.dart';
+import '../soundshare/sound_share_picker_dialog.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 ///
@@ -36,34 +39,39 @@ class ControlBar extends StatelessWidget {
       builder: (context, livekitState) {
         return BlocBuilder<ScreenshareCubit, ScreenshareState>(
           builder: (context, screenshareState) {
-            return Positioned(
-              bottom: 28,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: AnimatedOpacity(
-                  opacity: visible ? 1.0 : 0.0,
-                  duration: AppMotion.enter,
-                  child: AnimatedSlide(
-                    offset: visible ? Offset.zero : const Offset(0, 0.4),
-                    duration: AppMotion.enter,
-                    curve: Curves.easeInOut,
-                    child: IgnorePointer(
-                      ignoring: !visible,
-                      child: _ControlBarContent(
-                        // The effective state, not the raw toggles: a
-                        // moderator holding the mic has to read as muted here.
-                        isMicOn: livekitState.isMicOn,
-                        isCameraEnabled: livekitState.isCameraEnabled,
-                        isScreenSharing: screenshareState.isSharing,
-                        isDeafened: livekitState.isDeafenedEffective,
-                        isServerMuted: livekitState.isServerMuted,
-                        isServerDeafened: livekitState.isServerDeafened,
+            return BlocBuilder<SoundShareCubit, SoundShareState>(
+              builder: (context, soundShareState) {
+                return Positioned(
+                  bottom: 28,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: AnimatedOpacity(
+                      opacity: visible ? 1.0 : 0.0,
+                      duration: AppMotion.enter,
+                      child: AnimatedSlide(
+                        offset: visible ? Offset.zero : const Offset(0, 0.4),
+                        duration: AppMotion.enter,
+                        curve: Curves.easeInOut,
+                        child: IgnorePointer(
+                          ignoring: !visible,
+                          child: _ControlBarContent(
+                            // The effective state, not the raw toggles: a
+                            // moderator holding the mic has to read as muted here.
+                            isMicOn: livekitState.isMicOn,
+                            isCameraEnabled: livekitState.isCameraEnabled,
+                            isScreenSharing: screenshareState.isSharing,
+                            isSharingSound: soundShareState.isSharing,
+                            isDeafened: livekitState.isDeafenedEffective,
+                            isServerMuted: livekitState.isServerMuted,
+                            isServerDeafened: livekitState.isServerDeafened,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         );
@@ -76,6 +84,7 @@ class _ControlBarContent extends StatelessWidget {
   final bool isMicOn;
   final bool isCameraEnabled;
   final bool isScreenSharing;
+  final bool isSharingSound;
   final bool isDeafened;
 
   /// Moderation, so the tooltip can say why the button won't move.
@@ -88,6 +97,7 @@ class _ControlBarContent extends StatelessWidget {
     required this.isServerDeafened,
     required this.isCameraEnabled,
     required this.isScreenSharing,
+    required this.isSharingSound,
     required this.isDeafened,
   });
 
@@ -121,6 +131,27 @@ class _ControlBarContent extends StatelessWidget {
     if (livekitCubit.state.currentChannelId == null) return;
 
     await screenshareCubit.startScreenShare(settings: settings);
+  }
+
+  /// Shares one application's sound, with no picture — a room listening to
+  /// music somebody has on, rather than watching them have it on.
+  Future<void> _handleSoundShare(BuildContext context) async {
+    final soundShareCubit = context.read<SoundShareCubit>();
+    final livekitCubit = context.read<LiveKitCubit>();
+
+    if (soundShareCubit.state.isSharing) {
+      await soundShareCubit.stopSoundShare();
+      return;
+    }
+
+    final source = await showCustomDialog<AudioSource>(
+      context: context,
+      builder: (_) => const SoundSharePickerDialog(),
+    );
+    if (source == null) return;
+    if (livekitCubit.state.currentChannelId == null) return;
+
+    await soundShareCubit.startSoundShare(source: source);
   }
 
   Future<void> _toggleMic(BuildContext context) async {
@@ -192,6 +223,23 @@ class _ControlBarContent extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Sound share. Desktop only: capturing another
+                    // application's output is something a phone and a browser
+                    // tab cannot do at all, so there is no button rather than
+                    // a button that explains itself.
+                    if (SoundShareCubit.isSupported) ...[
+                      _ControlButton(
+                        icon: isSharingSound
+                            ? Icons.music_note_rounded
+                            : Icons.music_note_outlined,
+                        isActive: isSharingSound,
+                        tooltip: isSharingSound
+                            ? 'Stop sharing sound'
+                            : 'Share sound',
+                        onTap: () => _handleSoundShare(context),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
                     // Screen share
                     _ControlButton(
                       icon: isScreenSharing

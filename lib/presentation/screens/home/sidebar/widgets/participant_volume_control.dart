@@ -20,11 +20,17 @@ class ParticipantVolumeControl extends StatelessWidget {
   final bool isMuted;
   final double volume;
 
+  /// Where the new volume goes. Defaults to the participant's own — a shared
+  /// track passes its own, so that turning the music down does not turn its
+  /// owner down with it.
+  final ValueChanged<double>? onChanged;
+
   const ParticipantVolumeControl({
     super.key,
     required this.target,
     required this.isMuted,
     required this.volume,
+    this.onChanged,
   });
 
   @override
@@ -70,9 +76,17 @@ class ParticipantVolumeControl extends StatelessWidget {
                   value: isMuted ? 0 : volume,
                   onChanged: isMuted
                       ? null
-                      : (value) => context
-                            .read<LiveKitCubit>()
-                            .setParticipantVolume(target, value),
+                      : (value) {
+                          final handler = onChanged;
+                          if (handler != null) {
+                            handler(value);
+                            return;
+                          }
+                          context.read<LiveKitCubit>().setParticipantVolume(
+                            target,
+                            value,
+                          );
+                        },
                 ),
               ),
             ],

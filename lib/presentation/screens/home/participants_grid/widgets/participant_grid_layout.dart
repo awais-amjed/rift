@@ -10,6 +10,7 @@ import '../../../../../logic/services/room_tiles.dart';
 import '../../../../../logic/services/voice_tiles.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../participants_tile/participant_tile.dart';
+import '../participants_tile/sound_share_tile.dart';
 
 /// Grid view displaying all participants with adaptive column count.
 class ParticipantGridLayout extends StatefulWidget {
@@ -96,6 +97,11 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       false;
 
   Widget _buildTile(VoiceTile<Participant> tile) {
+    // A shared track has nothing to enlarge, so it is a cell and never a
+    // stage: no tap to focus, and no focused layout to fall back to.
+    if (tile.isSoundShare) {
+      return SoundShareTile(participant: tile.participant);
+    }
     final key = _keyOf(tile);
     return ParticipantTileWidget(
       participant: tile.participant,

@@ -15,18 +15,25 @@ class ParticipantNameBadge extends StatelessWidget {
   final bool isMuted;
   final bool isScreenshare;
 
+  /// Shown before the name. Defaults to the screen icon for a screen share;
+  /// a shared track passes its own, having no picture to put a screen on.
+  final IconData? leadingIcon;
+
   const ParticipantNameBadge({
     super.key,
     required this.name,
     required this.isMicEnabled,
     required this.isMuted,
     this.isScreenshare = false,
+    this.leadingIcon,
   });
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
+        final icon =
+            leadingIcon ?? (isScreenshare ? Icons.monitor_rounded : null);
         // Glass over video: translucent panel colour plus a blur, so the
         // name stays readable over a bright frame without blacking it out.
         return ClipRRect(
@@ -44,12 +51,8 @@ class ParticipantNameBadge extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 spacing: 6,
                 children: [
-                  if (isScreenshare)
-                    Icon(
-                      Icons.monitor_rounded,
-                      size: 13,
-                      color: themeState.accentBright,
-                    ),
+                  if (icon != null)
+                    Icon(icon, size: 13, color: themeState.accentBright),
                   Text(
                     name,
                     style: AppText.row.copyWith(color: themeState.textPrimary),
