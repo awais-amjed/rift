@@ -290,7 +290,17 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   }
 
   /// Refresh the channel list and other details for the selected server.
-  Future<({bool success, String? error})> refreshServerDetails() async {
+  ///
+  /// Coalesced, because one structural change reaches a member more than
+  /// once — the database announces it, and the member who made it also
+  /// re-reads straight after their own write. See [CoalescedRefresh] for why
+  /// the second read still happens rather than being dropped.
+  late final CoalescedRefresh<({bool success, String? error})> _details =
+      CoalescedRefresh(_fetchServerDetails);
+
+  Future<({bool success, String? error})> refreshServerDetails() => _details();
+
+  Future<({bool success, String? error})> _fetchServerDetails() async {
     final server = state.selectedServer;
     if (server == null) {
       return (success: false, error: 'No server selected');

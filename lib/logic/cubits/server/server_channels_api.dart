@@ -10,11 +10,6 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
   String get _anonKey;
 
-  /// Ping the `server_events` doorbell after a structural change so other
-  /// members refresh in realtime. Takes the server it happened on; channels are
-  /// only ever created and deleted on the selected one.
-  void Function(String serverId)? get _onServerEvent;
-
   Future<APIResponse> _callWithAutoRefresh(
     Future<APIResponse> Function(String token) call,
   );
@@ -61,10 +56,12 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
       return (success: false, error: _createFailure(reason as String?));
     }
 
-    // Refresh our own channel list to include the newly created one, and ping
-    // the server_events doorbell so other members refresh in realtime.
+    // Our own list, to include the channel we just made. Everybody else
+    // hears it from the database — `channels_announce` (migration 017) fires
+    // on the row, so it reaches members who were offline when we rang and
+    // members on a server nobody rang. The doorbell used to be sent here too
+    // and only ever arrived as a second identical answer.
     await refreshServerDetails();
-    _onServerEvent?.call(server.id);
     return (success: true, error: null);
   }
 
@@ -115,9 +112,8 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
   };
 
   /// Runs a channel mutation, then brings everyone's sidebar in line: our own
-  /// list directly, and other members' through the `server_events` doorbell.
-  /// They also hear it from Realtime on `channels`; the ping is what makes it
-  /// immediate rather than a beat later.
+  /// list directly, and other members' through `channels_announce` on the
+  /// row itself — which is immediate, and reaches people no ping could.
   Future<({bool success, String? error})> _changeChannel(
     Future<APIResponse> Function(Server server, String token) call, {
     required String failure,
@@ -131,7 +127,6 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     }
 
     await refreshServerDetails();
-    _onServerEvent?.call(server.id);
     return (success: true, error: null);
   }
 }

@@ -27,6 +27,7 @@ import '../../../data/repositories/server_repository.dart';
 import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
 import '../../services/avatar_cache.dart';
+import '../../services/coalesced_refresh.dart';
 import '../../services/push_service.dart';
 import '../../services/push_wake/wake_index.dart';
 import '../../services/role_ladder.dart';
