@@ -19,8 +19,14 @@ class BroadcastPayload {
   }
 
   /// One string field of the sent payload, or null if it isn't one.
+  ///
+  /// A number counts, as its digits: a message id is a string when a client
+  /// sent it and a JSON number when the database did, and a handler that took
+  /// only strings would ignore every database broadcast without a word.
   static String? stringOf(Map<String, dynamic> message, String key) {
     final value = of(message)[key];
-    return value is String ? value : null;
+    if (value is String) return value;
+    if (value is num) return value.toString();
+    return null;
   }
 }

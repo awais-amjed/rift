@@ -24,7 +24,7 @@ class _MemoryStorage implements Storage {
 }
 
 /// A server that is ready to be watched: it has both an anon key and a member
-/// row, which is what makes [ServerTableWatcher] act on it.
+/// row, which is what makes [ServerTopicWatcher] act on it.
 ServerCubit _cubitWithSelectedServer() {
   final cubit = ServerCubit();
   cubit.addServer('https://server.invalid', 'jwt', {

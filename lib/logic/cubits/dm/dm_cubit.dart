@@ -21,6 +21,7 @@ import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/server_realtime.dart';
+import '../../services/server_topics.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -62,10 +63,12 @@ class DmCubit extends Cubit<DmState>
   @override
   final Map<String, Uint8List> _dmKeys = {};
 
-  /// Our own inbox topic, and the open peer's — both on the server's shared
-  /// connection.
+  /// Our own topic, where the database says a DM arrived, changed or was
+  /// reacted to, and where peers say they are typing.
   RealtimeLease? _inbox;
-  RealtimeLease? _peerTopic;
+
+  /// Who the open conversation is with — the one we tell we are typing.
+  String? _typingPeerId;
   String? _readyServerId;
 
   /// Diffs conversation snapshots to raise notifications for new DMs.
@@ -172,32 +175,30 @@ class DmCubit extends Cubit<DmState>
   // Realtime doorbells
   // ──────────────────────────────────────────────────────────
 
+  /// The database rings us itself (migration 017) — a DM arrives the same way
+  /// whether a person or a bot sent it, and nobody has to remember to say so.
+  /// What it carries is ids; the row is what's true, and we go and read it.
   void _setupRealtime(Server server) {
     final user = server.user;
     if (user == null) return;
-    _inbox = _serverCubit.realtime.join(server, 'dm:${server.id}:${user.id}')
-      ?..onBroadcast('new_dm', (_) => _onDoorbell())
-      ..onBroadcast('message_changed', _onChangeDoorbell)
-      ..onBroadcast('typing', _onTyping)
-      ..onBroadcast('reaction', _onReactionDoorbell);
+    _inbox = _serverCubit.realtime.join(server, ServerTopics.user(user.id))
+      ?..onBroadcast(ServerEvent.dm, (_) => _onDoorbell())
+      ..onBroadcast(ServerEvent.dmChanged, _onChangeDoorbell)
+      ..onBroadcast(ServerEvent.dmReaction, _onReactionDoorbell)
+      ..onBroadcast(ServerEvent.typing, _onTyping);
   }
 
   Future<void> _teardownRealtime() async {
     final inbox = _inbox;
-    final peer = _peerTopic;
     _inbox = null;
-    _peerTopic = null;
-    await peer?.release();
+    _typingPeerId = null;
     await inbox?.release();
   }
 
-  /// Joins the open peer's doorbell topic so sends can ring them.
   @override
   void _joinPeerTopic(String peerId) {
-    final server = _serverCubit.state.selectedServer;
-    if (_inbox == null || server == null) return;
     _leavePeerTopic();
-    _peerTopic = _serverCubit.realtime.join(server, 'dm:${server.id}:$peerId');
+    _typingPeerId = peerId;
   }
 
   @override
@@ -206,22 +207,7 @@ class DmCubit extends Cubit<DmState>
     _typingTimer?.cancel();
     _typingTimer = null;
     _lastTypingSent = null;
-    final topic = _peerTopic;
-    _peerTopic = null;
-    unawaited(topic?.release());
-  }
-
-  @override
-  void _ringPeerDoorbell() {
-    _peerTopic?.send('new_dm', const {});
-  }
-
-  /// Tell the peer that a message was edited or deleted. Which of the two, and
-  /// what it now says, is deliberately left out — they re-read the row, so a
-  /// forged ping can only cost them a request.
-  @override
-  void _ringChangeDoorbell(String messageId) {
-    _peerTopic?.send('message_changed', {'message_id': messageId});
+    _typingPeerId = null;
   }
 
   void _onChangeDoorbell(Map<String, dynamic> payload) {
@@ -231,13 +217,6 @@ class DmCubit extends Cubit<DmState>
     // The conversation list shows a preview of the newest message, which an
     // edit or delete can change.
     unawaited(refreshConversations());
-  }
-
-  /// Tell the peer which message's reactions changed, so they refresh that one
-  /// rather than every message they have loaded.
-  @override
-  void _ringReactionDoorbell(String messageId) {
-    _peerTopic?.send('reaction', {'message_id': messageId});
   }
 
   /// A ring without a message id is an older client; fall back to refreshing
@@ -264,18 +243,27 @@ class DmCubit extends Cubit<DmState>
   // Typing indicators
   // ──────────────────────────────────────────────────────────
 
-  /// Broadcast to the open peer's inbox that we're typing (throttled).
+  /// Tell the open peer we're typing (throttled). Sent to their topic without
+  /// joining it — nobody but them may — so it goes over HTTP.
   void notifyTyping() {
     final now = DateTime.now();
     if (_lastTypingSent != null &&
         now.difference(_lastTypingSent!) < _typingThrottle) {
       return;
     }
-    final user = _serverCubit.state.selectedServer?.user;
-    final peer = _peerTopic;
-    if (user == null || peer == null) return;
+    final server = _serverCubit.state.selectedServer;
+    final user = server?.user;
+    final peerId = _typingPeerId;
+    if (server == null || user == null || peerId == null) return;
     _lastTypingSent = now;
-    peer.send('typing', {'from': user.id, 'name': user.displayName});
+    unawaited(
+      _serverCubit.realtime.ring(
+        server,
+        ServerTopics.user(peerId),
+        ServerEvent.typing,
+        {'from': user.id, 'name': user.displayName},
+      ),
+    );
   }
 
   void _onTyping(Map<String, dynamic> payload) {

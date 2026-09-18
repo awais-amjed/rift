@@ -1,32 +1,35 @@
 import 'dart:async';
 
-import 'package:supabase/supabase.dart';
-
 import '../../data/classes/server.dart';
 import '../cubits/server/server_cubit.dart';
 import 'server_realtime.dart';
 
-/// Keeps one Realtime subscription pointed at [table] on the selected server.
+/// Listens for one thing the database says about the selected server — its
+/// channels moved, its member list did, your own row did.
 ///
 /// The bookkeeping is the same wherever this is wanted, and it is all here:
-/// re-subscribing on a server switch, holding off the first subscribe while a
-/// hydrated token still reads as near-expiry, and coalescing a burst of row
-/// events into one refresh. The join itself is on the server's shared
-/// connection ([ServerRealtime]), which follows the JWT as it rotates.
+/// re-subscribing on a server switch, holding off the first join while a
+/// hydrated token still reads as near-expiry, and coalescing a burst into one
+/// refresh. The join itself is on the server's shared connection
+/// ([ServerRealtime]), which follows the JWT as it rotates, and is shared with
+/// everything else listening on the same topic.
 ///
-/// A row event is treated as a doorbell rather than a delta. Realtime re-checks
-/// the migration-002 policies per subscriber, so what arrives is only what this
-/// member could have selected anyway — but the authoritative read is whatever
+/// What arrives is a doorbell, not a delta: the authoritative read is whatever
 /// [onChanged] goes and fetches, which also keeps the shape identical to the
 /// first load and picks up the token refresh that path already handles.
-class ServerTableWatcher {
+class ServerTopicWatcher {
   /// One logical change often writes several rows; refresh once for the burst.
   static const _coalesce = Duration(milliseconds: 250);
 
   final ServerCubit serverCubit;
-  final String table;
 
-  /// A row in [table] moved on the selected server.
+  /// The topic to listen on, for the selected server.
+  final String Function(Server server) topicOf;
+
+  /// What to listen for there.
+  final String event;
+
+  /// [event] was said on the selected server.
   final void Function() onChanged;
 
   /// The selection moved to [server], or to nothing. Always fires before the
@@ -39,9 +42,10 @@ class ServerTableWatcher {
   Timer? _debounce;
   bool _disposed = false;
 
-  ServerTableWatcher({
+  ServerTopicWatcher({
     required this.serverCubit,
-    required this.table,
+    required this.topicOf,
+    required this.event,
     required this.onChanged,
     required this.onServerChanged,
   }) {
@@ -85,19 +89,9 @@ class ServerTableWatcher {
     if (_lease == null && !server.isTokenNearExpiry) _subscribe(server);
   }
 
-  /// Another watcher of the same table on the same server shares this join —
-  /// the topic is named for exactly that.
   void _subscribe(Server server) {
-    _lease = serverCubit.realtime.join(
-      server,
-      '$table:${server.id}',
-      setUp: (channel, dispatch) => channel.onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: table,
-        callback: (_) => dispatch('change', const {}),
-      ),
-    )?..on('change', (_) => _schedule());
+    _lease = serverCubit.realtime.join(server, topicOf(server))
+      ?..onBroadcast(event, (_) => _schedule());
   }
 
   void _schedule() {

@@ -8,7 +8,6 @@ part of 'channel_chat_cubit.dart';
 /// loaded: your own tap, or a doorbell saying someone else's.
 mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
-  void _ringReactionDoorbell(String messageId);
 
   /// Toggle the local user's [emoji] reaction on a message. Applies an
   /// optimistic flip, then reconciles with the server's authoritative counts.
@@ -33,9 +32,7 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
       emoji: emoji,
     );
     if (state.channelId != channelId) return;
-    if (response.success) {
-      _ringReactionDoorbell(messageId);
-    } else {
+    if (!response.success) {
       HelperMethods.showError(error: 'Failed to react');
     }
     await refreshReactionsFor(messageId);

@@ -7,7 +7,6 @@ mixin _DmSendMixin on Cubit<DmState> {
   CryptoRepository get _crypto;
   Map<String, Uint8List> get _dmKeys;
   Future<ServerIdentity> _vaultIdentityFor(Server server);
-  void _ringPeerDoorbell();
 
   /// Implemented by the conversations mixin.
   Future<void> refreshConversations();
@@ -118,7 +117,6 @@ mixin _DmSendMixin on Cubit<DmState> {
           ),
         ),
       );
-      _ringPeerDoorbell();
       unawaited(refreshConversations());
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[DM] attachment upload failed: $e');

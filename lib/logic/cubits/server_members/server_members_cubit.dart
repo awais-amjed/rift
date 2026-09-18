@@ -7,7 +7,8 @@ import '../../../data/classes/role.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_member.dart';
 import '../../services/member_roster_pager.dart';
-import '../../services/server_table_watcher.dart';
+import '../../services/server_topic_watcher.dart';
+import '../../services/server_topics.dart';
 import '../server/server_cubit.dart';
 
 part 'server_members_state.dart';
@@ -16,11 +17,10 @@ part 'server_members_state.dart';
 ///
 /// Presence (who is *online*) has always been realtime; membership (who is
 /// *here at all*) was fetched once per server and cached until you switched
-/// away, so somebody who joined while you were looking never appeared.
-/// `users` is in the realtime publication for exactly this reason
-/// (`004_realtime.sql`), and [ServerTableWatcher] turns a row event into a
-/// refresh — which covers renames, new avatars, permission changes and bans as
-/// well as joins.
+/// away, so somebody who joined while you were looking never appeared. The
+/// database says `members` on the server's topic whenever a `users` row moves
+/// (migration 017), and [ServerTopicWatcher] turns that into a refresh — which
+/// covers renames, new avatars, permission changes and bans as well as joins.
 ///
 /// **What changed with `011_directory.sql`.** That refresh used to be three
 /// full-table reads: every member, every role, every role assignment, on every
@@ -31,11 +31,11 @@ part 'server_members_state.dart';
 ///  * people are paged alphabetically, as far as the sidebar is scrolled;
 ///  * anybody we hold an *id* for — presence, a call, a message author — is
 ///    resolved by id, which is bounded by who is actually about;
-///  * a `users` event re-resolves only what is on screen, rather than
+///  * a `members` event re-resolves only what is on screen, rather than
 ///    re-reading the server.
 class ServerMembersCubit extends Cubit<ServerMembersState> {
   final ServerCubit _serverCubit;
-  late final ServerTableWatcher _watcher;
+  late final ServerTopicWatcher _watcher;
   late final MemberRosterPager _people = MemberRosterPager(
     fetchPage: _fetchPeoplePage,
   );
@@ -70,9 +70,10 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   ServerMembersCubit({required ServerCubit serverCubit})
     : _serverCubit = serverCubit,
       super(ServerMembersState()) {
-    _watcher = ServerTableWatcher(
+    _watcher = ServerTopicWatcher(
       serverCubit: serverCubit,
-      table: 'users',
+      topicOf: (server) => ServerTopics.server(server.id),
+      event: ServerEvent.members,
       onChanged: () => unawaited(refresh()),
       onServerChanged: _onServerChanged,
     );

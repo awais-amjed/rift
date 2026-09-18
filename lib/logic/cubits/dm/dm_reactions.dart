@@ -7,7 +7,6 @@ part of 'dm_cubit.dart';
 /// runs on open or on scroll — only when a reaction changes afterwards.
 mixin _DmReactionsMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
-  void _ringReactionDoorbell(String messageId);
 
   /// Optimistic flip first so the tap feels instant, then reconcile with the
   /// server's authoritative counts.
@@ -32,9 +31,7 @@ mixin _DmReactionsMixin on Cubit<DmState> {
       emoji: emoji,
     );
     if (state.openPeerId != peerId) return;
-    if (response.success) {
-      _ringReactionDoorbell(messageId);
-    } else {
+    if (!response.success) {
       HelperMethods.showError(error: 'Failed to react');
     }
     await refreshReactionsFor(messageId);

@@ -4,20 +4,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../services/channel_eviction.dart';
 import '../../services/server_realtime.dart';
-import '../../services/server_table_watcher.dart';
+import '../../services/server_topic_watcher.dart';
+import '../../services/server_topics.dart';
 import '../channel_chat/channel_chat_cubit.dart';
 import '../livekit/livekit_cubit.dart';
 import '../server/server_cubit.dart';
 
-/// Realtime "something changed on this server" doorbell (Supabase Broadcast),
-/// one topic per selected server — `server_events:<serverId>`.
+/// Realtime "something changed on this server" doorbell: a `changed` on the
+/// selected server's topic (`server:<serverId>`, private to its members).
 ///
 /// Any member who makes a structural change (creating a channel, …) pings the
 /// topic via [notifyServerChanged]; every subscribed member refreshes their
 /// server details, so new channels appear without waiting for a reselect or
-/// restart. Broadcast is ephemeral pub/sub, so — like the chat keysweep
-/// doorbell — it needs no auth/RLS: the payload is just "go refresh", and the
-/// authoritative state still comes from `get_server_details`.
+/// restart. The payload is just "go refresh", and the authoritative state
+/// still comes from `get_server_details`.
 ///
 /// Scoped to the selected server (that's the one whose channel list is shown);
 /// other servers refresh on select.
@@ -32,12 +32,14 @@ class ServerEventsCubit extends Cubit<int> {
 
   /// The doorbell above is a courtesy — it only rings if the member who made
   /// the change remembered to ring it, and never for someone who was offline.
-  /// `channels` is in the realtime publication, so this is the authoritative
-  /// half: a rename or a deletion reaches everyone whatever the actor did.
-  late final ServerTableWatcher _channelsWatcher;
+  /// The database says `channels` itself whenever one moves (migration 017),
+  /// so this is the authoritative half: a rename or a deletion reaches
+  /// everyone whatever the actor did.
+  late final ServerTopicWatcher _channelsWatcher;
 
   /// Our own membership row, which is the only thing a banned member can still
-  /// read (`users_select_self`).
+  /// read (`users_select_self`) — and our own topic the only one they can
+  /// still join, which is where the database says `me`.
   ///
   /// A ban is a structural change like any other here, and the response is the
   /// same one: re-read the server. The difference is what comes back — no
@@ -45,7 +47,7 @@ class ServerEventsCubit extends Cubit<int> {
   /// to say something rather than going quietly inert. Lifting the ban arrives
   /// through the same subscription, so a client comes back on its own instead
   /// of needing a restart.
-  late final ServerTableWatcher _membershipWatcher;
+  late final ServerTopicWatcher _membershipWatcher;
 
   ServerEventsCubit({
     required ServerCubit serverCubit,
@@ -57,15 +59,17 @@ class ServerEventsCubit extends Cubit<int> {
        super(0) {
     _serverSub = serverCubit.stream.listen((_) => _sync());
     _sync();
-    _channelsWatcher = ServerTableWatcher(
+    _channelsWatcher = ServerTopicWatcher(
       serverCubit: serverCubit,
-      table: 'channels',
+      topicOf: (server) => ServerTopics.server(server.id),
+      event: ServerEvent.channels,
       onChanged: () => unawaited(_onChannelsChanged()),
       onServerChanged: (_) {},
     );
-    _membershipWatcher = ServerTableWatcher(
+    _membershipWatcher = ServerTopicWatcher(
       serverCubit: serverCubit,
-      table: 'users',
+      topicOf: (server) => ServerTopics.user(server.user!.id),
+      event: ServerEvent.me,
       onChanged: () => unawaited(_onMembershipChanged()),
       // Selecting a server re-reads it anyway; this only has to keep up with
       // changes after that.
@@ -73,10 +77,10 @@ class ServerEventsCubit extends Cubit<int> {
     );
   }
 
-  /// Someone's `users` row moved — possibly ours.
+  /// Our own `users` row moved.
   ///
-  /// The watcher can't tell us whose, and doesn't need to: re-reading the
-  /// server is cheap, idempotent, and is what makes `user.isBanned` current.
+  /// Re-reading the server is what makes `user.isBanned` current. It used to
+  /// run for *anybody's* row, on every member at once.
   /// A ban that arrives while we're in a call is left to `moderate_user`,
   /// which removes us from LiveKit itself.
   Future<void> _onMembershipChanged() async {
@@ -123,8 +127,8 @@ class ServerEventsCubit extends Cubit<int> {
 
     _teardown();
     _serverId = server.id;
-    _topic = _serverCubit.realtime.join(server, 'server_events:${server.id}')
-      ?..onBroadcast('changed', (_) => _onChanged());
+    _topic = _serverCubit.realtime.join(server, ServerTopics.server(server.id))
+      ?..onBroadcast(ServerEvent.changed, (_) => _onChanged());
   }
 
   void _onChanged() {
@@ -140,7 +144,7 @@ class ServerEventsCubit extends Cubit<int> {
   /// on the row itself instead; the doorbell is only what makes it immediate.
   void notifyServerChanged(String serverId) {
     if (serverId != _serverId) return;
-    _topic?.send('changed', const {});
+    _topic?.send(ServerEvent.changed, const {});
   }
 
   void _teardown() {

@@ -1,12 +1,14 @@
 part of 'channel_chat_cubit.dart';
 
-/// The open channel's Realtime topic: who is typing, and the doorbells that
-/// say something changed.
+/// The open channel, live: who is typing, and the doorbells that say something
+/// changed.
 ///
-/// Every ping here is only a doorbell. The database row is what's true, so the
-/// receiver always goes and reads it — which is what makes a forged broadcast
-/// cost a wasted request and nothing more. None of them carry message text,
-/// and none of them are trusted to say what happened.
+/// The doorbells come from the database (migration 017), on the server's topic
+/// for an open channel and on our own for a private one, so a message arrives
+/// whoever wrote it and however — a bot writing through the REST API included,
+/// which no client-rung doorbell ever covered. They carry ids, never text: the
+/// row is what's true, and the receiver always goes and reads it. The channel's
+/// own topic carries only typing.
 mixin _ChannelChatRealtimeMixin
     on
         Cubit<ChannelChatState>,
@@ -16,8 +18,12 @@ mixin _ChannelChatRealtimeMixin
   /// who can heal them comes online.
   Future<void> retry();
 
-  /// The open channel's topic, on the server's shared connection.
+  /// The open channel's own topic, for typing.
   RealtimeLease? _rtTopic;
+
+  /// Where the database says what happened here: the server's topic and our
+  /// own. Shared joins — the unread badges hold the same two.
+  final List<RealtimeLease> _rtFeeds = [];
 
   /// Per-user expiry timers for typing indicators (removed when they lapse).
   final Map<String, Timer> _typingTimers = {};
@@ -33,22 +39,50 @@ mixin _ChannelChatRealtimeMixin
   // ──────────────────────────────────────────────────────────
 
   void _setupRealtime(Server server, String channelId) {
-    _rtTopic = _serverCubit.realtime.join(server, 'chat:$channelId')
-      ?..onBroadcast('new_message', (_) => _onDoorbell())
-      ..onBroadcast('message_changed', _onChangeDoorbell)
-      ..onBroadcast('typing', _onTyping)
-      ..onBroadcast('reaction', _onReactionDoorbell);
+    final realtime = _serverCubit.realtime;
+    _rtTopic = realtime.join(server, ServerTopics.chat(channelId))
+      ?..onBroadcast(ServerEvent.typing, _onTyping);
+
+    final me = server.user?.id;
+    bool here(RealtimePayload message) =>
+        BroadcastPayload.stringOf(message, 'channel_id') == channelId;
+    for (final topic in [
+      ServerTopics.server(server.id),
+      if (me != null) ServerTopics.user(me),
+    ]) {
+      final feed = realtime.join(server, topic);
+      if (feed == null) continue;
+      feed
+        ..onBroadcast(ServerEvent.message, (message) {
+          // Our own sends are already on screen from their insert.
+          if (!here(message)) return;
+          if (BroadcastPayload.stringOf(message, 'sender_id') == me) return;
+          _onDoorbell();
+        })
+        ..onBroadcast(ServerEvent.messageChanged, (message) {
+          if (here(message)) _onChangeDoorbell(message);
+        })
+        ..onBroadcast(ServerEvent.reaction, (message) {
+          if (here(message)) _onReactionDoorbell(message);
+        });
+      _rtFeeds.add(feed);
+    }
   }
 
   Future<void> _teardownRealtime() async {
     final topic = _rtTopic;
+    final feeds = [..._rtFeeds];
     _rtTopic = null;
+    _rtFeeds.clear();
     _lastTypingSent = null;
     for (final timer in _typingTimers.values) {
       timer.cancel();
     }
     _typingTimers.clear();
     await topic?.release();
+    for (final feed in feeds) {
+      await feed.release();
+    }
   }
 
   // ──────────────────────────────────────────────────────────
@@ -67,7 +101,7 @@ mixin _ChannelChatRealtimeMixin
     final topic = _rtTopic;
     if (user == null || topic == null) return;
     _lastTypingSent = now;
-    topic.send('typing', {'from': user.id, 'name': user.displayName});
+    topic.send(ServerEvent.typing, {'from': user.id, 'name': user.displayName});
   }
 
   void _onTyping(Map<String, dynamic> payload) {

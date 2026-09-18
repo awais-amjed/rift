@@ -2,13 +2,14 @@ import 'dart:async';
 
 import '../../data/classes/server.dart';
 import 'server_realtime.dart';
+import 'server_topics.dart';
 
 /// A subscription to a server's key-sweep doorbell.
 ///
-/// One broadcast topic, `keysweep:<serverId>`, rung whenever a client publishes
-/// a chat key, heals somebody's keyring entry, or rotates a channel. It carries
-/// no payload — it is a nudge to go and look, which is what keeps it cheap
-/// enough to ring often.
+/// A `sweep` on the server's topic, rung whenever a client publishes a chat
+/// key, heals somebody's keyring entry, or rotates a channel. It carries no
+/// payload — it is a nudge to go and look, which is what keeps it cheap enough
+/// to ring often.
 ///
 /// Extracted because there are two listeners with nothing else in common: the
 /// open text channel wants to re-run its sweep, and a call in progress wants to
@@ -29,15 +30,15 @@ class KeySweepDoorbell {
   /// [realtime] gives them the same join.
   void listen(ServerRealtime realtime, Server server, void Function() onRing) {
     unawaited(stop());
-    _lease = realtime.join(server, 'keysweep:${server.id}')
-      ?..onBroadcast('sweep', (_) => onRing());
+    _lease = realtime.join(server, ServerTopics.server(server.id))
+      ?..onBroadcast(ServerEvent.sweep, (_) => onRing());
   }
 
   /// Ring it, so other clients go and look.
   ///
   /// Best-effort: the thing being announced has already happened, and a
   /// doorbell nobody heard costs somebody a wait rather than correctness.
-  void ring() => _lease?.send('sweep', const {});
+  void ring() => _lease?.send(ServerEvent.sweep, const {});
 
   /// Stop listening.
   ///

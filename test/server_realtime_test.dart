@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:rift/data/classes/server.dart';
 import 'package:rift/logic/services/server_realtime.dart';
 
@@ -18,9 +20,14 @@ Server _server(String id, {String token = 'jwt-1', String? key = 'anon'}) =>
 class _Harness {
   final controller = StreamController<List<Server>>.broadcast();
   List<Server> servers;
+  final posts = <({Uri url, Map<String, String> headers, Object? body})>[];
   late final ServerRealtime realtime = ServerRealtime(
     servers: controller.stream,
     current: () => servers,
+    post: (url, {headers, body}) async {
+      posts.add((url: url, headers: headers ?? const {}, body: body));
+      return http.Response('', 202);
+    },
   );
 
   _Harness(this.servers);
@@ -192,4 +199,31 @@ void main() {
 
     await h.close();
   });
+
+  // Somebody else's topic can be sent to but not joined, so a DM's typing
+  // indicator goes over HTTP — and has to say it is for a private topic, with
+  // the member's token, or the server's rules turn it away.
+  test(
+    'ringing a topic posts a private broadcast with the member\'s token',
+    () async {
+      final a = _server('a', token: 'jwt-7');
+      final h = _Harness([a]);
+
+      await h.realtime.ring(a, 'user:peer', 'typing', {'from': 'me'});
+
+      expect(h.posts, hasLength(1));
+      final post = h.posts.single;
+      expect(post.url.path, endsWith('/realtime/v1/api/broadcast'));
+      expect(post.headers['Authorization'], 'Bearer jwt-7');
+      final message =
+          (jsonDecode(post.body! as String)['messages'] as List).single
+              as Map<String, dynamic>;
+      expect(message['topic'], 'user:peer');
+      expect(message['event'], 'typing');
+      expect(message['private'], isTrue);
+      expect(message['payload'], {'from': 'me'});
+      expect(h.realtime.connectionCount, 1);
+      await h.close();
+    },
+  );
 }

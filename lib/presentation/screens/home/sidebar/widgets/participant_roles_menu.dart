@@ -54,8 +54,8 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
       held: next,
     );
 
-    // `member_roles` is not in the realtime publication — `users` is, and the
-    // trigger that moves the three cached booleans is what wakes the watcher.
+    // `member_roles` announces nothing itself — a `users` row moving does, and
+    // the trigger that moves the three cached booleans is what makes one move.
     // A role carrying none of those three would otherwise land silently.
     if (result.success) await members.refresh();
     if (!mounted) return;

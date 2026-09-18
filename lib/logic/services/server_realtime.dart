@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart';
 
 import '../../data/classes/server.dart';
@@ -26,10 +28,18 @@ typedef RealtimeDispatch = void Function(String key, RealtimePayload payload);
 /// the newer join and closes the older, so the first holder goes deaf. Holders
 /// of a topic therefore share its join, and each hears it through [RealtimeLease].
 ///
-/// The connection carries the member's JWT, followed as it rotates, so its
-/// joins are authorised as the member rather than as an anonymous visitor.
+/// Every topic is private: the server admits a join only if its rules
+/// (`app.can_use_topic`, migration 017) say this member may hear it. So the
+/// connection carries the member's JWT, followed as it rotates — a join on an
+/// expired token is refused, and one whose token ran out is closed.
 class ServerRealtime {
   final SupabaseClient Function(String url, String key) _connect;
+  final Future<http.Response> Function(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  })
+  _post;
   final List<Server> Function() _current;
   final Map<String, _Connection> _connections = {};
   StreamSubscription<List<Server>>? _serversSub;
@@ -42,7 +52,14 @@ class ServerRealtime {
     required Stream<List<Server>> servers,
     required List<Server> Function() current,
     SupabaseClient Function(String url, String key)? connect,
+    Future<http.Response> Function(
+      Uri url, {
+      Map<String, String>? headers,
+      Object? body,
+    })?
+    post,
   }) : _connect = connect ?? SupabaseClient.new,
+       _post = post ?? http.post,
        _current = current {
     _serversSub = servers.listen(_follow);
   }
@@ -88,12 +105,47 @@ class ServerRealtime {
     return lease;
   }
 
+  /// Send [event] to [topic] without joining it — somebody else's topic,
+  /// which the rules let a member send to but never hear. Best-effort, like
+  /// every broadcast here.
+  ///
+  /// Over Realtime's HTTP endpoint rather than the socket: a socket may only
+  /// send on a topic it has joined, and joining is exactly what is refused.
+  Future<void> ring(
+    Server server,
+    String topic,
+    String event,
+    RealtimePayload payload,
+  ) async {
+    final client = clientFor(server);
+    if (client == null) return;
+    try {
+      await _post(
+        Uri.parse('${server.supabaseUrl}/realtime/v1/api/broadcast'),
+        headers: {...client.headers, 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'messages': [
+            {
+              'topic': topic,
+              'event': event,
+              'payload': payload,
+              'private': true,
+            },
+          ],
+        }),
+      );
+    } catch (_) {}
+  }
+
   _Topic _joinTopic(
     _Connection connection,
     String topic,
     void Function(RealtimeChannel channel, RealtimeDispatch dispatch)? setUp,
   ) {
-    final channel = connection.client.channel(topic);
+    final channel = connection.client.channel(
+      topic,
+      opts: const RealtimeChannelConfig(private: true),
+    );
     final joined = _Topic(channel);
     setUp?.call(channel, joined.dispatch);
     channel.subscribe((status, [_]) {

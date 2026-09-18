@@ -51,81 +51,49 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
     }
   }
 
-  /// Watch the message tables themselves.
+  /// Hear new messages as the database announces them (migration 017): on the
+  /// server's topic for open channels, and on our own for private channels,
+  /// ephemeral replies, DMs and a notification level set on another device.
   ///
-  /// There used to be a `notifications` table here — one row fanned out per
-  /// recipient per message, existing only so a client had something it was
-  /// allowed to subscribe to. With policies on `messages` and `dm_messages`,
-  /// Realtime re-checks them per subscriber and delivers only rows this member
-  /// could have selected, so the fanout (and its retention job) is gone.
-  ///
-  /// DMs are filtered to those addressed to us; channel messages can't be
-  /// filtered that way and don't need to be — RLS already limits them to this
-  /// server, and our own messages are skipped on arrival.
+  /// There used to be a `notifications` table here, one row fanned out per
+  /// recipient per message; then every member watching `messages` itself, with
+  /// Realtime re-checking the read policy for each of them on each row. Now the
+  /// database says it once, to the topic that may hear it, and says only ids —
+  /// the badge needs which channel and who from, never what was said.
   void _subscribe(Server server) {
     final realtime = _serverCubit.realtime;
     final userId = server.user!.id;
     final client = realtime.clientFor(server);
-    final topic = realtime.join(
-      server,
-      'unread:${server.id}',
-      setUp: (channel, dispatch) => _bindUnread(channel, dispatch, userId),
-    );
-    if (client == null || topic == null) return;
-    topic
-      ..on('message', (row) => _onChannelMessage(server.id, row))
-      ..on('dm', (row) => _onDmMessage(server.id, row))
-      ..on('prefs', (_) => unawaited(_seed(server.id)));
+    final shared = realtime.join(server, ServerTopics.server(server.id));
+    final own = realtime.join(server, ServerTopics.user(userId));
+    if (client == null || shared == null || own == null) {
+      unawaited(shared?.release());
+      unawaited(own?.release());
+      return;
+    }
+    void onMessage(RealtimePayload message) =>
+        _onChannelMessage(server.id, BroadcastPayload.of(message));
+    shared.onBroadcast(ServerEvent.message, onMessage);
+    own
+      ..onBroadcast(ServerEvent.message, onMessage)
+      ..onBroadcast(
+        ServerEvent.dm,
+        (message) => _onDmMessage(server.id, BroadcastPayload.of(message)),
+      )
+      // A level changed somewhere else — the phone, another desktop. Without
+      // this the setting is per-device in everything but storage, so the window
+      // you left open goes on notifying you about a channel you muted an hour
+      // ago. Every event re-seeds rather than being applied on its own, because
+      // the answer is a chain across three scopes and a re-seed is one round
+      // trip that already returns all of it.
+      ..onBroadcast(ServerEvent.prefs, (_) => unawaited(_seed(server.id)));
     _subs[server.id] = _ServerSub(
       client: client,
-      topic: topic,
+      topics: [shared, own],
       token: server.token,
       userId: userId,
     );
     unawaited(_seed(server.id));
-  }
-
-  void _bindUnread(
-    RealtimeChannel channel,
-    RealtimeDispatch dispatch,
-    String userId,
-  ) {
-    channel
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.insert,
-        schema: 'public',
-        table: 'messages',
-        callback: (payload) => dispatch('message', payload.newRecord),
-      )
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.insert,
-        schema: 'public',
-        table: 'dm_messages',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'recipient_id',
-          value: userId,
-        ),
-        callback: (payload) => dispatch('dm', payload.newRecord),
-      )
-      // A level changed somewhere else — the phone, another desktop. Without
-      // this the setting is per-device in everything but storage: written to
-      // the server, read at sign-in, and never looked at again, so the window
-      // you left open goes on notifying you about a channel you muted an hour
-      // ago. Every event re-seeds rather than being applied on its own,
-      // because the answer is a chain across three scopes and a re-seed is one
-      // round trip that already returns all of it.
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'notification_prefs',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'user_id',
-          value: userId,
-        ),
-        callback: (_) => dispatch('prefs', const {}),
-      );
   }
 
   void _teardownServer(String serverId) {
@@ -133,7 +101,9 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
     if (sub == null) return;
     _forgetPeerNames(serverId);
     if (!isClosed) emit(state.clearedServer(serverId));
-    unawaited(sub.topic.release());
+    for (final topic in sub.topics) {
+      unawaited(topic.release());
+    }
   }
 }
 
@@ -141,13 +111,13 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
 /// calls go out on.
 class _ServerSub {
   final SupabaseClient client;
-  final RealtimeLease topic;
+  final List<RealtimeLease> topics;
   final String userId;
   String token;
 
   _ServerSub({
     required this.client,
-    required this.topic,
+    required this.topics,
     required this.userId,
     required this.token,
   });

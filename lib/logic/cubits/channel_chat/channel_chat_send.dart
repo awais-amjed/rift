@@ -7,7 +7,6 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
   int get _currentKeyVersion;
-  void _ringDoorbell();
 
   /// Implemented by the cubit class, like [_ChatSweepMixin]'s copy — see the
   /// note in `channel_chat_ready.dart` for why it lives there rather than in a
@@ -225,7 +224,6 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
           ),
         ),
       );
-      _ringDoorbell();
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[Chat] attachment upload failed: $e');
       _failSend(

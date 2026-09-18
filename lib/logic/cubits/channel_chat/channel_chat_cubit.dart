@@ -32,6 +32,7 @@ import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/server_realtime.dart';
+import '../../services/server_topics.dart';
 import '../../services/window_focus_service.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
@@ -356,34 +357,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     // quote under somebody's name. Being unable to read it is exactly the
     // reason not to speak for it.
     _notify(incoming.where((m) => !m.isLocked).toList());
-  }
-
-  /// Notify other members that a new row exists. Fire-and-forget: the row in
-  /// the database is authoritative, so a lost ping only delays delivery until
-  /// the next fetch.
-  @override
-  void _ringDoorbell() {
-    _rtTopic?.send('new_message', const {});
-  }
-
-  /// Notify other members that one message was edited or deleted.
-  ///
-  /// Deliberately does not say *which* of the two, or carry the new text: the
-  /// receiver re-reads the row and finds out, so a forged broadcast costs a
-  /// request instead of putting words in someone's mouth or hiding a message.
-  @override
-  void _ringChangeDoorbell(String messageId) {
-    _rtTopic?.send('message_changed', {'message_id': messageId});
-  }
-
-  /// Notify other members that one message's reactions changed, so they
-  /// re-fetch that message. Same fire-and-forget pattern as [_ringDoorbell].
-  ///
-  /// The id is what keeps the other side's response proportional: without it
-  /// every listener re-reads reactions for its whole loaded history.
-  @override
-  void _ringReactionDoorbell(String messageId) {
-    _rtTopic?.send('reaction', {'message_id': messageId});
   }
 
   // ──────────────────────────────────────────────────────────

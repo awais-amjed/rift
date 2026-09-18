@@ -27,11 +27,17 @@ void main() {
       expect(BroadcastPayload.stringOf(const {'type': 'broadcast'}, 'x'), null);
     });
 
-    test('a non-string value is null — callers expect ids as strings', () {
+    // The database sends ids as JSON numbers; a client sends them as strings.
+    test('a numeric id reads as its digits', () {
       expect(
         BroadcastPayload.stringOf(const {'message_id': 42}, 'message_id'),
-        null,
+        '42',
       );
+    });
+
+    test('any other non-string value is null', () {
+      expect(BroadcastPayload.stringOf(const {'x': true}, 'x'), null);
+      expect(BroadcastPayload.stringOf(const {'x': <String>[]}, 'x'), null);
     });
 
     test('a payload key that is not a map falls back to the message', () {
