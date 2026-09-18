@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import 'centered_scroll_view.dart';
 import 'loading_dots.dart';
 
 /// What a list shows when it has nothing in it.
@@ -58,84 +59,79 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
 
-    return Center(
-      child: SingleChildScrollView(
-        // Not quite centred: the extra room at the bottom lifts the block a
-        // little above the middle, where the eye already is after reading the
-        // tabs. Dead-centre in a tall panel reads as low.
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 76),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 46,
-              width: 46,
-              decoration: BoxDecoration(
-                // Tinted with the palette rather than filled with grey: the
-                // one spot of colour is what stops the middle of an empty
-                // panel from looking unpainted.
-                color: themeState.primary.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(K.radiusCard),
-              ),
-              child: busy
-                  ? Center(
-                      child: LoadingDots(
-                        color: themeState.accentBright,
-                        dotSize: 6,
-                      ),
-                    )
-                  : Icon(icon, size: 21, color: themeState.accentBright),
+    return CenteredScrollView(
+      // Not quite centred: the extra room at the bottom lifts the block a
+      // little above the middle, where the eye already is after reading the
+      // tabs. Dead-centre in a tall panel reads as low.
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 76),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 46,
+            width: 46,
+            decoration: BoxDecoration(
+              // Tinted with the palette rather than filled with grey: the
+              // one spot of colour is what stops the middle of an empty
+              // panel from looking unpainted.
+              color: themeState.primary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(K.radiusCard),
             ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: AppText.sectionTitle.copyWith(
-                color: themeState.textSecondary,
+            child: busy
+                ? Center(
+                    child: LoadingDots(
+                      color: themeState.accentBright,
+                      dotSize: 6,
+                    ),
+                  )
+                : Icon(icon, size: 21, color: themeState.accentBright),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: AppText.sectionTitle.copyWith(
+              color: themeState.textSecondary,
+            ),
+          ),
+          if (message != null) ...[
+            const SizedBox(height: 6),
+            ConstrainedBox(
+              // Long enough for a sentence, short enough that the eye does
+              // not have to travel back across a wide panel to find the
+              // next line.
+              constraints: const BoxConstraints(maxWidth: 300),
+              child: Text(
+                message!,
+                textAlign: TextAlign.center,
+                style: AppText.secondary.copyWith(
+                  height: 1.55,
+                  color: themeState.textTertiary,
+                ),
               ),
             ),
-            if (message != null) ...[
-              const SizedBox(height: 6),
-              ConstrainedBox(
-                // Long enough for a sentence, short enough that the eye does
-                // not have to travel back across a wide panel to find the
-                // next line.
-                constraints: const BoxConstraints(maxWidth: 300),
-                child: Text(
-                  message!,
-                  textAlign: TextAlign.center,
-                  style: AppText.secondary.copyWith(
-                    height: 1.55,
-                    color: themeState.textTertiary,
-                  ),
-                ),
-              ),
-            ],
-            if (detail != null) ...[
-              const SizedBox(height: 14),
-              Container(
-                constraints: const BoxConstraints(maxWidth: 360),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: themeState.bgPrimary,
-                  borderRadius: BorderRadius.circular(K.radiusRow),
-                  border: Border.all(color: themeState.borderPrimary),
-                ),
-                child: Text(
-                  detail!,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.code.copyWith(color: themeState.textSecondary),
-                ),
-              ),
-            ],
-            if (action != null) ...[const SizedBox(height: 16), action!],
           ],
-        ),
+          if (detail != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              constraints: const BoxConstraints(maxWidth: 360),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: themeState.bgPrimary,
+                borderRadius: BorderRadius.circular(K.radiusRow),
+                border: Border.all(color: themeState.borderPrimary),
+              ),
+              child: Text(
+                detail!,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.code.copyWith(color: themeState.textSecondary),
+              ),
+            ),
+          ],
+          if (action != null) ...[const SizedBox(height: 16), action!],
+        ],
       ),
     );
   }

@@ -44,27 +44,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         glowCenter: const Alignment(0, -0.6),
         glowRadius: 0.9,
         glowOpacity: 0.13,
+        // Full width: each page caps its own content, so that its scrollbar
+        // is at the window's edge rather than beside the card.
         child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: AnimatedSwitcher(
-                duration: AppMotion.enter,
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.02),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                ),
-                child: KeyedSubtree(key: ValueKey(_page), child: page),
+          child: AnimatedSwitcher(
+            duration: AppMotion.enter,
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.02),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
               ),
             ),
+            child: KeyedSubtree(key: ValueKey(_page), child: page),
           ),
         ),
       ),

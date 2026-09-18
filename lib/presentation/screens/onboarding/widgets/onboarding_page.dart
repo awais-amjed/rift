@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button_height.dart';
+import '../../../common/centered_scroll_view.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
@@ -35,6 +36,9 @@ class OnboardingPage extends StatelessWidget {
   /// Welcome, then one step: the account or the vault.
   static const int stepCount = 2;
 
+  /// The widest a step's content gets, on any window.
+  static const double _contentWidth = 512;
+
   /// The step's actions — see [OnboardingFooter]. Under the content in the
   /// card; pinned to the bottom of a phone.
   final Widget? footer;
@@ -62,65 +66,42 @@ class OnboardingPage extends StatelessWidget {
     if (context.layoutMode.isCompact) return _buildForPhone(context);
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 32,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(48, 44, 48, 40),
-                          decoration: BoxDecoration(
-                            // Translucent, so the canvas glow reads through
-                            // the card instead of stopping at its edge.
-                            color: themeState.bgSecondary.withValues(
-                              alpha: 0.85,
-                            ),
-                            borderRadius: BorderRadius.circular(K.radiusCard),
-                            border: Border.all(
-                              color: themeState.borderElevated,
-                            ),
-                            boxShadow: AppShadows.dialog,
-                          ),
-                          child: footer == null
-                              ? child
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    child,
-                                    const SizedBox(height: 24),
-                                    ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 360,
-                                      ),
-                                      child: footer,
-                                    ),
-                                  ],
-                                ),
-                        ),
-                        if (step != null) ...[
-                          const SizedBox(height: 20),
-                          StepDots(
-                            step: step!,
-                            count: stepCount,
-                            label: stepLabel,
+        return CenteredScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          maxWidth: _contentWidth,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(48, 44, 48, 40),
+                decoration: BoxDecoration(
+                  // Translucent, so the canvas glow reads through the card
+                  // instead of stopping at its edge.
+                  color: themeState.bgSecondary.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(K.radiusCard),
+                  border: Border.all(color: themeState.borderElevated),
+                  boxShadow: AppShadows.dialog,
+                ),
+                child: footer == null
+                    ? child
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          child,
+                          const SizedBox(height: 24),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 360),
+                            child: footer,
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                ),
+                      ),
               ),
-            );
-          },
+              if (step != null) ...[
+                const SizedBox(height: 20),
+                StepDots(step: step!, count: stepCount, label: stepLabel),
+              ],
+            ],
+          ),
         );
       },
     );
@@ -140,24 +121,30 @@ class OnboardingPage extends StatelessWidget {
               color: progressColor,
             ),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                child: ConstrainedBox(
-                  // Centred while it fits, so a short step doesn't cling to
-                  // the top of a tall screen.
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - 32,
-                  ),
-                  child: Center(child: child),
-                ),
-              ),
+            // Centred while it fits, so a short step doesn't cling to the top
+            // of a tall screen.
+            child: CenteredScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              maxWidth: _contentWidth,
+              child: child,
             ),
           ),
           if (footer != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: AppButtonHeight(height: K.thumbCtaHeight, child: footer!),
+              child: Center(
+                // Full width up to the cap — a loose width would let the
+                // buttons shrink to their labels.
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints.tightFor(
+                    width: _contentWidth,
+                  ),
+                  child: AppButtonHeight(
+                    height: K.thumbCtaHeight,
+                    child: footer!,
+                  ),
+                ),
+              ),
             ),
           // The welcome has no top bar to carry progress, so it keeps its
           // dots at the foot.

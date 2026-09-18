@@ -5,6 +5,7 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
+import '../../../../common/centered_scroll_view.dart';
 import '../../../../common/icon_tile.dart';
 import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
@@ -41,75 +42,64 @@ class ChatStatusView extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
 
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconTile(
-                icon: icon,
-                color: themeState.accentBright,
-                size: 56,
-                radius: K.radiusCard,
-                iconSize: 26,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: AppText.sectionTitle.copyWith(
-                  color: themeState.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: AppText.rowQuiet.copyWith(
-                  color: themeState.textTertiary,
-                ),
-              ),
-              if (listening != null) ...[
-                const SizedBox(height: 18),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: themeState.bgHover,
-                    borderRadius: BorderRadius.circular(K.radiusPill),
-                    border: Border.all(color: themeState.borderElevated),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: 9,
-                    children: [
-                      LoadingDots(color: themeState.accentBright),
-                      Text(
-                        listening!,
-                        style: AppText.meta.copyWith(
-                          color: themeState.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              if (detail != null) ...[const SizedBox(height: 24), detail!],
-              if (showRetry) ...[
-                const SizedBox(height: 16),
-                AppButton(
-                  label: 'Retry',
-                  variant: AppButtonVariant.secondary,
-                  onPressed: () => context.read<ChannelChatCubit>().retry(),
-                ),
-              ],
-            ],
+    return CenteredScrollView(
+      padding: const EdgeInsets.all(24),
+      maxWidth: 420,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconTile(
+            icon: icon,
+            color: themeState.accentBright,
+            size: 56,
+            radius: K.radiusCard,
+            iconSize: 26,
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: AppText.sectionTitle.copyWith(color: themeState.textPrimary),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppText.rowQuiet.copyWith(color: themeState.textTertiary),
+          ),
+          if (listening != null) ...[
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: themeState.bgHover,
+                borderRadius: BorderRadius.circular(K.radiusPill),
+                border: Border.all(color: themeState.borderElevated),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 9,
+                children: [
+                  LoadingDots(color: themeState.accentBright),
+                  Text(
+                    listening!,
+                    style: AppText.meta.copyWith(
+                      color: themeState.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (detail != null) ...[const SizedBox(height: 24), detail!],
+          if (showRetry) ...[
+            const SizedBox(height: 16),
+            AppButton(
+              label: 'Retry',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => context.read<ChannelChatCubit>().retry(),
+            ),
+          ],
+        ],
       ),
     );
   }
