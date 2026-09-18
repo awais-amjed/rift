@@ -4,9 +4,10 @@ part of 'server_repository.dart';
 ///
 /// `create_server` and `update_server` are edge functions because they write
 /// the LiveKit API secret into `server_secrets`, which has no grant and no
-/// policy. `getServerDetails` is not: it is eleven ordinary reads under the
-/// policies, and it is one call because a client that fetched channels, members
-/// and limits separately would render three times on the way to being right.
+/// policy. `getServerDetails` is not: it is one RPC under the policies
+/// (`get_server_details`, migration 022), because a client that fetched
+/// channels, members and limits separately would render three times on the
+/// way to being right — and, before 022, waited on five round trips to do it.
 mixin _ServerApiMixin {
   ServerDb get _db;
 
@@ -38,12 +39,28 @@ mixin _ServerApiMixin {
     });
   }
 
-  /// Server metadata, its channels, and the caller's own profile row.
+  /// Everything the client needs to draw this server, in one question.
   ///
-  /// Three selects rather than an endpoint that assembled them. `supabase_key`
-  /// is echoed back from what the caller already had: it used to come from the
-  /// server's environment, but by the time anyone can ask this question they
-  /// are holding the key that let them ask.
+  /// `get_server_details()` (migration 022). This used to be five or six
+  /// selects run one after another — our own row, that row again for
+  /// `is_owner`, the server, the channels, sometimes `channel_members`, and
+  /// `my_permissions()` — none of which could start until the one before it
+  /// came back. The client cannot draw any of it without all of it, so it was
+  /// one question asked in six pieces, and every member of a server paid for
+  /// all six again whenever anybody added a channel.
+  ///
+  /// The function is SECURITY INVOKER, so the same policies answer: the
+  /// channels are the ones `channels_select` allows, and a banned member gets
+  /// their own row with an empty channel list rather than "no such server" —
+  /// a ban empties `app.server_id()`, which hides the `servers` row itself.
+  ///
+  /// Null means we have no row on this server at all: removed, or the server
+  /// is gone. There is nothing left to refresh either way, and [ServerCubit]
+  /// turns [ServerDb.serverGone] into dropping the rail chip.
+  ///
+  /// `supabase_key` is echoed back from what the caller already had, as
+  /// before: by the time anyone can ask this question they are holding the
+  /// key that let them ask.
   Future<APIResponse> getServerDetails(
     String supabaseUrl, {
     required String anonKey,
@@ -51,95 +68,16 @@ mixin _ServerApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      // Our own row first, because it is the only one a banned member can
-      // still read (`users_select_self`) and it decides whether the rest is
-      // worth asking for.
-      final uid = ServerUserRow.uidOf(bearerToken) ?? '';
-      final user = await db
-          .from('users')
-          .select(
-            'id, username, display_name, avatar_path, is_muted, is_deafened, '
-            'is_banned, is_server_admin, is_channel_manager, can_create_tokens',
-          )
-          .eq('id', uid)
-          .maybeSingle();
-
-      // Best-effort, like `my_permissions` below: the column arrived with
-      // `004_webhooks.sql`, and a server that has not run it refuses the whole
-      // select rather than one column — which took every older server's
-      // refresh down with it. Absent means "not the owner", which is right.
-      if (user != null) {
-        try {
-          final owner = await db
-              .from('users')
-              .select('is_owner')
-              .eq('id', uid)
-              .maybeSingle();
-          user['is_owner'] = owner?['is_owner'] == true;
-        } catch (_) {
-          user['is_owner'] = false;
-        }
-      }
-
-      // A ban makes `app.server_id()` null, so every other policy on the
-      // server stops matching — including the one over `servers` itself. Read
-      // in the old order that came back as "Server not found", the refresh
-      // failed, and the client was left with stale channels and no idea why
-      // nothing worked. It isn't missing; we are barred from it, which is the
-      // one answer worth returning, and it is in the row we can still read.
-      if (user != null && user['is_banned'] == true) {
-        return {
-          'supabase_key': anonKey,
-          'channels': const <Map<String, dynamic>>[],
-          'user': ServerUserRow.of(user),
-        };
-      }
-
-      final server = await db
-          .from('servers')
-          .select('id, name, icon_url, livekit_url, $_limitColumns')
-          .limit(1)
-          .maybeSingle();
-      if (server == null) {
+      final data = await db.rpc('get_server_details');
+      if (data is! Map) {
         throw const PostgrestException(message: ServerDb.serverGone);
       }
-      final channels = await db
-          .from('channels')
-          .select(
-            'id, name, channel_type, retention_days, history_cap, is_private',
-          )
-          .order('name');
-      await ServerUserRow.stampManagedChannels(db, channels, uid);
-
-      // Best-effort: a server that predates 021 has no such function, and the
-      // three cached booleans on the user row still answer the three questions
-      // a client could ask before this existed.
-      int bits = 0;
-      try {
-        bits = (await db.rpc('my_permissions') as num?)?.toInt() ?? 0;
-      } catch (_) {}
-
       return {
-        'server_id': server['id'],
-        'name': server['name'],
-        'icon_url': server['icon_url'],
-        'livekit_url': server['livekit_url'],
+        ...Map<String, dynamic>.from(data),
         'supabase_key': anonKey,
-        'channels': channels,
-        'user': user == null
-            ? null
-            : ServerUserRow.withPermissionBits(ServerUserRow.of(user), bits),
-        // Flat, so ServerLimits.fromJson reads this map and the
-        // update_server response with the same code.
-        ...ServerLimits.fromJson(server).toJson(),
       };
     });
   }
-
-  /// The operator-limit columns added in `002_limits.sql`, in the order
-  /// [ServerLimits] reads them.
-  static const _limitColumns =
-      'max_attachment_bytes, message_retention_days, message_history_cap';
 
   /// Update server settings (admin only).
   ///

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/repositories/server_user_row.dart';
 
@@ -69,44 +67,6 @@ void main() {
       expect(out['id'], 'u1');
       expect(out['username'], isNull);
       expect(out['is_bot'], isNull);
-    });
-  });
-
-  group('folding in permission bits', () {
-    test('keeps the booleans alongside the bits', () {
-      // Both arrive as one answer on purpose: a client reconciling two would
-      // have to decide which wins, and there is no right answer to that.
-      final out = ServerUserRow.withPermissionBits(ServerUserRow.of(row()), 5);
-      final permissions = out['permissions'] as Map<String, dynamic>;
-      expect(permissions['permission_bits'], 5);
-      expect(permissions['is_server_admin'], isTrue);
-    });
-
-    test('leaves the rest of the row alone', () {
-      final out = ServerUserRow.withPermissionBits(ServerUserRow.of(row()), 5);
-      expect(out['username'], 'sam');
-    });
-  });
-
-  group('reading the subject out of a token', () {
-    String token(Map<String, dynamic> payload) {
-      String seg(Object o) =>
-          base64Url.encode(utf8.encode(jsonEncode(o))).replaceAll('=', '');
-      return '${seg({'alg': 'HS256'})}.${seg(payload)}.sig';
-    }
-
-    test('finds the sub claim', () {
-      expect(ServerUserRow.uidOf(token({'sub': 'u1'})), 'u1');
-    });
-
-    test('answers null for anything it cannot read', () {
-      // Never throws: this is the client reading its own token to know which
-      // row is "mine", and the server re-checks anyway. A malformed token is a
-      // question with no answer, not a crash.
-      expect(ServerUserRow.uidOf(null), isNull);
-      expect(ServerUserRow.uidOf('not a jwt'), isNull);
-      expect(ServerUserRow.uidOf('a.b.c'), isNull);
-      expect(ServerUserRow.uidOf(token({'no': 'sub'})), isNull);
     });
   });
 }
