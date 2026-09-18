@@ -179,4 +179,17 @@ void main() {
     );
     await h.close();
   });
+
+  // The channel writes into the payload it is handed; a constant used to take
+  // the app down with an unhandled error the first time a doorbell rang.
+  test('a constant payload can be sent', () async {
+    final a = _server('a');
+    final h = _Harness([a]);
+    final lease = h.realtime.join(a, 'keysweep:a')!;
+
+    lease.send('sweep', const {});
+    await h.settle();
+
+    await h.close();
+  });
 }

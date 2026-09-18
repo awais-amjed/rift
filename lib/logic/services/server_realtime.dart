@@ -218,12 +218,21 @@ class RealtimeLease {
     _listeners.add(MapEntry(key, listener));
   }
 
-  /// Broadcast [event] to everyone else on the topic. Best-effort.
+  /// Broadcast [event] to everyone else on the topic. Best-effort: a failure
+  /// is dropped, since every broadcast here is a nudge whose truth is in the
+  /// database.
   void send(String event, RealtimePayload payload) {
     if (_released) return;
+    unawaited(_send(event, payload));
+  }
+
+  Future<void> _send(String event, RealtimePayload payload) async {
     try {
-      unawaited(
-        _topic.channel.sendBroadcastMessage(event: event, payload: payload),
+      // A copy: the channel writes its own fields into the map it is handed,
+      // and callers pass constants.
+      await _topic.channel.sendBroadcastMessage(
+        event: event,
+        payload: {...payload},
       );
     } catch (_) {}
   }
