@@ -16,8 +16,8 @@ mixin _ChannelChatRealtimeMixin
   /// who can heal them comes online.
   Future<void> retry();
 
-  SupabaseClient? _rtClient;
-  RealtimeChannel? _rtChannel;
+  /// The open channel's topic, on the server's shared connection.
+  RealtimeLease? _rtTopic;
 
   /// Per-user expiry timers for typing indicators (removed when they lapse).
   final Map<String, Timer> _typingTimers = {};
@@ -33,31 +33,22 @@ mixin _ChannelChatRealtimeMixin
   // ──────────────────────────────────────────────────────────
 
   void _setupRealtime(Server server, String channelId) {
-    if (server.supabaseKey == null) return;
-    _rtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    _rtChannel = _rtClient!.channel('chat:$channelId')
-      ..onBroadcast(event: 'new_message', callback: (_) => _onDoorbell())
-      ..onBroadcast(event: 'message_changed', callback: _onChangeDoorbell)
-      ..onBroadcast(event: 'typing', callback: _onTyping)
-      ..onBroadcast(event: 'reaction', callback: _onReactionDoorbell)
-      ..subscribe();
+    _rtTopic = _serverCubit.realtime.join(server, 'chat:$channelId')
+      ?..onBroadcast('new_message', (_) => _onDoorbell())
+      ..onBroadcast('message_changed', _onChangeDoorbell)
+      ..onBroadcast('typing', _onTyping)
+      ..onBroadcast('reaction', _onReactionDoorbell);
   }
 
   Future<void> _teardownRealtime() async {
-    final channel = _rtChannel;
-    final client = _rtClient;
-    _rtChannel = null;
-    _rtClient = null;
+    final topic = _rtTopic;
+    _rtTopic = null;
     _lastTypingSent = null;
     for (final timer in _typingTimers.values) {
       timer.cancel();
     }
     _typingTimers.clear();
-    try {
-      await channel?.unsubscribe();
-      await client?.removeAllChannels();
-      await client?.dispose();
-    } catch (_) {}
+    await topic?.release();
   }
 
   // ──────────────────────────────────────────────────────────
@@ -73,14 +64,10 @@ mixin _ChannelChatRealtimeMixin
       return;
     }
     final user = _serverCubit.state.selectedServer?.user;
-    if (user == null || _rtChannel == null) return;
+    final topic = _rtTopic;
+    if (user == null || topic == null) return;
     _lastTypingSent = now;
-    try {
-      _rtChannel!.sendBroadcastMessage(
-        event: 'typing',
-        payload: {'from': user.id, 'name': user.displayName},
-      );
-    } catch (_) {}
+    topic.send('typing', {'from': user.id, 'name': user.displayName});
   }
 
   void _onTyping(Map<String, dynamic> payload) {

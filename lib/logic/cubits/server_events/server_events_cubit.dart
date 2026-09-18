@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase/supabase.dart';
 
 import '../../services/channel_eviction.dart';
+import '../../services/server_realtime.dart';
 import '../../services/server_table_watcher.dart';
 import '../channel_chat/channel_chat_cubit.dart';
 import '../livekit/livekit_cubit.dart';
@@ -27,8 +27,7 @@ class ServerEventsCubit extends Cubit<int> {
   final ChannelChatCubit _chatCubit;
   StreamSubscription<ServerState>? _serverSub;
 
-  SupabaseClient? _client;
-  RealtimeChannel? _channel;
+  RealtimeLease? _topic;
   String? _serverId;
 
   /// The doorbell above is a courtesy — it only rings if the member who made
@@ -124,11 +123,8 @@ class ServerEventsCubit extends Cubit<int> {
 
     _teardown();
     _serverId = server.id;
-    final client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    _client = client;
-    _channel = client.channel('server_events:${server.id}')
-      ..onBroadcast(event: 'changed', callback: (_) => _onChanged())
-      ..subscribe();
+    _topic = _serverCubit.realtime.join(server, 'server_events:${server.id}')
+      ?..onBroadcast('changed', (_) => _onChanged());
   }
 
   void _onChanged() {
@@ -144,24 +140,14 @@ class ServerEventsCubit extends Cubit<int> {
   /// on the row itself instead; the doorbell is only what makes it immediate.
   void notifyServerChanged(String serverId) {
     if (serverId != _serverId) return;
-    try {
-      _channel?.sendBroadcastMessage(event: 'changed', payload: {});
-    } catch (_) {}
+    _topic?.send('changed', const {});
   }
 
   void _teardown() {
-    final channel = _channel;
-    final client = _client;
-    _channel = null;
-    _client = null;
+    final topic = _topic;
+    _topic = null;
     _serverId = null;
-    unawaited(() async {
-      try {
-        await channel?.unsubscribe();
-        await client?.removeAllChannels();
-        await client?.dispose();
-      } catch (_) {}
-    }());
+    unawaited(topic?.release());
   }
 
   @override

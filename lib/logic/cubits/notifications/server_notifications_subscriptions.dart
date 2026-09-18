@@ -1,7 +1,7 @@
 part of 'server_notifications_cubit.dart';
 
-/// One authenticated Realtime + REST connection per joined server, and the
-/// bookkeeping that keeps the set of them matching the server list.
+/// One unread subscription per joined server, on that server's shared
+/// connection, and the bookkeeping that keeps the set matching the server list.
 mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   ServerCubit get _serverCubit;
 
@@ -38,9 +38,9 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
         // a fresh token, which re-triggers _sync and subscribes then.
         if (!nearExpiry) _subscribe(server);
       } else if (existing.token != server.token) {
-        // Token rotated (silent re-auth) → re-point both transports and re-seed.
+        // Token rotated (silent re-auth). The shared connection has already
+        // moved to it; what's left is to re-read what the old one missed.
         existing.token = server.token;
-        _authClient(existing.client, server.supabaseKey!, server.token);
         unawaited(_seed(server.id));
       }
     }
@@ -63,14 +63,39 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   /// filtered that way and don't need to be — RLS already limits them to this
   /// server, and our own messages are skipped on arrival.
   void _subscribe(Server server) {
-    final client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    _authClient(client, server.supabaseKey!, server.token);
-    final channel = client.channel('unread:${server.id}')
+    final realtime = _serverCubit.realtime;
+    final userId = server.user!.id;
+    final client = realtime.clientFor(server);
+    final topic = realtime.join(
+      server,
+      'unread:${server.id}',
+      setUp: (channel, dispatch) => _bindUnread(channel, dispatch, userId),
+    );
+    if (client == null || topic == null) return;
+    topic
+      ..on('message', (row) => _onChannelMessage(server.id, row))
+      ..on('dm', (row) => _onDmMessage(server.id, row))
+      ..on('prefs', (_) => unawaited(_seed(server.id)));
+    _subs[server.id] = _ServerSub(
+      client: client,
+      topic: topic,
+      token: server.token,
+      userId: userId,
+    );
+    unawaited(_seed(server.id));
+  }
+
+  void _bindUnread(
+    RealtimeChannel channel,
+    RealtimeDispatch dispatch,
+    String userId,
+  ) {
+    channel
       ..onPostgresChanges(
         event: PostgresChangeEvent.insert,
         schema: 'public',
         table: 'messages',
-        callback: (payload) => _onChannelMessage(server.id, payload.newRecord),
+        callback: (payload) => dispatch('message', payload.newRecord),
       )
       ..onPostgresChanges(
         event: PostgresChangeEvent.insert,
@@ -79,9 +104,9 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
         filter: PostgresChangeFilter(
           type: PostgresChangeFilterType.eq,
           column: 'recipient_id',
-          value: server.user!.id,
+          value: userId,
         ),
-        callback: (payload) => _onDmMessage(server.id, payload.newRecord),
+        callback: (payload) => dispatch('dm', payload.newRecord),
       )
       // A level changed somewhere else — the phone, another desktop. Without
       // this the setting is per-device in everything but storage: written to
@@ -97,24 +122,10 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
         filter: PostgresChangeFilter(
           type: PostgresChangeFilterType.eq,
           column: 'user_id',
-          value: server.user!.id,
+          value: userId,
         ),
-        callback: (_) => unawaited(_seed(server.id)),
-      )
-      ..subscribe();
-    _subs[server.id] = _ServerSub(
-      client: client,
-      channel: channel,
-      token: server.token,
-      userId: server.user!.id,
-    );
-    unawaited(_seed(server.id));
-  }
-
-  /// Point both REST and Realtime at the user's JWT so RLS sees `auth.uid()`.
-  void _authClient(SupabaseClient client, String anonKey, String token) {
-    client.headers = {'apikey': anonKey, 'Authorization': 'Bearer $token'};
-    client.realtime.setAuth(token);
+        callback: (_) => dispatch('prefs', const {}),
+      );
   }
 
   void _teardownServer(String serverId) {
@@ -122,26 +133,21 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
     if (sub == null) return;
     _forgetPeerNames(serverId);
     if (!isClosed) emit(state.clearedServer(serverId));
-    unawaited(() async {
-      try {
-        await sub.channel.unsubscribe();
-        await sub.client.removeAllChannels();
-        await sub.client.dispose();
-      } catch (_) {}
-    }());
+    unawaited(sub.topic.release());
   }
 }
 
-/// A single server's authenticated connection.
+/// A single server's unread subscription, and the shared client its REST
+/// calls go out on.
 class _ServerSub {
   final SupabaseClient client;
-  final RealtimeChannel channel;
+  final RealtimeLease topic;
   final String userId;
   String token;
 
   _ServerSub({
     required this.client,
-    required this.channel,
+    required this.topic,
     required this.userId,
     required this.token,
   });

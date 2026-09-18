@@ -4,14 +4,15 @@ import 'package:supabase/supabase.dart';
 
 import '../../data/classes/server.dart';
 import '../cubits/server/server_cubit.dart';
+import 'server_realtime.dart';
 
 /// Keeps one Realtime subscription pointed at [table] on the selected server.
 ///
 /// The bookkeeping is the same wherever this is wanted, and it is all here:
-/// re-subscribing on a server switch, re-pointing Realtime at a rotated JWT (a
-/// subscription dies with the token it was opened on), holding off the first
-/// subscribe while a hydrated token still reads as near-expiry, and coalescing
-/// a burst of row events into one refresh.
+/// re-subscribing on a server switch, holding off the first subscribe while a
+/// hydrated token still reads as near-expiry, and coalescing a burst of row
+/// events into one refresh. The join itself is on the server's shared
+/// connection ([ServerRealtime]), which follows the JWT as it rotates.
 ///
 /// A row event is treated as a doorbell rather than a delta. Realtime re-checks
 /// the migration-002 policies per subscriber, so what arrives is only what this
@@ -33,10 +34,8 @@ class ServerTableWatcher {
   final void Function(Server? server) onServerChanged;
 
   StreamSubscription<ServerState>? _serverSub;
-  SupabaseClient? _client;
-  RealtimeChannel? _channel;
+  RealtimeLease? _lease;
   String? _serverId;
-  String? _token;
   Timer? _debounce;
   bool _disposed = false;
 
@@ -76,38 +75,29 @@ class ServerTableWatcher {
     if (server.id != _serverId) {
       _teardown();
       _serverId = server.id;
-      _token = server.token;
       onServerChanged(server);
-    } else if (server.token != _token) {
-      // Silent re-auth rotated the JWT. Realtime has to be re-pointed at it or
-      // the subscription dies with the token it was opened on.
-      _token = server.token;
-      _client?.realtime.setAuth(server.token);
     }
 
-    // Hydrated tokens read as near-expiry at startup, and subscribing with one
-    // opens a connection that is already dead. The refresh that triggers comes
-    // back through here as a token change, and we subscribe then.
-    if (_channel == null && !server.isTokenNearExpiry) _subscribe(server);
+    // Hydrated tokens read as near-expiry at startup, and joining with one
+    // makes a join that is already dead. The refresh that triggers comes back
+    // through here as a token change, and we join then. After that the shared
+    // connection follows the token itself.
+    if (_lease == null && !server.isTokenNearExpiry) _subscribe(server);
   }
 
+  /// Another watcher of the same table on the same server shares this join —
+  /// the topic is named for exactly that.
   void _subscribe(Server server) {
-    final client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    // RLS has to see `auth.uid()`, so both transports carry the member's JWT.
-    client.headers = {
-      'apikey': server.supabaseKey!,
-      'Authorization': 'Bearer ${server.token}',
-    };
-    client.realtime.setAuth(server.token);
-    _client = client;
-    _channel = client.channel('$table:${server.id}')
-      ..onPostgresChanges(
+    _lease = serverCubit.realtime.join(
+      server,
+      '$table:${server.id}',
+      setUp: (channel, dispatch) => channel.onPostgresChanges(
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: table,
-        callback: (_) => _schedule(),
-      )
-      ..subscribe();
+        callback: (_) => dispatch('change', const {}),
+      ),
+    )?..on('change', (_) => _schedule());
   }
 
   void _schedule() {
@@ -119,19 +109,10 @@ class ServerTableWatcher {
     _debounce?.cancel();
     _debounce = null;
     _serverId = null;
-    _token = null;
 
-    final channel = _channel;
-    final client = _client;
-    _channel = null;
-    _client = null;
-    unawaited(() async {
-      try {
-        await channel?.unsubscribe();
-        await client?.removeAllChannels();
-        await client?.dispose();
-      } catch (_) {}
-    }());
+    final lease = _lease;
+    _lease = null;
+    unawaited(lease?.release());
   }
 
   Future<void> dispose() async {

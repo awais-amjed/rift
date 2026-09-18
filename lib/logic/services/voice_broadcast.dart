@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:supabase/supabase.dart';
 
+import '../../data/classes/server.dart';
+import 'server_realtime.dart';
 import 'voice_locations.dart';
 
 /// The live "who is in which voice channel" map for one server, over Realtime
@@ -28,7 +30,7 @@ class VoiceBroadcast {
   /// [locations] moved.
   final void Function() onChanged;
 
-  RealtimeChannel? _channel;
+  RealtimeLease? _topic;
   Map<String, String> _locations;
   bool _subscribed = false;
   bool _everSubscribed = false;
@@ -48,16 +50,17 @@ class VoiceBroadcast {
   /// [initial] carries the last known map through a reconnect, so the channel
   /// list doesn't blink empty while the replacement snapshot is in flight.
   VoiceBroadcast({
-    required SupabaseClient client,
-    required String serverId,
+    required ServerRealtime realtime,
+    required Server server,
     required this.userId,
     required this.fetchRoster,
     required this.onChanged,
     Map<String, String> initial = const {},
   }) : _locations = initial {
-    _channel = client.channel(VoiceLocations.topic(serverId))
-      ..onBroadcast(event: VoiceLocations.event, callback: _onDelta)
-      ..subscribe((status, [_]) {
+    _topic = realtime.join(
+      server,
+      VoiceLocations.topic(server.id),
+      onStatus: (status) {
         if (status != RealtimeSubscribeStatus.subscribed || _disposed) return;
         _subscribed = true;
         // Everyone else kept our last delta while we were away, but it may be
@@ -67,7 +70,8 @@ class VoiceBroadcast {
         if (_hasAnnounced && (_announced != null || _everSubscribed)) _send();
         _everSubscribed = true;
         unawaited(_snapshot());
-      });
+      },
+    )?..onBroadcast(VoiceLocations.event, _onDelta);
   }
 
   /// Where each member is, the local user included if they've been heard about.
@@ -90,12 +94,10 @@ class VoiceBroadcast {
     // POST. It would work, but the subscribe callback is a few milliseconds
     // away and re-sends this anyway.
     if (!_subscribed) return;
-    try {
-      _channel?.sendBroadcastMessage(
-        event: VoiceLocations.event,
-        payload: VoiceLocations.encode(userId: userId, channelId: _announced),
-      );
-    } catch (_) {}
+    _topic?.send(
+      VoiceLocations.event,
+      VoiceLocations.encode(userId: userId, channelId: _announced),
+    );
   }
 
   void _onDelta(Map<String, dynamic> message) {
@@ -127,10 +129,8 @@ class VoiceBroadcast {
 
   Future<void> dispose() async {
     _disposed = true;
-    final channel = _channel;
-    _channel = null;
-    try {
-      await channel?.unsubscribe();
-    } catch (_) {}
+    final topic = _topic;
+    _topic = null;
+    await topic?.release();
   }
 }

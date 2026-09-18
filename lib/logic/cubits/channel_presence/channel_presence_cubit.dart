@@ -5,6 +5,7 @@ import 'package:supabase/supabase.dart';
 
 import '../../../data/classes/server.dart';
 import '../../services/presence_ration.dart';
+import '../../services/server_realtime.dart';
 import '../../services/voice_broadcast.dart';
 import '../../services/voice_locations.dart';
 import '../livekit/livekit_cubit.dart';
@@ -43,7 +44,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   StreamSubscription<ServerState>? _serverSub;
   StreamSubscription<LiveKitState>? _lkSub;
 
-  SupabaseClient? _client;
+  /// The presence topic on the server's shared connection. [_channel] is its
+  /// join, for tracking and reading who is there.
+  RealtimeLease? _presenceTopic;
   @override
   RealtimeChannel? _channel;
   VoiceBroadcast? _voice;
@@ -106,41 +109,46 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     _currentUserId = server.user?.id;
     _subscribed = false;
     _startTrackingSession();
-    final client = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    _client = client;
-    _channel = client.channel('presence:${server.id}');
-
-    _channel!
-        .onPresenceSync((_) => _syncPresence())
-        .onPresenceJoin((_) => _syncPresence())
-        .onPresenceLeave((_) => _syncPresence())
-        .subscribe((status, [err]) {
-          if (status == RealtimeSubscribeStatus.subscribed) {
-            // A realtime reconnect drops the server-side entry and rejoining
-            // does not bring it back, so every subscribe re-establishes it.
-            _subscribed = true;
-            _rebuildAttempt = 0;
-            _tracked = false;
-            _ensureTracked();
-          } else {
-            _subscribed = false;
-            // Closed, errored or timed out. Nothing rejoins a dead presence
-            // channel on its own — this is the only notice we get.
-            if (!_tearingDown) _scheduleRebuild();
-          }
-        });
+    final realtime = _serverCubit.realtime;
+    final topic = realtime.join(
+      server,
+      'presence:${server.id}',
+      setUp: (channel, dispatch) => channel
+          .onPresenceSync((_) => dispatch('presence', const {}))
+          .onPresenceJoin((_) => dispatch('presence', const {}))
+          .onPresenceLeave((_) => dispatch('presence', const {})),
+      onStatus: _onPresenceStatus,
+    );
+    _presenceTopic = topic?..on('presence', (_) => _syncPresence());
+    _channel = topic?.channel;
 
     final userId = server.user?.id;
     if (userId != null) {
       _voice = VoiceBroadcast(
-        client: client,
-        serverId: server.id,
+        realtime: realtime,
+        server: server,
         userId: userId,
         fetchRoster: _fetchRoster,
         onChanged: _emit,
         initial: locations,
       );
       _announceLocation();
+    }
+  }
+
+  void _onPresenceStatus(RealtimeSubscribeStatus status) {
+    if (status == RealtimeSubscribeStatus.subscribed) {
+      // A realtime reconnect drops the server-side entry and rejoining does not
+      // bring it back, so every subscribe re-establishes it.
+      _subscribed = true;
+      _rebuildAttempt = 0;
+      _tracked = false;
+      _ensureTracked();
+    } else {
+      _subscribed = false;
+      // Closed, errored or timed out. Nothing rejoins a dead presence channel
+      // on its own — this is the only notice we get.
+      if (!_tearingDown) _scheduleRebuild();
     }
   }
 
@@ -153,22 +161,17 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   /// socket drops the entry and tells everyone anyway.
   Future<void> _disconnectPresence({bool keepState = false}) async {
     _tearingDown = true;
-    final channel = _channel;
-    final client = _client;
+    final topic = _presenceTopic;
     final voice = _voice;
+    _presenceTopic = null;
     _channel = null;
-    _client = null;
     _voice = null;
     _currentServerId = null;
     _currentUserId = null;
     _subscribed = false;
     _stopTracking();
-    try {
-      await voice?.dispose();
-      await channel?.unsubscribe();
-      await client?.removeAllChannels();
-      await client?.dispose();
-    } catch (_) {}
+    await voice?.dispose();
+    await topic?.release();
     _tearingDown = false;
     if (!isClosed && !keepState) {
       _names = const {};
@@ -216,8 +219,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   /// Throws both channels away and builds them again.
   ///
   /// The only cure for a dropped presence entry: the ration and the channel
-  /// process both belong to the connection, so a new one starts clean where the
-  /// old one silently could not.
+  /// process both belong to the join, so a new one starts clean where the old
+  /// one silently could not. The server's shared connection stays up.
   @override
   Future<void> _rebuild() async {
     if (isClosed) return;

@@ -1,8 +1,7 @@
 import 'dart:async';
 
-import 'package:supabase/supabase.dart';
-
 import '../../data/classes/server.dart';
+import 'server_realtime.dart';
 
 /// A subscription to a server's key-sweep doorbell.
 ///
@@ -13,15 +12,12 @@ import '../../data/classes/server.dart';
 ///
 /// Extracted because there are two listeners with nothing else in common: the
 /// open text channel wants to re-run its sweep, and a call in progress wants to
-/// know its key rotated out from under it. Both were opening a client,
-/// subscribing, and tearing the pair down in the same slightly fiddly order,
-/// and the second copy of that is the warning.
+/// know its key rotated out from under it.
 class KeySweepDoorbell {
-  SupabaseClient? _client;
-  RealtimeChannel? _channel;
+  RealtimeLease? _lease;
 
   /// Whether this doorbell is currently listening.
-  bool get isListening => _channel != null;
+  bool get isListening => _lease != null;
 
   /// Listen on [server], calling [onRing] each time somebody rings.
   ///
@@ -29,40 +25,27 @@ class KeySweepDoorbell {
   /// server change without leaking the previous one. Does nothing for a server
   /// with no anon key — there is nothing to connect with, and a call or a
   /// channel that works without the doorbell is better than one that fails
-  /// because of it.
-  void listen(Server server, void Function() onRing) {
-    stop();
-    final anonKey = server.supabaseKey;
-    if (anonKey == null) return;
-    _client = SupabaseClient(server.supabaseUrl, anonKey);
-    _channel = _client!.channel('keysweep:${server.id}')
-      ..onBroadcast(event: 'sweep', callback: (_) => onRing())
-      ..subscribe();
+  /// because of it. The chat and a call in progress each hold one of these;
+  /// [realtime] gives them the same join.
+  void listen(ServerRealtime realtime, Server server, void Function() onRing) {
+    unawaited(stop());
+    _lease = realtime.join(server, 'keysweep:${server.id}')
+      ?..onBroadcast('sweep', (_) => onRing());
   }
 
   /// Ring it, so other clients go and look.
   ///
   /// Best-effort: the thing being announced has already happened, and a
   /// doorbell nobody heard costs somebody a wait rather than correctness.
-  void ring() {
-    try {
-      _channel?.sendBroadcastMessage(event: 'sweep', payload: {});
-    } catch (_) {}
-  }
+  void ring() => _lease?.send('sweep', const {});
 
-  /// Stop listening and dispose the client.
+  /// Stop listening.
   ///
-  /// The fields are cleared before the awaits so a `stop` racing a `listen`
-  /// cannot tear down the new subscription instead of the old one.
+  /// The field is cleared before the await so a `stop` racing a `listen`
+  /// cannot release the new subscription instead of the old one.
   Future<void> stop() async {
-    final channel = _channel;
-    final client = _client;
-    _channel = null;
-    _client = null;
-    try {
-      await channel?.unsubscribe();
-      await client?.removeAllChannels();
-      await client?.dispose();
-    } catch (_) {}
+    final lease = _lease;
+    _lease = null;
+    await lease?.release();
   }
 }

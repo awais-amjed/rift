@@ -21,8 +21,9 @@ mixin _PresenceTrackingMixin on Cubit<ChannelPresenceState> {
   RealtimeChannel? get _channel;
   bool get _subscribed;
 
-  /// Throws the connection away and builds another — the only cure for a
-  /// dropped entry, since the ration and the channel both belong to it.
+  /// Leaves the presence topic and joins it again — the only cure for a
+  /// dropped entry, since the ration and the channel process both belong to
+  /// the join, not to the socket it rides on.
   Future<void> _rebuild();
 
   /// Whether our entry is on the server, as far as we know. Only ever a belief;

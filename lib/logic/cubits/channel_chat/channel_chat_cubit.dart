@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
-import 'package:supabase/supabase.dart';
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -32,6 +31,7 @@ import '../../services/mentions.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
 import '../../services/reaction_ops.dart';
+import '../../services/server_realtime.dart';
 import '../../services/window_focus_service.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
@@ -363,9 +363,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// the next fetch.
   @override
   void _ringDoorbell() {
-    try {
-      _rtChannel?.sendBroadcastMessage(event: 'new_message', payload: {});
-    } catch (_) {}
+    _rtTopic?.send('new_message', const {});
   }
 
   /// Notify other members that one message was edited or deleted.
@@ -375,12 +373,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// request instead of putting words in someone's mouth or hiding a message.
   @override
   void _ringChangeDoorbell(String messageId) {
-    try {
-      _rtChannel?.sendBroadcastMessage(
-        event: 'message_changed',
-        payload: {'message_id': messageId},
-      );
-    } catch (_) {}
+    _rtTopic?.send('message_changed', {'message_id': messageId});
   }
 
   /// Notify other members that one message's reactions changed, so they
@@ -390,12 +383,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// every listener re-reads reactions for its whole loaded history.
   @override
   void _ringReactionDoorbell(String messageId) {
-    try {
-      _rtChannel?.sendBroadcastMessage(
-        event: 'reaction',
-        payload: {'message_id': messageId},
-      );
-    } catch (_) {}
+    _rtTopic?.send('reaction', {'message_id': messageId});
   }
 
   // ──────────────────────────────────────────────────────────

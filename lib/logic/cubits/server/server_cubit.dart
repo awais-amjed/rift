@@ -30,6 +30,7 @@ import '../../services/avatar_cache.dart';
 import '../../services/push_service.dart';
 import '../../services/push_wake/wake_index.dart';
 import '../../services/role_ladder.dart';
+import '../../services/server_realtime.dart';
 import '../vault/vault_cubit.dart';
 
 part 'server_api.dart';
@@ -169,6 +170,13 @@ class ServerCubit extends HydratedCubit<ServerState>
     _onServersChanged = callback;
   }
 
+  /// Every server's one Realtime connection. Here because this cubit is what
+  /// holds the servers and their tokens, and what every listener already has.
+  late final ServerRealtime realtime = ServerRealtime(
+    servers: stream.map((s) => s.servers),
+    current: () => state.servers,
+  );
+
   /// Called after a structural change to a server (e.g. a channel created) —
   /// wired to the `server_events` Broadcast doorbell so other members refresh in
   /// realtime.
@@ -211,8 +219,9 @@ class ServerCubit extends HydratedCubit<ServerState>
   }
 
   @override
-  Future<void> close() {
+  Future<void> close() async {
     PushService.instance.token.removeListener(_onPushToken);
+    await realtime.dispose();
     return super.close();
   }
 

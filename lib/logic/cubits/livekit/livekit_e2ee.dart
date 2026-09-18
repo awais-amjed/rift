@@ -175,8 +175,15 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   }
 
   /// Listen for rotations for as long as [channelId]'s call lasts.
-  void _watchKeyRotations(Server server, String channelId) =>
-      _rotations.listen(server, () => unawaited(_onKeyDoorbell(channelId)));
+  void _watchKeyRotations(Server server, String channelId) {
+    final realtime = _serverCubit?.realtime;
+    if (realtime == null) return;
+    _rotations.listen(
+      realtime,
+      server,
+      () => unawaited(_onKeyDoorbell(channelId)),
+    );
+  }
 
   void _clearE2EE() {
     unawaited(_rotations.stop());

@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
-import 'package:supabase/supabase.dart';
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -21,6 +20,7 @@ import '../../services/link_preview_fetcher.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
 import '../../services/reaction_ops.dart';
+import '../../services/server_realtime.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -62,8 +62,10 @@ class DmCubit extends Cubit<DmState>
   @override
   final Map<String, Uint8List> _dmKeys = {};
 
-  SupabaseClient? _rtClient;
-  RealtimeChannel? _peerTopic;
+  /// Our own inbox topic, and the open peer's — both on the server's shared
+  /// connection.
+  RealtimeLease? _inbox;
+  RealtimeLease? _peerTopic;
   String? _readyServerId;
 
   /// Diffs conversation snapshots to raise notifications for new DMs.
@@ -171,33 +173,31 @@ class DmCubit extends Cubit<DmState>
   // ──────────────────────────────────────────────────────────
 
   void _setupRealtime(Server server) {
-    if (server.supabaseKey == null || server.user == null) return;
-    _rtClient = SupabaseClient(server.supabaseUrl, server.supabaseKey!);
-    _rtClient!.channel('dm:${server.id}:${server.user!.id}')
-      ..onBroadcast(event: 'new_dm', callback: (_) => _onDoorbell())
-      ..onBroadcast(event: 'message_changed', callback: _onChangeDoorbell)
-      ..onBroadcast(event: 'typing', callback: _onTyping)
-      ..onBroadcast(event: 'reaction', callback: _onReactionDoorbell)
-      ..subscribe();
+    final user = server.user;
+    if (user == null) return;
+    _inbox = _serverCubit.realtime.join(server, 'dm:${server.id}:${user.id}')
+      ?..onBroadcast('new_dm', (_) => _onDoorbell())
+      ..onBroadcast('message_changed', _onChangeDoorbell)
+      ..onBroadcast('typing', _onTyping)
+      ..onBroadcast('reaction', _onReactionDoorbell);
   }
 
   Future<void> _teardownRealtime() async {
-    final client = _rtClient;
-    _rtClient = null;
+    final inbox = _inbox;
+    final peer = _peerTopic;
+    _inbox = null;
     _peerTopic = null;
-    try {
-      await client?.removeAllChannels();
-      await client?.dispose();
-    } catch (_) {}
+    await peer?.release();
+    await inbox?.release();
   }
 
   /// Joins the open peer's doorbell topic so sends can ring them.
   @override
   void _joinPeerTopic(String peerId) {
     final server = _serverCubit.state.selectedServer;
-    if (_rtClient == null || server == null) return;
+    if (_inbox == null || server == null) return;
     _leavePeerTopic();
-    _peerTopic = _rtClient!.channel('dm:${server.id}:$peerId')..subscribe();
+    _peerTopic = _serverCubit.realtime.join(server, 'dm:${server.id}:$peerId');
   }
 
   @override
@@ -208,18 +208,12 @@ class DmCubit extends Cubit<DmState>
     _lastTypingSent = null;
     final topic = _peerTopic;
     _peerTopic = null;
-    if (topic != null) {
-      try {
-        _rtClient?.removeChannel(topic);
-      } catch (_) {}
-    }
+    unawaited(topic?.release());
   }
 
   @override
   void _ringPeerDoorbell() {
-    try {
-      _peerTopic?.sendBroadcastMessage(event: 'new_dm', payload: {});
-    } catch (_) {}
+    _peerTopic?.send('new_dm', const {});
   }
 
   /// Tell the peer that a message was edited or deleted. Which of the two, and
@@ -227,12 +221,7 @@ class DmCubit extends Cubit<DmState>
   /// forged ping can only cost them a request.
   @override
   void _ringChangeDoorbell(String messageId) {
-    try {
-      _peerTopic?.sendBroadcastMessage(
-        event: 'message_changed',
-        payload: {'message_id': messageId},
-      );
-    } catch (_) {}
+    _peerTopic?.send('message_changed', {'message_id': messageId});
   }
 
   void _onChangeDoorbell(Map<String, dynamic> payload) {
@@ -248,12 +237,7 @@ class DmCubit extends Cubit<DmState>
   /// rather than every message they have loaded.
   @override
   void _ringReactionDoorbell(String messageId) {
-    try {
-      _peerTopic?.sendBroadcastMessage(
-        event: 'reaction',
-        payload: {'message_id': messageId},
-      );
-    } catch (_) {}
+    _peerTopic?.send('reaction', {'message_id': messageId});
   }
 
   /// A ring without a message id is an older client; fall back to refreshing
@@ -288,14 +272,10 @@ class DmCubit extends Cubit<DmState>
       return;
     }
     final user = _serverCubit.state.selectedServer?.user;
-    if (user == null || _peerTopic == null) return;
+    final peer = _peerTopic;
+    if (user == null || peer == null) return;
     _lastTypingSent = now;
-    try {
-      _peerTopic!.sendBroadcastMessage(
-        event: 'typing',
-        payload: {'from': user.id, 'name': user.displayName},
-      );
-    } catch (_) {}
+    peer.send('typing', {'from': user.id, 'name': user.displayName});
   }
 
   void _onTyping(Map<String, dynamic> payload) {

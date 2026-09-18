@@ -65,7 +65,7 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
   }
 
   void _setupSweepRealtime(Server server) =>
-      _sweepDoorbell.listen(server, _onKeySweepDoorbell);
+      _sweepDoorbell.listen(_serverCubit.realtime, server, _onKeySweepDoorbell);
 
   Future<void> _teardownSweepRealtime() => _sweepDoorbell.stop();
 
