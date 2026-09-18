@@ -57,7 +57,7 @@ mixin _ChannelChatRealtimeMixin
           // Our own sends are already on screen from their insert.
           if (!here(message)) return;
           if (BroadcastPayload.stringOf(message, 'sender_id') == me) return;
-          _onDoorbell();
+          _onDoorbell(announced: BroadcastPayload.stringOf(message, 'id'));
         })
         ..onBroadcast(ServerEvent.messageChanged, (message) {
           if (here(message)) _onChangeDoorbell(message);
@@ -141,7 +141,30 @@ mixin _ChannelChatRealtimeMixin
     }
   }
 
-  void _onDoorbell() {
+  /// How long to wait before asking again for a message that was announced
+  /// and did not arrive.
+  static const _missedRetry = Duration(seconds: 2);
+
+  /// Fetch what is newer, and check that what was announced actually landed.
+  ///
+  /// The doorbell only says "go and look"; the looking can fail — a request
+  /// that times out, a token that expires between the two — and the message
+  /// then never appears, because nothing announces it a second time. Once the
+  /// id is known that silence is detectable, so it is asked for directly
+  /// rather than waiting for somebody to reopen the channel. Seen once, not
+  /// reproduced: a message that reached the other client's socket and never
+  /// its screen.
+  Future<void> _fetchAnnounced(String? announced) async {
+    await _fetchAfterLatest();
+    if (isClosed || announced == null) return;
+    if (state.messages.any((message) => message.id == announced)) return;
+    await Future<void>.delayed(_missedRetry);
+    if (isClosed) return;
+    await fetchMissingMessage(announced);
+  }
+
+  /// [announced] is the id the database named, when it named one.
+  void _onDoorbell({String? announced}) {
     if (isClosed) return;
     switch (state.status) {
       // Read-only reads the same way: this doorbell means a *message*, and a
@@ -150,7 +173,7 @@ mixin _ChannelChatRealtimeMixin
       // every message would be a heavy answer to the wrong signal.
       case ChannelChatStatus.ready:
       case ChannelChatStatus.readOnly:
-        unawaited(_fetchAfterLatest());
+        unawaited(_fetchAnnounced(announced));
       case ChannelChatStatus.waitingForKey:
       case ChannelChatStatus.healingKey:
         // A member came online and may have healed our keyring entry.

@@ -76,6 +76,42 @@ mixin _ChannelChatHistoryMixin
     if (freshIncoming.isNotEmpty) _onFreshIncoming(freshIncoming);
   }
 
+  /// Fetch one message by id, when a doorbell named it and the catch-up read
+  /// did not bring it back.
+  ///
+  /// [_fetchAfterLatest] asks for rows newer than the newest one held, so a
+  /// message missed once is unreachable the moment a later one arrives: the
+  /// only thing that would show it again is reopening the channel. This asks
+  /// for that row alone.
+  Future<void> fetchMissingMessage(String messageId) async {
+    final channelId = state.channelId;
+    final id = int.tryParse(messageId);
+    if (channelId == null || id == null) return;
+    if (state.messages.any((message) => message.id == messageId)) return;
+
+    final response = await _serverCubit.getChatMessage(
+      channelId: channelId,
+      messageId: id,
+    );
+    if (!response.success || state.channelId != channelId) return;
+
+    final row = (response.data as Map<String, dynamic>)['message'];
+    if (row == null) return; // deleted in the meantime
+    final decrypted = await _decryptRows(channelId, [
+      (row as Map).cast<String, dynamic>(),
+    ]);
+    if (decrypted.isEmpty || state.channelId != channelId) return;
+
+    final result = ChatMessageOps.mergeIncoming(
+      current: state.messages,
+      incoming: decrypted,
+    );
+    if (result.fresh.isEmpty) return;
+    emit(state.copyWith(messages: result.merged));
+    final freshIncoming = result.fresh.where((m) => !m.isMine).toList();
+    if (freshIncoming.isNotEmpty) _onFreshIncoming(freshIncoming);
+  }
+
   /// Re-read one message a change doorbell named, and apply whatever happened
   /// to it: an edit swaps the row in place, a delete takes it off the list.
   ///
