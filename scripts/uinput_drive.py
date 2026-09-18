@@ -58,6 +58,9 @@ BTN_LEFT, BTN_RIGHT = 0x110, 0x111
 _MOVE_STEP = 6
 _MOVE_CORRECTIONS = 14
 
+# How long a position reading takes to catch up with the pointer.
+_SETTLE = 0.04
+
 # How far from the corner a post-slam reading may be and still be believed.
 # The pointer is clamped hard into 0,0; anything further out is a stale report,
 # not a near miss.
@@ -185,9 +188,18 @@ class Device:
         # lie, so check the origin before trusting the eye.
         origin = pointer_position()
         if origin is None or origin[0] > _CORNER_SLOP or origin[1] > _CORNER_SLOP:
+            # The corner is not over an X window (a panel sits there, or the
+            # windows start below it), so it cannot be seen. Travel open loop —
+            # acceleration still bends that, by as much as half again — and
+            # then correct once the pointer is somewhere X can see: over the
+            # window being driven, a reading that has moved off the stale one
+            # is live.
             self._nudge(int(x), int(y))
             time.sleep(0.05)
-            return
+            at = pointer_position()
+            if at is None or at == origin:
+                return
+        before = None
         for _ in range(_MOVE_CORRECTIONS):
             at = pointer_position()
             if at is None:
@@ -195,10 +207,20 @@ class Device:
                 # rather than spinning.
                 self._nudge(int(x), int(y))
                 break
+            # A correction was made and the reading did not move: the pointer
+            # has left every X window and this is the stale value again.
+            # Correcting from it repeats the same delta each round and drives
+            # the pointer off into another window.
+            if at == before:
+                break
             dx, dy = int(x) - at[0], int(y) - at[1]
             if abs(dx) <= 1 and abs(dy) <= 1:
                 break
             self._nudge(dx, dy)
+            before = at
+            # XWayland reports where the pointer *was* for a moment after it
+            # moves; a reading taken straight away over-corrects.
+            time.sleep(_SETTLE)
         time.sleep(0.05)
 
     def _corner(self):
