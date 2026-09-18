@@ -3,9 +3,10 @@
 Design reference for third-party integrations. **Everything in the §13 build order is
 implemented** — `005_bots.sql` for the bot itself, `009_bot_voice.sql` for panels, the
 grants and encrypted voice, plus both SDKs (§11). What is left is listed in §12 and in each SDK's
-README, and it is choices rather than a backlog: reading over realtime instead of polling,
-attachments, joining from an invite link, and an `image` block that points at this server's own
-bucket.
+README, and it is choices rather than a backlog: attachments, joining from an invite link, and an
+`image` block that points at this server's own bucket. Reading over realtime landed with
+`018_bots_are_told.sql` — a bot is told what it may hear on its own topic, and polls slowly behind
+that as a backstop.
 Sections are marked as they land, the same way `ARCHITECTURE.md` marks its own.
 
 Read `ARCHITECTURE.md` §2 (auth) and §4 (chat encryption) first. This document assumes both, and
@@ -424,7 +425,8 @@ token, and does nothing to the connection the bot already holds, which is good f
 "Send away" removed the row, the client said the bot would leave, and the bot stayed in the call
 playing music. `set_bot_voice_summon` pushes `removeParticipant` for the one channel, the same
 shape and the same reason as `set_bot_voice_listen`'s push. Summoning pushes nothing: there is no
-connection yet, and the bot's own poll is what brings it in.
+connection yet, and what brings it in is the command message itself, which the database announces
+to the bot the moment it is written (018).
 
 **A summon ends when its reason does** (`010_bot_permissions.sql`). Closing a channel drops its summons, the
 same as 031 does for listening grants — without it a bot called into a public call could still take
