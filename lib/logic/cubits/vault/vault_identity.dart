@@ -11,6 +11,19 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
     required String serverId,
   });
 
+  /// Implemented by [_VaultAuthMixin].
+  Future<VaultState> settled();
+
+  /// The master seed, once the vault has been read.
+  ///
+  /// Throws rather than returning null: there is no identity to derive
+  /// without one, and a caller has nothing sensible to do with a null.
+  Future<Uint8List> _masterSeed() async {
+    final seed = (await settled()).masterSeed;
+    if (seed == null) throw StateError('The vault has no master seed');
+    return CryptoRepository.fromBase64(seed);
+  }
+
   // ──────────────────────────────────────────────────────────
   // Phase 2: Joining a server
   // ──────────────────────────────────────────────────────────
@@ -31,7 +44,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       return _identityCache[cacheKey]!;
     }
 
-    final seed = CryptoRepository.fromBase64(state.masterSeed!);
+    final seed = await _masterSeed();
     final identity = await _crypto.deriveServerIdentity(
       masterSeed: seed,
       host: host,
@@ -54,7 +67,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       return _chatIdentityCache[cacheKey]!;
     }
 
-    final seed = CryptoRepository.fromBase64(state.masterSeed!);
+    final seed = await _masterSeed();
     final identity = await _crypto.deriveChatIdentity(
       masterSeed: seed,
       host: host,

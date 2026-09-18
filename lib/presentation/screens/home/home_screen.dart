@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/constants.dart';
-import '../../../data/enums/auth_status.dart';
 import '../../../data/enums/layout_mode.dart';
 import '../../../data/invite_link.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
@@ -54,20 +53,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _onStartup() async {
     if (!mounted) return;
 
-    final vaultCubit = context.read<VaultCubit>();
-
-    // Wait for checkVaultStatus() to settle before using state.masterSeed —
-    // if we proceed while status is still unknown, loginToServer() silently
-    // fails and the stale token is used until the next cold start.
-    if (vaultCubit.state.status == AuthStatus.unknown) {
-      await vaultCubit.stream
-          .firstWhere((s) => s.status != AuthStatus.unknown)
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => vaultCubit.state,
-          );
-      if (!mounted) return;
-    }
+    await context.read<VaultCubit>().settled();
+    if (!mounted) return;
 
     final serverState = context.read<ServerCubit>().state;
 

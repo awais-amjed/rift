@@ -41,6 +41,19 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
     }
   }
 
+  /// The state once [checkVaultStatus] has answered.
+  ///
+  /// Reading secure storage takes a moment, and the app does not wait for it
+  /// before making server calls. After a night off every stored token has
+  /// expired, so those first calls go straight to a re-login — which needs the
+  /// seed that has not been read yet. Anything that needs the seed waits here.
+  Future<VaultState> settled() async {
+    if (state.status != AuthStatus.unknown) return state;
+    return stream
+        .firstWhere((s) => s.status != AuthStatus.unknown)
+        .timeout(const Duration(seconds: 10), onTimeout: () => state);
+  }
+
   // ──────────────────────────────────────────────────────────
   // Sign-in-with-Web3 (SIWS) login
   // ──────────────────────────────────────────────────────────
