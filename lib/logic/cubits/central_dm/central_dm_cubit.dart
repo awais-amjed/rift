@@ -26,6 +26,7 @@ import '../../services/attachment_cleanup.dart';
 import '../../services/central_handle.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/conversation_splice.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
@@ -148,22 +149,28 @@ class CentralDmCubit extends Cubit<CentralDmState>
     unawaited(loadFriends().then((_) => refreshConversations()));
   }
 
+  /// A DM arrived from [senderId]. Only their conversation can have moved, so
+  /// only their row is re-read; the open chat fetches what is newer than it
+  /// has, and only when it is theirs.
   @override
-  void _onIncoming() {
+  void _onIncoming(String senderId) {
     if (isClosed) return;
-    unawaited(refreshConversations());
-    if (state.chatStatus == DmChatStatus.ready) {
+    unawaited(refreshConversation(senderId));
+    if (state.chatStatus == DmChatStatus.ready &&
+        state.openPeerId == senderId) {
       unawaited(_fetchAfterLatest());
     }
   }
 
-  /// The peer edited a message. `_fetchAfterLatest` can't see it — an edited
-  /// message is not a newer one — so the row is re-read by id.
+  /// The peer edited or deleted a message. `_fetchAfterLatest` can't see
+  /// either — neither is newer than anything — so the row is re-read by id,
+  /// and comes back missing when it was a delete.
   @override
-  void _onMessageUpdated(String messageId) {
+  void _onMessageUpdated(String messageId, String senderId) {
     if (isClosed) return;
-    unawaited(refreshConversations());
-    if (state.chatStatus == DmChatStatus.ready) {
+    unawaited(refreshConversation(senderId));
+    if (state.chatStatus == DmChatStatus.ready &&
+        state.openPeerId == senderId) {
       unawaited(refreshMessage(messageId));
     }
   }

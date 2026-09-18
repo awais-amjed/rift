@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../logic/services/broadcast_payload.dart';
 import '../../logic/services/chat_message_ops.dart';
 import '../../logic/services/paging.dart';
 import '../classes/api_response.dart';
@@ -230,11 +231,19 @@ class CentralDmRepository
   /// [before] is the previous page's last `last_message.id`. Keyset rather than
   /// an offset: a conversation moves to the top when somebody speaks in it, and
   /// an offset under that would skip and repeat rows at every boundary.
-  Future<APIResponse> listConversations({int limit = 30, int? before}) async {
+  ///
+  /// [peer] asks for that one conversation instead of a page of them — what an
+  /// arriving DM needs, rather than a rebuild of the list from thirty days of
+  /// messages.
+  Future<APIResponse> listConversations({
+    int limit = 30,
+    int? before,
+    String? peer,
+  }) async {
     try {
       final result = await _client.rpc(
         'dm_conversations',
-        params: {'p_limit': limit, 'p_before': before},
+        params: {'p_limit': limit, 'p_before': before, 'p_peer': peer},
       );
       return APIResponse.success(result);
     } catch (e) {
@@ -246,102 +255,55 @@ class CentralDmRepository
   // Realtime
   // ──────────────────────────────────────────────────────────
 
-  /// Subscribe to DMs addressed to the caller: [onInsert] for a new one,
-  /// [onUpdate] with the row id when one is edited.
+  /// Hear what the central database says to us alone, on our own private
+  /// topic (central migration 021): [onInsert] for a DM that arrived,
+  /// [onUpdate] for one its sender edited or deleted, [onPrefsChanged] for a
+  /// notification level set on another device, and [onGraphChanged] for a
+  /// friendship or a block.
   ///
-  /// Deletes are absent on purpose. A DELETE event carries only the primary
-  /// key, so the `recipient_id` filter can't match it — subscribing would mean
-  /// hearing about every deletion on the tier, by everyone. A deleted central
-  /// DM therefore disappears when the conversation is next opened.
+  /// Both DM callbacks carry the peer, so the caller can re-read that one
+  /// conversation instead of the whole list.
+  ///
+  /// This used to be four table subscriptions, which Realtime re-checked per
+  /// watcher per row. Deletes could not be among them — a DELETE event carries
+  /// only the primary key, so no `recipient_id` filter could match it, and a
+  /// deleted DM stayed on screen until the conversation was reopened. The
+  /// database says all four itself now.
   RealtimeChannel subscribeIncoming(
-    void Function() onInsert, {
-    required void Function(String messageId) onUpdate,
+    void Function(String senderId) onInsert, {
+    required void Function(String messageId, String senderId) onUpdate,
     required void Function() onPrefsChanged,
     required void Function() onGraphChanged,
   }) {
     final myId = _client.auth.currentUser!.id;
-    final mine = PostgresChangeFilter(
-      type: PostgresChangeFilterType.eq,
-      column: 'recipient_id',
-      value: myId,
-    );
-    final channel = _client.channel('central-dm-incoming')
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.insert,
-        schema: 'public',
-        table: 'dm_messages',
-        filter: mine,
-        callback: (_) => onInsert(),
-      )
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.update,
-        schema: 'public',
-        table: 'dm_messages',
-        filter: mine,
-        callback: (payload) {
-          final id = payload.newRecord['id'];
-          if (id != null) onUpdate('$id');
-        },
-      )
-      // A level set on another device. Same channel rather than a second one:
-      // it is the same account watching its own rows, and a subscription costs
-      // a connection whether or not anything ever comes down it.
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'notification_prefs',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'user_id',
-          value: myId,
-        ),
-        callback: (_) => onPrefsChanged(),
-      )
-      // A request answered on a phone has to reach the desktop, or the
-      // relationship is per-device state that happens to live on a server.
-      //
-      // Two bindings for one table because a Realtime filter is one column and
-      // `friendships` is keyed by a *pair* — the caller is `low_id` in half
-      // their rows and `high_id` in the other half. Both land on this channel:
-      // it is the same account watching its own rows, and a subscription costs
-      // a connection whether or not anything comes down it.
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'friendships',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'low_id',
-          value: myId,
-        ),
-        callback: (_) => onGraphChanged(),
-      )
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'friendships',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'high_id',
-          value: myId,
-        ),
-        callback: (_) => onGraphChanged(),
-      )
-      // Only our own blocks. There is no policy anywhere that lets the blocked
-      // side read the row, so a `blocked_id` binding would deliver nothing and
-      // advertise the attempt.
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'blocks',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'blocker_id',
-          value: myId,
-        ),
-        callback: (_) => onGraphChanged(),
-      )
-      ..subscribe();
+    final channel =
+        _client.channel(
+            'user:$myId',
+            opts: const RealtimeChannelConfig(private: true),
+          )
+          ..onBroadcast(
+            event: 'dm',
+            callback: (message) {
+              final senderId = BroadcastPayload.stringOf(message, 'sender_id');
+              if (senderId != null) onInsert(senderId);
+            },
+          )
+          ..onBroadcast(
+            event: 'dm_changed',
+            callback: (message) {
+              final messageId = BroadcastPayload.stringOf(
+                message,
+                'message_id',
+              );
+              final senderId = BroadcastPayload.stringOf(message, 'sender_id');
+              if (messageId != null && senderId != null) {
+                onUpdate(messageId, senderId);
+              }
+            },
+          )
+          ..onBroadcast(event: 'prefs', callback: (_) => onPrefsChanged())
+          ..onBroadcast(event: 'graph', callback: (_) => onGraphChanged())
+          ..subscribe();
     return channel;
   }
 

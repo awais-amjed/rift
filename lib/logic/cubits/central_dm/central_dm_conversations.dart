@@ -28,8 +28,9 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
   /// Implemented by the unread mixin.
   void _rememberCursors(
     Map<String, int> latestInbound,
-    Map<String, int> unread,
-  );
+    Map<String, int> unread, {
+    bool merge,
+  });
   void _readOpenConversation(Map<String, int> counts);
 
   /// Implemented by the history mixin.
@@ -77,6 +78,40 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
     _notifyFromConversations(page.conversations);
   }
 
+  /// Re-read the one conversation with [peerId], and put it back where its
+  /// newest message belongs.
+  ///
+  /// What an arriving DM costs now. It used to cost [refreshConversations],
+  /// which rebuilds the first page out of every message the account has
+  /// exchanged in thirty days — on every device the account is signed in on,
+  /// for every message.
+  Future<void> refreshConversation(String peerId) async {
+    if (_myUserId == null) return;
+    final page = await _fetchConversations(peer: peerId);
+    if (isClosed || page == null) return;
+
+    final updated = page.conversations.firstOrNull;
+    final unread = {...state.unreadByPeer}
+      ..remove(peerId)
+      ..addAll(page.unread);
+    final levels = {...state.levelsByPeer}
+      ..remove(peerId)
+      ..addAll(page.levels);
+    _readOpenConversation(unread);
+    emit(
+      state.copyWith(
+        conversations: ConversationSplice.apply(
+          state.conversations,
+          peerId: peerId,
+          updated: updated,
+        ),
+        unreadByPeer: unread,
+        levelsByPeer: levels,
+      ),
+    );
+    if (updated != null) _notifyFromConversations([updated]);
+  }
+
   /// Append the next page — what the list asks for as it is scrolled.
   ///
   /// Safe to call on every scroll frame: a call while one is in flight, or
@@ -111,8 +146,8 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
       bool hasMore,
     })?
   >
-  _fetchConversations({int? before}) async {
-    final response = await _repo.listConversations(before: before);
+  _fetchConversations({int? before, String? peer}) async {
+    final response = await _repo.listConversations(before: before, peer: peer);
     if (isClosed || !response.success) return null;
 
     final data = response.data as Map<String, dynamic>;
@@ -169,7 +204,11 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
     }
     if (isClosed) return null;
 
-    _rememberCursors(latestInbound, unread);
+    _rememberCursors(
+      latestInbound,
+      unread,
+      merge: before != null || peer != null,
+    );
     return (
       conversations: conversations,
       unread: unread,

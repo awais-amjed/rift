@@ -27,8 +27,8 @@ mixin _CentralDmReadyMixin on Cubit<CentralDmState>, _CentralDmUnreadMixin {
 
   /// Implemented by the hub — the Realtime callbacks it owns.
   Future<void> _teardown();
-  void _onIncoming();
-  void _onMessageUpdated(String messageId);
+  void _onIncoming(String senderId);
+  void _onMessageUpdated(String messageId, String senderId);
   void _onGraphChanged();
 
   /// Read cursors and notification levels come from the unread mixin, which

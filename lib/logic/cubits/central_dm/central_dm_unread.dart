@@ -93,11 +93,14 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
   // ignore: unused_element
   void _rememberCursors(
     Map<String, int> latestInbound,
-    Map<String, int> unread,
-  ) {
-    _latestInbound
-      ..clear()
-      ..addAll(latestInbound);
+    Map<String, int> unread, {
+    bool merge = false,
+  }) {
+    // [merge] for a read of *part* of the list — one conversation, or a later
+    // page. Clearing there would drop the cursors of every conversation the
+    // read did not mention, and with them the "seen up to here" of each.
+    if (!merge) _latestInbound.clear();
+    _latestInbound.addAll(latestInbound);
     for (final entry in latestInbound.entries) {
       if (!unread.containsKey(entry.key)) _readCursors[entry.key] = entry.value;
     }
