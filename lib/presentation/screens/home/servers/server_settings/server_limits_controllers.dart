@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/services/limit_input.dart';
 
-/// The three limit fields of the server settings dialog, as one object.
+/// The limit fields of the server settings dialog, as one object.
 ///
 /// They are grouped rather than sitting loose in the dialog's state because
 /// they share all of their behaviour: each is seeded from a [ServerLimits],
@@ -18,6 +18,12 @@ class ServerLimitsControllers {
   final retentionDays = TextEditingController();
   final historyCap = TextEditingController();
 
+  /// What a call may cost (migration 028). Bandwidth rather than disk, which
+  /// is why the dialog shows them under their own heading — but they are read
+  /// and validated with the rest, because [ServerLimits] travels whole.
+  final voiceParticipants = TextEditingController();
+  final shareMbps = TextEditingController();
+
   /// The DM overrides as last seeded. This dialog doesn't show them — they are
   /// set by right-clicking Server DMs — but [ServerLimits] travels whole, so
   /// saving here would send them as null and quietly undo them. Carried rather
@@ -30,6 +36,8 @@ class ServerLimitsControllers {
     attachmentMb.text = LimitInput.megabytesOf(limits.maxAttachmentBytes);
     retentionDays.text = LimitInput.textOf(limits.messageRetentionDays);
     historyCap.text = LimitInput.textOf(limits.messageHistoryCap);
+    voiceParticipants.text = LimitInput.textOf(limits.maxVoiceParticipants);
+    shareMbps.text = LimitInput.textOf(limits.maxShareMbps);
     _dmRetentionDays = limits.dmRetentionDays;
     _dmHistoryCap = limits.dmHistoryCap;
   }
@@ -38,6 +46,8 @@ class ServerLimitsControllers {
     attachmentMb.dispose();
     retentionDays.dispose();
     historyCap.dispose();
+    voiceParticipants.dispose();
+    shareMbps.dispose();
   }
 
   /// The limits as typed, or the sentence explaining why they aren't valid.
@@ -69,6 +79,8 @@ class ServerLimitsControllers {
     final counts = <String, TextEditingController>{
       'retention period': retentionDays,
       'history cap': historyCap,
+      'call size': voiceParticipants,
+      'screen share limit': shareMbps,
     };
     final read = <String, int>{};
     for (final entry in counts.entries) {
@@ -89,6 +101,8 @@ class ServerLimitsControllers {
         messageHistoryCap: read['history cap']!,
         dmRetentionDays: _dmRetentionDays,
         dmHistoryCap: _dmHistoryCap,
+        maxVoiceParticipants: read['call size']!,
+        maxShareMbps: read['screen share limit']!,
       ),
       error: null,
     );

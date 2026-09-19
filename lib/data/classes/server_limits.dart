@@ -60,13 +60,51 @@ class ServerLimits {
   /// messages survive.
   final int? dmHistoryCap;
 
+  /// How many people may be in one voice channel at once. [unlimited] is no
+  /// cap.
+  ///
+  /// People, not connections: a screen share is a second connection held by
+  /// somebody already counted. The server enforces this — `get_channel_token`
+  /// refuses the next arrival — so the client never has to, and a client that
+  /// ignored it would simply be refused a token.
+  final int maxVoiceParticipants;
+
+  /// The most a screen share may publish, in Mbps. [unlimited] is no cap.
+  ///
+  /// **This one the client has to keep**, and it is the only limit here that
+  /// works that way. A LiveKit join token has nowhere to put a bitrate, so
+  /// there is nothing for the server to clamp at the moment it hands one out;
+  /// what the operator sets is a budget, and [shareMbps] is where it is
+  /// applied. An operator who needs a wall against a client that ignores it
+  /// sets `limit.bytes_per_sec` in `livekit.yaml`.
+  ///
+  /// Why an operator would set it at all: a share goes out at full rate to
+  /// every watcher with nothing downscaling in between, so one person at the
+  /// 10 Mbps default costs 10 Mbps *per watcher* — a quarter of a gigabit at
+  /// twenty-five of them (docs.joinrift.app/sizing/#calls).
+  final int maxShareMbps;
+
   const ServerLimits({
     this.maxAttachmentBytes = defaultMaxAttachmentBytes,
     this.messageRetentionDays = unlimited,
     this.messageHistoryCap = unlimited,
     this.dmRetentionDays,
     this.dmHistoryCap,
+    this.maxVoiceParticipants = unlimited,
+    this.maxShareMbps = unlimited,
   });
+
+  /// What a screen share should actually publish, in Mbps: the smaller of
+  /// what the sharer asked for and what the operator allows, and the sharer's
+  /// own number when there is no cap.
+  ///
+  /// Mbps and not something finer because that is the only unit there is —
+  /// the capture pipeline takes whole Mbps and refuses zero, so a cap stored
+  /// in kbps would round on the way through and the number an operator typed
+  /// would not be the number anything used.
+  int shareMbps(int requested) => maxShareMbps == unlimited
+      ? requested
+      : (requested < maxShareMbps ? requested : maxShareMbps);
 
   /// What DMs are actually swept by, inherit resolved.
   int get effectiveDmRetentionDays => dmRetentionDays ?? messageRetentionDays;
@@ -117,6 +155,8 @@ class ServerLimits {
       messageHistoryCap: read('message_history_cap', unlimited),
       dmRetentionDays: readNullable('dm_retention_days'),
       dmHistoryCap: readNullable('dm_history_cap'),
+      maxVoiceParticipants: read('max_voice_participants', unlimited),
+      maxShareMbps: read('max_share_mbps', unlimited),
     );
   }
 
@@ -129,6 +169,8 @@ class ServerLimits {
     'message_history_cap': messageHistoryCap,
     'dm_retention_days': dmRetentionDays,
     'dm_history_cap': dmHistoryCap,
+    'max_voice_participants': maxVoiceParticipants,
+    'max_share_mbps': maxShareMbps,
   };
 
   @override
@@ -138,7 +180,9 @@ class ServerLimits {
       other.messageRetentionDays == messageRetentionDays &&
       other.messageHistoryCap == messageHistoryCap &&
       other.dmRetentionDays == dmRetentionDays &&
-      other.dmHistoryCap == dmHistoryCap;
+      other.dmHistoryCap == dmHistoryCap &&
+      other.maxVoiceParticipants == maxVoiceParticipants &&
+      other.maxShareMbps == maxShareMbps;
 
   @override
   int get hashCode => Object.hash(
@@ -147,5 +191,7 @@ class ServerLimits {
     messageHistoryCap,
     dmRetentionDays,
     dmHistoryCap,
+    maxVoiceParticipants,
+    maxShareMbps,
   );
 }

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 
 import '../../../data/classes/screen_share_settings.dart';
+import '../../../data/classes/server_limits.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../services/call_foreground_service.dart';
@@ -173,6 +174,22 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       // that keeps the base and screenshare connections paired.
       final livekitToken = response.data['token'] as String;
 
+      // And the operator's budget for a share, which rides along with the
+      // token so a change takes effect on the next share rather than the
+      // next sync (migration 028). A share goes out at full rate to every
+      // watcher with nothing downscaling in between, so this is the only
+      // thing standing between one person's quality setting and the
+      // server's uplink.
+      //
+      // Kept here rather than enforced at the server because there is
+      // nowhere to enforce it: a LiveKit join token has no bitrate field.
+      // An operator who needs a wall sets `limit.bytes_per_sec` in
+      // `livekit.yaml`.
+      final allowed = ServerLimits.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+      final bitrate = allowed.shareMbps(settings.bitrate);
+
       // The call's key, for the second connection this is about to open into
       // the same encrypted room.
       final encryption = _livekitCubit?.callEncryption;
@@ -193,7 +210,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         livekitToken: livekitToken,
         resolution: settings.resolution,
         fps: settings.fps,
-        bitrate: settings.bitrate,
+        bitrate: bitrate,
         // A hidden toggle keeps whatever it was last set to, so the platform
         // decides here rather than in the settings.
         shareAudio: settings.shareAudio && HostPlatform.capturesSystemAudio,

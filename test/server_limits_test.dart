@@ -212,4 +212,47 @@ void main() {
       expect(parse(const {'channel_type': 'voice'}).hasMessages, isFalse);
     });
   });
+
+  group('what a call may cost (migration 028)', () {
+    test('a server that has not said anything caps nothing', () {
+      const limits = ServerLimits.defaults;
+      expect(limits.maxVoiceParticipants, ServerLimits.unlimited);
+      expect(limits.maxShareMbps, ServerLimits.unlimited);
+      // And an operator who set nothing gets whatever the sharer picked.
+      expect(limits.shareMbps(10), 10);
+    });
+
+    test('a share is held to the smaller of the two numbers', () {
+      const capped = ServerLimits(maxShareMbps: 3);
+      expect(capped.shareMbps(10), 3, reason: 'the operator wins');
+      expect(capped.shareMbps(2), 2, reason: 'so does a modest sharer');
+      expect(capped.shareMbps(3), 3);
+    });
+
+    test('a server too old to know about these parses without them', () {
+      // The columns arrived in 028; a client that has been updated will meet
+      // servers that have not, and the answer is "no limit" rather than a
+      // crash or a zero that reads as "nothing may be shared".
+      final limits = ServerLimits.fromJson(const {
+        'max_attachment_bytes': 26214400,
+        'message_retention_days': 0,
+        'message_history_cap': 0,
+      });
+      expect(limits.maxVoiceParticipants, ServerLimits.unlimited);
+      expect(limits.maxShareMbps, ServerLimits.unlimited);
+      expect(limits.shareMbps(10), 10);
+    });
+
+    test('both survive a round trip, and count towards equality', () {
+      const limits = ServerLimits(maxVoiceParticipants: 25, maxShareMbps: 3);
+      final back = ServerLimits.fromJson(limits.toJson());
+      expect(back.maxVoiceParticipants, 25);
+      expect(back.maxShareMbps, 3);
+      expect(back, limits);
+      expect(back.hashCode, limits.hashCode);
+      // A limits object that ignored them would compare equal to one that
+      // set them, and the settings dialog would decide nothing had changed.
+      expect(const ServerLimits(maxVoiceParticipants: 25), isNot(limits));
+    });
+  });
 }
