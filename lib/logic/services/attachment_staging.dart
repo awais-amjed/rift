@@ -24,11 +24,17 @@ class AttachmentStaging {
   ///
   /// The size cap is the server's; the count cap is Rift's. Both are phrased
   /// as complete sentences because they are shown verbatim.
+  /// [remainingBytes] is what the server has room for (migration 029), or
+  /// null when it has no storage limit. [stagedBytes] is what this message is
+  /// already carrying, which counts against it — five files that each fit and
+  /// together do not is the case a per-file check alone would wave through.
   static String? rejectionFor({
     required String name,
     required int bytes,
     required int maxBytes,
     required int alreadyStaged,
+    int? remainingBytes,
+    int stagedBytes = 0,
   }) {
     if (alreadyStaged >= maxPerMessage) {
       return 'Up to $maxPerMessage files per message.';
@@ -36,6 +42,17 @@ class AttachmentStaging {
     if (bytes > maxBytes) {
       return '$name is ${humanSize(bytes)} — this server allows up to '
           '${humanSize(maxBytes)} per file.';
+    }
+    // Last, because it is the one that is not the file's fault. A file that
+    // is simply too big should be told so whether or not the server is also
+    // full.
+    if (remainingBytes != null && stagedBytes + bytes > remainingBytes) {
+      final left = remainingBytes - stagedBytes;
+      return left <= 0
+          ? 'This server is out of attachment space — an admin can free '
+                'some up or raise the limit.'
+          : '$name is ${humanSize(bytes)} and this server has only '
+                '${humanSize(left)} of attachment space left.';
     }
     return null;
   }

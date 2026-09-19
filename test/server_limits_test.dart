@@ -255,4 +255,42 @@ void main() {
       expect(const ServerLimits(maxVoiceParticipants: 25), isNot(limits));
     });
   });
+
+  group('how large the place may get (migration 029)', () {
+    test('a server that has not said anything caps neither', () {
+      const limits = ServerLimits.defaults;
+      expect(limits.maxMembers, ServerLimits.unlimited);
+      expect(limits.maxStorageBytes, ServerLimits.unlimited);
+      expect(limits.hasRoomFor(1 << 30, used: 1 << 40), isTrue);
+      expect(limits.remainingStorage(999), isNull);
+    });
+
+    test('storage room is what is left, and never negative', () {
+      const limits = ServerLimits(maxStorageBytes: 1000);
+      expect(limits.hasRoomFor(400, used: 500), isTrue);
+      expect(limits.hasRoomFor(500, used: 500), isTrue, reason: 'exactly full fits');
+      expect(limits.hasRoomFor(501, used: 500), isFalse);
+      expect(limits.remainingStorage(500), 400 + 100);
+      // A cap lowered below what is already held reads as nothing left,
+      // rather than as a negative allowance a caller might add to.
+      expect(limits.remainingStorage(5000), 0);
+    });
+
+    test('a server too old to know about these parses without them', () {
+      final limits = ServerLimits.fromJson(const {
+        'max_attachment_bytes': 26214400,
+      });
+      expect(limits.maxMembers, ServerLimits.unlimited);
+      expect(limits.maxStorageBytes, ServerLimits.unlimited);
+      expect(limits.hasRoomFor(1 << 30, used: 0), isTrue);
+    });
+
+    test('both survive a round trip and count towards equality', () {
+      const limits = ServerLimits(maxMembers: 50, maxStorageBytes: 1048576);
+      final back = ServerLimits.fromJson(limits.toJson());
+      expect(back, limits);
+      expect(back.hashCode, limits.hashCode);
+      expect(const ServerLimits(maxMembers: 50), isNot(limits));
+    });
+  });
 }

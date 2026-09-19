@@ -24,6 +24,12 @@ class ServerLimitsControllers {
   final voiceParticipants = TextEditingController();
   final shareMbps = TextEditingController();
 
+  /// How large the place may get (migration 029). [storageMb] is megabytes in
+  /// the box and bytes on the wire, like [attachmentMb] — nobody sets a disk
+  /// budget in bytes either.
+  final maxMembers = TextEditingController();
+  final storageMb = TextEditingController();
+
   /// The DM overrides as last seeded. This dialog doesn't show them — they are
   /// set by right-clicking Server DMs — but [ServerLimits] travels whole, so
   /// saving here would send them as null and quietly undo them. Carried rather
@@ -38,6 +44,10 @@ class ServerLimitsControllers {
     historyCap.text = LimitInput.textOf(limits.messageHistoryCap);
     voiceParticipants.text = LimitInput.textOf(limits.maxVoiceParticipants);
     shareMbps.text = LimitInput.textOf(limits.maxShareMbps);
+    maxMembers.text = LimitInput.textOf(limits.maxMembers);
+    storageMb.text = limits.maxStorageBytes == ServerLimits.unlimited
+        ? ''
+        : LimitInput.megabytesOf(limits.maxStorageBytes);
     _dmRetentionDays = limits.dmRetentionDays;
     _dmHistoryCap = limits.dmHistoryCap;
   }
@@ -48,6 +58,8 @@ class ServerLimitsControllers {
     historyCap.dispose();
     voiceParticipants.dispose();
     shareMbps.dispose();
+    maxMembers.dispose();
+    storageMb.dispose();
   }
 
   /// The limits as typed, or the sentence explaining why they aren't valid.
@@ -76,11 +88,29 @@ class ServerLimitsControllers {
       );
     }
 
+    // A size, so megabytes rather than a count — but unlike the attachment
+    // cap it may be blank, which is what "no limit" looks like in every other
+    // box here.
+    final int storageBytes;
+    if (storageMb.text.trim().isEmpty) {
+      storageBytes = ServerLimits.unlimited;
+    } else {
+      final parsed = LimitInput.parseMegabytes(storageMb.text);
+      if (parsed == null || parsed == LimitInput.invalid) {
+        return (
+          limits: null,
+          error: 'The storage limit must be a whole number of megabytes.',
+        );
+      }
+      storageBytes = parsed;
+    }
+
     final counts = <String, TextEditingController>{
       'retention period': retentionDays,
       'history cap': historyCap,
       'call size': voiceParticipants,
       'screen share limit': shareMbps,
+      'member limit': maxMembers,
     };
     final read = <String, int>{};
     for (final entry in counts.entries) {
@@ -103,6 +133,8 @@ class ServerLimitsControllers {
         dmHistoryCap: _dmHistoryCap,
         maxVoiceParticipants: read['call size']!,
         maxShareMbps: read['screen share limit']!,
+        maxMembers: read['member limit']!,
+        maxStorageBytes: storageBytes,
       ),
       error: null,
     );

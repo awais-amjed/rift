@@ -18,6 +18,16 @@ class Server {
   /// reports [ServerLimits.defaults].
   final ServerLimits limits;
 
+  /// Bytes of attachments this server is currently holding (migration 029),
+  /// as of the last time its details were fetched.
+  ///
+  /// Not a limit but the thing [ServerLimits.maxStorageBytes] is judged
+  /// against, which is why it lives here rather than beside it: it is
+  /// measured, never set, and must not be sent back when limits are saved.
+  /// Stale by however long the server has been open — enough to warn
+  /// somebody before they pick a file, which is all it is for.
+  final int storageUsed;
+
   /// The Ed25519 key derivation version for this server (e.g. 'v1', 'v2').
   /// Incremented on key rotation.
   final String keyVersion;
@@ -44,6 +54,7 @@ class Server {
     this.channels = const [],
     this.keyVersion = 'v1',
     this.limits = ServerLimits.defaults,
+    this.storageUsed = 0,
     DateTime? tokenIssuedAt,
   }) : tokenIssuedAt = tokenIssuedAt ?? DateTime.now();
 
@@ -65,6 +76,7 @@ class Server {
       keyVersion: keyVersion,
       tokenIssuedAt: DateTime.now(),
       limits: ServerLimits.fromJson(serverDetails),
+      storageUsed: (serverDetails['storage_used'] as num?)?.toInt() ?? 0,
       user: serverDetails['user'] != null
           ? ServerUser.fromJson(serverDetails['user'] as Map<String, dynamic>)
           : null,
@@ -93,6 +105,7 @@ class Server {
       keyVersion: 'v1',
       tokenIssuedAt: DateTime.now(),
       limits: ServerLimits.fromJson(serverData),
+      storageUsed: (serverData['storage_used'] as num?)?.toInt() ?? 0,
       user: serverData['user'] != null
           ? ServerUser.fromJson(serverData['user'] as Map<String, dynamic>)
           : null,
@@ -122,6 +135,7 @@ class Server {
       limits: json['limits'] != null
           ? ServerLimits.fromJson(json['limits'] as Map<String, dynamic>)
           : ServerLimits.defaults,
+      storageUsed: (json['storageUsed'] as num?)?.toInt() ?? 0,
       user: json['user'] != null
           ? ServerUser.fromJson(json['user'] as Map<String, dynamic>)
           : null,
@@ -144,6 +158,7 @@ class Server {
     'keyVersion': keyVersion,
     'tokenIssuedAt': tokenIssuedAt.toIso8601String(),
     'limits': limits.toJson(),
+    'storageUsed': storageUsed,
     'user': user?.toJson(),
     'channels': channels.map((c) => c.toJson()).toList(),
   };
@@ -161,6 +176,7 @@ class Server {
     ServerUser? user,
     List<Channel>? channels,
     ServerLimits? limits,
+    int? storageUsed,
     bool clearUser = false,
   }) {
     return Server(
@@ -177,6 +193,7 @@ class Server {
           ? DateTime.now()
           : (tokenIssuedAt ?? this.tokenIssuedAt),
       limits: limits ?? this.limits,
+      storageUsed: storageUsed ?? this.storageUsed,
       user: clearUser ? null : (user ?? this.user),
       channels: channels ?? this.channels,
     );

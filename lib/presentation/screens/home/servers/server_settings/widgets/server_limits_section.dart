@@ -39,6 +39,29 @@ class ServerLimitsSection extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         LimitField(
+          controller: controllers.maxMembers,
+          label: 'Most members',
+          unit: 'people',
+          hint: 'No limit',
+          helper:
+              'Nobody new can join past this. Bots count; people you have '
+              'banned do not.',
+          enabled: enabled,
+        ),
+        const SizedBox(height: 16),
+        LimitField(
+          controller: controllers.storageMb,
+          label: 'Most attachment storage',
+          unit: 'MB',
+          hint: 'No limit',
+          helper:
+              'Across every channel and the server DMs together. Uploads '
+              'are refused once it is full; the sweeps below are how it '
+              'empties again.',
+          enabled: enabled,
+        ),
+        const SizedBox(height: 16),
+        LimitField(
           controller: controllers.attachmentMb,
           label: 'Max attachment size',
           unit: 'MB',

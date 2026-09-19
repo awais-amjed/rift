@@ -44,6 +44,8 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
       bytes: bytes,
       maxBytes: widget.maxAttachmentBytes,
       alreadyStaged: _staged.length,
+      remainingBytes: widget.remainingStorageBytes,
+      stagedBytes: _staged.fold(0, (sum, a) => sum + a.bytes.length),
     );
     if (rejection == null) return true;
     HelperMethods.showError(error: rejection);

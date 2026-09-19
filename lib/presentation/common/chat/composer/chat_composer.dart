@@ -92,6 +92,12 @@ class ChatComposer extends StatefulWidget {
   /// is still the enforcement — this is the courtesy.
   final int maxAttachmentBytes;
 
+  /// What the server has room for in total (migration 029), or null when it
+  /// has no storage limit. Advisory: a trigger on the storage table is what
+  /// actually refuses, and this only exists so the refusal arrives as a
+  /// sentence before the upload rather than an HTTP 500 after it.
+  final int? remainingStorageBytes;
+
   const ChatComposer({
     super.key,
     required this.onSend,
@@ -100,6 +106,7 @@ class ChatComposer extends StatefulWidget {
     this.enabled = true,
     this.footer,
     this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
+    this.remainingStorageBytes,
     this.bots = const [],
     this.onMentionSearch,
     this.selfUserId,

@@ -54,6 +54,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           ChatComposer(
             hintText: 'Message ${state.openPeerName ?? ''}',
             maxAttachmentBytes: _maxAttachmentBytes(),
+            remainingStorageBytes: _remainingStorage(),
             onSend: (text, attachments, preview) => context
                 .read<DmCubit>()
                 .sendDm(text, attachments: attachments, preview: preview),
@@ -69,6 +70,15 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
       (context.read<ServerCubit>().state.selectedServer?.limits ??
               ServerLimits.defaults)
           .maxAttachmentBytes;
+
+  /// What the whole server has room for (migration 029), or null when it has
+  /// no storage limit. Server DMs live in the same bucket as the channels,
+  /// so they answer to the same ceiling.
+  int? _remainingStorage() {
+    final server = context.read<ServerCubit>().state.selectedServer;
+    if (server == null) return null;
+    return server.limits.remainingStorage(server.storageUsed);
+  }
 
   /// The two people in this conversation, by username.
   ///

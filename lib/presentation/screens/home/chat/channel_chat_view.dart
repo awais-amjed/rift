@@ -77,6 +77,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
+                      remainingStorageBytes: _remainingStorage(context),
                       bots: chatState.bots,
                       onMentionSearch: (query) =>
                           _searchMentionable(context, query),
@@ -157,6 +158,14 @@ class _ChannelChatViewState extends State<ChannelChatView>
       (context.read<ServerCubit>().state.selectedServer?.limits ??
               ServerLimits.defaults)
           .maxAttachmentBytes;
+
+  /// What the whole server has room for (migration 029), or null when it has
+  /// no storage limit.
+  int? _remainingStorage(BuildContext context) {
+    final server = context.read<ServerCubit>().state.selectedServer;
+    if (server == null) return null;
+    return server.limits.remainingStorage(server.storageUsed);
+  }
 
   /// The open channel, once the server's channel list has it.
   Channel? _channel(BuildContext context, String? channelId) => context

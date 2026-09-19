@@ -87,6 +87,23 @@ class ServerLimits {
   /// twenty-five of them (docs.joinrift.app/sizing/#calls).
   final int maxShareMbps;
 
+  /// How many members the server holds. [unlimited] is no cap.
+  ///
+  /// Counts bots, which are members, and not banned members, who are not —
+  /// a ban frees the seat. Enforced by `register_user`, inside the same
+  /// transaction that spends the invite, so unlike the two above it is
+  /// exact rather than approximate.
+  final int maxMembers;
+
+  /// How many bytes of attachments the server keeps. [unlimited] is no cap.
+  ///
+  /// Enforced by a trigger on the storage table, so it holds against
+  /// whatever uploads. The client asks anyway — see [hasRoomFor] — because
+  /// what Storage sends back when the trigger fires is an HTTP 500 with a
+  /// Postgres error code in it, and somebody who has just picked a file
+  /// deserves a sentence. Same division of labour as [allowsAttachment].
+  final int maxStorageBytes;
+
   const ServerLimits({
     this.maxAttachmentBytes = defaultMaxAttachmentBytes,
     this.messageRetentionDays = unlimited,
@@ -95,7 +112,23 @@ class ServerLimits {
     this.dmHistoryCap,
     this.maxVoiceParticipants = unlimited,
     this.maxShareMbps = unlimited,
+    this.maxMembers = unlimited,
+    this.maxStorageBytes = unlimited,
   });
+
+  /// True when [bytes] more will fit, given [used] already held.
+  ///
+  /// [used] comes from `storage_used` in the server's own details, so it is
+  /// as fresh as the last time the server was opened. Stale by a little is
+  /// the right trade: this exists to turn a failed upload into a sentence,
+  /// and the trigger behind it is what actually decides.
+  bool hasRoomFor(int bytes, {required int used}) =>
+      maxStorageBytes == unlimited || used + bytes <= maxStorageBytes;
+
+  /// What is left, or null when nothing is capped.
+  int? remainingStorage(int used) => maxStorageBytes == unlimited
+      ? null
+      : (maxStorageBytes - used < 0 ? 0 : maxStorageBytes - used);
 
   /// What a screen share should actually publish, in Mbps: the smaller of
   /// what the sharer asked for and what the operator allows, and the sharer's
@@ -160,6 +193,8 @@ class ServerLimits {
       dmHistoryCap: readNullable('dm_history_cap'),
       maxVoiceParticipants: read('max_voice_participants', unlimited),
       maxShareMbps: read('max_share_mbps', unlimited),
+      maxMembers: read('max_members', unlimited),
+      maxStorageBytes: read('max_storage_bytes', unlimited),
     );
   }
 
@@ -174,6 +209,8 @@ class ServerLimits {
     'dm_history_cap': dmHistoryCap,
     'max_voice_participants': maxVoiceParticipants,
     'max_share_mbps': maxShareMbps,
+    'max_members': maxMembers,
+    'max_storage_bytes': maxStorageBytes,
   };
 
   @override
@@ -185,7 +222,9 @@ class ServerLimits {
       other.dmRetentionDays == dmRetentionDays &&
       other.dmHistoryCap == dmHistoryCap &&
       other.maxVoiceParticipants == maxVoiceParticipants &&
-      other.maxShareMbps == maxShareMbps;
+      other.maxShareMbps == maxShareMbps &&
+      other.maxMembers == maxMembers &&
+      other.maxStorageBytes == maxStorageBytes;
 
   @override
   int get hashCode => Object.hash(
@@ -196,5 +235,7 @@ class ServerLimits {
     dmHistoryCap,
     maxVoiceParticipants,
     maxShareMbps,
+    maxMembers,
+    maxStorageBytes,
   );
 }
