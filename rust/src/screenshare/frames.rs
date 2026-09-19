@@ -33,11 +33,10 @@ fn run(
     max_height: u32,
 ) {
     // Reused across frames; reallocated only if the capture size changes.
-    let mut native = VideoFrame {
-        rotation: VideoRotation::VideoRotation0,
-        buffer: I420Buffer::new(2, 2),
-        timestamp_us: 0,
-    };
+    // `VideoFrame::new` rather than a struct literal: libwebrtc keeps adding
+    // fields to this (0.3.48 added `frame_metadata`), and a literal has to be
+    // edited for every one of them.
+    let mut native = VideoFrame::new(VideoRotation::VideoRotation0, I420Buffer::new(2, 2));
     let mut target: Option<Size> = None;
     // The slot is filled once, by the session, after it has seen the first
     // frame's size. Read it under the lock until it is there, then keep the
@@ -82,13 +81,12 @@ fn run(
         if target == size {
             source.capture_frame(&native);
         } else {
-            let scaled = VideoFrame {
-                rotation: VideoRotation::VideoRotation0,
-                buffer: native
+            let scaled = VideoFrame::new(
+                VideoRotation::VideoRotation0,
+                native
                     .buffer
                     .scale(target.width as i32, target.height as i32),
-                timestamp_us: 0,
-            };
+            );
             source.capture_frame(&scaled);
         }
     }

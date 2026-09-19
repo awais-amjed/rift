@@ -24,7 +24,7 @@ log = "0.4.29"
 # ANDROID_NDK_HOME happens to be set, to link code that could never run. Now
 # the mobile build never sees it.
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
-livekit = { version = "0.7.32", features = ["rustls-tls-native-roots"] }
+livekit = { version = "0.9.1", features = ["rustls-tls-native-roots"] }
 
 # flutter_rust_bridge installs a logger on Android, iOS and macOS; these two
 # get env_logger from src/logging.rs.
@@ -42,7 +42,7 @@ image = { version = "0.25", default-features = false, features = ["jpeg"] }
 # For the live test in src/screenshare/live_test.rs: minting tokens and
 # reading the viewer's frames. Desktop only for the same reason livekit is.
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dev-dependencies]
-livekit-api = { version = "0.4.14", default-features = false, features = ["access-token"] }
+livekit-api = { version = "0.7.1", default-features = false, features = ["access-token"] }
 futures-util = "0.3"
 
 [lints.rust]
