@@ -330,11 +330,20 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   }
 
   /// Everyone already in the room when we arrive, plus ourselves.
+  ///
+  /// All at once. This is awaited before the call reports itself connected —
+  /// it has to be, or the first frames from somebody already here arrive with
+  /// no key to read them by — so its cost is join latency the member watches.
+  /// One registration is a hop into the native frame cryptor, and doing them
+  /// in series meant a call of a hundred people took a hundred of those
+  /// before the room appeared. They are independent: each names a different
+  /// participant, and none reads what another wrote.
   Future<void> _registerAllParticipantKeys(Room room) async {
     final local = room.localParticipant?.identity;
-    if (local != null) await _registerParticipantKey(local);
-    for (final remote in room.remoteParticipants.values) {
-      await _registerParticipantKey(remote.identity);
-    }
+    await Future.wait([
+      if (local != null) _registerParticipantKey(local),
+      for (final remote in room.remoteParticipants.values)
+        _registerParticipantKey(remote.identity),
+    ]);
   }
 }
