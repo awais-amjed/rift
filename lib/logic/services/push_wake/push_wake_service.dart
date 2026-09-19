@@ -44,11 +44,31 @@ class PushWakeService {
     WakeCentralReader? central,
     SecureStorageRepository? storage,
   }) async {
+    final answered = await _harvest(
+      servers: servers,
+      central: central,
+      storage: storage,
+    );
+    if (!answered) await _fallback();
+  }
+
+  /// Reads every source and posts what it found, returning whether the wake
+  /// was answered — false means the generic notice is owed.
+  ///
+  /// Split from [run] so the fallback is posted *outside* this try. Returning
+  /// `_fallback()` from inside it handed back a future nobody awaited, so a
+  /// notification that failed to post threw past the catch written to handle
+  /// it, into a background isolate where nothing is listening.
+  static Future<bool> _harvest({
+    WakeServerReader? servers,
+    WakeCentralReader? central,
+    SecureStorageRepository? storage,
+  }) async {
     try {
       final suffix = StorageNamespace.apply();
       final seedB64 = await (storage ?? SecureStorageRepository())
           .getMasterSeed();
-      if (seedB64 == null) return _fallback();
+      if (seedB64 == null) return false;
       final seed = CryptoRepository.fromBase64(seedB64);
 
       final marks = await WakeMarks.read();
@@ -71,8 +91,8 @@ class PushWakeService {
         // the silence would be a guess: a source that could not be reached, or
         // no source to reach at all.
         final failed = harvests.any((h) => h.failed);
-        if (failed || index.servers.isEmpty) return _fallback();
-        return;
+        if (failed || index.servers.isEmpty) return false;
+        return true;
       }
 
       for (final item in items.take(maxNotifications)) {
@@ -84,9 +104,10 @@ class PushWakeService {
         marks.mark(item.scope, item.messageId);
       }
       await marks.save();
+      return true;
     } catch (e) {
       debugPrint('PushWakeService: wake failed – $e');
-      await _fallback();
+      return false;
     }
   }
 

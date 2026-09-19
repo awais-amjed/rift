@@ -113,7 +113,9 @@ class WakeDmScan {
         myKeyPair: myChatKeyPair,
         theirPublicKey: CryptoRepository.fromBase64(peerChatKey),
       );
-      return openWakeEnvelope(
+      // Awaited, not returned: an unawaited future escapes the catch below,
+      // and a body that will not open is exactly what that catch is for.
+      return await openWakeEnvelope(
         _crypto,
         row,
         key: key,
