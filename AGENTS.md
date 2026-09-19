@@ -36,7 +36,6 @@ lib/
   src/rust/       # GENERATED flutter_rust_bridge bindings — never edit by hand
 rust/src/api/     # Rust API surface exposed to Flutter — bridge functions and types only
 rust/src/screenshare/  # What those functions call: session, capture, audio/ per platform
-server_migrations/  # Numbered SQL migrations (001_..., 002_...)
 ```
 
 ## State management — Bloc/Cubit only
@@ -228,8 +227,15 @@ server_migrations/  # Numbered SQL migrations (001_..., 002_...)
 
 ## Backend
 
-- DB changes: add a new numbered file in `server_migrations/` (never edit an applied migration)
-  and update the migration's own prose — it is the reference now.
+- **The schema is not in this repository.** A server's lives in `rift-self-host/migrations`
+  and the shared tier's in `rift-central/migrations`. Each is a small set of files split by
+  *kind* — tables, helpers, RPCs, triggers, realtime, storage, jobs, security — and each
+  states the shape it is meant to have rather than how it got there, because there are no
+  deployments yet to migrate. So a change edits the file that owns that kind of object, and
+  the file's own prose with it; a new numbered file is for once servers exist to upgrade.
+  Security is deliberately the **last** file: Supabase grants `anon` EXECUTE on every new
+  function in `public` by default, and only a blanket revoke running after everything exists
+  takes that back. Run `./scripts/db_test.sh` in the repository you touched.
 - Edge Function changes: keep the `{success, data, error}` 200-always envelope, enforce
   permissions server-side (`is_server_admin` / `is_channel_manager` / `can_create_tokens`,
   delegation rule: you can only grant what you hold), and update `API.md` in
