@@ -43,6 +43,10 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
         existing.token = server.token;
         unawaited(_seed(server.id));
       }
+      // Every pass, not just the first: private channels come and go, and so
+      // does the caller's seat at them. `_sync` runs on every change to the
+      // server list, and a channel appearing or disappearing is one.
+      _syncPrivateChannels(server);
     }
 
     // Tear down subscriptions for servers we've left.
@@ -96,12 +100,53 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
     unawaited(_seed(server.id));
   }
 
+  /// Hold one topic per private channel the caller can see, and let the rest
+  /// go (migration 027).
+  ///
+  /// A private channel's messages cannot go to the server's topic — that is
+  /// everybody — so before this the database announced them to each member
+  /// separately, one write per person who could see the channel. Now it says
+  /// it once on the channel's own topic and this is what listens.
+  ///
+  /// Which channels those are is the caller's own list: `get_server_details`
+  /// returns the private channels they may open and no others, so the set of
+  /// topics here is a set of topics the server will admit. A channel that
+  /// appears, disappears, or turns out to be theirs after all arrives as a
+  /// change to that list, which is why this is reconciled on every pass
+  /// rather than set up once.
+  void _syncPrivateChannels(Server server) {
+    final sub = _subs[server.id];
+    if (sub == null) return;
+    final realtime = _serverCubit.realtime;
+
+    final wanted = <String>{
+      for (final channel in server.channels)
+        if (channel.isPrivate) channel.id,
+    };
+
+    for (final id in sub.privateChannels.keys.toList()) {
+      if (wanted.contains(id)) continue;
+      unawaited(sub.privateChannels.remove(id)?.release());
+    }
+
+    for (final id in wanted) {
+      if (sub.privateChannels.containsKey(id)) continue;
+      final lease = realtime.join(server, ServerTopics.channel(id));
+      if (lease == null) continue;
+      lease.onBroadcast(
+        ServerEvent.message,
+        (message) => _onChannelMessage(server.id, BroadcastPayload.of(message)),
+      );
+      sub.privateChannels[id] = lease;
+    }
+  }
+
   void _teardownServer(String serverId) {
     final sub = _subs.remove(serverId);
     if (sub == null) return;
     _forgetPeerNames(serverId);
     if (!isClosed) emit(state.clearedServer(serverId));
-    for (final topic in sub.topics) {
+    for (final topic in [...sub.topics, ...sub.privateChannels.values]) {
       unawaited(topic.release());
     }
   }
@@ -111,7 +156,14 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
 /// calls go out on.
 class _ServerSub {
   final SupabaseClient client;
+
+  /// The two that are always held: the server's topic and the caller's own.
   final List<RealtimeLease> topics;
+
+  /// One per private channel the caller can see, keyed by channel id, so the
+  /// set can be reconciled as channels and seats come and go.
+  final Map<String, RealtimeLease> privateChannels = {};
+
   final String userId;
   String token;
 

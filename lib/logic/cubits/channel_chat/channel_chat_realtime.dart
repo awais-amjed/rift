@@ -3,12 +3,13 @@ part of 'channel_chat_cubit.dart';
 /// The open channel, live: who is typing, and the doorbells that say something
 /// changed.
 ///
-/// The doorbells come from the database (migration 017), on the server's topic
-/// for an open channel and on our own for a private one, so a message arrives
-/// whoever wrote it and however — a bot writing through the REST API included,
-/// which no client-rung doorbell ever covered. They carry ids, never text: the
-/// row is what's true, and the receiver always goes and reads it. The channel's
-/// own topic carries only typing.
+/// The doorbells come from the database (migrations 017 and 027), on the
+/// server's topic for an open channel and on the channel's own for a private
+/// one, so a message arrives whoever wrote it and however — a bot writing
+/// through the REST API included, which no client-rung doorbell ever covered.
+/// They carry ids, never text: the row is what's true, and the receiver always
+/// goes and reads it. `chat:<id>` carries only typing, which clients send;
+/// `channel:<id>` carries only what the database says.
 mixin _ChannelChatRealtimeMixin
     on
         Cubit<ChannelChatState>,
@@ -46,8 +47,18 @@ mixin _ChannelChatRealtimeMixin
     final me = server.user?.id;
     bool here(RealtimePayload message) =>
         BroadcastPayload.stringOf(message, 'channel_id') == channelId;
+    // A private channel's news arrives on its own topic (migration 027), an
+    // open one's on the server's. The caller's own topic is held either way,
+    // because an ephemeral reply — a bot answering one person — is addressed
+    // to them rather than to the channel.
+    final private = server.channels
+        .where((channel) => channel.id == channelId)
+        .any((channel) => channel.isPrivate);
     for (final topic in [
-      ServerTopics.server(server.id),
+      if (private)
+        ServerTopics.channel(channelId)
+      else
+        ServerTopics.server(server.id),
       if (me != null) ServerTopics.user(me),
     ]) {
       final feed = realtime.join(server, topic);
