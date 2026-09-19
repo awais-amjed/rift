@@ -2,7 +2,15 @@ import '../../../../../data/classes/user_permissions.dart';
 import '../../../../../data/enums/server_permission.dart';
 
 /// The pages of the manage-server dialog, in nav order.
-enum ServerManageTab { overview, roles, members, bots, webhooks, danger }
+enum ServerManageTab {
+  overview,
+  limits,
+  roles,
+  members,
+  bots,
+  webhooks,
+  danger,
+}
 
 /// Which pages somebody gets, decided on what they hold.
 ///
@@ -19,6 +27,7 @@ class ServerManageTabs {
     final p = permissions ?? const UserPermissions();
     return [
       if (p.isServerAdmin) ServerManageTab.overview,
+      if (p.isServerAdmin) ServerManageTab.limits,
       if (p.isServerAdmin) ServerManageTab.roles,
       if (p.isServerAdmin || p.isChannelManager) ServerManageTab.members,
       if (p.can(ServerPermission.manageBots)) ServerManageTab.bots,

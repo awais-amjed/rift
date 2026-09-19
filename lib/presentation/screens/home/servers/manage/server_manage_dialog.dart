@@ -13,6 +13,7 @@ import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/theme_context.dart';
 import 'panels/bots_panel.dart';
 import 'panels/danger_zone_panel.dart';
+import 'panels/limits_panel.dart';
 import 'panels/members_panel.dart';
 import 'panels/overview_panel.dart';
 import 'panels/roles_panel.dart';
@@ -139,6 +140,7 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
 
   Widget _page(ServerManageTab tab, Server server) => switch (tab) {
     ServerManageTab.overview => OverviewPanel(server: server),
+    ServerManageTab.limits => LimitsPanel(server: server),
     ServerManageTab.roles => const RolesPanel(),
     ServerManageTab.members => MembersPanel(server: server),
     ServerManageTab.bots => BotsPanel(server: server),

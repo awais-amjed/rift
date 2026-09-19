@@ -1,5 +1,4 @@
 import '../../../../../data/classes/server.dart';
-import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import 'listing_actions.dart';
@@ -16,13 +15,12 @@ import 'listing_draft.dart';
 class ServerSettingsSave {
   /// Returns null when everything landed, or the sentence to show when it didn't.
   ///
-  /// [limits] should already be null if the form's numbers are unchanged — the
-  /// dialog knows what the server reported when it opened, and an unchanged form
-  /// shouldn't send a write.
+  /// The operator limits are not here: they are the Limits page's, and it
+  /// saves them on their own — `update_server` leaves out what it isn't sent,
+  /// so the two pages cannot tread on each other.
   static Future<String?> run({
     required Server server,
     required String name,
-    required ServerLimits? limits,
     required String livekitUrl,
     required String apiKey,
     required String secret,
@@ -36,7 +34,6 @@ class ServerSettingsSave {
       livekitUrl: livekitUrl.isEmpty ? null : livekitUrl,
       livekitApiKey: apiKey.isEmpty ? null : apiKey,
       livekitSecretKey: secret.isEmpty ? null : secret,
-      limits: limits,
       // Named, because this dialog is not always about the selected server.
       serverId: server.id,
     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
-import '../../../../../../data/classes/server_limits.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
@@ -11,23 +10,16 @@ import '../../../../../common/app_button.dart';
 import '../../server_settings/listing_actions.dart';
 import '../../server_settings/listing_draft.dart';
 import '../../server_settings/push_toggle.dart';
-import '../../server_settings/server_limits_controllers.dart';
 import '../../server_settings/server_settings_save.dart';
 import '../../server_settings/widgets/server_settings_form.dart';
 import '../widgets/manage_panel.dart';
 
 /// The overview page of the manage-server dialog: display name, the LiveKit
-/// connection, the operator limits from `002_limits.sql`, and whether the server
-/// is in the central directory.
+/// connection, and whether the server is in the central directory.
 ///
 /// Takes the server rather than reading the selection, because the dialog
 /// opens from the rail's menu for any server — including one you are not
 /// looking at. Every write below names it.
-///
-/// The limits live here rather than anywhere else for the same reason the
-/// LiveKit credentials do — saving the attachment cap also has to move the
-/// storage bucket's ceiling, which only the service role can do, so it takes
-/// the same edge-function trip.
 ///
 /// Discovery is here because **this is where people look for it**, which turns
 /// out to matter more than the fact that it writes somewhere else. It had its
@@ -50,12 +42,7 @@ class _OverviewPanelState extends State<OverviewPanel> {
   late final TextEditingController _livekitUrlCtrl;
   final _apiKeyCtrl = TextEditingController();
   final _secretCtrl = TextEditingController();
-  final _limits = ServerLimitsControllers();
   final _listing = ListingDraft();
-
-  /// What the server reported when the dialog opened, so an unchanged form
-  /// doesn't send a write.
-  late final ServerLimits _initialLimits;
 
   /// How many members this server has, for the disclosure the listing makes.
   ///
@@ -77,8 +64,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
     final server = widget.server;
     _nameCtrl = TextEditingController(text: server.name);
     _livekitUrlCtrl = TextEditingController(text: server.livekitUrl ?? '');
-    _initialLimits = server.limits;
-    _limits.seed(_initialLimits);
     _loadListing();
     _loadMemberCount();
     _loadPushStatus();
@@ -90,7 +75,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
     _livekitUrlCtrl.dispose();
     _apiKeyCtrl.dispose();
     _secretCtrl.dispose();
-    _limits.dispose();
     _listing.dispose();
     super.dispose();
   }
@@ -167,12 +151,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
       return;
     }
 
-    final parsed = _limits.read();
-    if (parsed.limits == null) {
-      setState(() => _error = parsed.error);
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _error = null;
@@ -181,7 +159,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
     final error = await ServerSettingsSave.run(
       server: widget.server,
       name: name,
-      limits: parsed.limits == _initialLimits ? null : parsed.limits,
       livekitUrl: _livekitUrlCtrl.text.trim(),
       apiKey: _apiKeyCtrl.text.trim(),
       secret: _secretCtrl.text.trim(),
@@ -232,7 +209,7 @@ class _OverviewPanelState extends State<OverviewPanel> {
   Widget build(BuildContext context) {
     return ManagePanel(
       title: 'Overview',
-      subtitle: 'Connection, limits and discovery',
+      subtitle: 'What this server is, and who can find it',
       footer: [
         AppButton(
           label: 'Save',
@@ -245,7 +222,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
         livekitUrlCtrl: _livekitUrlCtrl,
         apiKeyCtrl: _apiKeyCtrl,
         secretCtrl: _secretCtrl,
-        limits: _limits,
         listing: _listing,
         memberCount: _memberCount,
         error: _error,
