@@ -73,10 +73,13 @@ class ServerLimits {
   ///
   /// **This one the client has to keep**, and it is the only limit here that
   /// works that way. A LiveKit join token has nowhere to put a bitrate, so
-  /// there is nothing for the server to clamp at the moment it hands one out;
-  /// what the operator sets is a budget, and [shareMbps] is where it is
-  /// applied. An operator who needs a wall against a client that ignores it
-  /// sets `limit.bytes_per_sec` in `livekit.yaml`.
+  /// there is nothing for the server to clamp at the moment it hands one out,
+  /// and nothing server-side throttles a publisher afterwards either. What
+  /// the operator sets is a budget, and [shareMbps] is where it is applied.
+  ///
+  /// Deliberate rather than an oversight: this is a limit about cost, not
+  /// about trust. The case it exists for is somebody left on the 10 Mbps
+  /// default who has never been told what that costs everyone else.
   ///
   /// Why an operator would set it at all: a share goes out at full rate to
   /// every watcher with nothing downscaling in between, so one person at the

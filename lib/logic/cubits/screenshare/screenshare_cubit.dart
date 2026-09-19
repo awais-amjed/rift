@@ -182,9 +182,10 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       // server's uplink.
       //
       // Kept here rather than enforced at the server because there is
-      // nowhere to enforce it: a LiveKit join token has no bitrate field.
-      // An operator who needs a wall sets `limit.bytes_per_sec` in
-      // `livekit.yaml`.
+      // nowhere to enforce it: a LiveKit join token has no bitrate field,
+      // and nothing server-side throttles a publisher afterwards. So this
+      // clamp is the whole of it, deliberately — the case it exists for is
+      // somebody left on the 10 Mbps default, not somebody patching the app.
       final allowed = ServerLimits.fromJson(
         Map<String, dynamic>.from(response.data as Map),
       );
