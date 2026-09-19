@@ -13,36 +13,31 @@ class WindowsAudioDucking {
   static const _valueName = 'UserDuckingPreference';
 
   /// Disables audio ducking by setting the registry preference to "Do nothing" (3).
-  static void disable() {
-    if (kIsWeb || !Platform.isWindows) return;
-    try {
-      final key = Registry.openPath(
-        RegistryHive.currentUser,
-        path: _keyPath,
-        desiredAccessRights: AccessRights.allAccess,
-      );
-      key.createValue(const RegistryValue.int32(_valueName, 3));
-      key.close();
-      debugPrint('[AudioDucking] Disabled (set to Do Nothing).');
-    } catch (e) {
-      debugPrint('[AudioDucking] Failed to disable: $e');
-    }
-  }
+  static void disable() =>
+      _write(3, 'Disabled (set to Do Nothing).', 'disable');
 
   /// Restores audio ducking to the Windows default (80% reduction = value 1).
-  static void restore() {
+  static void restore() =>
+      _write(1, 'Restored to default (80% reduction).', 'restore');
+
+  /// Writes the preference, which is the whole of both calls above.
+  ///
+  /// `CURRENT_USER.open` with an explicit config is win32_registry 3's
+  /// replacement for `Registry.openPath`; the key is opened for everything
+  /// rather than for writing alone because that is what shipped, and no
+  /// machine here runs Windows to prove a narrower right is enough.
+  static void _write(int preference, String outcome, String verb) {
     if (kIsWeb || !Platform.isWindows) return;
     try {
-      final key = Registry.openPath(
-        RegistryHive.currentUser,
-        path: _keyPath,
-        desiredAccessRights: AccessRights.allAccess,
+      final key = CURRENT_USER.open(
+        _keyPath,
+        config: const RegistryOpenConfig(access: RegistryAccess.all),
       );
-      key.createValue(const RegistryValue.int32(_valueName, 1));
+      key.setValue(_valueName, RegistryValue.dword(preference));
       key.close();
-      debugPrint('[AudioDucking] Restored to default (80% reduction).');
+      debugPrint('[AudioDucking] $outcome');
     } catch (e) {
-      debugPrint('[AudioDucking] Failed to restore: $e');
+      debugPrint('[AudioDucking] Failed to $verb: $e');
     }
   }
 
