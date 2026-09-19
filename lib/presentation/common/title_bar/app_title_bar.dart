@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../../data/constants.dart';
@@ -41,21 +40,19 @@ class AppTitleBar extends StatefulWidget {
 }
 
 class _AppTitleBarState extends State<AppTitleBar>
-    with WindowListener, TrayListener {
+    with WindowListener {
   bool _isMaximized = false;
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    trayManager.addListener(this);
     _syncMaximized();
   }
 
   @override
   void dispose() {
     windowManager.removeListener(this);
-    trayManager.removeListener(this);
     super.dispose();
   }
 
@@ -69,27 +66,6 @@ class _AppTitleBarState extends State<AppTitleBar>
 
   @override
   void onWindowUnmaximize() => setState(() => _isMaximized = false);
-
-  // ── TrayListener ─────────────────────────────────────────
-
-  @override
-  void onTrayIconMouseDown() {
-    windowManager.show();
-    windowManager.focus();
-  }
-
-  @override
-  void onTrayMenuItemClick(MenuItem menuItem) {
-    switch (menuItem.key) {
-      case 'show':
-        windowManager.show();
-        windowManager.focus();
-        break;
-      case 'quit':
-        windowManager.destroy();
-        break;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

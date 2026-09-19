@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:keyboard_dismisser/keyboard_dismisser.dart';
 import 'package:sizer/sizer.dart';
 import 'package:toastification/toastification.dart';
-import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app_bootstrap.dart';
@@ -28,7 +27,7 @@ void main() async {
   runApp(MyApp(appCubit: appCubit, vaultCubit: VaultCubit()));
 }
 
-/// The app shell: window and tray listeners, the router, and the theme.
+/// The app shell: window listeners, the router, and the theme.
 /// The cubits it provides are in [AppProviders].
 class MyApp extends StatefulWidget {
   final AppCubit appCubit;
@@ -41,7 +40,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp>
-    with WindowListener, TrayListener, WidgetsBindingObserver {
+    with WindowListener, WidgetsBindingObserver {
   late final GoRouter _router = AppRoutes.router(widget.vaultCubit);
 
   @override
@@ -50,7 +49,6 @@ class _MyAppState extends State<MyApp>
     // See AppBootstrap.run: these two plugins exist on desktop only.
     if (HostPlatform.drawsOwnWindowChrome) {
       windowManager.addListener(this);
-      trayManager.addListener(this);
     }
     // A phone has no window to lose focus, so the same question — is the user
     // looking at this? — is answered by the app lifecycle instead. Without
@@ -66,24 +64,8 @@ class _MyAppState extends State<MyApp>
     WidgetsBinding.instance.removeObserver(this);
     if (HostPlatform.drawsOwnWindowChrome) {
       windowManager.removeListener(this);
-      trayManager.removeListener(this);
     }
     super.dispose();
-  }
-
-  @override
-  void onTrayIconRightMouseDown() {
-    trayManager.popUpContextMenu();
-  }
-
-  @override
-  void onTrayMenuItemClick(MenuItem menuItem) async {
-    if (menuItem.key == 'show') {
-      await windowManager.show();
-      await windowManager.focus();
-    } else if (menuItem.key == 'quit') {
-      await windowManager.close();
-    }
   }
 
   // Focus tracking drives whether incoming messages raise an OS notification —

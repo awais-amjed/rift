@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'logic/cubits/app/app_cubit.dart';
@@ -15,6 +13,7 @@ import 'logic/services/notification_service.dart';
 import 'logic/services/push_service.dart';
 import 'logic/services/storage_namespace.dart';
 import 'logic/services/text_safety.dart';
+import 'logic/services/tray_service.dart';
 import 'logic/services/window_focus_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'src/rust/frb_generated.dart';
@@ -39,15 +38,17 @@ class AppBootstrap {
     await _initHydratedStorage(storageSuffix);
 
     final appCubit = AppCubit();
-    // Desktop, not "not web". window_manager and tray_manager ship no Android
-    // or iOS implementation at all, so every one of these is a method channel
-    // with nothing on the other end — a MissingPluginException thrown before
-    // the first frame.
+    // Desktop, not "not web". window_manager ships no Android or iOS
+    // implementation at all, so calling it there is a method channel with
+    // nothing on the other end — a MissingPluginException thrown before the
+    // first frame. The tray is FFI rather than a channel since tray_manager
+    // 0.7, so it fails by handing back no icon instead, but there is no tray
+    // on a phone to want one from either.
     if (HostPlatform.drawsOwnWindowChrome) {
       await windowManager.ensureInitialized();
       WindowsAudioDucking.apply(disable: appCubit.state.disableAudioDucking);
       _restoreWindow(appCubit);
-      await _initTray();
+      await TrayService.instance.init();
     }
     // Not desktop-only any more: Android posts these too, and the web posts
     // them through the browser's own Notification API. Asking for the
@@ -128,19 +129,4 @@ class AppBootstrap {
     );
   }
 
-  static Future<void> _initTray() async {
-    await trayManager.setIcon(
-      'assets/images/${Platform.isWindows ? 'tray_icon.ico' : 'tray_icon.png'}',
-    );
-    if (Platform.isWindows) await trayManager.setToolTip('Rift');
-    await trayManager.setContextMenu(
-      Menu(
-        items: [
-          MenuItem(key: 'show', label: 'Show Rift'),
-          MenuItem.separator(),
-          MenuItem(key: 'quit', label: 'Quit'),
-        ],
-      ),
-    );
-  }
 }

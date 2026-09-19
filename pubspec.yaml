@@ -24,7 +24,7 @@ dependencies:
   hydrated_bloc: ^11.0.0
 
   # Loading
-  flutter_easyloading: ^3.0.5
+  flutter_easyloading: ^4.0.2
   loading_animation_widget: ^1.3.0
 
   cupertino_icons: ^1.0.8
@@ -33,9 +33,9 @@ dependencies:
   intl: ^0.20.2
   sizer: ^3.1.3
   toastification: ^3.0.3
-  cached_network_image: ^3.4.1
+  cached_network_image: ^4.0.0
 
-  permission_handler: ^12.0.1
+  permission_handler: ^13.0.2
   path_provider: ^2.1.5
   # Direct, for the push background isolate: it reads the central session the
   # app persisted without going through Supabase's client, which would refresh
@@ -56,7 +56,7 @@ dependencies:
   flutter_webrtc: ^1.6.2
   http: ^1.6.0
   window_manager: ^0.5.1
-  tray_manager: ^0.5.2
+  tray_manager: ^0.7.0
   flutter_rust_bridge: 2.11.1
   audioplayers: ^6.4.0
   win32_registry: ^3.0.3
@@ -95,7 +95,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   json_serializable: ^6.13.0
   build_runner: ^2.12.2
-  inno_bundle: ^0.11.2
+  inno_bundle: ^0.12.0
 
 flutter:
 
