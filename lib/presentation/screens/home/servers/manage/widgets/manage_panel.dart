@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/button_footer.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/scrolled_under_rule.dart';
@@ -38,51 +39,67 @@ class ManagePanel extends StatelessWidget {
     this.footer = const [],
   }) : assert((child == null) != (body == null));
 
+  /// The page's own title, which travels with whichever half needs it.
+  ///
+  /// A page that scrolls as a whole scrolls this too — it is the top of the
+  /// page, not furniture bolted above it, and the dialog's own header already
+  /// says which dialog this is. A page that is a *list* keeps it, because
+  /// there the title sits with a search field over rows that page as they
+  /// go, and scrolling that away would take the search with it.
+  Widget _heading(ThemeState themeState, {required bool scrollsAway}) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 18, 24, scrollsAway ? 14 : 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppText.panelTitle.copyWith(color: themeState.textPrimary),
+          ),
+          if (subtitle case final subtitle?) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: AppText.secondary.copyWith(color: themeState.textTertiary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
     final readOnly = ManageReadOnly.of(context);
     final child = this.child;
+    final body = this.body;
+
+    // A list that pages as it goes cannot carry its own title away, so there
+    // the heading stays put and the rows pass under a rule. Everywhere else
+    // the page scrolls whole and needs neither.
+    if (body != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _heading(themeState, scrollsAway: false),
+          Expanded(child: ScrolledUnderRule(child: body)),
+          if (footer.isNotEmpty && !readOnly) ..._footer(themeState),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          // The 12 below is the gap the rule needs when the page is
-          // scrolled, and it comes out of the scroll view's own top padding
-          // rather than being added to it — so a panel sitting at the top
-          // looks exactly as it did, and only the rule is new.
-          padding: const EdgeInsets.fromLTRB(24, 18, 24, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: AppText.panelTitle.copyWith(
-                  color: themeState.textPrimary,
-                ),
-              ),
-              if (subtitle case final subtitle?) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: AppText.secondary.copyWith(
-                    color: themeState.textTertiary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        // The header above does not move, so whatever scrolls past it needs an
-        // edge to go behind — without one a heading on its way out is clipped
-        // mid-glyph just under the subtitle. The footer already draws the
-        // same hairline; this is the other end of the panel.
         Expanded(
-          child: ScrolledUnderRule(
-            child:
-                body ??
-                SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 18),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _heading(themeState, scrollsAway: true),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
                   child: readOnly
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -102,21 +119,23 @@ class ManagePanel extends StatelessWidget {
                         )
                       : child,
                 ),
-          ),
-        ),
-        if (footer.isNotEmpty && !readOnly) ...[
-          Divider(height: 1, color: themeState.borderPrimary),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 14, 24, 16),
-            child: ButtonFooter(
-              alignment: MainAxisAlignment.start,
-              buttons: footer,
+              ],
             ),
           ),
-        ],
+        ),
+        if (footer.isNotEmpty && !readOnly) ..._footer(themeState),
       ],
     );
   }
+
+  /// The page's own buttons, on a rule. Both shapes end the same way.
+  List<Widget> _footer(ThemeState themeState) => [
+    Divider(height: 1, color: themeState.borderPrimary),
+    Padding(
+      padding: const EdgeInsets.fromLTRB(24, 14, 24, 16),
+      child: ButtonFooter(alignment: MainAxisAlignment.start, buttons: footer),
+    ),
+  ];
 }
 
 /// Marks the manage pages below it as view-only — a phone's server

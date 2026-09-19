@@ -49,10 +49,24 @@ class K {
   /// still happens, correctly, on a narrow window.
   static const double dialogWidthWidest = 1040;
 
-  /// The manage-server dialog's height. Fixed rather than the modal's
-  /// fraction of the window, because its pages swap inside one frame and a
-  /// frame that resized with each page would make the nav jump.
-  static const double manageDialogHeight = 640;
+  /// The manage-server dialog, which is wider than [dialogWidthWidest]
+  /// because it spends 196 of its width on the nav column before its pages
+  /// see any: `ModalColumns` needs 998 for three columns, the nav, its rule
+  /// and the page padding take 245, so under about 1243 the widest page
+  /// stacks into one long scroll. This is the width at which Overview stops
+  /// doing that.
+  static const double manageDialogWidth = 1280;
+
+  /// The manage-server dialog's height, as tall as the window allows up to
+  /// this. Fixed for a given window rather than sized to the page, because
+  /// its pages swap inside one frame and a frame that resized with each page
+  /// would make the nav jump.
+  static const double manageDialogHeight = 900;
+
+  /// How much of the window's height the manage dialog may take when
+  /// [manageDialogHeight] does not fit — a laptop gets a shorter dialog
+  /// rather than one running off the screen.
+  static const double manageDialogHeightFraction = 0.88;
 
   // ── Touch ─────────────────────────────────────────────────
   /// The shortest a row may be where a finger is the pointer.

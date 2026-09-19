@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -73,8 +74,11 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
     return AppModal(
       title: 'Manage server',
       subtitle: server.name,
-      maxWidth: K.dialogWidthWidest,
-      maxHeight: K.manageDialogHeight,
+      maxWidth: K.manageDialogWidth,
+      maxHeight: math.min(
+        K.manageDialogHeight,
+        MediaQuery.sizeOf(context).height * K.manageDialogHeightFraction,
+      ),
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
