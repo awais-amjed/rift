@@ -32,7 +32,15 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     ServerUser? user,
     List<Channel>? channels,
     ServerLimits? limits,
+    int? storageUsed,
     bool clearUser = false,
+  });
+
+  /// Implemented by [ServerCubit]: land a whole `get_server_details()` reply.
+  void applyServerDetails(
+    String serverId,
+    ServerDetails details, {
+    String? token,
   });
 
   /// Implemented by [ServerCubit]: the server a call is about — the one the
@@ -330,42 +338,7 @@ mixin _ServerApiMixin on Cubit<ServerState> {
 
     if (response.success) {
       final data = response.data as Map<String, dynamic>;
-      final rawChannels = data['channels'] as List<dynamic>?;
-      final channels =
-          rawChannels
-              ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
-              .toList() ??
-          [];
-      final supabaseKey = data['supabase_key'] as String?;
-      final rawUser = data['user'];
-      final user = rawUser != null
-          ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
-          : null;
-
-      // Only when the response carries them. `ServerLimits.fromJson` fills in
-      // defaults for anything missing, which is right for a real payload and
-      // wrong for one that never mentioned limits — it would quietly reset an
-      // operator's caps to the defaults. The banned-member reply is exactly
-      // that shape.
-      final limits = data.containsKey('max_attachment_bytes')
-          ? ServerLimits.fromJson(data)
-          : null;
-
-      updateServer(
-        server.id,
-        // The identity of the server, not just its contents. These were
-        // fetched and then dropped on the floor, so a rename, a new icon or a
-        // moved LiveKit URL reached only the client that made the change —
-        // everyone else kept the old one until they rejoined. `copyWith`
-        // leaves a null alone, so a reply that omits them changes nothing.
-        name: data['name'] as String?,
-        iconUrl: data['icon_url'] as String?,
-        livekitUrl: data['livekit_url'] as String?,
-        limits: limits,
-        channels: channels,
-        supabaseKey: supabaseKey,
-        user: user,
-      );
+      applyServerDetails(server.id, ServerDetails.fromJson(data));
       return (success: true, error: null);
     } else {
       return (

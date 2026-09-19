@@ -16,7 +16,15 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     ServerUser? user,
     List<Channel>? channels,
     ServerLimits? limits,
+    int? storageUsed,
     bool clearUser = false,
+  });
+
+  /// Implemented by [ServerCubit]: land a whole `get_server_details()` reply.
+  void applyServerDetails(
+    String serverId,
+    ServerDetails details, {
+    String? token,
   });
 
   // ──────────────────────────────────────────────────────────
@@ -50,22 +58,11 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     final token = data['token'] as String?;
     if (token == null) return false;
 
-    final rawChannels = data['channels'] as List<dynamic>?;
-    final channels = rawChannels
-        ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
-        .toList();
-    final rawUser = data['user'];
-    final user = rawUser != null
-        ? ServerUser.fromJson(rawUser as Map<String, dynamic>)
-        : null;
-
-    updateServer(
-      server.id,
-      token: token,
-      user: user,
-      channels: channels,
-      supabaseKey: data['supabase_key'] as String?,
-    );
+    // The whole reply, not the four fields this used to pick out: a cold start
+    // is the only time most clients ask, so dropping the rest here meant a
+    // renamed server, a moved LiveKit URL and every operator limit waited for
+    // a refresh that might never come.
+    applyServerDetails(server.id, ServerDetails.fromJson(data), token: token);
 
     return true;
   }

@@ -32,7 +32,16 @@ class ErrorCode {
   /// connection to tell, so there is nothing to move.
   static const String userNotInVoice = 'user_not_in_voice';
 
+  /// The call already holds `max_voice_participants` people (self-host 028).
+  /// Not a permission failure and not a fault: a seat may free up at any
+  /// moment, so the client offers to try again.
+  static const String voiceChannelFull = 'voice_channel_full';
+
   // ── Server ───────────────────────────────────────────────────────────────────
+  /// The server already holds `max_members` people (self-host 029). Returned
+  /// by `register`, where it is the last refusal checked — everything above it
+  /// is a fact about the caller, this is a fact about the server.
+  static const String serverFull = 'server_full';
   static const String serverNotFound = 'server_not_found';
   static const String serverKeyInvalid = 'server_key_invalid';
   static const String serverCredentialsMissing = 'server_credentials_missing';

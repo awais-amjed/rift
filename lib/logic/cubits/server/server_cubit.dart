@@ -12,6 +12,7 @@ import '../../../data/classes/member_page.dart';
 import '../../../data/classes/resolved_invite.dart';
 import '../../../data/classes/role.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
@@ -290,7 +291,15 @@ class ServerCubit extends HydratedCubit<ServerState>
     final newToken = result.data!['token'] as String?;
     if (newToken == null) return null;
 
-    updateServer(serverId, token: newToken);
+    // This runs on a timer rather than on anything the user did, so it is the
+    // path most likely to be the one carrying a change an operator made an
+    // hour ago. The reply is already in hand; taking only the token from it
+    // was free to fix.
+    applyServerDetails(
+      serverId,
+      ServerDetails.fromJson(result.data!),
+      token: newToken,
+    );
     return newToken;
   }
 
@@ -353,6 +362,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     ServerUser? user,
     List<Channel>? channels,
     ServerLimits? limits,
+    int? storageUsed,
     bool clearUser = false,
   }) {
     final updated = state.servers.map((s) {
@@ -367,10 +377,39 @@ class ServerCubit extends HydratedCubit<ServerState>
         user: user,
         channels: channels,
         limits: limits,
+        storageUsed: storageUsed,
         clearUser: clearUser,
       );
     }).toList();
     emit(state.copyWith(servers: updated));
+  }
+
+  /// Land a whole `get_server_details()` reply on a server.
+  ///
+  /// Every path that asks the question goes through here, because the ones
+  /// that picked fields out by hand each picked a different subset — and the
+  /// fields nobody picked (the operator's limits, `storage_used`) were exactly
+  /// the ones with no other way in. [ServerDetails] leaves anything the reply
+  /// omitted as null and `copyWith` leaves a null alone, so a partial reply
+  /// still cannot overwrite what we already knew.
+  @override
+  void applyServerDetails(
+    String serverId,
+    ServerDetails details, {
+    String? token,
+  }) {
+    updateServer(
+      serverId,
+      token: token,
+      name: details.name,
+      iconUrl: details.iconUrl,
+      livekitUrl: details.livekitUrl,
+      supabaseKey: details.supabaseKey,
+      user: details.user,
+      channels: details.channels,
+      limits: details.limits,
+      storageUsed: details.storageUsed,
+    );
   }
 
   // ──────────────────────────────────────────────────────────
