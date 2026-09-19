@@ -139,7 +139,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         emit(
           state.copyWith(
             connectionState: LiveKitConnectionState.error,
-            failure: ConnectionFailure.tokenRequest(response.error),
+            failure: response.errorCode == ErrorCode.voiceChannelFull
+                ? ConnectionFailure.callFull(response.error)
+                : ConnectionFailure.tokenRequest(response.error),
           ),
         );
         return;

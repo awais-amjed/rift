@@ -9,6 +9,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/enums/error_code.dart';
 import '../../../data/participant_identity.dart';
 import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';

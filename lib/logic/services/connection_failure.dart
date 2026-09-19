@@ -69,6 +69,21 @@ class ConnectionFailure {
       detail = error,
       canRetry = true;
 
+  /// The call already holds as many people as the operator allows
+  /// (`max_voice_participants`, self-host 028).
+  ///
+  /// Its own case rather than [tokenRequest]'s, because that one reads "you
+  /// may have lost access, or the server may be having trouble" — and neither
+  /// is true here. Nothing is broken and nothing has been taken away; the
+  /// room is simply full, which is a thing the person can wait out.
+  const ConnectionFailure.callFull(String? error)
+    : title = 'This call is full',
+      message =
+          'The server sets how many people one call may hold. Someone has to '
+          'leave before anybody else can join.',
+      detail = error,
+      canRetry = true;
+
   /// No channel key, so there is nothing to encrypt the call with.
   ///
   /// Retryable, and the retry usually works: the common cause is a member who
