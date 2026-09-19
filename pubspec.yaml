@@ -46,18 +46,14 @@ dependencies:
 
   json_annotation: ^4.11.0
   meta: ^1.17.0
-  # Our fork, for a Linux-only crash upstream has not fixed. The plugin's task
-  # runner hands a raw `this` to GLib, so a callback still in flight when a
-  # track is torn down locks a freed mutex — which is every leave, since we tap
-  # the mic track for the level meter. Branched from the v2.10.0 tag; nothing
-  # but linux/task_runner_linux.{h,cc} differs, so the Dart side is stock
-  # 2.10.0. pubspec.lock pins the commit. FORK.md there covers rebasing onto
-  # the next upstream release.
-  livekit_client:
-    git:
-      url: https://github.com/awais-amjed/livekit-client-sdk-flutter.git
-      ref: rift
-  flutter_webrtc: ^1.3.0
+  # Back on pub.dev as of 2.13.0. Rift ran a fork of this from Aug 2026 for a
+  # Linux use-after-free that froze every call leave — the plugin's task runner
+  # handed a raw `this` to GLib, and we tap the mic track for the level meter,
+  # so a callback was always in flight. Upstream landed an independent fix of
+  # the same shape in 2.12.0 (#1177), so the fork is retired; see FORK.md in
+  # awais-amjed/livekit-client-sdk-flutter for what it carried.
+  livekit_client: ^2.13.0
+  flutter_webrtc: ^1.6.2
   http: ^1.6.0
   window_manager: ^0.5.1
   tray_manager: ^0.5.2
