@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../common/button_footer.dart';
 import '../../../../../common/hint_card.dart';
+import '../../../../../common/scrolled_under_rule.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -46,7 +47,11 @@ class ManagePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+          // The 12 below is the gap the rule needs when the page is
+          // scrolled, and it comes out of the scroll view's own top padding
+          // rather than being added to it — so a panel sitting at the top
+          // looks exactly as it did, and only the rule is new.
+          padding: const EdgeInsets.fromLTRB(24, 18, 24, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -68,30 +73,36 @@ class ManagePanel extends StatelessWidget {
             ],
           ),
         ),
+        // The header above does not move, so whatever scrolls past it needs an
+        // edge to go behind — without one a heading on its way out is clipped
+        // mid-glyph just under the subtitle. The footer already draws the
+        // same hairline; this is the other end of the panel.
         Expanded(
-          child:
-              body ??
-              SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 18),
-                child: readOnly
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        spacing: 16,
-                        children: [
-                          const HintCard(
-                            icon: Icons.visibility_outlined,
-                            text:
-                                'View only on a phone. This page is easy to '
-                                'get wrong on a small screen, so changing it '
-                                'needs Rift on a computer.',
-                          ),
-                          // Inside the scroll view, so the page still scrolls
-                          // while nothing on it can be pressed.
-                          AbsorbPointer(child: ExcludeFocus(child: child!)),
-                        ],
-                      )
-                    : child,
-              ),
+          child: ScrolledUnderRule(
+            child:
+                body ??
+                SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 18),
+                  child: readOnly
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          spacing: 16,
+                          children: [
+                            const HintCard(
+                              icon: Icons.visibility_outlined,
+                              text:
+                                  'View only on a phone. This page is easy to '
+                                  'get wrong on a small screen, so changing it '
+                                  'needs Rift on a computer.',
+                            ),
+                            // Inside the scroll view, so the page still scrolls
+                            // while nothing on it can be pressed.
+                            AbsorbPointer(child: ExcludeFocus(child: child!)),
+                          ],
+                        )
+                      : child,
+                ),
+          ),
         ),
         if (footer.isNotEmpty && !readOnly) ...[
           Divider(height: 1, color: themeState.borderPrimary),
