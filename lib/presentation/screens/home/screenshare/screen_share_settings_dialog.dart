@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
+import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/screen_share_sources.dart';
@@ -24,7 +25,16 @@ import 'widgets/settings_dialog_header.dart';
 /// user confirms, plus the source lists it loads on demand. The controls
 /// themselves live in [ScreenShareSettingsForm].
 class ScreenShareSettingsDialog extends StatefulWidget {
-  const ScreenShareSettingsDialog({super.key});
+  /// What the server this call is on allows a share to use, or
+  /// [ServerLimits.unlimited] (migration 028). Passed in rather than read
+  /// from a cubit here: the caller is already holding the selected server,
+  /// and a dialog is the wrong place to go looking for one.
+  final int maxShareMbps;
+
+  const ScreenShareSettingsDialog({
+    super.key,
+    this.maxShareMbps = ServerLimits.unlimited,
+  });
 
   @override
   State<ScreenShareSettingsDialog> createState() =>
@@ -177,6 +187,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                   Flexible(
                     child: ScreenShareSettingsForm(
                       settings: _draft,
+                      maxShareMbps: widget.maxShareMbps,
                       onChanged: (settings) =>
                           setState(() => _draft = settings),
                       captureSources: _captureSources,

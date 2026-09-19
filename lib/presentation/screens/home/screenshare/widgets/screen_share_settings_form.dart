@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
+import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../sections/audio_source_section.dart';
@@ -38,6 +39,13 @@ class ScreenShareSettingsForm extends StatelessWidget {
   final ValueChanged<bool> onCaptureTypeChanged;
   final VoidCallback onAudioToggle;
 
+  /// What this server allows a share to use, or [ServerLimits.unlimited].
+  final int maxShareMbps;
+
+  /// The cap as a [ServerLimits], so the summary resolves the effective
+  /// bitrate with exactly the rule the share itself uses.
+  ServerLimits get _limits => ServerLimits(maxShareMbps: maxShareMbps);
+
   const ScreenShareSettingsForm({
     super.key,
     required this.settings,
@@ -51,6 +59,7 @@ class ScreenShareSettingsForm extends StatelessWidget {
     required this.onRefreshAudioSources,
     required this.onCaptureTypeChanged,
     required this.onAudioToggle,
+    this.maxShareMbps = ServerLimits.unlimited,
   });
 
   /// Linux picks its capture source through the system portal at capture
@@ -108,6 +117,7 @@ class ScreenShareSettingsForm extends StatelessWidget {
 
           BitrateSection(
             selectedBitrate: settings.bitrate,
+            maxMbps: maxShareMbps,
             onChanged: (value) => onChanged(settings.copyWith(bitrate: value)),
           ),
           const SizedBox(height: 16),
@@ -141,7 +151,7 @@ class ScreenShareSettingsForm extends StatelessWidget {
             captureFullScreen: settings.captureFullScreen,
             resolution: settings.resolutionLabel,
             fps: settings.fps,
-            bitrate: settings.bitrate,
+            bitrate: _limits.shareMbps(settings.bitrate),
             shareAudio: settings.shareAudio,
             codec: settings.codec,
           ),

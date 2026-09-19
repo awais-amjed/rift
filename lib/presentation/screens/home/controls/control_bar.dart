@@ -6,8 +6,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toastification/toastification.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
+import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/sound_share/sound_share_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -104,6 +106,7 @@ class _ControlBarContent extends StatelessWidget {
   Future<void> _handleScreenShare(BuildContext context) async {
     final screenshareCubit = context.read<ScreenshareCubit>();
     final livekitCubit = context.read<LiveKitCubit>();
+    final serverCubit = context.read<ServerCubit>();
 
     if (screenshareCubit.state.isSharing) {
       await screenshareCubit.stopScreenShare();
@@ -120,9 +123,16 @@ class _ControlBarContent extends StatelessWidget {
     if (kIsWeb || HostPlatform.isMobile) {
       settings = const ScreenShareSettings();
     } else {
+      // The picker is told what this server allows so it can grey out what it
+      // will not carry. The clamp in [ScreenshareCubit] still applies — web
+      // and mobile never open this dialog at all — but a control that offers
+      // a number and then quietly uses a different one is the wrong control.
       final dialogSettings = await showCustomDialog<ScreenShareSettings>(
         context: context,
-        builder: (_) => const ScreenShareSettingsDialog(),
+        builder: (_) => ScreenShareSettingsDialog(
+          maxShareMbps: serverCubit.state.selectedServer?.limits.maxShareMbps ??
+              ServerLimits.unlimited,
+        ),
       );
       if (dialogSettings == null) return;
       settings = dialogSettings;
