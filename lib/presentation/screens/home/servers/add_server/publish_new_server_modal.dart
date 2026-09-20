@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/directory_tags.dart';
 import '../../../../../data/classes/public_server.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
@@ -54,7 +55,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
   final _tagCtrl = TextEditingController();
 
   /// The tags already turned into chips; a tag still being typed is picked up
-  /// at publish time by [ServerTags.withPending].
+  /// at publish time by [DirectoryTags.withPending].
   List<String> _tags = const [];
 
   bool _publishing = false;
@@ -122,7 +123,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       listingToken: proof.token!,
       description: description.isEmpty ? null : description,
       iconUrl: server.iconUrl,
-      tags: ServerTags.withPending(_tags, _tagCtrl.text),
+      tags: DirectoryTags.withPending(_tags, _tagCtrl.text),
       // Brand new, so its only member is the admin who just registered — the
       // roster fetch for it may not even have landed yet.
       memberCount: 1,

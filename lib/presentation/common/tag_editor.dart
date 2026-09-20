@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/classes/public_server.dart';
+import '../../data/classes/directory_tags.dart';
 import '../../data/constants.dart';
 import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
@@ -15,7 +15,7 @@ import 'app_text_field.dart';
 /// field would drift.
 ///
 /// Free slugs rather than a fixed category list, and the field normalises what
-/// you type ([ServerTags.normalise]) instead of refusing it — "Board Games"
+/// you type ([DirectoryTags.normalise]) instead of refusing it — "Board Games"
 /// becomes `board-games`, because the shape is the database's business and not
 /// something an admin should have to learn.
 ///
@@ -23,7 +23,7 @@ import 'app_text_field.dart';
 /// typed and not turned into a chip used to be invisible to the save, so
 /// filling the box and pressing Save published nothing. The form that saves
 /// has to be able to read what is still in the box — see
-/// [ServerTags.withPending].
+/// [DirectoryTags.withPending].
 class TagEditor extends StatelessWidget {
   final TextEditingController controller;
   final List<String> tags;
@@ -38,10 +38,10 @@ class TagEditor extends StatelessWidget {
     this.enabled = true,
   });
 
-  bool get _full => tags.length >= ServerTags.maxCount;
+  bool get _full => tags.length >= DirectoryTags.maxCount;
 
   void _add() {
-    final next = ServerTags.withPending(tags, controller.text);
+    final next = DirectoryTags.withPending(tags, controller.text);
     controller.clear();
     // Called even when nothing was added — a rejected entry (blank, duplicate,
     // one too many) still emptied the box, and the Add button's state depends
@@ -84,7 +84,7 @@ class TagEditor extends StatelessWidget {
                 controller: controller,
                 label: 'Tags',
                 hint: _full
-                    ? '${ServerTags.maxCount} is the most a listing carries'
+                    ? '${DirectoryTags.maxCount} is the most a listing carries'
                     : 'gaming, board-games',
                 enabled: enabled && !_full,
                 onEditingComplete: _add,
