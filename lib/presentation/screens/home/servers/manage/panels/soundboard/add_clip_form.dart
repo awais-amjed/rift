@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 
 import '../../../../../../../logic/services/byte_format.dart';
 import '../../../../../../../logic/services/mime_util.dart';
+import '../../../../../../../logic/services/soundboard_play.dart';
 import '../../../../../../../logic/services/soundboard_staging.dart';
 import '../../../../../../common/app_button.dart';
 import '../../../../../../common/app_text_field.dart';
+import '../../../../../../common/message_banner.dart';
 import '../../../../../../theme/app_text.dart';
 import '../../../../../../theme/custom_colors.dart';
 import '../../../../../../theme/theme_context.dart';
@@ -173,6 +175,21 @@ class _AddClipFormState extends State<AddClipForm> {
           ],
         ),
         if (picked != null) ...[
+          // Said at the one moment the number can still be acted on, and
+          // not in the hint card above: a rule that bites some uploads
+          // belongs beside the upload that trips it, not in a paragraph
+          // everybody reads once. Amber, because nothing has gone wrong and
+          // the clip is still worth adding.
+          if (_duration > SoundboardPlay.maxPlayback) ...[
+            const SizedBox(height: 12),
+            const MessageBanner(
+              message:
+                  'Only the first 8 seconds will play. Every listener cuts '
+                  'a clip off there, so trim it before uploading if the end '
+                  'is the part that matters.',
+              kind: MessageBannerKind.caution,
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,

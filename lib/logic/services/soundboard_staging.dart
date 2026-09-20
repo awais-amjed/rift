@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/repositories/soundboard_repository.dart';
 import 'byte_format.dart';
+import 'soundboard_play.dart';
 
 /// Turning a picked file into a clip — or into the reason it cannot be one.
 ///
@@ -118,4 +119,16 @@ class SoundboardStaging {
     if (duration <= Duration.zero) return '—';
     return '${(duration.inMilliseconds / 1000).toStringAsFixed(1)} s';
   }
+
+  /// What will actually be heard, when that is not the length of the file.
+  ///
+  /// Every listener cuts a clip off at [SoundboardPlay.maxPlayback], so a
+  /// 30-second upload printed as `30.0 s` is a number nobody in the call
+  /// will ever experience. Null when the two agree, which is almost always
+  /// — a soundboard clip that runs past eight seconds is the exception, and
+  /// a qualifier on every row would be noise.
+  static String? cutoffLabel(Duration duration) =>
+      duration > SoundboardPlay.maxPlayback
+      ? 'plays ${durationLabel(SoundboardPlay.maxPlayback)}'
+      : null;
 }

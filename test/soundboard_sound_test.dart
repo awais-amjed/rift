@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/soundboard_sound.dart';
 import 'package:rift/data/participant_identity.dart';
+import 'package:rift/logic/services/soundboard_play.dart';
 import 'package:rift/logic/services/soundboard_staging.dart';
 
 void main() {
@@ -20,10 +21,7 @@ void main() {
     test('round-trips', () {
       final sound = SoundboardSound.fromJson(row());
       expect(sound.duration, const Duration(milliseconds: 1200));
-      expect(
-        SoundboardSound.fromJson(sound.toJson()).toJson(),
-        sound.toJson(),
-      );
+      expect(SoundboardSound.fromJson(sound.toJson()).toJson(), sound.toJson());
     });
 
     test('survives the columns that are allowed to be absent', () {
@@ -111,6 +109,22 @@ void main() {
         '1.2 s',
       );
     });
+
+    test('a clip longer than the ceiling says what will be heard', () {
+      // Every listener cuts one off at maxPlayback, so a 30-second upload
+      // printed as 30.0 s is a number nobody in the call experiences.
+      expect(
+        SoundboardStaging.cutoffLabel(const Duration(seconds: 30)),
+        'plays 8.0 s',
+      );
+    });
+
+    test('and one inside it says nothing at all', () {
+      // The qualifier is the exception. On every row it would be noise.
+      expect(SoundboardStaging.cutoffLabel(const Duration(seconds: 2)), isNull);
+      expect(SoundboardStaging.cutoffLabel(SoundboardPlay.maxPlayback), isNull);
+      expect(SoundboardStaging.cutoffLabel(Duration.zero), isNull);
+    });
   });
 
   group('whose setting is whose', () {
@@ -118,10 +132,7 @@ void main() {
       // Three keys for one person — voice, shared track, soundboard — so
       // turning one down never turns another down with it.
       const userId = 'u1';
-      expect(
-        ParticipantIdentity.soundboardSettingsKey(userId),
-        isNot(userId),
-      );
+      expect(ParticipantIdentity.soundboardSettingsKey(userId), isNot(userId));
       expect(
         ParticipantIdentity.soundboardSettingsKey(userId),
         isNot(ParticipantIdentity.soundShareSettingsKey('$userId~device')),
