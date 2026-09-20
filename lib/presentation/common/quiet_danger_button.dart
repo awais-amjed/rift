@@ -4,6 +4,7 @@ import '../../data/constants.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
 import '../theme/theme_context.dart';
+import 'app_button_height.dart';
 
 /// A destructive action that is one option among several, rather than the
 /// commit at the foot of a form.
@@ -37,6 +38,12 @@ class QuietDangerButton extends StatelessWidget {
     final themeState = context.theme;
     final color = isDangerous ? CustomColors.error : themeState.textSecondary;
 
+    // Follows an enclosing [AppButtonHeight] for the same reason [AppButton]
+    // does: in a phone sheet the primary above this grows to a thumb's
+    // height, and a pair of these left at 44 under a 56 would read as two
+    // sizes of button rather than one column of options.
+    final height = AppButtonHeight.of(context) ?? K.controlHeight;
+
     return Material(
       color: isDangerous
           ? CustomColors.error.withValues(alpha: 0.08)
@@ -47,7 +54,7 @@ class QuietDangerButton extends StatelessWidget {
         hoverColor: themeState.bgHover,
         onTap: onTap,
         child: Container(
-          height: K.controlHeight,
+          height: height,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(K.radiusRow),
             border: Border.all(

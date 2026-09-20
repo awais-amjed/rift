@@ -88,6 +88,7 @@ class _CentralProfileDialogState extends State<CentralProfileDialog> {
         subtitle: 'Central account',
         titleIcon: ProfileAvatar(name: current.handle, seed: current.id),
         maxWidth: 400,
+        sheetOnPhone: true,
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

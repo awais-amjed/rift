@@ -160,6 +160,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
         isOnline: online,
       ),
       maxWidth: 400,
+      sheetOnPhone: true,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

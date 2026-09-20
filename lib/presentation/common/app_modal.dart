@@ -152,6 +152,10 @@ class AppModal extends StatelessWidget {
   /// How much of the window a modal may fill before it starts scrolling.
   static const _maxHeightFraction = 0.85;
 
+  /// The same, for a sheet — a little more, because what is above a sheet is
+  /// the screen it came from and is worth keeping a strip of.
+  static const _sheetMaxFraction = 0.88;
+
   /// Keeps the centred dialog on a phone, where every other modal fills the
   /// screen. For a confirmation: a question with two answers is exactly what a
   /// dialog is for, and a sheet would be too easy to dismiss by accident.
@@ -165,6 +169,18 @@ class AppModal extends StatelessWidget {
   /// When a page has more than one action, the first is taken to be the way
   /// back and is left to the arrow; a single action is the way back itself.
   final bool pageOnPhone;
+
+  /// Renders as the body of a **bottom sheet** on a phone: a grabber, the
+  /// header, and content only as tall as it needs to be, up to
+  /// [_sheetMaxFraction] of the window.
+  ///
+  /// For a modal that is a *glance* rather than a task — a profile, which is
+  /// five facts and two buttons. The full-screen phone branch would leave
+  /// that as a header at the top of 400px of nothing, and it would cover the
+  /// message you opened it from, which is the thing that made you curious.
+  /// Opening it as a sheet is the caller's job ([showModalBottomSheet]
+  /// supplies the surface and the radius); this only draws what goes inside.
+  final bool sheetOnPhone;
 
   /// What the arrow does on a [pageOnPhone] page. Closes the modal if null.
   final VoidCallback? onBack;
@@ -183,6 +199,7 @@ class AppModal extends StatelessWidget {
     this.maxHeight,
     this.staysDialogOnPhone = false,
     this.pageOnPhone = false,
+    this.sheetOnPhone = false,
     this.onBack,
   }) : assert(
          (content == null) != (body == null),
@@ -192,6 +209,7 @@ class AppModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.layoutMode.isCompact && !staysDialogOnPhone) {
+      if (sheetOnPhone) return _buildSheetForPhone(context);
       return pageOnPhone
           ? _buildPageForPhone(context)
           : _buildForPhone(context);
@@ -320,6 +338,72 @@ class AppModal extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// See [sheetOnPhone].
+  ///
+  /// No [Dialog] and no surface of its own: the sheet route paints both, so
+  /// drawing another here would be a card inside a card.
+  Widget _buildSheetForPhone(BuildContext context) {
+    final themeState = context.watch<ThemeCubit>().state;
+    final borderColor = themeState.borderPrimary;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * _sheetMaxFraction,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // The grabber says the whole sheet is draggable, which is the
+          // gesture that dismisses it — there is no other affordance for
+          // that, and a sheet you can only close by reaching for the X is a
+          // dialog wearing a rounded top.
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: themeState.textPrimary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(K.radiusPill),
+              ),
+            ),
+          ),
+          AppModalHeader(
+            title: title,
+            subtitle: subtitle,
+            titleIcon: titleIcon,
+            count: count,
+            actions: headerActions,
+          ),
+          Divider(height: 1, color: borderColor),
+          Flexible(
+            child:
+                body ??
+                SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                  // Everything pressable in here is under a thumb, and the
+                  // buttons are the reason the sheet was opened.
+                  child: AppButtonHeight(
+                    height: K.thumbCtaHeight,
+                    child: content!,
+                  ),
+                ),
+          ),
+          if (actions != null) ...[
+            Divider(height: 1, color: borderColor),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: AppButtonHeight(
+                height: K.thumbCtaHeight,
+                child: ButtonFooter(buttons: actions!),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
