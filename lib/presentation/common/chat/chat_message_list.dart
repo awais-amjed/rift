@@ -31,6 +31,9 @@ class ChatMessageList extends StatefulWidget {
   /// Toggle a reaction on a message. Null disables reactions on this surface.
   final void Function(String messageId, String emoji)? onToggleReaction;
 
+  /// Start a reply to a message. Null disables replying on this surface.
+  final void Function(ChatMessage message)? onReply;
+
   /// Re-seal a message with new text. Null disables editing on this surface.
   final void Function(String messageId, String text)? onEdit;
 
@@ -75,6 +78,7 @@ class ChatMessageList extends StatefulWidget {
     this.controller,
     this.attachmentLoader,
     this.onToggleReaction,
+    this.onReply,
     this.onEdit,
     this.onDelete,
     this.onRetry,
@@ -202,6 +206,10 @@ class _ChatMessageListState extends State<ChatMessageList> {
         }
 
         final items = _buildItems();
+        // Built once per frame rather than searched per row: a list of five
+        // hundred messages where most are replies is otherwise a scan of the
+        // whole history for every row the viewport builds.
+        final byId = {for (final m in widget.messages) m.id: m};
 
         return ListView.builder(
           controller: widget.controller,
@@ -224,6 +232,11 @@ class _ChatMessageListState extends State<ChatMessageList> {
 
               attachmentLoader: widget.attachmentLoader,
               onToggleReaction: widget.onToggleReaction,
+              onReply: widget.onReply,
+              // Resolved from what is loaded and nothing else. A reference to
+              // a message further back than the page is drawn as a reference
+              // with nothing behind it, which is what it is.
+              repliedTo: msg.replyToId == null ? null : byId[msg.replyToId],
               onEdit: widget.onEdit,
               onDelete: widget.onDelete,
               onRetry: widget.onRetry,

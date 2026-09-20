@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/attachment.dart';
+import '../../../../data/classes/chat_message.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/classes/server_member.dart';
@@ -27,6 +28,7 @@ import 'composer_link_preview.dart';
 import 'composer_mention_menu.dart';
 import 'composer_plaintext_notice.dart';
 import 'composer_recording_bar.dart';
+import 'composer_reply_bar.dart';
 import 'composer_staged_row.dart';
 
 /// Message input row: attach + emoji buttons, the text field, a mic and the
@@ -84,6 +86,19 @@ class ChatComposer extends StatefulWidget {
   final bool enabled;
   final Widget? footer;
 
+  /// The message being answered, or null for an ordinary send. Drawn as a
+  /// strip above the bar; [onCancelReply] is the only way off it.
+  ///
+  /// The composer takes focus whenever this *becomes* non-null, because
+  /// pressing Reply is a request to type — see [didUpdateWidget].
+  final ChatMessage? replyingTo;
+  final VoidCallback? onCancelReply;
+
+  /// Whether the reply will ring its author, and the toggle for it. Null
+  /// where nobody can be rung: a DM has one recipient and already wakes them.
+  final bool? replyPings;
+  final ValueChanged<bool>? onToggleReplyPing;
+
   /// Per-file size cap for this surface, in bytes.
   ///
   /// Checked here so an oversized file is refused with a sentence at the
@@ -110,6 +125,10 @@ class ChatComposer extends StatefulWidget {
     this.bots = const [],
     this.onMentionSearch,
     this.selfUserId,
+    this.replyingTo,
+    this.onCancelReply,
+    this.replyPings,
+    this.onToggleReplyPing,
   });
 
   @override
@@ -253,6 +272,18 @@ class _ChatComposerState extends State<ChatComposer>
     _controller.addListener(_syncMentionMenu);
   }
 
+  @override
+  void didUpdateWidget(ChatComposer old) {
+    super.didUpdateWidget(old);
+    // Pressing Reply on a row across the screen is a request to type, so the
+    // caret comes here rather than waiting to be clicked for. Only on the
+    // *transition* into a reply: firing on every rebuild would drag focus
+    // back from wherever it went while the strip was still up, and answering
+    // a different message while already replying is still one transition.
+    final now = widget.replyingTo?.id;
+    if (now != null && now != old.replyingTo?.id) _focusNode.requestFocus();
+  }
+
   /// Ask the server who matches the fragment the caret is in.
   void _refreshMentionCandidates(String? query) {
     if (query == _candidatesFor) return;
@@ -384,10 +415,21 @@ class _ChatComposerState extends State<ChatComposer>
   }
 
   Widget _buildColumn(ThemeState themeState) {
+    final replyingTo = widget.replyingTo;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Above everything else on the stack, including the staged chips: it
+        // says which conversation this message joins, and that is the first
+        // thing to read, not the last.
+        if (replyingTo != null && widget.onCancelReply != null)
+          ComposerReplyBar(
+            replyingTo: replyingTo,
+            onCancel: widget.onCancelReply!,
+            pinging: widget.replyPings,
+            onTogglePing: widget.onToggleReplyPing,
+          ),
         // Grown into rather than snapped in. The strip appears above the
         // bar, so attaching the first file used to shove the whole
         // conversation up by the height of a row of chips, and removing

@@ -28,6 +28,7 @@ import 'message_context_menu.dart';
 import 'message_edit_field.dart';
 import 'message_hover_toolbar.dart';
 import 'message_locked_body.dart';
+import 'message_reply_quote.dart';
 import 'message_row_avatar.dart';
 import 'message_row_header.dart';
 import 'message_text.dart';
@@ -49,6 +50,17 @@ class ChatMessageRow extends StatefulWidget {
 
   /// Toggle a reaction on this message. Null disables reactions on this surface.
   final void Function(String messageId, String emoji)? onToggleReaction;
+
+  /// Start a reply to this message. Null disables replying on this surface.
+  final void Function(ChatMessage message)? onReply;
+
+  /// The message this one answers, already decrypted and verified by this
+  /// client, or null when the reference points at something it cannot show.
+  ///
+  /// Only ever read when [ChatMessage.isReply]; a null here with a reply id
+  /// above it is the "original unavailable" case, which is a different row
+  /// from one that is not a reply at all.
+  final ChatMessage? repliedTo;
 
   /// Re-seal this message with new text. Null disables editing.
   final void Function(String messageId, String text)? onEdit;
@@ -86,6 +98,8 @@ class ChatMessageRow extends StatefulWidget {
     required this.showHeader,
     this.attachmentLoader,
     this.onToggleReaction,
+    this.onReply,
+    this.repliedTo,
     this.onEdit,
     this.onDelete,
     this.onRetry,
@@ -132,6 +146,12 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       // happen, and the tally would be visible to everyone who can.
       !message.isLocked;
   bool get _canCopy => message.text.isNotEmpty;
+  bool get _canReply =>
+      widget.onReply != null &&
+      !message.isPending &&
+      // Answering something you cannot read yet would seal a reference to a
+      // message whose author and content you are guessing at.
+      !message.isLocked;
   bool get _canEdit =>
       widget.onEdit != null && MessagePermissions.canEdit(message);
   bool get _canDelete =>
@@ -141,10 +161,12 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       _hovering &&
       !_editing &&
       !message.isPending &&
-      (_canReact || _canCopy || _canEdit || _canDelete);
+      (_canReact || _canReply || _canCopy || _canEdit || _canDelete);
 
   void _toggle(String emoji) =>
       widget.onToggleReaction?.call(message.id, emoji);
+
+  void _reply() => widget.onReply?.call(message);
 
   void _pickReaction(BuildContext anchorContext) =>
       showReactionPicker(anchorContext, themeState, _toggle);
@@ -184,11 +206,14 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       themeState: themeState,
       message: message,
       canReact: _canReact,
+      canReply: _canReply,
       canEdit: _canEdit,
       canDelete: _canDelete,
     );
     if (!mounted || action == null) return;
     switch (action) {
+      case MessageMenuAction.reply:
+        _reply();
       case MessageMenuAction.react:
         // Anchored to the row rather than to the menu entry, which is gone by
         // the time this runs.
@@ -209,6 +234,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       context: context,
       message: message,
       canReact: _canReact,
+      canReply: _canReply,
       canEdit: _canEdit,
       canDelete: _canDelete,
     );
@@ -216,6 +242,8 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
     switch (choice) {
       case QuickReaction(:final emoji):
         _toggle(emoji);
+      case MenuActionChoice(action: MessageMenuAction.reply):
+        _reply();
       case MenuActionChoice(action: MessageMenuAction.react):
         final emoji = await showEmojiReactionSheet(context);
         if (mounted && emoji != null) _toggle(emoji);
@@ -290,6 +318,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                   ),
                   child: MessageHoverToolbar(
                     onReact: _canReact ? _pickReaction : null,
+                    onReply: _canReply ? (_) => _reply() : null,
                     onCopy: _canCopy ? (_) => _copy() : null,
                     onEdit: _canEdit
                         ? (_) => setState(() => _editing = true)
@@ -367,6 +396,11 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Above the header, the way it is read: what is being answered, then
+        // who is answering. Once per group — [ChatMessage.groupKey] carries
+        // the reference for that reason.
+        if (widget.showHeader && message.isReply)
+          MessageReplyQuote(original: widget.repliedTo),
         if (widget.showHeader)
           MessageRowHeader(
             message: message,

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/enums/friendship_state.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/services/link_preview_fetcher.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../theme/app_text.dart';
@@ -26,7 +29,9 @@ class CentralDmChatView extends StatefulWidget {
 }
 
 class _CentralDmChatViewState extends State<CentralDmChatView>
-    with ChatScrollLoadMore<CentralDmChatView> {
+    with
+        ChatScrollLoadMore<CentralDmChatView>,
+        ChatReplyDraft<CentralDmChatView> {
   @override
   void loadMoreHistory() => context.read<CentralDmCubit>().loadMoreHistory();
 
@@ -66,9 +71,10 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
               enabled: !quotaEmpty,
               maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
               footer: const QuotaMeter(),
-              onSend: (text, attachments, preview) => context
-                  .read<CentralDmCubit>()
-                  .sendDm(text, attachments: attachments, preview: preview),
+              onSend: (text, attachments, preview) =>
+                  _send(context, text, attachments, preview),
+              replyingTo: replyingTo,
+              onCancelReply: cancelReply,
             ),
             FriendshipState.incoming => FriendRequestBar(
               peerId: peerId,
@@ -92,9 +98,31 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     );
   }
 
+  /// Send, clearing the reply bar with the same press that clears the field.
+  ///
+  /// No ping toggle here and none offered: a DM wakes the one person in it
+  /// whatever the message says, so a control for whether it does would be a
+  /// switch wired to nothing.
+  void _send(
+    BuildContext context,
+    String text,
+    List<PendingAttachment> attachments,
+    PendingLinkPreview? preview,
+  ) {
+    final answering = replyToId;
+    cancelReply();
+    context.read<CentralDmCubit>().sendDm(
+      text,
+      attachments: attachments,
+      preview: preview,
+      replyToId: answering,
+    );
+  }
+
   Widget _buildBody(CentralDmState state, ThemeState themeState) {
     switch (state.chatStatus) {
       case DmChatStatus.ready:
+        syncReplyDraft(state.openPeerId, state.messages);
         return ChatMessageList(
           key: ValueKey(state.openPeerId),
           messages: state.messages,
@@ -108,6 +136,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           attachmentLoader: context.read<CentralDmCubit>().loadAttachment,
           // No onToggleReaction: central DMs are the first-contact tier and are
           // kept deliberately thin — reactions live on servers.
+          onReply: startReply,
           onEdit: context.read<CentralDmCubit>().editMessage,
           onDelete: context.read<CentralDmCubit>().deleteMessage,
           onRetry: context.read<CentralDmCubit>().retrySend,

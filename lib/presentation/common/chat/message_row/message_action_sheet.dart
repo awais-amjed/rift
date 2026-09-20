@@ -45,6 +45,7 @@ Future<MessageSheetChoice?> showMessageActionSheet({
   required bool canReact,
   required bool canEdit,
   required bool canDelete,
+  bool canReply = false,
 }) {
   final theme = context.theme;
   final themeCubit = context.read<ThemeCubit>();
@@ -100,6 +101,13 @@ Future<MessageSheetChoice?> showMessageActionSheet({
                       label: 'Add reaction',
                       onTap: () =>
                           pick(const MenuActionChoice(MessageMenuAction.react)),
+                    ),
+                  if (canReply)
+                    ContextMenuItem(
+                      icon: Icons.reply_rounded,
+                      label: 'Reply',
+                      onTap: () =>
+                          pick(const MenuActionChoice(MessageMenuAction.reply)),
                     ),
                   if (canCopy)
                     ContextMenuItem(

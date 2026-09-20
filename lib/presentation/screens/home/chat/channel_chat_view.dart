@@ -14,6 +14,7 @@ import '../../../../logic/services/chat_failure.dart';
 import '../../../../logic/services/link_preview_fetcher.dart';
 import '../../../../logic/services/mentions.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/typing_indicator.dart';
@@ -34,7 +35,7 @@ class ChannelChatView extends StatefulWidget {
 }
 
 class _ChannelChatViewState extends State<ChannelChatView>
-    with ChatScrollLoadMore<ChannelChatView> {
+    with ChatScrollLoadMore<ChannelChatView>, ChatReplyDraft<ChannelChatView> {
   @override
   void loadMoreHistory() => context.read<ChannelChatCubit>().loadMoreHistory();
 
@@ -74,6 +75,12 @@ class _ChannelChatViewState extends State<ChannelChatView>
                     ChatComposer(
                       onSend: (text, attachments, preview) =>
                           _send(context, text, attachments, preview),
+                      replyingTo: replyingTo,
+                      onCancelReply: cancelReply,
+                      // A channel is the one surface with somebody to ring
+                      // who is not already being written to.
+                      replyPings: replyPings,
+                      onToggleReplyPing: setReplyPing,
                       onTyping: () =>
                           context.read<ChannelChatCubit>().notifyTyping(),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
@@ -116,11 +123,20 @@ class _ChannelChatViewState extends State<ChannelChatView>
     final inVoice = context.read<LiveKitCubit>().state.currentChannelId;
     final voiceBots = context.read<VoiceListenersCubit>();
 
+    // Read before the send and cleared after it: the composer is emptied by
+    // the same press, and a reply bar still standing over an empty field is
+    // the next message quietly joining a thread it was not meant for.
+    final answering = replyToId;
+    final pings = replyPings;
+    cancelReply();
+
     await context.read<ChannelChatCubit>().sendMessage(
       text,
       attachments: attachments,
       preview: preview,
       inVoiceChannel: inVoice,
+      replyToId: answering,
+      pingReplyTo: pings,
     );
 
     if (inVoice != null && text.trimLeft().startsWith('/')) {
@@ -195,12 +211,14 @@ class _ChannelChatViewState extends State<ChannelChatView>
       // history rather than as an absence.
       case ChannelChatStatus.ready:
       case ChannelChatStatus.readOnly:
+        syncReplyDraft(chatState.channelId, chatState.messages);
         return ChatMessageList(
           key: ValueKey(chatState.channelId),
           messages: chatState.messages,
           controller: scrollController,
           attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
           onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
+          onReply: startReply,
           onEdit: context.read<ChannelChatCubit>().editMessage,
           onDelete: context.read<ChannelChatCubit>().deleteMessage,
           onRetry: context.read<ChannelChatCubit>().retrySend,

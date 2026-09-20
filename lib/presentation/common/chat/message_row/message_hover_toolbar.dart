@@ -16,6 +16,7 @@ class MessageHoverToolbar extends StatelessWidget {
   /// Each callback receives the tapped button's context so a popover (the
   /// reaction picker) can anchor to it. Null hides that action.
   final void Function(BuildContext anchorContext)? onReact;
+  final void Function(BuildContext anchorContext)? onReply;
   final void Function(BuildContext anchorContext)? onCopy;
   final void Function(BuildContext anchorContext)? onEdit;
   final void Function(BuildContext anchorContext)? onDelete;
@@ -23,6 +24,7 @@ class MessageHoverToolbar extends StatelessWidget {
   const MessageHoverToolbar({
     super.key,
     this.onReact,
+    this.onReply,
     this.onCopy,
     this.onEdit,
     this.onDelete,
@@ -54,6 +56,13 @@ class MessageHoverToolbar extends StatelessWidget {
                   tooltip: 'React',
 
                   onTap: onReact!,
+                ),
+              if (onReply != null)
+                _ToolbarButton(
+                  icon: Icons.reply_rounded,
+                  tooltip: 'Reply',
+
+                  onTap: onReply!,
                 ),
               if (onCopy != null)
                 _ToolbarButton(

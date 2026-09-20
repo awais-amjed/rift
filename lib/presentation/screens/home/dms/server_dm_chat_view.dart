@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/services/link_preview_fetcher.dart';
 import '../../../common/chat/chat_message_list.dart';
+import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/typing_indicator.dart';
@@ -24,7 +27,9 @@ class ServerDmChatView extends StatefulWidget {
 }
 
 class _ServerDmChatViewState extends State<ServerDmChatView>
-    with ChatScrollLoadMore<ServerDmChatView> {
+    with
+        ChatScrollLoadMore<ServerDmChatView>,
+        ChatReplyDraft<ServerDmChatView> {
   @override
   void loadMoreHistory() => context.read<DmCubit>().loadMoreHistory();
 
@@ -55,13 +60,35 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
             hintText: 'Message ${state.openPeerName ?? ''}',
             maxAttachmentBytes: _maxAttachmentBytes(),
             remainingStorageBytes: _remainingStorage(),
-            onSend: (text, attachments, preview) => context
-                .read<DmCubit>()
-                .sendDm(text, attachments: attachments, preview: preview),
+            onSend: (text, attachments, preview) =>
+                _send(context, text, attachments, preview),
+            replyingTo: replyingTo,
+            onCancelReply: cancelReply,
             onTyping: () => context.read<DmCubit>().notifyTyping(),
           ),
         ],
       ],
+    );
+  }
+
+  /// Send, clearing the reply bar with the same press that clears the field.
+  ///
+  /// No ping toggle here and none offered: a DM wakes the one person in it
+  /// whatever the message says, so a control for whether it does would be a
+  /// switch wired to nothing.
+  void _send(
+    BuildContext context,
+    String text,
+    List<PendingAttachment> attachments,
+    PendingLinkPreview? preview,
+  ) {
+    final answering = replyToId;
+    cancelReply();
+    context.read<DmCubit>().sendDm(
+      text,
+      attachments: attachments,
+      preview: preview,
+      replyToId: answering,
     );
   }
 
@@ -103,12 +130,14 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
   Widget _buildBody(DmState state, ThemeState themeState) {
     switch (state.chatStatus) {
       case DmChatStatus.ready:
+        syncReplyDraft(state.openPeerId, state.messages);
         return ChatMessageList(
           key: ValueKey(state.openPeerId),
           messages: state.messages,
           controller: scrollController,
           attachmentLoader: context.read<DmCubit>().loadAttachment,
           onToggleReaction: context.read<DmCubit>().toggleReaction,
+          onReply: startReply,
           onEdit: context.read<DmCubit>().editMessage,
           onDelete: context.read<DmCubit>().deleteMessage,
           onRetry: context.read<DmCubit>().retrySend,
