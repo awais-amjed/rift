@@ -32,7 +32,7 @@ class SoundboardListenerControls extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Mute the soundboard',
+                'Mute everyone else',
                 style: AppText.row.copyWith(color: theme.textSecondary),
               ),
             ),
@@ -44,7 +44,8 @@ class SoundboardListenerControls extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'For you. Nobody else stops hearing them.',
+          'Their clips stop playing here. Yours still do, and the room '
+          'still hears them.',
           style: AppText.rowQuiet.copyWith(color: theme.textQuaternary),
         ),
         const SizedBox(height: 6),

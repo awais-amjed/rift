@@ -241,11 +241,10 @@ class SoundboardCubit extends Cubit<SoundboardState> {
   /// Play [sound] on this device and nowhere else.
   ///
   /// For the person managing the library, who has to know which of three
-  /// airhorns this one is. It ignores [AppState.soundboardMuted] and not the
-  /// volume: the mute is about clips arriving from other people, and this is
-  /// one that was asked for here.
+  /// airhorns this one is. Goes through the same rule as a press of our own,
+  /// so the mute does not reach it and being deafened does.
   Future<void> preview(SoundboardSound sound) =>
-      _playLocally(sound, volume: _appCubit.state.soundboardVolume);
+      _playLocally(sound, volume: _volumeFor(null));
 
   /// Stop anything still playing — leaving a call, or being deafened
   /// part-way through somebody's airhorn.
@@ -267,24 +266,27 @@ class SoundboardCubit extends Cubit<SoundboardState> {
     await SoundboardPlayer.instance.play(source, volume: volume);
   }
 
-  /// How loud a clip from [userId] should be here, 0 for silent.
+  /// How loud a clip from [userId] should be here, 0 for silent. Null is a
+  /// clip this device asked for — our own press, or the manage page's
+  /// preview.
   ///
-  /// Four things can silence one and they are deliberately all on this
-  /// device: being deafened, muting the soundboard, muting that person's
-  /// soundboard, or turning either volume to nothing. Null is our own press,
-  /// which no per-person setting applies to.
+  /// Everything that can silence one is on this device, and the rule itself
+  /// is [SoundboardVolume], which is pure and tested.
   double _volumeFor(String? userId) {
-    if (_livekitCubit?.state.isDeafenedEffective ?? false) return 0;
-
     final app = _appCubit.state;
-    if (app.soundboardMuted) return 0;
-
-    if (userId == null) return app.soundboardVolume;
-
-    final setting = app
-        .participantSettings[ParticipantIdentity.soundboardSettingsKey(userId)];
-    if (setting?.muted ?? false) return 0;
-    return app.soundboardVolume * (setting?.volume ?? 1.0);
+    final setting = userId == null
+        ? null
+        : app.participantSettings[ParticipantIdentity.soundboardSettingsKey(
+            userId,
+          )];
+    return SoundboardVolume.resolve(
+      deafened: _livekitCubit?.state.isDeafenedEffective ?? false,
+      muted: app.soundboardMuted,
+      globalVolume: app.soundboardVolume,
+      fromSelf: userId == null,
+      personMuted: setting?.muted ?? false,
+      personVolume: setting?.volume ?? 1.0,
+    );
   }
 
   @override

@@ -139,4 +139,62 @@ void main() {
       expect(gate.admit('sam', start), isTrue);
     });
   });
+
+  group('how loud, and what silences it', () {
+    double volume({
+      bool deafened = false,
+      bool muted = false,
+      double globalVolume = 0.6,
+      bool fromSelf = false,
+      bool personMuted = false,
+      double personVolume = 1.0,
+    }) => SoundboardVolume.resolve(
+      deafened: deafened,
+      muted: muted,
+      globalVolume: globalVolume,
+      fromSelf: fromSelf,
+      personMuted: personMuted,
+      personVolume: personVolume,
+    );
+
+    test('somebody else\'s clip plays at this device\'s volume', () {
+      expect(volume(), 0.6);
+    });
+
+    test('muting the soundboard silences them', () {
+      expect(volume(muted: true), 0);
+    });
+
+    test('...and does not silence a clip we pressed ourselves', () {
+      // The rule the preview button always followed and the press did not:
+      // both are clips this device asked for. You should hear what you have
+      // just put into the room, since everyone else is about to.
+      expect(volume(muted: true, fromSelf: true), 0.6);
+    });
+
+    test('being deafened silences everything, our own included', () {
+      expect(volume(deafened: true), 0);
+      expect(volume(deafened: true, fromSelf: true), 0);
+    });
+
+    test('muting one person leaves everybody else alone', () {
+      expect(volume(personMuted: true), 0);
+      expect(volume(personMuted: false), 0.6);
+    });
+
+    test('their volume multiplies this device\'s, it does not replace it', () {
+      expect(volume(globalVolume: 0.5, personVolume: 0.5), 0.25);
+    });
+
+    test('no per-person setting reaches a clip of our own', () {
+      // `fromSelf` short-circuits before them, which is what stops a mute we
+      // set against ourselves from ever mattering.
+      expect(volume(fromSelf: true, personMuted: true), 0.6);
+    });
+
+    test('the answer is always a volume, never out of range', () {
+      expect(volume(globalVolume: 4, personVolume: 4), 1.0);
+      expect(volume(globalVolume: 4, fromSelf: true), 1.0);
+    });
+  });
 }

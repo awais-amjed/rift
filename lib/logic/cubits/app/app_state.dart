@@ -67,7 +67,8 @@ class AppState {
   // `ParticipantIdentity.soundboardSettingsKey`, beside the one for a voice
   // and the one for a shared track.
 
-  /// Whether this device plays other people's clips at all.
+  /// Whether this device plays **other people's** clips at all. Never your
+  /// own — see [SoundboardVolume] for why the two differ.
   final bool soundboardMuted;
 
   /// How loud, 0–1, when it does. Starts below the room: a clip is a

@@ -16,6 +16,10 @@ import '../setting_toggle_row.dart';
 /// Neither of them reaches a server. A clip is played by each listener out of
 /// their own speakers, so this is the whole of the decision; turning somebody
 /// *particular* down is on their profile, or in their right-click menu.
+///
+/// The mute is everyone *else*: a clip you pressed is one you asked for, and
+/// you should hear what the room is about to. Being deafened is the switch
+/// that silences all of it.
 class SoundboardSection extends StatelessWidget {
   final AppState appState;
 
@@ -31,10 +35,10 @@ class SoundboardSection extends StatelessWidget {
         SectionTitle(label: 'Soundboard'),
         const SizedBox(height: 12),
         SettingToggleRow(
-          title: 'Mute the soundboard',
+          title: 'Mute everyone else\'s soundboard',
           description:
-              'Stop playing the clips other people press. It changes nothing '
-              'for anybody else in the call.',
+              'Stop playing the clips other people press. Your own still '
+              'play, the room still hears them, and nobody else is affected.',
           value: appState.soundboardMuted,
           onChanged: context.read<AppCubit>().setSoundboardMuted,
         ),

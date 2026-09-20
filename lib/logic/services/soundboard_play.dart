@@ -99,3 +99,39 @@ class SoundboardGate {
   /// Forget everybody — the call ended, so the next one starts clean.
   void clear() => _lastHeard.clear();
 }
+
+/// How loud a clip should be on this device, and what can silence it.
+///
+/// Pure, and apart from the cubit, because it is the whole of a rule that is
+/// easy to state and easy to get subtly wrong:
+///
+///   * **being deafened silences everything**, including a clip you pressed
+///     yourself. Deafen is "I am not listening", and the mic goes with it.
+///   * **muting the soundboard silences everybody else**, and only them. A
+///     clip you pressed is one you asked for — and you should hear what you
+///     have just put into the room, since everyone else is about to.
+///
+/// That second line used to read "silences everything", which made the mute
+/// disagree with the preview button on the manage page: both are clips you
+/// asked for, and only one of them played.
+class SoundboardVolume {
+  const SoundboardVolume._();
+
+  /// [globalVolume] is this device's soundboard volume, 0–1.
+  /// [setting] is what is stored against *that person's* soundboard, or null.
+  /// [fromSelf] is a clip this device is playing at its own request — a press
+  /// of our own, or the manage page's preview.
+  static double resolve({
+    required bool deafened,
+    required bool muted,
+    required double globalVolume,
+    required bool fromSelf,
+    bool personMuted = false,
+    double personVolume = 1.0,
+  }) {
+    if (deafened) return 0;
+    if (fromSelf) return globalVolume.clamp(0.0, 1.0);
+    if (muted || personMuted) return 0;
+    return (globalVolume * personVolume).clamp(0.0, 1.0);
+  }
+}
