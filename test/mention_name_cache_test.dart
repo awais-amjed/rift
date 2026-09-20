@@ -85,11 +85,9 @@ void main() {
       cache.reset();
 
       expect(cache.names, isEmpty, reason: 'answers should be dropped');
-      expect(
-        cache.unasked(['admin']),
-        ['admin'],
-        reason: 'and the name asked again, or it can never resolve',
-      );
+      expect(cache.unasked(['admin']), [
+        'admin',
+      ], reason: 'and the name asked again, or it can never resolve');
     });
 
     test('a name is resolvable again in the next channel', () {

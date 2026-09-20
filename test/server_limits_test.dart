@@ -268,7 +268,11 @@ void main() {
     test('storage room is what is left, and never negative', () {
       const limits = ServerLimits(maxStorageBytes: 1000);
       expect(limits.hasRoomFor(400, used: 500), isTrue);
-      expect(limits.hasRoomFor(500, used: 500), isTrue, reason: 'exactly full fits');
+      expect(
+        limits.hasRoomFor(500, used: 500),
+        isTrue,
+        reason: 'exactly full fits',
+      );
       expect(limits.hasRoomFor(501, used: 500), isFalse);
       expect(limits.remainingStorage(500), 400 + 100);
       // A cap lowered below what is already held reads as nothing left,

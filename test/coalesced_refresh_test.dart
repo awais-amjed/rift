@@ -11,11 +11,7 @@ import 'package:rift/logic/services/coalesced_refresh.dart';
 /// stays there until something unrelated happens to ask again.
 void main() {
   /// A refresh the test completes by hand, counting how often it ran.
-  ({
-    CoalescedRefresh<int> refresh,
-    List<Completer<int>> runs,
-  })
-  subject() {
+  ({CoalescedRefresh<int> refresh, List<Completer<int>> runs}) subject() {
     final runs = <Completer<int>>[];
     return (
       refresh: CoalescedRefresh<int>(() {
@@ -59,19 +55,21 @@ void main() {
   // The whole reason this is not "drop it if one is in flight". The read
   // already running was asked for before the second caller had a reason to
   // ask, so its answer may predate the change they are asking about.
-  test('a latecomer never receives the answer that was already in flight',
-      () async {
-    final s = subject();
-    final first = s.refresh();
-    final second = s.refresh();
+  test(
+    'a latecomer never receives the answer that was already in flight',
+    () async {
+      final s = subject();
+      final first = s.refresh();
+      final second = s.refresh();
 
-    s.runs[0].complete(1);
-    expect(await first, 1);
-    await pumpEventQueue();
-    s.runs[1].complete(2);
+      s.runs[0].complete(1);
+      expect(await first, 1);
+      await pumpEventQueue();
+      s.runs[1].complete(2);
 
-    expect(await second, isNot(1));
-  });
+      expect(await second, isNot(1));
+    },
+  );
 
   test('arriving during the second read earns a third', () async {
     final s = subject();
@@ -108,27 +106,29 @@ void main() {
   // then failed. Chained with a plain `then`, their turn never comes, the
   // queue slot stays pointing at the failure, and every later caller is
   // handed it — the refresh is dead for the life of the cubit.
-  test('a latecomer still gets a read when the one ahead of them fails',
-      () async {
-    final s = subject();
-    final first = s.refresh();
-    final second = s.refresh();
+  test(
+    'a latecomer still gets a read when the one ahead of them fails',
+    () async {
+      final s = subject();
+      final first = s.refresh();
+      final second = s.refresh();
 
-    s.runs[0].completeError(StateError('offline'));
-    await expectLater(first, throwsStateError);
-    await pumpEventQueue();
+      s.runs[0].completeError(StateError('offline'));
+      await expectLater(first, throwsStateError);
+      await pumpEventQueue();
 
-    expect(s.runs, hasLength(2), reason: 'the queued read never ran');
-    s.runs[1].complete(9);
-    expect(await second, 9);
+      expect(s.runs, hasLength(2), reason: 'the queued read never ran');
+      s.runs[1].complete(9);
+      expect(await second, 9);
 
-    // And the slot is free again rather than holding the dead future.
-    await pumpEventQueue();
-    final third = s.refresh();
-    expect(s.runs, hasLength(3));
-    s.runs[2].complete(10);
-    expect(await third, 10);
-  });
+      // And the slot is free again rather than holding the dead future.
+      await pumpEventQueue();
+      final third = s.refresh();
+      expect(s.runs, hasLength(3));
+      s.runs[2].complete(10);
+      expect(await third, 10);
+    },
+  );
 
   // A refresh that throws must not wedge the next one behind a future that
   // will never complete.

@@ -60,6 +60,18 @@ class ChannelChatState {
   final bool hasMoreHistory;
   final bool isLoadingMore;
 
+  /// Whether newer messages exist past the last loaded one.
+  ///
+  /// False almost always: the list is the live tail of the conversation and
+  /// there is nothing after it. It goes true when a jump lands the reader in
+  /// a **window** of history — see the cubit's `showAround`. That window is
+  /// deliberately not the present, so three things change with it: scrolling
+  /// down loads forward instead of stopping, live messages stop being
+  /// appended (they belong after a stretch that is not loaded, and putting
+  /// them at the end would draw a gap as if it were not there), and the view
+  /// offers a way back.
+  final bool hasNewerHistory;
+
   /// Display names of the bots holding a key to the open channel.
   ///
   /// In cubit state rather than fetched by the header, because it has to be
@@ -106,6 +118,7 @@ class ChannelChatState {
     this.messages = const [],
     this.hasMoreHistory = false,
     this.isLoadingMore = false,
+    this.hasNewerHistory = false,
     this.typingUsers = const {},
     this.botListeners = const [],
     this.bots = const [],
@@ -119,6 +132,7 @@ class ChannelChatState {
     List<ChatMessage>? messages,
     bool? hasMoreHistory,
     bool? isLoadingMore,
+    bool? hasNewerHistory,
     Map<String, String>? typingUsers,
     List<String>? botListeners,
     List<ServerMember>? bots,
@@ -132,6 +146,7 @@ class ChannelChatState {
       messages: messages ?? this.messages,
       hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasNewerHistory: hasNewerHistory ?? this.hasNewerHistory,
       typingUsers: typingUsers ?? this.typingUsers,
       botListeners: botListeners ?? this.botListeners,
       // No clear flags: `openChannel` builds a fresh state, so a channel opened

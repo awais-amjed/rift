@@ -37,6 +37,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
   void loadMoreHistory() => context.read<DmCubit>().loadMoreHistory();
 
   @override
+  void loadNewerHistory() => context.read<DmCubit>().loadNewerHistory();
+
+  @override
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
     final state = context.watch<DmCubit>().state;
@@ -141,7 +144,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           attachmentLoader: context.read<DmCubit>().loadAttachment,
           onToggleReaction: context.read<DmCubit>().toggleReaction,
           onLookUpOriginal: context.read<DmCubit>().fetchQuoted,
-          onLoadUntilLoaded: context.read<DmCubit>().loadUntilLoaded,
+          onShowAround: context.read<DmCubit>().showAround,
+          viewingHistory: state.hasNewerHistory,
+          onReturnToPresent: context.read<DmCubit>().returnToPresent,
           onReply: startReply,
           onForward: (message) => unawaited(
             showForwardDialog(

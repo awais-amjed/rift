@@ -82,6 +82,10 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   Future<void> _fetchAfterLatest() async {
     final peerId = state.openPeerId;
     if (peerId == null) return;
+    // Not while the list is a window into history: "newer than the newest
+    // one held" is everything from that point on, and appending it would
+    // stitch the live end onto a stretch it does not follow.
+    if (state.hasNewerHistory) return;
 
     final response = await _serverCubit.listDms(
       peerId: peerId,
@@ -140,14 +144,116 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
         : QuotedMessage.found(decrypted.first);
   }
 
-  /// Page back until [messageId] is in the list, for a jump that has to
-  /// travel further than the loaded page.
-  Future<bool> loadUntilLoaded(String messageId) => QuoteLookup.pageUntilLoaded(
-    isLoaded: () => state.messages.any((m) => m.id == messageId),
-    hasMore: () => state.hasMoreHistory,
-    loadedCount: () => state.messages.length,
-    loadMore: loadMoreHistory,
-  );
+  /// Put [messageId] in the list by loading a **window** around it, and
+  /// answer whether it worked.
+  ///
+  /// Two requests and one emit, rather than paging backwards a screen at a
+  /// time until it turns up — see `ChannelChatCubit.showAround` for what
+  /// that cost. The reader lands on a stretch of history, and
+  /// `hasNewerHistory` is what says the list is no longer the live tail.
+  Future<bool> showAround(String messageId) async {
+    final peerId = state.openPeerId;
+    final id = int.tryParse(messageId);
+    if (peerId == null || id == null) return false;
+    if (state.messages.any((m) => m.id == messageId)) return true;
+
+    emit(state.copyWith(isLoadingMore: true));
+
+    // `beforeId` is exclusive, so the target rides in with the older half
+    // rather than being fetched a third time.
+    final older = await _serverCubit.listDms(
+      peerId: peerId,
+      beforeId: id + 1,
+      limit: _windowHalf,
+    );
+    final newer = await _serverCubit.listDms(
+      peerId: peerId,
+      afterId: id,
+      limit: _windowHalf,
+    );
+    if (state.openPeerId != peerId) return false;
+    if (!older.success || !newer.success) {
+      emit(state.copyWith(isLoadingMore: false));
+      return false;
+    }
+
+    final olderData = older.data as Map<String, dynamic>;
+    final newerData = newer.data as Map<String, dynamic>;
+    final newerRows = (newerData['messages'] as List)
+        .cast<Map<String, dynamic>>();
+
+    final before = await _decryptRows(
+      peerId,
+      (olderData['messages'] as List).cast<Map<String, dynamic>>(),
+    );
+    final after = await _decryptRows(peerId, newerRows);
+    if (state.openPeerId != peerId) return false;
+
+    final window = [...before.reversed, ...after];
+    if (!window.any((m) => m.id == messageId)) {
+      // There but unshowable — dropped on verification. Leaving the list
+      // alone is the honest outcome: there is nothing to land on.
+      emit(state.copyWith(isLoadingMore: false));
+      return false;
+    }
+
+    emit(
+      state.copyWith(
+        messages: window,
+        hasMoreHistory: olderData['has_more'] as bool? ?? false,
+        hasNewerHistory: newerRows.length >= _windowHalf,
+        isLoadingMore: false,
+      ),
+    );
+    return true;
+  }
+
+  /// Half the window a jump lands in — this many either side of the target.
+  static const int _windowHalf = 25;
+
+  /// Scroll-down pagination, the mirror of [loadMoreHistory]. Only runs
+  /// while the list is a window into history.
+  Future<void> loadNewerHistory() async {
+    final peerId = state.openPeerId;
+    if (peerId == null ||
+        !state.hasNewerHistory ||
+        state.isLoadingMore ||
+        state.messages.isEmpty) {
+      return;
+    }
+    emit(state.copyWith(isLoadingMore: true));
+
+    final response = await _serverCubit.listDms(
+      peerId: peerId,
+      afterId: ChatMessageOps.latestId(state.messages),
+      limit: ChatMessageOps.pageSize,
+    );
+    if (!response.success || state.openPeerId != peerId) {
+      emit(state.copyWith(isLoadingMore: false));
+      return;
+    }
+
+    final rows = (response.data as Map<String, dynamic>)['messages'] as List;
+    final newer = await _decryptRows(peerId, rows.cast<Map<String, dynamic>>());
+    emit(
+      state.copyWith(
+        messages: [...state.messages, ...newer],
+        hasNewerHistory: rows.length >= ChatMessageOps.pageSize,
+        isLoadingMore: false,
+      ),
+    );
+  }
+
+  /// Leave a history window and go back to the live end of the conversation.
+  Future<void> returnToPresent() async {
+    final peerId = state.openPeerId;
+    if (peerId == null || !state.hasNewerHistory) return;
+    emit(state.copyWith(isLoadingMore: true, hasNewerHistory: false));
+    await _fetchLatest(peerId);
+    if (state.openPeerId == peerId) {
+      emit(state.copyWith(isLoadingMore: false));
+    }
+  }
 
   /// Re-read one message the peer said changed, and apply what happened: an
   /// edit swaps it in place, a delete takes it off the list.

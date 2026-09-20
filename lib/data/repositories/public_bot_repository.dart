@@ -187,10 +187,11 @@ class PublicBotRepository {
       if (liked) {
         await _client.from(_likes).insert({'bot_id': botId, 'user_id': uid});
       } else {
-        await _client.from(_likes).delete().eq('bot_id', botId).eq(
-          'user_id',
-          uid,
-        );
+        await _client
+            .from(_likes)
+            .delete()
+            .eq('bot_id', botId)
+            .eq('user_id', uid);
       }
 
       final row = await _client

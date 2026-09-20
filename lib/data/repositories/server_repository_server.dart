@@ -72,10 +72,7 @@ mixin _ServerApiMixin {
       if (data is! Map) {
         throw const PostgrestException(message: ServerDb.serverGone);
       }
-      return {
-        ...Map<String, dynamic>.from(data),
-        'supabase_key': anonKey,
-      };
+      return {...Map<String, dynamic>.from(data), 'supabase_key': anonKey};
     });
   }
 

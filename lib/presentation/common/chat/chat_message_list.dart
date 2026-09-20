@@ -12,6 +12,7 @@ import '../../../logic/services/quote_lookup.dart';
 import '../../theme/app_text.dart';
 import 'attachments/attachment_loader.dart';
 import 'date_divider.dart';
+import 'history_window_bar.dart';
 import 'message_jump.dart';
 import 'message_row/chat_message_row.dart';
 import 'message_row/message_reply_quote.dart';
@@ -43,9 +44,14 @@ class ChatMessageList extends StatefulWidget {
   /// which is the honest rendering when nothing can ask.
   final Future<QuotedMessage> Function(String messageId)? onLookUpOriginal;
 
-  /// Page history back until a message is in [messages], for a jump that
-  /// has to travel past the loaded page. Answers whether it got there.
-  final Future<bool> Function(String messageId)? onLoadUntilLoaded;
+  /// Load a window of history around a message that is not in [messages],
+  /// replacing the list with it. Answers whether it got there.
+  final Future<bool> Function(String messageId)? onShowAround;
+
+  /// Whether [messages] is a window into history rather than the live end.
+  /// Draws the way back — see [HistoryWindowBar].
+  final bool viewingHistory;
+  final VoidCallback? onReturnToPresent;
 
   /// Start a reply to a message. Null disables replying on this surface.
   final void Function(ChatMessage message)? onReply;
@@ -98,7 +104,9 @@ class ChatMessageList extends StatefulWidget {
     this.attachmentLoader,
     this.onToggleReaction,
     this.onLookUpOriginal,
-    this.onLoadUntilLoaded,
+    this.onShowAround,
+    this.viewingHistory = false,
+    this.onReturnToPresent,
     this.onReply,
     this.onForward,
     this.onEdit,
@@ -222,15 +230,14 @@ class _ChatMessageListState extends State<ChatMessageList> {
   /// ordinary case and skips the paging entirely.
   Future<void> _goToOriginal(String messageId, {required bool loaded}) async {
     if (!loaded) {
-      final page = widget.onLoadUntilLoaded;
+      final page = widget.onShowAround;
       if (page == null) return;
       final reached = await page(messageId);
       if (!mounted) return;
       if (!reached) {
         HelperMethods.showToast(
-          title: 'Too far back',
-          description:
-              'That message is further back than this can load in one go.',
+          title: 'Could not go there',
+          description: 'That message could not be loaded.',
         );
         return;
       }
@@ -392,63 +399,82 @@ class _ChatMessageListState extends State<ChatMessageList> {
         final byId = {for (final m in widget.messages) m.id: m};
         _jumper.keepOnly({for (final m in widget.messages) m.rowId});
 
-        return ListView.builder(
-          controller: widget.controller,
-          reverse: true,
-          padding: const EdgeInsets.only(top: 12, bottom: 12),
-          itemCount: items.length,
-          itemBuilder: (context, reversedIndex) {
-            final item = items[items.length - 1 - reversedIndex];
-            if (item is _DateItem) {
-              return DateDivider(label: item.label);
-            }
-            final msg = (item as _MsgItem).message;
-            final origin = _originOf(msg, byId);
-            // The GlobalKey goes on a wrapper, not on the row. It exists
-            // only to give [MessageJumper] something to scroll to, and the
-            // row's own key is load-bearing for a different reason — see
-            // below. One widget cannot carry both.
-            return KeyedSubtree(
-              key: _jumper.keyFor(msg.rowId),
-              child: ChatMessageRow(
-                // Not `msg.id`: your own message is drawn under a local id and
-                // then handed the server's, and keying by that would make the
-                // ack destroy the row mid-entrance. See [ChatMessage.rowId].
-                key: ValueKey(msg.rowId),
-                message: msg,
-                showHeader: item.showHeader,
-
-                attachmentLoader: widget.attachmentLoader,
-                onToggleReaction: widget.onToggleReaction,
-                onReply: widget.onReply,
-                onForward: widget.onForward,
-                repliedTo: origin.original,
-                originState: origin.state,
-                // Pressable whenever there is a message to go to, whether it
-                // is in the list or a few pages back. Not when there is
-                // nothing — a line saying it was deleted is not a button.
-                onJumpToOriginal: switch (origin.state) {
-                  ReplyOriginState.present => () => unawaited(
-                    _goToOriginal(msg.replyToId!, loaded: true),
-                  ),
-                  ReplyOriginState.behind
-                      when widget.onLoadUntilLoaded != null =>
-                    () =>
-                        unawaited(_goToOriginal(msg.replyToId!, loaded: false)),
-                  _ => null,
-                },
-                flashToken: msg.rowId == _flashRowId ? _flashToken : null,
-                onEdit: widget.onEdit,
-                onDelete: widget.onDelete,
-                onRetry: widget.onRetry,
-                onPanelAction: widget.onPanelAction,
-                isModerator: widget.isModerator,
-                mentionable: widget.mentionable,
-                mentionNames: widget.mentionNames,
-                animateIn: _animating.contains(msg.id),
+        // Floating over the list rather than above it: a bar that took
+        // layout space would shove the whole conversation up the moment a
+        // jump landed, which is the one frame the reader is trying to read.
+        return Stack(
+          children: [
+            _buildList(items, byId),
+            if (widget.viewingHistory && widget.onReturnToPresent != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: HistoryWindowBar(onReturn: widget.onReturnToPresent!),
+                ),
               ),
-            );
-          },
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildList(List<_StreamItem> items, Map<String, ChatMessage> byId) {
+    return ListView.builder(
+      controller: widget.controller,
+      reverse: true,
+      padding: const EdgeInsets.only(top: 12, bottom: 12),
+      itemCount: items.length,
+      itemBuilder: (context, reversedIndex) {
+        final item = items[items.length - 1 - reversedIndex];
+        if (item is _DateItem) {
+          return DateDivider(label: item.label);
+        }
+        final msg = (item as _MsgItem).message;
+        final origin = _originOf(msg, byId);
+        // The GlobalKey goes on a wrapper, not on the row. It exists
+        // only to give [MessageJumper] something to scroll to, and the
+        // row's own key is load-bearing for a different reason — see
+        // below. One widget cannot carry both.
+        return KeyedSubtree(
+          key: _jumper.keyFor(msg.rowId),
+          child: ChatMessageRow(
+            // Not `msg.id`: your own message is drawn under a local id and
+            // then handed the server's, and keying by that would make the
+            // ack destroy the row mid-entrance. See [ChatMessage.rowId].
+            key: ValueKey(msg.rowId),
+            message: msg,
+            showHeader: item.showHeader,
+
+            attachmentLoader: widget.attachmentLoader,
+            onToggleReaction: widget.onToggleReaction,
+            onReply: widget.onReply,
+            onForward: widget.onForward,
+            repliedTo: origin.original,
+            originState: origin.state,
+            // Pressable whenever there is a message to go to, whether it
+            // is in the list or a few pages back. Not when there is
+            // nothing — a line saying it was deleted is not a button.
+            onJumpToOriginal: switch (origin.state) {
+              ReplyOriginState.present => () => unawaited(
+                _goToOriginal(msg.replyToId!, loaded: true),
+              ),
+              ReplyOriginState.behind when widget.onShowAround != null =>
+                () => unawaited(_goToOriginal(msg.replyToId!, loaded: false)),
+              _ => null,
+            },
+            flashToken: msg.rowId == _flashRowId ? _flashToken : null,
+            onEdit: widget.onEdit,
+            onDelete: widget.onDelete,
+            onRetry: widget.onRetry,
+            onPanelAction: widget.onPanelAction,
+            isModerator: widget.isModerator,
+            mentionable: widget.mentionable,
+            mentionNames: widget.mentionNames,
+            animateIn: _animating.contains(msg.id),
+          ),
         );
       },
     );

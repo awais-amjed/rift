@@ -15,7 +15,11 @@ void main() {
     });
 
     test('refuses what the column refuses', () {
-      expect(DirectoryTags.isValid('a'), isFalse, reason: 'under two characters');
+      expect(
+        DirectoryTags.isValid('a'),
+        isFalse,
+        reason: 'under two characters',
+      );
       expect(DirectoryTags.isValid('x' * 21), isFalse, reason: 'over twenty');
       expect(DirectoryTags.isValid('Gaming'), isFalse, reason: 'uppercase');
       expect(DirectoryTags.isValid('board games'), isFalse, reason: 'a space');

@@ -88,29 +88,27 @@ void main() {
     // region, so the bar taking the tap and the field dropping it would be the
     // same event — which is why [TapToFocus] declares itself part of the
     // region rather than calling `requestFocus` and hoping.
-    testWidgets(
-      'takes a click anywhere on the bar, not just on the text',
-      (tester) async {
-        final bar = await pumpComposer(tester);
+    testWidgets('takes a click anywhere on the bar, not just on the text', (
+      tester,
+    ) async {
+      final bar = await pumpComposer(tester);
 
-        // The dead band is real and large: the line of text is 19px of a 46px
-        // bar. If that ever stops being true this test is measuring nothing,
-        // so assert the gap rather than assuming it.
-        final text = tester.getRect(find.byType(EditableText));
-        expect(bar.height - text.height, greaterThan(12));
+      // The dead band is real and large: the line of text is 19px of a 46px
+      // bar. If that ever stops being true this test is measuring nothing,
+      // so assert the gap rather than assuming it.
+      final text = tester.getRect(find.byType(EditableText));
+      expect(bar.height - text.height, greaterThan(12));
 
-        for (final point in corners(bar)) {
-          await tester.tapAt(point);
-          await tester.pump();
-          expect(focused(tester), isTrue, reason: 'tapped $point in $bar');
-          // Unfocus, so the next corner proves itself rather than coasting on
-          // the last one.
-          FocusManager.instance.primaryFocus?.unfocus();
-          await tester.pump();
-        }
-      },
-      variant: TargetPlatformVariant.all(),
-    );
+      for (final point in corners(bar)) {
+        await tester.tapAt(point);
+        await tester.pump();
+        expect(focused(tester), isTrue, reason: 'tapped $point in $bar');
+        // Unfocus, so the next corner proves itself rather than coasting on
+        // the last one.
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pump();
+      }
+    }, variant: TargetPlatformVariant.all());
 
     testWidgets('the buttons on the bar are still buttons', (tester) async {
       // The whole point of deferring to the innermost recogniser: a tap that

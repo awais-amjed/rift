@@ -44,6 +44,10 @@ class _ChannelChatViewState extends State<ChannelChatView>
   void loadMoreHistory() => context.read<ChannelChatCubit>().loadMoreHistory();
 
   @override
+  void loadNewerHistory() =>
+      context.read<ChannelChatCubit>().loadNewerHistory();
+
+  @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
@@ -243,7 +247,9 @@ class _ChannelChatViewState extends State<ChannelChatView>
           attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
           onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
           onLookUpOriginal: context.read<ChannelChatCubit>().fetchQuoted,
-          onLoadUntilLoaded: context.read<ChannelChatCubit>().loadUntilLoaded,
+          onShowAround: context.read<ChannelChatCubit>().showAround,
+          viewingHistory: chatState.hasNewerHistory,
+          onReturnToPresent: context.read<ChannelChatCubit>().returnToPresent,
           onReply: startReply,
           onForward: (message) => _forward(context, message, chatState),
           onEdit: context.read<ChannelChatCubit>().editMessage,

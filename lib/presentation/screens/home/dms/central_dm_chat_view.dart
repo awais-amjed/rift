@@ -39,6 +39,9 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
   void loadMoreHistory() => context.read<CentralDmCubit>().loadMoreHistory();
 
   @override
+  void loadNewerHistory() => context.read<CentralDmCubit>().loadNewerHistory();
+
+  @override
   Widget build(BuildContext context) {
     final themeState = context.watch<ThemeCubit>().state;
     final state = context.watch<CentralDmCubit>().state;
@@ -140,7 +143,9 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           // No onToggleReaction: central DMs are the first-contact tier and are
           // kept deliberately thin — reactions live on servers.
           onLookUpOriginal: context.read<CentralDmCubit>().fetchQuoted,
-          onLoadUntilLoaded: context.read<CentralDmCubit>().loadUntilLoaded,
+          onShowAround: context.read<CentralDmCubit>().showAround,
+          viewingHistory: state.hasNewerHistory,
+          onReturnToPresent: context.read<CentralDmCubit>().returnToPresent,
           onReply: startReply,
           // No source server: a central DM's blobs live in central's own
           // bucket, and that is what null means to the forward service.

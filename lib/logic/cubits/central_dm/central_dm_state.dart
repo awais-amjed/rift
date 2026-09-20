@@ -71,6 +71,16 @@ class CentralDmState {
   final List<ChatMessage> messages;
   final bool hasMoreHistory;
   final bool isLoadingMore;
+
+  /// Whether newer messages exist past the last loaded one.
+  ///
+  /// True only while a jump has put the reader in a **window** of history
+  /// rather than at the live end — see the cubit's `showAround`. While it
+  /// is, scrolling down loads forward, arriving messages are not appended
+  /// (they belong after a stretch that is not loaded), and the view offers a
+  /// way back.
+  final bool hasNewerHistory;
+
   final String? error;
 
   /// Text to seed the add-friend field with. Set when arriving from a member's
@@ -99,6 +109,7 @@ class CentralDmState {
     this.messages = const [],
     this.hasMoreHistory = false,
     this.isLoadingMore = false,
+    this.hasNewerHistory = false,
     this.error,
     this.handleQuery,
   }) : friends = friends ?? FriendBuckets.empty;
@@ -123,6 +134,7 @@ class CentralDmState {
     List<ChatMessage>? messages,
     bool? hasMoreHistory,
     bool? isLoadingMore,
+    bool? hasNewerHistory,
     String? error,
     String? handleQuery,
     bool clearError = false,
@@ -158,6 +170,7 @@ class CentralDmState {
           ? false
           : (hasMoreHistory ?? this.hasMoreHistory),
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasNewerHistory: hasNewerHistory ?? this.hasNewerHistory,
       error: clearError ? null : (error ?? this.error),
       handleQuery: clearHandleQuery ? null : (handleQuery ?? this.handleQuery),
     );

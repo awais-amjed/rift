@@ -16,6 +16,13 @@ mixin ChatScrollLoadMore<T extends StatefulWidget> on State<T> {
   /// Cubits ignore the call when there's nothing more to fetch.
   void loadMoreHistory();
 
+  /// Fetch the page *after* the newest loaded one — only ever something to
+  /// do while the list is a window into history, which is why it defaults to
+  /// nothing. At the live end there is nothing newer than the newest row, so
+  /// the cubits refuse the call and the bottom of the list is the bottom of
+  /// the conversation.
+  void loadNewerHistory() {}
+
   @override
   void initState() {
     super.initState();
@@ -34,6 +41,11 @@ mixin ChatScrollLoadMore<T extends StatefulWidget> on State<T> {
     final position = scrollController.position;
     if (position.pixels >= position.maxScrollExtent - _threshold) {
       loadMoreHistory();
+    }
+    // The near end of a reversed list is the newest message. Zero means the
+    // bottom, so this is the same threshold read from the other side.
+    if (position.pixels <= _threshold) {
+      loadNewerHistory();
     }
   }
 }

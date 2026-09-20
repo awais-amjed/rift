@@ -24,6 +24,15 @@ class DmState {
   final bool hasMoreHistory;
   final bool isLoadingMore;
 
+  /// Whether newer messages exist past the last loaded one.
+  ///
+  /// True only while a jump has put the reader in a **window** of history
+  /// rather than at the live end — see the cubit's `showAround`. While it
+  /// is, scrolling down loads forward, arriving messages are not appended
+  /// (they belong after a stretch that is not loaded), and the view offers a
+  /// way back.
+  final bool hasNewerHistory;
+
   /// The open peer's display name while they're typing, else null.
   final String? typingPeerName;
 
@@ -39,6 +48,7 @@ class DmState {
     this.messages = const [],
     this.hasMoreHistory = false,
     this.isLoadingMore = false,
+    this.hasNewerHistory = false,
     this.typingPeerName,
     this.error,
   });
@@ -53,6 +63,7 @@ class DmState {
     List<ChatMessage>? messages,
     bool? hasMoreHistory,
     bool? isLoadingMore,
+    bool? hasNewerHistory,
     String? typingPeerName,
     bool clearTyping = false,
     String? error,
@@ -75,6 +86,9 @@ class DmState {
           ? false
           : (hasMoreHistory ?? this.hasMoreHistory),
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasNewerHistory: closeConversation
+          ? false
+          : (hasNewerHistory ?? this.hasNewerHistory),
       typingPeerName: (closeConversation || clearTyping)
           ? null
           : (typingPeerName ?? this.typingPeerName),
