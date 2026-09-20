@@ -21,11 +21,17 @@ class SoundClipButton extends StatelessWidget {
 
   final VoidCallback? onTap;
 
+  /// A thumb's row rather than a pointer's: taller, wider, and with a glyph
+  /// beside the pressed one, since a 200ms tint is easy to miss on a phone
+  /// where the finger is over the row that changed.
+  final bool compact;
+
   const SoundClipButton({
     super.key,
     required this.sound,
     required this.justPressed,
     this.onTap,
+    this.compact = false,
   });
 
   @override
@@ -52,19 +58,24 @@ class SoundClipButton extends StatelessWidget {
           borderRadius: radius,
           hoverColor: theme.bgHover,
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          child: Container(
+            constraints: BoxConstraints(minHeight: compact ? 56 : 0),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 14 : 10,
+              vertical: compact ? 0 : 9,
+            ),
             child: Row(
               children: [
                 SizedBox(
-                  width: 22,
+                  width: compact ? 28 : 22,
                   child: Text(
                     sound.emoji ?? '♪',
-                    style: AppText.row.copyWith(
-                      color: sound.emoji == null
-                          ? theme.textQuaternary
-                          : theme.textPrimary,
-                    ),
+                    style: (compact ? AppText.sectionTitle : AppText.row)
+                        .copyWith(
+                          color: sound.emoji == null
+                              ? theme.textQuaternary
+                              : theme.textPrimary,
+                        ),
                   ),
                 ),
                 Expanded(
@@ -72,11 +83,17 @@ class SoundClipButton extends StatelessWidget {
                     sound.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.row.copyWith(
+                    style: (compact ? AppText.input : AppText.row).copyWith(
                       color: enabled ? theme.textPrimary : theme.textQuaternary,
                     ),
                   ),
                 ),
+                if (compact && justPressed)
+                  Icon(
+                    Icons.graphic_eq_rounded,
+                    size: 17,
+                    color: theme.accentBright,
+                  ),
               ],
             ),
           ),

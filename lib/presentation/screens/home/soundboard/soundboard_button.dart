@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/popover_surface.dart';
+import '../../../responsive/shell_scope.dart';
+import '../../../theme/theme_context.dart';
 import '../controls/widgets/control_button.dart';
 import 'soundboard_popover.dart';
 
@@ -26,7 +30,51 @@ class _SoundboardButtonState extends State<SoundboardButton> {
   final _buttonKey = GlobalKey();
   OverlayEntry? _entry;
 
-  void _toggle() => _entry != null ? _dismiss() : _show();
+  void _toggle() {
+    if (_entry != null) {
+      _dismiss();
+      return;
+    }
+    // A hand-rolled overlay pinned to a control at the bottom of a phone is
+    // a card under the thumb that opened it. The overlay stays for pointer
+    // platforms, where it is the right object and the anchoring is done.
+    if (context.layoutMode.isCompact) {
+      _showSheet();
+      return;
+    }
+    _show();
+  }
+
+  /// The cubits the picker needs, captured while this widget's context is
+  /// still the live one — an overlay is a sibling of the route and a sheet
+  /// is a route of its own, so neither sees any of these from here.
+  List<BlocProvider> _providers() => [
+    BlocProvider.value(value: context.read<SoundboardCubit>()),
+    BlocProvider.value(value: context.read<ThemeCubit>()),
+    BlocProvider.value(value: context.read<AppCubit>()),
+    // Read live by the picker now, so a role granted mid-call reaches it.
+    BlocProvider.value(value: context.read<ServerCubit>()),
+  ];
+
+  Future<void> _showSheet() {
+    return showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: context.theme.bgElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(PopoverSurface.radius),
+        ),
+      ),
+      builder: (_) => MultiBlocProvider(
+        providers: _providers(),
+        // The sheet does not close on a press, for the same reason the card
+        // does not: two in a row is the normal case.
+        child: const SoundboardPopover(compact: true),
+      ),
+    );
+  }
 
   void _show() {
     final box = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
@@ -41,12 +89,7 @@ class _SoundboardButtonState extends State<SoundboardButton> {
         ? screen.width - SoundboardPopover.width - 8
         : origin.dx;
 
-    // Captured before entering the overlay, which is a sibling of the route
-    // and so sees none of its providers.
-    final soundboardCubit = context.read<SoundboardCubit>();
-    final themeCubit = context.read<ThemeCubit>();
-    final appCubit = context.read<AppCubit>();
-    final canPlay = soundboardCubit.canPlay;
+    final providers = _providers();
 
     _entry = OverlayEntry(
       builder: (_) => Stack(
@@ -61,12 +104,12 @@ class _SoundboardButtonState extends State<SoundboardButton> {
             left: left,
             bottom: screen.height - origin.dy + 8,
             child: MultiBlocProvider(
-              providers: [
-                BlocProvider.value(value: soundboardCubit),
-                BlocProvider.value(value: themeCubit),
-                BlocProvider.value(value: appCubit),
-              ],
-              child: SoundboardPopover(canPlay: canPlay),
+              providers: providers,
+              // Clamped at the top as well as the left. Without a ceiling a
+              // full list — the clips plus the divider and the listener
+              // controls — ran off the top of a short window and took the
+              // header with it; with one, a short window shortens the list.
+              child: SoundboardPopover(maxHeight: origin.dy - 16),
             ),
           ),
         ],

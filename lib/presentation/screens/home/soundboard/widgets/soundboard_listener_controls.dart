@@ -13,7 +13,11 @@ import '../../../../theme/theme_context.dart';
 /// it changes is sent anywhere: a press is played locally by each listener,
 /// so this is the whole of the decision.
 class SoundboardListenerControls extends StatelessWidget {
-  const SoundboardListenerControls({super.key});
+  /// Under a thumb, in a sheet: the row gets the height a finger needs and
+  /// the label the size the rest of the sheet is set at.
+  final bool compact;
+
+  const SoundboardListenerControls({super.key, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +37,12 @@ class SoundboardListenerControls extends StatelessWidget {
             Expanded(
               child: Text(
                 'Mute everyone else',
-                style: AppText.row.copyWith(color: theme.textSecondary),
+                style: (compact ? AppText.input : AppText.row).copyWith(
+                  color: theme.textSecondary,
+                ),
               ),
             ),
+            const SizedBox(width: 12),
             AppSwitch(
               value: muted,
               onChanged: context.read<AppCubit>().setSoundboardMuted,
@@ -44,8 +51,10 @@ class SoundboardListenerControls extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'Their clips stop playing here. Yours still do, and the room '
-          'still hears them.',
+          compact
+              ? 'Their clips stop playing here. Yours still do.'
+              : 'Their clips stop playing here. Yours still do, and the '
+                    'room still hears them.',
           style: AppText.rowQuiet.copyWith(color: theme.textQuaternary),
         ),
         const SizedBox(height: 6),
