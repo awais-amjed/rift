@@ -3,13 +3,13 @@ import 'dart:typed_data';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../../../../data/repositories/soundboard_repository.dart';
 import '../../../../../../../logic/services/byte_format.dart';
 import '../../../../../../../logic/services/mime_util.dart';
 import '../../../../../../../logic/services/soundboard_play.dart';
 import '../../../../../../../logic/services/soundboard_staging.dart';
 import '../../../../../../common/app_button.dart';
 import '../../../../../../common/app_text_field.dart';
-import '../../../../../../common/message_banner.dart';
 import '../../../../../../theme/app_text.dart';
 import '../../../../../../theme/custom_colors.dart';
 import '../../../../../../theme/theme_context.dart';
@@ -82,10 +82,21 @@ class _AddClipFormState extends State<AddClipForm> {
       return;
     }
 
-    // Measured by the stack that will play it, before anything is uploaded:
-    // it is only a label, but a wrong one is a label nobody can correct.
+    // Measured by the stack that will play it, before anything is uploaded.
     final duration = await SoundboardStaging.measure(bytes, path: file.path);
     if (!mounted) return;
+    // The length is the one rule that cannot be checked from the file's name
+    // or its size, so it is asked here rather than in `rejectionFor` — and
+    // it is asked at the moment of picking, which is the last point where
+    // trimming the file is still an option the uploader has.
+    final tooLong = SoundboardStaging.rejectionForDuration(
+      fileName: file.name,
+      duration: duration,
+    );
+    if (tooLong != null) {
+      setState(() => _error = tooLong);
+      return;
+    }
     setState(() {
       _bytes = bytes;
       _fileName = file.name;
@@ -163,7 +174,8 @@ class _AddClipFormState extends State<AddClipForm> {
             Expanded(
               child: Text(
                 picked == null
-                    ? 'Up to ${humanSize(512 * 1024)}, '
+                    ? 'Up to ${humanSize(SoundboardRepository.maxBytes)} and '
+                          '${SoundboardStaging.durationLabel(SoundboardPlay.maxPlayback)}, '
                           '${SoundboardStaging.extensions.join(', ')}.'
                     : '$_fileName · ${humanSize(picked.length)} · '
                           '${SoundboardStaging.durationLabel(_duration)}',
@@ -175,21 +187,6 @@ class _AddClipFormState extends State<AddClipForm> {
           ],
         ),
         if (picked != null) ...[
-          // Said at the one moment the number can still be acted on, and
-          // not in the hint card above: a rule that bites some uploads
-          // belongs beside the upload that trips it, not in a paragraph
-          // everybody reads once. Amber, because nothing has gone wrong and
-          // the clip is still worth adding.
-          if (_duration > SoundboardPlay.maxPlayback) ...[
-            const SizedBox(height: 12),
-            const MessageBanner(
-              message:
-                  'Only the first 8 seconds will play. Every listener cuts '
-                  'a clip off there, so trim it before uploading if the end '
-                  'is the part that matters.',
-              kind: MessageBannerKind.caution,
-            ),
-          ],
           const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,

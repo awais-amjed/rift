@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../../logic/services/byte_format.dart';
 import '../classes/api_response.dart';
 
 /// Uploads and downloads soundboard clips for a self-hosted server.
@@ -21,7 +22,12 @@ class SoundboardRepository {
 
   /// The server-side ceiling, mirrored here only so a file can be refused
   /// before it is uploaded rather than after (`006_storage.sql`).
-  static const int maxBytes = 512 * 1024;
+  ///
+  /// It is [SoundboardPlay.maxPlayback] written as bytes: half a minute of
+  /// WAV at 44.1 kHz/16-bit stereo is about 5.3 MB, and `wav` is one of the
+  /// formats every target can decode. Anything compressed is far under it,
+  /// so this only ever catches a file that was not going to be a clip.
+  static const int maxBytes = 5 * 1024 * 1024;
 
   final http.Client _http;
 
@@ -77,7 +83,9 @@ class SoundboardRepository {
         return APIResponse.error('Not authorized', errorCode: 'token_expired');
       }
       if (resp.statusCode == 413) {
-        return APIResponse.error('That clip is too big — 512 KB at most');
+        return APIResponse.error(
+          'That clip is too big — ${humanSize(maxBytes)} at most',
+        );
       }
       if (resp.statusCode >= 300) {
         return APIResponse.error('Upload failed (${resp.statusCode})');

@@ -33,11 +33,17 @@ class SoundboardPlay {
 
   /// However long a clip claims to be, playback is cut off here.
   ///
-  /// This is the real bound on a long clip. `duration_ms` on the row is the
-  /// uploader's word for it and the 512 KB size limit is generous at a low
-  /// bitrate, so the only number that can actually stop a five-minute track
-  /// is one the listener applies.
-  static const Duration maxPlayback = Duration(seconds: 8);
+  /// The same half minute the `duration_ms` CHECK allows and the upload form
+  /// refuses past, so for an ordinary clip this never fires — which is the
+  /// point of the three agreeing.
+  ///
+  /// It stays because it is the one of the three that cannot be talked
+  /// past. `duration_ms` is the uploader's word for it and the server cannot
+  /// verify it; the form's refusal only happens where a length could be
+  /// *measured*, and a file whose length no backend will report is stored as
+  /// 0 and could be an hour long. A listener's own clock is what actually
+  /// stops that one.
+  static const Duration maxPlayback = Duration(seconds: 30);
 
   static List<int> encode(String soundId) =>
       utf8.encode(jsonEncode({'v': version, 'type': 'sound', 'id': soundId}));

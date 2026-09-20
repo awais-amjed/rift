@@ -54,6 +54,28 @@ class SoundboardStaging {
     return null;
   }
 
+  /// Why a clip that plays for [duration] cannot be added, or null.
+  ///
+  /// Asked after [measure], because the length is not in the file's name or
+  /// its size. A refusal rather than a warning: "the first 30 seconds of
+  /// this will play" is almost never what somebody meant by uploading a
+  /// four-minute track, and telling them the real length is more use than
+  /// silently keeping a third of it.
+  ///
+  /// [Duration.zero] passes. It means no backend would say how long the file
+  /// is, not that it is empty — and refusing on an answer nobody could get
+  /// would make a clip's acceptance depend on which platform added it.
+  /// [SoundboardPlay.maxPlayback] is what catches that one, at play time.
+  static String? rejectionForDuration({
+    required String fileName,
+    required Duration duration,
+  }) {
+    if (duration <= Duration.zero) return null;
+    if (duration <= SoundboardPlay.maxPlayback) return null;
+    return '$fileName is ${durationLabel(duration)} — a clip can be up to '
+        '${durationLabel(SoundboardPlay.maxPlayback)}. Trim it first.';
+  }
+
   /// Why [name] is not a usable label, or null.
   static String? rejectionForName(String name) {
     final trimmed = name.trim();
@@ -67,10 +89,11 @@ class SoundboardStaging {
   /// How long the picked file plays for, measured by the same audio stack
   /// that will play it, or [Duration.zero] when it will not say.
   ///
-  /// A convenience, not a check: the server stores whatever this returns and
-  /// cannot verify it, and the thing that actually bounds a long clip is the
-  /// listener's own cutoff. It is here so the list can say "1.2 s" without
-  /// asking the uploader to type it.
+  /// Both the label and the check: [rejectionForDuration] reads it, and the
+  /// row stores it. Neither is authoritative — the server cannot verify a
+  /// number the client measured, and a file no backend will measure comes
+  /// back as zero — so [SoundboardPlay.maxPlayback] stays the bound that
+  /// cannot be talked past.
   ///
   /// From [path] where there is one, and only from [bytes] on the web.
   /// `BytesSource` is not implemented by the Linux or Windows audioplayers
@@ -119,16 +142,4 @@ class SoundboardStaging {
     if (duration <= Duration.zero) return '—';
     return '${(duration.inMilliseconds / 1000).toStringAsFixed(1)} s';
   }
-
-  /// What will actually be heard, when that is not the length of the file.
-  ///
-  /// Every listener cuts a clip off at [SoundboardPlay.maxPlayback], so a
-  /// 30-second upload printed as `30.0 s` is a number nobody in the call
-  /// will ever experience. Null when the two agree, which is almost always
-  /// — a soundboard clip that runs past eight seconds is the exception, and
-  /// a qualifier on every row would be noise.
-  static String? cutoffLabel(Duration duration) =>
-      duration > SoundboardPlay.maxPlayback
-      ? 'plays ${durationLabel(SoundboardPlay.maxPlayback)}'
-      : null;
 }

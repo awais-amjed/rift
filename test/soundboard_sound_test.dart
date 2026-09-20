@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/soundboard_sound.dart';
 import 'package:rift/data/participant_identity.dart';
+import 'package:rift/data/repositories/soundboard_repository.dart';
 import 'package:rift/logic/services/soundboard_play.dart';
 import 'package:rift/logic/services/soundboard_staging.dart';
 
@@ -86,13 +87,23 @@ void main() {
     });
 
     test('over the size limit is refused before anything is uploaded', () {
+      // Relative to the cap, not a number of its own: the cap has moved
+      // once already and this test quietly stopped testing anything.
       expect(
         SoundboardStaging.rejectionFor(
           fileName: 'long.mp3',
           mime: 'audio/mpeg',
-          bytes: 900 * 1024,
+          bytes: SoundboardRepository.maxBytes + 1,
         ),
         isNotNull,
+      );
+      expect(
+        SoundboardStaging.rejectionFor(
+          fileName: 'fine.mp3',
+          mime: 'audio/mpeg',
+          bytes: SoundboardRepository.maxBytes,
+        ),
+        isNull,
       );
     });
 
@@ -110,20 +121,59 @@ void main() {
       );
     });
 
-    test('a clip longer than the ceiling says what will be heard', () {
-      // Every listener cuts one off at maxPlayback, so a 30-second upload
-      // printed as 30.0 s is a number nobody in the call experiences.
+    test('a clip past the ceiling is refused, with its real length', () {
+      // A refusal and not a warning: "the first 30 seconds of this will
+      // play" is almost never what somebody meant by a four-minute track.
+      final rejection = SoundboardStaging.rejectionForDuration(
+        fileName: 'long-outro.mp3',
+        duration: const Duration(seconds: 72, milliseconds: 400),
+      );
+      expect(rejection, contains('72.4 s'));
+      expect(rejection, contains('30.0 s'));
+    });
+
+    test('one inside it passes, including one exactly at it', () {
       expect(
-        SoundboardStaging.cutoffLabel(const Duration(seconds: 30)),
-        'plays 8.0 s',
+        SoundboardStaging.rejectionForDuration(
+          fileName: 'airhorn.mp3',
+          duration: const Duration(seconds: 2),
+        ),
+        isNull,
+      );
+      expect(
+        SoundboardStaging.rejectionForDuration(
+          fileName: 'airhorn.mp3',
+          duration: SoundboardPlay.maxPlayback,
+        ),
+        isNull,
       );
     });
 
-    test('and one inside it says nothing at all', () {
-      // The qualifier is the exception. On every row it would be noise.
-      expect(SoundboardStaging.cutoffLabel(const Duration(seconds: 2)), isNull);
-      expect(SoundboardStaging.cutoffLabel(SoundboardPlay.maxPlayback), isNull);
-      expect(SoundboardStaging.cutoffLabel(Duration.zero), isNull);
+    test('and an unmeasurable one passes rather than being guessed at', () {
+      // Zero means no backend would answer, not that the file is empty.
+      // Refusing on that would make a clip's acceptance depend on which
+      // platform added it; maxPlayback is what catches it, at play time.
+      expect(
+        SoundboardStaging.rejectionForDuration(
+          fileName: 'airhorn.wav',
+          duration: Duration.zero,
+        ),
+        isNull,
+      );
+    });
+
+    test('the three ceilings agree', () {
+      // The form refuses past maxPlayback, the duration_ms CHECK in
+      // 001_schema.sql allows up to 30000, and the player cuts at
+      // maxPlayback. If these ever disagree, an upload the form accepted
+      // fails at the insert with a constraint name.
+      expect(SoundboardPlay.maxPlayback.inMilliseconds, 30000);
+    });
+
+    test('and the size cap is that ceiling written as bytes', () {
+      // 30s of WAV at 44.1kHz/16-bit stereo is ~5.3 MB, and wav is in the
+      // accepted list — so the byte cap only catches what was never a clip.
+      expect(SoundboardRepository.maxBytes, 5 * 1024 * 1024);
     });
   });
 

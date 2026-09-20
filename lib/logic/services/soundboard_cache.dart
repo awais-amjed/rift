@@ -16,9 +16,12 @@ import 'storage_namespace.dart';
 /// that is deleted simply stops being asked for.
 ///
 /// Swept by age rather than bounded by count. A server can hold at most
-/// `app.soundboard_max()` clips of 512 KB, so the ceiling per server is about
-/// 24 MB — the thing worth cleaning up is not a full board but the boards of
-/// servers this device has not opened in a long time.
+/// `app.soundboard_max()` clips of `SoundboardRepository.maxBytes`, so the
+/// ceiling is 240 MB per server — the thing worth cleaning up is not a full
+/// board but the boards of servers this device has not opened in a long
+/// time. That worst case is ten times what it was when a clip was capped at
+/// 512 KB, which is what turns the 30-day sweep from tidiness into the
+/// thing keeping a phone's disk honest.
 class SoundboardCache {
   SoundboardCache._();
   static final SoundboardCache instance = SoundboardCache._();

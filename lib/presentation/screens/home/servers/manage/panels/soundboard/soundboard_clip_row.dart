@@ -172,10 +172,6 @@ class _SoundboardClipRowState extends State<SoundboardClipRow> {
               Text(
                 [
                   SoundboardStaging.durationLabel(sound.duration),
-                  // Stated here and argued nowhere: the list is not the
-                  // place to explain the ceiling, only to be accurate about
-                  // what this clip will sound like.
-                  ?SoundboardStaging.cutoffLabel(sound.duration),
                   humanSize(sound.bytes),
                   if (author != null) 'added by $author',
                 ].join(' · '),
