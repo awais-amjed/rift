@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/bot_manifest.dart';
 import '../../../../data/classes/directory_tags.dart';
 import '../../../../data/classes/public_bot.dart';
 import '../../../../data/constants.dart';
@@ -13,6 +14,7 @@ import '../../../common/hint_card.dart';
 import '../../../common/message_banner.dart';
 import '../../../common/tag_editor.dart';
 import '../../settings/widgets/setting_toggle_row.dart';
+import 'widgets/bot_manifest_editor.dart';
 
 /// Listing a bot in the directory, or editing a listing already there.
 ///
@@ -55,6 +57,7 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
   final _tagCtrl = TextEditingController();
 
   late List<String> _tags = widget.editing?.tags ?? const [];
+  late BotManifest _manifest = widget.editing?.manifest ?? BotManifest.empty;
   late bool _isListed = widget.editing?.isListed ?? true;
 
   bool _saving = false;
@@ -103,12 +106,14 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
       name: name,
       sourceUrl: source,
       description: description.isEmpty ? null : description,
-      // Carried through rather than edited here: a manifest is what the
-      // running bot publishes, and a form that let an author type a different
-      // command list would put two answers on screen for one question.
       iconUrl: widget.editing?.iconUrl,
       tags: DirectoryTags.withPending(_tags, _tagCtrl.text),
-      manifest: widget.editing?.manifest.toJson(),
+      // Omitted entirely when empty, so an author who filled nothing in gets
+      // a null column rather than `{"commands":[]}` — which the browser would
+      // have to tell apart from a bot that really answers to nothing.
+      manifest: _manifest.commands.isEmpty && _manifest.dataUse == null
+          ? null
+          : _manifest.toJson(),
       isListed: _isListed,
     );
     if (!mounted) return;
@@ -197,7 +202,13 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
           onChanged: (tags) => setState(() => _tags = tags),
           enabled: !_saving,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
+        BotManifestEditor(
+          manifest: _manifest,
+          enabled: !_saving,
+          onChanged: (manifest) => _manifest = manifest,
+        ),
+        const SizedBox(height: 16),
         SettingToggleRow(
           title: 'Show it in the browser',
           // Delisting keeps the row and its likes, which is the difference
