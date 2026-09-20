@@ -12,14 +12,22 @@ cd "$(dirname "$0")/.."
 
 tile=assets/brand/rift-tile.svg
 square=assets/brand/rift-tile-square.svg
+adaptive=assets/brand/rift-adaptive.svg
+adaptive_mono=assets/brand/rift-adaptive-mono.svg
 
 render() { # svg size out
   rsvg-convert -w "$2" -h "$2" "$1" -o "$3"
 }
 
-# Android launcher: plain mipmaps, one per density.
+# Android launcher. The mipmaps are the fallback for Android 7 and older;
+# from 8 the adaptive icon in mipmap-anydpi-v26 wins, and its layers are
+# 108dp against the mipmap's 48dp, so every density renders at 2.25x.
 for pair in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
-  render "$tile" "${pair#*:}" "android/app/src/main/res/mipmap-${pair%%:*}/ic_launcher.png"
+  density=${pair%%:*}; size=${pair#*:}
+  dir=android/app/src/main/res/mipmap-$density
+  render "$tile" "$size" "$dir/ic_launcher.png"
+  render "$adaptive" "$((size * 9 / 4))" "$dir/ic_launcher_foreground.png"
+  render "$adaptive_mono" "$((size * 9 / 4))" "$dir/ic_launcher_monochrome.png"
 done
 
 # iOS masks its own corners, so it gets the square; macOS wants the shape.

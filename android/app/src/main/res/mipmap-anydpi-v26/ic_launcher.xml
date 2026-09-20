@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 8+ masks the launcher icon to whatever shape the launcher wants.
+     Without this file it masks the finished tile, which means a rounded
+     square gets rounded again and the corners of the ink go with it. The two
+     layers below let it mask the ground instead and leave the mark alone. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
+</adaptive-icon>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The ink the mark is pinned to, matching assets/brand/rift-tile.svg. -->
+    <color name="ic_launcher_background">#08080B</color>
+</resources>

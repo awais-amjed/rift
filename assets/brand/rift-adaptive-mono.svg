@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+  <!-- The themed-icon layer (Android 13+). Same geometry as
+       rift-adaptive.svg; the launcher throws away the colour and tints the
+       alpha, so this is the silhouette and nothing else. Flat white, because
+       a gradient here becomes a flat wash of whatever the launcher picked. -->
+  <g transform="translate(11.25 11.25) scale(0.855)">
+    <path fill="#FFFFFF" d="M46.5 10 A32 32 0 0 0 46.5 74 Z"/>
+    <path fill="#FFFFFF" d="M53.5 26 A32 32 0 0 1 53.5 90 Z"/>
+  </g>
+</svg>

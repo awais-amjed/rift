@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+  <!-- Android adaptive foreground. The mark sits on 108dp but only the inner
+       72dp is guaranteed visible — a launcher may mask it to a circle, a
+       squircle or a rounded square — so it is scaled to 63% of the tile,
+       inside that circle with room to spare. The ground is a flat colour
+       (@color/ic_launcher_background), not this file, because the launcher
+       parallaxes the two layers against each other. -->
+  <defs>
+    <!-- userSpaceOnUse, not the default: an objectBoundingBox gradient is
+         measured per path, so each half would restart at violet and the
+         figure would read as two shapes that happen to match. This is the
+         same 0,0 -> 100,100 diagonal AppMark shades over. -->
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="100">
+      <stop offset="0" stop-color="#7B83FF"/>
+      <stop offset=".52" stop-color="#A56BFA"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(11.25 11.25) scale(0.855)">
+    <path fill="url(#g)" d="M46.5 10 A32 32 0 0 0 46.5 74 Z"/>
+    <path fill="url(#g)" d="M53.5 26 A32 32 0 0 1 53.5 90 Z"/>
+  </g>
+</svg>
