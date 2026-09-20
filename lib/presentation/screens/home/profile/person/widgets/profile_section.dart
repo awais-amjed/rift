@@ -16,11 +16,18 @@ class ProfileSection extends StatelessWidget {
   /// Space above, for every section but the first.
   final bool spaced;
 
+  /// A hairline above the label, inside the space this section already
+  /// takes. For the one block that *acts on* the person rather than
+  /// describing them: everything above is who they are, and the eye should
+  /// have to cross something before it reaches a ban button.
+  final bool ruled;
+
   const ProfileSection({
     super.key,
     required this.label,
     required this.child,
     this.spaced = true,
+    this.ruled = false,
   });
 
   @override
@@ -30,6 +37,10 @@ class ProfileSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (ruled) ...[
+            Divider(height: 1, color: context.theme.borderPrimary),
+            const SizedBox(height: 18),
+          ],
           Text(
             label.toUpperCase(),
             style: AppText.sectionLabel.copyWith(

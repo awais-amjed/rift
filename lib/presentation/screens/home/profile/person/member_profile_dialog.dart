@@ -15,14 +15,15 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/label_pill.dart';
 import '../../../../theme/app_text.dart';
-import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 import 'widgets/profile_avatar.dart';
+import 'widgets/profile_banned_notice.dart';
 import 'widgets/profile_fact.dart';
 import 'widgets/profile_local_audio.dart';
 import 'widgets/profile_moderation.dart';
 import 'widgets/profile_roles.dart';
 import 'widgets/profile_section.dart';
+import 'widgets/profile_skeleton_bar.dart';
 
 /// Who somebody is on **this server**: their name, their roles, how long they
 /// have been here, and the things you can do about them.
@@ -163,16 +164,23 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (member != null) ..._tags(member),
+          if (member?.isBanned ?? false) const ProfileBannedNotice(),
           ProfileSection(
             label: 'About',
             spaced: false,
-            child: Column(children: _facts(member, online)),
+            child: member == null ? _pending : Column(children: _facts(member)),
           ),
           ProfileSection(
             label: 'Roles',
-            child: ProfileRoles(roles: roles),
+            child: member == null
+                ? const ProfileSkeletonBar(widthFactor: 0.34, height: 15)
+                : ProfileRoles(roles: roles),
           ),
-          if (!isMe && member != null) ...[
+          // A bot is suppressed here for the same reason as yourself, and
+          // not the same one: there is nobody on the other end. It has no
+          // ears to turn down, no chat key to seal a DM to, and nothing a
+          // server mute would reach.
+          if (!isMe && member != null && !member.isBot) ...[
             const SizedBox(height: 18),
             AppButton(
               label: 'Message',
@@ -213,11 +221,10 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
   /// The pills under the header — only the ones that change what this person
   /// is, never a pill per attribute.
   List<Widget> _tags(ServerMember member) {
-    final tags = <Widget>[
-      if (member.isBot) const LabelPill(label: 'BOT'),
-      if (member.isBanned)
-        const LabelPill(label: 'BANNED', color: CustomColors.error),
-    ];
+    // Only BOT. A ban is a state with a consequence rather than an
+    // attribute of the person, and it gets [ProfileBannedNotice] instead —
+    // a pill beside this one read as a second kind of thing they are.
+    final tags = <Widget>[if (member.isBot) const LabelPill(label: 'BOT')];
     if (tags.isEmpty) return const [];
     return [
       Padding(
@@ -227,10 +234,27 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     ];
   }
 
-  List<Widget> _facts(ServerMember? member, bool online) {
+  /// The About block while the roster is still being asked — the shape of
+  /// what is coming, rather than the one fact the caller happened to know.
+  static const Widget _pending = Column(
+    children: [
+      Padding(
+        padding: EdgeInsets.only(bottom: 9),
+        child: ProfileSkeletonBar(widthFactor: 0.52),
+      ),
+      Padding(
+        padding: EdgeInsets.only(bottom: 6),
+        child: ProfileSkeletonBar(widthFactor: 0.38),
+      ),
+    ],
+  );
+
+  /// No Status row: the dot on the avatar has already answered it, in
+  /// colour, an inch above — and this is the shortest fact list in the app
+  /// to be spending a third of on something already said.
+  List<Widget> _facts(ServerMember? member) {
     final joined = member?.joinedAt;
     return [
-      ProfileFact(label: 'Status', value: online ? 'Online' : 'Offline'),
       if (joined != null)
         ProfileFact(
           label: 'Member since',

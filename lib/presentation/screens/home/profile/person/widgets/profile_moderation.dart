@@ -81,6 +81,9 @@ class ProfileModeration extends StatelessWidget {
 
     return ProfileSection(
       label: 'Moderation',
+      // The one block in the dialog that acts on the person instead of
+      // describing them.
+      ruled: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 6,
