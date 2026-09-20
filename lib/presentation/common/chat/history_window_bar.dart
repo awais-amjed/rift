@@ -15,6 +15,12 @@ import '../../theme/theme_context.dart';
 /// stretch of last month believing it is today. Scrolling down loads forward
 /// from here too; this is the way back for somebody who does not want to
 /// read the intervening thousand messages to get there.
+///
+/// It takes layout space rather than floating over the list. Normally that
+/// would be the wrong call — a bar appearing mid-read shoves the
+/// conversation — but this one only ever appears or leaves as the list is
+/// replaced wholesale, and floating it put the pill on top of the newest
+/// message in the window.
 class HistoryWindowBar extends StatelessWidget {
   final VoidCallback onReturn;
 
@@ -24,7 +30,7 @@ class HistoryWindowBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(top: 2, bottom: 8),
       child: Material(
         color: theme.bgElevated,
         borderRadius: BorderRadius.circular(K.radiusPill),

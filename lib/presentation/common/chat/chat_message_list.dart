@@ -51,7 +51,7 @@ class ChatMessageList extends StatefulWidget {
   /// Whether [messages] is a window into history rather than the live end.
   /// Draws the way back — see [HistoryWindowBar].
   final bool viewingHistory;
-  final VoidCallback? onReturnToPresent;
+  final Future<void> Function()? onReturnToPresent;
 
   /// Start a reply to a message. Null disables replying on this surface.
   final void Function(ChatMessage message)? onReply;
@@ -222,6 +222,31 @@ class _ChatMessageListState extends State<ChatMessageList> {
   /// history page (scroll-up pagination) does not — so scrolling never
   /// animates old rows in.
   int _maxSeenId = 0;
+
+  /// Back to the live end, and to the *bottom* of it.
+  ///
+  /// The scroll controller outlives the list, so replacing a history window
+  /// with the newest page leaves the view at whatever offset the window was
+  /// scrolled to — which lands the reader somewhere in the middle of the
+  /// present having asked to be taken to the end of it.
+  Future<void> _returnToPresent() async {
+    final returnToPresent = widget.onReturnToPresent;
+    if (returnToPresent == null) return;
+    await returnToPresent();
+
+    // Twice, a frame apart. Returning emits more than once — the new page,
+    // then the flag that clears the spinner — and a single jump can land
+    // between them, against a list that is about to be replaced. Zero is
+    // the newest message either way, because the list is reversed, so the
+    // second jump is free when the first one already worked.
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (!mounted) return;
+      await SchedulerBinding.instance.endOfFrame;
+      final controller = widget.controller;
+      if (!mounted || controller == null || !controller.hasClients) return;
+      if (controller.offset != 0) controller.jumpTo(0);
+    }
+  }
 
   /// Go to what a reply answers: page it into the list if it is further
   /// back than the loaded page, then scroll to it.
@@ -399,22 +424,17 @@ class _ChatMessageListState extends State<ChatMessageList> {
         final byId = {for (final m in widget.messages) m.id: m};
         _jumper.keepOnly({for (final m in widget.messages) m.rowId});
 
-        // Floating over the list rather than above it: a bar that took
-        // layout space would shove the whole conversation up the moment a
-        // jump landed, which is the one frame the reader is trying to read.
-        return Stack(
+        // In the column rather than floating over it. A bar that takes
+        // layout space normally means the conversation jumps when it
+        // appears — but this one appears and leaves only when the list is
+        // being replaced wholesale anyway, so there is no reading to
+        // interrupt, and floating it put the pill on top of the newest
+        // message in the window.
+        return Column(
           children: [
-            _buildList(items, byId),
+            Expanded(child: _buildList(items, byId)),
             if (widget.viewingHistory && widget.onReturnToPresent != null)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: HistoryWindowBar(onReturn: widget.onReturnToPresent!),
-                ),
-              ),
+              HistoryWindowBar(onReturn: () => unawaited(_returnToPresent())),
           ],
         );
       },
