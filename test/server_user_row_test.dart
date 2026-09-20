@@ -12,6 +12,7 @@ void main() {
     'id': 'u1',
     'username': 'sam',
     'display_name': 'Sam',
+    'joined_at': '2026-09-06T20:46:32Z',
     'avatar_path': 'a.png',
     'chat_public_key': 'k',
     'is_muted': false,
@@ -34,6 +35,7 @@ void main() {
         'id',
         'username',
         'display_name',
+        'joined_at',
         'avatar_path',
         'chat_public_key',
         'is_muted',
@@ -56,7 +58,8 @@ void main() {
 
     test('drops what the client has no use for', () {
       // The shape is a contract, not a passthrough — a row that grew a column
-      // should not quietly grow the model.
+      // should not quietly grow the model. `created_at` is the raw column the
+      // view exposes as `joined_at`; only the alias is carried.
       expect(ServerUserRow.of(row()).containsKey('created_at'), isFalse);
     });
 

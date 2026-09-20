@@ -18,6 +18,7 @@ class ServerUserRow {
     'id': u['id'],
     'username': u['username'],
     'display_name': u['display_name'],
+    'joined_at': u['joined_at'],
     'avatar_path': u['avatar_path'],
     'chat_public_key': u['chat_public_key'],
     'is_muted': u['is_muted'],
