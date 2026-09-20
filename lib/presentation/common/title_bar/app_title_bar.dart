@@ -39,8 +39,7 @@ class AppTitleBar extends StatefulWidget {
   State<AppTitleBar> createState() => _AppTitleBarState();
 }
 
-class _AppTitleBarState extends State<AppTitleBar>
-    with WindowListener {
+class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
   bool _isMaximized = false;
 
   @override

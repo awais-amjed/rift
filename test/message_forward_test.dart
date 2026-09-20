@@ -46,11 +46,8 @@ void main() {
     isMine: false,
   );
 
-  Channel channel(String id, String name, {ChannelType? type}) => Channel(
-    id: id,
-    name: name,
-    channelType: type ?? ChannelType.text,
-  );
+  Channel channel(String id, String name, {ChannelType? type}) =>
+      Channel(id: id, name: name, channelType: type ?? ChannelType.text);
 
   Server server(String id, String name, List<Channel> channels) => Server(
     id: id,
@@ -66,29 +63,25 @@ void main() {
     test('carries the content, because the reader cannot resolve an id', () {
       // The opposite of a reply. Nobody at the destination holds a key to
       // the room this came from, so there is nothing there to point at.
-      final payload = ForwardPayload.of(
-        msg(attachments: [att('a')]),
-        source: '#general in Proxy Test',
-      )!;
-      expect(payload.authorName, 'ana');
+      final payload = ForwardPayload.of(msg(attachments: [att('a')]))!;
       expect(payload.text, 'the original');
       expect(payload.attachments.single.name, 'a');
-      expect(payload.source, '#general in Proxy Test');
     });
 
-    test('forwarding a forward flattens to the first author', () {
-      // Wrapping again would attribute the words to whoever passed them to
-      // you, which is the claim going wrong as the message travels.
-      final inner = ForwardedMessage(
-        authorName: 'ana',
-        sentAt: DateTime.utc(2026, 9, 1),
-        text: 'said first',
-      );
+    test('carries nothing about where it came from', () {
+      // Naming the room would tell readers who were never in it that a
+      // place exists they cannot see. There is nowhere to put it.
+      final payload = ForwardPayload.of(msg())!;
+      expect(payload.toJson().keys, ['text']);
+    });
+
+    test('forwarding a forward flattens', () {
+      // Nesting has no bottom, and a reader gains nothing from being told
+      // how many hands a sentence passed through.
+      const inner = ForwardedMessage(text: 'said first');
       final payload = ForwardPayload.of(
         msg(text: 'look at this', author: 'bo', forwarded: inner),
-        source: 'somewhere else',
       )!;
-      expect(payload.authorName, 'ana');
       expect(payload.text, 'said first');
       // The middle person's own line is not swallowed into the quote.
       expect(payload.text, isNot(contains('look at this')));
@@ -118,45 +111,35 @@ void main() {
     test('round-trips inside the sealed body', () {
       final body = MessageBody(
         text: 'worth reading',
-        forwarded: ForwardedMessage(
-          authorName: 'ana',
-          sentAt: DateTime.utc(2026, 9, 1, 8, 30),
-          text: 'hello',
-          attachments: [att('a')],
-          source: '#general',
-        ),
+        forwarded: ForwardedMessage(text: 'hello', attachments: [att('a')]),
       );
       final back = MessageBody.decode(body.encode()).forwarded!;
-      expect(back.authorName, 'ana');
-      expect(back.sentAt, DateTime.utc(2026, 9, 1, 8, 30));
       expect(back.text, 'hello');
       expect(back.attachments.single.storagePath, 'src/a.bin');
-      expect(back.source, '#general');
+    });
+
+    test('nothing on the wire says where it came from', () {
+      // The leak this exists to prevent: a reader who was never in the
+      // room learning that the room is there. There is no field for it,
+      // and this is the assertion that keeps it that way.
+      final encoded = MessageBody(
+        forwarded: ForwardedMessage(text: 'hi', attachments: [att('a')]),
+      ).encode();
+      for (final leak in ['"by"', '"src"', '"at"', 'Proxy', 'general']) {
+        expect(encoded, isNot(contains(leak)), reason: leak);
+      }
     });
 
     test('a forward with no words of its own is not an empty body', () {
-      final body = MessageBody(
-        forwarded: ForwardedMessage(
-          authorName: 'ana',
-          sentAt: DateTime.utc(2026, 9, 1),
-          text: 'hi',
-        ),
-      );
+      const body = MessageBody(forwarded: ForwardedMessage(text: 'hi'));
       expect(body.isEmpty, isFalse);
       expect(const MessageBody().isEmpty, isTrue);
     });
 
-    test('a half-built forward is dropped whole', () {
-      // It arrived inside somebody else's message. Half of one is a quote
-      // with no attribution, which is the one thing this must not draw.
-      for (final raw in [
-        '{"at":"2026-09-01T00:00:00Z"}',
-        '{"by":"","at":"2026-09-01T00:00:00Z"}',
-        '{"by":"ana"}',
-        '{"by":"ana","at":"not a date"}',
-        '"ana"',
-        '[]',
-      ]) {
+    test('a forward carrying nothing is dropped', () {
+      // An empty card saying "Forwarded" reads as something that failed to
+      // load rather than as something that was sent.
+      for (final raw in ['{}', '{"text":"  "}', '{"att":[]}', '"ana"', '[]']) {
         final body = MessageBody.decode(
           '{"t":"rift.msg","v":1,"text":"x","fwd":$raw}',
         );
@@ -165,10 +148,21 @@ void main() {
       }
     });
 
-    test('an unreadable attachment costs only itself', () {
+    test('fields an older sender put there are ignored, not rendered', () {
+      // Forwards briefly carried an author and an origin. A row still
+      // holding them must show the words and none of that.
       final back = ForwardedMessage.fromJson({
         'by': 'ana',
         'at': '2026-09-01T00:00:00Z',
+        'src': '#secret in Private Server',
+        'text': 'still readable',
+      })!;
+      expect(back.text, 'still readable');
+      expect(back.toJson().containsKey('src'), isFalse);
+    });
+
+    test('an unreadable attachment costs only itself', () {
+      final back = ForwardedMessage.fromJson({
         'text': 'two files',
         'att': [
           {'id': 'bad'},
@@ -181,26 +175,15 @@ void main() {
 
     test('the text cap is enforced on the way in, not just out', () {
       // The sender is not the one applying this client's limits.
-      final back = ForwardedMessage.fromJson({
-        'by': 'ana',
-        'at': '2026-09-01T00:00:00Z',
-        'text': 'y' * 20000,
-      })!;
+      final back = ForwardedMessage.fromJson({'text': 'y' * 20000})!;
       expect(back.text.length, ForwardedMessage.maxText);
     });
 
-    test('withAttachments swaps the copies and keeps the claim', () {
-      final original = ForwardedMessage(
-        authorName: 'ana',
-        sentAt: DateTime.utc(2026, 9, 1),
-        text: 'hi',
-        attachments: [att('src')],
-        source: '#general',
-      );
+    test('withAttachments swaps the copies and keeps the words', () {
+      final original = ForwardedMessage(text: 'hi', attachments: [att('src')]);
       final copied = original.withAttachments([att('dest')]);
       expect(copied.attachments.single.name, 'dest');
-      expect(copied.authorName, 'ana');
-      expect(copied.source, '#general');
+      expect(copied.text, 'hi');
     });
   });
 

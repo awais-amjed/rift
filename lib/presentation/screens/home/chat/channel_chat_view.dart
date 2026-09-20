@@ -150,24 +150,19 @@ class _ChannelChatViewState extends State<ChannelChatView>
 
   /// Carry a message somewhere else.
   ///
-  /// The source line is what the *forwarder* says about where this came
-  /// from, and it is written from what is on their screen — which is the
-  /// only thing they can honestly claim.
+  /// The server id goes along only so the attachment bytes can be fetched
+  /// from the bucket they are in. It is not written into the message —
+  /// naming this channel would tell readers elsewhere that it exists.
   void _forward(
     BuildContext context,
     ChatMessage message,
     ChannelChatState chatState,
   ) {
-    final server = context.read<ServerCubit>().state.selectedServer;
-    final channel = server?.channels
-        .where((c) => c.id == chatState.channelId)
-        .firstOrNull;
     unawaited(
       showForwardDialog(
         context,
         message: message,
-        source: channel == null ? null : '#${channel.name} in ${server!.name}',
-        sourceServerId: server?.id,
+        sourceServerId: context.read<ServerCubit>().state.selectedServer?.id,
         currentChannelId: chatState.channelId,
       ),
     );

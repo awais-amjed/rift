@@ -145,7 +145,6 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
             showForwardDialog(
               context,
               message: message,
-              source: 'a direct message',
               sourceServerId: context
                   .read<ServerCubit>()
                   .state

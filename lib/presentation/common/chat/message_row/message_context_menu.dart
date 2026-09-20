@@ -38,7 +38,11 @@ Future<MessageMenuAction?> showMessageContextMenu({
   if (overlay == null) return null;
 
   final canCopy = message.text.isNotEmpty;
-  if (!canReact && !canReply && !canForward && !canCopy && !canEdit &&
+  if (!canReact &&
+      !canReply &&
+      !canForward &&
+      !canCopy &&
+      !canEdit &&
       !canDelete) {
     return null;
   }

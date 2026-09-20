@@ -21,12 +21,11 @@ import 'forward_dialog.dart';
 /// the one that got it wrong would be the one nobody opened.
 ///
 /// [sourceServerId] is where the message's attachment blobs live — null
-/// means central. [source] is the line written into the forwarded block,
-/// which is the forwarder's own account of where it came from.
+/// means central. It is used to *fetch* the bytes and is never written into
+/// the message: nothing about where a forward came from travels with it.
 Future<void> showForwardDialog(
   BuildContext context, {
   required ChatMessage message,
-  String? source,
   String? sourceServerId,
   String? currentChannelId,
   String? currentPeerId,
@@ -59,7 +58,6 @@ Future<void> showForwardDialog(
       child: ForwardDialog(
         message: message,
         targets: targets,
-        source: source,
         sourceServerId: sourceServerId,
         service: ForwardService(
           servers: servers,

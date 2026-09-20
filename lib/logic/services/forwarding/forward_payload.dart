@@ -3,37 +3,28 @@ import '../../../data/classes/forwarded_message.dart';
 
 /// Turning a message on screen into the block that travels with a forward.
 abstract final class ForwardPayload {
-  /// What [message] becomes when it is carried somewhere else.
+  /// What [message] becomes when it is carried somewhere else: its words and
+  /// its files, and nothing about where they came from.
   ///
-  /// [source] is where the forwarder says it came from — "#general in Proxy
-  /// Test", or a person's name. Passed in rather than read off the message,
-  /// because the message does not know which room it is being read in.
-  ///
-  /// **Forwarding a forward flattens.** The inner block travels on with the
-  /// author it already claimed, rather than being wrapped again: nesting has
-  /// no bottom, and the second wrapper would attribute the words to whoever
-  /// forwarded them to you — which is the one thing a forward must not start
-  /// doing as it is passed along.
-  static ForwardedMessage? of(ChatMessage message, {String? source}) {
+  /// **Forwarding a forward flattens.** The inner block travels on as it is
+  /// rather than being wrapped again — nesting has no bottom, and a reader
+  /// gains nothing from being told how many hands a sentence passed through.
+  static ForwardedMessage? of(ChatMessage message) {
     final inner = message.forwarded;
     if (inner != null) return inner;
 
     // A locked message has no content to carry — its text is empty because
-    // the key never arrived, and forwarding it would post an empty quote
-    // under somebody's name.
+    // the key never arrived, and forwarding it would send an empty card.
     if (message.isLocked) return null;
-    if (message.text.isEmpty && message.attachments.isEmpty) return null;
 
     final text = message.text;
-    return ForwardedMessage(
-      authorName: message.authorName,
-      sentAt: message.sentAt,
+    final forwarded = ForwardedMessage(
       text: text.length <= ForwardedMessage.maxText
           ? text
           : '${text.substring(0, ForwardedMessage.maxText)}…',
       attachments: message.attachments,
-      source: source,
     );
+    return forwarded.isEmpty ? null : forwarded;
   }
 
   /// Whether this message can be forwarded at all. Same rule as [of], asked

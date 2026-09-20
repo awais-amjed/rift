@@ -8,20 +8,20 @@ import '../../message_markup_text.dart';
 import '../attachments/attachment_loader.dart';
 import '../attachments/message_attachments.dart';
 
-/// A message somebody carried in from another conversation.
+/// Words somebody carried in from another conversation.
 ///
-/// **Drawn as a quotation inside the forwarder's row, never as the original
-/// author posting here**, and the whole widget exists to keep that
-/// distinction visible. The row above it carries the forwarder's avatar,
-/// name and time, because they are what the signature on this message
-/// attests. Everything inside this card — the name, the time, the words —
-/// is what they say was written elsewhere, and a reader here has no way to
-/// check it, exactly as with a screenshot.
+/// **It says "Forwarded" and no more** — not who wrote it and not where it
+/// came from. Naming the room would tell readers who were never in it that
+/// a place exists they cannot see, which on a private server is the whole
+/// of what there was to keep; and the author could only ever have been a
+/// claim, because the original signature does not survive the re-sealing.
+/// See [ForwardedMessage].
 ///
-/// So the card is subordinate by construction: a rule down its left edge, a
-/// quieter ground, the attribution at label size. It never borrows the
-/// header treatment a real message gets, because looking like one is the
-/// only failure that matters here.
+/// The row around this carries the forwarder's avatar, name and time,
+/// because they are what the signature on *this* message attests. The card
+/// is subordinate by construction — a rule down its left edge, a quieter
+/// ground, the label at label size — so it never borrows the header
+/// treatment a real message gets.
 class MessageForwardedCard extends StatelessWidget {
   final ForwardedMessage forwarded;
 
@@ -56,7 +56,7 @@ class MessageForwardedCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _Attribution(forwarded: forwarded),
+            const _ForwardedLabel(),
             if (forwarded.text.isNotEmpty) ...[
               const SizedBox(height: 4),
               // The same markup the surrounding conversation uses, with no
@@ -83,49 +83,20 @@ class MessageForwardedCard extends StatelessWidget {
   }
 }
 
-/// Who the forwarder says wrote it, and where. Label size and tertiary, so
-/// it reads as a citation rather than as a byline.
-class _Attribution extends StatelessWidget {
-  final ForwardedMessage forwarded;
-
-  const _Attribution({required this.forwarded});
+/// The one word the card carries about where this came from.
+class _ForwardedLabel extends StatelessWidget {
+  const _ForwardedLabel();
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final source = forwarded.source;
     return Row(
       children: [
         Icon(Icons.forward_rounded, size: 13, color: theme.textTertiary),
         const SizedBox(width: 6),
-        Flexible(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Forwarded from ',
-                  style: AppText.label.copyWith(
-                    fontWeight: FontWeight.w400,
-                    color: theme.textTertiary,
-                  ),
-                ),
-                TextSpan(
-                  text: forwarded.authorName,
-                  style: AppText.chip.copyWith(color: theme.textSecondary),
-                ),
-                if (source != null)
-                  TextSpan(
-                    text: ' · $source',
-                    style: AppText.label.copyWith(
-                      fontWeight: FontWeight.w400,
-                      color: theme.textTertiary,
-                    ),
-                  ),
-              ],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+        Text(
+          'Forwarded',
+          style: AppText.chip.copyWith(color: theme.textTertiary),
         ),
       ],
     );

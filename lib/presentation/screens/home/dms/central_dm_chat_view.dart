@@ -146,7 +146,6 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
             showForwardDialog(
               context,
               message: message,
-              source: 'a direct message',
               currentPeerId: state.openPeerId,
             ),
           ),

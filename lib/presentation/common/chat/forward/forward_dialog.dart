@@ -17,17 +17,13 @@ import 'forward_target_row.dart';
 
 /// Pick where a message goes, add a line of your own, send.
 ///
-/// The hint at the bottom is not decoration. A forward is re-sealed and
-/// signed by the person sending it, so the attribution that arrives is
-/// *their* word — and the one moment to say so is while they are deciding
-/// to make that claim.
+/// The hint at the bottom is not decoration. What arrives is the words,
+/// under the forwarder's name, with nothing saying where they came from —
+/// and the moment to be told that is before choosing to send somebody
+/// else's sentence on.
 class ForwardDialog extends StatefulWidget {
   final ChatMessage message;
   final List<ForwardTarget> targets;
-
-  /// Where the message is being taken from, as it will be written into the
-  /// forwarded block ("#general in Proxy Test").
-  final String? source;
 
   /// The server the message's attachments live on, or null for central.
   final String? sourceServerId;
@@ -39,7 +35,6 @@ class ForwardDialog extends StatefulWidget {
     required this.message,
     required this.targets,
     required this.service,
-    this.source,
     this.sourceServerId,
   });
 
@@ -75,7 +70,7 @@ class _ForwardDialogState extends State<ForwardDialog> {
         .toList();
     if (chosen.isEmpty) return;
 
-    final payload = ForwardPayload.of(widget.message, source: widget.source);
+    final payload = ForwardPayload.of(widget.message);
     if (payload == null) return;
 
     setState(() => _sending = true);
@@ -205,9 +200,9 @@ class _ForwardDialogState extends State<ForwardDialog> {
         const HintCard(
           icon: Icons.info_outlined,
           text:
-              'A forward is a new message, signed by you. It arrives saying '
-              'who you say wrote it, which nobody there can check — the same '
-              'standing a screenshot has.',
+              'A forward is a new message, signed by you. It carries the '
+              'words and not where they came from — nothing there names the '
+              'conversation, the channel or the person you got it from.',
         ),
       ],
     );
