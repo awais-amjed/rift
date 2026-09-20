@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../data/repositories/soundboard_repository.dart';
 import 'byte_format.dart';
@@ -63,25 +63,49 @@ class SoundboardStaging {
     return null;
   }
 
-  /// How long [bytes] plays for, measured by the same audio stack that will
-  /// play it, or [Duration.zero] when it will not say.
+  /// How long the picked file plays for, measured by the same audio stack
+  /// that will play it, or [Duration.zero] when it will not say.
   ///
   /// A convenience, not a check: the server stores whatever this returns and
   /// cannot verify it, and the thing that actually bounds a long clip is the
   /// listener's own cutoff. It is here so the list can say "1.2 s" without
   /// asking the uploader to type it.
-  static Future<Duration> measure(Uint8List bytes) async {
+  ///
+  /// From [path] where there is one, and only from [bytes] on the web.
+  /// `BytesSource` is not implemented by the Linux or Windows audioplayers
+  /// backends, so measuring from memory on a desktop answers nothing at all
+  /// — every clip added from one read "—" until this took the file instead.
+  static Future<Duration> measure(Uint8List bytes, {String? path}) async {
     final player = AudioPlayer();
     try {
-      await player.setSource(BytesSource(bytes));
-      // `getDuration` answers null until the source has been read, and on
-      // some platforms never — hence the race rather than an await that can
-      // hang a dialog on a file it could not parse.
-      final measured = await Future.any([
-        player.getDuration(),
-        Future<Duration?>.delayed(const Duration(seconds: 3), () => null),
-      ]);
-      return measured ?? Duration.zero;
+      await player.setSource(
+        path == null || kIsWeb ? BytesSource(bytes) : DeviceFileSource(path),
+      );
+      // Played silently to get the answer. `getDuration` reads the platform
+      // player's idea of the length, and on Linux that is a GStreamer
+      // pipeline which stays in NULL until something asks it to run — so
+      // after `setSource` alone it answers null forever, however long you
+      // wait, and every clip added from a desktop was labelled "—".
+      //
+      // Muted first, and only then started: this runs while somebody is
+      // filling in a form, and a burst of airhorn out of the speakers is not
+      // what they asked for.
+      await player.setVolume(0);
+      await player.resume();
+
+      // Polled, because the length arrives with the pipeline rather than
+      // with the call. Bounded, because for some files it never arrives and
+      // a form that waits forever on a label is worse than a missing label.
+      for (var attempt = 0; attempt < 16; attempt++) {
+        final measured = await player.getDuration();
+        if (measured != null && measured > Duration.zero) {
+          await player.stop();
+          return measured;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      await player.stop();
+      return Duration.zero;
     } catch (_) {
       return Duration.zero;
     } finally {

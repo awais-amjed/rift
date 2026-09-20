@@ -33,13 +33,18 @@ class SidebarHeader extends StatelessWidget {
           return NoServerButton(onTap: () => _openAddServerDialog(context));
         }
 
-        final isAdmin = server.user?.permissions.isServerAdmin ?? false;
+        // The gear opens for anybody with a page in there, not only an
+        // administrator — same rule as the rail's menu, and for the same
+        // reason: the dialog decides what its pages need.
+        final canManage = ServerManageTabs.visible(
+          server.user?.permissions,
+        ).isNotEmpty;
         return Column(
           children: [
             ServerHeader(
               server: server,
               showHideButton: showHideButton,
-              onOpenSettings: isAdmin
+              onOpenSettings: canManage
                   ? () => _openServerSettings(context, server)
                   : null,
             ),
@@ -51,13 +56,10 @@ class SidebarHeader extends StatelessWidget {
   }
 
   /// Everything about running [server] — here, always the one this header is
-  /// showing — opened on its overview.
+  /// showing — opened on its first page, which for an administrator is the
+  /// overview and for anybody else is whatever they actually hold.
   void _openServerSettings(BuildContext context, Server server) {
-    showServerManageDialog(
-      context,
-      server: server,
-      initial: ServerManageTab.overview,
-    );
+    showServerManageDialog(context, server: server);
   }
 
   /// Joining or creating a server.

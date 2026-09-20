@@ -118,6 +118,10 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
     if (raw.contains('row-level security') || raw.contains('permission')) {
       return 'You cannot change this server\'s soundboard.';
     }
+    if (raw.contains('violates check constraint')) {
+      return 'The server would not take that clip — check its name and '
+          'length.';
+    }
     return raw.isEmpty ? 'Could not add that clip' : raw;
   }
 

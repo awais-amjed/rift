@@ -106,11 +106,16 @@ class ServerChipMenu extends StatelessWidget {
             label: 'Manage members',
             onTap: () => _manage(context, ServerManageTab.members),
           ),
-        if (permissions?.isServerAdmin ?? false)
+        // Asked of the dialog rather than of a permission, because the
+        // dialog is the only thing that knows what its pages need. Gated on
+        // `isServerAdmin` this offered nothing to somebody holding one of
+        // the narrower bits — a member who may manage the soundboard and
+        // nothing else had a page and no door to it.
+        if (ServerManageTabs.visible(permissions).isNotEmpty)
           ContextMenuItem(
             icon: Icons.settings_outlined,
             label: 'Manage server',
-            onTap: () => _manage(context, ServerManageTab.overview),
+            onTap: () => _manage(context, null),
           ),
         ContextMenuItem(
           icon: Icons.logout_rounded,

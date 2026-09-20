@@ -82,7 +82,7 @@ class _AddClipFormState extends State<AddClipForm> {
 
     // Measured by the stack that will play it, before anything is uploaded:
     // it is only a label, but a wrong one is a label nobody can correct.
-    final duration = await SoundboardStaging.measure(bytes);
+    final duration = await SoundboardStaging.measure(bytes, path: file.path);
     if (!mounted) return;
     setState(() {
       _bytes = bytes;
