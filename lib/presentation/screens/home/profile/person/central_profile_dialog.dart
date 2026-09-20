@@ -14,6 +14,7 @@ import '../../dms/widgets/friends/friend_actions.dart';
 import 'widgets/profile_action_button.dart';
 import 'widgets/profile_avatar.dart';
 import 'widgets/profile_fact.dart';
+import 'widgets/profile_handle_row.dart';
 import 'widgets/profile_section.dart';
 
 /// Who somebody is on the **central tier**: a handle, where you stand with
@@ -93,7 +94,16 @@ class _CentralProfileDialogState extends State<CentralProfileDialog> {
             ProfileSection(
               label: 'About',
               spaced: false,
-              child: Column(children: _facts(current)),
+              child: Column(
+                children: [
+                  ..._facts(current),
+                  // Not while they are blocked. The line below says they
+                  // cannot reach you; handing over a copyable address in the
+                  // same breath contradicts it.
+                  if (_standing != FriendshipState.blocked)
+                    ProfileHandleRow(handle: current.handle),
+                ],
+              ),
             ),
             // Only for a block, and not because the others have no note — the
             // friends row has one for each. It is that "Wants to be friends"
