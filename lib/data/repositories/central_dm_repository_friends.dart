@@ -47,6 +47,30 @@ mixin _CentralDmFriendsMixin {
     }
   }
 
+  /// Where the caller stands with one person, asked of the server.
+  ///
+  /// The buckets answer this for everybody in a loaded tab, and that is the
+  /// right answer almost everywhere. It is the wrong one directly after an
+  /// action: every change drops the loaded pages (see [FriendBuckets]), so
+  /// the moment somebody accepts a request the only page that mentioned them
+  /// is gone and the graph can no longer say what happened. One row, asked by
+  /// id, is what a profile needs to redraw itself.
+  ///
+  /// A failure is [FriendshipState.none] rather than an error: this decides
+  /// which buttons a dialog offers, and the server refuses everything the
+  /// standing does not allow anyway.
+  Future<FriendshipState> friendshipState(String peerId) async {
+    try {
+      final raw = await _client.rpc(
+        'friendship_state',
+        params: {'p_other': peerId},
+      );
+      return FriendshipState.parse(raw);
+    } catch (_) {
+      return FriendshipState.none;
+    }
+  }
+
   /// One page of one tab, fetched when that tab is opened.
   ///
   /// [after] is the previous page's last handle. Keyset on the handle alone,

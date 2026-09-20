@@ -27,126 +27,157 @@ import 'widgets/profile_section.dart';
 ///
 /// No presence dot for the same reason: nobody is watching, and a grey dot
 /// would claim they are offline rather than admit that.
-class CentralProfileDialog extends StatelessWidget {
-  /// The person as the opening surface knew them. Their standing is re-read
-  /// from the cubit on every build, because acting on it from here is most of
-  /// what this dialog is for — the button has to become "Remove friend" the
-  /// moment the request is accepted.
+class CentralProfileDialog extends StatefulWidget {
+  /// The person as the opening surface knew them.
   final Friend friend;
 
   const CentralProfileDialog({super.key, required this.friend});
 
   @override
+  State<CentralProfileDialog> createState() => _CentralProfileDialogState();
+}
+
+class _CentralProfileDialogState extends State<CentralProfileDialog> {
+  late FriendshipState _standing = widget.friend.state;
+
+  @override
+  void initState() {
+    super.initState();
+    _ask();
+  }
+
+  /// Ask the server where we stand, rather than reading it off the graph.
+  ///
+  /// The buckets cannot answer this, and the way they cannot is worth
+  /// spelling out: every friend action reloads the *counts* and drops every
+  /// loaded page with them, so a request accepted from here leaves the only
+  /// page that mentioned this person gone. Reading it back off the graph
+  /// showed the request still waiting, under three buttons that no longer
+  /// applied. One row, asked by id, is the authoritative answer.
+  Future<void> _ask() async {
+    final next = await context.read<CentralDmCubit>().friendshipState(
+      widget.friend.id,
+    );
+    if (!mounted || next == _standing) return;
+    setState(() => _standing = next);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final state = context.watch<CentralDmCubit>().state;
+    final friend = widget.friend;
     final current = Friend(
       id: friend.id,
       handle: friend.handle,
       chatPublicKey: friend.chatPublicKey,
       signingPublicKey: friend.signingPublicKey,
       since: friend.since,
-      // The loaded friends tabs first — an action taken here refetches them,
-      // so they are the half that just moved. Then the conversation row,
-      // which is authoritative but only refreshes with the list.
-      state:
-          state.friends.stateOf(friend.id) ??
-          _conversationState(state) ??
-          friend.state,
+      state: _standing,
     );
 
-    final note = FriendActions.noteFor(current.state);
-
-    return AppModal(
-      title: '@${current.handle}',
-      subtitle: 'Central account',
-      titleIcon: ProfileAvatar(name: current.handle, seed: current.id),
-      maxWidth: 400,
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ProfileSection(
-            label: 'About',
-            spaced: false,
-            child: Column(
-              children: [
-                ProfileFact(label: 'Standing', value: _standing(current.state)),
-                if (current.since != null)
-                  ProfileFact(
-                    label: _sinceLabel(current.state),
-                    value: DateFormat(
-                      'd MMMM y',
-                    ).format(current.since!.toLocal()),
+    return BlocListener<CentralDmCubit, CentralDmState>(
+      // Every successful action ends in a counts reload, whichever it was, so
+      // this catches all six without the dialog having to know which button
+      // leads to which standing — the switch in [FriendActions] is the one
+      // place that is allowed to know.
+      listenWhen: (before, after) =>
+          before.friends.counts != after.friends.counts,
+      listener: (_, _) => _ask(),
+      child: AppModal(
+        title: '@${current.handle}',
+        subtitle: 'Central account',
+        titleIcon: ProfileAvatar(name: current.handle, seed: current.id),
+        maxWidth: 400,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ProfileSection(
+              label: 'About',
+              spaced: false,
+              child: Column(children: _facts(current)),
+            ),
+            // Only for a block, and not because the others have no note — the
+            // friends row has one for each. It is that "Wants to be friends"
+            // and "Waiting for them" say their own consequence, and a block
+            // does not: what it actually does is make you unfindable, which
+            // is the whole reason to choose it over removing somebody.
+            if (_standing == FriendshipState.blocked)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'They cannot find or reach you.',
+                  style: AppText.secondary.copyWith(
+                    color: context.theme.textTertiary,
                   ),
-                ProfileFact(
-                  label: 'Encrypted chat',
-                  value: current.chatPublicKey == null ? 'Not set up' : 'Ready',
-                  quiet: current.chatPublicKey == null,
-                ),
-              ],
-            ),
-          ),
-          if (note != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                note,
-                style: AppText.secondary.copyWith(
-                  color: context.theme.textTertiary,
                 ),
               ),
-            ),
-          const SizedBox(height: 18),
-          if (current.state.canSend)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: AppButton(
-                label: 'Message',
-                expanded: true,
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
-                onPressed: current.chatPublicKey == null
-                    ? null
-                    : () {
-                        // Open first, close second: `openCentralConversation`
-                        // reads two cubits off this context, and popping
-                        // deactivates it before they can be read.
-                        openCentralConversation(
-                          context,
-                          current.toConversation(),
-                        );
-                        Navigator.of(context).pop();
-                      },
+            const SizedBox(height: 18),
+            if (_standing.canSend)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: AppButton(
+                  label: 'Message',
+                  expanded: true,
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+                  onPressed: current.chatPublicKey == null
+                      ? null
+                      : () {
+                          // Open first, close second: the helper reads two
+                          // cubits off this context, and popping deactivates
+                          // it before they can be read.
+                          openCentralConversation(
+                            context,
+                            current.toConversation(),
+                          );
+                          Navigator.of(context).pop();
+                        },
+                ),
               ),
-            ),
-          // The same switch the friends list asks — a person who can be
-          // unfriended in one place and not the other is the bug
-          // [FriendActions] exists to prevent.
-          for (final action in FriendActions.forFriend(context, current))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: ProfileActionButton(action: action),
-            ),
-        ],
+            // The same switch the friends list asks — a person who can be
+            // unfriended in one place and not the other is the bug
+            // [FriendActions] exists to prevent.
+            for (final action in FriendActions.forFriend(context, current))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: ProfileActionButton(action: action),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  FriendshipState? _conversationState(CentralDmState state) {
-    for (final conversation in state.conversations) {
-      if (conversation.peerId == friend.id) return conversation.state;
-    }
-    return null;
+  List<Widget> _facts(Friend current) {
+    // The date came from the row that named the *old* standing, and the
+    // server's answer carries no new one. Drawing it against a standing it
+    // does not describe would be the worst of the three — "Friends since"
+    // over the date they asked. So it goes, until the surface behind reopens
+    // the profile with a fresh row.
+    final since = _standing == widget.friend.state ? current.since : null;
+    return [
+      ProfileFact(label: 'Standing', value: _standingLabel(_standing)),
+      if (since != null)
+        ProfileFact(
+          label: _sinceLabel(_standing),
+          value: DateFormat('d MMMM y').format(since.toLocal()),
+        ),
+      ProfileFact(
+        label: 'Encrypted chat',
+        value: current.chatPublicKey == null ? 'Not set up' : 'Ready',
+        quiet: current.chatPublicKey == null,
+      ),
+    ];
   }
 
-  static String _standing(FriendshipState state) => switch (state) {
+  static String _standingLabel(FriendshipState state) => switch (state) {
     FriendshipState.friends => 'Friends',
-    FriendshipState.incoming => 'Request received',
-    FriendshipState.outgoing => 'Request sent',
+    FriendshipState.incoming => 'Wants to be friends',
+    FriendshipState.outgoing => 'Waiting for them',
     FriendshipState.blocked => 'Blocked',
     FriendshipState.none => 'Not friends',
   };
 
   /// What the date on the row means, which is not the same thing in every
-  /// state — the server returns one `since` and it is the moment the current
+  /// state — the graph returns one `since` and it is the moment the current
   /// standing began.
   static String _sinceLabel(FriendshipState state) => switch (state) {
     FriendshipState.friends => 'Friends since',

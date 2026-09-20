@@ -129,6 +129,15 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
     return true;
   }
 
+  /// Where the caller stands with one person, asked of the server.
+  ///
+  /// For a surface that is about one person rather than a list of them — a
+  /// profile — because the buckets cannot answer it just after an action:
+  /// every change drops the loaded pages, so the row that would have said
+  /// what happened is the one that went.
+  Future<FriendshipState> friendshipState(String peerId) =>
+      _repo.friendshipState(peerId);
+
   Future<bool> acceptRequest(String peerId) =>
       _change(() => _repo.respondToRequest(userId: peerId, accept: true));
 
