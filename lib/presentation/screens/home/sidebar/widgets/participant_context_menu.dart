@@ -142,6 +142,14 @@ class ParticipantContextMenu extends StatelessWidget {
                     targetUserId,
                   );
 
+            final soundboardMuted =
+                appState
+                    .participantSettings[ParticipantIdentity.soundboardSettingsKey(
+                      targetUserId,
+                    )]
+                    ?.muted ??
+                false;
+
             final bool isMuted;
             final double volume;
 
@@ -191,6 +199,24 @@ class ParticipantContextMenu extends StatelessWidget {
                     }
                   },
                 ),
+                // Their soundboard, separately. A clip is played by this
+                // device, so this switches off nothing for anybody else —
+                // and it leaves their voice alone, which is the reason it is
+                // not the mute above.
+                if (!isLocal)
+                  ContextMenuItem(
+                    icon: soundboardMuted
+                        ? Icons.graphic_eq_rounded
+                        : Icons.graphic_eq_outlined,
+                    label: soundboardMuted
+                        ? 'Unmute their soundboard'
+                        : 'Mute their soundboard',
+                    isDangerous: soundboardMuted,
+                    onTap: () => context.read<AppCubit>().setParticipantSetting(
+                      ParticipantIdentity.soundboardSettingsKey(targetUserId),
+                      muted: !soundboardMuted,
+                    ),
+                  ),
                 // Sending a summoned bot away — not moderation, and not
                 // behind the same permission. Above the admin section because
                 // for a bot it is the only item on here anybody usually wants.

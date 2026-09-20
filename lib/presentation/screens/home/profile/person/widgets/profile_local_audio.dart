@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/participant_identity.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../common/app_switch.dart';
@@ -28,9 +29,15 @@ class ProfileLocalAudio extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    final setting = context.watch<AppCubit>().state.participantSettings[userId];
+    final settings = context.watch<AppCubit>().state.participantSettings;
+    final setting = settings[userId];
     final muted = setting?.muted ?? false;
     final volume = setting?.volume ?? 1.0;
+    // A third setting of their own, stored under its own key: somebody whose
+    // airhorn is too loud has not said anything wrong.
+    final soundboardMuted =
+        settings[ParticipantIdentity.soundboardSettingsKey(userId)]?.muted ??
+        false;
 
     return ProfileSection(
       label: 'Your audio',
@@ -64,6 +71,39 @@ class ProfileLocalAudio extends StatelessWidget {
                 onChanged: (next) => context
                     .read<LiveKitCubit>()
                     .setParticipantMute(userId, next),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mute their soundboard',
+                      style: AppText.row.copyWith(
+                        color: themeState.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      'Their voice still comes through.',
+                      style: AppText.secondary.copyWith(
+                        color: themeState.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              AppSwitch(
+                value: soundboardMuted,
+                onChanged: (next) =>
+                    context.read<AppCubit>().setParticipantSetting(
+                      ParticipantIdentity.soundboardSettingsKey(userId),
+                      muted: next,
+                    ),
               ),
             ],
           ),

@@ -168,7 +168,10 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
             spaced: false,
             child: Column(children: _facts(member, online)),
           ),
-          ProfileSection(label: 'Roles', child: ProfileRoles(roles: roles)),
+          ProfileSection(
+            label: 'Roles',
+            child: ProfileRoles(roles: roles),
+          ),
           if (!isMe && member != null) ...[
             const SizedBox(height: 18),
             AppButton(

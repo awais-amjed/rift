@@ -23,7 +23,9 @@ import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../screenshare/screen_share_settings_dialog.dart';
+import '../soundboard/soundboard_button.dart';
 import '../soundshare/sound_share_picker_dialog.dart';
+import 'widgets/control_button.dart';
 
 /// Floating control bar shown at the bottom of the video area.
 ///
@@ -234,12 +236,16 @@ class _ControlBarContent extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // The soundboard, first because it is the one control
+                    // here that is not about this person's own microphone or
+                    // screen — it is the room's.
+                    const SoundboardButton(),
                     // Sound share. Desktop only: capturing another
                     // application's output is something a phone and a browser
                     // tab cannot do at all, so there is no button rather than
                     // a button that explains itself.
                     if (SoundShareCubit.isSupported) ...[
-                      _ControlButton(
+                      ControlButton(
                         icon: isSharingSound
                             ? Icons.music_note_rounded
                             : Icons.music_note_outlined,
@@ -252,7 +258,7 @@ class _ControlBarContent extends StatelessWidget {
                       const SizedBox(width: 4),
                     ],
                     // Screen share
-                    _ControlButton(
+                    ControlButton(
                       icon: isScreenSharing
                           ? Icons.monitor_outlined
                           : Icons.present_to_all,
@@ -264,7 +270,7 @@ class _ControlBarContent extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     // Camera
-                    _ControlButton(
+                    ControlButton(
                       icon: isCameraEnabled
                           ? Icons.videocam
                           : Icons.videocam_off,
@@ -276,7 +282,7 @@ class _ControlBarContent extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     // Mic
-                    _ControlButton(
+                    ControlButton(
                       icon: isMicOn ? Icons.mic : Icons.mic_off,
                       isError: !isMicOn,
                       tooltip: isServerMuted || isServerDeafened
@@ -286,7 +292,7 @@ class _ControlBarContent extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     // Deafen
-                    _ControlButton(
+                    ControlButton(
                       icon: isDeafened ? Icons.headset_off : Icons.headset,
                       isError: isDeafened,
                       tooltip: isServerDeafened
@@ -346,65 +352,6 @@ class _ControlBarContent extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ControlButton extends StatelessWidget {
-  final IconData icon;
-  final bool isActive;
-  final bool isDimmed;
-  final bool isError;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  const _ControlButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.isActive = false,
-    this.isDimmed = false,
-    this.isError = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        Color bgColor = Colors.transparent;
-        Color iconColor;
-
-        if (isActive) {
-          bgColor = themeState.channelActiveBg;
-          iconColor = themeState.primary;
-        } else if (isError) {
-          bgColor = CustomColors.error.withValues(alpha: 0.1);
-          iconColor = CustomColors.error;
-        } else if (isDimmed) {
-          bgColor = themeState.bgTertiary;
-          iconColor = themeState.textTertiary;
-        } else {
-          iconColor = themeState.textSecondary;
-        }
-
-        return Tooltip(
-          message: tooltip,
-          child: Material(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(K.radiusRow),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(K.radiusRow),
-              hoverColor: themeState.bgHover,
-              onTap: onTap,
-              child: SizedBox(
-                width: 46,
-                height: 46,
-                child: Icon(icon, size: 21, color: iconColor),
               ),
             ),
           ),

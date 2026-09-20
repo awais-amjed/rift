@@ -101,9 +101,7 @@ class ProfileModeration extends StatelessWidget {
                 ),
                 Expanded(
                   child: QuietDangerButton(
-                    icon: member.isDeafened
-                        ? Icons.headset
-                        : Icons.headset_off,
+                    icon: member.isDeafened ? Icons.headset : Icons.headset_off,
                     label: member.isDeafened ? 'Undeafen' : 'Server deafen',
                     isDangerous: !member.isDeafened,
                     onTap: isBusy

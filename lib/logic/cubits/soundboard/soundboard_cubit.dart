@@ -31,6 +31,10 @@ class SoundboardCubit extends Cubit<SoundboardState> {
   final AppCubit _appCubit;
   LiveKitCubit? _livekitCubit;
 
+  /// What a server will hold, mirrored from `app.soundboard_max()` so the
+  /// page can count down to it rather than finding out on a refusal.
+  static const int maxSounds = 48;
+
   /// Per-sender rate limiting, applied on the way *in*. A cooldown the sender
   /// honours is one a modified client deletes.
   final SoundboardGate _gate = SoundboardGate();
@@ -233,6 +237,15 @@ class SoundboardCubit extends Cubit<SoundboardState> {
 
     unawaited(_playLocally(sound, volume: volume));
   }
+
+  /// Play [sound] on this device and nowhere else.
+  ///
+  /// For the person managing the library, who has to know which of three
+  /// airhorns this one is. It ignores [AppState.soundboardMuted] and not the
+  /// volume: the mute is about clips arriving from other people, and this is
+  /// one that was asked for here.
+  Future<void> preview(SoundboardSound sound) =>
+      _playLocally(sound, volume: _appCubit.state.soundboardVolume);
 
   /// Stop anything still playing — leaving a call, or being deafened
   /// part-way through somebody's airhorn.

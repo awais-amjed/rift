@@ -9,6 +9,7 @@ enum ServerManageTab {
   members,
   bots,
   webhooks,
+  soundboard,
   danger,
 }
 
@@ -32,6 +33,7 @@ class ServerManageTabs {
       if (p.isServerAdmin || p.isChannelManager) ServerManageTab.members,
       if (p.can(ServerPermission.manageBots)) ServerManageTab.bots,
       if (p.can(ServerPermission.manageWebhooks)) ServerManageTab.webhooks,
+      if (p.can(ServerPermission.manageSoundboard)) ServerManageTab.soundboard,
       if (p.isOwner) ServerManageTab.danger,
     ];
   }

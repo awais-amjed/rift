@@ -18,6 +18,7 @@ void main() {
         ServerManageTab.members,
         ServerManageTab.bots,
         ServerManageTab.webhooks,
+        ServerManageTab.soundboard,
       ]);
     });
 

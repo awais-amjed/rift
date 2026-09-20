@@ -10,9 +10,11 @@ import 'section_title.dart';
 import 'setting_toggle_row.dart';
 import 'voice_audio/audio_processing_section.dart';
 import 'voice_audio/push_to_talk_section.dart';
+import 'voice_audio/soundboard_section.dart';
 
 /// The Voice & Audio settings tab: devices, mic processing, the mic test,
-/// and the two Windows-only sections.
+/// the soundboard as this device hears it, and the two Windows-only
+/// sections.
 class VoiceAudioContent extends StatelessWidget {
   const VoiceAudioContent({super.key});
 
@@ -45,7 +47,12 @@ class VoiceAudioContent extends StatelessWidget {
               const SizedBox(height: 20),
               MicTestSection(),
               _divider(context),
+              SoundboardSection(appState: appState),
+              // The divider belongs to what follows, not to what precedes
+              // it: on anything but Windows there is nothing after this and
+              // the rule was hanging under the last control.
               if (HostPlatform.ducksOtherApps) ...[
+                _divider(context),
                 SectionTitle(label: 'Audio ducking'),
                 const SizedBox(height: 12),
                 SettingToggleRow(

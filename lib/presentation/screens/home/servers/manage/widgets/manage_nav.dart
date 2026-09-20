@@ -62,6 +62,7 @@ class ManageNav extends StatelessWidget {
     ServerManageTab.members => Icons.group_outlined,
     ServerManageTab.bots => Icons.smart_toy_outlined,
     ServerManageTab.webhooks => Icons.webhook_rounded,
+    ServerManageTab.soundboard => Icons.graphic_eq_rounded,
     ServerManageTab.danger => Icons.warning_amber_rounded,
   };
 
@@ -72,6 +73,7 @@ class ManageNav extends StatelessWidget {
     ServerManageTab.members => 'Members',
     ServerManageTab.bots => 'Bots',
     ServerManageTab.webhooks => 'Webhooks',
+    ServerManageTab.soundboard => 'Soundboard',
     ServerManageTab.danger => 'Danger zone',
   };
 }
