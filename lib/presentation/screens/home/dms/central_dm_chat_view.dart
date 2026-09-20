@@ -139,6 +139,8 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           attachmentLoader: context.read<CentralDmCubit>().loadAttachment,
           // No onToggleReaction: central DMs are the first-contact tier and are
           // kept deliberately thin — reactions live on servers.
+          onLookUpOriginal: context.read<CentralDmCubit>().fetchQuoted,
+          onLoadUntilLoaded: context.read<CentralDmCubit>().loadUntilLoaded,
           onReply: startReply,
           // No source server: a central DM's blobs live in central's own
           // bucket, and that is what null means to the forward service.

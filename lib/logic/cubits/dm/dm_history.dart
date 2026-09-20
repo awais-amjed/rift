@@ -113,6 +113,42 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     if (result.fresh.any((m) => !m.isMine)) _onOpenPeerMessage();
   }
 
+  /// Look up one message a reply names, without putting it in the list.
+  ///
+  /// Three outcomes, kept apart on purpose — see [QuotedMessage]. A row that
+  /// comes back and fails verification answers `unknown` rather than
+  /// `deleted`: it is dropped like any other forgery, and "deleted" would be
+  /// a claim about a message this client refuses to believe in.
+  Future<QuotedMessage> fetchQuoted(String messageId) async {
+    final peerId = state.openPeerId;
+    final id = int.tryParse(messageId);
+    if (peerId == null || id == null) return const QuotedMessage.unknown();
+
+    final response = await _serverCubit.getDmMessage(messageId: id);
+    if (!response.success || state.openPeerId != peerId) {
+      return const QuotedMessage.unknown();
+    }
+
+    final row = (response.data as Map<String, dynamic>)['message'];
+    if (row == null) return const QuotedMessage.deleted();
+
+    final decrypted = await _decryptRows(peerId, [
+      (row as Map).cast<String, dynamic>(),
+    ]);
+    return decrypted.isEmpty
+        ? const QuotedMessage.unknown()
+        : QuotedMessage.found(decrypted.first);
+  }
+
+  /// Page back until [messageId] is in the list, for a jump that has to
+  /// travel further than the loaded page.
+  Future<bool> loadUntilLoaded(String messageId) => QuoteLookup.pageUntilLoaded(
+    isLoaded: () => state.messages.any((m) => m.id == messageId),
+    hasMore: () => state.hasMoreHistory,
+    loadedCount: () => state.messages.length,
+    loadMore: loadMoreHistory,
+  );
+
   /// Re-read one message the peer said changed, and apply what happened: an
   /// edit swaps it in place, a delete takes it off the list.
   ///

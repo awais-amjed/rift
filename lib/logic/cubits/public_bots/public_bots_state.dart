@@ -57,8 +57,10 @@ class PublicBotsState {
   /// filter chips. Derived from the results rather than fetched, so a chip
   /// can only ever offer a filter with something behind it.
   List<String> get visibleTags {
-    final tags = <String>{for (final bot in results) ...bot.tags, ?tag}
-        .toList();
+    final tags = <String>{
+      for (final bot in results) ...bot.tags,
+      ?tag,
+    }.toList();
     tags.sort();
     return tags;
   }

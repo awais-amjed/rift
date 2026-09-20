@@ -121,6 +121,44 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     emit(state.copyWith(messages: result.merged));
   }
 
+  /// Look up one message a reply names, without putting it in the list.
+  ///
+  /// Three outcomes, kept apart on purpose — see [QuotedMessage]. A row that
+  /// comes back and fails verification answers `unknown` rather than
+  /// `deleted`: it is dropped like any other forgery, and "deleted" would be
+  /// a claim about a message this client refuses to believe in.
+  Future<QuotedMessage> fetchQuoted(String messageId) async {
+    final peerId = state.openPeerId;
+    final id = int.tryParse(messageId);
+    if (peerId == null || id == null) return const QuotedMessage.unknown();
+
+    final response = await _repo.getDm(messageId: id);
+    if (!response.success || state.openPeerId != peerId) {
+      return const QuotedMessage.unknown();
+    }
+
+    final row = (response.data as Map<String, dynamic>)['message'];
+    if (row == null) return const QuotedMessage.deleted();
+
+    final message = await _decryptRow(
+      (row as Map).cast<String, dynamic>(),
+      peerId: peerId,
+      peerHandle: state.openPeerHandle ?? 'unknown',
+    );
+    return message == null
+        ? const QuotedMessage.unknown()
+        : QuotedMessage.found(message);
+  }
+
+  /// Page back until [messageId] is in the list, for a jump that has to
+  /// travel further than the loaded page.
+  Future<bool> loadUntilLoaded(String messageId) => QuoteLookup.pageUntilLoaded(
+    isLoaded: () => state.messages.any((m) => m.id == messageId),
+    hasMore: () => state.hasMoreHistory,
+    loadedCount: () => state.messages.length,
+    loadMore: loadMoreHistory,
+  );
+
   /// Re-read one message after the peer edited it. Central has no delete
   /// notification (see `CentralDmRepository.subscribeIncoming`), but the row
   /// being gone is still handled — a stale id would otherwise leave a message

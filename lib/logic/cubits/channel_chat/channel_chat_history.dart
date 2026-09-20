@@ -112,6 +112,50 @@ mixin _ChannelChatHistoryMixin
     if (freshIncoming.isNotEmpty) _onFreshIncoming(freshIncoming);
   }
 
+  /// Look up one message a reply names, without putting it in the list.
+  ///
+  /// Deliberately not [fetchMissingMessage]: that merges the row into the
+  /// conversation, and a message from five hundred back sitting directly
+  /// above a recent one is a hole in the history drawn as if it were not
+  /// there. This answers the quote and nothing else.
+  ///
+  /// The three outcomes are the point — see [QuotedMessage]. A row that
+  /// comes back and fails verification is `unknown`, not `deleted`: it is
+  /// dropped like any other forgery, and saying "deleted" would be claiming
+  /// something about a message this client refuses to believe in.
+  Future<QuotedMessage> fetchQuoted(String messageId) async {
+    final channelId = state.channelId;
+    final id = int.tryParse(messageId);
+    if (channelId == null || id == null) return const QuotedMessage.unknown();
+
+    final response = await _serverCubit.getChatMessage(
+      channelId: channelId,
+      messageId: id,
+    );
+    if (!response.success || state.channelId != channelId) {
+      return const QuotedMessage.unknown();
+    }
+
+    final row = (response.data as Map<String, dynamic>)['message'];
+    if (row == null) return const QuotedMessage.deleted();
+
+    final decrypted = await _decryptRows(channelId, [
+      (row as Map).cast<String, dynamic>(),
+    ]);
+    return decrypted.isEmpty
+        ? const QuotedMessage.unknown()
+        : QuotedMessage.found(decrypted.first);
+  }
+
+  /// Page back until [messageId] is in the list, for a jump that has to
+  /// travel further than the loaded page.
+  Future<bool> loadUntilLoaded(String messageId) => QuoteLookup.pageUntilLoaded(
+    isLoaded: () => state.messages.any((m) => m.id == messageId),
+    hasMore: () => state.hasMoreHistory,
+    loadedCount: () => state.messages.length,
+    loadMore: loadMoreHistory,
+  );
+
   /// Re-read one message a change doorbell named, and apply whatever happened
   /// to it: an edit swaps the row in place, a delete takes it off the list.
   ///

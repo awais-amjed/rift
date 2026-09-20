@@ -1,16 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/classes/chat_message.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../logic/helper_methods.dart';
+import '../../../logic/services/quote_lookup.dart';
 import '../../theme/app_text.dart';
 import 'attachments/attachment_loader.dart';
 import 'date_divider.dart';
 import 'message_jump.dart';
 import 'message_row/chat_message_row.dart';
+import 'message_row/message_reply_quote.dart';
 
 /// Scrollable message history, newest at the bottom (reversed list, so it
 /// stays pinned to the latest message). Consecutive messages from the same
@@ -33,6 +37,15 @@ class ChatMessageList extends StatefulWidget {
 
   /// Toggle a reaction on a message. Null disables reactions on this surface.
   final void Function(String messageId, String emoji)? onToggleReaction;
+
+  /// Look up a message a reply names but that is not in [messages] — older
+  /// than the loaded page, or deleted. Null leaves those quotes unresolved,
+  /// which is the honest rendering when nothing can ask.
+  final Future<QuotedMessage> Function(String messageId)? onLookUpOriginal;
+
+  /// Page history back until a message is in [messages], for a jump that
+  /// has to travel past the loaded page. Answers whether it got there.
+  final Future<bool> Function(String messageId)? onLoadUntilLoaded;
 
   /// Start a reply to a message. Null disables replying on this surface.
   final void Function(ChatMessage message)? onReply;
@@ -84,6 +97,8 @@ class ChatMessageList extends StatefulWidget {
     this.controller,
     this.attachmentLoader,
     this.onToggleReaction,
+    this.onLookUpOriginal,
+    this.onLoadUntilLoaded,
     this.onReply,
     this.onForward,
     this.onEdit,
@@ -112,10 +127,128 @@ class _ChatMessageListState extends State<ChatMessageList> {
   String? _flashRowId;
   int _flashToken = 0;
 
+  /// Messages fetched only to render a quote, by id.
+  ///
+  /// Held here rather than in a cubit because that is what they are: a
+  /// rendering answer for this screen, gone when it is, and never part of
+  /// the conversation — merging a message from five hundred back into the
+  /// list would draw a hole in the history as if it were not there.
+  ///
+  /// A null value is an answer, not a gap: it means the server said there is
+  /// no such row. [_unresolvable] holds the ones it could not tell about, so
+  /// a failed lookup is retried when the list next rebuilds and a confirmed
+  /// deletion is not asked about again.
+  final Map<String, ChatMessage?> _quoted = {};
+
+  /// Lookups in flight, so twenty replies to one message ask once.
+  final Set<String> _looking = {};
+
+  /// Ids the last lookup could not settle. Kept apart from [_quoted] so they
+  /// stay askable without being answered.
+  final Set<String> _unresolvable = {};
+
+  /// Ask about a reference that is not in the list.
+  ///
+  /// Fired from `build`, which is why it checks so much before doing
+  /// anything: a rebuild per keystroke elsewhere must not become a request
+  /// per keystroke.
+  void _lookUp(String messageId) {
+    final lookUp = widget.onLookUpOriginal;
+    if (lookUp == null) return;
+    if (_quoted.containsKey(messageId) || _looking.contains(messageId)) return;
+    _looking.add(messageId);
+    unawaited(() async {
+      final found = await lookUp(messageId);
+      if (!mounted) {
+        _looking.remove(messageId);
+        return;
+      }
+      setState(() {
+        _looking.remove(messageId);
+        if (found.isFound) {
+          _quoted[messageId] = found.message;
+          _unresolvable.remove(messageId);
+        } else if (found.deleted) {
+          _quoted[messageId] = null;
+          _unresolvable.remove(messageId);
+        } else {
+          // Not an answer. Left out of the cache so it can be asked again,
+          // and recorded so the quote says "unavailable" rather than
+          // sitting on "finding it" forever.
+          _unresolvable.add(messageId);
+        }
+      });
+    }());
+  }
+
+  /// What to draw for a reply's reference, and what pressing it should do.
+  ({ReplyOriginState state, ChatMessage? original}) _originOf(
+    ChatMessage message,
+    Map<String, ChatMessage> byId,
+  ) {
+    final id = message.replyToId;
+    if (id == null) {
+      return (state: ReplyOriginState.present, original: null);
+    }
+
+    final loaded = byId[id];
+    if (loaded != null) {
+      return (state: ReplyOriginState.present, original: loaded);
+    }
+    if (_quoted.containsKey(id)) {
+      final fetched = _quoted[id];
+      return fetched == null
+          ? (state: ReplyOriginState.gone, original: null)
+          : (state: ReplyOriginState.behind, original: fetched);
+    }
+    if (_unresolvable.contains(id) || widget.onLookUpOriginal == null) {
+      return (state: ReplyOriginState.unknown, original: null);
+    }
+    // Asked on the way past. The first frame draws "finding it"; the answer
+    // arrives and rebuilds.
+    _lookUp(id);
+    return (state: ReplyOriginState.looking, original: null);
+  }
+
   /// Highest server id seen so far. Live messages exceed it; a back-filled
   /// history page (scroll-up pagination) does not — so scrolling never
   /// animates old rows in.
   int _maxSeenId = 0;
+
+  /// Go to what a reply answers: page it into the list if it is further
+  /// back than the loaded page, then scroll to it.
+  ///
+  /// [loaded] is true when the message is already in the list, which is the
+  /// ordinary case and skips the paging entirely.
+  Future<void> _goToOriginal(String messageId, {required bool loaded}) async {
+    if (!loaded) {
+      final page = widget.onLoadUntilLoaded;
+      if (page == null) return;
+      final reached = await page(messageId);
+      if (!mounted) return;
+      if (!reached) {
+        HelperMethods.showToast(
+          title: 'Too far back',
+          description:
+              'That message is further back than this can load in one go.',
+        );
+        return;
+      }
+      // The list has grown by however many pages that took, so let it lay
+      // out before asking where anything is.
+      await SchedulerBinding.instance.endOfFrame;
+      if (!mounted) return;
+    }
+    // Resolved here, not by the caller, and by *message* id rather than row
+    // id: a message the server has just acked is still drawn under the local
+    // id it was sent with ([ChatMessage.rowId]), which is what the jumper's
+    // keys are filed by and is not what a reply points at.
+    final row = widget.messages
+        .where((message) => message.id == messageId)
+        .firstOrNull;
+    if (row == null) return;
+    await _jumpTo(row.rowId);
+  }
 
   /// Go to the message [rowId], and mark it once we are there.
   ///
@@ -270,6 +403,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               return DateDivider(label: item.label);
             }
             final msg = (item as _MsgItem).message;
+            final origin = _originOf(msg, byId);
             // The GlobalKey goes on a wrapper, not on the row. It exists
             // only to give [MessageJumper] something to scroll to, and the
             // row's own key is load-bearing for a different reason — see
@@ -288,17 +422,21 @@ class _ChatMessageListState extends State<ChatMessageList> {
                 onToggleReaction: widget.onToggleReaction,
                 onReply: widget.onReply,
                 onForward: widget.onForward,
-                // Resolved from what is loaded and nothing else. A reference to
-                // a message further back than the page is drawn as a reference
-                // with nothing behind it, which is what it is.
-                repliedTo: msg.replyToId == null ? null : byId[msg.replyToId],
-                // Offered only when there is somewhere to go: the quote draws
-                // "original unavailable" otherwise, and that line is not a
-                // button.
-                onJumpToOriginal:
-                    msg.replyToId != null && byId.containsKey(msg.replyToId)
-                    ? () => unawaited(_jumpTo(byId[msg.replyToId]!.rowId))
-                    : null,
+                repliedTo: origin.original,
+                originState: origin.state,
+                // Pressable whenever there is a message to go to, whether it
+                // is in the list or a few pages back. Not when there is
+                // nothing — a line saying it was deleted is not a button.
+                onJumpToOriginal: switch (origin.state) {
+                  ReplyOriginState.present => () => unawaited(
+                    _goToOriginal(msg.replyToId!, loaded: true),
+                  ),
+                  ReplyOriginState.behind
+                      when widget.onLoadUntilLoaded != null =>
+                    () =>
+                        unawaited(_goToOriginal(msg.replyToId!, loaded: false)),
+                  _ => null,
+                },
                 flashToken: msg.rowId == _flashRowId ? _flashToken : null,
                 onEdit: widget.onEdit,
                 onDelete: widget.onDelete,

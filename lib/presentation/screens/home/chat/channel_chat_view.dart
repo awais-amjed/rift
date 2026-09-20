@@ -242,6 +242,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
           controller: scrollController,
           attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
           onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
+          onLookUpOriginal: context.read<ChannelChatCubit>().fetchQuoted,
+          onLoadUntilLoaded: context.read<ChannelChatCubit>().loadUntilLoaded,
           onReply: startReply,
           onForward: (message) => _forward(context, message, chatState),
           onEdit: context.read<ChannelChatCubit>().editMessage,

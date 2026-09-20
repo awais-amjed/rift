@@ -19,6 +19,7 @@ import '../../services/chat_message_ops.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
+import '../../services/quote_lookup.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';

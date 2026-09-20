@@ -140,6 +140,8 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           controller: scrollController,
           attachmentLoader: context.read<DmCubit>().loadAttachment,
           onToggleReaction: context.read<DmCubit>().toggleReaction,
+          onLookUpOriginal: context.read<DmCubit>().fetchQuoted,
+          onLoadUntilLoaded: context.read<DmCubit>().loadUntilLoaded,
           onReply: startReply,
           onForward: (message) => unawaited(
             showForwardDialog(

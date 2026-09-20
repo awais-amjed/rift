@@ -31,6 +31,7 @@ import '../../services/link_preview_fetcher.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
 import '../../services/push_service.dart';
+import '../../services/quote_lookup.dart';
 import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';
 import '../vault/vault_cubit.dart';

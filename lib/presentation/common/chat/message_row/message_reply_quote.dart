@@ -6,16 +6,45 @@ import '../../../../logic/services/message_excerpt.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 
+/// What this client knows about the message a reply names.
+///
+/// Three states, not two, and separating them is the whole job. "I have not
+/// found it" and "it is not there" are different facts, and telling a reader
+/// the second when the first is true says somebody deleted something they
+/// did not — the same collapse ARCHITECTURE.md §4 warns about one level
+/// down, between a message that is locked and one that was dropped.
+enum ReplyOriginState {
+  /// Still asking. The reference is out of the loaded page and the lookup
+  /// is in flight.
+  looking,
+
+  /// Here, in the list. The jump is a scroll.
+  present,
+
+  /// Real and readable, further back than the page the reader has. The jump
+  /// has to fetch its way there first.
+  behind,
+
+  /// The server answered, and there is no such row.
+  gone,
+
+  /// Nobody could tell: the lookup failed, or this surface has no way to
+  /// ask. The one case "unavailable" is the true word for.
+  unknown,
+}
+
 /// The line above a reply saying what it answers.
 ///
-/// [original] is the message this client has already decrypted and verified,
-/// or null when the reference points at something it cannot show — deleted,
-/// still locked, or simply older than the loaded page. **Null renders as an
-/// admission, never as the sender's account of what was there**: the body
-/// carries an id and no text precisely so a replier cannot put words in
-/// somebody else's mouth, and inventing a quote here would hand that back.
+/// **What it draws is never the sender's account of what was there**: the
+/// body carries an id and no text precisely so a replier cannot put words in
+/// somebody else's mouth, so every word here comes from a message this
+/// client fetched and verified itself, or from [state] saying there is none.
 class MessageReplyQuote extends StatelessWidget {
   final ChatMessage? original;
+
+  /// What the lookup found. Drives the wording when there is nothing to
+  /// quote, and whether the line is worth pressing.
+  final ReplyOriginState state;
 
   /// Take the reader to what this answers. Null when there is nothing to go
   /// to — which is the same condition as [original] being null, and is why
@@ -23,7 +52,12 @@ class MessageReplyQuote extends StatelessWidget {
   /// one job is worse than a sentence saying why.
   final VoidCallback? onJump;
 
-  const MessageReplyQuote({super.key, this.original, this.onJump});
+  const MessageReplyQuote({
+    super.key,
+    this.original,
+    this.onJump,
+    this.state = ReplyOriginState.present,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +96,7 @@ class MessageReplyQuote extends StatelessWidget {
           if (message == null)
             Flexible(
               child: Text(
-                'Original message unavailable',
+                _absence,
                 style: _quiet.copyWith(
                   color: theme.textTertiary,
                   fontStyle: FontStyle.italic,
@@ -89,6 +123,19 @@ class MessageReplyQuote extends StatelessWidget {
       ),
     );
   }
+}
+
+extension on MessageReplyQuote {
+  /// What to say when there is no message to quote.
+  ///
+  /// "Unavailable" survives only for the case it is actually true of: this
+  /// client could not find out. A deletion is named as one, because that is
+  /// a thing that happened and the reader can stop looking.
+  String get _absence => switch (state) {
+    ReplyOriginState.gone => 'Original message was deleted',
+    ReplyOriginState.looking => 'Finding the original…',
+    _ => 'Original message unavailable',
+  };
 }
 
 /// The excerpt and the "nothing to show" line: label size, unemphasised, so

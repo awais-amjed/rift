@@ -68,6 +68,9 @@ class ChatMessageRow extends StatefulWidget {
   /// so the same row can be flashed twice. See [MessageFlashHighlight].
   final int? flashToken;
 
+  /// What the lookup for [repliedTo] found — see [ReplyOriginState].
+  final ReplyOriginState originState;
+
   /// The message this one answers, already decrypted and verified by this
   /// client, or null when the reference points at something it cannot show.
   ///
@@ -116,6 +119,7 @@ class ChatMessageRow extends StatefulWidget {
     this.onForward,
     this.onJumpToOriginal,
     this.flashToken,
+    this.originState = ReplyOriginState.present,
     this.repliedTo,
     this.onEdit,
     this.onDelete,
@@ -441,6 +445,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
         if (widget.showHeader && message.isReply)
           MessageReplyQuote(
             original: widget.repliedTo,
+            state: widget.originState,
             onJump: widget.onJumpToOriginal,
           ),
         if (widget.showHeader)
