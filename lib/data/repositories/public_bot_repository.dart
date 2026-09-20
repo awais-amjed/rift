@@ -202,9 +202,9 @@ class PublicBotRepository {
     } on PostgrestException catch (e) {
       // 23503 is the foreign key on `bot_likes.user_id`, which references the
       // profile table rather than `auth.users` — a bare sign-up is not a vote.
-      if (e.code == '23503') {
-        return APIResponse.error(_messages['owner_has_no_profile']!);
-      }
+      // Its own sentence, not the one publishing uses: somebody tapping a
+      // heart is not trying to list anything.
+      if (e.code == '23503') return APIResponse.error(_likeNeedsProfile);
       // 23505 is liking twice, which two taps in a row can produce. It means
       // the like is already there, which is what was asked for.
       if (e.code == '23505') return APIResponse.success(null);
@@ -227,6 +227,11 @@ class PublicBotRepository {
   // ── Errors ────────────────────────────────────────────────
   // The RPC raises bare identifiers. Turn the ones a person can act on into
   // sentences; anything else keeps the database's own words.
+
+  /// Liking is the one write here an account can reach without meaning to
+  /// publish anything, so the refusal says what it is refusing.
+  static const _likeNeedsProfile =
+      'Claim a handle on your Rift account before liking a bot.';
 
   static const _messages = {
     'owner_has_no_profile':
