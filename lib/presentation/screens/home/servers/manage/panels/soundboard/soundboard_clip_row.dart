@@ -7,8 +7,8 @@ import '../../../../../../../logic/cubits/server_members/server_members_cubit.da
 import '../../../../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../../../../logic/services/byte_format.dart';
 import '../../../../../../../logic/services/soundboard_staging.dart';
-import '../../../../../../common/quiet_danger_button.dart';
 import '../../../../../../theme/app_text.dart';
+import '../../../../../../theme/custom_colors.dart';
 import '../../../../../../theme/theme_context.dart';
 
 /// One clip in the manage list: what it is, and the two things that can be
@@ -91,11 +91,27 @@ class SoundboardClipRow extends StatelessWidget {
             color: theme.textSecondary,
             onPressed: () => context.read<SoundboardCubit>().preview(sound),
           ),
-          const SizedBox(width: 4),
-          QuietDangerButton(
-            icon: Icons.delete_outline_rounded,
-            label: 'Remove',
-            onTap: busy ? null : onRemove,
+          // An icon, not a button with a word on it. `QuietDangerButton` is
+          // sized to be one option among several in a stacked list; in a
+          // dense row it is a slab of red beside a bare glyph, and it reads
+          // as the point of the row rather than as the thing you reach for
+          // once. The weight this action needs is carried by the
+          // confirmation it opens, not by the control that opens it.
+          IconButton(
+            tooltip: 'Remove',
+            icon: const Icon(Icons.delete_outline_rounded, size: 19),
+            color: theme.textTertiary,
+            hoverColor: CustomColors.error.withValues(alpha: 0.10),
+            // Red on approach rather than at rest: enough to say what it
+            // does before it is pressed, quiet enough to stay in a list.
+            style: ButtonStyle(
+              foregroundColor: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.hovered)
+                    ? CustomColors.error
+                    : theme.textTertiary,
+              ),
+            ),
+            onPressed: busy ? null : onRemove,
           ),
         ],
       ),
