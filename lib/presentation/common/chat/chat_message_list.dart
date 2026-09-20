@@ -53,6 +53,15 @@ class ChatMessageList extends StatefulWidget {
   final bool viewingHistory;
   final Future<void> Function()? onReturnToPresent;
 
+  /// Open a message author's profile. Null on a surface with no profile to
+  /// show — and never called for a row a webhook wrote, which carries a name
+  /// rather than an account.
+  ///
+  /// Takes the id *and* the name because the two chat tiers answer
+  /// differently: a server asks its roster, and a central DM has only the two
+  /// people in it. The surface knows which it is.
+  final void Function(String userId, String name)? onOpenProfile;
+
   /// Start a reply to a message. Null disables replying on this surface.
   final void Function(ChatMessage message)? onReply;
 
@@ -107,6 +116,7 @@ class ChatMessageList extends StatefulWidget {
     this.onShowAround,
     this.viewingHistory = false,
     this.onReturnToPresent,
+    this.onOpenProfile,
     this.onReply,
     this.onForward,
     this.onEdit,
@@ -470,6 +480,11 @@ class _ChatMessageListState extends State<ChatMessageList> {
 
             attachmentLoader: widget.attachmentLoader,
             onToggleReaction: widget.onToggleReaction,
+            // A webhook's row names whoever it was told to name, so there is
+            // no account behind it to open — see [MessageOriginBadge].
+            onOpenProfile: widget.onOpenProfile == null || !msg.origin.isMember
+                ? null
+                : () => widget.onOpenProfile!(msg.authorId, msg.authorName),
             onReply: widget.onReply,
             onForward: widget.onForward,
             repliedTo: origin.original,

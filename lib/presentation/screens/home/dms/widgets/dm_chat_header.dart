@@ -30,6 +30,10 @@ class DmChatHeader extends StatelessWidget {
   final IconData tierIcon;
   final VoidCallback onClose;
 
+  /// Open the other person's profile. Null while nothing is open, and on a
+  /// tier with no profile to show.
+  final VoidCallback? onOpenProfile;
+
   const DmChatHeader({
     super.key,
     required this.title,
@@ -37,7 +41,33 @@ class DmChatHeader extends StatelessWidget {
     required this.tierIcon,
     required this.onClose,
     this.peerId,
+    this.onOpenProfile,
   });
+
+  /// The peer's picture and name, opening their profile where there is one.
+  Widget _identity(BuildContext context, ThemeState themeState) {
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 10,
+      children: [
+        SquircleAvatar(name: title, seed: peerId, size: 30),
+        Flexible(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.panelTitle.copyWith(color: themeState.textPrimary),
+          ),
+        ),
+      ],
+    );
+    final open = onOpenProfile;
+    if (open == null) return row;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: open, child: row),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,17 +105,10 @@ class DmChatHeader extends StatelessWidget {
                 child: Row(
                   spacing: 10,
                   children: [
-                    SquircleAvatar(name: title, seed: peerId, size: 30),
-                    Flexible(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.panelTitle.copyWith(
-                          color: themeState.textPrimary,
-                        ),
-                      ),
-                    ),
+                    // Avatar and name together, because they are one thing:
+                    // the person this conversation is with. The chips beside
+                    // them are about the conversation and stay inert.
+                    Flexible(child: _identity(context, themeState)),
                     // Dropped in this order because the tier chip is the one
                     // that earns its width: it says whether this conversation
                     // is quota-limited, which changes what you do next. The

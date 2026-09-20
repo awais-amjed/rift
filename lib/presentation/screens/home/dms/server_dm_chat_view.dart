@@ -18,6 +18,7 @@ import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../theme/app_text.dart';
 import '../mobile/widgets/mini_call_bar.dart';
+import '../profile/person/show_person_profile.dart';
 import 'widgets/dm_chat_header.dart';
 
 /// The open server-DM conversation: header + history + composer, on the
@@ -51,6 +52,15 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           tierLabel: 'Server',
           title: state.openPeerName ?? '',
           peerId: state.openPeerId,
+          onOpenProfile: state.openPeerId == null
+              ? null
+              : () => unawaited(
+                  showMemberProfile(
+                    context,
+                    userId: state.openPeerId!,
+                    name: state.openPeerName ?? '',
+                  ),
+                ),
           onClose: () => context.read<DmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),
@@ -147,6 +157,8 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           onShowAround: context.read<DmCubit>().showAround,
           viewingHistory: state.hasNewerHistory,
           onReturnToPresent: context.read<DmCubit>().returnToPresent,
+          onOpenProfile: (userId, name) =>
+              unawaited(showMemberProfile(context, userId: userId, name: name)),
           onReply: startReply,
           onForward: (message) => unawaited(
             showForwardDialog(

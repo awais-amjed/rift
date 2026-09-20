@@ -28,13 +28,37 @@ class FriendRow extends StatelessWidget {
   /// cannot type at somebody you have blocked.
   final VoidCallback? onTap;
 
+  /// Opens their profile — from the picture, not the row.
+  ///
+  /// The row already means "talk to them", which is the thing people came to
+  /// this page to do; taking that over would cost a press to gain one. The
+  /// avatar is where Discord puts it and the only part of the row that is
+  /// about the person rather than the conversation. It is also the only way
+  /// in on a blocked or pending row, where [onTap] is null.
+  final VoidCallback? onOpenProfile;
+
   const FriendRow({
     super.key,
     required this.friend,
     this.note,
     this.actions = const [],
     this.onTap,
+    this.onOpenProfile,
   });
+
+  Widget _avatar() {
+    final avatar = SquircleAvatar(
+      name: friend.handle,
+      seed: friend.id,
+      size: 34,
+    );
+    final open = onOpenProfile;
+    if (open == null) return avatar;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: open, child: avatar),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +77,7 @@ class FriendRow extends StatelessWidget {
           child: Row(
             spacing: 11,
             children: [
-              SquircleAvatar(name: friend.handle, seed: friend.id, size: 34),
+              _avatar(),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

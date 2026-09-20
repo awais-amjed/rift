@@ -12,6 +12,7 @@ import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
+import '../../profile/person/show_person_profile.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'role_chip.dart';
 
@@ -79,7 +80,14 @@ class MemberRow extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(K.radiusRow),
           hoverColor: themeState.bgHover,
-          onTap: () {},
+          // The row has been inert since it was written. Clicking a person is
+          // the one thing everybody tries first, and until now it was the
+          // right-click menu or nothing.
+          onTap: () => showMemberProfile(
+            context,
+            userId: member.id,
+            name: member.displayName,
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Row(

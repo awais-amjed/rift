@@ -10,6 +10,7 @@ import '../../../../../../data/enums/friendship_state.dart';
 import '../../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../common/empty_state.dart';
 import '../../../channels/channel_list/widgets/section_header.dart';
+import '../../../profile/person/show_person_profile.dart';
 import '../../open_central_conversation.dart';
 import 'friend_actions.dart';
 import 'friend_row.dart';
@@ -129,6 +130,8 @@ class FriendsList extends StatelessWidget {
         onTap: friend.state == FriendshipState.blocked
             ? null
             : () => openCentralConversation(context, friend.toConversation()),
+        onOpenProfile: () =>
+            unawaited(showCentralProfile(context, friend: friend)),
       ),
     );
   }

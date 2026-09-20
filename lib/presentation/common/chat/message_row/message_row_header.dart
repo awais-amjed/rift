@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/chat_message.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
@@ -19,7 +20,16 @@ class MessageRowHeader extends StatelessWidget {
   /// still says it did not send, it just cannot offer to fix it.
   final VoidCallback? onRetry;
 
-  const MessageRowHeader({super.key, required this.message, this.onRetry});
+  /// Open the author's profile. Null when there is nobody behind the name —
+  /// a webhook's row carries a name it was handed, not an account.
+  final VoidCallback? onOpenProfile;
+
+  const MessageRowHeader({
+    super.key,
+    required this.message,
+    this.onRetry,
+    this.onOpenProfile,
+  });
 
   static String _timeLabel(DateTime t) {
     final local = t.toLocal();
@@ -36,20 +46,7 @@ class MessageRowHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
-          Flexible(
-            child: Text(
-              message.authorName,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.row.copyWith(
-                fontWeight: FontWeight.w700,
-                // Your own name in the accent — the cheapest way to find
-                // yourself in a wall of messages.
-                color: message.isMine
-                    ? themeState.accentBright
-                    : themeState.textPrimary,
-              ),
-            ),
-          ),
+          Flexible(child: _name(themeState)),
           // Between the name and the time, so a skim down the left edge of the
           // list cannot miss it — a badge at the end of the row would sit
           // wherever the name happened to end.
@@ -71,6 +68,33 @@ class MessageRowHeader extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  /// The author's name, which opens their profile where there is one.
+  ///
+  /// No underline and no colour of its own: this line is read far more often
+  /// than it is clicked, and a wall of links down the left of the history
+  /// would be louder than the messages. The cursor says it is pressable to
+  /// anybody who goes looking.
+  Widget _name(ThemeState themeState) {
+    final label = Text(
+      message.authorName,
+      overflow: TextOverflow.ellipsis,
+      style: AppText.row.copyWith(
+        fontWeight: FontWeight.w700,
+        // Your own name in the accent — the cheapest way to find yourself in
+        // a wall of messages.
+        color: message.isMine
+            ? themeState.accentBright
+            : themeState.textPrimary,
+      ),
+    );
+    final open = onOpenProfile;
+    if (open == null) return label;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: open, child: label),
     );
   }
 

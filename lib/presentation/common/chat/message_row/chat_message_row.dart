@@ -54,6 +54,10 @@ class ChatMessageRow extends StatefulWidget {
   /// Toggle a reaction on this message. Null disables reactions on this surface.
   final void Function(String messageId, String emoji)? onToggleReaction;
 
+  /// Open the author's profile. Null where there is nobody to open: a
+  /// webhook wrote the row, or the surface has no profile to show.
+  final VoidCallback? onOpenProfile;
+
   /// Start a reply to this message. Null disables replying on this surface.
   final void Function(ChatMessage message)? onReply;
 
@@ -115,6 +119,7 @@ class ChatMessageRow extends StatefulWidget {
     required this.showHeader,
     this.attachmentLoader,
     this.onToggleReaction,
+    this.onOpenProfile,
     this.onReply,
     this.onForward,
     this.onJumpToOriginal,
@@ -419,10 +424,12 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
               SizedBox(
                 width: ChatMessageRow._gutterWidth,
                 child: widget.showHeader
-                    ? MessageRowAvatar(
-                        authorName: message.authorName,
-                        authorId: message.authorId,
-                        avatarPath: message.authorAvatarPath,
+                    ? _tappable(
+                        MessageRowAvatar(
+                          authorName: message.authorName,
+                          authorId: message.authorId,
+                          avatarPath: message.authorAvatarPath,
+                        ),
                       )
                     : null,
               ),
@@ -431,6 +438,20 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
           ),
         ),
       ),
+    );
+  }
+
+  /// The avatar, clickable when there is a profile behind it.
+  ///
+  /// A plain [GestureDetector] rather than an ink well: the avatar is opaque
+  /// and rounded, so a highlight underneath it would be painted and then
+  /// covered. The pointer change is what says it is pressable.
+  Widget _tappable(Widget child) {
+    final open = widget.onOpenProfile;
+    if (open == null) return child;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: open, child: child),
     );
   }
 
@@ -451,7 +472,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
         if (widget.showHeader)
           MessageRowHeader(
             message: message,
-
+            onOpenProfile: widget.onOpenProfile,
             onRetry: widget.onRetry == null
                 ? null
                 : () => widget.onRetry!(message.id),

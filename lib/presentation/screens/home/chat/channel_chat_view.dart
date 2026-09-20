@@ -23,6 +23,7 @@ import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../mobile/widgets/mini_call_bar.dart';
+import '../profile/person/show_person_profile.dart';
 import 'widgets/chat_header.dart';
 import 'widgets/chat_read_only_banner.dart';
 import 'widgets/chat_status_view.dart';
@@ -250,6 +251,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
           onShowAround: context.read<ChannelChatCubit>().showAround,
           viewingHistory: chatState.hasNewerHistory,
           onReturnToPresent: context.read<ChannelChatCubit>().returnToPresent,
+          onOpenProfile: (userId, name) =>
+              unawaited(showMemberProfile(context, userId: userId, name: name)),
           onReply: startReply,
           onForward: (message) => _forward(context, message, chatState),
           onEdit: context.read<ChannelChatCubit>().editMessage,

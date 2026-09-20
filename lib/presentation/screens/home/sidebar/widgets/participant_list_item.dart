@@ -13,6 +13,7 @@ import '../../../../common/speaking_ring.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_row_metrics.dart';
+import '../../profile/person/show_person_profile.dart';
 import 'voice_status_row_icons.dart';
 
 /// A single participant row inside an active voice channel.
@@ -65,6 +66,14 @@ class ParticipantListItem extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(K.radiusRow),
             hoverColor: hoverColor,
+            // The well was already here, lighting on hover with nothing
+            // behind it. A name in a call is one of the likeliest places to
+            // wonder who somebody is.
+            onTap: () => showMemberProfile(
+              context,
+              userId: participant.userId,
+              name: name,
+            ),
             child: Padding(
               padding: metrics.padding,
               child: Row(

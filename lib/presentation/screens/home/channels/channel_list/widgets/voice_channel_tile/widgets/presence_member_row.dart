@@ -11,6 +11,7 @@ import '../../../../../../../common/squircle_avatar.dart';
 import '../../../../../../../responsive/shell_scope.dart';
 import '../../../../../../../theme/custom_colors.dart';
 import '../../../../../../../theme/theme_context.dart';
+import '../../../../../profile/person/show_person_profile.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
 import 'roster_row_metrics.dart';
 
@@ -55,38 +56,48 @@ class PresenceMemberRow extends StatelessWidget {
     final themeState = context.theme;
     final isMuted = setting?.muted ?? false;
 
-    return Padding(
-      padding: RosterRowMetrics.of(context).padding,
-      child: Row(
-        spacing: 8,
-        children: [
-          SquircleAvatar(
-            name: name,
-            seed: user.userId,
-            size: RosterRowMetrics.of(context).avatarSize,
-          ),
-          Expanded(
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: RosterRowMetrics.of(context).nameStyle.copyWith(
-                fontWeight: FontWeight.w500,
-                color: themeState.textSecondary,
+    // No ink well: this row sits inside the channel's card, and a highlight
+    // would light the strip rather than the row. The cursor is what says it
+    // is pressable, the way the message author's name does.
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () =>
+            showMemberProfile(context, userId: user.userId, name: name),
+        child: Padding(
+          padding: RosterRowMetrics.of(context).padding,
+          child: Row(
+            spacing: 8,
+            children: [
+              SquircleAvatar(
+                name: name,
+                seed: user.userId,
+                size: RosterRowMetrics.of(context).avatarSize,
               ),
-            ),
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: RosterRowMetrics.of(context).nameStyle.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: themeState.textSecondary,
+                  ),
+                ),
+              ),
+              // Locally muted, even though they're in another channel —
+              // otherwise the mute is invisible until you next join them.
+              if (isMuted)
+                Icon(
+                  Icons.volume_off_rounded,
+                  size: RosterRowMetrics.of(context).iconSize + 2,
+                  color: CustomColors.error,
+                ),
+              if (!context.layoutMode.isCompact)
+                ContextMenuButton(menu: menu, visible: hovered),
+            ],
           ),
-          // Locally muted, even though they're in another channel — otherwise
-          // the mute is invisible until you next join them.
-          if (isMuted)
-            Icon(
-              Icons.volume_off_rounded,
-              size: RosterRowMetrics.of(context).iconSize + 2,
-              color: CustomColors.error,
-            ),
-          if (!context.layoutMode.isCompact)
-            ContextMenuButton(menu: menu, visible: hovered),
-        ],
+        ),
       ),
     );
   }

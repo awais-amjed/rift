@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/friend.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/enums/friendship_state.dart';
@@ -16,6 +17,7 @@ import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../theme/app_text.dart';
 import '../mobile/widgets/mini_call_bar.dart';
+import '../profile/person/show_person_profile.dart';
 import 'widgets/dm_chat_header.dart';
 import 'widgets/friends/friend_request_bar.dart';
 import 'widgets/friends/not_friends_note.dart';
@@ -59,6 +61,11 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           tierLabel: 'Central',
           title: '@${state.openPeerHandle ?? ''}',
           peerId: state.openPeerId,
+          onOpenProfile: state.openPeerId == null
+              ? null
+              : () => unawaited(
+                  showCentralProfile(context, friend: _peer(state)),
+                ),
           onClose: () => context.read<CentralDmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),
@@ -125,6 +132,26 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     );
   }
 
+  /// The open conversation's peer as the friends graph knows them.
+  ///
+  /// Taken from the conversation row where there is one, because that is
+  /// where their published keys are — the profile needs them to offer a
+  /// message. Falling back to the id and handle alone still draws a profile;
+  /// it just cannot say whether they have set encrypted chat up.
+  Friend _peer(CentralDmState state) {
+    final peerId = state.openPeerId!;
+    for (final conversation in state.conversations) {
+      if (conversation.peerId == peerId) {
+        return Friend.fromConversation(conversation, state.stateFor(peerId));
+      }
+    }
+    return Friend(
+      id: peerId,
+      handle: state.openPeerHandle ?? '',
+      state: state.stateFor(peerId),
+    );
+  }
+
   Widget _buildBody(CentralDmState state, ThemeState themeState) {
     switch (state.chatStatus) {
       case DmChatStatus.ready:
@@ -146,6 +173,13 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           onShowAround: context.read<CentralDmCubit>().showAround,
           viewingHistory: state.hasNewerHistory,
           onReturnToPresent: context.read<CentralDmCubit>().returnToPresent,
+          // Only the other person. Your own name here would open a profile
+          // of yourself on a tier that holds one handle and two keys — the
+          // handle panel already says all of it, and says it editably.
+          onOpenProfile: (userId, _) {
+            if (userId != state.openPeerId) return;
+            unawaited(showCentralProfile(context, friend: _peer(state)));
+          },
           onReply: startReply,
           // No source server: a central DM's blobs live in central's own
           // bucket, and that is what null means to the forward service.
