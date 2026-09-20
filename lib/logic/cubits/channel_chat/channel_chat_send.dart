@@ -31,11 +31,18 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// rather than read from a cubit here: "I am in this call while I ask" is a
   /// fact about the person sending, and the alternative is this cubit knowing
   /// about LiveKit so it can ask on their behalf.
+  ///
+  /// [replyToId] is the message being answered. It is sealed into the body,
+  /// never sent as a column, and the author it names is added to the
+  /// mentions below so the reply rings — which is the only thing the server
+  /// learns about it, and the same thing it learns from an `@`.
   Future<void> sendMessage(
     String text, {
     List<PendingAttachment> attachments = const [],
     PendingLinkPreview? preview,
     String? inVoiceChannel,
+    String? replyToId,
+    bool pingReplyTo = true,
   }) async {
     final channelId = state.channelId;
     final server = _serverCubit.state.selectedServer;
@@ -50,6 +57,14 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     }
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return;
+
+    // Resolved before the send, against rows already decrypted and verified:
+    // a reference to something this client cannot see is one it has no
+    // business asserting, so it goes out as an ordinary message instead.
+    final answering = replyToId == null
+        ? null
+        : state.messages.where((m) => m.id == replyToId).firstOrNull;
+    final replyId = answering?.id;
 
     // Decided once, here, before anything is sealed — because it decides
     // *whether* anything is sealed. Unrecognised slashes are not commands and
@@ -83,6 +98,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // is exactly when they want to see that confirmed — waiting for a reload
       // to admit it would be the worst timing available.
       isEncrypted: command == null,
+      replyToId: replyId,
     );
     // Show the text immediately; attachments appear once uploaded.
     emit(state.copyWith(messages: [...state.messages, pending]));
@@ -121,6 +137,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
                 text: trimmed,
                 attachments: uploaded,
                 preview: sentPreview,
+                replyToId: replyId,
               ).encode(),
               messageKey: key,
               signingKeyPair: identity.keyPair,
@@ -151,6 +168,19 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         ),
         excludeUserId: user.id,
       );
+      // The author of what is being answered, added to the same array an `@`
+      // writes to. A reply is a message aimed at somebody, and this is the
+      // column that exists for saying so without saying what was said. Their
+      // own reply to themselves never rings, and the toggle is the reader's
+      // choice to answer quietly.
+      final mentioned = {
+        ...named.userIds,
+        if (pingReplyTo &&
+            answering != null &&
+            answering.authorId.isNotEmpty &&
+            answering.authorId != user.id)
+          answering.authorId,
+      }.toList();
 
       // Before the message, not after: the bot polls for what it is addressed,
       // and a summon that lands second is a bot arriving to a call it was told
@@ -174,7 +204,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       final response = await _serverCubit.sendChatMessage(
         channelId: channelId,
         envelope: envelope.toJson(),
-        mentions: named.userIds,
+        mentions: mentioned,
         mentionsAll: named.all,
         toBot: command?.bot.id,
       );
@@ -217,6 +247,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
               text: trimmed,
               attachments: uploaded,
               preview: sentPreview,
+              replyToId: replyId,
               sentAt: DateTime.parse(data['created_at'] as String),
               isMine: true,
               isEncrypted: command == null,
@@ -307,7 +338,11 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         messages: ChatMessageOps.removePending(state.messages, pendingId),
       ),
     );
-    await sendMessage(entry.text, attachments: entry.attachments);
+    await sendMessage(
+      entry.text,
+      attachments: entry.attachments,
+      replyToId: entry.row.replyToId,
+    );
   }
 
   void _removePending(String pendingId) {

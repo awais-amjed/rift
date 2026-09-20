@@ -33,6 +33,11 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
           text: trimmed,
           attachments: existing.attachments,
           preview: existing.preview,
+          // Carried through, not rebuilt. The body is re-sealed from
+          // scratch on every edit, so anything not named here is dropped —
+          // and an edit silently unlinking a reply is a thread coming apart
+          // under a typo fix.
+          replyToId: existing.replyToId,
         ).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,

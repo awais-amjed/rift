@@ -38,6 +38,17 @@ class ChatMessage {
   /// separately from the message body via `list_reactions`.
   final List<MessageReaction> reactions;
 
+  /// The id of the message this one answers, read out of the sealed body.
+  ///
+  /// The *reference*, not the message: what it points at is resolved against
+  /// rows this client has already decrypted and verified, and is handed to the
+  /// row separately. So a reply to something deleted, locked, or simply older
+  /// than the loaded page is still a reply — it just has nothing to quote, and
+  /// says so rather than quoting whatever the sender claimed was there.
+  final String? replyToId;
+
+  bool get isReply => replyToId != null;
+
   final DateTime sentAt;
   final bool isMine;
 
@@ -90,8 +101,13 @@ class ChatMessage {
   /// the header, and only the first row of a group has one — so a failed
   /// message tucking under the message before it would be silent about the one
   /// fact it exists to report.
+  ///
+  /// [replyToId] is in it for the third time over: the quote is drawn once,
+  /// at the top of a group, so a reply tucked under an ordinary message would
+  /// lose the line saying what it answers. Two replies to the *same* message
+  /// still group, which is right — the quote above them covers both.
   String get groupKey => origin.isMember
-      ? '$authorId:$isEncrypted:$isEphemeral:$sendFailed'
+      ? '$authorId:$isEncrypted:$isEphemeral:$sendFailed:${replyToId ?? ''}'
       : '${origin.name}:$authorName';
 
   /// When the author last edited this message, or null if never edited.
@@ -159,6 +175,7 @@ class ChatMessage {
     this.isEncrypted = true,
     this.isLocked = false,
     this.isEphemeral = false,
+    this.replyToId,
   });
 
   ChatMessage copyWith({
@@ -187,5 +204,6 @@ class ChatMessage {
     isEncrypted: isEncrypted,
     isLocked: isLocked,
     isEphemeral: isEphemeral,
+    replyToId: replyToId,
   );
 }

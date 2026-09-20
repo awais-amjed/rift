@@ -103,6 +103,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
             text: body.text,
             attachments: body.attachments,
             preview: body.preview,
+            replyToId: body.replyToId,
             sentAt: DateTime.parse(row['created_at'] as String),
             isMine: row['sender_id'] == localUserId,
             editedAt: DateTime.tryParse('${row['edited_at']}'),

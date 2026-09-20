@@ -17,10 +17,15 @@ mixin _DmSendMixin on Cubit<DmState> {
 
   int _pendingCounter = 0;
 
+  /// [replyToId] names the message being answered. Sealed into the body like
+  /// the text, so the two people in the conversation are the only ones who
+  /// know which message it was. Nothing rings here: a DM already wakes its
+  /// recipient, so there is no mentions array to add anybody to.
   Future<void> sendDm(
     String text, {
     List<PendingAttachment> attachments = const [],
     PendingLinkPreview? preview,
+    String? replyToId,
   }) async {
     final peerId = state.openPeerId;
     final server = _serverCubit.state.selectedServer;
@@ -36,6 +41,12 @@ mixin _DmSendMixin on Cubit<DmState> {
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return;
 
+    // Resolved against rows already decrypted and verified. A reference this
+    // client cannot see is one it has no business asserting.
+    final replyId = replyToId == null
+        ? null
+        : state.messages.where((m) => m.id == replyToId).firstOrNull?.id;
+
     final pendingId = 'pending-${_pendingCounter++}';
     // Held in a local as well as emitted: if this send fails it becomes the row
     // the outbox keeps, and by then the reader may have left the conversation
@@ -48,6 +59,7 @@ mixin _DmSendMixin on Cubit<DmState> {
       sentAt: DateTime.now(),
       isMine: true,
       isPending: true,
+      replyToId: replyId,
     );
     emit(state.copyWith(messages: [...state.messages, pending]));
 
@@ -74,6 +86,7 @@ mixin _DmSendMixin on Cubit<DmState> {
           text: trimmed,
           attachments: uploaded,
           preview: sentPreview,
+          replyToId: replyId,
         ).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,
@@ -111,6 +124,7 @@ mixin _DmSendMixin on Cubit<DmState> {
               text: trimmed,
               attachments: uploaded,
               preview: sentPreview,
+              replyToId: replyId,
               sentAt: DateTime.parse(data['created_at'] as String),
               isMine: true,
             ),
@@ -183,7 +197,11 @@ mixin _DmSendMixin on Cubit<DmState> {
         messages: ChatMessageOps.removePending(state.messages, pendingId),
       ),
     );
-    await sendDm(entry.text, attachments: entry.attachments);
+    await sendDm(
+      entry.text,
+      attachments: entry.attachments,
+      replyToId: entry.row.replyToId,
+    );
   }
 
   void _removePending(String pendingId) {

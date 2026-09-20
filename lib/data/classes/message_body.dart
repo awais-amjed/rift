@@ -27,11 +27,26 @@ class MessageBody {
   /// with the text, so readers never fetch the page — see [LinkPreview].
   final LinkPreview? preview;
 
+  /// The id of the message this one answers, within the same conversation.
+  ///
+  /// **An id and nothing else — never a copy of what was said.** A snapshot
+  /// would render when the original is gone, which is the whole temptation,
+  /// and it would be text the *replier* wrote being drawn under the original
+  /// author's name. Readers resolve this against messages they have already
+  /// verified, so a reply can quote nothing it could not also point at.
+  ///
+  /// Sealed rather than a column for the same reason the body is: the id is
+  /// the conversation's shape, and the server has no business holding it. A
+  /// reply that should ring names its author in `mentions`, which is the
+  /// column that exists for waking somebody without reading anything.
+  final String? replyToId;
+
   const MessageBody({
     this.version = currentVersion,
     this.text = '',
     this.attachments = const [],
     this.preview,
+    this.replyToId,
   });
 
   bool get isEmpty => text.trim().isEmpty && attachments.isEmpty;
@@ -46,6 +61,7 @@ class MessageBody {
     if (attachments.isNotEmpty)
       'att': attachments.map((a) => a.toJson()).toList(),
     if (preview != null) 'prev': preview!.toJson(),
+    if (replyToId != null) 're': replyToId,
   });
 
   /// Parse a decrypted plaintext into a body. Anything that isn't our tagged
@@ -62,6 +78,10 @@ class MessageBody {
                 .toList() ??
             const <Attachment>[];
         final prev = decoded['prev'];
+        // Anything but a non-empty string is no reference at all. A sender
+        // controls this field, and an empty one would resolve to nothing
+        // while still drawing the "original unavailable" bar.
+        final re = decoded['re'];
         return MessageBody(
           version: decoded['v'] as int? ?? currentVersion,
           text: decoded['text'] as String? ?? '',
@@ -69,6 +89,7 @@ class MessageBody {
           preview: prev is Map<String, dynamic>
               ? LinkPreview.fromJson(prev)
               : null,
+          replyToId: re is String && re.isNotEmpty ? re : null,
         );
       }
     } catch (_) {

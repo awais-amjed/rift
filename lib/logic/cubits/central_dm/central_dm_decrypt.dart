@@ -78,6 +78,7 @@ mixin _CentralDmDecryptMixin on Cubit<CentralDmState> {
         text: body.text,
         attachments: body.attachments,
         preview: body.preview,
+        replyToId: body.replyToId,
         sentAt: DateTime.parse(row['created_at'] as String),
         isMine: isMine,
         editedAt: DateTime.tryParse('${row['edited_at']}'),
