@@ -97,12 +97,21 @@ class SoundboardCache {
   }
 
   /// Drop a clip that has been deleted from the server.
+  ///
+  /// The path is *derived*, not looked up. `_files` only knows about clips
+  /// this run has played, so consulting it meant a clip deleted after a
+  /// restart — or deleted on a device that had the file but had not pressed
+  /// it since launch — was forgotten from a map and left on disk. Which is
+  /// every case that matters: the common one is somebody tidying up a
+  /// soundboard days after anyone last used it.
   Future<void> forget(String objectPath) async {
     _bytes.remove(objectPath);
-    final path = _files.remove(objectPath);
-    if (path == null) return;
+    _files.remove(objectPath);
+    if (kIsWeb) return;
+    final file = await _fileFor(objectPath);
+    if (file == null) return;
     try {
-      await File(path).delete();
+      if (await file.exists()) await file.delete();
     } catch (_) {
       // Already gone, or not ours to delete.
     }
