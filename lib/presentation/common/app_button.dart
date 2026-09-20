@@ -121,6 +121,17 @@ class AppButton extends StatelessWidget {
         // Material otherwise pads every button out to a 48px tap target,
         // which would quietly undo the height above.
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        // And density is a *second*, separate subtraction that shrinkWrap
+        // does not cover: Material applies the theme's visual density to a
+        // button's constraints and to nothing else around it. On a desktop
+        // the adaptive default is `VisualDensity.compact` — −2 vertical,
+        // which is −8px — so every button in the app was eight pixels
+        // shorter than the height it was handed, while the plain containers
+        // it lines up with were not. A `QuietDangerButton` at
+        // [K.controlHeight] under an `AppButton` at the same number came out
+        // 44 against 36. Standard means the height above is the height that
+        // gets drawn; `test/app_button_height_test.dart` measures it.
+        visualDensity: VisualDensity.standard,
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(K.radiusRow),
