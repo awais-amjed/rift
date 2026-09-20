@@ -212,9 +212,9 @@ class ParticipantContextMenu extends StatelessWidget {
                         ? 'Unmute their soundboard'
                         : 'Mute their soundboard',
                     isDangerous: soundboardMuted,
-                    onTap: () => context.read<AppCubit>().setParticipantSetting(
-                      ParticipantIdentity.soundboardSettingsKey(targetUserId),
-                      muted: !soundboardMuted,
+                    onTap: () => context.read<AppCubit>().setSoundboardMutedFor(
+                      targetUserId,
+                      !soundboardMuted,
                     ),
                   ),
                 // Sending a summoned bot away — not moderation, and not

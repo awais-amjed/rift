@@ -8,6 +8,7 @@ import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
+import '../../../data/participant_identity.dart';
 import '../../services/windows_audio_ducking/windows_audio_ducking.dart';
 
 part 'app_cubit.g.dart';
@@ -183,6 +184,20 @@ class AppCubit extends HydratedCubit<AppState> {
 
   void setSoundboardMuted(bool muted) =>
       emit(state.copyWith(soundboardMuted: muted));
+
+  /// One person's soundboard, off or back on — their **voice untouched**.
+  ///
+  /// Three settings per person share [participantSettings] under three keys,
+  /// and this is the one that is easy to write by mistake: somebody whose
+  /// airhorn is too loud has not said anything wrong, and muting them for
+  /// it would be the wrong answer to the only complaint anybody has. Named
+  /// rather than left to callers spelling the key themselves, which is how
+  /// two of them came to write the voice one instead.
+  void setSoundboardMutedFor(String userId, bool muted) =>
+      setParticipantSetting(
+        ParticipantIdentity.soundboardSettingsKey(userId),
+        muted: muted,
+      );
 
   void setSoundboardVolume(double volume) =>
       emit(state.copyWith(soundboardVolume: volume.clamp(0.0, 1.0)));

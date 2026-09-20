@@ -13,6 +13,7 @@ import '../../../../theme/theme_context.dart';
 import '../../controls/call_idle_pill.dart';
 import '../../controls/context_strip.dart';
 import '../../controls/control_bar.dart';
+import '../../soundboard/soundboard_activity.dart';
 import 'participant_grid_layout.dart';
 import 'waiting_view.dart';
 
@@ -165,6 +166,10 @@ class _RoomViewState extends State<RoomView> {
                       ),
                     ),
                   ControlBar(visible: _chromeVisible),
+                  // Above the bar, and outside its IgnorePointer: a clip
+                  // that arrives while the chrome has faded is the one
+                  // thing on this screen still worth being able to press.
+                  SoundboardActivity(visible: _chromeVisible),
                   // A phone hides the bar under a thumb's worth of video, so
                   // the two facts you cannot afford to lose stay behind in a
                   // pill: how long, and whether you are muted.

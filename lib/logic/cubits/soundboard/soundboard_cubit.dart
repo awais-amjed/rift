@@ -39,6 +39,17 @@ class SoundboardCubit extends Cubit<SoundboardState> {
   /// honours is one a modified client deletes.
   final SoundboardGate _gate = SoundboardGate();
 
+  /// How long a chip naming the presser stays up, and how many at once.
+  ///
+  /// Short, because it is an answer to a question the sound just asked and
+  /// not a feed. Three, because a fourth would be the control bar's height
+  /// again and the chips sit directly above it.
+  static const Duration heardLifetime = Duration(milliseconds: 2400);
+  static const int maxRecent = 3;
+
+  /// One expiry per chip, so hovering one does not hold the others up.
+  final Map<String, Timer> _heardTimers = {};
+
   late final ServerTopicWatcher _watcher;
 
   SoundboardCubit({
@@ -56,6 +67,7 @@ class SoundboardCubit extends Cubit<SoundboardState> {
       onChanged: () => unawaited(refresh()),
       onServerChanged: (server) {
         _gate.clear();
+        _clearHeard();
         if (server == null) {
           emit(const SoundboardState());
           return;
@@ -235,7 +247,60 @@ class SoundboardCubit extends Cubit<SoundboardState> {
       return;
     }
 
+    // Announced only for a clip that is about to be audible. A press this
+    // device silenced must not put a line on screen, or the mute has stopped
+    // being a mute and become a notification.
+    _announce(userId: userId, soundId: soundId);
     unawaited(_playLocally(sound, volume: volume));
+  }
+
+  // ── Who pressed it ──────────────────────────────────────
+
+  void _announce({required String userId, required String soundId}) {
+    if (isClosed) return;
+    final now = DateTime.now();
+    final id = '$userId:${now.microsecondsSinceEpoch}';
+    final next = [
+      ...state.recent,
+      SoundboardHeard(id: id, userId: userId, soundId: soundId, at: now),
+    ];
+    while (next.length > maxRecent) {
+      _heardTimers.remove(next.removeAt(0).id)?.cancel();
+    }
+    emit(state.copyWith(recent: next));
+    _heardTimers[id] = Timer(heardLifetime, () => dismissHeard(id));
+  }
+
+  /// Keep a chip up — the pointer is on it. A 2.4s window you cannot hit is
+  /// not an affordance, and the mute button lives inside that window.
+  void holdHeard(String id) => _heardTimers.remove(id)?.cancel();
+
+  /// Start its clock again, optionally longer: a chip that has turned into
+  /// its own receipt is offering an undo and needs to outlive the press.
+  void releaseHeard(String id, {Duration? after}) {
+    if (isClosed || !state.recent.any((h) => h.id == id)) return;
+    _heardTimers[id]?.cancel();
+    _heardTimers[id] = Timer(after ?? heardLifetime, () => dismissHeard(id));
+  }
+
+  void dismissHeard(String id) {
+    _heardTimers.remove(id)?.cancel();
+    if (isClosed || !state.recent.any((h) => h.id == id)) return;
+    emit(
+      state.copyWith(
+        recent: [
+          for (final heard in state.recent)
+            if (heard.id != id) heard,
+        ],
+      ),
+    );
+  }
+
+  void _clearHeard() {
+    for (final timer in _heardTimers.values) {
+      timer.cancel();
+    }
+    _heardTimers.clear();
   }
 
   /// Play [sound] on this device and nowhere else.
@@ -250,6 +315,10 @@ class SoundboardCubit extends Cubit<SoundboardState> {
   /// part-way through somebody's airhorn.
   Future<void> silence() async {
     _gate.clear();
+    _clearHeard();
+    if (!isClosed && state.recent.isNotEmpty) {
+      emit(state.copyWith(recent: const []));
+    }
     await SoundboardPlayer.instance.stopAll();
   }
 
@@ -291,6 +360,7 @@ class SoundboardCubit extends Cubit<SoundboardState> {
 
   @override
   Future<void> close() async {
+    _clearHeard();
     await _watcher.dispose();
     await SoundboardPlayer.instance.stopAll();
     return super.close();

@@ -2,6 +2,35 @@ part of 'soundboard_cubit.dart';
 
 enum SoundboardStatus { idle, loading, ready, error }
 
+/// One clip somebody else just played here.
+///
+/// A soundboard is the only thing in a call that is **audible and
+/// anonymous**. Every other noise has a face beside it — a tile lighting up,
+/// a mic glyph on a roster row — and a clip had nothing, so the person who
+/// wanted it to stop had no idea who to ask. That is the whole reason this
+/// exists: not a log, a name.
+///
+/// Only the ids are held. The clip's name and the person's are looked up
+/// where the chip is drawn, because both can change and neither is this
+/// cubit's to cache.
+class SoundboardHeard {
+  /// Unique per press, so two airhorns from the same person a second apart
+  /// are two chips with two lifetimes rather than one that cannot be told
+  /// from the other.
+  final String id;
+
+  final String userId;
+  final String soundId;
+  final DateTime at;
+
+  const SoundboardHeard({
+    required this.id,
+    required this.userId,
+    required this.soundId,
+    required this.at,
+  });
+}
+
 class SoundboardState {
   final SoundboardStatus status;
 
@@ -16,12 +45,19 @@ class SoundboardState {
   /// say it did. Ids only; the press is over by the time anybody hears it.
   final Set<String> pressed;
 
+  /// What other people have just played, oldest first, never more than
+  /// three. Never your own press: you know what you pressed, the button
+  /// already flashed, and a line naming yourself with a Mute-me button
+  /// beside it is nonsense.
+  final List<SoundboardHeard> recent;
+
   const SoundboardState({
     this.status = SoundboardStatus.idle,
     this.serverId,
     this.sounds = const [],
     this.error,
     this.pressed = const {},
+    this.recent = const [],
   });
 
   /// Whether there is anything to show a picker for.
@@ -35,6 +71,7 @@ class SoundboardState {
     String? error,
     bool clearError = false,
     Set<String>? pressed,
+    List<SoundboardHeard>? recent,
   }) {
     return SoundboardState(
       status: status ?? this.status,
@@ -42,6 +79,7 @@ class SoundboardState {
       sounds: sounds ?? this.sounds,
       error: clearError ? null : (error ?? this.error),
       pressed: pressed ?? this.pressed,
+      recent: recent ?? this.recent,
     );
   }
 }

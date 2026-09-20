@@ -74,7 +74,7 @@ class ProfileLocalAudio extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -88,7 +88,8 @@ class ProfileLocalAudio extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Their voice still comes through.',
+                      'Clips they press stop playing here. Their voice is '
+                      'not affected.',
                       style: AppText.secondary.copyWith(
                         color: themeState.textTertiary,
                       ),
@@ -99,11 +100,9 @@ class ProfileLocalAudio extends StatelessWidget {
               const SizedBox(width: 12),
               AppSwitch(
                 value: soundboardMuted,
-                onChanged: (next) =>
-                    context.read<AppCubit>().setParticipantSetting(
-                      ParticipantIdentity.soundboardSettingsKey(userId),
-                      muted: next,
-                    ),
+                onChanged: (next) => context
+                    .read<AppCubit>()
+                    .setSoundboardMutedFor(userId, next),
               ),
             ],
           ),
