@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server_member.dart';
+import '../../../../common/quiet_danger_button.dart';
 import '../../../../theme/theme_context.dart';
-import 'moderation_button.dart';
 
 /// The mute / deafen / ban half of a member's management panel.
 ///
@@ -45,10 +45,10 @@ class MemberModerationRow extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: ModerationButton(
+                  child: QuietDangerButton(
                     icon: member.isMuted ? Icons.mic : Icons.mic_off,
                     label: member.isMuted ? 'Unmute' : 'Server mute',
-                    isActive: member.isMuted,
+                    isDangerous: !member.isMuted,
 
                     onTap: isBusy
                         ? null
@@ -57,10 +57,10 @@ class MemberModerationRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: ModerationButton(
+                  child: QuietDangerButton(
                     icon: member.isDeafened ? Icons.headset : Icons.headset_off,
                     label: member.isDeafened ? 'Undeafen' : 'Server deafen',
-                    isActive: member.isDeafened,
+                    isDangerous: !member.isDeafened,
 
                     onTap: isBusy
                         ? null
@@ -83,12 +83,12 @@ class MemberModerationRow extends StatelessWidget {
           Divider(height: 1, color: themeState.borderPrimary),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: ModerationButton(
+            child: QuietDangerButton(
               icon: member.isBanned
                   ? Icons.lock_open_rounded
                   : Icons.gavel_rounded,
               label: member.isBanned ? 'Lift ban' : 'Ban from server',
-              isActive: member.isBanned,
+              isDangerous: !member.isBanned,
 
               onTap: isBusy ? null : onToggleBan,
             ),

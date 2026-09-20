@@ -5,7 +5,7 @@ import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/confirm_dialog.dart';
-import '../../../members/widgets/moderation_button.dart';
+import '../../../../../common/quiet_danger_button.dart';
 import '../../../roles/member_roles_dialog.dart';
 import 'profile_section.dart';
 
@@ -90,22 +90,22 @@ class ProfileModeration extends StatelessWidget {
               spacing: 6,
               children: [
                 Expanded(
-                  child: ModerationButton(
+                  child: QuietDangerButton(
                     icon: member.isMuted ? Icons.mic : Icons.mic_off,
                     label: member.isMuted ? 'Unmute' : 'Server mute',
-                    isActive: member.isMuted,
+                    isDangerous: !member.isMuted,
                     onTap: isBusy
                         ? null
                         : () => onModerate(muted: !member.isMuted),
                   ),
                 ),
                 Expanded(
-                  child: ModerationButton(
+                  child: QuietDangerButton(
                     icon: member.isDeafened
                         ? Icons.headset
                         : Icons.headset_off,
                     label: member.isDeafened ? 'Undeafen' : 'Server deafen',
-                    isActive: member.isDeafened,
+                    isDangerous: !member.isDeafened,
                     onTap: isBusy
                         ? null
                         : () => onModerate(deafened: !member.isDeafened),
@@ -121,12 +121,12 @@ class ProfileModeration extends StatelessWidget {
               icon: const Icon(Icons.shield_outlined, size: 15),
               onPressed: () => _openRoles(context),
             ),
-            ModerationButton(
+            QuietDangerButton(
               icon: member.isBanned
                   ? Icons.lock_open_rounded
                   : Icons.gavel_rounded,
               label: member.isBanned ? 'Lift ban' : 'Ban from server',
-              isActive: member.isBanned,
+              isDangerous: !member.isBanned,
               onTap: isBusy ? null : () => _toggleBan(context),
             ),
           ],
