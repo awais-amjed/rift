@@ -32,6 +32,7 @@ import '../../services/coalesced_refresh.dart';
 import '../../services/push_service.dart';
 import '../../services/push_wake/wake_index.dart';
 import '../../services/role_ladder.dart';
+import '../../services/server_import_merge.dart';
 import '../../services/server_realtime.dart';
 import '../vault/vault_cubit.dart';
 
@@ -416,9 +417,22 @@ class ServerCubit extends HydratedCubit<ServerState>
   // Hydration
   // ──────────────────────────────────────────────────────────
 
+  /// Reads the persisted list back, with any server it holds twice dropped.
+  ///
+  /// The healing half of the `(supabaseUrl, id)` fix: a device that imported
+  /// a backup under the old URL match came out holding the same server
+  /// several times, and nothing in the app can undo that — every write path
+  /// maps by id and updates all the copies, and leaving removes them all
+  /// together. Doing it here means such a device comes right on its next
+  /// launch rather than carrying the rail entries forever.
   @override
-  ServerState? fromJson(Map<String, dynamic> json) =>
-      ServerState.fromJson(json);
+  ServerState? fromJson(Map<String, dynamic> json) {
+    final restored = ServerState.fromJson(json);
+    final servers = ServerImportMerge.deduplicate(restored.servers);
+    return servers.length == restored.servers.length
+        ? restored
+        : restored.copyWith(servers: servers);
+  }
 
   @override
   Map<String, dynamic>? toJson(ServerState state) => state.toJson();

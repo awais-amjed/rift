@@ -69,49 +69,18 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
 
   /// Reconciles the in-memory server list after a vault backup import.
   ///
-  /// [importedServers] contains full server metadata maps captured at export
-  /// time. For each entry:
-  ///   - If a matching server (by supabaseUrl) already exists in state, its
-  ///     keyVersion is updated and token is stamped stale for re-auth.
-  ///   - If no match exists (e.g. fresh device), a new [Server] is added with
-  ///     a stale token so the next selection triggers a fresh login.
-  /// Servers not present in the backup are removed.
+  /// The matching rule lives in [ServerImportMerge], which is where the
+  /// reasoning about `(supabaseUrl, id)` is written down — this used to match
+  /// on the URL alone and collapse every server on a project into one.
+  ///
+  /// Whatever comes back is stamped stale, so the next selection logs in with
+  /// the restored identity rather than a token minted for the old one.
+  /// Servers the backup does not mention are removed.
   void syncWithImportedVault(List<Map<String, dynamic>> importedServers) {
-    final staleTime = DateTime.fromMillisecondsSinceEpoch(0);
-    final existingByUrl = {for (final s in state.servers) s.supabaseUrl: s};
-
-    final restored = <Server>[];
-    for (final meta in importedServers) {
-      final url = (meta['supabaseUrl'] as String?) ?? '';
-      final keyVersion = (meta['keyVersion'] as String?) ?? 'v1';
-
-      if (url.isEmpty) continue;
-
-      final existing = existingByUrl[url];
-      if (existing != null) {
-        // Existing server — update key version and mark token stale.
-        restored.add(
-          existing.copyWith(keyVersion: keyVersion, tokenIssuedAt: staleTime),
-        );
-      } else {
-        // Fresh device — reconstruct a minimal Server from backup metadata.
-        final id = meta['id'] as String?;
-        if (id == null) continue;
-        restored.add(
-          Server(
-            id: id,
-            name: (meta['name'] as String?) ?? 'Server',
-            iconUrl: meta['iconUrl'] as String?,
-            supabaseUrl: url,
-            supabaseKey: meta['supabaseKey'] as String?,
-            livekitUrl: meta['livekitUrl'] as String?,
-            token: '', // stale — login will replace it
-            keyVersion: keyVersion,
-            tokenIssuedAt: staleTime,
-          ),
-        );
-      }
-    }
+    final restored = ServerImportMerge.apply(
+      existing: state.servers,
+      imported: importedServers,
+    );
 
     final newSelectedId = restored.any((s) => s.id == state.selectedServerId)
         ? state.selectedServerId
