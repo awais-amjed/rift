@@ -29,6 +29,7 @@ import '../../services/room_tiles.dart';
 import '../../services/serial_queue.dart';
 import '../../services/share_presence.dart';
 import '../../services/sound_service.dart';
+import '../../services/soundboard_play.dart';
 import '../../services/speech_detector.dart';
 import '../../services/voice_attributes.dart';
 import '../../services/voice_keys.dart';
@@ -38,6 +39,7 @@ import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
 import '../sound_share/sound_share_cubit.dart';
+import '../soundboard/soundboard_cubit.dart';
 import '../token/token_cubit.dart';
 import '../vault/vault_cubit.dart';
 
@@ -77,6 +79,12 @@ class LiveKitCubit extends Cubit<LiveKitState>
   ScreenshareCubit? _screenshareCubit;
   @override
   SoundShareCubit? _soundShareCubit;
+
+  /// The ear on the data channel for soundboard presses, and the thing that
+  /// stops a clip when the call ends. Injected after construction like the
+  /// two share cubits — it needs this cubit to publish a press.
+  @override
+  SoundboardCubit? _soundboardCubit;
   @override
   final List<EventsListener<RoomEvent>> _listeners = [];
 
@@ -111,6 +119,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
   void setSoundShareCubit(SoundShareCubit cubit) {
     _soundShareCubit = cubit;
+  }
+
+  void setSoundboardCubit(SoundboardCubit cubit) {
+    _soundboardCubit = cubit;
   }
 
   /// Keeps the call notification's mute button honest.

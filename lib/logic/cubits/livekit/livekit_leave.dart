@@ -16,6 +16,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   AppCubit get _appCubit;
   ScreenshareCubit? get _screenshareCubit;
   SoundShareCubit? get _soundShareCubit;
+  SoundboardCubit? get _soundboardCubit;
   List<EventsListener<RoomEvent>> get _listeners;
   Future<void> _stopVoiceActivityMonitor();
 
@@ -37,6 +38,11 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
       if (_soundShareCubit?.state.isSharing == true) {
         await _soundShareCubit?.stopSoundShare();
       }
+
+      // A clip is played locally, so nothing about leaving the room stops
+      // one that is halfway through — it would go on sounding in an empty
+      // window. Not awaited: the leave should not wait on an airhorn.
+      unawaited(_soundboardCubit?.silence() ?? Future<void>.value());
 
       unawaited(SoundService.instance.playLeave());
       _appCubit.setParticipants([]);

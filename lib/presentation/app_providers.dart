@@ -14,6 +14,7 @@ import '../logic/cubits/server/server_cubit.dart';
 import '../logic/cubits/server_events/server_events_cubit.dart';
 import '../logic/cubits/server_members/server_members_cubit.dart';
 import '../logic/cubits/sound_share/sound_share_cubit.dart';
+import '../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../logic/cubits/theme/theme_cubit.dart';
 import '../logic/cubits/token/token_cubit.dart';
@@ -62,6 +63,13 @@ class AppProviders extends StatelessWidget {
         ),
         BlocProvider(create: _createScreenshareCubit),
         BlocProvider(create: _createSoundShareCubit),
+        BlocProvider(
+          // Not lazy: this is the ear on the call's data channel. A clip
+          // somebody presses has to be heard whether or not anything on
+          // screen has ever asked for the library.
+          lazy: false,
+          create: _createSoundboardCubit,
+        ),
         BlocProvider(
           create: (context) =>
               VoiceStatsCubit(livekitCubit: context.read<LiveKitCubit>()),
@@ -165,6 +173,18 @@ class AppProviders extends StatelessWidget {
     // So a LiveKit disconnect tears down an active share.
     context.read<LiveKitCubit>().setSoundShareCubit(soundShareCubit);
     return soundShareCubit;
+  }
+
+  SoundboardCubit _createSoundboardCubit(BuildContext context) {
+    final soundboardCubit = SoundboardCubit(
+      serverCubit: context.read<ServerCubit>(),
+      appCubit: appCubit,
+      livekitCubit: context.read<LiveKitCubit>(),
+    );
+    // So a press arriving on the data channel reaches it, and so leaving a
+    // call or deafening cuts off a clip already playing.
+    context.read<LiveKitCubit>().setSoundboardCubit(soundboardCubit);
+    return soundboardCubit;
   }
 
   ServerMembersCubit _createServerMembersCubit(BuildContext context) {

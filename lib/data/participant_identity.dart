@@ -63,6 +63,17 @@ class ParticipantIdentity {
   static String soundShareSettingsKey(String identity) =>
       '${userIdOf(identity)}$soundShareSuffix';
 
+  /// The key one person's *soundboard* mute and volume are stored under.
+  ///
+  /// A third setting beside their voice and their shared track, and separate
+  /// for the same reason those two are separate: somebody whose airhorn is
+  /// too loud has not said anything wrong, and turning them down should not
+  /// mean turning them off.
+  ///
+  /// Keyed by user id, not identity — a clip is a person pressing a button,
+  /// and which of their devices they pressed it on is not interesting.
+  static String soundboardSettingsKey(String userId) => '${userId}_soundboard';
+
   /// The user id encoded in an identity, independent of device or share.
   /// Falls back to the whole base string for legacy identities issued before
   /// the device segment existed (no `~`).

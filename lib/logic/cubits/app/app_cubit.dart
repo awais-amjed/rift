@@ -177,6 +177,16 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(participantSettings: updated));
   }
 
+  // ── Persisted: the soundboard, as this device hears it ───
+  // Neither of these asks a server anything. Everybody in a call plays a
+  // clip out of their own speakers, so how loud it is here is settled here.
+
+  void setSoundboardMuted(bool muted) =>
+      emit(state.copyWith(soundboardMuted: muted));
+
+  void setSoundboardVolume(double volume) =>
+      emit(state.copyWith(soundboardVolume: volume.clamp(0.0, 1.0)));
+
   // ── Transient: sidebar hover ─────────────────────────────
 
   void setIsHovered(bool isHovered) {

@@ -16,6 +16,7 @@ import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
+import '../../../data/classes/soundboard_sound.dart';
 import '../../../data/classes/user_permissions.dart';
 import '../../../data/classes/webhook.dart';
 import '../../../data/enums/error_code.dart';
@@ -25,6 +26,7 @@ import '../../../data/repositories/avatar_repository.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/server_db.dart';
 import '../../../data/repositories/server_repository.dart';
+import '../../../data/repositories/soundboard_repository.dart';
 import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
 import '../../services/avatar_cache.dart';
@@ -34,6 +36,7 @@ import '../../services/push_wake/wake_index.dart';
 import '../../services/role_ladder.dart';
 import '../../services/server_import_merge.dart';
 import '../../services/server_realtime.dart';
+import '../../services/soundboard_cache.dart';
 import '../vault/vault_cubit.dart';
 
 part 'server_api.dart';
@@ -50,6 +53,7 @@ part 'server_profile_api.dart';
 part 'server_push_api.dart';
 part 'server_roles_api.dart';
 part 'server_selection.dart';
+part 'server_soundboard_api.dart';
 part 'server_state.dart';
 part 'server_voice_bots_api.dart';
 part 'server_webhooks_api.dart';
@@ -70,6 +74,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerChatApiMixin,
         _ServerProfileApiMixin,
         _ServerPushApiMixin,
+        _ServerSoundboardApiMixin,
         _ServerWebhooksApiMixin {
   @override
   final ServerRepository _repository = ServerRepository();
@@ -81,6 +86,10 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// Avatar upload/download — plaintext, unlike attachments (`005_bots.sql`).
   @override
   final AvatarRepository _avatars = AvatarRepository();
+
+  /// Soundboard clips: plaintext too, and for the same reason.
+  @override
+  final SoundboardRepository _sounds = SoundboardRepository();
 
   /// Central, for one thing only: minting and revoking the credential a
   /// self-hosted server forwards its pushes over. A server cannot reach a

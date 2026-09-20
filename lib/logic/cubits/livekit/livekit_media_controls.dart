@@ -2,6 +2,7 @@ part of 'livekit_cubit.dart';
 
 mixin _MediaControlsMixin on Cubit<LiveKitState> {
   AppCubit get _appCubit;
+  SoundboardCubit? get _soundboardCubit;
   Future<void> _publishSelfState();
   Future<void> _syncMicrophoneTransmission({bool syncParticipants = false});
   void _syncParticipants();
@@ -42,7 +43,13 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     emit(state.copyWith(isDeafened: deafened));
 
     if (state.isDeafenedEffective) {
-      if (!wasDeafened) await _silenceRemoteAudio();
+      // Soundboard clips are not remote audio — they come out of this
+      // device's own speakers — so silencing the room does not touch one
+      // that is already playing. Deafening has to stop it by name.
+      if (!wasDeafened) {
+        unawaited(_soundboardCubit?.silence() ?? Future<void>.value());
+        await _silenceRemoteAudio();
+      }
     } else if (wasDeafened) {
       await _restoreRemoteAudio();
     }

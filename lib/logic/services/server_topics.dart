@@ -51,6 +51,10 @@ class ServerEvent {
   static const String channels = 'channels';
   static const String members = 'members';
 
+  /// The soundboard library moved. Not a play — a play never reaches the
+  /// database at all, and this is only "go and re-read the list".
+  static const String soundboard = 'soundboard';
+
   // From the database, on a user topic.
   static const String me = 'me';
   static const String dm = 'dm';

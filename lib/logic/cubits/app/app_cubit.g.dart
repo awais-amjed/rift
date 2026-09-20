@@ -49,6 +49,8 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
           ?.map((e) => e as String)
           .toList() ??
       const [],
+  soundboardMuted: json['soundboardMuted'] as bool? ?? false,
+  soundboardVolume: (json['soundboardVolume'] as num?)?.toDouble() ?? 0.6,
   membersSidebarOpen: json['membersSidebarOpen'] as bool? ?? true,
   sidebarWidth: (json['sidebarWidth'] as num?)?.toDouble() ?? K.sidebarWidth,
   membersSidebarWidth:
@@ -86,6 +88,8 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'noiseSuppression': instance.noiseSuppression,
   'echoCancellation': instance.echoCancellation,
   'autoGainControl': instance.autoGainControl,
+  'soundboardMuted': instance.soundboardMuted,
+  'soundboardVolume': instance.soundboardVolume,
   'recentEmojis': instance.recentEmojis,
 };
 

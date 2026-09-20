@@ -2,6 +2,7 @@ part of 'livekit_cubit.dart';
 
 mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   List<EventsListener<RoomEvent>> get _listeners;
+  SoundboardCubit? get _soundboardCubit;
   AppCubit get _appCubit;
   TokenCubit get _tokenCubit;
   void _syncParticipants();
@@ -122,17 +123,36 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       // see [VoiceAttributes].
       ..on<ParticipantAttributesChanged>((e) => _syncParticipants())
       ..on<ParticipantPermissionsUpdatedEvent>((e) => _syncParticipants())
-      // Staff pulling us into another channel, sent by the `move_user` edge
-      // function. Everything else on the data channel is somebody else's.
+      // Two things arrive on the data channel, and which one a packet is
+      // turns on whether it has a sender.
       ..on<DataReceivedEvent>((e) {
+        // Staff pulling us into another channel, sent by the `move_user` edge
+        // function. A packet from the LiveKit API has no sender; a member
+        // can't fake that, and a member can't move anyone.
         final destination = VoiceSignal.moveDestination(
           data: e.data,
           topic: e.topic,
-          // A packet from the LiveKit API has no sender; a member can't fake
-          // that, and a member can't move anyone.
           fromServer: e.participant == null,
         );
-        if (destination != null) _onMovedTo(destination);
+        if (destination != null) {
+          _onMovedTo(destination);
+          return;
+        }
+
+        // Somebody pressing a soundboard clip. Here the sender is the point:
+        // it decides whose cooldown applies and whose mute is honoured, so a
+        // packet without one is dropped rather than played.
+        final soundId = SoundboardPlay.soundId(
+          data: e.data,
+          topic: e.topic,
+          fromParticipant: e.participant != null,
+        );
+        if (soundId != null) {
+          _soundboardCubit?.hear(
+            userId: ParticipantIdentity.userIdOf(e.participant!.identity),
+            soundId: soundId,
+          );
+        }
       })
       ..on<RoomDisconnectedEvent>((e) {
         // Only handle unexpected disconnects; intentional disconnects set state beforehand.

@@ -26,6 +26,7 @@ part 'server_repository_push.dart';
 part 'server_repository_reactions.dart';
 part 'server_repository_roles.dart';
 part 'server_repository_server.dart';
+part 'server_repository_soundboard.dart';
 part 'server_repository_unread.dart';
 part 'server_repository_voice.dart';
 part 'server_repository_webhooks.dart';
@@ -62,6 +63,7 @@ class ServerRepository
         _RoleApiMixin,
         _OwnershipApiMixin,
         _ServerApiMixin,
+        _SoundboardApiMixin,
         _UnreadApiMixin,
         _VoiceApiMixin,
         _WebhookApiMixin {

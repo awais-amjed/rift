@@ -194,6 +194,22 @@ enum ServerPermission {
     'Summon bots',
     'Bring a bot into a call to play or announce something. It publishes and '
         'cannot hear — listening is a separate grant only Manage bots gives.',
+  ),
+
+  // ── Soundboard ──────────────────────────────────────────
+  manageSoundboard(
+    24,
+    PermissionGroup.server,
+    'Manage soundboard',
+    'Add and remove the clips on the server\'s soundboard. What a whole call '
+        'hears is not one member\'s to decide.',
+  ),
+  useSoundboard(
+    25,
+    PermissionGroup.voice,
+    'Use soundboard',
+    'Play a clip into a call. Everyone hearing it can turn it down or off '
+        'for themselves, which is a setting on their device and not a grant.',
   );
 
   final int bit;

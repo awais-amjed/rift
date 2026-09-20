@@ -59,6 +59,21 @@ class AppState {
   final bool echoCancellation;
   final bool autoGainControl;
 
+  // ── The soundboard, as this device hears it ───────────────
+  // Both of these are the *listener's*, and neither asks a server anything.
+  // A clip is played locally by everyone who receives the press, so what it
+  // sounds like here is decided here — and per-person volume for a single
+  // sound goes in [participantSettings] under
+  // `ParticipantIdentity.soundboardSettingsKey`, beside the one for a voice
+  // and the one for a shared track.
+
+  /// Whether this device plays other people's clips at all.
+  final bool soundboardMuted;
+
+  /// How loud, 0–1, when it does. Starts below the room: a clip is a
+  /// punctuation mark and should not be louder than the person talking.
+  final double soundboardVolume;
+
   /// Emoji the user reaches for, most recent first, capped at
   /// [AppCubit.maxRecentEmojis]. Kept here rather than in the emoji package's
   /// own store: its writer needs a handle to the widget it ships, which the
@@ -108,6 +123,8 @@ class AppState {
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.recentEmojis = const [],
+    this.soundboardMuted = false,
+    this.soundboardVolume = 0.6,
     this.membersSidebarOpen = true,
     this.sidebarWidth = K.sidebarWidth,
     this.membersSidebarWidth = K.membersSidebarWidth,
@@ -146,6 +163,8 @@ class AppState {
     bool? echoCancellation,
     bool? autoGainControl,
     List<String>? recentEmojis,
+    bool? soundboardMuted,
+    double? soundboardVolume,
     bool? membersSidebarOpen,
     double? sidebarWidth,
     double? membersSidebarWidth,
@@ -189,6 +208,8 @@ class AppState {
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,
       recentEmojis: recentEmojis ?? this.recentEmojis,
+      soundboardMuted: soundboardMuted ?? this.soundboardMuted,
+      soundboardVolume: soundboardVolume ?? this.soundboardVolume,
       membersSidebarOpen: membersSidebarOpen ?? this.membersSidebarOpen,
       sidebarWidth: sidebarWidth ?? this.sidebarWidth,
       membersSidebarWidth: membersSidebarWidth ?? this.membersSidebarWidth,
