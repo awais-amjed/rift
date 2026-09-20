@@ -206,6 +206,11 @@ class K {
   /// a group read as one block of speech rather than repeated headers.
   static const double messageGutter = 34;
 
+  /// The rule down the left of a message a jump has just landed on. Wider
+  /// than a hairline on purpose: the tint behind it fades, and this is what
+  /// is still legible in the last third of that.
+  static const double messageFlashRule = 2;
+
   // ── Chat composer ─────────────────────────────────────────
   /// Every control in the composer row (attach, emoji, mic, send) is a square
   /// of this size, and the text field is floored to it, so the icons and the

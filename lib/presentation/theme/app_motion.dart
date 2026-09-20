@@ -38,6 +38,16 @@ class AppMotion {
   /// waits it out.
   static const Duration enter = Duration(milliseconds: 220);
 
+  /// A marker holding still long enough to be found — the highlight left on
+  /// a message after jumping to it.
+  ///
+  /// The exception the rule allows, and only because of what it is for: the
+  /// jump moves the page, and the eye arrives after the scroll does. A tint
+  /// timed like [enter] is gone before anybody has looked at the row it was
+  /// pointing at, which makes the jump feel like it landed somewhere
+  /// arbitrary. Nothing waits on this — it fades under whatever you do next.
+  static const Duration linger = Duration(milliseconds: 900);
+
   // ── And how ───────────────────────────────────────────────
 
   /// Settling into a new state. Fast at the start, easing out, no overshoot.

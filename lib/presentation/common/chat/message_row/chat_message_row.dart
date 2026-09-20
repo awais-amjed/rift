@@ -27,6 +27,7 @@ import 'link_tap_recognizers.dart';
 import 'message_action_sheet.dart';
 import 'message_context_menu.dart';
 import 'message_edit_field.dart';
+import 'message_flash_highlight.dart';
 import 'message_forwarded_card.dart';
 import 'message_hover_toolbar.dart';
 import 'message_locked_body.dart';
@@ -58,6 +59,14 @@ class ChatMessageRow extends StatefulWidget {
 
   /// Carry this message into another conversation. Null disables forwarding.
   final void Function(ChatMessage message)? onForward;
+
+  /// Take the reader to the message this one answers. Null where the list
+  /// cannot scroll, or where there is nothing loaded to scroll to.
+  final VoidCallback? onJumpToOriginal;
+
+  /// Set when a jump has just landed on this row, and changed on every jump
+  /// so the same row can be flashed twice. See [MessageFlashHighlight].
+  final int? flashToken;
 
   /// The message this one answers, already decrypted and verified by this
   /// client, or null when the reference points at something it cannot show.
@@ -105,6 +114,8 @@ class ChatMessageRow extends StatefulWidget {
     this.onToggleReaction,
     this.onReply,
     this.onForward,
+    this.onJumpToOriginal,
+    this.flashToken,
     this.repliedTo,
     this.onEdit,
     this.onDelete,
@@ -313,6 +324,12 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
           clipBehavior: Clip.none,
           children: [
             _buildRow(),
+            // Over the row rather than behind it, so it tints the whole
+            // line including the avatar gutter — the mark has to say
+            // "this one", and half a row says "roughly here".
+            Positioned.fill(
+              child: MessageFlashHighlight(token: widget.flashToken),
+            ),
             if (_showToolbar)
               Positioned(
                 // Lifted clear of the row and aligned with its text edge, so
@@ -422,7 +439,10 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
         // who is answering. Once per group — [ChatMessage.groupKey] carries
         // the reference for that reason.
         if (widget.showHeader && message.isReply)
-          MessageReplyQuote(original: widget.repliedTo),
+          MessageReplyQuote(
+            original: widget.repliedTo,
+            onJump: widget.onJumpToOriginal,
+          ),
         if (widget.showHeader)
           MessageRowHeader(
             message: message,

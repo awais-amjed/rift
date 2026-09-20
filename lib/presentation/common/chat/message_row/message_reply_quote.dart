@@ -17,10 +17,31 @@ import '../../../theme/theme_context.dart';
 class MessageReplyQuote extends StatelessWidget {
   final ChatMessage? original;
 
-  const MessageReplyQuote({super.key, this.original});
+  /// Take the reader to what this answers. Null when there is nothing to go
+  /// to — which is the same condition as [original] being null, and is why
+  /// the "unavailable" line is not a button: a control that cannot do its
+  /// one job is worse than a sentence saying why.
+  final VoidCallback? onJump;
+
+  const MessageReplyQuote({super.key, this.original, this.onJump});
 
   @override
   Widget build(BuildContext context) {
+    final message = original;
+    final line = _line(context);
+    if (message == null || onJump == null) return line;
+
+    // Wrapped rather than given its own ground: the quote is a line of text
+    // above a message, and a button-shaped one would read as chrome. The
+    // cursor is what says it is pressable, and the row's own hover is
+    // already lighting behind it.
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: onJump, child: line),
+    );
+  }
+
+  Widget _line(BuildContext context) {
     final theme = context.theme;
     final message = original;
 

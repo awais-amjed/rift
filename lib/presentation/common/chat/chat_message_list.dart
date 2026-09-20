@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +9,7 @@ import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
 import 'attachments/attachment_loader.dart';
 import 'date_divider.dart';
+import 'message_jump.dart';
 import 'message_row/chat_message_row.dart';
 
 /// Scrollable message history, newest at the bottom (reversed list, so it
@@ -101,10 +104,50 @@ class _ChatMessageListState extends State<ChatMessageList> {
   /// animate. The first populated frame primes this set silently.
   final Set<String> _seen = <String>{};
 
+  /// Scrolling to a message a reply points at.
+  final MessageJumper _jumper = MessageJumper();
+
+  /// The row a jump last landed on, and a token that changes every time one
+  /// does — so tapping the same quote twice flashes twice.
+  String? _flashRowId;
+  int _flashToken = 0;
+
   /// Highest server id seen so far. Live messages exceed it; a back-filled
   /// history page (scroll-up pagination) does not — so scrolling never
   /// animates old rows in.
   int _maxSeenId = 0;
+
+  /// Go to the message [rowId], and mark it once we are there.
+  ///
+  /// The mark is set on arrival rather than on the press: a jump that could
+  /// not get there would otherwise tint a row nobody is looking at, and the
+  /// reader would go hunting for a highlight somewhere off screen.
+  Future<void> _jumpTo(String rowId) async {
+    final arrived = await _jumper.jumpTo(
+      rowId,
+      controller: widget.controller,
+      fractionOf: _fractionOf,
+    );
+    if (!arrived || !mounted) return;
+    setState(() {
+      _flashRowId = rowId;
+      _flashToken++;
+    });
+  }
+
+  /// Where a row sits in the list, 0 at the end the scroll starts from.
+  ///
+  /// The list is reversed, so index 0 — the oldest message — is the far end,
+  /// and this counts from the other side. Rows are not all the same height,
+  /// so this is a guess; [MessageJumper] is built around correcting it.
+  double? _fractionOf(String rowId) {
+    final items = _buildItems();
+    final index = items.indexWhere(
+      (item) => item is _MsgItem && item.message.rowId == rowId,
+    );
+    if (index < 0 || items.length < 2) return null;
+    return (items.length - 1 - index) / (items.length - 1);
+  }
 
   /// Build the flat render list: messages interleaved with day dividers, each
   /// message tagged with whether it opens a group (shows avatar + header).
@@ -214,6 +257,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
         // hundred messages where most are replies is otherwise a scan of the
         // whole history for every row the viewport builds.
         final byId = {for (final m in widget.messages) m.id: m};
+        _jumper.keepOnly({for (final m in widget.messages) m.rowId});
 
         return ListView.builder(
           controller: widget.controller,
@@ -226,30 +270,45 @@ class _ChatMessageListState extends State<ChatMessageList> {
               return DateDivider(label: item.label);
             }
             final msg = (item as _MsgItem).message;
-            return ChatMessageRow(
-              // Not `msg.id`: your own message is drawn under a local id and
-              // then handed the server's, and keying by that would make the
-              // ack destroy the row mid-entrance. See [ChatMessage.rowId].
-              key: ValueKey(msg.rowId),
-              message: msg,
-              showHeader: item.showHeader,
+            // The GlobalKey goes on a wrapper, not on the row. It exists
+            // only to give [MessageJumper] something to scroll to, and the
+            // row's own key is load-bearing for a different reason — see
+            // below. One widget cannot carry both.
+            return KeyedSubtree(
+              key: _jumper.keyFor(msg.rowId),
+              child: ChatMessageRow(
+                // Not `msg.id`: your own message is drawn under a local id and
+                // then handed the server's, and keying by that would make the
+                // ack destroy the row mid-entrance. See [ChatMessage.rowId].
+                key: ValueKey(msg.rowId),
+                message: msg,
+                showHeader: item.showHeader,
 
-              attachmentLoader: widget.attachmentLoader,
-              onToggleReaction: widget.onToggleReaction,
-              onReply: widget.onReply,
-              onForward: widget.onForward,
-              // Resolved from what is loaded and nothing else. A reference to
-              // a message further back than the page is drawn as a reference
-              // with nothing behind it, which is what it is.
-              repliedTo: msg.replyToId == null ? null : byId[msg.replyToId],
-              onEdit: widget.onEdit,
-              onDelete: widget.onDelete,
-              onRetry: widget.onRetry,
-              onPanelAction: widget.onPanelAction,
-              isModerator: widget.isModerator,
-              mentionable: widget.mentionable,
-              mentionNames: widget.mentionNames,
-              animateIn: _animating.contains(msg.id),
+                attachmentLoader: widget.attachmentLoader,
+                onToggleReaction: widget.onToggleReaction,
+                onReply: widget.onReply,
+                onForward: widget.onForward,
+                // Resolved from what is loaded and nothing else. A reference to
+                // a message further back than the page is drawn as a reference
+                // with nothing behind it, which is what it is.
+                repliedTo: msg.replyToId == null ? null : byId[msg.replyToId],
+                // Offered only when there is somewhere to go: the quote draws
+                // "original unavailable" otherwise, and that line is not a
+                // button.
+                onJumpToOriginal:
+                    msg.replyToId != null && byId.containsKey(msg.replyToId)
+                    ? () => unawaited(_jumpTo(byId[msg.replyToId]!.rowId))
+                    : null,
+                flashToken: msg.rowId == _flashRowId ? _flashToken : null,
+                onEdit: widget.onEdit,
+                onDelete: widget.onDelete,
+                onRetry: widget.onRetry,
+                onPanelAction: widget.onPanelAction,
+                isModerator: widget.isModerator,
+                mentionable: widget.mentionable,
+                mentionNames: widget.mentionNames,
+                animateIn: _animating.contains(msg.id),
+              ),
             );
           },
         );
