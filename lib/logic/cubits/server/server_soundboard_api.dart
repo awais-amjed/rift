@@ -169,6 +169,23 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
     );
     if (response.success) {
       unawaited(SoundboardCache.instance.forget(objectPath));
+      // The row is gone, so the picker is already right. The file is a
+      // second call because nothing in the database can make it: Storage
+      // refuses a direct DELETE on its own table, and doing it there would
+      // only drop the row and leave the bytes on disk anyway. Unawaited and
+      // unreported for the same reason it runs second — an object nobody
+      // points at costs space, and there is nothing useful to tell somebody
+      // who has already watched the clip disappear.
+      unawaited(
+        _callWithAutoRefresh(
+          (token) => _sounds.deleteObject(
+            baseUrl: server.supabaseUrl,
+            anonKey: _anonKey,
+            bearerToken: token,
+            path: objectPath,
+          ),
+        ),
+      );
     }
     return (
       success: response.success,

@@ -122,4 +122,42 @@ class SoundboardRepository {
       return APIResponse.error(e);
     }
   }
+
+  /// Remove one clip's bytes.
+  ///
+  /// Through the Storage API and not a `DELETE FROM storage.objects`, which
+  /// used to be a trigger on the row: Storage guards that table against
+  /// direct deletion, and even with the guard opted out it would have
+  /// removed the row while leaving the file itself on the host's disk
+  /// forever. Only this endpoint knows where the bytes are.
+  ///
+  /// Called *after* the row is gone, so a failure here leaks an object
+  /// rather than leaving a clip in every picker with nothing behind it.
+  Future<APIResponse> deleteObject({
+    required String baseUrl,
+    required String anonKey,
+    required String bearerToken,
+    required String path,
+  }) async {
+    try {
+      final resp = await _http
+          .delete(
+            Uri.parse('$baseUrl/storage/v1/object/$bucket/$path'),
+            headers: _headers(anonKey, bearerToken),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (resp.statusCode == 401 || resp.statusCode == 403) {
+        return APIResponse.error('Not authorized', errorCode: 'token_expired');
+      }
+      // A clip whose file is already gone is the state we wanted.
+      if (resp.statusCode == 404) return APIResponse.success(null);
+      if (resp.statusCode >= 300) {
+        return APIResponse.error('Delete failed (${resp.statusCode})');
+      }
+      return APIResponse.success(null);
+    } catch (e) {
+      return APIResponse.error(e);
+    }
+  }
 }
