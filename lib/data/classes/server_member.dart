@@ -31,6 +31,14 @@ class ServerMember {
   /// Object name of the avatar inside the `avatars` bucket, or null.
   final String? avatarPath;
 
+  /// When they joined **this** server (`users.created_at`), or null on a
+  /// server too old to send the column.
+  ///
+  /// Only ever this server's tenure. Servers do not know about each other and
+  /// the central tier is not asked, so there is no global "member since" this
+  /// could be mistaken for — the profile says which server it means.
+  final DateTime? joinedAt;
+
   const ServerMember({
     required this.id,
     required this.username,
@@ -43,6 +51,7 @@ class ServerMember {
     this.manifest = BotManifest.empty,
     this.chatPublicKey,
     this.avatarPath,
+    this.joinedAt,
   });
 
   factory ServerMember.fromJson(Map<String, dynamic> json) {
@@ -62,6 +71,7 @@ class ServerMember {
       manifest: BotManifest.fromJson(json['manifest'] as Map<String, dynamic>?),
       chatPublicKey: json['chat_public_key'] as String?,
       avatarPath: json['avatar_path'] as String?,
+      joinedAt: DateTime.tryParse(json['joined_at'] as String? ?? ''),
     );
   }
 
@@ -101,6 +111,7 @@ class ServerMember {
       manifest: manifest,
       chatPublicKey: chatPublicKey,
       avatarPath: avatarPath,
+      joinedAt: joinedAt,
     );
   }
 }

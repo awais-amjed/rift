@@ -169,6 +169,33 @@ void main() {
     });
   });
 
+  group('when they joined', () {
+    test('is read from the row and kept through copyWith', () {
+      final parsed = ServerMember.fromJson({
+        'id': '1',
+        'username': 'ana',
+        'display_name': 'Ana',
+        'joined_at': '2026-09-06T20:46:32.016884+00:00',
+      });
+      expect(parsed.joinedAt, DateTime.utc(2026, 9, 6, 20, 46, 32, 16, 884));
+      // The profile draws it beside three moderation buttons, and every one
+      // of them rebuilds the row through copyWith.
+      expect(parsed.copyWith(isMuted: true).joinedAt, parsed.joinedAt);
+    });
+
+    test('is null on a server too old to send the column', () {
+      // `member_directory` gained `joined_at` after the first servers were
+      // running. An absent column is "not known", which the profile leaves
+      // the line out for — never epoch, which it would print as 1970.
+      final parsed = ServerMember.fromJson({
+        'id': '1',
+        'username': 'ana',
+        'display_name': 'Ana',
+      });
+      expect(parsed.joinedAt, isNull);
+    });
+  });
+
   group('a paged roster', () {
     test('somebody online but not yet paged in still shows as online', () {
       // The case the split exists for. Presence names an id; the pages have not
