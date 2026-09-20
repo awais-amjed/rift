@@ -5,7 +5,7 @@ import 'rift_mark_path.dart';
 
 /// Rift's brand mark, in the palette's identity gradient.
 ///
-/// The mark is two walls with the rift as the gap between them — see
+/// The mark is two half-discs with the rift as the gap between them — see
 /// [riftMarkPath]. It is a shape, not a tile: no container, no glow, and the
 /// gap is whatever ground it sits on, so it holds on the canvas, on a panel
 /// and beside a server chip without being one. It themes with the app the

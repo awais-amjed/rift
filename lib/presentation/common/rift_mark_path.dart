@@ -2,99 +2,71 @@ import 'dart:ui';
 
 /// Which drawing of the mark suits a size. See [riftMarkPath].
 enum RiftMarkVariant {
-  /// 32px and up: the outer silhouette corners carry a 4-unit radius.
-  rounded,
+  /// 20px and up: the gap is 7 units wide, as the brand masters draw it.
+  standard,
 
-  /// 20–31px: the same proportions, fully sharp — sub-pixel radii only
-  /// muddy the diagonal.
-  sharp,
-
-  /// Under 20px: walls 26 wide and a wider gap, or the gap closes and the
-  /// mark becomes a blob. 16px is the floor.
+  /// Under 20px: the same two halves, pulled further apart. Seven units of
+  /// 100 is under a pixel at 16px, and a gap that lands on one pixel of
+  /// half-lit antialiasing is not a gap — the halves fuse into a disc.
   wide,
 }
 
 /// The mark's floor. Below it even the wide variant closes up.
 const double riftMarkMinimumSize = 16;
 
-RiftMarkVariant riftMarkVariantFor(double size) {
-  if (size >= 32) return RiftMarkVariant.rounded;
-  if (size >= 20) return RiftMarkVariant.sharp;
-  return RiftMarkVariant.wide;
-}
+RiftMarkVariant riftMarkVariantFor(double size) =>
+    size >= 20 ? RiftMarkVariant.standard : RiftMarkVariant.wide;
 
-/// Rift's mark — "Canyon": two walls, and the rift is the gap between them.
+/// Rift's mark: two half-discs pulled apart, and the rift is the gap.
 ///
-/// Drawn on a 100-unit box and scaled to [size]. Each wall steps inward to a
-/// shoulder at mid-height, so the gap opens from the crown, snaps to its
-/// narrowest at the shoulder, then widens to the foot; that hard ledge is the
-/// fault line, what makes the two sides read as pulled apart rather than
-/// placed. The gap is never drawn: it takes the colour of whatever the mark
-/// sits on, so the mark is ground-agnostic.
+/// Drawn on a 100-unit box and scaled to [size]. One disc of radius 32 cut
+/// down its diameter, the halves slid apart across the cut and past each
+/// other along it, so the flat edges face each other over the gap and the
+/// round backs face out. They share a centre of rotation at (50, 50): the
+/// figure is unchanged by a half turn, which is what makes two halves of one
+/// thing read as two halves of one thing rather than as two shapes.
 ///
-/// Only the outer silhouette corners are ever rounded, and only in the
-/// [RiftMarkVariant.rounded] drawing, so the crown, waist and foot always
-/// measure exactly what the construction says.
+/// The gap is never drawn. It takes the colour of whatever the mark sits on,
+/// so the mark is ground-agnostic — the reason there is no tile around it
+/// anywhere inside the app.
 Path riftMarkPath(double size, {RiftMarkVariant? variant}) {
   final k = size / 100;
-  final path = Path();
-  switch (variant ?? riftMarkVariantFor(size)) {
-    case RiftMarkVariant.rounded:
-      // Left wall: 20 wide, inset 18, r4 on the two outer corners.
-      path
-        ..moveTo(18 * k, 10 * k)
-        ..quadraticBezierTo(18 * k, 6 * k, 22 * k, 6 * k)
-        ..lineTo(38 * k, 6 * k)
-        ..lineTo(29 * k, 44 * k)
-        ..lineTo(43 * k, 44 * k)
-        ..lineTo(32 * k, 94 * k)
-        ..lineTo(22 * k, 94 * k)
-        ..quadraticBezierTo(18 * k, 94 * k, 18 * k, 90 * k)
-        ..close()
-        // Right wall, mirrored.
-        ..moveTo(82 * k, 10 * k)
-        ..quadraticBezierTo(82 * k, 6 * k, 78 * k, 6 * k)
-        ..lineTo(62 * k, 6 * k)
-        ..lineTo(71 * k, 44 * k)
-        ..lineTo(57 * k, 44 * k)
-        ..lineTo(68 * k, 94 * k)
-        ..lineTo(78 * k, 94 * k)
-        ..quadraticBezierTo(82 * k, 94 * k, 82 * k, 90 * k)
-        ..close();
-    case RiftMarkVariant.sharp:
-      // Walls 24 wide, gap 28 / 20 / 36.
-      path
-        ..moveTo(14 * k, 6 * k)
-        ..lineTo(38 * k, 6 * k)
-        ..lineTo(28 * k, 44 * k)
-        ..lineTo(44 * k, 44 * k)
-        ..lineTo(32 * k, 94 * k)
-        ..lineTo(14 * k, 94 * k)
-        ..close()
-        ..moveTo(86 * k, 6 * k)
-        ..lineTo(62 * k, 6 * k)
-        ..lineTo(72 * k, 44 * k)
-        ..lineTo(56 * k, 44 * k)
-        ..lineTo(68 * k, 94 * k)
-        ..lineTo(86 * k, 94 * k)
-        ..close();
-    case RiftMarkVariant.wide:
-      // Walls 26 wide, gap 28 / 22 / 40.
-      path
-        ..moveTo(10 * k, 6 * k)
-        ..lineTo(36 * k, 6 * k)
-        ..lineTo(27 * k, 44 * k)
-        ..lineTo(39 * k, 44 * k)
-        ..lineTo(30 * k, 94 * k)
-        ..lineTo(10 * k, 94 * k)
-        ..close()
-        ..moveTo(90 * k, 6 * k)
-        ..lineTo(64 * k, 6 * k)
-        ..lineTo(73 * k, 44 * k)
-        ..lineTo(61 * k, 44 * k)
-        ..lineTo(70 * k, 94 * k)
-        ..lineTo(90 * k, 94 * k)
-        ..close();
-  }
-  return path;
+  final gap = switch (variant ?? riftMarkVariantFor(size)) {
+    RiftMarkVariant.standard => _gap,
+    RiftMarkVariant.wide => _gapWide,
+  };
+
+  // Widening the gap moves the two flat edges apart and nothing else: the
+  // radius, the vertical offset and the centre of rotation all hold, so the
+  // small drawing is the same figure rather than a second one.
+  final leftEdge = (50 - gap / 2) * k;
+  final rightEdge = (50 + gap / 2) * k;
+  final radius = Radius.circular(_radius * k);
+
+  return Path()
+    ..moveTo(leftEdge, (_upper - _radius) * k)
+    ..arcToPoint(
+      Offset(leftEdge, (_upper + _radius) * k),
+      radius: radius,
+      clockwise: false,
+    )
+    ..close()
+    ..moveTo(rightEdge, (_lower - _radius) * k)
+    ..arcToPoint(
+      Offset(rightEdge, (_lower + _radius) * k),
+      radius: radius,
+      clockwise: true,
+    )
+    ..close();
 }
+
+const double _radius = 32;
+
+/// The two centres, 16 apart either side of the middle. The mark therefore
+/// stands 10 to 90 whatever the gap is, so a widened drawing still fills the
+/// box it is handed.
+const double _upper = 42;
+const double _lower = 58;
+
+const double _gap = 7;
+const double _gapWide = 12;
