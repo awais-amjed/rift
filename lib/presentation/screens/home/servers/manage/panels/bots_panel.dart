@@ -4,9 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/loading_dots.dart';
 import '../../../../../theme/theme_context.dart';
+import '../../../bots/bot_directory_dialog.dart';
 import '../../../channels/bots/bot_access_dialog.dart';
 import '../widgets/bot_row.dart';
 import '../widgets/manage_panel.dart';
@@ -16,9 +18,12 @@ import '../widgets/manage_panel.dart';
 ///
 /// A bot's grants are per channel, and until now they were only findable a
 /// channel at a time. This is the other way in: start from the bot, see
-/// everything it holds ([BotAccessDialog]), and take any of it back. Adding
-/// one is the invites page's job — a bot joins through an invite marked as
-/// for a bot — so this only says so.
+/// everything it holds ([BotAccessDialog]), and take any of it back.
+///
+/// It is also where a bot is *found*. Browsing the central directory
+/// ([showBotDirectory]) belongs here rather than beside "Add server" on the
+/// rail: a bot is not something you join, and adding one is minting an invite
+/// on this server — which is the thing this page is already about.
 class BotsPanel extends StatefulWidget {
   final Server server;
 
@@ -49,6 +54,14 @@ class _BotsPanelState extends State<BotsPanel> {
     });
   }
 
+  /// Find one in the central directory. Reloads on the way back, because
+  /// adding a bot is the program joining, which may have happened while the
+  /// browser was still open.
+  Future<void> _browse() async {
+    await showBotDirectory(context);
+    if (mounted) await _load();
+  }
+
   void _openAccess(ServerMember bot) {
     showDialog<void>(
       context: context,
@@ -65,6 +78,13 @@ class _BotsPanelState extends State<BotsPanel> {
     return ManagePanel(
       title: 'Bots',
       subtitle: 'What each one can read and hear',
+      footer: [
+        AppButton(
+          label: 'Browse bots',
+          icon: const Icon(Icons.travel_explore_rounded, size: 16),
+          onPressed: _browse,
+        ),
+      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -80,9 +100,9 @@ class _BotsPanelState extends State<BotsPanel> {
             const HintCard(
               icon: Icons.smart_toy_outlined,
               text:
-                  'No bots here yet. A bot joins through an invite with '
-                  '“this invite is for a bot” ticked — mint one under '
-                  'Invites.',
+                  'No bots here yet. Browse the directory below to find one, '
+                  'or mint your own invite with “this invite is for a bot” '
+                  'ticked under Invites.',
             )
           else ...[
             const HintCard(
