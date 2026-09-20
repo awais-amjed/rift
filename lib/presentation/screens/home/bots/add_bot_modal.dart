@@ -109,10 +109,9 @@ class _AddBotModalState extends State<AddBotModal> {
           ? 'Which server is it joining?'
           : 'On ${server?.name ?? 'your server'}',
       maxWidth: K.dialogWidth,
-      content: link == null ? _pickServer() : BotSetupCard(
-        bot: widget.bot,
-        inviteLink: link,
-      ),
+      content: link == null
+          ? _pickServer()
+          : BotSetupCard(bot: widget.bot, inviteLink: link),
       actions: [
         AppButton(
           label: link == null ? 'Back' : 'Done',

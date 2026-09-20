@@ -47,7 +47,8 @@ class ListingDraft {
   }
 
   /// What to publish: the chips, plus anything still in the tag box.
-  List<String> get tags => DirectoryTags.withPending(committedTags, tagCtrl.text);
+  List<String> get tags =>
+      DirectoryTags.withPending(committedTags, tagCtrl.text);
 
   /// Empty prose is no description rather than an empty one — the column is
   /// nullable and "" would be a second way to say the same thing.

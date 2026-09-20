@@ -67,7 +67,9 @@ class BotLikeButton extends StatelessWidget {
                 transitionBuilder: (child, animation) =>
                     ScaleTransition(scale: animation, child: child),
                 child: Icon(
-                  liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  liked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
                   key: ValueKey(liked),
                   size: 15,
                   color: colour,

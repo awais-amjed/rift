@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,6 +14,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
+import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../theme/app_text.dart';
 import '../mobile/widgets/mini_call_bar.dart';
@@ -138,6 +141,19 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           attachmentLoader: context.read<DmCubit>().loadAttachment,
           onToggleReaction: context.read<DmCubit>().toggleReaction,
           onReply: startReply,
+          onForward: (message) => unawaited(
+            showForwardDialog(
+              context,
+              message: message,
+              source: 'a direct message',
+              sourceServerId: context
+                  .read<ServerCubit>()
+                  .state
+                  .selectedServer
+                  ?.id,
+              currentPeerId: state.openPeerId,
+            ),
+          ),
           onEdit: context.read<DmCubit>().editMessage,
           onDelete: context.read<DmCubit>().deleteMessage,
           onRetry: context.read<DmCubit>().retrySend,

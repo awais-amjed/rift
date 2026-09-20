@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -11,6 +13,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
+import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../theme/app_text.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import 'widgets/dm_chat_header.dart';
@@ -137,6 +140,16 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           // No onToggleReaction: central DMs are the first-contact tier and are
           // kept deliberately thin — reactions live on servers.
           onReply: startReply,
+          // No source server: a central DM's blobs live in central's own
+          // bucket, and that is what null means to the forward service.
+          onForward: (message) => unawaited(
+            showForwardDialog(
+              context,
+              message: message,
+              source: 'a direct message',
+              currentPeerId: state.openPeerId,
+            ),
+          ),
           onEdit: context.read<CentralDmCubit>().editMessage,
           onDelete: context.read<CentralDmCubit>().deleteMessage,
           onRetry: context.read<CentralDmCubit>().retrySend,

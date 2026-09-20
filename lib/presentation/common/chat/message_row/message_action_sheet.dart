@@ -46,6 +46,7 @@ Future<MessageSheetChoice?> showMessageActionSheet({
   required bool canEdit,
   required bool canDelete,
   bool canReply = false,
+  bool canForward = false,
 }) {
   final theme = context.theme;
   final themeCubit = context.read<ThemeCubit>();
@@ -108,6 +109,14 @@ Future<MessageSheetChoice?> showMessageActionSheet({
                       label: 'Reply',
                       onTap: () =>
                           pick(const MenuActionChoice(MessageMenuAction.reply)),
+                    ),
+                  if (canForward)
+                    ContextMenuItem(
+                      icon: Icons.forward_rounded,
+                      label: 'Forward',
+                      onTap: () => pick(
+                        const MenuActionChoice(MessageMenuAction.forward),
+                      ),
                     ),
                   if (canCopy)
                     ContextMenuItem(

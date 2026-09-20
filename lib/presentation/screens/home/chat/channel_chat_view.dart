@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/channel.dart';
+import '../../../../data/classes/chat_message.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/classes/server_member.dart';
@@ -17,6 +20,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
+import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import 'widgets/chat_header.dart';
@@ -144,6 +148,31 @@ class _ChannelChatViewState extends State<ChannelChatView>
     }
   }
 
+  /// Carry a message somewhere else.
+  ///
+  /// The source line is what the *forwarder* says about where this came
+  /// from, and it is written from what is on their screen — which is the
+  /// only thing they can honestly claim.
+  void _forward(
+    BuildContext context,
+    ChatMessage message,
+    ChannelChatState chatState,
+  ) {
+    final server = context.read<ServerCubit>().state.selectedServer;
+    final channel = server?.channels
+        .where((c) => c.id == chatState.channelId)
+        .firstOrNull;
+    unawaited(
+      showForwardDialog(
+        context,
+        message: message,
+        source: channel == null ? null : '#${channel.name} in ${server!.name}',
+        sourceServerId: server?.id,
+        currentChannelId: chatState.channelId,
+      ),
+    );
+  }
+
   /// Who the `@` menu may offer for what has been typed after the `@`.
   ///
   /// Asked of the database with the channel, so a private one offers only the
@@ -219,6 +248,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
           attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
           onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
           onReply: startReply,
+          onForward: (message) => _forward(context, message, chatState),
           onEdit: context.read<ChannelChatCubit>().editMessage,
           onDelete: context.read<ChannelChatCubit>().deleteMessage,
           onRetry: context.read<ChannelChatCubit>().retrySend,

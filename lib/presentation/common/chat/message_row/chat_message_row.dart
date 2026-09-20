@@ -7,6 +7,7 @@ import '../../../../data/classes/chat_message.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/forwarding/forward_payload.dart';
 import '../../../../logic/services/host_platform.dart';
 import '../../../../logic/services/message_permissions.dart';
 import '../../../responsive/shell_scope.dart';
@@ -26,6 +27,7 @@ import 'link_tap_recognizers.dart';
 import 'message_action_sheet.dart';
 import 'message_context_menu.dart';
 import 'message_edit_field.dart';
+import 'message_forwarded_card.dart';
 import 'message_hover_toolbar.dart';
 import 'message_locked_body.dart';
 import 'message_reply_quote.dart';
@@ -53,6 +55,9 @@ class ChatMessageRow extends StatefulWidget {
 
   /// Start a reply to this message. Null disables replying on this surface.
   final void Function(ChatMessage message)? onReply;
+
+  /// Carry this message into another conversation. Null disables forwarding.
+  final void Function(ChatMessage message)? onForward;
 
   /// The message this one answers, already decrypted and verified by this
   /// client, or null when the reference points at something it cannot show.
@@ -99,6 +104,7 @@ class ChatMessageRow extends StatefulWidget {
     this.attachmentLoader,
     this.onToggleReaction,
     this.onReply,
+    this.onForward,
     this.repliedTo,
     this.onEdit,
     this.onDelete,
@@ -152,6 +158,8 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       // Answering something you cannot read yet would seal a reference to a
       // message whose author and content you are guessing at.
       !message.isLocked;
+  bool get _canForward =>
+      widget.onForward != null && ForwardPayload.canForward(message);
   bool get _canEdit =>
       widget.onEdit != null && MessagePermissions.canEdit(message);
   bool get _canDelete =>
@@ -161,12 +169,19 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       _hovering &&
       !_editing &&
       !message.isPending &&
-      (_canReact || _canReply || _canCopy || _canEdit || _canDelete);
+      (_canReact ||
+          _canReply ||
+          _canForward ||
+          _canCopy ||
+          _canEdit ||
+          _canDelete);
 
   void _toggle(String emoji) =>
       widget.onToggleReaction?.call(message.id, emoji);
 
   void _reply() => widget.onReply?.call(message);
+
+  void _forward() => widget.onForward?.call(message);
 
   void _pickReaction(BuildContext anchorContext) =>
       showReactionPicker(anchorContext, themeState, _toggle);
@@ -207,6 +222,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       message: message,
       canReact: _canReact,
       canReply: _canReply,
+      canForward: _canForward,
       canEdit: _canEdit,
       canDelete: _canDelete,
     );
@@ -214,6 +230,8 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
     switch (action) {
       case MessageMenuAction.reply:
         _reply();
+      case MessageMenuAction.forward:
+        _forward();
       case MessageMenuAction.react:
         // Anchored to the row rather than to the menu entry, which is gone by
         // the time this runs.
@@ -235,6 +253,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
       message: message,
       canReact: _canReact,
       canReply: _canReply,
+      canForward: _canForward,
       canEdit: _canEdit,
       canDelete: _canDelete,
     );
@@ -244,6 +263,8 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
         _toggle(emoji);
       case MenuActionChoice(action: MessageMenuAction.reply):
         _reply();
+      case MenuActionChoice(action: MessageMenuAction.forward):
+        _forward();
       case MenuActionChoice(action: MessageMenuAction.react):
         final emoji = await showEmojiReactionSheet(context);
         if (mounted && emoji != null) _toggle(emoji);
@@ -319,6 +340,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                   child: MessageHoverToolbar(
                     onReact: _canReact ? _pickReaction : null,
                     onReply: _canReply ? (_) => _reply() : null,
+                    onForward: _canForward ? (_) => _forward() : null,
                     onCopy: _canCopy ? (_) => _copy() : null,
                     onEdit: _canEdit
                         ? (_) => setState(() => _editing = true)
@@ -433,35 +455,44 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
             },
             onCancel: () => setState(() => _editing = false),
           )
-        else if (message.text.isNotEmpty)
-          GuardedMessageText(
-            messageId: message.id,
-            text: message.text,
-            child: MessageText(
-              onSecondaryTap: _openContextMenu,
-              span: TextSpan(
-                children: [
-                  messageMarkupSpan(
-                    message.text,
-                    base: AppText.body.copyWith(
-                      color: themeState.textSecondary,
-                    ),
-                    theme: themeState,
-                    mentionable: widget.mentionable,
-                    displayNames: widget.mentionNames,
-                    onLink: _links.forUrl,
-                  ),
-                  if (message.isEdited)
-                    TextSpan(
-                      text: '  (edited)',
-                      style: AppText.meta.copyWith(
-                        color: themeState.textTertiary,
+        else ...[
+          // Above the sender's own words, because it is what the message is
+          // *about* — their line under it is a comment on it.
+          if (message.forwarded case final forwarded?)
+            MessageForwardedCard(
+              forwarded: forwarded,
+              attachmentLoader: widget.attachmentLoader,
+            ),
+          if (message.text.isNotEmpty)
+            GuardedMessageText(
+              messageId: message.id,
+              text: message.text,
+              child: MessageText(
+                onSecondaryTap: _openContextMenu,
+                span: TextSpan(
+                  children: [
+                    messageMarkupSpan(
+                      message.text,
+                      base: AppText.body.copyWith(
+                        color: themeState.textSecondary,
                       ),
+                      theme: themeState,
+                      mentionable: widget.mentionable,
+                      displayNames: widget.mentionNames,
+                      onLink: _links.forUrl,
                     ),
-                ],
+                    if (message.isEdited)
+                      TextSpan(
+                        text: '  (edited)',
+                        style: AppText.meta.copyWith(
+                          color: themeState.textTertiary,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
+        ],
         if (message.attachments.isNotEmpty && widget.attachmentLoader != null)
           MessageAttachments(
             attachments: message.attachments,

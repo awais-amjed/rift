@@ -44,7 +44,8 @@ class _BotManifestEditorState extends State<BotManifestEditor> {
   /// One pair of controllers per command row, so a row keeps its cursor while
   /// its neighbours are added and removed.
   late final List<BotCommandFields> _commands = [
-    for (final command in widget.manifest.commands) BotCommandFields.of(command),
+    for (final command in widget.manifest.commands)
+      BotCommandFields.of(command),
   ];
 
   /// The column's `length(manifest::text) <= 8192`, spent well before this in
@@ -123,7 +124,8 @@ class _BotManifestEditorState extends State<BotManifestEditor> {
               variant: AppButtonVariant.secondary,
               icon: const Icon(Icons.add_rounded, size: 16),
               onPressed: widget.enabled
-                  ? () => setState(() => _commands.add(BotCommandFields.empty()))
+                  ? () =>
+                        setState(() => _commands.add(BotCommandFields.empty()))
                   : null,
             ),
           ),

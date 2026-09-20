@@ -20,11 +20,7 @@ class MyBotsModal extends StatefulWidget {
   final void Function(PublicBot? editing) onEdit;
   final VoidCallback onCancel;
 
-  const MyBotsModal({
-    super.key,
-    required this.onEdit,
-    required this.onCancel,
-  });
+  const MyBotsModal({super.key, required this.onEdit, required this.onCancel});
 
   @override
   State<MyBotsModal> createState() => _MyBotsModalState();

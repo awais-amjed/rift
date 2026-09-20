@@ -22,11 +22,7 @@ class BotSetupCard extends StatefulWidget {
   final PublicBot bot;
   final String inviteLink;
 
-  const BotSetupCard({
-    super.key,
-    required this.bot,
-    required this.inviteLink,
-  });
+  const BotSetupCard({super.key, required this.bot, required this.inviteLink});
 
   @override
   State<BotSetupCard> createState() => _BotSetupCardState();
@@ -52,11 +48,7 @@ class _BotSetupCardState extends State<BotSetupCard> {
       children: [
         FieldLabel(label: 'Bot invite', textColor: theme.textTertiary),
         const SizedBox(height: 6),
-        CopyableField(
-          value: widget.inviteLink,
-          copied: _copied,
-          onCopy: _copy,
-        ),
+        CopyableField(value: widget.inviteLink, copied: _copied, onCopy: _copy),
         const SizedBox(height: 14),
         FieldLabel(label: 'Then', textColor: theme.textTertiary),
         const SizedBox(height: 6),

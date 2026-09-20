@@ -49,13 +49,9 @@ class _BotDirectoryDialogState extends State<BotDirectoryDialog> {
   /// Decided once, here, rather than per row: it is a fact about the client.
   /// A browser that offered Add on every row and then showed an empty picker
   /// would be asking somebody to find out the hard way.
-  bool get _canAdd => context
-      .watch<ServerCubit>()
-      .state
-      .servers
-      .any(
-        (s) => s.user?.permissions.can(ServerPermission.manageBots) ?? false,
-      );
+  bool get _canAdd => context.watch<ServerCubit>().state.servers.any(
+    (s) => s.user?.permissions.can(ServerPermission.manageBots) ?? false,
+  );
 
   @override
   Widget build(BuildContext context) {

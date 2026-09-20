@@ -130,7 +130,8 @@ class _ControlBarContent extends StatelessWidget {
       final dialogSettings = await showCustomDialog<ScreenShareSettings>(
         context: context,
         builder: (_) => ScreenShareSettingsDialog(
-          maxShareMbps: serverCubit.state.selectedServer?.limits.maxShareMbps ??
+          maxShareMbps:
+              serverCubit.state.selectedServer?.limits.maxShareMbps ??
               ServerLimits.unlimited,
         ),
       );

@@ -34,6 +34,9 @@ class ChatMessageList extends StatefulWidget {
   /// Start a reply to a message. Null disables replying on this surface.
   final void Function(ChatMessage message)? onReply;
 
+  /// Carry a message into another conversation. Null disables forwarding.
+  final void Function(ChatMessage message)? onForward;
+
   /// Re-seal a message with new text. Null disables editing on this surface.
   final void Function(String messageId, String text)? onEdit;
 
@@ -79,6 +82,7 @@ class ChatMessageList extends StatefulWidget {
     this.attachmentLoader,
     this.onToggleReaction,
     this.onReply,
+    this.onForward,
     this.onEdit,
     this.onDelete,
     this.onRetry,
@@ -233,6 +237,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               attachmentLoader: widget.attachmentLoader,
               onToggleReaction: widget.onToggleReaction,
               onReply: widget.onReply,
+              onForward: widget.onForward,
               // Resolved from what is loaded and nothing else. A reference to
               // a message further back than the page is drawn as a reference
               // with nothing behind it, which is what it is.
