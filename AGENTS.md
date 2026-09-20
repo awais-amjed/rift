@@ -236,6 +236,14 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
   Security is deliberately the **last** file: Supabase grants `anon` EXECUTE on every new
   function in `public` by default, and only a blanket revoke running after everything exists
   takes that back. Run `./scripts/db_test.sh` in the repository you touched.
+- **The two central directories are not governed alike, and the difference is the
+  rule.** A server listing reserves `(supabase_url, server_id)` — a pair that exists
+  whether or not its owner claimed it — so the first publisher locks the real admin out,
+  and `publish_server` is service-role only behind an edge function that redeems a
+  one-time token against the server's own domain. A bot listing reserves nothing and
+  names no database, so `publish_bot` is granted to `authenticated` and uniqueness is
+  per account. Before adding a "verify this listing" step to either, ask what there is
+  to verify; before dropping one, ask what gets squatted.
 - Edge Function changes: keep the `{success, data, error}` 200-always envelope, enforce
   permissions server-side (`is_server_admin` / `is_channel_manager` / `can_create_tokens`,
   delegation rule: you can only grant what you hold), and update `API.md` in
