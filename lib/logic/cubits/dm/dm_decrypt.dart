@@ -86,6 +86,7 @@ mixin _DmDecryptMixin on Cubit<DmState> {
         attachments: body.attachments,
         preview: body.preview,
         replyToId: body.replyToId,
+        forwarded: body.forwarded,
         sentAt: DateTime.parse(row['created_at'] as String),
         isMine: isMine,
         editedAt: DateTime.tryParse('${row['edited_at']}'),

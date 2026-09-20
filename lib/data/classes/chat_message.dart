@@ -1,5 +1,6 @@
 import '../enums/message_origin.dart';
 import 'attachment.dart';
+import 'forwarded_message.dart';
 import 'link_preview.dart';
 import 'message_reaction.dart';
 import 'panel_block.dart';
@@ -48,6 +49,13 @@ class ChatMessage {
   final String? replyToId;
 
   bool get isReply => replyToId != null;
+
+  /// A message this sender carried in from another conversation, or null.
+  ///
+  /// Drawn inside *their* row as a quoted block, never as the original author
+  /// posting here: the signature on this row is the forwarder's, and there is
+  /// no second one to check. See [ForwardedMessage].
+  final ForwardedMessage? forwarded;
 
   final DateTime sentAt;
   final bool isMine;
@@ -176,6 +184,7 @@ class ChatMessage {
     this.isLocked = false,
     this.isEphemeral = false,
     this.replyToId,
+    this.forwarded,
   });
 
   ChatMessage copyWith({
@@ -205,5 +214,6 @@ class ChatMessage {
     isLocked: isLocked,
     isEphemeral: isEphemeral,
     replyToId: replyToId,
+    forwarded: forwarded,
   );
 }

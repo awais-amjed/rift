@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'attachment.dart';
+import 'forwarded_message.dart';
 import 'link_preview.dart';
 
 /// The structured content of a chat message — what actually gets sealed into a
@@ -41,15 +42,25 @@ class MessageBody {
   /// column that exists for waking somebody without reading anything.
   final String? replyToId;
 
+  /// A message carried in from somewhere else, or null. Unlike [replyToId]
+  /// this carries the content, because it has to: the readers here hold no
+  /// key to the room it came from, so there is nothing for them to resolve.
+  /// Everything in it is the forwarder's claim — see [ForwardedMessage].
+  final ForwardedMessage? forwarded;
+
   const MessageBody({
     this.version = currentVersion,
     this.text = '',
     this.attachments = const [],
     this.preview,
     this.replyToId,
+    this.forwarded,
   });
 
-  bool get isEmpty => text.trim().isEmpty && attachments.isEmpty;
+  /// A forward with no words of its own is not empty — the thing being sent
+  /// is what it carries.
+  bool get isEmpty =>
+      text.trim().isEmpty && attachments.isEmpty && forwarded == null;
 
   /// Serialize to the string that gets encrypted + signed. A pure text message
   /// with no attachments still encodes as the tagged object (senders are always
@@ -62,6 +73,7 @@ class MessageBody {
       'att': attachments.map((a) => a.toJson()).toList(),
     if (preview != null) 'prev': preview!.toJson(),
     if (replyToId != null) 're': replyToId,
+    if (forwarded != null) 'fwd': forwarded!.toJson(),
   });
 
   /// Parse a decrypted plaintext into a body. Anything that isn't our tagged
@@ -90,6 +102,7 @@ class MessageBody {
               ? LinkPreview.fromJson(prev)
               : null,
           replyToId: re is String && re.isNotEmpty ? re : null,
+          forwarded: ForwardedMessage.fromJson(decoded['fwd']),
         );
       }
     } catch (_) {

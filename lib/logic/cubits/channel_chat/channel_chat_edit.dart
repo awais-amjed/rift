@@ -48,6 +48,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
           // and an edit silently unlinking a reply is a thread coming apart
           // under a typo fix.
           replyToId: existing.replyToId,
+          forwarded: existing.forwarded,
         ).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,

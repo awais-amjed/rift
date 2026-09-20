@@ -16,6 +16,29 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     Future<APIResponse> Function(String token) call,
   );
 
+  Future<APIResponse> _callFor(
+    Server server,
+    Future<APIResponse> Function(String token) call,
+  );
+
+  Server? _target(String? serverId);
+  String _noTarget(String? serverId);
+
+  /// The server a call is aimed at, and the refresher that goes with it.
+  ///
+  /// Every call below used to read `state.selectedServer`, which is right for
+  /// the conversation somebody is looking at and wrong for the one they are
+  /// forwarding into — a forward's destination is named by the caller and is
+  /// routinely on another server entirely. Resolving both together is what
+  /// stops the two halves disagreeing: sealing for one server and posting the
+  /// envelope to another produces a message nobody in either room can open.
+  ({Server server, String anonKey})? _chatTarget(String? serverId) {
+    final server = _target(serverId);
+    final anonKey = server?.supabaseKey;
+    if (server == null || anonKey == null) return null;
+    return (server: server, anonKey: anonKey);
+  }
+
   /// Each server owns its own attachment bucket (`002_limits.sql`), named for its
   /// id. One Supabase project can host several servers, and a shared bucket
   /// could carry only one `file_size_limit` between them — and let a member of
@@ -25,21 +48,24 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   /// Encrypt + upload an attachment blob to the selected server, scoped under
   /// [scopePrefix] (channel id / DM context). On success `data` is
   /// `({String path, String keyB64, String nonceB64})`.
+  /// [serverId] names a server other than the open one — a forward's
+  /// destination. Omitted, it is the open one, which is every other caller.
   Future<APIResponse> uploadAttachment({
     required String scopePrefix,
     required Uint8List data,
+    String? serverId,
   }) {
-    final server = state.selectedServer;
-    final anonKey = server?.supabaseKey;
-    if (server == null || anonKey == null) {
-      return Future.value(APIResponse.error('No server selected'));
+    final target = _chatTarget(serverId);
+    if (target == null) {
+      return Future.value(APIResponse.error(_noTarget(serverId)));
     }
-    return _callWithAutoRefresh(
+    return _callFor(
+      target.server,
       (token) => _attachments.uploadEncrypted(
-        baseUrl: server.supabaseUrl,
-        anonKey: anonKey,
+        baseUrl: target.server.supabaseUrl,
+        anonKey: target.anonKey,
         bearerToken: token,
-        bucket: _bucketFor(server),
+        bucket: _bucketFor(target.server),
         scopePrefix: scopePrefix,
         data: data,
       ),
@@ -88,18 +114,19 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     required String path,
     required String keyB64,
     required String nonceB64,
+    String? serverId,
   }) {
-    final server = state.selectedServer;
-    final anonKey = server?.supabaseKey;
-    if (server == null || anonKey == null) {
-      return Future.value(APIResponse.error('No server selected'));
+    final target = _chatTarget(serverId);
+    if (target == null) {
+      return Future.value(APIResponse.error(_noTarget(serverId)));
     }
-    return _callWithAutoRefresh(
+    return _callFor(
+      target.server,
       (token) => _attachments.downloadDecrypted(
-        baseUrl: server.supabaseUrl,
-        anonKey: anonKey,
+        baseUrl: target.server.supabaseUrl,
+        anonKey: target.anonKey,
         bearerToken: token,
-        bucket: _bucketFor(server),
+        bucket: _bucketFor(target.server),
         path: path,
         keyB64: keyB64,
         nonceB64: nonceB64,
@@ -126,18 +153,26 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     List<String> mentions = const [],
     bool mentionsAll = false,
     String? toBot,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.sendMessage(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      channelId: channelId,
-      envelope: envelope,
-      mentions: mentions,
-      mentionsAll: mentionsAll,
-      toBot: toBot,
-      bearerToken: token,
-    ),
-  );
+    String? serverId,
+  }) {
+    final target = _chatTarget(serverId);
+    if (target == null) {
+      return Future.value(APIResponse.error(_noTarget(serverId)));
+    }
+    return _callFor(
+      target.server,
+      (token) => _repository.sendMessage(
+        target.server.supabaseUrl,
+        anonKey: target.anonKey,
+        channelId: channelId,
+        envelope: envelope,
+        mentions: mentions,
+        mentionsAll: mentionsAll,
+        toBot: toBot,
+        bearerToken: token,
+      ),
+    );
+  }
 
   /// Press something on a bot's panel.
   Future<APIResponse> sendPanelAction({
@@ -295,13 +330,20 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   );
 
   /// Fetch my sealed channel keys + current version + healing set.
-  Future<APIResponse> getChannelKey(String channelId) => _callWithAutoRefresh(
-    (token) => _repository.getChannelKey(
-      state.selectedServer!.supabaseUrl,
-      channelId: channelId,
-      bearerToken: token,
-    ),
-  );
+  Future<APIResponse> getChannelKey(String channelId, {String? serverId}) {
+    final target = _chatTarget(serverId);
+    if (target == null) {
+      return Future.value(APIResponse.error(_noTarget(serverId)));
+    }
+    return _callFor(
+      target.server,
+      (token) => _repository.getChannelKey(
+        target.server.supabaseUrl,
+        channelId: channelId,
+        bearerToken: token,
+      ),
+    );
+  }
 
   /// List key-distribution work available to the local user.
   Future<APIResponse> sweepChannelKeys() => _callWithAutoRefresh(
@@ -315,15 +357,23 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   Future<APIResponse> sendDm({
     required String recipientId,
     required Map<String, dynamic> envelope,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.sendDm(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      recipientId: recipientId,
-      envelope: envelope,
-      bearerToken: token,
-    ),
-  );
+    String? serverId,
+  }) {
+    final target = _chatTarget(serverId);
+    if (target == null) {
+      return Future.value(APIResponse.error(_noTarget(serverId)));
+    }
+    return _callFor(
+      target.server,
+      (token) => _repository.sendDm(
+        target.server.supabaseUrl,
+        anonKey: target.anonKey,
+        recipientId: recipientId,
+        envelope: envelope,
+        bearerToken: token,
+      ),
+    );
+  }
 
   /// Page through the DM conversation with [peerId].
   Future<APIResponse> listDms({
