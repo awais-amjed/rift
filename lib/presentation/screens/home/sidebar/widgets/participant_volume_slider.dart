@@ -1,0 +1,74 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../theme/theme_context.dart';
+
+/// The bare track for how loud somebody is in your ears — no label, no
+/// readout — so the menu can stack it under its heading and a profile can
+/// sit it at the end of a row.
+///
+/// Disabled while they're locally muted, where a position would be a volume
+/// with no effect.
+class ParticipantVolumeSlider extends StatelessWidget {
+  /// A live LiveKit identity, or a bare user id when they aren't connected —
+  /// [LiveKitCubit.setParticipantVolume] accepts either and stores the setting
+  /// per user.
+  final String target;
+
+  final bool isMuted;
+  final double volume;
+
+  /// Where the new volume goes. Defaults to the participant's own — a shared
+  /// track passes its own, so that turning the music down does not turn its
+  /// owner down with it.
+  final ValueChanged<double>? onChanged;
+
+  const ParticipantVolumeSlider({
+    super.key,
+    required this.target,
+    required this.isMuted,
+    required this.volume,
+    this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final themeState = context.theme;
+    return SliderTheme(
+      data: SliderTheme.of(context).copyWith(
+        trackHeight: 3,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+        activeTrackColor: themeState.primary,
+        inactiveTrackColor: themeState.bgActive,
+        thumbColor: themeState.primary,
+      ),
+      child: Slider(
+        // Flutter pads the track by the overlay's radius on each side, which
+        // leaves it well short of whatever it is lined up with. The thumb's
+        // own radius is all it needs: at either end, its edge meets theirs.
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        value: isMuted ? 0 : volume,
+        onChanged: isMuted
+            ? null
+            : (value) {
+                final handler = onChanged;
+                if (handler != null) {
+                  handler(value);
+                  return;
+                }
+                context.read<LiveKitCubit>().setParticipantVolume(
+                  target,
+                  value,
+                );
+              },
+      ),
+    );
+  }
+
+  /// The readout beside it: an em dash while muted rather than 0%, which
+  /// would look like a volume you'd chosen.
+  static String readout({required bool isMuted, required double volume}) =>
+      isMuted ? '—' : '${(volume * 100).round()}%';
+}
