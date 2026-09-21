@@ -111,6 +111,9 @@ KEY.update({
     'left': 105, 'right': 106, 'up': 103, 'down': 108,
     'home': 102, 'end': 107, 'delete': 111, 'pageup': 104, 'pagedown': 109,
 })
+for i in range(10):
+    KEY[f'f{i + 1}'] = 59 + i
+KEY.update({'f11': 87, 'f12': 88})
 KEY_LEFTSHIFT, KEY_LEFTCTRL, KEY_LEFTALT = 42, 29, 56
 MODS = {'ctrl': KEY_LEFTCTRL, 'shift': KEY_LEFTSHIFT, 'alt': KEY_LEFTALT}
 SHIFTED = {
@@ -346,6 +349,16 @@ def run(dev, cmd, args):
             parts = spec.lower().split('+')
             mods = tuple(MODS[p] for p in parts[:-1])
             dev.tap(KEY[parts[-1]], mods)
+    elif cmd == 'hold':
+        # A key held down for a while, e.g. push-to-talk: `hold f9 1.5`.
+        # The compositor supplies any auto-repeat; the device only presses
+        # and releases, as a real keyboard does.
+        code = KEY[args[0].lower()]
+        dev.emit(EV_KEY, code, 1)
+        dev.syn()
+        time.sleep(float(args[1]) if len(args) > 1 else 1.0)
+        dev.emit(EV_KEY, code, 0)
+        dev.syn()
     elif cmd == 'clearmods':
         dev.clear_mods()
     elif cmd == 'scroll':
