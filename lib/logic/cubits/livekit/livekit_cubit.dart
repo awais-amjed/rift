@@ -339,6 +339,22 @@ class LiveKitCubit extends Cubit<LiveKitState>
     return state.isPushToTalkPressed;
   }
 
+  /// Plays the push-to-talk tone for [on].
+  ///
+  /// Only when the key really opens or closes the mic, which is what
+  /// [_shouldTransmitMic] says while the key is down: a tone saying you are
+  /// live while muted or deafened would be a lie. Callers invoke it on edges
+  /// only, never on auto-repeat.
+  @override
+  void _playPushToTalkTone(bool on) {
+    if (state.room == null || !_shouldTransmitMic()) return;
+    unawaited(
+      on
+          ? SoundService.instance.playPttOn()
+          : SoundService.instance.playPttOff(),
+    );
+  }
+
   @override
   Future<void> _syncMicrophoneTransmission({
     bool syncParticipants = false,

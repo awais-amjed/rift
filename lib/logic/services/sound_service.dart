@@ -16,6 +16,8 @@ class SoundService {
   static const _leaveAsset = 'audio/leave.mp3';
   static const _streamStartedAsset = 'audio/stream_started.mp3';
   static const _streamEndedAsset = 'audio/stream_ended.mp3';
+  static const _pttOnAsset = 'audio/ptt_on.mp3';
+  static const _pttOffAsset = 'audio/ptt_off.mp3';
 
   /// How long to wait for a sound to finish before reclaiming its player.
   static const _maxPlaybackWait = Duration(seconds: 10);
@@ -28,6 +30,11 @@ class SoundService {
   Future<void> playLeave() => _play(_leaveAsset);
   Future<void> playStreamStarted() => _play(_streamStartedAsset);
   Future<void> playStreamEnded() => _play(_streamEndedAsset);
+
+  /// Push-to-talk opening and closing. The same two sine notes as join and
+  /// leave, cut to 160ms so they never trail into the first word.
+  Future<void> playPttOn() => _play(_pttOnAsset);
+  Future<void> playPttOff() => _play(_pttOffAsset);
 
   // ──────────────────────────────────────────────────────────
   // Private helpers
