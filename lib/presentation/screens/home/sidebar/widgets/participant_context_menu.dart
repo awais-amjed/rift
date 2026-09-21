@@ -205,6 +205,14 @@ class ParticipantContextMenu extends StatelessWidget {
                   ),
                   Divider(height: 9, color: borderColor),
                 ],
+                // Volume above the mutes: how loud they are, then whether
+                // you hear them at all.
+                if (!isLocal)
+                  ParticipantVolumeControl(
+                    target: identity,
+                    isMuted: isMuted,
+                    volume: volume,
+                  ),
                 // Mute toggle (local only)
                 ContextMenuItem(
                   icon: isMuted ? Icons.mic_off : Icons.mic,
@@ -261,13 +269,6 @@ class ParticipantContextMenu extends StatelessWidget {
                     targetIsAdmin: targetIsAdmin,
                     isServerMuted: isServerMuted,
                     isServerDeafened: isServerDeafened,
-                  ),
-                // Volume slider (only for remote participants)
-                if (!isLocal)
-                  ParticipantVolumeControl(
-                    target: identity,
-                    isMuted: isMuted,
-                    volume: volume,
                   ),
                 const SizedBox(height: 2),
               ],
