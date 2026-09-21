@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/ptt/desktop_shortcut_settings.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/button_footer.dart';
@@ -14,6 +13,7 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 import '../setting_toggle_row.dart';
+import 'desktop_key_notice.dart';
 
 /// Push-to-talk: the enable switch, the current keybind, and the capture
 /// button that listens for the next key pressed.
@@ -90,6 +90,11 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
   String? get _desktopKey =>
       widget.appState.desktopPushToTalkKey?.replaceFirst(RegExp('^Press '), '');
 
+  /// Whether the desktop, not this section, decides the key — known, or
+  /// being asked for.
+  bool get _desktopOwnsKey =>
+      _desktopKey != null || widget.appState.desktopPushToTalkPending;
+
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
@@ -118,30 +123,9 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
           style: AppText.kbd.copyWith(color: themeState.textSecondary),
         ),
         const SizedBox(height: 10),
-        if (_desktopKey != null) ...[
-          Text(
-            DesktopShortcutSettings.canOpen
-                ? 'This key works even while you are in other apps. To use a '
-                      'different key, click Change key.'
-                : 'This key works even while you are in other apps. To use a '
-                      "different key, open your computer's settings and look "
-                      "for Rift's keyboard shortcuts.",
-            style: AppText.secondary.copyWith(color: themeState.textTertiary),
-          ),
-          if (DesktopShortcutSettings.canOpen) ...[
-            const SizedBox(height: 10),
-            ButtonFooter(
-              alignment: MainAxisAlignment.start,
-              buttons: [
-                AppButton(
-                  label: 'Change key',
-                  onPressed: DesktopShortcutSettings.open,
-                  variant: AppButtonVariant.secondary,
-                ),
-              ],
-            ),
-          ],
-        ] else
+        if (_desktopOwnsKey)
+          DesktopKeyNotice(pending: appState.desktopPushToTalkPending)
+        else
           Focus(
             focusNode: _captureFocusNode,
             onKeyEvent: _onKeyEvent,
@@ -165,7 +149,7 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
               ],
             ),
           ),
-        if (_isLinux && _desktopKey == null) ...[
+        if (_isLinux && !_desktopOwnsKey) ...[
           const SizedBox(height: 8),
           Text(
             'After you set a key, your computer asks once whether Rift may '

@@ -59,6 +59,11 @@ class AppCubit extends HydratedCubit<AppState> {
 
   /// What the desktop says the push-to-talk key is, or null once no desktop
   /// shortcut is bound.
+  void setDesktopPushToTalkPending(bool pending) {
+    if (pending == state.desktopPushToTalkPending) return;
+    emit(state.copyWith(desktopPushToTalkPending: pending));
+  }
+
   void setDesktopPushToTalkKey(String? key) {
     emit(
       key == null

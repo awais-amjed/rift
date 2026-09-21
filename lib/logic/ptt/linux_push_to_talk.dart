@@ -90,10 +90,12 @@ class LinuxPushToTalk {
     _debounce.reset();
     final keyId = wanted.keyId;
     if (!wanted.enabled || keyId == null) {
+      _app.setDesktopPushToTalkPending(false);
       await _portal.close();
       return;
     }
 
+    _app.setDesktopPushToTalkPending(true);
     await LinuxDesktopEntry.ensure();
     final trigger = await _portal.bind(
       appId: LinuxDesktopEntry.appId,
@@ -106,6 +108,7 @@ class LinuxPushToTalk {
     );
     if (generation != _generation) return;
     _setBound(trigger);
+    _app.setDesktopPushToTalkPending(false);
     HelperMethods.printDebug(
       _bound
           ? 'LinuxPushToTalk: desktop shortcut bound ($trigger)'

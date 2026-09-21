@@ -107,6 +107,13 @@ class AppState {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final String? desktopPushToTalkKey;
 
+  /// Rift is waiting on the desktop for the push-to-talk key — binding, or
+  /// the user looking at the desktop's dialog. Settings holds its controls
+  /// until the answer arrives, because a key picked meanwhile is replaced by
+  /// whatever the desktop says.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool desktopPushToTalkPending;
+
   const AppState({
     this.sidebarOpen = true,
     this.audioEnabled = true,
@@ -143,6 +150,7 @@ class AppState {
     this.surface = HomeSurface.server,
     this.membersHiddenForFocus = false,
     this.desktopPushToTalkKey,
+    this.desktopPushToTalkPending = false,
   });
 
   AppState copyWith({
@@ -186,6 +194,7 @@ class AppState {
     bool? membersHiddenForFocus,
     String? desktopPushToTalkKey,
     bool clearDesktopPushToTalkKey = false,
+    bool? desktopPushToTalkPending,
   }) {
     return AppState(
       sidebarOpen: sidebarOpen ?? this.sidebarOpen,
@@ -236,6 +245,8 @@ class AppState {
       desktopPushToTalkKey: clearDesktopPushToTalkKey
           ? null
           : (desktopPushToTalkKey ?? this.desktopPushToTalkKey),
+      desktopPushToTalkPending:
+          desktopPushToTalkPending ?? this.desktopPushToTalkPending,
     );
   }
 
