@@ -17,7 +17,7 @@ import '../../profile/user_dock/user_dock.dart';
 import '../../servers/add_server/add_server_dialog.dart';
 import 'switcher_add_row.dart';
 import 'switcher_home_row.dart';
-import 'switcher_server_row.dart';
+import 'switcher_server_list.dart';
 
 /// Opens the switcher: every server, Home, and your own controls, sliding in
 /// from the edge the list is anchored to.
@@ -113,73 +113,80 @@ class ServerSwitcherSheet extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-                      children: [
-                        SwitcherHomeRow(
-                          selected: surface == HomeSurface.centralDms,
-                          unread: homeBadge,
-                          onTap: () {
-                            context.read<AppCubit>().setSurface(
-                              HomeSurface.centralDms,
-                            );
-                            _close(context);
-                          },
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 18, 8, 8),
-                          child: Text(
-                            'YOUR SERVERS',
-                            style: AppText.sectionLabel.copyWith(
-                              color: theme.textTertiary,
-                            ),
+                    // Slivers rather than a `ListView`, because the servers
+                    // in the middle are reorderable and the rows either side
+                    // of them are not.
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+                          sliver: SliverList.list(
+                            children: [
+                              SwitcherHomeRow(
+                                selected: surface == HomeSurface.centralDms,
+                                unread: homeBadge,
+                                onTap: () {
+                                  context.read<AppCubit>().setSurface(
+                                    HomeSurface.centralDms,
+                                  );
+                                  _close(context);
+                                },
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(8, 18, 8, 8),
+                                child: Text(
+                                  'YOUR SERVERS',
+                                  style: AppText.sectionLabel.copyWith(
+                                    color: theme.textTertiary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        for (final server in servers.servers)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: SwitcherServerRow(
-                              server: server,
-                              selected:
-                                  server.id == servers.selectedServerId &&
-                                  surface != HomeSurface.centralDms,
-                              unread: notifications.unreadForServer(server.id),
-                              muted: notifications
-                                  .serverLevel(server.id)
-                                  .isMuted,
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          sliver: SwitcherServerList(
+                            servers: servers.servers,
+                            selectedServerId: servers.selectedServerId,
+                            onHome: surface == HomeSurface.centralDms,
+                            notifications: notifications,
+                            onOpen: (server) {
+                              final app = context.read<AppCubit>();
+                              // Back to the server's own list, not whichever
+                              // of its halves was open when you left it —
+                              // unless you are already on that server.
+                              if (server.id != servers.selectedServerId ||
+                                  surface == HomeSurface.centralDms) {
+                                app.setSurface(HomeSurface.server);
+                              }
+                              context.read<ServerCubit>().selectServer(server);
+                              _close(context);
+                            },
+                          ),
+                        ),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                          sliver: SliverToBoxAdapter(
+                            child: SwitcherAddRow(
                               onTap: () {
-                                final app = context.read<AppCubit>();
-                                // Back to the server's own list, not whichever
-                                // of its halves was open when you left it —
-                                // unless you are already on that server.
-                                if (server.id != servers.selectedServerId ||
-                                    surface == HomeSurface.centralDms) {
-                                  app.setSurface(HomeSurface.server);
-                                }
-                                context.read<ServerCubit>().selectServer(
-                                  server,
+                                final navigator = Navigator.of(context);
+                                final serverCubit = context.read<ServerCubit>();
+                                final appCubit = context.read<AppCubit>();
+                                navigator.pop();
+                                showCustomDialog(
+                                  context: navigator.context,
+                                  builder: (_) => MultiBlocProvider(
+                                    providers: [
+                                      BlocProvider.value(value: serverCubit),
+                                      BlocProvider.value(value: appCubit),
+                                    ],
+                                    child: const AddServerDialog(),
+                                  ),
                                 );
-                                _close(context);
                               },
                             ),
                           ),
-                        SwitcherAddRow(
-                          onTap: () {
-                            final navigator = Navigator.of(context);
-                            final serverCubit = context.read<ServerCubit>();
-                            final appCubit = context.read<AppCubit>();
-                            navigator.pop();
-                            showCustomDialog(
-                              context: navigator.context,
-                              builder: (_) => MultiBlocProvider(
-                                providers: [
-                                  BlocProvider.value(value: serverCubit),
-                                  BlocProvider.value(value: appCubit),
-                                ],
-                                child: const AddServerDialog(),
-                              ),
-                            );
-                          },
                         ),
                       ],
                     ),
