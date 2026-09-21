@@ -23,6 +23,11 @@ class ShellScope extends InheritedWidget {
   final bool sidebarOpen;
   final bool membersOpen;
 
+  /// An idle, focused stream with both panes hidden: the workspace drops its
+  /// gutter, the content panel its corners, and the edge tabs step out, so
+  /// the stream runs to the window's edge. Any pointer movement ends it.
+  final bool immersive;
+
   final VoidCallback toggleSidebar;
   final VoidCallback toggleMembers;
 
@@ -36,6 +41,7 @@ class ShellScope extends InheritedWidget {
     required this.mode,
     required this.sidebarOpen,
     required this.membersOpen,
+    this.immersive = false,
     required this.toggleSidebar,
     required this.toggleMembers,
     required this.dismissOverlays,
@@ -57,7 +63,8 @@ class ShellScope extends InheritedWidget {
   bool updateShouldNotify(ShellScope old) =>
       mode != old.mode ||
       sidebarOpen != old.sidebarOpen ||
-      membersOpen != old.membersOpen;
+      membersOpen != old.membersOpen ||
+      immersive != old.immersive;
 }
 
 /// [LayoutMode] for the current window, for widgets that only need to know how

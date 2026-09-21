@@ -51,31 +51,49 @@ class _RoomViewState extends State<RoomView> {
   /// instead of taking a row, so showing it does not resize the video.
   bool _focused = false;
 
+  /// Read once: [dispose] has to reach it after the context is gone.
+  late final AppCubit _appCubit;
+
   @override
   void initState() {
     super.initState();
+    _appCubit = context.read<AppCubit>();
     _scheduleHide();
   }
 
   @override
   void dispose() {
     _hideTimer?.cancel();
+    // Leaving the call, or opening a chat over it, must not leave the shell
+    // full-bleed around something that is no longer a stream.
+    _appCubit.setStageChromeHidden(false);
     super.dispose();
   }
 
   void _scheduleHide() {
     _hideTimer?.cancel();
     _hideTimer = Timer(_hideDelay, () {
-      if (mounted) setState(() => _chromeVisible = false);
+      if (!mounted) return;
+      setState(() => _chromeVisible = false);
+      _reportStage();
     });
   }
 
   /// Any sign of life in the room area reveals the chrome and resets the idle
   /// timer.
   void _showChrome() {
-    if (!_chromeVisible) setState(() => _chromeVisible = true);
+    if (!_chromeVisible) {
+      setState(() => _chromeVisible = true);
+      _reportStage();
+    }
     _scheduleHide();
   }
+
+  /// Tells the shell whether a focused stream is sitting idle, which is when
+  /// it may take the whole window. Only in focus: a grid of tiles has gaps of
+  /// its own, and running it into the window edge gains nothing.
+  void _reportStage() =>
+      _appCubit.setStageChromeHidden(_focused && !_chromeVisible);
 
   /// The strip, fading with the control pill. Floating over video it needs
   /// the panel's colour behind it, and that fades with it.
@@ -147,8 +165,10 @@ class _RoomViewState extends State<RoomView> {
                                         compact: context.layoutMode.isCompact,
                                       )
                                     : 0,
-                                onFocusChanged: (focused) =>
-                                    setState(() => _focused = focused),
+                                onFocusChanged: (focused) {
+                                  setState(() => _focused = focused);
+                                  _reportStage();
+                                },
                               ),
                       ),
                     ],

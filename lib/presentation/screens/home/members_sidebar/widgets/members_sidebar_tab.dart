@@ -20,7 +20,10 @@ class MembersSidebarTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shell = ShellScope.of(context);
-    final open = shell.membersOpen;
+    // Out of the way over an immersive stream too: sitting on the video's
+    // edge it is the one piece of chrome left, and the next pointer
+    // movement brings it back with everything else.
+    final open = shell.membersOpen || shell.immersive;
 
     return IgnorePointer(
       ignoring: open,

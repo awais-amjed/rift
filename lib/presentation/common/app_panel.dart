@@ -41,6 +41,11 @@ class AppPanel extends StatelessWidget {
   /// the content, the way a sheet that slid in from off-screen would be.
   final BorderRadius? borderRadius;
 
+  /// How far an island has melted into the window: 0 is the floating panel,
+  /// 1 is square and borderless. In between is the transition, so a caller
+  /// animates this rather than swapping panels. See `ShellScope.immersive`.
+  final double bleed;
+
   const AppPanel({
     super.key,
     required this.child,
@@ -48,14 +53,16 @@ class AppPanel extends StatelessWidget {
     this.width,
     this.shadow,
     this.borderRadius,
+    this.bleed = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final islands = context.layoutMode.panelsAreIslands;
+    final corner = K.radiusCard * (1 - bleed);
     final radius =
         borderRadius ??
-        (islands ? BorderRadius.circular(K.radiusCard) : BorderRadius.zero);
+        (islands ? BorderRadius.circular(corner) : BorderRadius.zero);
 
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
@@ -68,7 +75,11 @@ class AppPanel extends StatelessWidget {
             // edge it is a hairline of not-quite-black that reads as a
             // rendering fault rather than a boundary.
             border: islands
-                ? Border.all(color: themeState.borderPrimary)
+                ? Border.all(
+                    color: themeState.borderPrimary.withValues(
+                      alpha: themeState.borderPrimary.a * (1 - bleed),
+                    ),
+                  )
                 : null,
             boxShadow: shadow,
           ),
@@ -77,7 +88,7 @@ class AppPanel extends StatelessWidget {
             // width or children bleed over it at the corners. Nothing to
             // shrink by where there is no border.
             borderRadius: islands
-                ? BorderRadius.circular(K.radiusCard - 1)
+                ? BorderRadius.circular((corner - 1).clamp(0, K.radiusCard))
                 : radius,
             // Only where the panel is the screen. While it is an island the
             // workspace is already clear of everything, and a second inset

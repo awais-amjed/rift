@@ -161,6 +161,12 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(membersHiddenForFocus: focused));
   }
 
+  /// A focused call's controls faded out, or came back.
+  void setStageChromeHidden(bool hidden) {
+    if (hidden == state.stageChromeHidden) return;
+    emit(state.copyWith(stageChromeHidden: hidden));
+  }
+
   void setOutputDeviceId(String? deviceId) {
     emit(
       state.copyWith(

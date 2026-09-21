@@ -8,6 +8,7 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_panel.dart';
 import '../../../responsive/shell_scope.dart';
+import '../../../theme/app_motion.dart';
 import '../chat/channel_chat_view.dart';
 import '../dms/central_dm_view.dart';
 import '../dms/server_dm_view.dart';
@@ -26,10 +27,19 @@ class _ContentPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final immersive = ShellScope.of(context).immersive;
     return BlocBuilder<ThemeCubit, ThemeState>(
       buildWhen: (a, b) => a.bgContent != b.bgContent,
-      builder: (context, themeState) =>
-          AppPanel(color: themeState.bgContent, child: child),
+      // Corners and border melt away with the gutter around them, on the
+      // same clock — see `ShellScope.immersive`.
+      builder: (context, themeState) => TweenAnimationBuilder<double>(
+        tween: Tween(end: immersive ? 1 : 0),
+        duration: AppMotion.enter,
+        curve: AppMotion.panel,
+        child: child,
+        builder: (context, bleed, child) =>
+            AppPanel(color: themeState.bgContent, bleed: bleed, child: child!),
+      ),
     );
   }
 }

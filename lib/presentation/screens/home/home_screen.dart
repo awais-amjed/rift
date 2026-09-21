@@ -17,6 +17,7 @@ import '../../common/app_modal.dart';
 import '../../common/canvas_backdrop.dart';
 import '../../common/overlay_scrim.dart';
 import '../../responsive/shell_scope.dart';
+import '../../theme/app_motion.dart';
 import 'main_content/main_content.dart';
 import 'main_content/widgets/voice_connection_listener.dart';
 import 'members_sidebar/members_sidebar.dart';
@@ -219,7 +220,8 @@ class _HomeScreenState extends State<HomeScreen> {
       buildWhen: (prev, curr) =>
           prev.titleBarVisible != curr.titleBarVisible ||
           prev.sidebarOpen != curr.sidebarOpen ||
-          prev.membersSidebarShown != curr.membersSidebarShown,
+          prev.membersSidebarShown != curr.membersSidebarShown ||
+          prev.stageChromeHidden != curr.stageChromeHidden,
       builder: (context, appState) {
         final mode = context.layoutMode;
         final titleBarVisible = appState.titleBarVisible;
@@ -227,12 +229,19 @@ class _HomeScreenState extends State<HomeScreen> {
         final topPadding = !chrome
             ? 0.0
             : (titleBarVisible ? 0.0 : K.titleBarHiddenSidebarPadding);
+        final membersOpen = mode.membersIsOverlay
+            ? _membersOverlayOpen
+            : appState.membersSidebarShown;
+        final immersive =
+            appState.stageChromeHidden && !appState.sidebarOpen && !membersOpen;
+        // The gutter goes with the chrome; the title bar's band stays, since
+        // that is the window's own and is hidden on its own switch.
+        final gutter = immersive ? 0.0 : K.panelGutter;
         return ShellScope(
           mode: mode,
           sidebarOpen: appState.sidebarOpen,
-          membersOpen: mode.membersIsOverlay
-              ? _membersOverlayOpen
-              : appState.membersSidebarShown,
+          membersOpen: membersOpen,
+          immersive: immersive,
           toggleSidebar: context.read<AppCubit>().toggleSidebar,
           toggleMembers: () => _toggleMembers(mode),
           dismissOverlays: _dismissOverlays,
@@ -244,17 +253,21 @@ class _HomeScreenState extends State<HomeScreen> {
               if (!didPop) _dismissOverlays();
             },
             child: CanvasBackdrop(
-              child: Padding(
+              child: AnimatedPadding(
+                // Same length and curve as the content panel's corners, so
+                // the two read as one movement.
+                duration: AppMotion.enter,
+                curve: AppMotion.panel,
                 // The gutter that makes the panels islands. The title bar is
                 // painted above the whole app, so the workspace steps out from
                 // under it; the gutter takes over when it's hidden.
                 padding: EdgeInsets.only(
                   top: !chrome
-                      ? K.panelGutter
-                      : (titleBarVisible ? _titleBarHeight : K.panelGutter),
-                  left: K.panelGutter,
-                  right: K.panelGutter,
-                  bottom: K.panelGutter,
+                      ? gutter
+                      : (titleBarVisible ? _titleBarHeight : gutter),
+                  left: gutter,
+                  right: gutter,
+                  bottom: gutter,
                 ),
                 child: Stack(
                   children: [

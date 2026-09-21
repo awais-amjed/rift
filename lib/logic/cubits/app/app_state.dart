@@ -99,6 +99,12 @@ class AppState {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool membersHiddenForFocus;
 
+  /// A focused call has gone idle: one tile fills the stage and its controls
+  /// have faded. With both side panels hidden too, the shell drops the
+  /// gutter and the panel's corners so the stream runs to the window's edge.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool stageChromeHidden;
+
   /// The push-to-talk key as the desktop reports it ("Press F9"), while a
   /// desktop shortcut is bound — null otherwise. On Linux the desktop owns
   /// the key once it has asked the user, and re-binding with a different
@@ -149,6 +155,7 @@ class AppState {
     this.participants = const [],
     this.surface = HomeSurface.server,
     this.membersHiddenForFocus = false,
+    this.stageChromeHidden = false,
     this.desktopPushToTalkKey,
     this.desktopPushToTalkPending = false,
   });
@@ -192,6 +199,7 @@ class AppState {
     List<ParticipantInfo>? participants,
     HomeSurface? surface,
     bool? membersHiddenForFocus,
+    bool? stageChromeHidden,
     String? desktopPushToTalkKey,
     bool clearDesktopPushToTalkKey = false,
     bool? desktopPushToTalkPending,
@@ -242,6 +250,7 @@ class AppState {
       surface: surface ?? this.surface,
       membersHiddenForFocus:
           membersHiddenForFocus ?? this.membersHiddenForFocus,
+      stageChromeHidden: stageChromeHidden ?? this.stageChromeHidden,
       desktopPushToTalkKey: clearDesktopPushToTalkKey
           ? null
           : (desktopPushToTalkKey ?? this.desktopPushToTalkKey),
