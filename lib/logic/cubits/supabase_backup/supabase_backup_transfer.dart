@@ -10,7 +10,8 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
   VaultCubit get _vaultCubit;
   Timer? get _autoBackupTimer;
   set _autoBackupTimer(Timer? value);
-  bool Function(ServerManifest)? get _mergeCloudServers;
+  ({bool railChanged, bool cloudStale}) Function(ServerManifest)?
+  get _mergeCloudServers;
 
   /// Implemented by the cubit.
   Future<void> _uploadBackup({required String successMessage});
@@ -38,6 +39,10 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
       // this a device writes its own list over whatever the other one put
       // there — and a server joined on a phone lasts until the laptop's next
       // backup. See [BackupMerge] for what "combine" means here.
+      //
+      // `thenPush: false` because the push is the next thing this function
+      // does. Asking for one here would schedule another `autoBackup`, which
+      // would pull, find the cloud still behind, and schedule another.
       await pullFromCloud();
 
       final export = await _vaultCubit.exportBackup();
@@ -62,13 +67,22 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
   /// offline, or a backup this seed cannot open, both mean "carry on with
   /// what is here" rather than "stop".
   ///
-  /// It cannot converge on its own. Nothing serialises the read against the
-  /// write — Storage has no compare-and-swap — so two devices merging inside
-  /// the same second still resolve to whichever uploads last. That window is
+  /// [thenPush] also sends what this device knows *back*, when the merge
+  /// finds the cloud behind. That is the only thing that rescues a change
+  /// made with no network: the upload it scheduled failed once and nothing
+  /// retried it, so the order sat on the device it was made on until some
+  /// unrelated edit happened to trigger another backup. Coming back to the
+  /// app is now a retry. Callers inside [autoBackup] leave it false — the
+  /// push is the next thing that function does anyway, and asking for one
+  /// there is an endless loop.
+  ///
+  /// It still cannot converge in one hop. Nothing serialises the read against
+  /// the write — Storage has no compare-and-swap — so two devices merging
+  /// inside the same second resolve to whichever uploads last. That window is
   /// about a second, the cost of losing it is an order nobody chose, and the
   /// next reorder settles it. Closing it properly means moving the vault out
   /// of a bucket and into a row, where Postgres can refuse the second write.
-  Future<bool> pullFromCloud() async {
+  Future<bool> pullFromCloud({bool thenPush = false}) async {
     if (!state.isSignedIn) return false;
     if (_vaultCubit.state.status != AuthStatus.unlocked) return false;
     final merge = _mergeCloudServers;
@@ -81,7 +95,10 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
 
     final theirs = await _vaultCubit.readServerManifest(backupJson);
     if (theirs == null) return false;
-    return merge(theirs);
+
+    final outcome = merge(theirs);
+    if (thenPush && outcome.cloudStale) autoBackup();
+    return outcome.railChanged;
   }
 
   void clearMessage() =>

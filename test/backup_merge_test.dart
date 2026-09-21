@@ -184,6 +184,41 @@ void main() {
       expect(merged.servers.length, 2);
     });
 
+    test('a merge knows when the cloud is the one left behind', () {
+      // The offline case: this device reordered with no network, so its
+      // upload failed and nothing retried it. Coming back has to be able to
+      // tell "I have something to say" from "I have something to draw".
+      final mine = ServerManifest(
+        servers: [server('b'), server('a')],
+        orderClock: 4,
+      );
+      final theirs = ServerManifest(
+        servers: [server('a'), server('b')],
+        orderClock: 3,
+      );
+      final merged = BackupMerge.union(mine: mine, theirs: theirs);
+      expect(merged.agreesOnOrderWith(theirs), isFalse);
+      expect(merged.agreesOnOrderWith(mine), isTrue);
+    });
+
+    test('and says nothing is owed when the two already agree', () {
+      final same = ServerManifest(
+        servers: [server('a'), server('b')],
+        orderClock: 2,
+      );
+      final merged = BackupMerge.union(mine: same, theirs: same);
+      expect(merged.agreesOnOrderWith(same), isTrue);
+    });
+
+    test('a refreshed name alone is not worth an upload', () {
+      // Otherwise two devices whose metadata differs push over each other
+      // every time either one comes back to the front.
+      final mine = ServerManifest(servers: [server('a', name: 'New')]);
+      final theirs = ServerManifest(servers: [server('a', name: 'Old')]);
+      final merged = BackupMerge.union(mine: mine, theirs: theirs);
+      expect(merged.agreesOnOrderWith(theirs), isTrue);
+    });
+
     test('merging with an empty cloud copy changes nothing', () {
       final mine = ServerManifest(
         servers: [server('a'), server('b')],

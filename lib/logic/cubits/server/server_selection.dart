@@ -109,11 +109,22 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
 
   /// Combines the cloud's server list with this device's and lands it.
   ///
-  /// Returns true when the rail actually changed, so the caller can skip an
-  /// upload that would say nothing new.
-  bool mergeCloudManifest(ServerManifest theirs) {
-    return applyMergedVault(
-      BackupMerge.union(mine: getServersForExport(), theirs: theirs),
+  /// Two different questions come back, and conflating them is how an
+  /// offline reorder gets stranded: `railChanged` is whether *this device*
+  /// has something new to draw, and `cloudStale` is whether the *cloud* is
+  /// missing something this device holds. A device that reordered with no
+  /// network answers false and true — nothing to redraw, everything left to
+  /// say.
+  ({bool railChanged, bool cloudStale}) mergeCloudManifest(
+    ServerManifest theirs,
+  ) {
+    final merged = BackupMerge.union(
+      mine: getServersForExport(),
+      theirs: theirs,
+    );
+    return (
+      railChanged: applyMergedVault(merged),
+      cloudStale: !merged.agreesOnOrderWith(theirs),
     );
   }
 

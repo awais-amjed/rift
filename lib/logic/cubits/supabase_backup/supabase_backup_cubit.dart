@@ -85,9 +85,12 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
   /// device's. Injected after construction, like every other cross-cubit
   /// dependency here, to keep the two from having to be built in an order.
   @override
-  bool Function(ServerManifest)? _mergeCloudServers;
+  ({bool railChanged, bool cloudStale}) Function(ServerManifest)?
+  _mergeCloudServers;
 
-  void setMergeCloudServers(bool Function(ServerManifest) merge) {
+  void setMergeCloudServers(
+    ({bool railChanged, bool cloudStale}) Function(ServerManifest) merge,
+  ) {
     _mergeCloudServers = merge;
   }
 
@@ -136,7 +139,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     if (vault.status != AuthStatus.unlocked || !state.isSignedIn) return;
     _openedPull = true;
     _lastFocusPull = DateTime.now();
-    unawaited(pullFromCloud());
+    unawaited(pullFromCloud(thenPush: true));
   }
 
   /// Coming back to the window is when a device should notice that the other
@@ -148,7 +151,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     final now = DateTime.now();
     if (last != null && now.difference(last) < focusPullInterval) return;
     _lastFocusPull = now;
-    unawaited(pullFromCloud());
+    unawaited(pullFromCloud(thenPush: true));
   }
 
   /// Reconcile signed-in state with GoTrue's session. When the session is lost

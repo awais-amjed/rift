@@ -67,6 +67,25 @@ class ServerManifest {
     'order_clock': orderClock,
   };
 
+  /// Whether [other] already says what this one says about *order*: the same
+  /// servers, in the same order, chosen at the same time.
+  ///
+  /// Deliberately blind to the rest of an entry. A name or an icon refreshed
+  /// on one device differs from the other's copy almost always, and treating
+  /// that as a reason to upload would have two devices writing over each
+  /// other every time either one came back to the front. Metadata travels
+  /// with the next upload something else asks for.
+  bool agreesOnOrderWith(ServerManifest other) {
+    if (orderClock != other.orderClock) return false;
+    if (servers.length != other.servers.length) return false;
+    for (var i = 0; i < servers.length; i++) {
+      if (BackupMerge._key(servers[i]) != BackupMerge._key(other.servers[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   static List<Map<String, dynamic>> _entries(Object? raw) => raw is List
       ? [
           for (final entry in raw)
