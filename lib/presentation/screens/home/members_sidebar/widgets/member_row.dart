@@ -12,7 +12,6 @@ import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
-import '../../profile/person/show_person_profile.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'role_chip.dart';
 
@@ -48,11 +47,12 @@ class MemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // No point right-clicking yourself for a local mute.
-    if (isMe) return _buildRow(context, null, false);
+    // Your own row gets the menu too — it is the way to your own profile —
+    // in its "You" form, which offers nothing aimed at somebody else.
     final menu = ParticipantContextMenu(
       identity: member.id,
       name: member.displayName,
+      isLocal: isMe,
     );
     return ContextMenuRegion(
       contextMenu: menu,
@@ -74,46 +74,34 @@ class MemberRow extends StatelessWidget {
 
     return Opacity(
       opacity: dim,
+      // A tint, not an ink well: clicking a person does nothing — their
+      // profile is in the menu — and a well with no tap never lights up.
       child: Material(
-        color: Colors.transparent,
+        color: hovered ? themeState.bgHover : Colors.transparent,
         borderRadius: BorderRadius.circular(K.radiusRow),
-        child: InkWell(
-          mouseCursor: WidgetStateMouseCursor.clickable,
-          borderRadius: BorderRadius.circular(K.radiusRow),
-          hoverColor: themeState.bgHover,
-          // The row has been inert since it was written. Clicking a person is
-          // the one thing everybody tries first, and until now it was the
-          // right-click menu or nothing.
-          onTap: () => showMemberProfile(
-            context,
-            userId: member.id,
-            name: member.displayName,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              spacing: 9,
-              children: [
-                _avatar(context),
-                Expanded(
-                  child: Text(
-                    member.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.rowQuiet.copyWith(
-                      // A role's colour is the point of giving it one, and the
-                      // name is the only thing on this row long enough to
-                      // carry it. Uncoloured roles leave the name alone.
-                      color:
-                          colourRole?.displayColor ?? themeState.textSecondary,
-                    ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            spacing: 9,
+            children: [
+              _avatar(context),
+              Expanded(
+                child: Text(
+                  member.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.rowQuiet.copyWith(
+                    // A role's colour is the point of giving it one, and the
+                    // name is the only thing on this row long enough to
+                    // carry it. Uncoloured roles leave the name alone.
+                    color: colourRole?.displayColor ?? themeState.textSecondary,
                   ),
                 ),
-                ..._badges(locallyMuted),
-                if (menu != null && !context.layoutMode.isCompact)
-                  ContextMenuButton(menu: menu, visible: hovered),
-              ],
-            ),
+              ),
+              ..._badges(locallyMuted),
+              if (menu != null && !context.layoutMode.isCompact)
+                ContextMenuButton(menu: menu, visible: hovered),
+            ],
           ),
         ),
       ),

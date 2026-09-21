@@ -15,6 +15,7 @@ import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/squircle_avatar.dart';
+import '../../profile/person/show_person_profile.dart';
 import 'participant_admin_section.dart';
 import 'participant_bot_section.dart';
 import 'participant_volume_control.dart';
@@ -41,6 +42,21 @@ class ParticipantContextMenu extends StatelessWidget {
     required this.name,
     this.isLocal = false,
   });
+
+  /// Open their profile. The menu is the one way in: a click on the row is
+  /// left alone, so pressing someone in a call never throws a dialog over it.
+  ///
+  /// Dismissed first and opened in the same frame — the menu's context is
+  /// still mounted until the next build, which is all the dialog needs to
+  /// find its navigator and cubits.
+  void _openProfile(BuildContext context) {
+    ContextMenuScope.of(context)?.call();
+    showMemberProfile(
+      context,
+      userId: ParticipantIdentity.userIdOf(identity),
+      name: name,
+    );
+  }
 
   /// Open the server DM with this member.
   ///
@@ -169,6 +185,12 @@ class ParticipantContextMenu extends StatelessWidget {
               children: [
                 Divider(height: 1, color: borderColor),
                 const SizedBox(height: 4),
+                ContextMenuItem(
+                  icon: Icons.person_outline_rounded,
+                  label: 'View profile',
+                  onTap: () => _openProfile(context),
+                ),
+                if (isLocal) Divider(height: 9, color: borderColor),
                 // Messaging — not offered for yourself.
                 if (!isLocal) ...[
                   ContextMenuItem(

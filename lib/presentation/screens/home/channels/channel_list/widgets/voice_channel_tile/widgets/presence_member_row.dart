@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../../data/classes/participant_setting.dart';
+import '../../../../../../../../data/constants.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../common/context_menu/context_menu_button.dart';
@@ -11,7 +12,6 @@ import '../../../../../../../common/squircle_avatar.dart';
 import '../../../../../../../responsive/shell_scope.dart';
 import '../../../../../../../theme/custom_colors.dart';
 import '../../../../../../../theme/theme_context.dart';
-import '../../../../../profile/person/show_person_profile.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
 import 'roster_row_metrics.dart';
 
@@ -56,47 +56,45 @@ class PresenceMemberRow extends StatelessWidget {
     final themeState = context.theme;
     final isMuted = setting?.muted ?? false;
 
-    // No ink well: this row sits inside the channel's card, and a highlight
-    // would light the strip rather than the row. The cursor is what says it
-    // is pressable, the way the message author's name does.
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () =>
-            showMemberProfile(context, userId: user.userId, name: name),
-        child: Padding(
-          padding: RosterRowMetrics.of(context).padding,
-          child: Row(
-            spacing: 8,
-            children: [
-              SquircleAvatar(
-                name: name,
-                seed: user.userId,
-                size: RosterRowMetrics.of(context).avatarSize,
-              ),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: RosterRowMetrics.of(context).nameStyle.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: themeState.textSecondary,
-                  ),
+    // A tint, not an ink well: clicking a person does nothing — their profile
+    // is in the menu — and the tint is what says the row has one.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: hovered ? themeState.bgHover : null,
+        borderRadius: BorderRadius.circular(K.radiusRow),
+      ),
+      child: Padding(
+        padding: RosterRowMetrics.of(context).padding,
+        child: Row(
+          spacing: 8,
+          children: [
+            SquircleAvatar(
+              name: name,
+              seed: user.userId,
+              size: RosterRowMetrics.of(context).avatarSize,
+            ),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: RosterRowMetrics.of(context).nameStyle.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: themeState.textSecondary,
                 ),
               ),
-              // Locally muted, even though they're in another channel —
-              // otherwise the mute is invisible until you next join them.
-              if (isMuted)
-                Icon(
-                  Icons.volume_off_rounded,
-                  size: RosterRowMetrics.of(context).iconSize + 2,
-                  color: CustomColors.error,
-                ),
-              if (!context.layoutMode.isCompact)
-                ContextMenuButton(menu: menu, visible: hovered),
-            ],
-          ),
+            ),
+            // Locally muted, even though they're in another channel —
+            // otherwise the mute is invisible until you next join them.
+            if (isMuted)
+              Icon(
+                Icons.volume_off_rounded,
+                size: RosterRowMetrics.of(context).iconSize + 2,
+                color: CustomColors.error,
+              ),
+            if (!context.layoutMode.isCompact)
+              ContextMenuButton(menu: menu, visible: hovered),
+          ],
         ),
       ),
     );

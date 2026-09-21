@@ -13,7 +13,6 @@ import '../../../../common/speaking_ring.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_row_metrics.dart';
-import '../../profile/person/show_person_profile.dart';
 import 'voice_status_row_icons.dart';
 
 /// A single participant row inside an active voice channel.
@@ -56,74 +55,66 @@ class ParticipantListItem extends StatelessWidget {
         final textQuaternary = themeState.textQuaternary;
         final hoverColor = themeState.bgHover;
 
+        // A tint rather than an ink well: clicking a person does nothing —
+        // their profile and everything else is in the menu — and a well with
+        // no tap would not light up at all, hiding the row's ••• with it.
         Widget content = Material(
           // Transparent at rest, not null: a null Material paints the canvas
           // colour, which drew a dark strip inside the channel's card.
           color: isSpeaking
               ? themeState.primary.withValues(alpha: 0.08)
+              : hovered
+              ? hoverColor
               : Colors.transparent,
           borderRadius: BorderRadius.circular(K.radiusRow),
-          child: InkWell(
-            mouseCursor: WidgetStateMouseCursor.clickable,
-            borderRadius: BorderRadius.circular(K.radiusRow),
-            hoverColor: hoverColor,
-            // The well was already here, lighting on hover with nothing
-            // behind it. A name in a call is one of the likeliest places to
-            // wonder who somebody is.
-            onTap: () => showMemberProfile(
-              context,
-              userId: participant.userId,
-              name: name,
-            ),
-            child: Padding(
-              padding: metrics.padding,
-              child: Row(
-                children: [
-                  // The avatar itself carries the speaking state — the same
-                  // pulsing ring the voice tiles use, at roster scale.
-                  SpeakingRing(
-                    isSpeaking: isSpeaking,
-                    borderRadius: BorderRadius.circular(
-                      metrics.avatarSize * K.avatarRadiusRatio,
-                    ),
-                    child: SquircleAvatar(
-                      name: name,
-                      seed: participant.userId,
-                      size: metrics.avatarSize,
-                    ),
+          child: Padding(
+            padding: metrics.padding,
+            child: Row(
+              children: [
+                // The avatar itself carries the speaking state — the same
+                // pulsing ring the voice tiles use, at roster scale.
+                SpeakingRing(
+                  isSpeaking: isSpeaking,
+                  borderRadius: BorderRadius.circular(
+                    metrics.avatarSize * K.avatarRadiusRatio,
                   ),
-                  const SizedBox(width: 8),
-                  // Name
-                  Expanded(
-                    child: Text(
-                      participant.isLocal ? '$name (You)' : name,
-                      style: RosterRowMetrics.of(context).nameStyle.copyWith(
-                        fontWeight: isSpeaking
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: isSpeaking
-                            ? themeState.channelActiveText
-                            : isMuted
-                            ? textQuaternary
-                            : textSecondary,
-                        decoration: isMuted ? TextDecoration.lineThrough : null,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  child: SquircleAvatar(
+                    name: name,
+                    seed: participant.userId,
+                    size: metrics.avatarSize,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Name
+                Expanded(
+                  child: Text(
+                    participant.isLocal ? '$name (You)' : name,
+                    style: RosterRowMetrics.of(context).nameStyle.copyWith(
+                      fontWeight: isSpeaking
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: isSpeaking
+                          ? themeState.channelActiveText
+                          : isMuted
+                          ? textQuaternary
+                          : textSecondary,
+                      decoration: isMuted ? TextDecoration.lineThrough : null,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // What they are doing: sharing, deafened, muted.
-                  VoiceStatusRowIcons(
-                    participant: participant,
-                    mutedForYou: isMuted,
-                  ),
-                  // Local mute and volume live in this menu, and nothing on
-                  // the row suggested they existed.
-                  if (contextMenu != null && !context.layoutMode.isCompact) ...[
-                    const SizedBox(width: 6),
-                    ContextMenuButton(menu: contextMenu!, visible: hovered),
-                  ],
+                ),
+                // What they are doing: sharing, deafened, muted.
+                VoiceStatusRowIcons(
+                  participant: participant,
+                  mutedForYou: isMuted,
+                ),
+                // Local mute and volume live in this menu, and nothing on
+                // the row suggested they existed.
+                if (contextMenu != null && !context.layoutMode.isCompact) ...[
+                  const SizedBox(width: 6),
+                  ContextMenuButton(menu: contextMenu!, visible: hovered),
                 ],
-              ),
+              ],
             ),
           ),
         );
