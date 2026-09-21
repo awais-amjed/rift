@@ -25,12 +25,19 @@ class ParticipantVolumeControl extends StatelessWidget {
   /// owner down with it.
   final ValueChanged<double>? onChanged;
 
+  /// Laid out as one more setting in a list of them — a profile's "Your
+  /// audio" — rather than as the foot of a menu: no inset of its own, since
+  /// the section already has one, and a row's title where a menu has its
+  /// small-caps label, so it reads like the switches above it.
+  final bool asSetting;
+
   const ParticipantVolumeControl({
     super.key,
     required this.target,
     required this.isMuted,
     required this.volume,
     this.onChanged,
+    this.asSetting = false,
   });
 
   @override
@@ -38,18 +45,27 @@ class ParticipantVolumeControl extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeState>(
       builder: (context, themeState) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          padding: asSetting
+              ? const EdgeInsets.only(top: 12)
+              : const EdgeInsets.fromLTRB(12, 8, 12, 8),
           child: Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'VOLUME',
-                    style: AppText.sectionLabel.copyWith(
-                      color: themeState.textTertiary,
-                    ),
-                  ),
+                  asSetting
+                      ? Text(
+                          'Volume',
+                          style: AppText.row.copyWith(
+                            color: themeState.textSecondary,
+                          ),
+                        )
+                      : Text(
+                          'VOLUME',
+                          style: AppText.sectionLabel.copyWith(
+                            color: themeState.textTertiary,
+                          ),
+                        ),
                   Text(
                     isMuted ? '—' : '${(volume * 100).round()}%',
                     style: AppText.chip.copyWith(
@@ -73,6 +89,11 @@ class ParticipantVolumeControl extends StatelessWidget {
                   thumbColor: themeState.primary,
                 ),
                 child: Slider(
+                  // Flutter pads the track by the overlay's radius on each
+                  // side, which left it well short of the label and the
+                  // percentage above it. The thumb's own radius is all it
+                  // needs: at either end, the thumb's edge meets theirs.
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                   value: isMuted ? 0 : volume,
                   onChanged: isMuted
                       ? null

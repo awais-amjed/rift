@@ -106,13 +106,15 @@ class ProfileLocalAudio extends StatelessWidget {
               ),
             ],
           ),
-          // The menu's own slider, unchanged: the percentage, the em dash
-          // while muted and the disabled track are all decisions that were
-          // made once and should not be made twice.
+          // The menu's own slider: the percentage, the em dash while muted
+          // and the disabled track are all decisions that were made once and
+          // should not be made twice. Only its layout changes, to line up
+          // with the switches above.
           ParticipantVolumeControl(
             target: userId,
             isMuted: muted,
             volume: volume,
+            asSetting: true,
           ),
         ],
       ),
