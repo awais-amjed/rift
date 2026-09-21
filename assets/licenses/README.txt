@@ -1,0 +1,7 @@
+Licences for what Rift ships that is not a Dart package. Each asks for its
+notice to travel with every copy of the app, and shipping these files in the
+bundle is how it does. Dart packages are covered by Flutter's own NOTICES file.
+
+geist_ofl.txt                  Geist and Geist Mono fonts (assets/fonts/)
+image_safety_classifier.txt    assets/models/image_safety.tflite
+profanity_list.txt             assets/models/profanity_en.json

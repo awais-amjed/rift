@@ -107,10 +107,11 @@ flutter:
     - assets/images/
     - assets/audio/
     - assets/models/
+    - assets/licenses/
 
   # Bundled rather than fetched at runtime: without this the app inherits
   # whatever the platform picks, so the same build renders differently on
-  # every machine. Geist + Geist Mono, SIL OFL 1.1 (assets/fonts/OFL.txt).
+  # every machine. Geist + Geist Mono, SIL OFL 1.1 (assets/licenses/geist_ofl.txt).
   fonts:
     - family: Geist
       fonts:
