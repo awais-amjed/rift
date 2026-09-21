@@ -22,6 +22,9 @@ class ConnectionQualityIndicator extends StatefulWidget {
 
 class _ConnectionQualityIndicatorState
     extends State<ConnectionQualityIndicator> {
+  /// The hover's breathing room either side of the line.
+  static const double _inset = 4;
+
   final _buttonKey = GlobalKey();
   OverlayEntry? _entry;
 
@@ -123,36 +126,50 @@ class _ConnectionQualityIndicatorState
                     : 'Connecting…';
                 final measured = stats.rttMs != null;
 
-                return Material(
-                  key: _buttonKey,
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(K.radiusRow),
-                  child: InkWell(
-                    mouseCursor: WidgetStateMouseCursor.clickable,
+                // Padded so the hover is a box around the line rather than a
+                // highlight hugging its letters, and pulled back by the same
+                // amount so the text still lines up with the name above it.
+                return Transform.translate(
+                  offset: const Offset(-_inset, 0),
+                  child: Material(
+                    key: _buttonKey,
+                    color: Colors.transparent,
                     borderRadius: BorderRadius.circular(K.radiusRow),
-                    hoverColor: themeState.bgHover,
-                    onTap: measured ? _toggle : null,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          measured
-                              ? ConnectionQualityStyle.icon(stats.quality)
-                              : Icons.person_outline,
-                          size: 11,
-                          color: measured ? color : themeState.textQuaternary,
+                    child: InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
+                      borderRadius: BorderRadius.circular(K.radiusRow),
+                      hoverColor: themeState.bgHover,
+                      onTap: measured ? _toggle : null,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: _inset,
+                          vertical: 1,
                         ),
-                        const SizedBox(width: 5),
-                        Flexible(
-                          child: Text(
-                            label,
-                            style: AppText.label.copyWith(
-                              color: themeState.textTertiary,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              measured
+                                  ? ConnectionQualityStyle.icon(stats.quality)
+                                  : Icons.person_outline,
+                              size: 11,
+                              color: measured
+                                  ? color
+                                  : themeState.textQuaternary,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                label,
+                                style: AppText.label.copyWith(
+                                  color: themeState.textTertiary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 );
