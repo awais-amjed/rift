@@ -116,10 +116,11 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
         if (_desktopKey != null) ...[
           Text(
             DesktopShortcutSettings.canOpen
-                ? 'Your desktop owns this key now, so it is changed in your '
-                      "system settings, under Rift's global shortcuts."
-                : 'Your desktop owns this key now. To change it, use the '
-                      'shortcuts for Rift in your system settings.',
+                ? 'This key works even while you are in other apps. To use a '
+                      'different key, click Change key.'
+                : 'This key works even while you are in other apps. To use a '
+                      "different key, open your computer's settings and look "
+                      "for Rift's keyboard shortcuts.",
             style: AppText.secondary.copyWith(color: themeState.textTertiary),
           ),
           if (DesktopShortcutSettings.canOpen) ...[
@@ -162,8 +163,8 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
         if (_isLinux && _desktopKey == null) ...[
           const SizedBox(height: 8),
           Text(
-            'Your desktop asks once to let Rift use this key in other apps. '
-            'You can change or revoke it later in your system settings.',
+            'After you set a key, your computer asks once whether Rift may '
+            'use it while you are in other apps.',
             style: AppText.secondary.copyWith(color: themeState.textTertiary),
           ),
         ],
