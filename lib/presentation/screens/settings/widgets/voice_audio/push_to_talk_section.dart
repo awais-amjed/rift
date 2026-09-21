@@ -18,6 +18,11 @@ import 'desktop_key_notice.dart';
 /// Push-to-talk: the enable switch, the current keybind, and the capture
 /// button that listens for the next key pressed.
 ///
+/// The key can only be set or cleared with push-to-talk on. On Linux the
+/// desktop answers with the key it already granted the moment it is switched
+/// on, so a key picked while it was off would be quietly replaced — and
+/// holding every platform to the same rule keeps the screen predictable.
+///
 /// Windows and Linux only ([HostPlatform.hasPushToTalk]); the Voice & Audio
 /// tab omits the whole section elsewhere rather than showing controls that do
 /// nothing. On Linux the key chosen here is only a suggestion to the desktop,
@@ -38,6 +43,17 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
 
   final FocusNode _captureFocusNode = FocusNode();
   bool _isCapturing = false;
+
+  /// The key is only picked with push-to-talk on — see [build] — so turning
+  /// it off mid-capture ends the capture rather than leaving it listening.
+  @override
+  void didUpdateWidget(PushToTalkSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_isCapturing && !widget.appState.pushToTalkEnabled) {
+      _isCapturing = false;
+      _captureFocusNode.unfocus();
+    }
+  }
 
   @override
   void dispose() {
@@ -134,14 +150,18 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
               buttons: [
                 AppButton(
                   label: 'Clear',
-                  onPressed: appState.pushToTalkKeyId == null
+                  onPressed:
+                      !appState.pushToTalkEnabled ||
+                          appState.pushToTalkKeyId == null
                       ? null
                       : context.read<AppCubit>().clearPushToTalkKeybind,
                   variant: AppButtonVariant.secondary,
                 ),
                 AppButton(
                   label: _isCapturing ? 'Press a key…' : 'Set key',
-                  onPressed: () => _toggleCapture(!_isCapturing),
+                  onPressed: appState.pushToTalkEnabled
+                      ? () => _toggleCapture(!_isCapturing)
+                      : null,
                   variant: _isCapturing
                       ? AppButtonVariant.secondary
                       : AppButtonVariant.primary,
@@ -149,7 +169,13 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
               ],
             ),
           ),
-        if (_isLinux && !_desktopOwnsKey) ...[
+        if (!appState.pushToTalkEnabled) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Turn on push-to-talk to set or change the key.',
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
+          ),
+        ] else if (_isLinux && !_desktopOwnsKey) ...[
           const SizedBox(height: 8),
           Text(
             'After you set a key, your computer asks once whether Rift may '
