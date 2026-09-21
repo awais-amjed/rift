@@ -51,26 +51,6 @@ class ProfileLocalAudio extends StatelessWidget {
         spacing: 12,
         children: [
           ProfileSettingRow(
-            title: 'Mute for me',
-            hint: 'They stay audible to everyone else.',
-            control: AppSwitch(
-              value: muted,
-              onChanged: (next) =>
-                  context.read<LiveKitCubit>().setParticipantMute(userId, next),
-            ),
-          ),
-          ProfileSettingRow(
-            title: 'Mute their soundboard',
-            hint:
-                'Clips they press stop playing here. Their voice is not '
-                'affected.',
-            control: AppSwitch(
-              value: soundboardMuted,
-              onChanged: (next) =>
-                  context.read<AppCubit>().setSoundboardMutedFor(userId, next),
-            ),
-          ),
-          ProfileSettingRow(
             title: 'Volume',
             hint: 'Only changes it for you.',
             control: Row(
@@ -99,6 +79,26 @@ class ProfileLocalAudio extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          ProfileSettingRow(
+            title: 'Mute for me',
+            hint: 'They stay audible to everyone else.',
+            control: AppSwitch(
+              value: muted,
+              onChanged: (next) =>
+                  context.read<LiveKitCubit>().setParticipantMute(userId, next),
+            ),
+          ),
+          ProfileSettingRow(
+            title: 'Mute their soundboard',
+            hint:
+                'Clips they press stop playing here. Their voice is not '
+                'affected.',
+            control: AppSwitch(
+              value: soundboardMuted,
+              onChanged: (next) =>
+                  context.read<AppCubit>().setSoundboardMutedFor(userId, next),
             ),
           ),
         ],
