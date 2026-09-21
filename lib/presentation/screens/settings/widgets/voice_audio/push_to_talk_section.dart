@@ -18,10 +18,10 @@ import 'desktop_key_notice.dart';
 /// Push-to-talk: the enable switch, the current keybind, and the capture
 /// button that listens for the next key pressed.
 ///
-/// The key can only be set or cleared with push-to-talk on. On Linux the
-/// desktop answers with the key it already granted the moment it is switched
-/// on, so a key picked while it was off would be quietly replaced — and
-/// holding every platform to the same rule keeps the screen predictable.
+/// The keybind only appears with push-to-talk on. On Linux the desktop
+/// answers with the key it already granted the moment it is switched on, so
+/// a key picked while it was off would be quietly replaced — and holding
+/// every platform to the same rule keeps the screen predictable.
 ///
 /// Windows and Linux only ([HostPlatform.hasPushToTalk]); the Voice & Audio
 /// tab omits the whole section elsewhere rather than showing controls that do
@@ -128,60 +128,54 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
           value: appState.pushToTalkEnabled,
           onChanged: context.read<AppCubit>().setPushToTalkEnabled,
         ),
-        const SizedBox(height: 16),
-        Text(
-          'KEYBIND',
-          style: AppText.sectionLabel.copyWith(color: themeState.textTertiary),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          _desktopKey ?? appState.pushToTalkKeyLabel ?? 'Not set',
-          style: AppText.kbd.copyWith(color: themeState.textSecondary),
-        ),
-        const SizedBox(height: 10),
-        if (_desktopOwnsKey)
-          DesktopKeyNotice(pending: appState.desktopPushToTalkPending)
-        else
-          Focus(
-            focusNode: _captureFocusNode,
-            onKeyEvent: _onKeyEvent,
-            child: ButtonFooter(
-              alignment: MainAxisAlignment.start,
-              buttons: [
-                AppButton(
-                  label: 'Clear',
-                  onPressed:
-                      !appState.pushToTalkEnabled ||
-                          appState.pushToTalkKeyId == null
-                      ? null
-                      : context.read<AppCubit>().clearPushToTalkKeybind,
-                  variant: AppButtonVariant.secondary,
-                ),
-                AppButton(
-                  label: _isCapturing ? 'Press a key…' : 'Set key',
-                  onPressed: appState.pushToTalkEnabled
-                      ? () => _toggleCapture(!_isCapturing)
-                      : null,
-                  variant: _isCapturing
-                      ? AppButtonVariant.secondary
-                      : AppButtonVariant.primary,
-                ),
-              ],
+        if (appState.pushToTalkEnabled) ...[
+          const SizedBox(height: 16),
+          Text(
+            'KEYBIND',
+            style: AppText.sectionLabel.copyWith(
+              color: themeState.textTertiary,
             ),
           ),
-        if (!appState.pushToTalkEnabled) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            'Turn on push-to-talk to set or change the key.',
-            style: AppText.secondary.copyWith(color: themeState.textTertiary),
+            _desktopKey ?? appState.pushToTalkKeyLabel ?? 'Not set',
+            style: AppText.kbd.copyWith(color: themeState.textSecondary),
           ),
-        ] else if (_isLinux && !_desktopOwnsKey) ...[
-          const SizedBox(height: 8),
-          Text(
-            'After you set a key, your computer asks once whether Rift may '
-            'use it while you are in other apps.',
-            style: AppText.secondary.copyWith(color: themeState.textTertiary),
-          ),
+          const SizedBox(height: 10),
+          if (_desktopOwnsKey)
+            DesktopKeyNotice(pending: appState.desktopPushToTalkPending)
+          else
+            Focus(
+              focusNode: _captureFocusNode,
+              onKeyEvent: _onKeyEvent,
+              child: ButtonFooter(
+                alignment: MainAxisAlignment.start,
+                buttons: [
+                  AppButton(
+                    label: 'Clear',
+                    onPressed: appState.pushToTalkKeyId == null
+                        ? null
+                        : context.read<AppCubit>().clearPushToTalkKeybind,
+                    variant: AppButtonVariant.secondary,
+                  ),
+                  AppButton(
+                    label: _isCapturing ? 'Press a key…' : 'Set key',
+                    onPressed: () => _toggleCapture(!_isCapturing),
+                    variant: _isCapturing
+                        ? AppButtonVariant.secondary
+                        : AppButtonVariant.primary,
+                  ),
+                ],
+              ),
+            ),
+          if (_isLinux && !_desktopOwnsKey) ...[
+            const SizedBox(height: 8),
+            Text(
+              'After you set a key, your computer asks once whether Rift may '
+              'use it while you are in other apps.',
+              style: AppText.secondary.copyWith(color: themeState.textTertiary),
+            ),
+          ],
         ],
         if (_isCapturing) ...[
           const SizedBox(height: 8),
