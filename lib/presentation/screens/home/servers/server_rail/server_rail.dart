@@ -6,14 +6,13 @@ import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../routing/app_routes.dart';
 import '../add_server/add_server_dialog.dart';
 import 'widgets/rail_chip_button.dart';
-import 'widgets/rail_server_chip.dart';
+import 'widgets/rail_server_list.dart';
 
 /// The permanent vertical rail down the left edge of the sidebar panel.
 ///
@@ -88,54 +87,23 @@ class ServerRail extends StatelessWidget {
     );
   }
 
+  /// The servers, then the way to add one.
+  ///
+  /// The add chip is outside the scrolling list on purpose: it is not a
+  /// server, it cannot be dragged, and a rail long enough to scroll is
+  /// exactly when it must not scroll away.
   Widget _buildServerList(BuildContext context) {
-    // AppState churns on every mic/camera toggle, so the rail listens for the
-    // one field it cares about rather than watching the whole cubit.
-    return BlocBuilder<AppCubit, AppState>(
-      buildWhen: (a, b) => a.surface != b.surface,
-      builder: (context, appState) {
-        return BlocBuilder<ServerCubit, ServerState>(
-          buildWhen: (a, b) =>
-              a.servers != b.servers ||
-              a.selectedServerId != b.selectedServerId,
-          builder: (context, serverState) {
-            return BlocBuilder<ServerNotificationsCubit, NotificationsState>(
-              builder: (context, notifications) {
-                return SingleChildScrollView(
-                  child: Column(
-                    spacing: 8,
-                    children: [
-                      for (final server in serverState.servers)
-                        RailServerChip(
-                          server: server,
-                          // Opening Home doesn't leave the server, but it does
-                          // mean the rail's selection is Home — two things
-                          // can't both be current.
-                          isSelected:
-                              server.id == serverState.selectedServerId &&
-                              appState.surface != HomeSurface.centralDms,
-                          unreadCount: notifications.unreadForServer(server.id),
-                          onTap: () {
-                            context.read<AppCubit>().setSurface(
-                              HomeSurface.server,
-                            );
-                            context.read<ServerCubit>().selectServer(server);
-                          },
-                        ),
-                      RailChipButton(
-                        icon: Icons.add_rounded,
-                        tooltip: 'Add a server',
-                        ghostRing: true,
-                        onTap: () => _openAddServerDialog(context),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Flexible(child: RailServerList()),
+        RailChipButton(
+          icon: Icons.add_rounded,
+          tooltip: 'Add a server',
+          ghostRing: true,
+          onTap: () => _openAddServerDialog(context),
+        ),
+      ],
     );
   }
 
