@@ -72,14 +72,16 @@ class ParticipantIdentity {
   /// Where the local mute and volume for a track of [identity]'s live: the
   /// person's voice, their screen share's sound, or their sound share.
   ///
-  /// [screenAudio] is the track's own word for it, and wins over the identity:
-  /// a phone streams its screen on the connection it talks on, so the
-  /// identity alone would file the stream's sound under the person's voice.
+  /// [screenAudio] is the track's own word for it, and wins over a voice
+  /// identity: a phone streams its screen on the connection it talks on, so
+  /// the identity alone would file the stream's sound under the person's
+  /// voice. It does not win over a sound share, which publishes its track as
+  /// screen audio too.
   static String settingsKeyOf(String identity, {bool screenAudio = false}) {
+    if (isSoundShare(identity)) return soundShareSettingsKey(identity);
     if (screenAudio || isScreenshare(identity)) {
       return screenshareSettingsKey(identity);
     }
-    if (isSoundShare(identity)) return soundShareSettingsKey(identity);
     return userIdOf(identity);
   }
 

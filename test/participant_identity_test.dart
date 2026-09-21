@@ -111,6 +111,15 @@ void main() {
       );
     });
 
+    // A sound share's track is published as screen audio too; filing it by
+    // the source put its saved volume where nothing would read it.
+    test('a sound share stays a sound share whatever its track says', () {
+      expect(
+        ParticipantIdentity.settingsKeyOf(sound, screenAudio: true),
+        ParticipantIdentity.soundShareSettingsKey(sound),
+      );
+    });
+
     // Your own share reaches you as a remote connection. Missing this is the
     // sharer hearing their own music back, a beat late.
     group('isShareOf', () {
