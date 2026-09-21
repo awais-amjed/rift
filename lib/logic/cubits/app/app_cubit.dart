@@ -220,6 +220,13 @@ class AppCubit extends HydratedCubit<AppState> {
         muted: muted,
       );
 
+  /// How loud one person's soundboard is here — see [setSoundboardMutedFor].
+  void setSoundboardVolumeFor(String userId, double volume) =>
+      setParticipantSetting(
+        ParticipantIdentity.soundboardSettingsKey(userId),
+        volume: volume.clamp(0.0, 1.0),
+      );
+
   void setSoundboardVolume(double volume) =>
       emit(state.copyWith(soundboardVolume: volume.clamp(0.0, 1.0)));
 

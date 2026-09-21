@@ -33,16 +33,15 @@ class ProfileLocalAudio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
     final settings = context.watch<AppCubit>().state.participantSettings;
     final setting = settings[userId];
     final muted = setting?.muted ?? false;
     final volume = setting?.volume ?? 1.0;
     // A third setting of their own, stored under its own key: somebody whose
     // airhorn is too loud has not said anything wrong.
-    final soundboardMuted =
-        settings[ParticipantIdentity.soundboardSettingsKey(userId)]?.muted ??
-        false;
+    final soundboard =
+        settings[ParticipantIdentity.soundboardSettingsKey(userId)];
+    final soundboardMuted = soundboard?.muted ?? false;
 
     return ProfileSection(
       label: 'Your audio',
@@ -50,36 +49,13 @@ class ProfileLocalAudio extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
         children: [
-          ProfileSettingRow(
+          _volumeRow(
+            context,
             title: 'Volume',
             hint: 'Only changes it for you.',
-            control: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: _sliderWidth,
-                  child: ParticipantVolumeSlider(
-                    target: userId,
-                    isMuted: muted,
-                    volume: volume,
-                  ),
-                ),
-                // Wide enough for "100%", so dragging never shifts the track.
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    ParticipantVolumeSlider.readout(
-                      isMuted: muted,
-                      volume: volume,
-                    ),
-                    textAlign: TextAlign.right,
-                    style: AppText.meta.copyWith(
-                      color: themeState.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            target: userId,
+            muted: muted,
+            volume: volume,
           ),
           ProfileSettingRow(
             title: 'Mute for me',
@@ -90,6 +66,16 @@ class ProfileLocalAudio extends StatelessWidget {
                   context.read<LiveKitCubit>().setParticipantMute(userId, next),
             ),
           ),
+          _volumeRow(
+            context,
+            title: 'Soundboard volume',
+            hint: 'Their clips, only for you.',
+            target: userId,
+            muted: soundboard?.muted ?? false,
+            volume: soundboard?.volume ?? 1.0,
+            onChanged: (value) =>
+                context.read<AppCubit>().setSoundboardVolumeFor(userId, value),
+          ),
           ProfileSettingRow(
             title: 'Mute their soundboard',
             hint:
@@ -99,6 +85,45 @@ class ProfileLocalAudio extends StatelessWidget {
               value: soundboardMuted,
               onChanged: (next) =>
                   context.read<AppCubit>().setSoundboardMutedFor(userId, next),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A slider at the end of a row, with its readout beside it.
+  Widget _volumeRow(
+    BuildContext context, {
+    required String title,
+    required String hint,
+    required String target,
+    required bool muted,
+    required double volume,
+    ValueChanged<double>? onChanged,
+  }) {
+    return ProfileSettingRow(
+      title: title,
+      hint: hint,
+      control: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: _sliderWidth,
+            child: ParticipantVolumeSlider(
+              target: target,
+              isMuted: muted,
+              volume: volume,
+              onChanged: onChanged,
+            ),
+          ),
+          // Wide enough for "100%", so dragging never shifts the track.
+          SizedBox(
+            width: 40,
+            child: Text(
+              ParticipantVolumeSlider.readout(isMuted: muted, volume: volume),
+              textAlign: TextAlign.right,
+              style: AppText.meta.copyWith(color: context.theme.textSecondary),
             ),
           ),
         ],
