@@ -59,16 +59,30 @@ class RailServerList extends StatelessWidget {
                       index: index,
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: gap),
-                        child: RailServerChip(
-                          server: server,
-                          // Opening Home doesn't leave the server, but it does
-                          // mean the rail's selection is Home — two things
-                          // can't both be current.
-                          isSelected:
-                              server.id == serverState.selectedServerId &&
-                              appState.surface != HomeSurface.centralDms,
-                          unreadCount: notifications.unreadForServer(server.id),
-                          onTap: () => _open(context, server),
+                        // Centred, and loosely. A list hands every item the
+                        // full cross-axis width as a *tight* constraint, so
+                        // without this the chip's `Stack` is as wide as the
+                        // rail, the avatar sits at the stack's default
+                        // `topStart`, and the halo — `Positioned` to -4 on
+                        // every side — stretches the whole width with the
+                        // chip off-centre inside it. The `Column` this list
+                        // replaced never showed it, because a column's
+                        // cross-axis constraint is loose.
+                        child: Center(
+                          heightFactor: 1,
+                          child: RailServerChip(
+                            server: server,
+                            // Opening Home doesn't leave the server, but it
+                            // does mean the rail's selection is Home — two
+                            // things can't both be current.
+                            isSelected:
+                                server.id == serverState.selectedServerId &&
+                                appState.surface != HomeSurface.centralDms,
+                            unreadCount: notifications.unreadForServer(
+                              server.id,
+                            ),
+                            onTap: () => _open(context, server),
+                          ),
                         ),
                       ),
                     );
