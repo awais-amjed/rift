@@ -63,6 +63,8 @@ class VoiceAudioContent extends StatelessWidget {
                   value: appState.disableAudioDucking,
                   onChanged: context.read<AppCubit>().setDisableAudioDucking,
                 ),
+              ],
+              if (HostPlatform.hasPushToTalk) ...[
                 _divider(context),
                 PushToTalkSection(appState: appState),
               ],

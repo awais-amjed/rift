@@ -99,6 +99,14 @@ class AppState {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool membersHiddenForFocus;
 
+  /// The push-to-talk key as the desktop reports it ("Press F9"), while a
+  /// desktop shortcut is bound — null otherwise. On Linux the desktop owns
+  /// the key once it has asked the user, and re-binding with a different
+  /// suggestion gets the old key back, so this, not [pushToTalkKeyLabel], is
+  /// the key that actually works.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final String? desktopPushToTalkKey;
+
   const AppState({
     this.sidebarOpen = true,
     this.audioEnabled = true,
@@ -134,6 +142,7 @@ class AppState {
     this.participants = const [],
     this.surface = HomeSurface.server,
     this.membersHiddenForFocus = false,
+    this.desktopPushToTalkKey,
   });
 
   AppState copyWith({
@@ -175,6 +184,8 @@ class AppState {
     List<ParticipantInfo>? participants,
     HomeSurface? surface,
     bool? membersHiddenForFocus,
+    String? desktopPushToTalkKey,
+    bool clearDesktopPushToTalkKey = false,
   }) {
     return AppState(
       sidebarOpen: sidebarOpen ?? this.sidebarOpen,
@@ -222,6 +233,9 @@ class AppState {
       surface: surface ?? this.surface,
       membersHiddenForFocus:
           membersHiddenForFocus ?? this.membersHiddenForFocus,
+      desktopPushToTalkKey: clearDesktopPushToTalkKey
+          ? null
+          : (desktopPushToTalkKey ?? this.desktopPushToTalkKey),
     );
   }
 

@@ -45,4 +45,13 @@ class HostPlatform {
   /// Rift runs on has the behaviour or the switch. The settings pane hides the
   /// toggle entirely rather than showing one that does nothing.
   static bool get ducksOtherApps => !kIsWeb && Platform.isWindows;
+
+  /// Whether push-to-talk can be offered at all.
+  ///
+  /// Windows has a keyboard hook that sees the key in any app. Linux has the
+  /// desktop's GlobalShortcuts portal for that, and falls back to the key
+  /// working only while Rift is focused where the portal is missing. macOS
+  /// would need an accessibility-permission event tap, which is not built.
+  static bool get hasPushToTalk =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux);
 }

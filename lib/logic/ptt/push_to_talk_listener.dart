@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../cubits/app/app_cubit.dart';
 import '../cubits/livekit/livekit_cubit.dart';
+import 'linux_push_to_talk.dart';
 import 'win32_key_codes.dart';
 
 /// Global keyboard listener that maps the configured keybind to PTT pressed state.
@@ -17,6 +18,10 @@ import 'win32_key_codes.dart';
 /// running in the background.  Flutter's [HardwareKeyboard] still handles the
 /// in-focus case, but its events are ignored if the background hook is active
 /// to avoid ordering artefacts.
+///
+/// On Linux the background half is the desktop's GlobalShortcuts portal
+/// ([LinuxPushToTalk]). Where it is missing or declined, the in-focus handler
+/// is all there is.
 class PushToTalkListener extends StatefulWidget {
   final Widget child;
 
@@ -31,6 +36,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
   static const EventChannel _kPttChannel = EventChannel('rift/ptt_keys');
 
   StreamSubscription<dynamic>? _bgSub;
+  LinuxPushToTalk? _linux;
 
   @override
   void initState() {
@@ -41,11 +47,18 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     if (!kIsWeb && Platform.isWindows) {
       _bgSub = _kPttChannel.receiveBroadcastStream().listen(_handleBgKeyEvent);
     }
+    if (!kIsWeb && Platform.isLinux) {
+      _linux = LinuxPushToTalk(
+        context.read<AppCubit>(),
+        context.read<LiveKitCubit>(),
+      )..start();
+    }
   }
 
   @override
   void dispose() {
     _bgSub?.cancel();
+    _linux?.dispose();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -53,6 +66,10 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The portal reports the key whichever window has focus, release included,
+    // so losing focus is no sign the key went up — and forcing one here would
+    // leave the debounce believing the key is still held.
+    if (_linux?.isBound ?? false) return;
     if (state != AppLifecycleState.resumed) {
       context.read<LiveKitCubit>().setPushToTalkPressed(false);
     }
@@ -61,7 +78,8 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
   // ── In-focus handler (Flutter HardwareKeyboard) ──────────────────────────
 
   bool _handleKeyEvent(KeyEvent event) {
-    if (kIsWeb || !Platform.isWindows) return false;
+    if (kIsWeb || !(Platform.isWindows || Platform.isLinux)) return false;
+    if (_linux?.isBound ?? false) return false;
 
     final appState = context.read<AppCubit>().state;
     final keyId = appState.pushToTalkKeyId;

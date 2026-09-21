@@ -57,6 +57,16 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(clearPushToTalkKeybind: true));
   }
 
+  /// What the desktop says the push-to-talk key is, or null once no desktop
+  /// shortcut is bound.
+  void setDesktopPushToTalkKey(String? key) {
+    emit(
+      key == null
+          ? state.copyWith(clearDesktopPushToTalkKey: true)
+          : state.copyWith(desktopPushToTalkKey: key),
+    );
+  }
+
   void setScreenShareSettings(ScreenShareSettings settings) {
     emit(state.copyWith(screenShareSettings: settings));
   }

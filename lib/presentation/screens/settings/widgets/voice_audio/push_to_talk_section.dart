@@ -1,8 +1,12 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/services/host_platform.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/button_footer.dart';
 import '../../../../theme/app_text.dart';
@@ -13,9 +17,12 @@ import '../setting_toggle_row.dart';
 /// Push-to-talk: the enable switch, the current keybind, and the capture
 /// button that listens for the next key pressed.
 ///
-/// Windows-only — the global key hook this needs has no equivalent on the
-/// other desktop targets, so the Voice & Audio tab omits the whole section
-/// elsewhere rather than showing controls that do nothing.
+/// Windows and Linux only ([HostPlatform.hasPushToTalk]); the Voice & Audio
+/// tab omits the whole section elsewhere rather than showing controls that do
+/// nothing. On Linux the key chosen here is only a suggestion to the desktop,
+/// which asks the user to confirm it and owns it from then on — so the
+/// section says so, or a key changed in the desktop's settings would look
+/// like Rift ignoring this one.
 class PushToTalkSection extends StatefulWidget {
   final AppState appState;
 
@@ -26,6 +33,8 @@ class PushToTalkSection extends StatefulWidget {
 }
 
 class _PushToTalkSectionState extends State<PushToTalkSection> {
+  static final bool _isLinux = !kIsWeb && Platform.isLinux;
+
   final FocusNode _captureFocusNode = FocusNode();
   bool _isCapturing = false;
 
@@ -70,6 +79,11 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
     return KeyEventResult.handled;
   }
 
+  /// The key the desktop reports while it owns push-to-talk, without its
+  /// "Press " prefix so it reads like any other keybind.
+  String? get _desktopKey =>
+      widget.appState.desktopPushToTalkKey?.replaceFirst(RegExp('^Press '), '');
+
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
@@ -94,33 +108,48 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
         ),
         const SizedBox(height: 6),
         Text(
-          appState.pushToTalkKeyLabel ?? 'Not set',
+          _desktopKey ?? appState.pushToTalkKeyLabel ?? 'Not set',
           style: AppText.kbd.copyWith(color: themeState.textSecondary),
         ),
         const SizedBox(height: 10),
-        Focus(
-          focusNode: _captureFocusNode,
-          onKeyEvent: _onKeyEvent,
-          child: ButtonFooter(
-            alignment: MainAxisAlignment.start,
-            buttons: [
-              AppButton(
-                label: 'Clear',
-                onPressed: appState.pushToTalkKeyId == null
-                    ? null
-                    : context.read<AppCubit>().clearPushToTalkKeybind,
-                variant: AppButtonVariant.secondary,
-              ),
-              AppButton(
-                label: _isCapturing ? 'Press a key…' : 'Set key',
-                onPressed: () => _toggleCapture(!_isCapturing),
-                variant: _isCapturing
-                    ? AppButtonVariant.secondary
-                    : AppButtonVariant.primary,
-              ),
-            ],
+        if (_desktopKey != null)
+          Text(
+            'Set by your desktop, which now owns this key. To change it, use '
+            'the shortcuts for Rift in your system settings.',
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
+          )
+        else
+          Focus(
+            focusNode: _captureFocusNode,
+            onKeyEvent: _onKeyEvent,
+            child: ButtonFooter(
+              alignment: MainAxisAlignment.start,
+              buttons: [
+                AppButton(
+                  label: 'Clear',
+                  onPressed: appState.pushToTalkKeyId == null
+                      ? null
+                      : context.read<AppCubit>().clearPushToTalkKeybind,
+                  variant: AppButtonVariant.secondary,
+                ),
+                AppButton(
+                  label: _isCapturing ? 'Press a key…' : 'Set key',
+                  onPressed: () => _toggleCapture(!_isCapturing),
+                  variant: _isCapturing
+                      ? AppButtonVariant.secondary
+                      : AppButtonVariant.primary,
+                ),
+              ],
+            ),
           ),
-        ),
+        if (_isLinux && _desktopKey == null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Your desktop asks once to let Rift use this key in other apps. '
+            'You can change or revoke it later in your system settings.',
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
+          ),
+        ],
         if (_isCapturing) ...[
           const SizedBox(height: 8),
           Text(
