@@ -449,6 +449,7 @@ class ServerCubit extends HydratedCubit<ServerState>
 
   /// Returns a serializable snapshot of the current server list for backup.
   /// Intentionally excludes [Server.token] and [Server.tokenIssuedAt].
+  @override
   ServerManifest getServersForExport() {
     return ServerManifest(
       servers: state.servers

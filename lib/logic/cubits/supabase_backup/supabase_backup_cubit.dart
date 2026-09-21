@@ -8,7 +8,9 @@ import '../../../data/enums/auth_status.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/supabase_backup_repository.dart';
 import '../../../logic/helper_methods.dart';
+import '../../services/backup_merge.dart';
 import '../../services/central_handle.dart';
+import '../../services/window_focus_service.dart';
 import '../vault/vault_cubit.dart';
 
 part 'supabase_backup_account_recovery.dart';
@@ -77,6 +79,29 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
   Timer? _autoBackupTimer;
 
   StreamSubscription<AuthState>? _authSub;
+  StreamSubscription<VaultState>? _vaultSub;
+
+  /// Hands the cloud's server list to [ServerCubit] to be combined with this
+  /// device's. Injected after construction, like every other cross-cubit
+  /// dependency here, to keep the two from having to be built in an order.
+  @override
+  bool Function(ServerManifest)? _mergeCloudServers;
+
+  void setMergeCloudServers(bool Function(ServerManifest) merge) {
+    _mergeCloudServers = merge;
+  }
+
+  /// Whether the once-per-launch pull has happened.
+  bool _openedPull = false;
+
+  /// The last time [pullFromCloud] ran for a window regaining focus.
+  ///
+  /// Alt-tabbing is not a sync request. Without a floor, a person moving
+  /// between two windows downloads the vault on every pass.
+  DateTime? _lastFocusPull;
+
+  /// How long after a pull another focus is ignored.
+  static const Duration focusPullInterval = Duration(minutes: 2);
 
   /// Set while the user intentionally signs out, so the auth-change listener
   /// doesn't mistake it for the session being lost server-side.
@@ -98,6 +123,32 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     // React to the session going away later — e.g. the account was deleted
     // server-side and the token can no longer be refreshed.
     _authSub = _repo.authChanges.listen(_onAuthChange);
+    WindowFocusService.instance.focused.addListener(_onFocusChanged);
+    // A cold start with a session already on disk never changes focus and
+    // never signs in, so neither of the other two triggers fires. What it
+    // does do is unlock the vault, which is also the first moment a pull
+    // could succeed.
+    _vaultSub = _vaultCubit.stream.listen(_onVaultStateChanged);
+  }
+
+  void _onVaultStateChanged(VaultState vault) {
+    if (isClosed || _openedPull) return;
+    if (vault.status != AuthStatus.unlocked || !state.isSignedIn) return;
+    _openedPull = true;
+    _lastFocusPull = DateTime.now();
+    unawaited(pullFromCloud());
+  }
+
+  /// Coming back to the window is when a device should notice that the other
+  /// one moved something. There is nothing to push a change here — the vault
+  /// is an object in a bucket, and a bucket has nothing to subscribe to.
+  void _onFocusChanged() {
+    if (isClosed || !WindowFocusService.instance.isFocused) return;
+    final last = _lastFocusPull;
+    final now = DateTime.now();
+    if (last != null && now.difference(last) < focusPullInterval) return;
+    _lastFocusPull = now;
+    unawaited(pullFromCloud());
   }
 
   /// Reconcile signed-in state with GoTrue's session. When the session is lost
@@ -142,6 +193,8 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
   Future<void> close() {
     _autoBackupTimer?.cancel();
     _authSub?.cancel();
+    _vaultSub?.cancel();
+    WindowFocusService.instance.focused.removeListener(_onFocusChanged);
     return super.close();
   }
 

@@ -230,7 +230,9 @@ class AppProviders extends StatelessWidget {
   SupabaseBackupCubit _createBackupCubit(BuildContext context) {
     final backupCubit = SupabaseBackupCubit(vaultCubit: vaultCubit);
     vaultCubit.setOnVaultChanged(backupCubit.autoBackup);
-    context.read<ServerCubit>().setOnServersChanged(backupCubit.autoBackup);
+    final serverCubit = context.read<ServerCubit>();
+    serverCubit.setOnServersChanged(backupCubit.autoBackup);
+    backupCubit.setMergeCloudServers(serverCubit.mergeCloudManifest);
     return backupCubit;
   }
 }

@@ -5,6 +5,9 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
 
   Future<({bool success, String? error})> refreshServerDetails();
 
+  /// Implemented by [ServerCubit].
+  ServerManifest getServersForExport();
+
   void updateServer(
     String serverId, {
     String? name,
@@ -104,6 +107,16 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     if (restored.isNotEmpty) loginSelectedServer();
   }
 
+  /// Combines the cloud's server list with this device's and lands it.
+  ///
+  /// Returns true when the rail actually changed, so the caller can skip an
+  /// upload that would say nothing new.
+  bool mergeCloudManifest(ServerManifest theirs) {
+    return applyMergedVault(
+      BackupMerge.union(mine: getServersForExport(), theirs: theirs),
+    );
+  }
+
   /// Lands the result of a [BackupMerge] — the cloud's list combined with
   /// this one — without treating it as a restore.
   ///
@@ -132,6 +145,17 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
       // Joined on another device. A stub is enough to draw the rail and to
       // log in; `get_server_details` fills the rest on first selection.
       arrived = true;
+      // The vault blob is a separate record of which projects this identity
+      // has joined, and it is all a v1 restore has to go on — so a host
+      // learnt from the cloud has to be written there too, or the two halves
+      // of the same backup disagree.
+      unawaited(
+        _vaultCubit?.noteJoinedHost(
+              url,
+              version: (meta['keyVersion'] as String?) ?? 'v1',
+            ) ??
+            Future<void>.value(),
+      );
       ordered.add(
         Server(
           id: id,

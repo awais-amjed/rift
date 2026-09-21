@@ -71,6 +71,37 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
     }
   }
 
+  /// Reads the server list out of a backup **without** restoring anything.
+  ///
+  /// Used before an upload, to combine what is already in the cloud with
+  /// what this device holds rather than overwriting it. Safe to call on a
+  /// backup another device wrote: the vault key is derived from the master
+  /// seed, which both devices share, so the blob opens here — and if it does
+  /// not open, the honest answer is null and the caller uploads its own copy
+  /// rather than guessing at the contents.
+  Future<ServerManifest?> readServerManifest(String backupJson) async {
+    final masterSeedB64 = state.masterSeed;
+    if (masterSeedB64 == null) return null;
+    try {
+      final backup = BackupFile.fromJsonString(backupJson);
+      final blob = backup.encryptedServers;
+      if (blob == null) return ServerManifest.empty;
+
+      final vaultKey = await _crypto.deriveLocalVaultKey(
+        CryptoRepository.fromBase64(masterSeedB64),
+      );
+      final json = await _crypto.decrypt(
+        ciphertext: CryptoRepository.fromBase64(blob.ciphertext),
+        key: vaultKey,
+        iv: CryptoRepository.fromBase64(blob.iv),
+      );
+      return ServerManifest.decode(jsonDecode(json));
+    } catch (e) {
+      HelperMethods.printDebug('[Vault] readServerManifest failed: $e');
+      return null;
+    }
+  }
+
   /// Restores a vault from a [BackupFile] JSON string.
   ///
   /// Opened with [password], or with [recoveryKey] when the password is the
