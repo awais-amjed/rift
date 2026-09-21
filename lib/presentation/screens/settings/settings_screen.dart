@@ -209,19 +209,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     color: themeState.borderPrimary,
                                   ),
                                   Expanded(
-                                    child: SingleChildScrollView(
-                                      padding: EdgeInsets.all(
-                                        compact ? 16 : 24,
-                                      ),
-                                      child: switch (_activeTab) {
-                                        SettingsTab.appearance =>
-                                          AppearanceContent(),
-                                        SettingsTab.voiceAndAudio =>
-                                          VoiceAudioContent(),
-                                        SettingsTab.backup => BackupContent(
-                                          onResetVault: _resetVault,
+                                    // Full width, so the scrollbar sits at
+                                    // the panel's edge. The column above is
+                                    // start-aligned, which let the scroll
+                                    // view shrink to its content — a tab
+                                    // held to a reading measure put the bar
+                                    // halfway across the panel.
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      child: SingleChildScrollView(
+                                        padding: EdgeInsets.all(
+                                          compact ? 16 : 24,
                                         ),
-                                      },
+                                        // Loosened again inside, or the
+                                        // full width arrives tight and a
+                                        // tab's reading measure is ignored.
+                                        child: Align(
+                                          alignment: Alignment.topLeft,
+                                          child: switch (_activeTab) {
+                                            SettingsTab.appearance =>
+                                              AppearanceContent(),
+                                            SettingsTab.voiceAndAudio =>
+                                              VoiceAudioContent(),
+                                            SettingsTab.backup => BackupContent(
+                                              onResetVault: _resetVault,
+                                            ),
+                                          },
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
