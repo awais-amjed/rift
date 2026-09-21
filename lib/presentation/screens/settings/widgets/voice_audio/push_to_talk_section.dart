@@ -66,6 +66,11 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
 
   KeyEventResult _onKeyEvent(FocusNode _, KeyEvent event) {
     if (!_isCapturing || event is! KeyDownEvent) return KeyEventResult.ignored;
+    // Not a key the user pressed. On Linux the first key event after focus
+    // makes Flutter catch its lock-key state up with the OS, and with Num Lock
+    // on that arrives as a made-up Num Lock press — which the capture took as
+    // the keybind every first time.
+    if (event.synthesized) return KeyEventResult.ignored;
 
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       _toggleCapture(false);

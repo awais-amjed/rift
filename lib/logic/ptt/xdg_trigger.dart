@@ -24,6 +24,42 @@ String? xdgTriggerForKeyId(int keyId) {
   return null;
 }
 
+/// The keybind a desktop's description of a key names, if it is one Rift
+/// can store — the other direction of [xdgTriggerForKeyId].
+///
+/// The desktop owns the key once it has been granted, so Rift keeps its own
+/// keybind in step with what the desktop reports; otherwise turning
+/// push-to-talk off shows a stale key. Descriptions are the desktop's own
+/// wording ("Press F8"), so this is forgiving about case, spacing and the
+/// "Press " prefix, and gives up on combinations: those stay the desktop's
+/// to show, not Rift's to store.
+({int keyId, String label})? keybindForTriggerDescription(String description) {
+  final name = description
+      .replaceFirst(RegExp('^Press ', caseSensitive: false), '')
+      .trim();
+  if (name.isEmpty || name.contains('+')) return null;
+  final norm = name.toLowerCase().replaceAll(RegExp(r'[\s_]'), '');
+
+  final fn = RegExp(r'^f(\d{1,2})$').firstMatch(norm);
+  if (fn != null) {
+    final n = int.parse(fn.group(1)!);
+    if (n < 1 || n > 24) return null;
+    return (keyId: _functionKeys[n - 1].keyId, label: 'F$n');
+  }
+  if (RegExp(r'^[a-z0-9]$').hasMatch(norm)) {
+    // Flutter's logical ids for letters and digits are the lowercase
+    // character's code point.
+    return (keyId: norm.codeUnitAt(0), label: norm.toUpperCase());
+  }
+  for (final entry in _named.entries) {
+    if (entry.value.toLowerCase().replaceAll('_', '') == norm) {
+      final key = LogicalKeyboardKey.findKeyByKeyId(entry.key);
+      return (keyId: entry.key, label: key?.keyLabel ?? name);
+    }
+  }
+  return null;
+}
+
 final _functionKeys = <LogicalKeyboardKey>[
   LogicalKeyboardKey.f1, LogicalKeyboardKey.f2, LogicalKeyboardKey.f3, //
   LogicalKeyboardKey.f4, LogicalKeyboardKey.f5, LogicalKeyboardKey.f6,

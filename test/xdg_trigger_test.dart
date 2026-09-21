@@ -23,4 +23,57 @@ void main() {
     expect(xdgTriggerForKeyId(LogicalKeyboardKey.shiftLeft.keyId), isNull);
     expect(xdgTriggerForKeyId(LogicalKeyboardKey.semicolon.keyId), isNull);
   });
+
+  group('keybindForTriggerDescription', () {
+    test('function keys, with or without the prefix', () {
+      expect(keybindForTriggerDescription('Press F8'), (
+        keyId: LogicalKeyboardKey.f8.keyId,
+        label: 'F8',
+      ));
+      expect(
+        keybindForTriggerDescription('f12')?.keyId,
+        LogicalKeyboardKey.f12.keyId,
+      );
+    });
+
+    test('letters and digits', () {
+      expect(keybindForTriggerDescription('Press G'), (
+        keyId: LogicalKeyboardKey.keyG.keyId,
+        label: 'G',
+      ));
+      expect(
+        keybindForTriggerDescription('Press 4')?.keyId,
+        LogicalKeyboardKey.digit4.keyId,
+      );
+    });
+
+    test('named keys, however the desktop spaces them', () {
+      expect(
+        keybindForTriggerDescription('Press Page Up')?.keyId,
+        LogicalKeyboardKey.pageUp.keyId,
+      );
+      expect(
+        keybindForTriggerDescription('Press Caps_Lock')?.keyId,
+        LogicalKeyboardKey.capsLock.keyId,
+      );
+    });
+
+    test('round-trips what Rift suggests', () {
+      for (final key in [
+        LogicalKeyboardKey.f1,
+        LogicalKeyboardKey.keyV,
+        LogicalKeyboardKey.space,
+        LogicalKeyboardKey.home,
+      ]) {
+        final trigger = xdgTriggerForKeyId(key.keyId)!;
+        expect(keybindForTriggerDescription(trigger)?.keyId, key.keyId);
+      }
+    });
+
+    test('combinations and nonsense are left to the desktop', () {
+      expect(keybindForTriggerDescription('Press Ctrl+G'), isNull);
+      expect(keybindForTriggerDescription('Press F99'), isNull);
+      expect(keybindForTriggerDescription(''), isNull);
+    });
+  });
 }

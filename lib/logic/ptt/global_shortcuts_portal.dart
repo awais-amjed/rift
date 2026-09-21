@@ -161,12 +161,19 @@ class GlobalShortcutsPortal {
     if (current != null) await _end(current);
   }
 
+  /// Safe to call more than once for the same session, and concurrently: a
+  /// failed bind ending its own session can race a newer bind closing the
+  /// current one, and the second pass used to iterate a list the first had
+  /// just cleared.
   Future<void> _end(_Session session) async {
     if (identical(_current, session)) _current = null;
-    for (final sub in session.signals) {
+    if (session.ended) return;
+    session.ended = true;
+    final signals = [...session.signals];
+    session.signals.clear();
+    for (final sub in signals) {
       await sub.cancel();
     }
-    session.signals.clear();
     try {
       await _client.callMethod(
         destination: _service,
@@ -316,6 +323,7 @@ class GlobalShortcutsPortal {
 class _Session {
   final DBusObjectPath path;
   final List<StreamSubscription<DBusSignal>> signals = [];
+  bool ended = false;
 
   _Session(this.path);
 }

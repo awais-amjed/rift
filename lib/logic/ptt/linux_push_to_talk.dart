@@ -60,6 +60,21 @@ class LinuxPushToTalk {
     if (_app.state.desktopPushToTalkKey != known) {
       _app.setDesktopPushToTalkKey(known);
     }
+    if (known != null) _adoptDesktopKey(known);
+  }
+
+  /// Makes the desktop's key Rift's own stored keybind.
+  ///
+  /// The desktop keeps the key it granted whatever Rift suggests, so the
+  /// stored one would otherwise go stale — and it is what Settings shows once
+  /// push-to-talk is off, and what the in-window key uses where there is no
+  /// portal. [_applied] moves first, so storing it does not look like a new
+  /// keybind and bind all over again.
+  void _adoptDesktopKey(String trigger) {
+    final keybind = keybindForTriggerDescription(trigger);
+    if (keybind == null || keybind.keyId == _app.state.pushToTalkKeyId) return;
+    _applied = (enabled: _app.state.pushToTalkEnabled, keyId: keybind.keyId);
+    _app.setPushToTalkKeybind(keyId: keybind.keyId, label: keybind.label);
   }
 
   Future<void> _apply(AppState state) async {
