@@ -31,11 +31,12 @@ class ServerManifest {
 
   /// A Lamport counter, deliberately not a timestamp.
   ///
-  /// A reorder sets it to `max(mine, theirs) + 1`, so the reorder that
-  /// happened *after* seeing the other one always wins, whatever the two
-  /// devices' clocks say. Wall time would be the obvious choice and the
-  /// wrong one: a phone ninety seconds ahead of a laptop would win every
-  /// tie for ninety seconds, including the ties it should lose.
+  /// A merge adopts the higher of the two and a reorder adds one, so a
+  /// device's clock is always the highest it has ever seen and the reorder
+  /// made *after* learning of another one always outranks it. Wall time
+  /// would be the obvious choice and the wrong one: a phone ninety seconds
+  /// ahead of a laptop would win every tie for ninety seconds, including
+  /// the ties it should lose.
   final int orderClock;
 
   const ServerManifest({required this.servers, this.orderClock = 0});
@@ -123,10 +124,6 @@ class BackupMerge {
           : theirs.orderClock,
     );
   }
-
-  /// The clock a device stamps on an order it has just chosen.
-  static int nextClock({required int mine, required int theirs}) =>
-      (mine > theirs ? mine : theirs) + 1;
 
   /// [mine] with any field it does not have filled in from [theirs].
   ///

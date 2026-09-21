@@ -38,6 +38,28 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     return newServer;
   }
 
+  /// Move the server at [oldIndex] to [newIndex] in the rail.
+  ///
+  /// The clock is a plain +1 rather than a timestamp: this device's clock is
+  /// already the highest it has seen, because every merge adopts the higher
+  /// of the two. So the order chosen *after* learning of another device's
+  /// order outranks it, and two clocks that never met are decided by
+  /// whichever device uploads second — see [BackupMerge].
+  void reorderServers(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= state.servers.length) return;
+    // What `ReorderableListView` hands over is an insertion point in the
+    // *unchanged* list, so a downward move is one past where the row lands.
+    final target = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    if (target == oldIndex || target < 0 || target >= state.servers.length) {
+      return;
+    }
+
+    final updated = [...state.servers];
+    updated.insert(target, updated.removeAt(oldIndex));
+    emit(state.copyWith(servers: updated, orderClock: state.orderClock + 1));
+    _onServersChanged?.call();
+  }
+
   void removeServer(String serverId) {
     // Before the server leaves the list, while there is still a session to say
     // it with: a device that stays registered on a server you have left goes

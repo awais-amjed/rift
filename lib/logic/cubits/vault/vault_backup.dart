@@ -11,8 +11,8 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
 
   SecureStorageRepository get _storage;
   Map<String, ServerIdentity> get _identityCache;
-  void Function(List<Map<String, dynamic>>)? get _onServersImported;
-  List<Map<String, dynamic>> Function()? get _getServersForExport;
+  void Function(ServerManifest)? get _onServersImported;
+  ServerManifest Function()? get _getServersForExport;
 
   // ──────────────────────────────────────────────────────────
   // Phase 5: Backup export / import
@@ -36,8 +36,10 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
         return (success: false, content: null, error: 'Vault is locked');
       }
 
-      final servers = _getServersForExport?.call() ?? [];
-      final serversJson = jsonEncode(servers);
+      final manifest = _getServersForExport?.call() ?? ServerManifest.empty;
+      // An object rather than the bare array v1 wrote, because the order the
+      // array is in now has to travel with a clock saying how recent it is.
+      final serversJson = jsonEncode(manifest.encode());
 
       // Encrypt the servers list with the same vault key (HMAC(masterSeed,
       // "vault:v1")) but a fresh IV so the ciphertext is independent.
@@ -149,7 +151,7 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
       emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
 
       // Decrypt the servers list and pass full metadata to ServerCubit.
-      List<Map<String, dynamic>> serverMaps = [];
+      ServerManifest manifest = ServerManifest.empty;
       if (backup.encryptedServers != null) {
         final serversJson = await _crypto.decrypt(
           ciphertext: CryptoRepository.fromBase64(
@@ -158,22 +160,22 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
           key: vaultKey,
           iv: CryptoRepository.fromBase64(backup.encryptedServers!.iv),
         );
-        serverMaps = (jsonDecode(serversJson) as List<dynamic>)
-            .map((e) => e as Map<String, dynamic>)
-            .toList();
+        manifest = ServerManifest.decode(jsonDecode(serversJson));
       } else {
         // Legacy v1 backup — fall back to url/version stubs from vault blob.
-        serverMaps = joinedServers
-            .map(
-              (s) => <String, dynamic>{
-                'supabaseUrl': s.url,
-                'keyVersion': s.version,
-              },
-            )
-            .toList();
+        manifest = ServerManifest(
+          servers: joinedServers
+              .map(
+                (s) => <String, dynamic>{
+                  'supabaseUrl': s.url,
+                  'keyVersion': s.version,
+                },
+              )
+              .toList(),
+        );
       }
 
-      _onServersImported?.call(serverMaps);
+      _onServersImported?.call(manifest);
 
       return (success: true, error: null);
     } on SecretBoxAuthenticationError {

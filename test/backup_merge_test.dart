@@ -100,9 +100,9 @@ void main() {
         mine: const ServerManifest(servers: [], orderClock: 2),
         theirs: const ServerManifest(servers: [], orderClock: 9),
       );
+      // And the local state adopts it, which is what lets a reorder be a
+      // plain +1: this device's clock is already the highest it has seen.
       expect(merged.orderClock, 9);
-      expect(BackupMerge.nextClock(mine: 2, theirs: 9), 10);
-      expect(BackupMerge.nextClock(mine: 9, theirs: 2), 10);
     });
 
     test('a server the loser holds lands after the winner\'s order', () {

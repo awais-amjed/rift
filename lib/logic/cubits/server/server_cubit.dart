@@ -30,6 +30,7 @@ import '../../../data/repositories/soundboard_repository.dart';
 import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
 import '../../services/avatar_cache.dart';
+import '../../services/backup_merge.dart';
 import '../../services/coalesced_refresh.dart';
 import '../../services/push_service.dart';
 import '../../services/push_wake/wake_index.dart';
@@ -448,20 +449,23 @@ class ServerCubit extends HydratedCubit<ServerState>
 
   /// Returns a serializable snapshot of the current server list for backup.
   /// Intentionally excludes [Server.token] and [Server.tokenIssuedAt].
-  List<Map<String, dynamic>> getServersForExport() {
-    return state.servers
-        .map(
-          (s) => {
-            'id': s.id,
-            'name': s.name,
-            'iconUrl': s.iconUrl,
-            'supabaseUrl': s.supabaseUrl,
-            'supabaseKey': s.supabaseKey,
-            'livekitUrl': s.livekitUrl,
-            'keyVersion': s.keyVersion,
-          },
-        )
-        .toList();
+  ServerManifest getServersForExport() {
+    return ServerManifest(
+      servers: state.servers
+          .map(
+            (s) => {
+              'id': s.id,
+              'name': s.name,
+              'iconUrl': s.iconUrl,
+              'supabaseUrl': s.supabaseUrl,
+              'supabaseKey': s.supabaseKey,
+              'livekitUrl': s.livekitUrl,
+              'keyVersion': s.keyVersion,
+            },
+          )
+          .toList(),
+      orderClock: state.orderClock,
+    );
   }
 
   // ──────────────────────────────────────────────────────────

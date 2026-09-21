@@ -5,7 +5,18 @@ class ServerState {
   final List<Server> servers;
   final String? selectedServerId;
 
-  const ServerState({this.servers = const [], this.selectedServerId});
+  /// How recently this device chose the order [servers] is in.
+  ///
+  /// A Lamport counter, shared with the cloud backup — see [ServerManifest].
+  /// Persisted, because the point of it is to survive a restart and still
+  /// beat a stale order sitting in the cloud.
+  final int orderClock;
+
+  const ServerState({
+    this.servers = const [],
+    this.selectedServerId,
+    this.orderClock = 0,
+  });
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   Server? get selectedServer {
@@ -51,12 +62,14 @@ class ServerState {
     List<Server>? servers,
     String? selectedServerId,
     bool clearSelectedServerId = false,
+    int? orderClock,
   }) {
     return ServerState(
       servers: servers ?? this.servers,
       selectedServerId: clearSelectedServerId
           ? null
           : (selectedServerId ?? this.selectedServerId),
+      orderClock: orderClock ?? this.orderClock,
     );
   }
 

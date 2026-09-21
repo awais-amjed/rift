@@ -13,6 +13,7 @@ import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../logic/helper_methods.dart';
 import '../../../logic/services/attachment_cache.dart';
+import '../../../logic/services/backup_merge.dart';
 
 part 'vault_auth.dart';
 part 'vault_backup.dart';
@@ -48,19 +49,17 @@ class VaultCubit extends Cubit<VaultState>
   /// Called after a successful [importBackup] to reconcile the server list.
   /// Receives the full server metadata maps from the backup.
   @override
-  void Function(List<Map<String, dynamic>>)? _onServersImported;
+  void Function(ServerManifest)? _onServersImported;
 
-  void setOnServersImported(
-    void Function(List<Map<String, dynamic>>) callback,
-  ) {
+  void setOnServersImported(void Function(ServerManifest) callback) {
     _onServersImported = callback;
   }
 
   /// Called during [exportBackup] to capture the current server list.
   @override
-  List<Map<String, dynamic>> Function()? _getServersForExport;
+  ServerManifest Function()? _getServersForExport;
 
-  void setGetServersForExport(List<Map<String, dynamic>> Function() callback) {
+  void setGetServersForExport(ServerManifest Function() callback) {
     _getServersForExport = callback;
   }
 
@@ -91,6 +90,14 @@ class VaultCubit extends Cubit<VaultState>
     await _storage.addJoinedServer(host, version);
     await _syncVaultBlob();
   }
+
+  /// Records a host this identity has joined *elsewhere*, learnt from the
+  /// cloud copy rather than from registering here.
+  ///
+  /// Without it the merged server list and the vault blob disagree, and the
+  /// blob is the only thing a v1 restore has to go on.
+  Future<void> noteJoinedHost(String host, {String version = 'v1'}) =>
+      _addServerToVault(host, version: version);
 
   /// Re-encrypts the vault blob from the current joined_servers list.
   /// Uses HMAC(masterSeed, "vault:v1") — always available without a password.
