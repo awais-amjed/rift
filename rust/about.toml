@@ -1,0 +1,22 @@
+# cargo-about: the licence notices for every crate compiled into the native
+# library. Run scripts/generate_licenses.sh rather than this directly.
+#
+# Only permissive licences are accepted, so a dependency that brings in a
+# copyleft one fails the generation instead of slipping into the app.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "CC0-1.0",
+    "0BSD",
+    "BSL-1.0",
+]
+# Build scripts and tests do not end up in the shipped library.
+ignore-build-dependencies = true
+ignore-dev-dependencies = true

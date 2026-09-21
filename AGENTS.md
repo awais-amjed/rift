@@ -229,6 +229,9 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
 - `rust/src/frb_generated.rs` and `lib/src/rust/` are generated. After changing the API surface,
   regenerate with flutter_rust_bridge codegen (config in `flutter_rust_bridge.yaml`,
   pinned to flutter_rust_bridge 2.13.0 — keep the Dart package and codegen versions in lockstep).
+- After changing Rust dependencies, run `scripts/generate_licenses.sh`: it rewrites the notices
+  for every shipped crate and the prebuilt WebRTC in `assets/licenses/`, and fails if a
+  dependency brings in a licence `rust/about.toml` does not accept.
 - Local native builds: `./build_rust_local.sh` / `build_rust_local.bat`. CI precompiles binaries
   via cargokit on pushes to `production`.
 
