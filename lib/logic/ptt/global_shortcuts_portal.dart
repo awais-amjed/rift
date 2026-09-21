@@ -23,6 +23,18 @@ class GlobalShortcutsPortal {
   static final _object = DBusObjectPath('/org/freedesktop/portal/desktop');
   static const _shortcutId = 'push-to-talk';
 
+  /// Tries at binding before giving up on a desktop that keeps failing.
+  ///
+  /// GNOME 50.4's dialog helper (`gnome-control-center-global-shortcuts-
+  /// provider`) segfaults on *every* bind, including ones that need no
+  /// dialog, and the portal answers whichever way the race falls: about half
+  /// the time "failed" (2) instead of the saved key. Measured 3 of 6 and 2
+  /// of 6 on this machine; a retry is a fresh coin toss. The user refusing
+  /// (1) is never retried — that is an answer, not a failure.
+  static const _attempts = 4;
+  static const _retryDelay = Duration(milliseconds: 500);
+  static const _otherFailure = 2;
+
   /// A portal dialog waits on a person, so this is generous.
   static const _responseTimeout = Duration(minutes: 2);
 
@@ -38,7 +50,9 @@ class GlobalShortcutsPortal {
   /// unsandboxed app has to say who it is before any call, and GNOME refuses
   /// an id it cannot find a desktop entry for. Returns what the desktop says
   /// the key is ("Press F9"), or null if there is no portal or the user
-  /// declined.
+  /// declined. An *empty* string means the session is open but no key is
+  /// assigned yet — Hyprland, for one, never asks, and waits for the user to
+  /// bind the shortcut in its own config.
   ///
   /// A newer call supersedes an older one still waiting on its dialog: the
   /// older one closes only its *own* session and returns null. Letting it
@@ -53,10 +67,39 @@ class GlobalShortcutsPortal {
   }) async {
     final epoch = ++_epoch;
     await close();
-    _Session? mine;
     try {
       await _register(appId);
+      for (var attempt = 1; ; attempt++) {
+        final outcome = await _bindOnce(
+          epoch: epoch,
+          preferredTrigger: preferredTrigger,
+          onPress: onPress,
+          onRelease: onRelease,
+          onTriggerChanged: onTriggerChanged,
+        );
+        if (!outcome.retry || attempt == _attempts || epoch != _epoch) {
+          return outcome.trigger;
+        }
+        await Future<void>.delayed(_retryDelay);
+      }
+    } catch (e) {
+      debugPrint('GlobalShortcutsPortal: unavailable – $e');
+      return null;
+    }
+  }
 
+  /// One session and one bind. `retry` is set when the desktop failed rather
+  /// than the user saying no — see [_attempts].
+  Future<({String? trigger, bool retry})> _bindOnce({
+    required int epoch,
+    required String? preferredTrigger,
+    required void Function(int timestamp) onPress,
+    required void Function(int timestamp) onRelease,
+    required void Function(String trigger) onTriggerChanged,
+  }) async {
+    const giveUp = (trigger: null, retry: false);
+    _Session? mine;
+    try {
       final created = await _request(
         'CreateSession',
         (token) => [
@@ -66,12 +109,12 @@ class GlobalShortcutsPortal {
           }),
         ],
       );
-      final handle = created?['session_handle']?.asString();
-      if (handle == null) return null;
+      final handle = created.results?['session_handle']?.asString();
+      if (handle == null) return giveUp;
       mine = _Session(DBusObjectPath(handle));
       if (epoch != _epoch) {
         await _end(mine);
-        return null;
+        return giveUp;
       }
       _current = mine;
       mine.signals
@@ -97,19 +140,18 @@ class GlobalShortcutsPortal {
           DBusDict.stringVariant({'handle_token': DBusString(token)}),
         ],
       );
-      final trigger = _triggerOf(bound);
-      if (bound != null && trigger == null) {
-        debugPrint('GlobalShortcutsPortal: bound nothing – $bound');
+      final trigger = _triggerOf(bound.results);
+      if (bound.results != null && trigger == null) {
+        debugPrint('GlobalShortcutsPortal: bound nothing – ${bound.results}');
       }
       if (trigger == null || epoch != _epoch) {
         await _end(mine);
-        return null;
+        return (trigger: null, retry: bound.code == _otherFailure);
       }
-      return trigger;
+      return (trigger: trigger, retry: false);
     } catch (e) {
-      debugPrint('GlobalShortcutsPortal: unavailable – $e');
       if (mine != null) await _end(mine);
-      return null;
+      rethrow;
     }
   }
 
@@ -151,24 +193,34 @@ class GlobalShortcutsPortal {
   /// is refused.
   Future<void> _register(String appId) async {
     if (_registered) return;
-    await _client.callMethod(
-      destination: _service,
-      path: _object,
-      interface: 'org.freedesktop.host.portal.Registry',
-      name: 'Register',
-      values: [DBusString(appId), DBusDict.stringVariant({})],
-      replySignature: DBusSignature(''),
-    );
+    // Tried once per connection, and never fatal. A sandboxed app (Flatpak,
+    // Snap) is already known to the portal by its sandbox and may have this
+    // refused, and a portal older than 1.20 has no Registry at all — in both
+    // cases the calls that follow work without it. Only a GNOME host app
+    // truly needs it, and there the refusal shows up on those calls anyway.
     _registered = true;
+    try {
+      await _client.callMethod(
+        destination: _service,
+        path: _object,
+        interface: 'org.freedesktop.host.portal.Registry',
+        name: 'Register',
+        values: [DBusString(appId), DBusDict.stringVariant({})],
+        replySignature: DBusSignature(''),
+      );
+    } catch (e) {
+      debugPrint('GlobalShortcutsPortal: Register refused, going on – $e');
+    }
   }
 
   /// Calls a portal method that answers later, on a Request object, and
-  /// waits for that answer. Null unless the response code is 0 (success).
+  /// waits for that answer. `results` is null unless the code is 0
+  /// (success).
   ///
   /// The Request's path is derived from our bus name and a token we choose,
   /// so the subscription goes in *before* the call — the answer can arrive
   /// before the call itself returns.
-  Future<Map<String, DBusValue>?> _request(
+  Future<({int code, Map<String, DBusValue>? results})> _request(
     String method,
     List<DBusValue> Function(String token) args,
   ) async {
@@ -200,9 +252,9 @@ class GlobalShortcutsPortal {
       if (code != 0) {
         // 1 is the user saying no, 2 anything else the desktop refused.
         debugPrint('GlobalShortcutsPortal: $method answered $code');
-        return null;
+        return (code: code, results: null);
       }
-      return signal.values[1].asStringVariantDict();
+      return (code: 0, results: signal.values[1].asStringVariantDict());
     } finally {
       await sub.cancel();
     }

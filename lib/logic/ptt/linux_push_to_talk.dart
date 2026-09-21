@@ -32,9 +32,14 @@ class LinuxPushToTalk {
 
   LinuxPushToTalk(this._app, this._liveKit);
 
-  /// Whether the desktop is delivering the key. While it is, the key never
-  /// reaches the focused window either, and the in-window handler stands
-  /// down so a press is never counted twice.
+  /// Whether the desktop is delivering a known key. While it is, the key
+  /// never reaches the focused window either, and the in-window handler
+  /// stands down so a press is never counted twice.
+  ///
+  /// A session with no key assigned does not count. The session stays open,
+  /// so a key the user binds later in the desktop's own config still works,
+  /// but until then the in-window key is the only one there is — standing it
+  /// down too left push-to-talk dead everywhere.
   bool get isBound => _bound;
 
   void start() {
@@ -50,9 +55,10 @@ class LinuxPushToTalk {
   }
 
   void _setBound(String? trigger) {
-    _bound = trigger != null;
-    if (_app.state.desktopPushToTalkKey != trigger) {
-      _app.setDesktopPushToTalkKey(trigger);
+    final known = (trigger?.isNotEmpty ?? false) ? trigger : null;
+    _bound = known != null;
+    if (_app.state.desktopPushToTalkKey != known) {
+      _app.setDesktopPushToTalkKey(known);
     }
   }
 
@@ -88,6 +94,8 @@ class LinuxPushToTalk {
     HelperMethods.printDebug(
       _bound
           ? 'LinuxPushToTalk: desktop shortcut bound ($trigger)'
+          : trigger != null
+          ? 'LinuxPushToTalk: desktop session open, no key assigned yet'
           : 'LinuxPushToTalk: no desktop shortcut, in-window only',
     );
   }
