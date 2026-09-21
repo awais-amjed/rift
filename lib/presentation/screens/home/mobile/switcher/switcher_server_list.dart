@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../theme/theme_context.dart';
 import 'switcher_server_row.dart';
 
 /// The servers in the switcher, in the order their owner put them in.
@@ -12,9 +13,11 @@ import 'switcher_server_row.dart';
 /// two things that do not move — Home above, "Add a server" below — and the
 /// order has to be theirs to state on a phone as much as on a desktop.
 ///
-/// Press and hold to pick a row up. Not an immediate drag, the way the
-/// desktop rail allows: this list scrolls under a finger, and a drag that
-/// started on contact would take the scroll with it.
+/// Picked up by a grip, not by a held finger. Long-press on one of these
+/// rows already opens the server's menu — invite, settings, leave — and a row
+/// that answered a held finger with two different things would be a coin
+/// toss. A handle also spares the list the choice between dragging a row and
+/// scrolling, which is the other thing a finger on a row could mean.
 class SwitcherServerList extends StatelessWidget {
   final List<Server> servers;
   final String? selectedServerId;
@@ -40,18 +43,16 @@ class SwitcherServerList extends StatelessWidget {
           context.read<ServerCubit>().reorderServers(from, to),
       itemBuilder: (context, index) {
         final server = servers[index];
-        return ReorderableDelayedDragStartListener(
+        return Padding(
           key: ValueKey(server.id),
-          index: index,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: SwitcherServerRow(
-              server: server,
-              selected: server.id == selectedServerId && !onHome,
-              unread: notifications.unreadForServer(server.id),
-              muted: notifications.serverLevel(server.id).isMuted,
-              onTap: () => onOpen(server),
-            ),
+          padding: const EdgeInsets.only(bottom: 6),
+          child: SwitcherServerRow(
+            server: server,
+            selected: server.id == selectedServerId && !onHome,
+            unread: notifications.unreadForServer(server.id),
+            muted: notifications.serverLevel(server.id).isMuted,
+            onTap: () => onOpen(server),
+            dragHandle: _Grip(index: index),
           ),
         );
       },
@@ -69,6 +70,30 @@ class SwitcherServerList extends StatelessWidget {
       builder: (context, _) => Transform.scale(
         scale: 1 + 0.03 * Curves.easeOut.transform(animation.value),
         child: child,
+      ),
+    );
+  }
+}
+
+/// The grip, sized to a thumb rather than to the glyph inside it.
+class _Grip extends StatelessWidget {
+  final int index;
+
+  const _Grip({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    return ReorderableDragStartListener(
+      index: index,
+      child: Padding(
+        // The icon is 20px and the target is 44 — the padding is the
+        // difference, not decoration.
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Icon(
+          Icons.drag_indicator_rounded,
+          size: 20,
+          color: context.theme.textTertiary,
+        ),
       ),
     );
   }

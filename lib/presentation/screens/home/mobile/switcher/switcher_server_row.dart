@@ -18,12 +18,19 @@ import 'switcher_row.dart';
 /// if anyone is, and otherwise the host you are joined to — the one thing about
 /// a server that nobody can make up. Long-press opens the same menu a rail
 /// chip does, so invite, settings and leave have a home on a phone too.
+///
+/// Which is why reordering is a [dragHandle] and not a long-press, the way it
+/// is on a desktop: that gesture is already spoken for here, and a row that
+/// answered a held finger with two different things would be a coin toss.
 class SwitcherServerRow extends StatelessWidget {
   final Server server;
   final bool selected;
   final int unread;
   final bool muted;
   final VoidCallback onTap;
+
+  /// The grip that picks this row up, if the list it is in reorders.
+  final Widget? dragHandle;
 
   const SwitcherServerRow({
     super.key,
@@ -32,6 +39,7 @@ class SwitcherServerRow extends StatelessWidget {
     required this.unread,
     required this.muted,
     required this.onTap,
+    this.dragHandle,
   });
 
   @override
@@ -88,7 +96,12 @@ class SwitcherServerRow extends StatelessWidget {
             ),
           ],
         ),
-        trailing: trailing,
+        trailing: dragHandle == null
+            ? trailing
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [?trailing, dragHandle!],
+              ),
         onTap: onTap,
       ),
     );
