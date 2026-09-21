@@ -26,6 +26,7 @@ class MemberPickRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),

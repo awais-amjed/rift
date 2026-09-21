@@ -85,6 +85,7 @@ class ComposerLinkPreview extends StatelessWidget {
               message: 'Send without preview',
               waitDuration: K.tooltipDelay,
               child: InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 borderRadius: BorderRadius.circular(K.radiusPill),
                 onTap: onRemove,
                 child: Padding(

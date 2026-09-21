@@ -67,6 +67,7 @@ class _ContextMenuButtonState extends State<ContextMenuButton> {
           color: shown ? theme.bgHover : Colors.transparent,
           borderRadius: radius,
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: radius,
             hoverColor: theme.bgActive,
             onFocusChange: (focused) => setState(() => _focused = focused),

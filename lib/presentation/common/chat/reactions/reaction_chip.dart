@@ -119,6 +119,7 @@ class _ReactionChipState extends State<ReactionChip>
         ),
       ),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: widget.onTap,
         customBorder: const StadiumBorder(),
         child: Padding(

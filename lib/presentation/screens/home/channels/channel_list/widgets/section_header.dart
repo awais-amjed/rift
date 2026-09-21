@@ -66,6 +66,7 @@ class _AddButton extends StatelessWidget {
       message: tooltip,
       waitDuration: K.tooltipDelay,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: BorderRadius.circular(K.radiusRow),
         hoverColor: themeState.bgHover,
         onTap: onTap,

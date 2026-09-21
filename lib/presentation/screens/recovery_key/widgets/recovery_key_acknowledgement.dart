@@ -23,6 +23,7 @@ class RecoveryKeyAcknowledgement extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => onChanged(!value),
       borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(

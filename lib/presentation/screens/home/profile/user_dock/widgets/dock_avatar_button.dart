@@ -44,6 +44,7 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           borderRadius: radius,
           onTap: widget.onTap,
           onHover: (value) => setState(() => _hovering = value),

@@ -37,6 +37,7 @@ class FriendActionButton extends StatelessWidget {
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: action.onTap,
           hoverColor: color.withValues(alpha: 0.14),
           child: SizedBox(

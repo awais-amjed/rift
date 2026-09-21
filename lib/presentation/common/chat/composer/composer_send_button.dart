@@ -42,6 +42,7 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
       message: 'Send',
       waitDuration: K.tooltipDelay,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: enabled ? widget.onPressed : null,
         onHover: (value) => setState(() => _hovering = value),
         borderRadius: radius,

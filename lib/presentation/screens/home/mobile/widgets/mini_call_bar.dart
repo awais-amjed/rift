@@ -118,6 +118,7 @@ class _BarState extends State<_Bar> {
         color: theme.bgElevated,
         borderRadius: radius,
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           borderRadius: radius,
           onTap: widget.onOpen,
           child: Container(
@@ -179,6 +180,7 @@ class _BarState extends State<_Bar> {
                     color: CustomColors.error,
                     borderRadius: BorderRadius.circular(K.radiusRow),
                     child: InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       borderRadius: BorderRadius.circular(K.radiusRow),
                       onTap: () => context.read<LiveKitCubit>().disconnect(),
                       child: const Tooltip(

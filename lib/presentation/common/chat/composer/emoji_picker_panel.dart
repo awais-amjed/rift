@@ -330,6 +330,7 @@ class _CategoryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       borderRadius: BorderRadius.circular(K.radiusRow),
       onTap: onTap,
       child: Padding(
@@ -353,6 +354,7 @@ class _EmojiCell extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: radius,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: radius,
         onTap: onTap,
         child: Center(

@@ -68,6 +68,7 @@ class SwitcherHeader extends StatelessWidget {
             child: Material(
               type: MaterialType.transparency,
               child: InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 borderRadius: BorderRadius.circular(K.radiusRow),
                 onTap: ShellScope.of(context).toggleSidebar,
                 child: Padding(

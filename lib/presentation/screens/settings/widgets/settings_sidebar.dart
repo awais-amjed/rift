@@ -116,6 +116,7 @@ class _BackButton extends StatelessWidget {
         color: themeState.bgHover,
         borderRadius: radius,
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           borderRadius: radius,
           hoverColor: themeState.bgActive,
           onTap: onTap,

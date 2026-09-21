@@ -55,6 +55,7 @@ class SoundClipButton extends StatelessWidget {
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           borderRadius: radius,
           hoverColor: theme.bgHover,
           onTap: onTap,

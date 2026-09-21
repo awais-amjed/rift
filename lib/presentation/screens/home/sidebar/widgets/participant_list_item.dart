@@ -64,6 +64,7 @@ class ParticipantListItem extends StatelessWidget {
               : Colors.transparent,
           borderRadius: BorderRadius.circular(K.radiusRow),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(K.radiusRow),
             hoverColor: hoverColor,
             // The well was already here, lighting on hover with nothing

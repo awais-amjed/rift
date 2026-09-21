@@ -39,6 +39,7 @@ class SelectableSurface extends StatelessWidget {
           color: selected ? themeState.channelActiveBg : themeState.bgHover,
           borderRadius: borderRadius,
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: onTap,
             borderRadius: borderRadius,
             hoverColor: selected ? Colors.transparent : themeState.bgActive,

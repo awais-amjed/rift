@@ -125,6 +125,7 @@ class DmConversationTile extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: radius,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: radius,
         hoverColor: themeState.bgHover,
         onTap: onTap,

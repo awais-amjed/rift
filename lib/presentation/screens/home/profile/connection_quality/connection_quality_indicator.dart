@@ -128,6 +128,7 @@ class _ConnectionQualityIndicatorState
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(K.radiusRow),
                   child: InkWell(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
                     borderRadius: BorderRadius.circular(K.radiusRow),
                     hoverColor: themeState.bgHover,
                     onTap: measured ? _toggle : null,

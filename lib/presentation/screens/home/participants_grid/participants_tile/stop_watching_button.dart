@@ -15,6 +15,7 @@ class StopWatchingButton extends StatelessWidget {
       color: Colors.black.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(K.radiusRow),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: BorderRadius.circular(K.radiusRow),
         onTap: onTap,
         child: Padding(

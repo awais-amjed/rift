@@ -79,19 +79,22 @@ class ComposerStagedChip extends StatelessWidget {
 
   Widget _removeButton(BuildContext context) {
     final themeState = context.theme;
-    return GestureDetector(
-      onTap: onRemove,
-      child: Container(
-        width: 20,
-        height: 20,
-        // The elevated surface, not the canvas: the button overhangs the chip
-        // and has to read as sitting on top of it rather than punched through.
-        decoration: BoxDecoration(
-          color: themeState.bgElevated,
-          shape: BoxShape.circle,
-          border: Border.all(color: themeState.borderElevated),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onRemove,
+        child: Container(
+          width: 20,
+          height: 20,
+          // The elevated surface, not the canvas: the button overhangs the chip
+          // and has to read as sitting on top of it rather than punched through.
+          decoration: BoxDecoration(
+            color: themeState.bgElevated,
+            shape: BoxShape.circle,
+            border: Border.all(color: themeState.borderElevated),
+          ),
+          child: Icon(Icons.close, size: 12, color: themeState.textSecondary),
         ),
-        child: Icon(Icons.close, size: 12, color: themeState.textSecondary),
       ),
     );
   }

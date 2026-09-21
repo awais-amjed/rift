@@ -230,12 +230,15 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
             ),
           ),
           if (_controller.text.isNotEmpty)
-            GestureDetector(
-              onTap: _dismiss,
-              child: Icon(
-                Icons.close_rounded,
-                size: 14,
-                color: themeState.textQuaternary,
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: _dismiss,
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 14,
+                  color: themeState.textQuaternary,
+                ),
               ),
             ),
         ],

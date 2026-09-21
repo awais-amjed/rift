@@ -113,6 +113,7 @@ class _Button extends StatelessWidget {
             : _foreground(context).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(K.radiusRow),
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: onTap,
           borderRadius: BorderRadius.circular(K.radiusRow),
           child: Padding(

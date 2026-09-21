@@ -42,6 +42,7 @@ class LinkPreviewCard extends StatelessWidget {
           color: themeState.bgSecondary,
           borderRadius: BorderRadius.circular(K.radiusCard),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(K.radiusCard),
             onTap: _open,
             child: Container(

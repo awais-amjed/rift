@@ -229,35 +229,41 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                 name: name,
                 isLocal: widget.participant is LocalParticipant,
               ),
-              child: GestureDetector(
-                onTap: widget.onTap,
-                behavior: HitTestBehavior.opaque,
-                child: widget.isExpanded
-                    ? ExpandedParticipantTile(
-                        videoTrack: videoTrack,
-                        name: name,
-                        userId: userId,
-                        isMicEnabled: widget.participant.isMicrophoneEnabled(),
-                        isMuted: widget.isMuted,
-                        isScreenshare: _isScreenshare,
-                        showWatchButton: _isScreenshare && !isSubscribed,
-                        showStopButton: showStopButton,
-                        showOverlays: _showOverlays,
-                        statsPinned: _statsPinned,
-                        onActivity: _onActivity,
-                        onWatch: _subscribeToScreenshare,
-                        onStopWatching: _unsubscribeFromScreenshare,
-                        onStatsPinnedChanged: _onStatsPinnedChanged,
-                        topInset: widget.topInset,
-                      )
-                    : _buildCollapsed(
-                        themeState: themeState,
-                        videoTrack: videoTrack,
-                        name: name,
-                        userId: userId,
-                        isSubscribed: isSubscribed,
-                        showStopButton: showStopButton,
-                      ),
+              child: MouseRegion(
+                cursor: widget.onTap != null
+                    ? SystemMouseCursors.click
+                    : MouseCursor.defer,
+                child: GestureDetector(
+                  onTap: widget.onTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: widget.isExpanded
+                      ? ExpandedParticipantTile(
+                          videoTrack: videoTrack,
+                          name: name,
+                          userId: userId,
+                          isMicEnabled: widget.participant
+                              .isMicrophoneEnabled(),
+                          isMuted: widget.isMuted,
+                          isScreenshare: _isScreenshare,
+                          showWatchButton: _isScreenshare && !isSubscribed,
+                          showStopButton: showStopButton,
+                          showOverlays: _showOverlays,
+                          statsPinned: _statsPinned,
+                          onActivity: _onActivity,
+                          onWatch: _subscribeToScreenshare,
+                          onStopWatching: _unsubscribeFromScreenshare,
+                          onStatsPinnedChanged: _onStatsPinnedChanged,
+                          topInset: widget.topInset,
+                        )
+                      : _buildCollapsed(
+                          themeState: themeState,
+                          videoTrack: videoTrack,
+                          name: name,
+                          userId: userId,
+                          isSubscribed: isSubscribed,
+                          showStopButton: showStopButton,
+                        ),
+                ),
               ),
             );
           },

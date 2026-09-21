@@ -314,6 +314,7 @@ class _ControlBarContent extends StatelessWidget {
                       color: CustomColors.error,
                       borderRadius: BorderRadius.circular(K.radiusRow),
                       child: InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         borderRadius: BorderRadius.circular(K.radiusRow),
                         // Opaque, so hovering deepens the red rather than
                         // washing it — the one control here you can't undo.

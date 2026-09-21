@@ -34,6 +34,7 @@ class JumpField extends StatelessWidget {
             color: themeState.bgHover,
             borderRadius: BorderRadius.circular(K.radiusRow),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               borderRadius: BorderRadius.circular(K.radiusRow),
               hoverColor: themeState.bgActive,
               onTap: onTap,

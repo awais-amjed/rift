@@ -112,6 +112,7 @@ class _PingToggle extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () => onChanged(!on),
           borderRadius: BorderRadius.circular(K.radiusRow),
           child: Padding(

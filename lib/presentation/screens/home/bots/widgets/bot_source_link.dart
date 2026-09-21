@@ -28,6 +28,7 @@ class BotSourceLink extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(K.radiusRow),
         child: Padding(

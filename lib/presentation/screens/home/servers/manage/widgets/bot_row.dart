@@ -19,6 +19,7 @@ class BotRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: onTap,
       borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(

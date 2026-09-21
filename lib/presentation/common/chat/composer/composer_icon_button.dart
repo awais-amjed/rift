@@ -42,6 +42,7 @@ class ComposerIconButton extends StatelessWidget {
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: onPressed,
           // Rounded squares, matching the send button beside them — a row of
           // circles around one square reads as a mistake.

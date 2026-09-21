@@ -124,6 +124,7 @@ class _Tab extends StatelessWidget {
           : Material(
               type: MaterialType.transparency,
               child: InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 borderRadius: radius,
                 onTap: onTap,
                 child: Padding(

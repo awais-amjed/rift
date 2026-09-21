@@ -52,6 +52,7 @@ class ChatHeaderButton extends StatelessWidget {
             color: fill,
             borderRadius: radius,
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               borderRadius: radius,
               hoverColor: themeState.bgActive,
               onTap: onTap,

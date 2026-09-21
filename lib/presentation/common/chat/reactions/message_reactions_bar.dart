@@ -99,6 +99,7 @@ class _AddReactionButton extends StatelessWidget {
       color: themeState.bgHover,
       shape: StadiumBorder(side: BorderSide(color: themeState.borderElevated)),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         // The tapped button's context anchors the picker popover.
         onTap: () => onTap(context),
         customBorder: const StadiumBorder(),

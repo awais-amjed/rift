@@ -66,6 +66,7 @@ class CentralIdentityLine extends StatelessWidget {
     return Tooltip(
       message: 'Change handle',
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onChangeHandle,
         borderRadius: BorderRadius.circular(K.radiusRow),
         child: Padding(

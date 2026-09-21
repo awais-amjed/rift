@@ -144,6 +144,7 @@ class _TagChip extends StatelessWidget {
           Material(
             type: MaterialType.transparency,
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: onRemove,
               borderRadius: BorderRadius.circular(K.radiusPill),
               child: Padding(

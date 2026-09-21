@@ -78,6 +78,7 @@ class MemberRow extends StatelessWidget {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(K.radiusRow),
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           borderRadius: BorderRadius.circular(K.radiusRow),
           hoverColor: themeState.bgHover,
           // The row has been inert since it was written. Clicking a person is

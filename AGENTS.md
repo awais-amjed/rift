@@ -175,6 +175,13 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
   opaque (a gradient, an avatar) can't be fixed this way at all and must lift itself —
   see `ComposerSendButton`. `test/hover_feedback_test.dart` renders the pixels with the
   pointer on and off, because this is a bug you cannot see by reading the widget tree.
+- **Anything clickable shows the hand cursor.** Flutter 3.41 switched buttons and `InkWell` to
+  the plain arrow on desktop (the web kept the hand). The Material buttons get it back from
+  `app_theme.dart`; `InkWell` has no theme, so every one passes
+  `mouseCursor: WidgetStateMouseCursor.clickable` as its first argument (it still shows the arrow
+  while disabled), and a bare `GestureDetector` tap sits in a
+  `MouseRegion(cursor: SystemMouseCursors.click)`. `test/clickable_cursor_test.dart` fails on an
+  `InkWell` that forgets.
 - **Shared UI to reuse before hand-rolling:** `AppPanel` (a floating panel), `CanvasBackdrop`
   (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` / `UserAvatar`,
   `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`. Avatar gradients come

@@ -48,6 +48,7 @@ class ContextMenuItem extends StatelessWidget {
               : Colors.transparent,
           borderRadius: radius,
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: radius,
             hoverColor: isDangerous
                 ? CustomColors.error.withValues(alpha: 0.14)

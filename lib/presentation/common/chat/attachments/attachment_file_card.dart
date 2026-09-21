@@ -64,6 +64,7 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: _download,
           borderRadius: radius,
           child: Padding(

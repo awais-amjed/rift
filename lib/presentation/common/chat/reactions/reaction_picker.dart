@@ -94,6 +94,7 @@ class _EmojiCell extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: radius,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: radius,
         onTap: onTap,
         child: Center(

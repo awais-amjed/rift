@@ -50,6 +50,7 @@ class QuietDangerButton extends StatelessWidget {
           : Colors.transparent,
       borderRadius: BorderRadius.circular(K.radiusRow),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: BorderRadius.circular(K.radiusRow),
         hoverColor: themeState.bgHover,
         onTap: onTap,

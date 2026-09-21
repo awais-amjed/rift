@@ -19,6 +19,7 @@ class SwitcherAddRow extends StatelessWidget {
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: radius,
         onTap: onTap,
         child: Container(

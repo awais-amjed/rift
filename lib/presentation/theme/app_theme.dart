@@ -9,6 +9,10 @@ import 'app_text.dart';
 import 'custom_colors.dart';
 
 class AppTheme {
+  static const _clickable = ButtonStyle(
+    mouseCursor: WidgetStateMouseCursor.clickable,
+  );
+
   /// Builds the Material [ThemeData] for one brightness of a palette.
   /// Widgets read colors from `ThemeState` getters; this only feeds the
   /// framework-level defaults (inputs, scaffold, dividers, text).
@@ -74,6 +78,22 @@ class AppTheme {
           boxShadow: AppShadows.popover,
         ),
         textStyle: AppText.meta.copyWith(color: colors.textSecondary),
+      ),
+      // Flutter 3.41 made buttons show the plain arrow on desktop, following
+      // native desktop apps; only the web kept the hand. Rift is a chat app
+      // people come to from Discord and the browser, where everything you can
+      // click says so, so the hand comes back here for every Material control
+      // it uses. `InkWell` has no theme to set this on, so each one passes
+      // [WidgetStateMouseCursor.clickable] itself — which, unlike a plain
+      // `click`, still falls back to the arrow while a control is disabled.
+      iconButtonTheme: const IconButtonThemeData(style: _clickable),
+      textButtonTheme: const TextButtonThemeData(style: _clickable),
+      filledButtonTheme: const FilledButtonThemeData(style: _clickable),
+      checkboxTheme: const CheckboxThemeData(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+      ),
+      sliderTheme: const SliderThemeData(
+        mouseCursor: WidgetStateMouseCursor.clickable,
       ),
       // The scaffold is the canvas the floating panels sit on, in both modes —
       // panels paint their own background over it.

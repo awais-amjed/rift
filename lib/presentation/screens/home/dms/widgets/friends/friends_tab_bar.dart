@@ -80,6 +80,7 @@ class _TabPill extends StatelessWidget {
       color: isSelected ? themeState.bgTertiary : Colors.transparent,
       borderRadius: radius,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: radius,
         hoverColor: themeState.bgHover,
         onTap: onTap,

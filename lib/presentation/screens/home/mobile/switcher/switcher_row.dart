@@ -51,6 +51,7 @@ class SwitcherRow extends StatelessWidget {
       color: fill,
       borderRadius: radius,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: radius,
         onTap: onTap,
         child: Container(

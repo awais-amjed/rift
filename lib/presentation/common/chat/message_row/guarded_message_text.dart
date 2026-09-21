@@ -51,30 +51,35 @@ class _GuardedMessageTextState extends State<GuardedMessageText> {
 
     final canReveal = mode == SensitiveContentMode.blur;
     final themeState = context.theme;
-    return GestureDetector(
-      onTap: canReveal
-          ? () => setState(
-              () => GuardedMessageText._revealed.add(widget.messageId),
-            )
-          : null,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 6,
-        children: [
-          Icon(
-            Icons.visibility_off_outlined,
-            size: 15,
-            color: themeState.textTertiary,
-          ),
-          Text(
-            'Sensitive message',
-            style: AppText.body.copyWith(color: themeState.textTertiary),
-          ),
-          Text(
-            canReveal ? '· Tap to show' : '· Hidden by your settings',
-            style: AppText.secondary.copyWith(color: themeState.textQuaternary),
-          ),
-        ],
+    return MouseRegion(
+      cursor: canReveal ? SystemMouseCursors.click : MouseCursor.defer,
+      child: GestureDetector(
+        onTap: canReveal
+            ? () => setState(
+                () => GuardedMessageText._revealed.add(widget.messageId),
+              )
+            : null,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 6,
+          children: [
+            Icon(
+              Icons.visibility_off_outlined,
+              size: 15,
+              color: themeState.textTertiary,
+            ),
+            Text(
+              'Sensitive message',
+              style: AppText.body.copyWith(color: themeState.textTertiary),
+            ),
+            Text(
+              canReveal ? '· Tap to show' : '· Hidden by your settings',
+              style: AppText.secondary.copyWith(
+                color: themeState.textQuaternary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

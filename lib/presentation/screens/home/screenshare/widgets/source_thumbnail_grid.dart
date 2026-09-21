@@ -83,65 +83,70 @@ class _SourceCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: AppMotion.state,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(K.radiusRow),
-          border: Border.all(
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppMotion.state,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(K.radiusRow),
+            border: Border.all(
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant,
+              width: isSelected ? 2.5 : 1.0,
+            ),
             color: isSelected
-                ? colorScheme.primary
-                : colorScheme.outlineVariant,
-            width: isSelected ? 2.5 : 1.0,
+                ? colorScheme.primary.withValues(alpha: 0.08)
+                : colorScheme.surfaceContainerHighest,
           ),
-          color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.08)
-              : colorScheme.surfaceContainerHighest,
-        ),
-        child: Column(
-          children: [
-            // Preview area
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(K.radiusRow - 1),
-                ),
-                child: thumbnail != null
-                    ? Image.memory(
-                        thumbnail!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        gaplessPlayback: true,
-                      )
-                    : Center(
-                        child: Icon(
-                          Icons.desktop_windows_outlined,
-                          size: 28,
-                          color: colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.4,
+          child: Column(
+            children: [
+              // Preview area
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(K.radiusRow - 1),
+                  ),
+                  child: thumbnail != null
+                      ? Image.memory(
+                          thumbnail!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          gaplessPlayback: true,
+                        )
+                      : Center(
+                          child: Icon(
+                            Icons.desktop_windows_outlined,
+                            size: 28,
+                            color: colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.4,
+                            ),
                           ),
                         ),
-                      ),
-              ),
-            ),
-            // Label strip
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
-                  color: isSelected
-                      ? colorScheme.primary
-                      : colorScheme.onSurface,
                 ),
               ),
-            ),
-          ],
+              // Label strip
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: isSelected
+                        ? FontWeight.w700
+                        : FontWeight.normal,
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

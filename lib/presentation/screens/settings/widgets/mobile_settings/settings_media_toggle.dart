@@ -35,6 +35,7 @@ class SettingsMediaToggle extends StatelessWidget {
       color: isOff ? CustomColors.error.withValues(alpha: 0.07) : theme.bgHover,
       borderRadius: radius,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: radius,
         onTap: onTap,
         child: Container(

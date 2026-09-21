@@ -52,6 +52,7 @@ class _MaskedEmailTextState extends State<MaskedEmailText> {
           message: _shown ? 'Hide address' : 'Show address',
           waitDuration: K.tooltipDelay,
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(999),
             onTap: () => setState(() => _shown = !_shown),
             child: Padding(

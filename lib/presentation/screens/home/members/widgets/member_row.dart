@@ -58,6 +58,7 @@ class MemberRow extends StatelessWidget {
               color: isExpanded ? themeState.bgSecondary : Colors.transparent,
               borderRadius: BorderRadius.circular(K.radiusRow),
               child: InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 borderRadius: BorderRadius.circular(K.radiusRow),
                 hoverColor: themeState.bgHover,
                 onTap: _expandable ? onTap : null,

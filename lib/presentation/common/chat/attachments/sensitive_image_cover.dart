@@ -55,55 +55,60 @@ class _SensitiveImageCoverState extends State<SensitiveImageCover> {
   @override
   Widget build(BuildContext context) {
     if (_revealed) return widget.child;
-    return GestureDetector(
-      onTap: _canReveal ? _reveal : null,
-      child: Stack(
-        fit: StackFit.passthrough,
-        children: [
-          ImageFiltered(
-            imageFilter: ui.ImageFilter.blur(
-              sigmaX: SensitiveImageCover._sigma,
-              sigmaY: SensitiveImageCover._sigma,
-              tileMode: TileMode.decal,
+    return MouseRegion(
+      cursor: _canReveal ? SystemMouseCursors.click : MouseCursor.defer,
+      child: GestureDetector(
+        onTap: _canReveal ? _reveal : null,
+        child: Stack(
+          fit: StackFit.passthrough,
+          children: [
+            ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(
+                sigmaX: SensitiveImageCover._sigma,
+                sigmaY: SensitiveImageCover._sigma,
+                tileMode: TileMode.decal,
+              ),
+              child: widget.child,
             ),
-            child: widget.child,
-          ),
-          Positioned.fill(
-            child: ColoredBox(
-              color: Colors.black.withValues(alpha: 0.35),
-              // Scaled down rather than overflowing: a sticker-sized
-              // thumbnail still gets the icon and a legible word or two.
-              child: Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: 4,
-                    children: [
-                      Icon(
-                        Icons.visibility_off_outlined,
-                        size: 20,
-                        color: Colors.white.withValues(alpha: 0.9),
-                      ),
-                      Text(
-                        'Sensitive image',
-                        style: AppText.secondaryStrong.copyWith(
-                          color: Colors.white,
+            Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black.withValues(alpha: 0.35),
+                // Scaled down rather than overflowing: a sticker-sized
+                // thumbnail still gets the icon and a legible word or two.
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 4,
+                      children: [
+                        Icon(
+                          Icons.visibility_off_outlined,
+                          size: 20,
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
-                      ),
-                      Text(
-                        _canReveal ? 'Tap to show' : 'Hidden by your settings',
-                        style: AppText.meta.copyWith(
-                          color: Colors.white.withValues(alpha: 0.75),
+                        Text(
+                          'Sensitive image',
+                          style: AppText.secondaryStrong.copyWith(
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                    ],
+                        Text(
+                          _canReveal
+                              ? 'Tap to show'
+                              : 'Hidden by your settings',
+                          style: AppText.meta.copyWith(
+                            color: Colors.white.withValues(alpha: 0.75),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

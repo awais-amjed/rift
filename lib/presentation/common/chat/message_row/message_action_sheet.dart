@@ -239,6 +239,7 @@ class _QuickReactions extends StatelessWidget {
           Material(
             type: MaterialType.transparency,
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               borderRadius: radius,
               onTap: () => onPick(emoji),
               child: Center(

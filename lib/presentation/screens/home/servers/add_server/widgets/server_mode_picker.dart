@@ -78,6 +78,7 @@ class _ModeCard extends StatelessWidget {
           color: themeState.bgHover,
           borderRadius: radius,
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: onTap,
             borderRadius: radius,
             hoverColor: themeState.bgActive,

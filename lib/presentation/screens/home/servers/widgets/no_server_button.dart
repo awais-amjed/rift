@@ -17,6 +17,7 @@ class NoServerButton extends StatelessWidget {
         return Material(
           color: Colors.transparent,
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: onTap,
             hoverColor: themeState.bgHover,
             child: Container(

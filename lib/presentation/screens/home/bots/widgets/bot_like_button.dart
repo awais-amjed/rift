@@ -51,6 +51,7 @@ class BotLikeButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(K.radiusPill),
         child: Padding(

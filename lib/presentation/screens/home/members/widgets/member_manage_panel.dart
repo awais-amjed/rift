@@ -161,6 +161,7 @@ class _PanelRow extends StatelessWidget {
       children: [
         Divider(height: 1, color: themeState.borderPrimary),
         InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),

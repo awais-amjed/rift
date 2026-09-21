@@ -55,6 +55,7 @@ class ComposerCommandMenu extends StatelessWidget {
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => onSelected(entry.bot, entry.name),
         hoverColor: themeState.bgHover,
         child: Padding(

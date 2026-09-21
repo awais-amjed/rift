@@ -90,15 +90,18 @@ class _MembersSearchFieldState extends State<MembersSearchField> {
               ),
             ),
             if (_controller.text.isNotEmpty)
-              GestureDetector(
-                onTap: () {
-                  _controller.clear();
-                  _onChanged('');
-                },
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 14,
-                  color: theme.textQuaternary,
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    _controller.clear();
+                    _onChanged('');
+                  },
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: theme.textQuaternary,
+                  ),
                 ),
               ),
           ],

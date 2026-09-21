@@ -42,6 +42,7 @@ class HistoryWindowBar extends StatelessWidget {
             boxShadow: AppShadows.floatingBar,
           ),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: onReturn,
             borderRadius: BorderRadius.circular(K.radiusPill),
             child: Padding(

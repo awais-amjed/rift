@@ -76,6 +76,7 @@ class _Swatch extends StatelessWidget {
         : Color(0xFF000000 | int.parse(hex!.substring(1), radix: 16));
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: onTap,
       borderRadius: BorderRadius.circular(K.radiusPill),
       child: Container(

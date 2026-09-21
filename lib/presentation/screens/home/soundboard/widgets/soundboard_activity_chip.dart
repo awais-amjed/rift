@@ -219,6 +219,7 @@ class _MuteButton extends StatelessWidget {
                 : CustomColors.error.withValues(alpha: 0.10)),
       borderRadius: radius,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: radius,
         onTap: onTap,
         child: Container(

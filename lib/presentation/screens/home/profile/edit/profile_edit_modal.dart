@@ -224,6 +224,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
                 color: themeState.primary,
                 shape: const CircleBorder(),
                 child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   customBorder: const CircleBorder(),
                   onTap: _saving ? null : _pickAvatar,
                   child: const Padding(

@@ -229,9 +229,12 @@ class _Openable extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () => showAttachmentImageViewer(context, name, bytes),
-    child: child,
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.click,
+    child: GestureDetector(
+      onTap: () => showAttachmentImageViewer(context, name, bytes),
+      child: child,
+    ),
   );
 }
 

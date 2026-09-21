@@ -122,6 +122,7 @@ class _ToolbarButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => onTap(context),
         hoverColor: isDangerous
             ? CustomColors.error.withValues(alpha: 0.14)
