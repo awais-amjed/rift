@@ -79,6 +79,9 @@ class LinuxPushToTalk {
       preferredTrigger: xdgTriggerForKeyId(keyId),
       onPress: _debounce.press,
       onRelease: _debounce.release,
+      onTriggerChanged: (trigger) {
+        if (generation == _generation) _setBound(trigger);
+      },
     );
     if (generation != _generation) return;
     _setBound(trigger);

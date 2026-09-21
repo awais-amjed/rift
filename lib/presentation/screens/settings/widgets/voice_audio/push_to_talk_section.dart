@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/ptt/desktop_shortcut_settings.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/button_footer.dart';
@@ -112,13 +113,29 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
           style: AppText.kbd.copyWith(color: themeState.textSecondary),
         ),
         const SizedBox(height: 10),
-        if (_desktopKey != null)
+        if (_desktopKey != null) ...[
           Text(
-            'Set by your desktop, which now owns this key. To change it, use '
-            'the shortcuts for Rift in your system settings.',
+            DesktopShortcutSettings.canOpen
+                ? 'Your desktop owns this key now, so it is changed in your '
+                      "system settings, under Rift's global shortcuts."
+                : 'Your desktop owns this key now. To change it, use the '
+                      'shortcuts for Rift in your system settings.',
             style: AppText.secondary.copyWith(color: themeState.textTertiary),
-          )
-        else
+          ),
+          if (DesktopShortcutSettings.canOpen) ...[
+            const SizedBox(height: 10),
+            ButtonFooter(
+              alignment: MainAxisAlignment.start,
+              buttons: [
+                AppButton(
+                  label: 'Change key',
+                  onPressed: DesktopShortcutSettings.open,
+                  variant: AppButtonVariant.secondary,
+                ),
+              ],
+            ),
+          ],
+        ] else
           Focus(
             focusNode: _captureFocusNode,
             onKeyEvent: _onKeyEvent,

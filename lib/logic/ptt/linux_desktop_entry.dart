@@ -8,8 +8,11 @@ import 'package:path/path.dart' as p;
 /// The global-shortcuts portal will not talk to an unsandboxed app whose id
 /// has no desktop entry — GNOME checks, and refuses with "An app id is
 /// required". A package installs one; a build run from its folder has none,
-/// so this writes a hidden one into the user's own applications directory.
-/// Hidden, because its job is to say who the app is, not to add a launcher.
+/// so this writes one into the user's own applications directory.
+///
+/// Not hidden. GNOME Settings lists only visible entries, and its page for
+/// Rift is the one place the push-to-talk key can be changed once the desktop
+/// owns it — a `NoDisplay` entry made that page unreachable.
 class LinuxDesktopEntry {
   const LinuxDesktopEntry._();
 
@@ -33,8 +36,7 @@ class LinuxDesktopEntry {
         '[Desktop Entry]\n'
         'Type=Application\n'
         'Name=Rift\n'
-        'Exec=${Platform.resolvedExecutable}\n'
-        'NoDisplay=true\n',
+        'Exec=${Platform.resolvedExecutable}\n',
       );
     } catch (e) {
       debugPrint('LinuxDesktopEntry: could not write $fileName – $e');

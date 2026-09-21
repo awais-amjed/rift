@@ -49,6 +49,7 @@ class GlobalShortcutsPortal {
     required String? preferredTrigger,
     required void Function(int timestamp) onPress,
     required void Function(int timestamp) onRelease,
+    required void Function(String trigger) onTriggerChanged,
   }) async {
     final epoch = ++_epoch;
     await close();
@@ -75,7 +76,8 @@ class GlobalShortcutsPortal {
       _current = mine;
       mine.signals
         ..add(_listen('Activated', mine.path, onPress))
-        ..add(_listen('Deactivated', mine.path, onRelease));
+        ..add(_listen('Deactivated', mine.path, onRelease))
+        ..add(_listenForChanges(mine.path, onTriggerChanged));
 
       final bound = await _request(
         'BindShortcuts',
@@ -223,6 +225,25 @@ class GlobalShortcutsPortal {
       if (signal.values[0] != session) return;
       if (signal.values[1].asString() != _shortcutId) return;
       handler(signal.values[2].asUint64());
+    });
+  }
+
+  /// The user changing the key in the desktop's settings arrives here, so
+  /// what Rift shows follows what actually works.
+  StreamSubscription<DBusSignal> _listenForChanges(
+    DBusObjectPath session,
+    void Function(String trigger) handler,
+  ) {
+    return DBusSignalStream(
+      _client,
+      sender: _service,
+      interface: _interface,
+      name: 'ShortcutsChanged',
+      path: _object,
+    ).listen((signal) {
+      if (signal.values[0] != session) return;
+      final trigger = _triggerOf({'shortcuts': signal.values[1]});
+      if (trigger != null) handler(trigger);
     });
   }
 
