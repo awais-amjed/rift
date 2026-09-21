@@ -8,6 +8,7 @@ import '../../../../common/squircle_avatar.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import 'sidebar_peek_scope.dart';
 
 /// The selected server's identity at the top of the sidebar column.
 ///
@@ -122,13 +123,17 @@ class ServerHeader extends StatelessWidget {
   /// Through the shell rather than straight to [AppCubit]: overlaid, this is
   /// the drawer's own close button and has to shut the drawer, not quietly
   /// rewrite the docking preference for windows wide enough to have one.
+  ///
+  /// In a peek the sidebar is already hidden, so the same place offers the
+  /// opposite: keep it open, which docks it and ends the peek.
   Widget _buildHideButton(BuildContext context, ThemeState themeState) {
+    final peek = SidebarPeekScope.isPeek(context);
     return IconButton(
-      tooltip: 'Hide sidebar',
+      tooltip: peek ? 'Keep sidebar open' : 'Hide sidebar',
       visualDensity: VisualDensity.compact,
       onPressed: ShellScope.of(context).toggleSidebar,
       icon: Icon(
-        Icons.chevron_left_rounded,
+        peek ? Icons.push_pin_outlined : Icons.chevron_left_rounded,
         size: 18,
         color: themeState.textTertiary,
       ),

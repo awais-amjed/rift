@@ -24,6 +24,7 @@ import 'members_sidebar/members_sidebar.dart';
 import 'mobile/mobile_shell.dart';
 import 'servers/add_server/add_server_dialog.dart';
 import 'sidebar/sidebar.dart';
+import 'sidebar/sidebar_peek.dart';
 import 'sidebar/widgets/sidebar_header.dart';
 import 'sidebar/widgets/sidebar_tab.dart';
 
@@ -237,6 +238,15 @@ class _HomeScreenState extends State<HomeScreen> {
         // The gutter goes with the chrome; the title bar's band stays, since
         // that is the window's own and is hidden on its own switch.
         final gutter = immersive ? 0.0 : K.panelGutter;
+        // The gutter that makes the panels islands. The title bar is painted
+        // above the whole app, so the workspace steps out from under it; the
+        // gutter takes over when it's hidden.
+        final insets = EdgeInsets.only(
+          top: !chrome ? gutter : (titleBarVisible ? _titleBarHeight : gutter),
+          left: gutter,
+          right: gutter,
+          bottom: gutter,
+        );
         return ShellScope(
           mode: mode,
           sidebarOpen: appState.sidebarOpen,
@@ -253,49 +263,48 @@ class _HomeScreenState extends State<HomeScreen> {
               if (!didPop) _dismissOverlays();
             },
             child: CanvasBackdrop(
-              child: AnimatedPadding(
-                // Same length and curve as the content panel's corners, so
-                // the two read as one movement.
-                duration: AppMotion.enter,
-                curve: AppMotion.panel,
-                // The gutter that makes the panels islands. The title bar is
-                // painted above the whole app, so the workspace steps out from
-                // under it; the gutter takes over when it's hidden.
-                padding: EdgeInsets.only(
-                  top: !chrome
-                      ? gutter
-                      : (titleBarVisible ? _titleBarHeight : gutter),
-                  left: gutter,
-                  right: gutter,
-                  bottom: gutter,
-                ),
-                child: Stack(
-                  children: [
-                    Row(
+              child: Stack(
+                children: [
+                  AnimatedPadding(
+                    // Same length and curve as the content panel's corners, so
+                    // the two read as one movement.
+                    duration: AppMotion.enter,
+                    curve: AppMotion.panel,
+                    padding: insets,
+                    child: Stack(
                       children: [
-                        Sidebar(
-                          open: appState.sidebarOpen,
-                          topPadding: topPadding,
+                        Row(
+                          children: [
+                            Sidebar(
+                              open: appState.sidebarOpen,
+                              topPadding: topPadding,
+                            ),
+                            const Expanded(child: MainContent()),
+                          ],
                         ),
-                        const Expanded(child: MainContent()),
+                        OverlayScrim(
+                          visible: _membersOverlayOpen,
+                          onDismiss: _dismissOverlays,
+                        ),
+                        if (mode.membersIsOverlay)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: MembersSidebar(
+                              open: _membersOverlayOpen,
+                              floating: true,
+                            ),
+                          ),
+                        // The edge tab is the way back to a hidden sidebar.
+                        const Positioned(top: 12, left: 0, child: SidebarTab()),
                       ],
                     ),
-                    OverlayScrim(
-                      visible: _membersOverlayOpen,
-                      onDismiss: _dismissOverlays,
-                    ),
-                    if (mode.membersIsOverlay)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: MembersSidebar(
-                          open: _membersOverlayOpen,
-                          floating: true,
-                        ),
-                      ),
-                    // The edge tab is the way back to a hidden sidebar.
-                    const Positioned(top: 12, left: 0, child: SidebarTab()),
-                  ],
-                ),
+                  ),
+                  // Outside the gutter, so its hot zone is the window's own
+                  // edge rather than the workspace's.
+                  Positioned.fill(
+                    child: SidebarPeek(insets: insets, topPadding: topPadding),
+                  ),
+                ],
               ),
             ),
           ),

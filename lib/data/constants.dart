@@ -161,6 +161,28 @@ class K {
   /// this file is meant to stay free of it.
   static const Duration sidebarMotion = Duration(milliseconds: 220);
 
+  // ── Sidebar peek ──────────────────────────────────────────
+  // Resting the pointer on the middle of the left edge slides a hidden
+  // sidebar out over the content, for a look at a channel without undoing
+  // the layout. The last version of this opened on any touch of the edge and
+  // shut the moment the pointer left; these are what keep it from doing
+  // either.
+
+  /// How far down the left edge the peek's hot zone starts and ends, as a
+  /// fraction of the window's height. The middle only: the corners are where
+  /// the pointer goes on its way to the rail, the title bar and the edge tab.
+  static const double sidebarPeekZoneStart = 0.3;
+  static const double sidebarPeekZoneEnd = 0.7;
+
+  /// How long the pointer has to rest in the hot zone. Long enough that a
+  /// pointer crossing the edge on its way somewhere else does not open it.
+  static const Duration sidebarPeekDwell = Duration(milliseconds: 150);
+
+  /// How long the pointer can be off the panel before it slides away — so
+  /// overshooting its edge, or cutting a corner back to it, does not cost
+  /// the peek.
+  static const Duration sidebarPeekLinger = Duration(milliseconds: 400);
+
   /// How long a pointer has to rest before a tooltip appears.
   ///
   /// Written out at fourteen call sites, which is fourteen chances for one

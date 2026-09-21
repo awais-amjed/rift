@@ -7,10 +7,9 @@ import '../../../../theme/app_motion.dart';
 
 /// Brings the left sidebar back once it has been hidden.
 ///
-/// Hiding used to swap the panel for an overlay that slid out on hover, which
-/// meant it appeared when you were on your way somewhere else and vanished from
-/// under any menu opened inside it. Hidden means hidden now, and this is the
-/// only way back — the same tab the member list uses, on the other edge.
+/// This docks it again — the same tab the member list uses, on the other
+/// edge. For a look without docking, the middle of the left edge opens a
+/// `SidebarPeek` over the content.
 ///
 /// Stays in the tree while the sidebar is open so it has something to animate
 /// from, sliding out through the left edge rather than blinking away.

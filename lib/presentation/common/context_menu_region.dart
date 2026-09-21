@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../logic/services/host_platform.dart';
 import '../responsive/shell_scope.dart';
 import 'context_menu/context_menu_sheet.dart';
+import 'context_menu/context_menu_watcher.dart';
 
 /// Lets menu content close the menu it lives in.
 ///
@@ -79,6 +80,9 @@ class _ContextMenuRegionState extends State<ContextMenuRegion> {
 class ContextMenuOverlay {
   OverlayEntry? _entry;
 
+  /// Told when this menu closes, if something above its opener was watching.
+  VoidCallback? _onClosed;
+
   bool get isOpen => _entry != null;
 
   void show(BuildContext context, Widget menu, Offset globalPosition) {
@@ -110,11 +114,16 @@ class ContextMenuOverlay {
       ),
     );
     Overlay.of(context).insert(_entry!);
+    final watcher = ContextMenuWatcher.maybeOf(context);
+    watcher?.onOpened();
+    _onClosed = watcher?.onClosed;
   }
 
   void dismiss() {
     _entry?.remove();
     _entry = null;
+    _onClosed?.call();
+    _onClosed = null;
   }
 }
 
