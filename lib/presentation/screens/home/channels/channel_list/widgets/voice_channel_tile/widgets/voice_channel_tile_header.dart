@@ -55,7 +55,10 @@ class VoiceChannelTileHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(K.radiusRow),
           onTap: onTap,
           child: Padding(
+            // The people rows' horizontal padding, so the speaker icon lines
+            // up with the avatars under it and the two hovers are one width.
             padding: EdgeInsets.symmetric(
+              horizontal: RosterRowMetrics.of(context).padding.left,
               vertical: RosterRowMetrics.of(context).headerVerticalPadding,
             ),
             child: Row(

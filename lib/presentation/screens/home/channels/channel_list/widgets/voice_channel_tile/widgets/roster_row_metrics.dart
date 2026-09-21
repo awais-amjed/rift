@@ -32,7 +32,7 @@ class RosterRowMetrics {
   static const _desktop = RosterRowMetrics._(
     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 5),
     avatarSize: 22,
-    headerVerticalPadding: 0,
+    headerVerticalPadding: 5,
     nameStyle: AppText.secondary,
     iconSize: 11,
   );
@@ -40,7 +40,7 @@ class RosterRowMetrics {
   static const _phone = RosterRowMetrics._(
     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 9),
     avatarSize: 26,
-    headerVerticalPadding: 8,
+    headerVerticalPadding: 9,
     nameStyle: AppText.rowQuiet,
     iconSize: 15,
   );

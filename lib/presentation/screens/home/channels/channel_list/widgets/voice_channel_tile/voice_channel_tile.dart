@@ -151,7 +151,10 @@ class VoiceChannelTile extends StatelessWidget {
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
-      padding: const EdgeInsets.all(9),
+      // Thin, because the rows inside carry their own padding: the header's
+      // hover has to reach almost to the card's edge to read as the row you
+      // press, as a sidebar row's does, rather than a box hugging its text.
+      padding: const EdgeInsets.all(4),
       // The channel you are *in* takes the accent, the same way a selected
       // row does; a channel that merely has people in it stays neutral. Both
       // are cards, so the difference says which call is yours. A drag hovering
@@ -169,7 +172,7 @@ class VoiceChannelTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: 7,
+        spacing: 2,
         children: [
           // Only the header carries the channel menu: the participant rows
           // below have their own, and nesting the two would make which one you
