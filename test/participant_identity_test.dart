@@ -78,6 +78,39 @@ void main() {
       );
     });
 
+    // Four things of one person's are heard separately — voice, screen
+    // share, sound share, soundboard — and each is turned down on its own.
+    test('each kind of audio has its own settings key', () {
+      final keys = {
+        ParticipantIdentity.settingsKeyOf('$userId~$device'),
+        ParticipantIdentity.settingsKeyOf(screen),
+        ParticipantIdentity.settingsKeyOf(sound),
+        ParticipantIdentity.soundboardSettingsKey(userId),
+      };
+      expect(keys, hasLength(4));
+      expect(ParticipantIdentity.settingsKeyOf('$userId~$device'), userId);
+    });
+
+    // Streaming again is a new connection with a new device segment; the
+    // volume set last time has to find it.
+    test('a restarted screen share finds the same key', () {
+      expect(
+        ParticipantIdentity.settingsKeyOf(
+          '$userId~zzzzzzzz${ParticipantIdentity.screenshareSuffix}',
+        ),
+        ParticipantIdentity.settingsKeyOf(screen),
+      );
+    });
+
+    // A phone streams on the connection it talks on; the track, not the
+    // identity, says the sound is a stream's.
+    test('screen audio on a voice connection is filed as the stream', () {
+      expect(
+        ParticipantIdentity.settingsKeyOf('$userId~$device', screenAudio: true),
+        ParticipantIdentity.settingsKeyOf(screen),
+      );
+    });
+
     // Your own share reaches you as a remote connection. Missing this is the
     // sharer hearing their own music back, a beat late.
     group('isShareOf', () {

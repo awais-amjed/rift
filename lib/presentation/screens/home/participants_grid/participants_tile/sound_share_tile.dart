@@ -127,9 +127,10 @@ class SoundShareTile extends StatelessWidget {
                   bottom: 12,
                   right: 12,
                   child: IconButton(
-                    onPressed: () => context
-                        .read<LiveKitCubit>()
-                        .setSoundShareMute(identity, !muted),
+                    onPressed: () => context.read<LiveKitCubit>().setMuteFor(
+                      ParticipantIdentity.soundShareSettingsKey(identity),
+                      !muted,
+                    ),
                     tooltip: muted ? 'Unmute sound' : 'Mute sound',
                     icon: Icon(
                       muted

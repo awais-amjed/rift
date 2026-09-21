@@ -63,6 +63,26 @@ class ParticipantIdentity {
   static String soundShareSettingsKey(String identity) =>
       '${userIdOf(identity)}$soundShareSuffix';
 
+  /// The key the sound of somebody's screen share is stored under — the same
+  /// rule as [soundShareSettingsKey]: a game turned down stays down the next
+  /// time they stream it, and their voice is left alone.
+  static String screenshareSettingsKey(String identity) =>
+      '${userIdOf(identity)}$screenshareSuffix';
+
+  /// Where the local mute and volume for a track of [identity]'s live: the
+  /// person's voice, their screen share's sound, or their sound share.
+  ///
+  /// [screenAudio] is the track's own word for it, and wins over the identity:
+  /// a phone streams its screen on the connection it talks on, so the
+  /// identity alone would file the stream's sound under the person's voice.
+  static String settingsKeyOf(String identity, {bool screenAudio = false}) {
+    if (screenAudio || isScreenshare(identity)) {
+      return screenshareSettingsKey(identity);
+    }
+    if (isSoundShare(identity)) return soundShareSettingsKey(identity);
+    return userIdOf(identity);
+  }
+
   /// The key one person's *soundboard* mute and volume are stored under.
   ///
   /// A third setting beside their voice and their shared track, and separate

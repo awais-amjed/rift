@@ -87,6 +87,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         // for people who arrive *after* you. Whoever joined second heard
         // silence — connected, subscribed, and decrypting nothing.
         unawaited(_registerSubscribedKey(e.participant.identity));
+        // Saved mute and volume, now that there is a track to put them on.
+        // Publishing is too early: the track arrives after it, so somebody
+        // who came back, or streamed again, was heard at full volume.
+        _applyStoredSettings();
 
         if (ParticipantIdentity.isSoundShare(e.participant.identity)) {
           if (_isOwnShare(e.participant.identity)) {

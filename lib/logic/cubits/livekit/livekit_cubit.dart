@@ -471,25 +471,18 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     final settings = _appCubit.state.participantSettings;
     for (final participant in room.remoteParticipants.values) {
-      final identity = participant.identity;
-
-      // A screen share's audio is subscribed to only while it is watched, so
-      // it is managed there rather than here.
-      if (ParticipantIdentity.isScreenshare(identity)) continue;
-
-      // Per-user local mute/volume is keyed by user id, not the raw identity
-      // (which carries a per-device segment) — except for a shared track,
-      // which is stored under a key of its own so that turning the music down
-      // does not also turn its owner down.
-      final setting =
-          settings[ParticipantIdentity.isSoundShare(identity)
-              ? ParticipantIdentity.soundShareSettingsKey(identity)
-              : ParticipantIdentity.userIdOf(identity)];
-      if (setting == null) continue;
-
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
         if (track == null) continue;
+        // Keyed by user, never the raw identity (which carries a per-device
+        // segment), and each share under a key of its own, so that turning
+        // the music down does not also turn its owner down.
+        final setting =
+            settings[ParticipantIdentity.settingsKeyOf(
+              participant.identity,
+              screenAudio: pub.source == TrackSource.screenShareAudio,
+            )];
+        if (setting == null) continue;
         if (setting.muted) {
           track.mediaStreamTrack.enabled = false;
         } else {

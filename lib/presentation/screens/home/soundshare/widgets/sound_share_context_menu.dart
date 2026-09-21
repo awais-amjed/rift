@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/participant_identity.dart';
-import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/sound_share_label.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../theme/theme_context.dart';
-import '../../sidebar/widgets/participant_volume_control.dart';
+import '../../participants_grid/widgets/share_audio_controls.dart';
 
 /// What a listener can do about somebody else's shared sound: turn it off, or
 /// turn it down.
 ///
 /// Both are stored against the share rather than its owner — muting the music
 /// somebody has on is not muting them, and the two would otherwise be the same
-/// switch. See [LiveKitCubit.setSoundShareMute].
+/// switch. See [ShareAudioControls].
 class SoundShareContextMenu extends StatelessWidget {
   /// The share's LiveKit identity, not its owner's.
   final String identity;
@@ -45,10 +42,6 @@ class SoundShareContextMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final key = ParticipantIdentity.soundShareSettingsKey(identity);
-    final setting = context.watch<AppCubit>().state.participantSettings[key];
-    final isMuted = setting?.muted ?? false;
-    final volume = setting?.volume ?? 1.0;
 
     return ContextMenuPanel(
       heading: 'Shared sound',
@@ -67,26 +60,11 @@ class SoundShareContextMenu extends StatelessWidget {
             isDangerous: true,
             onTap: () => onStopSharing?.call(),
           )
-        else ...[
-          ContextMenuItem(
-            icon: isMuted ? Icons.volume_off : Icons.volume_up,
-            label: isMuted ? 'Unmute sound' : 'Mute sound',
-            isDangerous: isMuted,
-            onTap: () => context.read<LiveKitCubit>().setSoundShareMute(
-              identity,
-              !isMuted,
-            ),
+        else
+          ShareAudioControls(
+            settingsKey: ParticipantIdentity.soundShareSettingsKey(identity),
+            noun: 'sound',
           ),
-          Divider(height: 9, color: theme.borderPrimary),
-          ParticipantVolumeControl(
-            target: identity,
-            isMuted: isMuted,
-            volume: volume,
-            onChanged: (value) => context
-                .read<LiveKitCubit>()
-                .setSoundShareVolume(identity, value),
-          ),
-        ],
       ],
     );
   }

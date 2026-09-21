@@ -15,6 +15,7 @@ import '../../../../common/context_menu_region.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'collapsed_participant_tile.dart';
 import 'expanded_participant_tile.dart';
+import 'stream_context_menu.dart';
 
 /// One participant's video or avatar, in the grid or on the stage.
 ///
@@ -223,12 +224,25 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
               widget.participant.name,
             );
 
+            // Somebody else's stream opens a menu for its sound. Your own is
+            // still you: there is nothing of it here to turn down.
+            final isOwnStream =
+                widget.participant is LocalParticipant ||
+                ParticipantIdentity.isShareOf(
+                  widget.participant.identity,
+                  livekitState.room?.localParticipant?.identity,
+                );
             return ContextMenuRegion(
-              contextMenu: ParticipantContextMenu(
-                identity: widget.participant.identity,
-                name: name,
-                isLocal: widget.participant is LocalParticipant,
-              ),
+              contextMenu: _isScreenshare && !isOwnStream
+                  ? StreamContextMenu(
+                      identity: widget.participant.identity,
+                      ownerName: name,
+                    )
+                  : ParticipantContextMenu(
+                      identity: widget.participant.identity,
+                      name: name,
+                      isLocal: widget.participant is LocalParticipant,
+                    ),
               child: MouseRegion(
                 cursor: widget.onTap != null
                     ? SystemMouseCursors.click
