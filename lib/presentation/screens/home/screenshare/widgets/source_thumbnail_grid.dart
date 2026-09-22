@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../theme/app_motion.dart';
 
 /// Thumbnail grid for selecting a capture source (Windows only).

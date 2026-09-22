@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../data/classes/ping_sample.dart';
+import '../../../../../data/classes/ping_sample.dart';
 import '../../../../theme/theme_context.dart';
 
 /// A small line graph that renders [PingSample] history.

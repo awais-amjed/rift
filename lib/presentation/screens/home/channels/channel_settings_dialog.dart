@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/classes/channel.dart';
-import '../../../../../data/classes/server_limits.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/services/limit_input.dart';
+import '../../../../data/classes/channel.dart';
+import '../../../../data/classes/server_limits.dart';
+import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/services/limit_input.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';

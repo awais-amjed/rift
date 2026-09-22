@@ -6,13 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../../../../data/classes/screen_share_settings.dart';
-import '../../../../../data/classes/server_limits.dart';
-import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/services/screen_share_sources.dart';
-import '../../../../../src/rust/api/screenshare/types.dart';
+import '../../../../data/classes/screen_share_settings.dart';
+import '../../../../data/classes/server_limits.dart';
 import '../../../../data/constants.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/host_platform.dart';
+import '../../../../logic/services/screen_share_sources.dart';
+import '../../../../src/rust/api/screenshare/types.dart';
 import '../../../common/app_button.dart';
 import '../../../theme/theme_context.dart';
 import 'widgets/screen_share_settings_form.dart';

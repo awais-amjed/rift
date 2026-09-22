@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
+import '../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
 import '../../../../common/popover_surface.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';

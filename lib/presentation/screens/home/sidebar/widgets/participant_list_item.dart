@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../data/classes/participant_info.dart';
-import '../../../../../../data/classes/participant_setting.dart';
-import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../data/classes/participant_info.dart';
+import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../common/context_menu/context_menu_button.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/hover_builder.dart';

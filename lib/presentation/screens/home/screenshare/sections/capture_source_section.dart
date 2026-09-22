@@ -2,9 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/services/host_platform.dart';
+import '../../../../../src/rust/api/screenshare/types.dart';
 import '../widgets/source_thumbnail_grid.dart';
 
 /// Section for selecting the capture source (screen or window).

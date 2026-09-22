@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/participant_identity.dart';
-import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/services/call_duration.dart';
 import '../../../../data/constants.dart';
+import '../../../../data/participant_identity.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/services/call_duration.dart';
 import '../../../common/status_chip.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';

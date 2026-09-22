@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../data/classes/channel.dart';
-import '../../../../../../data/enums/channel_type.dart';
-import '../../../../../../data/enums/home_surface.dart';
-import '../../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../data/classes/channel.dart';
+import '../../../../../data/enums/channel_type.dart';
+import '../../../../../data/enums/home_surface.dart';
 import '../../../../../data/enums/server_permission.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../mobile/mobile_shell_scope.dart';
 import '../create_channel_dialog.dart';

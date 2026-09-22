@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../../logic/services/connection_failure.dart';
+import '../../../../../logic/services/connection_failure.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/button_footer.dart';
 import '../../../../common/empty_state.dart';

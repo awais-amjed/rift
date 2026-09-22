@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/services/connection_failure.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/services/connection_failure.dart';
 import 'widgets/connecting_view.dart';
 import 'widgets/error_view.dart';
 import 'widgets/no_channel_view.dart';
