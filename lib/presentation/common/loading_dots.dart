@@ -20,9 +20,12 @@ class LoadingDots extends StatefulWidget {
 
 class _LoadingDotsState extends State<LoadingDots>
     with SingleTickerProviderStateMixin {
+  /// One pass of the three dots. A loop, so it has no `AppMotion` length.
+  static const _cycle = Duration(milliseconds: 1100);
+
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1100),
+    duration: _cycle,
   )..repeat();
 
   @override

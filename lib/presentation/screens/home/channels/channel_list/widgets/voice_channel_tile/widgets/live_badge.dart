@@ -19,9 +19,12 @@ class LiveBadge extends StatefulWidget {
 
 class _LiveBadgeState extends State<LiveBadge>
     with SingleTickerProviderStateMixin {
+  /// One pulse of the dot. A loop, so it has no `AppMotion` length.
+  static const _cycle = Duration(seconds: 2);
+
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 2),
+    duration: _cycle,
   )..repeat();
 
   @override

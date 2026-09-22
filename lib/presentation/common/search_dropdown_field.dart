@@ -68,6 +68,9 @@ class SearchDropdownField<T> extends StatefulWidget {
 }
 
 class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
+  /// How long the results stay after focus leaves, so a tap on one lands.
+  static const _teardownDelay = Duration(milliseconds: 150);
+
   late final TextEditingController _controller =
       widget.controller ?? TextEditingController();
   late final FocusNode _focusNode = widget.focusNode ?? FocusNode();
@@ -112,7 +115,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
     } else {
       // A tap on a result moves focus before the tap lands, so the teardown
       // waits a frame rather than pulling the row out from under the pointer.
-      Future.delayed(const Duration(milliseconds: 150), () {
+      Future.delayed(_teardownDelay, () {
         if (mounted && !_focusNode.hasFocus) _removeOverlay();
       });
     }

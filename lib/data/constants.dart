@@ -196,6 +196,10 @@ class K {
   /// deliberate hover.
   static const Duration tooltipDelay = Duration(milliseconds: 400);
 
+  /// How long a copy button says "Copied" before it offers to copy again.
+  /// A one-time secret's button keeps saying it instead: it is copied once.
+  static const Duration copiedHold = Duration(seconds: 2);
+
   /// How long a search field waits after the last keystroke before asking the
   /// server.
   ///

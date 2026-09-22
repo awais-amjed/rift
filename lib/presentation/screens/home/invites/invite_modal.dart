@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/role.dart';
 import '../../../../data/classes/server.dart';
+import '../../../../data/constants.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../data/invite_link.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -89,7 +90,7 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
   void _copyToClipboard(String text, void Function(bool) setCopied) async {
     await Clipboard.setData(ClipboardData(text: text));
     setCopied(true);
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(K.copiedHold);
     if (mounted) setCopied(false);
   }
 

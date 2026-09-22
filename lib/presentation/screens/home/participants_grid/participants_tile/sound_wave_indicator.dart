@@ -27,11 +27,14 @@ class SoundWaveIndicator extends StatefulWidget {
 
 class _SoundWaveIndicatorState extends State<SoundWaveIndicator>
     with SingleTickerProviderStateMixin {
+  /// One rise and fall of the bars. A loop, so it has no `AppMotion` length.
+  static const _cycle = Duration(milliseconds: 900);
+
   static const _bars = 3;
 
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: _cycle,
   );
 
   @override

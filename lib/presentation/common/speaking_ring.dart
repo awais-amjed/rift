@@ -33,9 +33,12 @@ class SpeakingRing extends StatefulWidget {
 
 class _SpeakingRingState extends State<SpeakingRing>
     with SingleTickerProviderStateMixin {
+  /// One breath of the ring. A loop, so it has no `AppMotion` length.
+  static const _cycle = Duration(milliseconds: 1300);
+
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1300),
+    duration: _cycle,
   );
 
   @override

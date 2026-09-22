@@ -42,7 +42,7 @@ class _WindowButtonState extends State<WindowButton> {
 
     return Tooltip(
       message: widget.tooltip,
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: K.tooltipDelay,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovered = true),

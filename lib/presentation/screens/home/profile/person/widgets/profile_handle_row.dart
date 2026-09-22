@@ -36,7 +36,7 @@ class _ProfileHandleRowState extends State<ProfileHandleRow> {
     setState(() => _copied = true);
     // Said on the button rather than in a toast: the eye is already here,
     // and a toast for a copy is a notification about nothing.
-    await Future<void>.delayed(const Duration(seconds: 2));
+    await Future<void>.delayed(K.copiedHold);
     if (mounted) setState(() => _copied = false);
   }
 
