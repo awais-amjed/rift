@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../data/constants.dart';
-import '../../../theme/app_text.dart';
-import '../../../theme/theme_context.dart';
+import '../../../common/checkbox_row.dart';
 
 /// The "I have saved it" confirmation, as a row you press anywhere on.
 ///
@@ -21,35 +19,10 @@ class RecoveryKeyAcknowledgement extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
-    return InkWell(
-      mouseCursor: WidgetStateMouseCursor.clickable,
-      onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(K.radiusRow),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Checkbox(
-              value: value,
-              onChanged: (v) => onChanged(v ?? false),
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  'I have saved my recovery key somewhere safe.',
-                  style: AppText.body.copyWith(color: themeState.textSecondary),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return CheckboxRow(
+      label: 'I have saved my recovery key somewhere safe.',
+      value: value,
+      onChanged: onChanged,
     );
   }
 }
