@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -38,7 +39,7 @@ class MicLevelMeter extends StatelessWidget {
                 color: on
                     ? _colorFor(i)
                     : themeState.bgActive.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(K.radiusPill),
               ),
             ),
           );

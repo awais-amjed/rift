@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../../../../data/constants.dart';
 
 /// Three bars that rise and fall while something is playing.
 ///
@@ -83,7 +84,7 @@ class _SoundWaveIndicatorState extends State<SoundWaveIndicator>
                 height: widget.height * _fraction(i, _controller.value),
                 decoration: BoxDecoration(
                   color: widget.color,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(K.radiusPill),
                 ),
               ),
           ],

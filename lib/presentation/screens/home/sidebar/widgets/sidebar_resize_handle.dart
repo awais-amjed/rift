@@ -72,7 +72,7 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
                   color: context.watch<ThemeCubit>().state.primary.withValues(
                     alpha: _dragging ? 0.9 : 0.5,
                   ),
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(K.radiusPill),
                 ),
               ),
             ),

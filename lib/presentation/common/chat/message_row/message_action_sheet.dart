@@ -11,6 +11,7 @@ import '../../context_menu/context_menu_item.dart';
 import '../../context_menu/context_menu_sheet.dart';
 import '../../emoji_text.dart';
 import '../../popover_surface.dart';
+import '../../sheet_handle.dart';
 import '../composer/emoji_picker_panel.dart';
 import '../reactions/reaction_picker.dart';
 import 'message_context_menu.dart';
@@ -79,17 +80,7 @@ Future<MessageSheetChoice?> showMessageActionSheet({
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: theme.borderElevated,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
+                  const SheetHandle(margin: EdgeInsets.only(bottom: 10)),
                   _Preview(message: message),
                   if (canReact) ...[
                     const SizedBox(height: 8),

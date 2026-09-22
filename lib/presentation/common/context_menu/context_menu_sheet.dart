@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/theme_context.dart';
 import '../context_menu_region.dart';
 import '../popover_surface.dart';
+import '../sheet_handle.dart';
 
 /// Tells the rows of a context menu that they are in a bottom sheet rather
 /// than a floating panel, and gives a submenu row somewhere to open.
@@ -103,7 +104,7 @@ class _ContextMenuSheetState extends State<_ContextMenuSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _DragHandle(),
+              const SheetHandle(),
               Flexible(
                 child: SingleChildScrollView(
                   child: Material(
@@ -121,26 +122,6 @@ class _ContextMenuSheetState extends State<_ContextMenuSheet> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The grip at the top of a sheet, which is what says it can be dragged away.
-class _DragHandle extends StatelessWidget {
-  const _DragHandle();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 36,
-        height: 4,
-        margin: const EdgeInsets.only(top: 8, bottom: 4),
-        decoration: BoxDecoration(
-          color: context.theme.borderElevated,
-          borderRadius: BorderRadius.circular(2),
         ),
       ),
     );

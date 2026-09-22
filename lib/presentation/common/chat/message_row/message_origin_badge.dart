@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/chat_message.dart';
+import '../../../../data/constants.dart';
 import '../../../../data/enums/message_origin.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
@@ -74,7 +75,7 @@ class MessageOriginBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
         decoration: BoxDecoration(
           color: _color(context).withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(K.radiusRow),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

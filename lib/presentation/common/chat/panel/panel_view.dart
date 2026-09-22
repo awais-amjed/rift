@@ -91,7 +91,7 @@ class PanelView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(K.radiusPill),
             child: LinearProgressIndicator(
               value: block.value,
               minHeight: 5,

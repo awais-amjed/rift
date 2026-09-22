@@ -9,6 +9,7 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../common/loading_dots.dart';
 import '../../../common/popover_surface.dart';
+import '../../../common/sheet_handle.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../members_sidebar/widgets/members_sidebar_list.dart';
@@ -56,17 +57,7 @@ class _MembersSheet extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(top: 8),
-              decoration: BoxDecoration(
-                color: theme.borderElevated,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
+          const SheetHandle(margin: EdgeInsets.only(top: 8)),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
             child: Row(

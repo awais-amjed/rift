@@ -90,7 +90,7 @@ class JumpField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: themeState.bgActive,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(K.radiusRow),
       ),
       child: Text(
         shortcutLabel,

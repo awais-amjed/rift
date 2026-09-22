@@ -53,7 +53,7 @@ class _MaskedEmailTextState extends State<MaskedEmailText> {
           waitDuration: K.tooltipDelay,
           child: InkWell(
             mouseCursor: WidgetStateMouseCursor.clickable,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(K.radiusPill),
             onTap: () => setState(() => _shown = !_shown),
             child: Padding(
               padding: const EdgeInsets.all(4),

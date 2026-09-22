@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
@@ -34,7 +35,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
                   margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
                   decoration: BoxDecoration(
                     color: active ? strength.color : theme.borderPrimary,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(K.radiusPill),
                   ),
                 ),
               );
