@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../data/constants.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
 import '../theme/theme_context.dart';
@@ -79,13 +78,7 @@ class _ConfirmDialog extends StatelessWidget {
       title: title,
       // The icon once, in the header badge; it used to be here and on
       // the confirm button both.
-      titleIcon: IconTile(
-        icon: icon,
-        color: accent,
-        size: 36,
-        radius: K.radiusRow,
-        iconSize: 18,
-      ),
+      titleIcon: IconTile.title(icon: icon, color: accent),
       // Wide enough that a two-word confirm ("Delete channel", "Sign
       // out") fits beside Cancel at the same width, rather than being
       // ellipsised down to something the button no longer explains.

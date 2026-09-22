@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/constants.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/cubits/vault/vault_cubit.dart';
@@ -93,12 +92,9 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       subtitle: 'Set up your profile for this server',
       // The rounded tile every other dialog opens with. It was a circle
       // here alone, which read as a different app's dialog.
-      titleIcon: IconTile(
+      titleIcon: IconTile.title(
         icon: Icons.person_outline,
         color: themeState.primary,
-        size: 36,
-        radius: K.radiusRow,
-        iconSize: 18,
       ),
       error: _error,
       content: Column(

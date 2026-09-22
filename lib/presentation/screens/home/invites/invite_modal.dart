@@ -107,12 +107,9 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
         usesIndex: _usesIndex,
         role: selectedRole,
       ),
-      titleIcon: IconTile(
+      titleIcon: IconTile.title(
         icon: Icons.person_add_outlined,
         color: themeState.primary,
-        size: 36,
-        radius: 10,
-        iconSize: 18,
       ),
       content: InviteForm(
         expiryIndex: _expiryIndex,

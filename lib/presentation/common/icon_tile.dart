@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../data/constants.dart';
+
 /// A rounded, tinted square holding one icon.
 ///
 /// The design opens most things with one of these — a dialog's header badge, a
@@ -24,6 +26,12 @@ class IconTile extends StatelessWidget {
     required this.radius,
     required this.iconSize,
   });
+
+  /// A dialog's header badge, the one scale every dialog title shares.
+  const IconTile.title({super.key, required this.icon, required this.color})
+    : size = 36,
+      radius = K.radiusRow,
+      iconSize = 18;
 
   @override
   Widget build(BuildContext context) {
