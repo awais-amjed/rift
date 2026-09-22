@@ -24,6 +24,10 @@ class CachedToken {
   /// existed, which are therefore from an older one.
   final int? grantVersion;
 
+  /// The run it was minted in — see [DeviceId]. Null for entries persisted
+  /// before the field existed.
+  final String? deviceId;
+
   const CachedToken({
     required this.supabaseUrl,
     required this.channelId,
@@ -31,6 +35,7 @@ class CachedToken {
     required this.token,
     required this.createdAt,
     this.grantVersion,
+    this.deviceId,
   });
 
   /// Tokens have a 1-hour TTL; we consider them valid for 55 minutes.
@@ -43,6 +48,7 @@ class CachedToken {
     'token': token,
     'createdAt': createdAt.toIso8601String(),
     'grantVersion': grantVersion,
+    'deviceId': deviceId,
   };
 
   factory CachedToken.fromJson(Map<String, dynamic> json) => CachedToken(
@@ -52,6 +58,7 @@ class CachedToken {
     token: json['token'] as String,
     createdAt: DateTime.parse(json['createdAt'] as String),
     grantVersion: json['grantVersion'] as int?,
+    deviceId: json['deviceId'] as String?,
   );
 }
 

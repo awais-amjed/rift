@@ -15,21 +15,6 @@ mixin _VoiceApiMixin {
     String? bearerToken,
   });
 
-  /// A stable per-run device id, mixed into LiveKit participant identities so
-  /// the same user can be connected from multiple devices without the later
-  /// connection kicking the earlier one.
-  ///
-  /// It only has to be consistent within a single app run — long enough for a
-  /// voice session and its screen-share to share it — so an in-memory value,
-  /// regenerated each launch, is enough; per-user state persists under the user
-  /// id, not the identity.
-  static final String _deviceId = _generateDeviceId();
-
-  static String _generateDeviceId() {
-    final random = Random();
-    return List.generate(8, (_) => random.nextInt(16).toRadixString(16)).join();
-  }
-
   /// Get a LiveKit JWT for joining a channel.
   ///
   /// [screenShare] and [soundShare] each ask for the identity of that kind of
@@ -47,7 +32,7 @@ mixin _VoiceApiMixin {
       'channel_id': channelId,
       'screen_share': screenShare,
       'sound_share': soundShare,
-      'device_id': _deviceId,
+      'device_id': DeviceId.current,
     }, bearerToken: bearerToken);
   }
 

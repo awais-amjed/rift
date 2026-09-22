@@ -1,5 +1,7 @@
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 
+import '../../../data/device_id.dart';
+
 part 'token_state.dart';
 
 /// Caches LiveKit tokens per channel so they can be reused within their
@@ -56,6 +58,14 @@ class TokenCubit extends HydratedCubit<TokenState> {
       _evict(channelId);
       return null;
     }
+    // Minted in an earlier run, under that run's device id. A share asks for
+    // its token fresh, under this run's, so a call joined on the old one no
+    // longer recognises its own stream: the sharer is shown their own screen
+    // as somebody else's and hears their own sound share back.
+    if (cached.deviceId != DeviceId.current) {
+      _evict(channelId);
+      return null;
+    }
     if (!cached.isValid) {
       // Evict expired entry
       _evict(channelId);
@@ -75,6 +85,7 @@ class TokenCubit extends HydratedCubit<TokenState> {
     final updated = Map<String, CachedToken>.from(state.tokens);
     updated[channelId] = CachedToken(
       grantVersion: grantVersion,
+      deviceId: DeviceId.current,
       supabaseUrl: supabaseUrl,
       channelId: channelId,
       userId: userId,

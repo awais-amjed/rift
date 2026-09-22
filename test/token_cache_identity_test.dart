@@ -115,4 +115,28 @@ void main() {
 
     expect(restored.tokens[channel]?.userId, alice);
   });
+
+  test('a token from an earlier run is dropped', () {
+    // Its identity carries that run's device id, and a share minted now
+    // carries this one's, so the call would not know its own stream.
+    HydratedBloc.storage.write('TokenCubit', {
+      'tokens': {
+        channel: {
+          'supabaseUrl': url,
+          'channelId': channel,
+          'userId': alice,
+          'token': 'old-run-token',
+          'createdAt': DateTime.now().toIso8601String(),
+          'grantVersion': TokenCubit.grantVersion,
+          'deviceId': 'not-this-run',
+        },
+      },
+    });
+
+    final cubit = TokenCubit();
+    addTearDown(cubit.close);
+
+    expect(cubit.getValidToken(url, channel, alice), isNull);
+    expect(cubit.state.tokens, isEmpty);
+  });
 }
