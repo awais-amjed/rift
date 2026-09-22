@@ -7,6 +7,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/services/host_platform.dart';
+import '../../../../../data/constants.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/theme_context.dart';
@@ -164,6 +165,9 @@ class _RoomViewState extends State<RoomView> {
                                     ? ContextStrip.heightFor(
                                         compact: context.layoutMode.isCompact,
                                       )
+                                    : 0,
+                                focusBottomInset: _chromeVisible
+                                    ? K.callBarClearance
                                     : 0,
                                 onFocusChanged: (focused) {
                                   setState(() => _focused = focused);

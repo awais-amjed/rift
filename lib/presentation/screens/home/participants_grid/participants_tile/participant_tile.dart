@@ -48,6 +48,9 @@ class ParticipantTileWidget extends StatefulWidget {
   /// See [ExpandedParticipantTile.topInset].
   final double topInset;
 
+  /// See [ExpandedParticipantTile.bottomInset].
+  final double bottomInset;
+
   const ParticipantTileWidget({
     super.key,
     required this.participant,
@@ -59,6 +62,7 @@ class ParticipantTileWidget extends StatefulWidget {
     this.onWatchStopped,
     this.onAspectRatio,
     this.topInset = 0,
+    this.bottomInset = 0,
   });
 
   @override
@@ -280,6 +284,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                           onStopWatching: _unsubscribeFromScreenshare,
                           onStatsPinnedChanged: _onStatsPinnedChanged,
                           topInset: widget.topInset,
+                          bottomInset: widget.bottomInset,
                         )
                       : _buildCollapsed(
                           themeState: themeState,

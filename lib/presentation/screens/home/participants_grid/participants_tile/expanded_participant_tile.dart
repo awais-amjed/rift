@@ -45,6 +45,15 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// call's top bar floating over the stage. The stats move down past it.
   final double topInset;
 
+  /// How much of the bottom edge the call controls cover right now. The
+  /// badges in the bottom corners move up past it, but only on a stage too
+  /// narrow for them to sit beside the controls — on a wide one they would
+  /// just be lifted into the middle of the picture for nothing.
+  final double bottomInset;
+
+  /// Narrower than this and the controls, centred, reach the corners.
+  static const _crowdedWidth = 900.0;
+
   const ExpandedParticipantTile({
     super.key,
     required this.videoTrack,
@@ -62,6 +71,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     required this.onStopWatching,
     required this.onStatsPinnedChanged,
     this.topInset = 0,
+    this.bottomInset = 0,
   });
 
   /// Wraps an overlay so it fades out *and* stops taking pointer events —
@@ -83,14 +93,24 @@ class ExpandedParticipantTile extends StatelessWidget {
       onPointerMove: (_) => onActivity(),
       onPointerHover: (_) => onActivity(),
       // Only someone else's share you are watching has receive stats.
-      child: StreamStatsPoller(
-        track: showStopButton ? videoTrack : null,
-        builder: (context, stats) => _stage(stats, showStats: showStats),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final lift = constraints.maxWidth < _crowdedWidth ? bottomInset : 0.0;
+          return StreamStatsPoller(
+            track: showStopButton ? videoTrack : null,
+            builder: (context, stats) =>
+                _stage(stats, showStats: showStats, bottom: 12 + lift),
+          );
+        },
       ),
     );
   }
 
-  Widget _stage(VideoStreamStats? stats, {required bool showStats}) {
+  Widget _stage(
+    VideoStreamStats? stats, {
+    required bool showStats,
+    required double bottom,
+  }) {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -118,16 +138,20 @@ class ExpandedParticipantTile extends StatelessWidget {
           ),
         if (showWatchButton) WatchStreamButton(onTap: onWatch),
         if (showStopButton)
-          Positioned(
-            bottom: 12,
+          AnimatedPositioned(
+            duration: _fade,
+            curve: Curves.easeInOut,
+            bottom: bottom,
             right: 12,
             child: _fading(
               visible: showOverlays,
               child: StopWatchingButton(onTap: onStopWatching),
             ),
           ),
-        Positioned(
-          bottom: 12,
+        AnimatedPositioned(
+          duration: _fade,
+          curve: Curves.easeInOut,
+          bottom: bottom,
           left: 12,
           right: 12,
           child: Align(
