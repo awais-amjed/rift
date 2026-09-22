@@ -137,21 +137,15 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     if (peerId == null || id == null) return const QuotedMessage.unknown();
 
     final response = await _repo.getDm(messageId: id);
-    if (!response.success || state.openPeerId != peerId) {
-      return const QuotedMessage.unknown();
-    }
-
-    final row = (response.data as Map<String, dynamic>)['message'];
-    if (row == null) return const QuotedMessage.deleted();
-
-    final message = await _decryptRow(
-      (row as Map).cast<String, dynamic>(),
-      peerId: peerId,
-      peerHandle: state.openPeerHandle ?? 'unknown',
+    return QuotedMessage.settle(
+      response,
+      stillOpen: () => state.openPeerId == peerId,
+      open: (row) => _decryptRow(
+        row,
+        peerId: peerId,
+        peerHandle: state.openPeerHandle ?? 'unknown',
+      ),
     );
-    return message == null
-        ? const QuotedMessage.unknown()
-        : QuotedMessage.found(message);
   }
 
   /// Put [messageId] in the list by loading a **window** around it, and

@@ -139,19 +139,11 @@ mixin _ChannelChatHistoryMixin
       channelId: channelId,
       messageId: id,
     );
-    if (!response.success || state.channelId != channelId) {
-      return const QuotedMessage.unknown();
-    }
-
-    final row = (response.data as Map<String, dynamic>)['message'];
-    if (row == null) return const QuotedMessage.deleted();
-
-    final decrypted = await _decryptRows(channelId, [
-      (row as Map).cast<String, dynamic>(),
-    ]);
-    return decrypted.isEmpty
-        ? const QuotedMessage.unknown()
-        : QuotedMessage.found(decrypted.first);
+    return QuotedMessage.settle(
+      response,
+      stillOpen: () => state.channelId == channelId,
+      open: (row) async => (await _decryptRows(channelId, [row])).firstOrNull,
+    );
   }
 
   /// Put [messageId] in the list by loading a **window** around it, and
