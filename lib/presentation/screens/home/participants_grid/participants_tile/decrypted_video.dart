@@ -32,6 +32,12 @@ class _DecryptedVideoState extends State<DecryptedVideo> {
   /// A stream is shown after this whatever the counts say.
   static const _giveUpAfter = Duration(seconds: 3);
 
+  /// Tracks whose picture has already come clean. The same track is drawn by
+  /// a new widget whenever its tile moves between full size and the stage,
+  /// and the SDK reports decryption starting only once per track — so a new
+  /// cover waited out its full timeout every time the stream was resized.
+  static final Expando<bool> _clean = Expando('clean picture');
+
   late CleanPictureGate _gate;
   EventsListener<RoomEvent>? _listener;
   Timer? _pollTimer;
@@ -60,6 +66,10 @@ class _DecryptedVideoState extends State<DecryptedVideo> {
 
   void _start() {
     _gate = CleanPictureGate();
+    if (_clean[widget.track] == true) {
+      _gate.giveUp();
+      return;
+    }
     final room = context.read<LiveKitCubit>().state.room;
     // Nothing to wait for where nothing is encrypted, or on our own track.
     if (widget.track is! RemoteVideoTrack || room?.e2eeManager == null) {
@@ -103,6 +113,7 @@ class _DecryptedVideoState extends State<DecryptedVideo> {
     if (!mounted || _gate.ready) return;
     step();
     if (!_gate.ready) return;
+    _clean[widget.track] = true;
     _stop();
     setState(() {});
   }
