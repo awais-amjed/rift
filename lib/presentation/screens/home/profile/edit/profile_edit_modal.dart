@@ -59,7 +59,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
           ),
         ],
       );
-      if (file == null) return;
+      if (file == null || !mounted) return;
 
       final mime = (file.mimeType?.isNotEmpty ?? false)
           ? file.mimeType!
@@ -70,6 +70,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
       }
 
       final source = await file.readAsBytes();
+      if (!mounted) return;
       if (!AvatarImage.isAcceptableSize(source.length)) {
         setState(() => _error = 'That image is too large.');
         return;

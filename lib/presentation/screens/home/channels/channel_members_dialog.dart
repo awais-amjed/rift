@@ -49,11 +49,6 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
     _load();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Future<void> _load() async {
     final cubit = context.read<ServerCubit>();
     final me = _me;

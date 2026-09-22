@@ -46,7 +46,7 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
         XTypeGroup(label: 'Rift backup', extensions: ['json']),
       ],
     );
-    if (file != null) {
+    if (file != null && mounted) {
       setState(() {
         _file = file;
         _error = null;
