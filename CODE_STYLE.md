@@ -137,7 +137,10 @@ widgets testable and lets a service be reused by a second surface later.
   disposed in `close()` / `dispose()`. The `cancel_subscriptions` and `close_sinks` lints
   catch the obvious cases; the rest is on you.
 - After an `await` in a widget, check `mounted` before touching `context` or calling
-  `setState`. In a cubit, check `isClosed` before `emit`.
+  `setState`. In a cubit that can close before the app does — one created for a dialog
+  or a screen, like `PublicBotsCubit` — check `isClosed` before `emit`. The cubits
+  `app_providers.dart` creates at startup close only when the app quits, so they need
+  no check.
 - A future you deliberately drop is wrapped in `unawaited(...)`; the `unawaited_futures`
   lint refuses a bare one. If you cannot say why it is safe to drop, await it.
 - Errors reach the user through `HelperMethods.showError` and debug output through
