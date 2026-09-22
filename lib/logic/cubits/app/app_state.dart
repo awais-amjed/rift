@@ -87,6 +87,16 @@ class AppState {
   /// until somebody moves one, so [AppSound.settingIn] supplies the default.
   final Map<String, ParticipantSetting> appSounds;
 
+  // ── People whose keys you have checked ────────────────────
+  /// The safety code you saw when you marked somebody verified, under
+  /// `<tier>:<their id>` — see `SafetyCode`. Kept rather than a bare flag, so
+  /// a key that changes afterwards no longer matches and the profile can say
+  /// so instead of going on claiming they are verified.
+  ///
+  /// This device's belief and nobody else's: it is not uploaded, and another
+  /// device of yours has to check for itself.
+  final Map<String, String> verifiedCodes;
+
   /// Emoji the user reaches for, most recent first, capped at
   /// [AppCubit.maxRecentEmojis]. Kept here rather than in the emoji package's
   /// own store: its writer needs a handle to the widget it ships, which the
@@ -148,6 +158,7 @@ class AppState {
     this.windowY,
     this.disableAudioDucking = false,
     this.askBeforeVoiceSwitch = true,
+    this.verifiedCodes = const {},
     this.statsOverlayPinned = false,
     this.showStreamStats = false,
     this.sensitiveContentMode = SensitiveContentMode.blur,
@@ -191,6 +202,7 @@ class AppState {
     double? windowY,
     bool? disableAudioDucking,
     bool? askBeforeVoiceSwitch,
+    Map<String, String>? verifiedCodes,
     bool? statsOverlayPinned,
     bool? showStreamStats,
     SensitiveContentMode? sensitiveContentMode,
@@ -240,6 +252,7 @@ class AppState {
       windowY: windowY ?? this.windowY,
       disableAudioDucking: disableAudioDucking ?? this.disableAudioDucking,
       askBeforeVoiceSwitch: askBeforeVoiceSwitch ?? this.askBeforeVoiceSwitch,
+      verifiedCodes: verifiedCodes ?? this.verifiedCodes,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
       showStreamStats: showStreamStats ?? this.showStreamStats,
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,

@@ -255,6 +255,20 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(appSounds: updated));
   }
 
+  // ── Persisted: people whose keys you have checked ────────
+
+  /// Remember that [code] is what you saw when you checked [person] — see
+  /// [AppState.verifiedCodes].
+  void setVerified(String person, String code) => emit(
+    state.copyWith(verifiedCodes: {...state.verifiedCodes, person: code}),
+  );
+
+  /// Take that back, whether because it was a mistake or because their key
+  /// changed and the old answer is worse than none.
+  void clearVerified(String person) => emit(
+    state.copyWith(verifiedCodes: {...state.verifiedCodes}..remove(person)),
+  );
+
   // ── Transient: sidebar hover ─────────────────────────────
 
   void setIsHovered(bool isHovered) {

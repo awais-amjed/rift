@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../../data/classes/role.dart';
+import '../../../../../data/classes/server.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
@@ -19,6 +20,7 @@ import '../../../../common/label_pill.dart';
 import '../../../../common/modal_columns.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import 'verification/profile_verification.dart';
 import 'widgets/profile_avatar.dart';
 import 'widgets/profile_banned_notice.dart';
 import 'widgets/profile_fact.dart';
@@ -148,12 +150,12 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
       widget.userId,
     );
 
-    final permissions = context.watch<ServerCubit>().state.myPermissions;
+    final serverState = context.watch<ServerCubit>().state;
+    final server = serverState.selectedServer;
+    final permissions = serverState.myPermissions;
     final isAdmin = permissions?.isServerAdmin ?? false;
     final canModerate = isAdmin || (permissions?.isChannelManager ?? false);
-    final isMe =
-        context.watch<ServerCubit>().state.selectedServer?.user?.id ==
-        widget.userId;
+    final isMe = server?.user?.id == widget.userId;
 
     final name = member?.displayName ?? widget.fallbackName;
     final actions = _actions(member, isMe);
@@ -180,7 +182,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
           ModalColumns(
             minColumnWidth: _columnWidth,
             children: [
-              _identity(member, roles),
+              _identity(member, roles, server, isMe),
               // Left out rather than empty: stacked, `ModalColumns` rules
               // between its children, and a second column with nothing in it
               // drew a hairline under the profile with nothing after it.
@@ -207,7 +209,12 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
   static const double _columnWidth = 260;
 
   /// Who they are: the facts, then their roles.
-  Widget _identity(ServerMember? member, List<Role> roles) {
+  Widget _identity(
+    ServerMember? member,
+    List<Role> roles,
+    Server? server,
+    bool isMe,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -225,6 +232,17 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
               ? const ProfileSkeletonBar(widthFactor: 0.34, height: 15)
               : ProfileRoles(roles: roles),
         ),
+        // Never for yourself or a bot: your own key is not somebody else's to
+        // check, and a bot holds no chat key at all.
+        if (member != null && !isMe && !member.isBot && server != null)
+          ProfileVerification(
+            tier: 'server',
+            personId: member.id,
+            personName: member.displayName,
+            theirChatKey: member.chatPublicKey,
+            myId: server.user?.id ?? '',
+            host: Uri.parse(server.supabaseUrl).host,
+          ),
       ],
     );
   }

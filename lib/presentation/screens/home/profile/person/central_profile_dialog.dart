@@ -6,6 +6,7 @@ import '../../../../../data/classes/friend.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/friendship_state.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
+import '../../../../../supabase_config.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/modal_columns.dart';
@@ -13,6 +14,7 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../../dms/open_central_conversation.dart';
 import '../../dms/widgets/friends/friend_actions.dart';
+import 'verification/profile_verification.dart';
 import 'widgets/profile_action_button.dart';
 import 'widgets/profile_avatar.dart';
 import 'widgets/profile_fact.dart';
@@ -121,6 +123,18 @@ class _CentralProfileDialogState extends State<CentralProfileDialog> {
           const SizedBox(height: 14),
           ProfileHandleRow(handle: current.handle),
         ],
+        // Nothing to check while they are blocked — there is no conversation
+        // to protect, and the section would be a button to compare a key
+        // against messages that cannot be sent.
+        if (_standing != FriendshipState.blocked)
+          ProfileVerification(
+            tier: 'central',
+            personId: current.id,
+            personName: '@${current.handle}',
+            theirChatKey: current.chatPublicKey,
+            myId: context.read<CentralDmCubit>().myUserId ?? '',
+            host: Uri.parse(SupabaseConfig.supabaseUrl).host,
+          ),
         // Only for a block, and not because the others have no note — the
         // friends row has one for each. It is that "Wants to be friends" and
         // "Waiting for them" say their own consequence, and a block does

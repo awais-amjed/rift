@@ -27,6 +27,12 @@ class MediaColors {
   /// A video's own ground, so letterboxing reads as the edge of the picture.
   static const Color videoGround = Color(0xFF000000);
 
+  /// A QR code's paper and ink. Not themed for the same reason as the rest
+  /// of this file, and a stricter one: a scanner reads contrast, and half the
+  /// palettes would leave it nothing to find.
+  static const Color qrSurface = Color(0xFFFFFFFF);
+  static const Color qrInk = Color(0xFF000000);
+
   // ── On media ──────────────────────────────────────────────
   static const Color onMedia = Color(0xFFFFFFFF);
   static const Color onMediaSecondary = Color(0xB3FFFFFF);

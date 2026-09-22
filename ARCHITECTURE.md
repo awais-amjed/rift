@@ -172,6 +172,24 @@ Every message is Ed25519-signed by its sender over a canonical payload
 (`WIRE.md` §3). Without it a shared channel key would let any member — or the
 server — forge a message from anybody in the room.
 
+### Safety codes [Implemented September 2026]
+
+A published key is only somebody's key if the server handing it over is
+honest, so a pair can check for themselves: `SafetyCode` (in `rift_crypto`)
+hashes both chat public keys with both user ids — 5200 rounds of SHA-256, the
+two halves sorted by their own digits — into sixty digits both devices
+compute identically, drawn as digits and a QR in each person's profile.
+
+Marking somebody verified stores **the code that was seen**, per device, in
+`AppState.verifiedCodes` and nowhere else. A key that changes afterwards no
+longer matches what was stored, and the profile says so rather than going on
+claiming they are verified — which is the half that catches an interception
+that starts later.
+
+It covers the key a message is *sealed to*, not yet the key it is signed
+with: a member row carries `chat_public_key` and no signing key, so adding
+that means a column and a migration first.
+
 ### Three things a client can do with a row [Implemented August 2026]
 
 Reading a message has three outcomes, and for a long time two of them shared a line.

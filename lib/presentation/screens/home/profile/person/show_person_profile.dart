@@ -8,9 +8,8 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
-import '../../../../common/popover_surface.dart';
+import '../../../../common/app_sheet.dart';
 import '../../../../responsive/shell_scope.dart';
-import '../../../../theme/theme_context.dart';
 import 'central_profile_dialog.dart';
 import 'member_profile_dialog.dart';
 
@@ -33,26 +32,6 @@ import 'member_profile_dialog.dart';
 /// full-screen dialog covers exactly that, and a profile is short enough
 /// that it would be a header over a field of empty grey.
 
-/// The sheet route both profiles take on a phone.
-///
-/// [child] is built once by the caller, while its context is still mounted,
-/// for the reason the doc above gives.
-Future<void> _showAsSheet(BuildContext context, Widget child) {
-  return showModalBottomSheet<void>(
-    context: context,
-    useRootNavigator: true,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: context.theme.bgSecondary,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(PopoverSurface.radius),
-      ),
-    ),
-    builder: (_) => child,
-  );
-}
-
 /// A person on the server that is currently open.
 ///
 /// [name] is what the clicked row was already showing, so the dialog has
@@ -73,7 +52,7 @@ Future<void> showMemberProfile(
     providers: providers,
     child: MemberProfileDialog(userId: userId, fallbackName: name),
   );
-  if (context.layoutMode.isCompact) return _showAsSheet(context, dialog);
+  if (context.layoutMode.isCompact) return showAppSheet<void>(context, dialog);
   return showCustomDialog(
     context: context,
     barrierDismissible: true,
@@ -94,7 +73,7 @@ Future<void> showCentralProfile(
     providers: providers,
     child: CentralProfileDialog(friend: friend),
   );
-  if (context.layoutMode.isCompact) return _showAsSheet(context, dialog);
+  if (context.layoutMode.isCompact) return showAppSheet<void>(context, dialog);
   return showCustomDialog(
     context: context,
     barrierDismissible: true,

@@ -141,6 +141,10 @@ class CentralDmCubit extends Cubit<CentralDmState>
   @override
   String? get _myUserId => _repo.currentUser?.id;
 
+  /// Who you are centrally, for a surface that needs to name both ends —
+  /// the safety code, which is computed over both accounts' keys and ids.
+  String? get myUserId => _myUserId;
+
   /// A friendship or a block changed — on this device or another one.
   ///
   /// Both lists are re-read, because most changes here move a row between
