@@ -17,6 +17,7 @@ import 'server_user_row.dart';
 
 part 'server_repository_auth.dart';
 part 'server_repository_bots.dart';
+part 'server_repository_channel_keys.dart';
 part 'server_repository_channels.dart';
 part 'server_repository_chat.dart';
 part 'server_repository_chat_reads.dart';
@@ -56,6 +57,7 @@ class ServerRepository
         _BotApiMixin,
         _ChannelApiMixin,
         _ChatApiMixin,
+        _ChannelKeysApiMixin,
         _ChatReadApiMixin,
         _MemberApiMixin,
         _PushApiMixin,
