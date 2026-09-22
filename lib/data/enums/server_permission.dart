@@ -9,6 +9,9 @@ enum PermissionGroup {
   const PermissionGroup(this.label);
 }
 
+/// Over the helper budget and one job: the permission bits, each with the
+/// comment that says what it lets someone do.
+///
 /// One bit of `roles.permissions` (`006_roles.sql`).
 ///
 /// The numbers are a wire contract, not an implementation detail: they are
@@ -26,9 +29,6 @@ enum PermissionGroup {
 /// a name alone ("Manage channels") does not say whether that includes deleting
 /// one. Each line says what it lets somebody *do*, and where it differs from
 /// what the name suggests, it says that instead.
-///
-/// Over the helper budget and one job: the permission bits, each with the
-/// comment that says what it lets someone do.
 enum ServerPermission {
   // ── Server ──────────────────────────────────────────────
   administrator(

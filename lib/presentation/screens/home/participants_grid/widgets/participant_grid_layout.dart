@@ -18,6 +18,9 @@ import '../participants_tile/participant_tile.dart';
 import '../participants_tile/sound_share_tile.dart';
 import 'camera_rail.dart';
 
+/// Over the widget budget and one job: laying tiles out on the stage. The
+/// fitting maths is shared, so it is all one pass.
+///
 /// Grid view displaying all participants with adaptive column count.
 class ParticipantGridLayout extends StatefulWidget {
   final List<Participant> participants;

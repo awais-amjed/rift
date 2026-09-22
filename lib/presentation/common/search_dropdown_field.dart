@@ -9,6 +9,9 @@ import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
 import 'tap_to_focus.dart';
 
+/// Over the widget budget and one job: a search field and the results it drops
+/// beneath itself, which open, update and close with the field.
+///
 /// A search field that drops its results directly underneath itself.
 ///
 /// Picking a person is not form-filling, so neither DM tier opens a modal for

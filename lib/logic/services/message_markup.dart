@@ -1,3 +1,6 @@
+/// Over the helper budget and one job: parsing message markup. The tokeniser,
+/// the matcher and the merge are one pass and only make sense read together.
+///
 /// Turning a message body into the stretches it should be drawn as.
 ///
 /// Rift's markup is the small Discord-flavoured set people actually type —
@@ -16,9 +19,6 @@
 /// Pure, so the awkward parts — unmatched delimiters, `snake_case`, code that
 /// contains asterisks — are reachable in a test rather than only by typing into
 /// a running app.
-///
-/// Over the helper budget and one job: parsing message markup. The tokeniser,
-/// the matcher and the merge are one pass and only make sense read together.
 library;
 
 import '../../data/classes/markup_span.dart';

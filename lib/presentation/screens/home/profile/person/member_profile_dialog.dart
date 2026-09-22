@@ -25,6 +25,9 @@ import 'widgets/profile_roles.dart';
 import 'widgets/profile_section.dart';
 import 'widgets/profile_skeleton_bar.dart';
 
+/// Over the widget budget and one job: a member's server profile and what you
+/// can do about them.
+///
 /// Who somebody is on **this server**: their name, their roles, how long they
 /// have been here, and the things you can do about them.
 ///

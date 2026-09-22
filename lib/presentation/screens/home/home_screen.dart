@@ -28,6 +28,9 @@ import 'sidebar/sidebar_peek.dart';
 import 'sidebar/widgets/sidebar_header.dart';
 import 'sidebar/widgets/sidebar_tab.dart';
 
+/// Over the widget budget and one job: the home screen, on a phone and on a
+/// desktop. Most of it is the desktop row of panes and the overlays that open
+/// over it.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 

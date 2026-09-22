@@ -32,6 +32,15 @@ import 'composer_recording_bar.dart';
 import 'composer_reply_bar.dart';
 import 'composer_staged_row.dart';
 
+part 'chat_composer_attachments.dart';
+part 'chat_composer_link_preview.dart';
+part 'chat_composer_menus.dart';
+part 'chat_composer_recording.dart';
+
+/// Over the widget budget and one job: the bar, and the state its controls
+/// share. Attachments, recording, link previews and the `@`/`/` menus are
+/// already their own parts.
+///
 /// Message input row: attach + emoji buttons, the text field, a mic and the
 /// send button, with a strip of staged-attachment chips above it once files
 /// are picked. The emoji button opens a popover picker.
@@ -39,15 +48,6 @@ import 'composer_staged_row.dart';
 /// Enter sends, Shift+Enter inserts a newline (desktop convention). A message
 /// with neither text nor attachments never sends. [footer] is an optional slot
 /// below the bar — central DMs put the quota meter there.
-///
-/// Over the widget budget and one job: the bar, and the state its controls
-/// share. Attachments, recording, link previews and the `@`/`/` menus are
-/// already their own parts.
-part 'chat_composer_attachments.dart';
-part 'chat_composer_link_preview.dart';
-part 'chat_composer_menus.dart';
-part 'chat_composer_recording.dart';
-
 class ChatComposer extends StatefulWidget {
   /// Called with the trimmed text, any staged attachments, and the preview
   /// this device built for the first link — null when there was none, it

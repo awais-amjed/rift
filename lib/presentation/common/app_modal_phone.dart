@@ -1,5 +1,8 @@
 part of 'app_modal.dart';
 
+/// Over the widget budget and one job: a modal's phone layout, in its three
+/// shapes.
+///
 /// The three shapes an [AppModal] takes on a phone: a near-full-screen
 /// dialog, a bottom sheet, and a page.
 ///

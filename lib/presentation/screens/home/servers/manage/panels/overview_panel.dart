@@ -14,6 +14,9 @@ import '../../server_settings/server_settings_save.dart';
 import '../../server_settings/widgets/server_settings_form.dart';
 import '../widgets/manage_panel.dart';
 
+/// Over the widget budget and one job: a form: name, LiveKit connection and
+/// directory listing.
+///
 /// The overview page of the manage-server dialog: display name, the LiveKit
 /// connection, and whether the server is in the central directory.
 ///

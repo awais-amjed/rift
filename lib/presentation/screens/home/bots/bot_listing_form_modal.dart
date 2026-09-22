@@ -16,12 +16,12 @@ import '../../../common/tag_editor.dart';
 import '../../settings/widgets/setting_toggle_row.dart';
 import 'widgets/bot_manifest_editor.dart';
 
-/// Listing a bot in the directory, or editing a listing already there.
-///
 /// Over the widget budget and one job: it is a form, and every line of it is
 /// a field, that field's validation, or the sentence explaining why the field
 /// is asked for. Splitting the body out would put the controllers in one file
 /// and the widgets that own them in another.
+///
+/// Listing a bot in the directory, or editing a listing already there.
 ///
 /// Nothing here is checked by central, and the form says so. What it asks for
 /// is the minimum somebody needs to decide whether to run a stranger's

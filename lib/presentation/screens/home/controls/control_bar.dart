@@ -27,6 +27,9 @@ import '../soundboard/soundboard_button.dart';
 import '../soundshare/sound_share_picker_dialog.dart';
 import 'widgets/control_button.dart';
 
+/// Over the widget budget and one job: the call's controls, and what pressing
+/// each one does — screen share, sound share and deafen each need a few steps.
+///
 /// Floating control bar shown at the bottom of the video area.
 ///
 /// Visibility is driven by the parent ([RoomView]) so it fades in lockstep

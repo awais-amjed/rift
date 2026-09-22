@@ -8,16 +8,16 @@ section() { printf '\n== %s ==\n' "$1"; }
 over() { # over <lines> <path...>
   local limit=$1; shift
   find "$@" -name '*.dart' ! -name '*.g.dart' ! -path '*/src/rust/*' \
-    -exec awk -v l="$limit" 'END{if(NR>l)printf "%5d %s\n",NR,FILENAME}' {} \; | sort -rn
+    -exec awk -v l="$limit" '/budget and one job/{n=1} END{if(NR>l)printf "%5d %s%s\n",NR,FILENAME,(n?"  (noted)":"")}' {} \; | sort -rn
 }
 
 section "widgets over 200 lines"
 over 200 lib/presentation
 section "cubit parts over 250 lines"
 find lib/logic/cubits -name '*.dart' ! -name '*_cubit.dart' ! -name '*_state.dart' ! -name '*.g.dart' \
-  -exec awk 'END{if(NR>250)printf "%5d %s\n",NR,FILENAME}' {} \; | sort -rn
+  -exec awk '/budget and one job/{n=1} END{if(NR>250)printf "%5d %s%s\n",NR,FILENAME,(n?"  (noted)":"")}' {} \; | sort -rn
 section "cubit hubs over 400 lines"
-find lib/logic/cubits -name '*_cubit.dart' -exec awk 'END{if(NR>400)printf "%5d %s\n",NR,FILENAME}' {} \; | sort -rn
+find lib/logic/cubits -name '*_cubit.dart' -exec awk '/budget and one job/{n=1} END{if(NR>400)printf "%5d %s%s\n",NR,FILENAME,(n?"  (noted)":"")}' {} \; | sort -rn
 section "repositories over 350 lines"
 over 350 lib/data/repositories
 section "models / helpers over 200 lines"

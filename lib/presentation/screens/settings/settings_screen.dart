@@ -29,6 +29,7 @@ export 'widgets/settings_sidebar.dart';
 export 'widgets/settings_tab.dart';
 export 'widgets/voice_audio_content.dart';
 
+/// Over the widget budget and one job: the settings layout, one pane or two.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 

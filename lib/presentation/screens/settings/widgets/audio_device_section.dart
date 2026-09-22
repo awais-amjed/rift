@@ -10,6 +10,9 @@ import '../../../../logic/services/audio_devices.dart';
 import '../../../common/message_banner.dart';
 import 'audio_device_picker.dart';
 
+/// Over the widget budget and one job: picking the input and output devices,
+/// which load and change together.
+///
 /// Section for selecting audio input and output devices.
 class AudioDeviceSection extends StatefulWidget {
   const AudioDeviceSection({super.key});

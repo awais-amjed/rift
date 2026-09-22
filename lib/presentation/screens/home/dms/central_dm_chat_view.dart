@@ -26,6 +26,8 @@ import 'widgets/friends/not_friends_note.dart';
 import 'widgets/friends/pending_request_note.dart';
 import 'widgets/quota_meter.dart';
 
+/// Over the widget budget and one job: the open central DM and its quota.
+///
 /// The open central-DM conversation. Central is the discovery funnel:
 /// the composer footer shows the daily quota, and sends stop at zero.
 class CentralDmChatView extends StatefulWidget {

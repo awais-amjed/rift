@@ -15,6 +15,8 @@ import '../../app_text_field.dart';
 import '../../hint_card.dart';
 import 'forward_target_row.dart';
 
+/// Over the widget budget and one job: pick a destination, add a line, send.
+///
 /// Pick where a message goes, add a line of your own, send.
 ///
 /// The hint at the bottom is not decoration. What arrives is the words,

@@ -18,6 +18,9 @@ import '../../../members/widgets/members_list.dart';
 import '../../../members/widgets/members_search_field.dart';
 import '../widgets/manage_panel.dart';
 
+/// Over the widget budget and one job: the members page — the list, and the
+/// role and moderation actions on each row.
+///
 /// The members page of the manage-server dialog — everyone on [server] with
 /// their roles and moderation state. Server admins manage permissions here (Discord-style:
 /// invites grant nothing, promotion happens after joining); admins and

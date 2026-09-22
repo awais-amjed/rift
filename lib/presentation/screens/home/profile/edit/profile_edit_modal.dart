@@ -16,6 +16,9 @@ import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
+/// Over the widget budget and one job: a form: name and picture, saved
+/// together.
+///
 /// Edit your profile on the **selected server**.
 ///
 /// Each server is its own identity, so this changes how you appear there and

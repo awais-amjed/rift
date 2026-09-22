@@ -1,10 +1,10 @@
 part of 'dm_cubit.dart';
 
-/// The open conversation: opening it, and paging its history. Turning the rows
-/// into messages is [_DmDecryptMixin].
-///
 /// Over the cubit-part budget and one job: opening a conversation and paging
 /// it.
+///
+/// The open conversation: opening it, and paging its history. Turning the rows
+/// into messages is [_DmDecryptMixin].
 mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   /// See the send mixin. Read here to put failed sends back under a freshly
   /// fetched page, and to forget one the server turns out to have stored.

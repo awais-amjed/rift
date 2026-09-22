@@ -38,15 +38,15 @@ import 'message_text.dart';
 
 part 'chat_message_row_actions.dart';
 
+/// Over the widget budget and one job: drawing a message. Most of the length
+/// is the parameters a row is handed; what its menus do is
+/// `chat_message_row_actions.dart`.
+///
 /// One message in the chat list — flat Discord-style row, not a bubble.
 ///
 /// [showHeader] rows carry the avatar + author name + timestamp; continuation
 /// rows (same author, small gap) show only the indented text. Hovering lights
 /// the whole row and reveals an action toolbar.
-///
-/// Over the widget budget and one job: drawing a message. Most of the length
-/// is the parameters a row is handed; what its menus do is
-/// `chat_message_row_actions.dart`.
 class ChatMessageRow extends StatefulWidget {
   static const double _gutterWidth = K.messageGutter;
 

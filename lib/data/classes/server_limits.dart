@@ -1,3 +1,6 @@
+/// Over the helper budget and one job: an operator's limits, each with the JSON
+/// key, default and comment it needs.
+///
 /// The limits a self-hosted server's admin has set (`002_limits.sql`).
 ///
 /// Central imposes its limits because central pays for central; a self-hosted
@@ -14,9 +17,6 @@
 /// [maxAttachmentBytes] is the one limit with no "off", because it is a size
 /// rather than a count: storage has always had a ceiling, and
 /// [defaultMaxAttachmentBytes] is the one it already had.
-///
-/// Over the helper budget and one job: an operator's limits, each with the JSON
-/// key, default and comment it needs.
 class ServerLimits {
   /// The value every count-based limit uses to mean "no limit".
   static const int unlimited = 0;

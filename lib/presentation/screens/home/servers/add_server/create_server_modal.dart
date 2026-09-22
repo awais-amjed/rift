@@ -11,6 +11,9 @@ import '../../../../common/modal_columns.dart';
 import '../create_user_dialog.dart';
 import 'widgets/credential_group.dart';
 
+/// Over the widget budget and one job: a form: a name and the credentials a
+/// server runs on.
+///
 /// The create step of [AddServerDialog]: a name plus the Supabase and LiveKit
 /// credentials the server will run on.
 ///

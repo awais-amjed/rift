@@ -15,6 +15,9 @@ import '../../../theme/app_shadows.dart';
 import 'widgets/sidebar_content.dart';
 import 'widgets/sidebar_peek_scope.dart';
 
+/// Over the widget budget and one job: sliding the hidden sidebar out and back;
+/// the timing and hit-testing are one piece.
+///
 /// A look at the hidden sidebar without bringing it back: rest the pointer on
 /// the middle of the left edge and it slides out over the content, and it
 /// slides away again once the pointer has left it.

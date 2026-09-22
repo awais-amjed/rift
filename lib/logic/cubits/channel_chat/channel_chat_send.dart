@@ -1,10 +1,10 @@
 part of 'channel_chat_cubit.dart';
 
-/// Sending into a channel, and fetching attachment bytes back for rendering.
-///
 /// Over the cubit-part budget and one job: sending into a channel. Most of it
 /// is one send's path — seal, upload each attachment, post, and the four ways
 /// that can fail — which reads best in order.
+///
+/// Sending into a channel, and fetching attachment bytes back for rendering.
 mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
   VaultCubit get _vaultCubit;

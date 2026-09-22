@@ -12,6 +12,9 @@ import '../../tap_to_focus.dart';
 import 'emoji_category_button.dart';
 import 'emoji_picker_cell.dart';
 
+/// Over the widget budget and one job: the picker — search, categories and the
+/// grid, which scroll together.
+///
 /// The emoji picker's contents: a search row, a flat row of category icons,
 /// and the grid.
 ///

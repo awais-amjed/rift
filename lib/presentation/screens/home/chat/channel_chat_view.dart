@@ -30,6 +30,9 @@ import 'widgets/chat_read_only_banner.dart';
 import 'widgets/chat_status_view.dart';
 import 'widgets/key_holder_list.dart';
 
+/// Over the widget budget and one job: the open channel — header, history and
+/// composer, and the states before a channel can be read.
+///
 /// Center-pane chat for the open text channel: header, message history,
 /// composer. All content shown here has already been decrypted and
 /// signature-verified by ChannelChatCubit.

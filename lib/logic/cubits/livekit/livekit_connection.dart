@@ -1,9 +1,9 @@
 part of 'livekit_cubit.dart';
 
-/// Joining and leaving a LiveKit room, and tearing the room down cleanly.
-///
-/// Over the mixin budget and still one job: every step of a join depends on
+/// Over the cubit-part budget and one job: every step of a join depends on
 /// the one before it, and splitting them would scatter a single sequence.
+///
+/// Joining and leaving a LiveKit room, and tearing the room down cleanly.
 ///
 /// Connecting always cleans up any previous room first, and emits
 /// `connecting` before it does — otherwise the disconnect event fired during

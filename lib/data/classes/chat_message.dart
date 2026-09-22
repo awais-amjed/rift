@@ -5,6 +5,9 @@ import 'link_preview.dart';
 import 'message_reaction.dart';
 import 'panel_block.dart';
 
+/// Over the helper budget and one job: the message model; its fields each carry
+/// a comment on what they mean.
+///
 /// One chat message as the cubits hold it and the chat UI kit renders it.
 ///
 /// For a member's message that means decrypted and signature-verified —
@@ -12,9 +15,6 @@ import 'panel_block.dart';
 /// message ([MessageOrigin.webhook]) was never sealed and has no signature to
 /// check; it is the server's word that it arrived, and [isEncrypted] is what
 /// tells the two apart. See BOTS.md §3.
-///
-/// Over the helper budget and one job: the message model; its fields each carry
-/// a comment on what they mean.
 class ChatMessage {
   final String id;
 

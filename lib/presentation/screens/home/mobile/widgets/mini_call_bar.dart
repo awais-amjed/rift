@@ -12,6 +12,8 @@ import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 import '../mobile_shell_scope.dart';
 
+/// Over the widget budget and one job: the call kept a tap away on a phone.
+///
 /// The call you are in, kept one tap away from every other screen on a phone.
 ///
 /// A desktop keeps the call in a pane beside whatever you are reading, so it

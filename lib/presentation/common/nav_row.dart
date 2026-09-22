@@ -9,6 +9,9 @@ import '../theme/theme_context.dart';
 import 'context_menu/context_menu_button.dart';
 import 'unread_badge.dart';
 
+/// Over the widget budget and one job: the sidebar row, whose three states and
+/// their motion are the point of it.
+///
 /// The sidebar's one row shape — channels, DM entries, anything navigable.
 ///
 /// Three states, and they are not interchangeable: *selected* is where you

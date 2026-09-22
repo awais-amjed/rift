@@ -20,6 +20,9 @@ import 'participant_admin_section.dart';
 import 'participant_bot_section.dart';
 import 'participant_volume_control.dart';
 
+/// Over the widget budget and one job: what you can do to one participant, and
+/// each item decides for itself whether to show.
+///
 /// Dialog-based context menu for a participant — mute toggle + volume slider.
 ///
 /// [identity] is a live LiveKit identity when the target is in your voice

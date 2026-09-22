@@ -14,6 +14,9 @@ import '../../../../../../theme/app_text.dart';
 import '../../../../../../theme/custom_colors.dart';
 import '../../../../../../theme/theme_context.dart';
 
+/// Over the widget budget and one job: one clip and its three actions, one of
+/// which is an inline edit.
+///
 /// One clip in the manage list: what it is, and the three things that can be
 /// done to it.
 ///

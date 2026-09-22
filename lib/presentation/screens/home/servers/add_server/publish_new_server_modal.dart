@@ -18,6 +18,9 @@ import '../../../../common/tag_editor.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
+/// Over the widget budget and one job: a form: offering the server to the
+/// directory.
+///
 /// The last step of [AddServerDialog] for anybody who ends up an admin:
 /// offering the server to the directory, and describing it.
 ///

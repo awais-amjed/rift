@@ -19,6 +19,10 @@ import 'message_row/message_reply_quote.dart';
 part 'chat_message_list_jumps.dart';
 part 'chat_message_list_quotes.dart';
 
+/// Over the widget budget and one job: the list of rows, their day dividers and
+/// which of them animate in. Looking up quoted messages and jumping to them are
+/// its two parts.
+///
 /// Scrollable message history, newest at the bottom (reversed list, so it
 /// stays pinned to the latest message). Consecutive messages from the same
 /// author within [groupWindow] collapse under one header, Discord-style, and a
@@ -27,10 +31,6 @@ part 'chat_message_list_quotes.dart';
 /// Freshly-arrived incoming messages animate in (fade + slide). Give the list
 /// a `ValueKey` per conversation/channel so switching chats starts a new
 /// animation-tracking state instead of animating the whole history at once.
-///
-/// Over the widget budget and one job: the list of rows, their day dividers and
-/// which of them animate in. Looking up quoted messages and jumping to them are
-/// its two parts.
 class ChatMessageList extends StatefulWidget {
   static const groupWindow = Duration(minutes: 5);
 

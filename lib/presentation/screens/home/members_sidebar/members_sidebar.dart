@@ -21,6 +21,9 @@ import '../chat/widgets/chat_header.dart';
 import '../sidebar/widgets/sidebar_resize_handle.dart';
 import 'widgets/members_sidebar_list.dart';
 
+/// Over the widget budget and one job: the member list, split into online and
+/// offline, each half live.
+///
 /// The right-hand member list for the selected server — everyone who has
 /// joined, split into online and offline.
 ///

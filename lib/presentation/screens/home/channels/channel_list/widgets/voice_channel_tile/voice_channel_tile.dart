@@ -17,6 +17,9 @@ import 'widgets/channel_roster.dart';
 import 'widgets/voice_channel_tile_header.dart';
 import 'widgets/voice_listening_badge.dart';
 
+/// Over the widget budget and one job: a voice channel, as a row or as a card
+/// of the people in it.
+///
 /// A voice channel in the sidebar — Discord-style, showing who is in it.
 ///
 /// Empty channels are ordinary rows. The moment anyone is inside, the row

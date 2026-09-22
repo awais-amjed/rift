@@ -18,6 +18,10 @@ import 'collapsed_participant_tile.dart';
 import 'expanded_participant_tile.dart';
 import 'stream_context_menu.dart';
 
+/// Over the widget budget and one job: one participant's tile. The grid and
+/// stage layouts are already their own widgets; what is left is the state they
+/// share.
+///
 /// One participant's video or avatar, in the grid or on the stage.
 ///
 /// Owns the LiveKit listener that keeps the rendered track fresh, the

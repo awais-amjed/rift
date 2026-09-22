@@ -43,6 +43,8 @@ Future<void> showServerSwitcherSheet(BuildContext context) {
   );
 }
 
+/// Over the widget budget and one job: the phone's rail and dock.
+///
 /// The phone's replacement for the server rail and the user dock.
 ///
 /// The rail's job was to say, at a glance, which servers want you and where

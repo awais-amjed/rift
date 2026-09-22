@@ -1,14 +1,14 @@
 part of 'channel_chat_cubit.dart';
 
+/// Over the cubit-part budget and one job: which rows to ask for. Each fetch is
+/// short; there are five of them.
+///
 /// Fetching a channel's history: the first page, the catch-up after a
 /// doorbell, one row a change named, and the page above when the reader scrolls
 /// up.
 ///
 /// What a row *becomes* is `_ChannelChatRowsMixin`'s job — opened, locked or
 /// dropped. Everything here only decides which rows to ask for.
-///
-/// Over the cubit-part budget and one job: which rows to ask for. Each fetch is
-/// short; there are five of them.
 mixin _ChannelChatHistoryMixin
     on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
   /// Called with messages that just arrived live (not the initial backlog and

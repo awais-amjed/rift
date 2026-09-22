@@ -16,6 +16,9 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 
+/// Over the widget budget and one job: one conversation row, which has more
+/// states than it looks.
+///
 /// One conversation in the Home panel: who it's with, and what was last said.
 ///
 /// Led by the person's avatar rather than a tier icon — you pick a

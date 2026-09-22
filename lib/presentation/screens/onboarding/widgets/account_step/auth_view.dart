@@ -15,6 +15,8 @@ import '../onboarding_footer.dart';
 import '../onboarding_page.dart';
 import '../password_strength_indicator.dart';
 
+/// Over the widget budget and one job: a form: sign in or create an account.
+///
 /// The account step's form: sign in, or create an account.
 ///
 /// It opens on **sign in**. Onboarding is reached whenever there is no local

@@ -22,6 +22,9 @@ import '../logic/cubits/vault/vault_cubit.dart';
 import '../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../logic/cubits/voice_stats/voice_stats_cubit.dart';
 
+/// Over the widget budget and one job: every app-wide cubit and the wiring
+/// between them, which is only readable in one place.
+///
 /// Every app-wide cubit, and the callbacks that wire them to each other.
 ///
 /// [appCubit] and [vaultCubit] are created during bootstrap — the window

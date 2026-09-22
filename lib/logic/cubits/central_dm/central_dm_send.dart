@@ -1,10 +1,10 @@
 part of 'central_dm_cubit.dart';
 
-/// Sending a central DM, plus the daily quota it spends. Attachments count
-/// against the same quota, so the meter is refreshed from every send.
-///
 /// Over the cubit-part budget and one job: a send and the quota it spends,
 /// which move together.
+///
+/// Sending a central DM, plus the daily quota it spends. Attachments count
+/// against the same quota, so the meter is refreshed from every send.
 mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   CentralDmRepository get _repo;
   CryptoRepository get _crypto;

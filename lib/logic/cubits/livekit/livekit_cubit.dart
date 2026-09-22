@@ -54,12 +54,12 @@ part 'livekit_screenshare.dart';
 part 'livekit_state.dart';
 part 'livekit_voice_activity.dart';
 
-/// Cubit managing LiveKit room connections, participants, and media controls.
-///
 /// Over the cubit-hub budget and one job: one call. What is left here after
 /// eight parts is the internals several of them share, which CODE_STYLE §5 says
 /// the class must hold — moving the mic sync into a part would mean making it
 /// public.
+///
+/// Cubit managing LiveKit room connections, participants, and media controls.
 class LiveKitCubit extends Cubit<LiveKitState>
     with
         _E2EEMixin,

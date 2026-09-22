@@ -16,6 +16,9 @@ import 'attachment_image_viewer.dart';
 import 'attachment_loader.dart';
 import 'sensitive_image_cover.dart';
 
+/// Over the widget budget and one job: an image attachment — fetch once, size,
+/// cover if sensitive, open on tap.
+///
 /// An image attachment, decrypted on demand and shown as a rounded thumbnail.
 /// Tapping opens it full-screen.
 ///

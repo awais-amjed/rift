@@ -18,6 +18,9 @@ import '../../../theme/theme_context.dart';
 import 'widgets/screen_share_settings_form.dart';
 import 'widgets/settings_dialog_header.dart';
 
+/// Over the widget budget and one job: a share's settings, held as a draft, and
+/// the source lists they need.
+///
 /// Dialog for configuring screen share settings (resolution, fps, bitrate,
 /// audio) before a share starts.
 ///

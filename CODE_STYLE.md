@@ -21,7 +21,9 @@ These are guides, not lint rules. **The split trigger is a second responsibility
 name, not a line count.** A composer or a message row that genuinely needs everything in
 one place can run to 400 or 500 lines and stay; a 180-line file holding three unrelated
 things is the problem. When a file is over its budget and is one job, say so in a line at
-the top of its doc comment so the next reader does not re-ask.
+the top of its doc comment so the next reader does not re-ask — worded "Over the
+<kind> budget and one job: …", which `scripts/style_check.sh` looks for and marks
+`(noted)`.
 
 `scripts/style_check.sh` lists what is over budget. It is a report for the reviewer, not
 a gate: the question at each line is "is this one job?". **Refactor toward these shapes

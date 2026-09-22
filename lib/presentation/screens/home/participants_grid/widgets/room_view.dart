@@ -18,6 +18,9 @@ import '../../soundboard/soundboard_activity.dart';
 import 'participant_grid_layout.dart';
 import 'waiting_view.dart';
 
+/// Over the widget budget and one job: a connected room, and the focus-mode
+/// timing that fades its chrome.
+///
 /// Room is connected — shows participant tiles + control bar.
 ///
 /// Owns the "chrome visible" state that drives focus mode: after a short

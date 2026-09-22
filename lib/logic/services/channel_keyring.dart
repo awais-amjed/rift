@@ -15,6 +15,9 @@ import 'voice_keys.dart';
 
 part 'channel_keyring_sealing.dart';
 
+/// Over the helper budget and one job: a device's channel keys. Sealing for
+/// others is already its own part.
+///
 /// A channel's symmetric keys, fetched and unwrapped for this member.
 ///
 /// Extracted from `ChannelChatCubit`, which was the only thing that needed one
@@ -30,9 +33,6 @@ part 'channel_keyring_sealing.dart';
 ///
 /// Everything here is per channel and per member. The server stores only sealed
 /// entries and can read none of them (ARCHITECTURE.md §4).
-///
-/// Over the helper budget and one job: a device's channel keys. Sealing for
-/// others is already its own part.
 class ChannelKeyring with _KeyringSealingMixin {
   @override
   final ServerCubit _serverCubit;

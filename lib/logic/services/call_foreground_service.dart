@@ -7,6 +7,9 @@ import 'call_notification_content.dart';
 import 'call_notification_task.dart';
 import 'host_platform.dart';
 
+/// Over the helper budget and one job: Android's foreground service for a call
+/// — starting it, keeping its notification current, and ending it.
+///
 /// The Android foreground service that keeps a call alive, and the one that
 /// lets a screen be captured.
 ///
@@ -43,9 +46,6 @@ import 'host_platform.dart';
 ///
 /// A no-op off Android. Desktops do not evict a running app, and iOS wants a
 /// different mechanism entirely.
-///
-/// Over the helper budget and one job: Android's foreground service for a call
-/// — starting it, keeping its notification current, and ending it.
 class CallForegroundService {
   const CallForegroundService._();
 

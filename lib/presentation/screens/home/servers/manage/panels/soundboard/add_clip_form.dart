@@ -14,6 +14,8 @@ import '../../../../../../theme/app_text.dart';
 import '../../../../../../theme/custom_colors.dart';
 import '../../../../../../theme/theme_context.dart';
 
+/// Over the widget budget and one job: a form: pick a file, name it, add it.
+///
 /// Picking a file, naming it, and adding it.
 ///
 /// The file comes first and the name is prefilled from it, because that is

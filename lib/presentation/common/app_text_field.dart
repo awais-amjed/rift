@@ -6,6 +6,9 @@ import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
 import 'tap_to_focus.dart';
 
+/// Over the widget budget and one job: the app's text field and its label,
+/// counter and reveal button.
+///
 /// Themed text field used throughout the app.
 class AppTextField extends StatefulWidget {
   final TextEditingController controller;

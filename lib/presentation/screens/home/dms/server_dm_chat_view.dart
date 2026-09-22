@@ -23,6 +23,8 @@ import '../mobile/widgets/mini_call_bar.dart';
 import '../profile/person/show_person_profile.dart';
 import 'widgets/dm_chat_header.dart';
 
+/// Over the widget budget and one job: the open server DM.
+///
 /// The open server-DM conversation: header + history + composer, on the
 /// shared chat kit.
 class ServerDmChatView extends StatefulWidget {

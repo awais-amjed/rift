@@ -13,6 +13,8 @@ import '../../../roles/role_editor_dialog.dart';
 import '../../../roles/widgets/role_row.dart';
 import '../widgets/manage_panel.dart';
 
+/// Over the widget budget and one job: the role ladder and the actions on it.
+///
 /// Every role on the server, most senior first.
 ///
 /// Open to anybody. What roles exist and who holds them is not a secret from

@@ -49,6 +49,9 @@ class TextSafetyVerdict {
   bool get isSensitive => rule.severity >= coverSeverity;
 }
 
+/// Over the helper budget and one job: the word list and the check against it.
+/// Most of the length is the normaliser, whose rules only make sense together.
+///
 /// The on-device profanity check: a word list, not a model.
 ///
 /// Small on purpose. A classifier that understands context weighs tens of
@@ -60,9 +63,6 @@ class TextSafetyVerdict {
 /// Whole tokens only. The list allows matching inside larger words with an
 /// exceptions mechanism to catch `class` and `assist`; that is a fight no
 /// list wins, so a match has to start and end at a word boundary here.
-///
-/// Over the helper budget and one job: the word list and the check against it.
-/// Most of the length is the normaliser, whose rules only make sense together.
 class TextSafety {
   TextSafety._();
 
