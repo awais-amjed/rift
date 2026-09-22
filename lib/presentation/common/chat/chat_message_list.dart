@@ -16,6 +16,9 @@ import 'message_jump.dart';
 import 'message_row/chat_message_row.dart';
 import 'message_row/message_reply_quote.dart';
 
+part 'chat_message_list_jumps.dart';
+part 'chat_message_list_quotes.dart';
+
 /// Scrollable message history, newest at the bottom (reversed list, so it
 /// stays pinned to the latest message). Consecutive messages from the same
 /// author within [groupWindow] collapse under one header, Discord-style, and a
@@ -24,6 +27,10 @@ import 'message_row/message_reply_quote.dart';
 /// Freshly-arrived incoming messages animate in (fade + slide). Give the list
 /// a `ValueKey` per conversation/channel so switching chats starts a new
 /// animation-tracking state instead of animating the whole history at once.
+///
+/// Over the widget budget and one job: the list of rows, their day dividers and
+/// which of them animate in. Looking up quoted messages and jumping to them are
+/// its two parts.
 class ChatMessageList extends StatefulWidget {
   static const groupWindow = Duration(minutes: 5);
 
@@ -131,189 +138,23 @@ class ChatMessageList extends StatefulWidget {
   State<ChatMessageList> createState() => _ChatMessageListState();
 }
 
-class _ChatMessageListState extends State<ChatMessageList> {
+class _ChatMessageListState extends State<ChatMessageList>
+    with _MessageListQuotesMixin, _MessageListJumpsMixin {
   /// Ids we've already rendered — used to decide which rows are new enough to
   /// animate. The first populated frame primes this set silently.
   final Set<String> _seen = <String>{};
-
-  /// Scrolling to a message a reply points at.
-  final MessageJumper _jumper = MessageJumper();
-
-  /// The row a jump last landed on, and a token that changes every time one
-  /// does — so tapping the same quote twice flashes twice.
-  String? _flashRowId;
-  int _flashToken = 0;
-
-  /// Messages fetched only to render a quote, by id.
-  ///
-  /// Held here rather than in a cubit because that is what they are: a
-  /// rendering answer for this screen, gone when it is, and never part of
-  /// the conversation — merging a message from five hundred back into the
-  /// list would draw a hole in the history as if it were not there.
-  ///
-  /// A null value is an answer, not a gap: it means the server said there is
-  /// no such row. [_unresolvable] holds the ones it could not tell about, so
-  /// a failed lookup is retried when the list next rebuilds and a confirmed
-  /// deletion is not asked about again.
-  final Map<String, ChatMessage?> _quoted = {};
-
-  /// Lookups in flight, so twenty replies to one message ask once.
-  final Set<String> _looking = {};
-
-  /// Ids the last lookup could not settle. Kept apart from [_quoted] so they
-  /// stay askable without being answered.
-  final Set<String> _unresolvable = {};
-
-  /// Ask about a reference that is not in the list.
-  ///
-  /// Fired from `build`, which is why it checks so much before doing
-  /// anything: a rebuild per keystroke elsewhere must not become a request
-  /// per keystroke.
-  void _lookUp(String messageId) {
-    final lookUp = widget.onLookUpOriginal;
-    if (lookUp == null) return;
-    if (_quoted.containsKey(messageId) || _looking.contains(messageId)) return;
-    _looking.add(messageId);
-    unawaited(() async {
-      final found = await lookUp(messageId);
-      if (!mounted) {
-        _looking.remove(messageId);
-        return;
-      }
-      setState(() {
-        _looking.remove(messageId);
-        if (found.isFound) {
-          _quoted[messageId] = found.message;
-          _unresolvable.remove(messageId);
-        } else if (found.deleted) {
-          _quoted[messageId] = null;
-          _unresolvable.remove(messageId);
-        } else {
-          // Not an answer. Left out of the cache so it can be asked again,
-          // and recorded so the quote says "unavailable" rather than
-          // sitting on "finding it" forever.
-          _unresolvable.add(messageId);
-        }
-      });
-    }());
-  }
-
-  /// What to draw for a reply's reference, and what pressing it should do.
-  ({ReplyOriginState state, ChatMessage? original}) _originOf(
-    ChatMessage message,
-    Map<String, ChatMessage> byId,
-  ) {
-    final id = message.replyToId;
-    if (id == null) {
-      return (state: ReplyOriginState.present, original: null);
-    }
-
-    final loaded = byId[id];
-    if (loaded != null) {
-      return (state: ReplyOriginState.present, original: loaded);
-    }
-    if (_quoted.containsKey(id)) {
-      final fetched = _quoted[id];
-      return fetched == null
-          ? (state: ReplyOriginState.gone, original: null)
-          : (state: ReplyOriginState.behind, original: fetched);
-    }
-    if (_unresolvable.contains(id) || widget.onLookUpOriginal == null) {
-      return (state: ReplyOriginState.unknown, original: null);
-    }
-    // Asked on the way past. The first frame draws "finding it"; the answer
-    // arrives and rebuilds.
-    _lookUp(id);
-    return (state: ReplyOriginState.looking, original: null);
-  }
 
   /// Highest server id seen so far. Live messages exceed it; a back-filled
   /// history page (scroll-up pagination) does not — so scrolling never
   /// animates old rows in.
   int _maxSeenId = 0;
 
-  /// Back to the live end, and to the *bottom* of it.
-  ///
-  /// The scroll controller outlives the list, so replacing a history window
-  /// with the newest page leaves the view at whatever offset the window was
-  /// scrolled to — which lands the reader somewhere in the middle of the
-  /// present having asked to be taken to the end of it.
-  Future<void> _returnToPresent() async {
-    final returnToPresent = widget.onReturnToPresent;
-    if (returnToPresent == null) return;
-    await returnToPresent();
-
-    // Twice, a frame apart. Returning emits more than once — the new page,
-    // then the flag that clears the spinner — and a single jump can land
-    // between them, against a list that is about to be replaced. Zero is
-    // the newest message either way, because the list is reversed, so the
-    // second jump is free when the first one already worked.
-    for (var attempt = 0; attempt < 2; attempt++) {
-      if (!mounted) return;
-      await SchedulerBinding.instance.endOfFrame;
-      final controller = widget.controller;
-      if (!mounted || controller == null || !controller.hasClients) return;
-      if (controller.offset != 0) controller.jumpTo(0);
-    }
-  }
-
-  /// Go to what a reply answers: page it into the list if it is further
-  /// back than the loaded page, then scroll to it.
-  ///
-  /// [loaded] is true when the message is already in the list, which is the
-  /// ordinary case and skips the paging entirely.
-  Future<void> _goToOriginal(String messageId, {required bool loaded}) async {
-    if (!loaded) {
-      final page = widget.onShowAround;
-      if (page == null) return;
-      final reached = await page(messageId);
-      if (!mounted) return;
-      if (!reached) {
-        HelperMethods.showToast(
-          title: 'Could not go there',
-          description: 'That message could not be loaded.',
-        );
-        return;
-      }
-      // The list has grown by however many pages that took, so let it lay
-      // out before asking where anything is.
-      await SchedulerBinding.instance.endOfFrame;
-      if (!mounted) return;
-    }
-    // Resolved here, not by the caller, and by *message* id rather than row
-    // id: a message the server has just acked is still drawn under the local
-    // id it was sent with ([ChatMessage.rowId]), which is what the jumper's
-    // keys are filed by and is not what a reply points at.
-    final row = widget.messages
-        .where((message) => message.id == messageId)
-        .firstOrNull;
-    if (row == null) return;
-    await _jumpTo(row.rowId);
-  }
-
-  /// Go to the message [rowId], and mark it once we are there.
-  ///
-  /// The mark is set on arrival rather than on the press: a jump that could
-  /// not get there would otherwise tint a row nobody is looking at, and the
-  /// reader would go hunting for a highlight somewhere off screen.
-  Future<void> _jumpTo(String rowId) async {
-    final arrived = await _jumper.jumpTo(
-      rowId,
-      controller: widget.controller,
-      fractionOf: _fractionOf,
-    );
-    if (!arrived || !mounted) return;
-    setState(() {
-      _flashRowId = rowId;
-      _flashToken++;
-    });
-  }
-
   /// Where a row sits in the list, 0 at the end the scroll starts from.
   ///
   /// The list is reversed, so index 0 — the oldest message — is the far end,
   /// and this counts from the other side. Rows are not all the same height,
   /// so this is a guess; [MessageJumper] is built around correcting it.
+  @override
   double? _fractionOf(String rowId) {
     final items = _buildItems();
     final index = items.indexWhere(
