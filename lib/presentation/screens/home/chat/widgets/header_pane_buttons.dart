@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../data/constants.dart';
+import '../../../../common/back_chevron_button.dart';
 import '../../../../responsive/shell_scope.dart';
-import '../../../../theme/theme_context.dart';
 import '../../mobile/mobile_shell_scope.dart';
 import 'chat_header_button.dart';
 
@@ -23,18 +22,7 @@ class HeaderBackButton extends StatelessWidget {
     }
     final navigator = Navigator.of(context);
     if (!navigator.canPop()) return const SizedBox.shrink();
-    return SizedBox.square(
-      dimension: K.touchTargetMin,
-      child: IconButton(
-        tooltip: 'Back',
-        onPressed: navigator.maybePop,
-        icon: Icon(
-          Icons.chevron_left_rounded,
-          size: 28,
-          color: context.theme.textSecondary,
-        ),
-      ),
-    );
+    return BackChevronButton(onPressed: navigator.maybePop);
   }
 }
 

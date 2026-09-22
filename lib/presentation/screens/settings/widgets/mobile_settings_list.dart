@@ -7,6 +7,7 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_modal.dart';
+import '../../../common/back_chevron_button.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../home/profile/edit/profile_edit_modal.dart';
@@ -58,18 +59,7 @@ class MobileSettingsList extends StatelessWidget {
           child: Row(
             spacing: 4,
             children: [
-              SizedBox.square(
-                dimension: K.touchTargetMin,
-                child: IconButton(
-                  tooltip: 'Back to home',
-                  onPressed: onBack,
-                  icon: Icon(
-                    Icons.chevron_left_rounded,
-                    size: 28,
-                    color: theme.textSecondary,
-                  ),
-                ),
-              ),
+              BackChevronButton(tooltip: 'Back to home', onPressed: onBack),
               Text(
                 'Settings',
                 style: AppText.sectionTitle.copyWith(color: theme.textPrimary),

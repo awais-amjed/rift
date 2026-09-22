@@ -9,6 +9,7 @@ import '../theme/app_motion.dart';
 import '../theme/app_text.dart';
 import 'app_button_height.dart';
 import 'app_modal_header.dart';
+import 'back_chevron_button.dart';
 import 'button_footer.dart';
 import 'context_menu_region.dart';
 
@@ -432,17 +433,8 @@ class AppModal extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: SizedBox.square(
-                    dimension: K.touchTargetMin,
-                    child: IconButton(
-                      tooltip: 'Back',
-                      onPressed: onBack ?? () => Navigator.of(context).pop(),
-                      icon: Icon(
-                        Icons.chevron_left_rounded,
-                        size: 28,
-                        color: themeState.textSecondary,
-                      ),
-                    ),
+                  child: BackChevronButton(
+                    onPressed: onBack ?? () => Navigator.of(context).pop(),
                   ),
                 ),
               ),

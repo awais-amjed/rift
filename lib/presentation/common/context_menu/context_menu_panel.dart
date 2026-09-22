@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
+import '../back_chevron_button.dart';
 import '../popover_surface.dart';
 import 'context_menu_sheet.dart';
 
@@ -57,15 +58,7 @@ class ContextMenuPanel extends StatelessWidget {
                   Row(
                     children: [
                       if (sheet.popSubmenu != null)
-                        IconButton(
-                          tooltip: 'Back',
-                          onPressed: sheet.popSubmenu,
-                          icon: Icon(
-                            Icons.chevron_left_rounded,
-                            size: 26,
-                            color: themeState.textSecondary,
-                          ),
-                        ),
+                        BackChevronButton(onPressed: sheet.popSubmenu),
                       Expanded(child: _buildHeading(themeState)),
                     ],
                   ),

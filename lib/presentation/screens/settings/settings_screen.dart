@@ -9,6 +9,7 @@ import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../logic/services/host_platform.dart';
 import '../../common/app_panel.dart';
+import '../../common/back_chevron_button.dart';
 import '../../common/canvas_backdrop.dart';
 import '../../common/confirm_dialog.dart';
 import '../../common/icon_tile.dart';
@@ -96,9 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // The way back to the list. The nav panel's own back arrow leaves
           // Settings altogether, and is not on screen here anyway.
           if (showBack)
-            IconButton(
-              icon: const Icon(Icons.chevron_left_rounded, size: 26),
-              color: themeState.textSecondary,
+            BackChevronButton(
               tooltip: 'All settings',
               onPressed: () => setState(() => _detailOpen = false),
             ),
