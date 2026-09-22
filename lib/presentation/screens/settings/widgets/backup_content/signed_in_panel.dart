@@ -12,6 +12,7 @@ import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 
+/// The cloud backup section once signed in: which account, and what it holds.
 class SignedInPanel extends StatelessWidget {
   final SupabaseBackupState state;
 

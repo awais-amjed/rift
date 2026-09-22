@@ -8,6 +8,8 @@ import 'app_shadows.dart';
 import 'app_text.dart';
 import 'custom_colors.dart';
 
+/// Builds Material's [ThemeData] from a palette. It covers what the framework
+/// draws by itself; Rift's own widgets read `context.theme` instead.
 class AppTheme {
   static const _clickable = ButtonStyle(
     mouseCursor: WidgetStateMouseCursor.clickable,

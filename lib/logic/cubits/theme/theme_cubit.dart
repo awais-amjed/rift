@@ -8,6 +8,8 @@ part 'theme_cubit.g.dart';
 
 part 'theme_state.dart';
 
+/// Light or dark, and which palette. Persisted. Widgets read the result through
+/// `context.theme`, not from this cubit.
 class ThemeCubit extends HydratedCubit<ThemeState> {
   ThemeCubit() : super(ThemeState());
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/app_text.dart';
 
+/// The small caps label above a field in the invite and bot forms.
 class FieldLabel extends StatelessWidget {
   final String label;
   final Color textColor;

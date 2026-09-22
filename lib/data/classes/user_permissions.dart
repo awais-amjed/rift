@@ -1,5 +1,7 @@
 import '../enums/server_permission.dart';
 
+/// What a member may do on a server. The UI reads it only to hide what would be
+/// refused; the server enforces every one of these itself.
 class UserPermissions {
   final bool isServerAdmin;
   final bool isChannelManager;

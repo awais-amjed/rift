@@ -1,7 +1,11 @@
 part of 'livekit_cubit.dart';
 
+/// Where the call connection stands. The call grid picks its view from this.
 enum LiveKitConnectionState { disconnected, connecting, connected, error }
 
+/// The current call: the room, who is in it, and this device's own toggles.
+/// Emitted on every speaking change, so a builder that shows only some of it
+/// filters with `buildWhen`.
 class LiveKitState {
   final LiveKitConnectionState connectionState;
   final Room? room;

@@ -10,16 +10,17 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 
+/// Settings' unlock step for a cloud backup sealed with its own vault password.
 class VaultPasswordPanel extends StatefulWidget {
   final SupabaseBackupState state;
 
   const VaultPasswordPanel({super.key, required this.state});
 
   @override
-  State<VaultPasswordPanel> createState() => VaultPasswordPanelState();
+  State<VaultPasswordPanel> createState() => _VaultPasswordPanelState();
 }
 
-class VaultPasswordPanelState extends State<VaultPasswordPanel> {
+class _VaultPasswordPanelState extends State<VaultPasswordPanel> {
   final _passwordController = TextEditingController();
 
   @override

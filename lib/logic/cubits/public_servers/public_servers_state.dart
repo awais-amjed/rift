@@ -1,5 +1,6 @@
 part of 'public_servers_cubit.dart';
 
+/// The public server directory: the current browse and its paging.
 class PublicServersState {
   // ── Browsing ──────────────────────────────────────────────
 

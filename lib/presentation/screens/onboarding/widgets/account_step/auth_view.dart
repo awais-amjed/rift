@@ -34,10 +34,10 @@ class AuthView extends StatefulWidget {
   const AuthView({super.key, required this.state, required this.onBack});
 
   @override
-  State<AuthView> createState() => AuthViewState();
+  State<AuthView> createState() => _AuthViewState();
 }
 
-class AuthViewState extends State<AuthView>
+class _AuthViewState extends State<AuthView>
     with SupabaseAuthFormState<AuthView> {
   String? _validationError;
 

@@ -2,6 +2,7 @@ part of 'voice_stats_cubit.dart';
 
 // ── State types ──────────────────────────────────────────────────────────────
 
+/// Connection readings for the call-quality badge and its graph.
 class VoiceStatsState {
   final double? rttMs;
   final double? avgRttMs;

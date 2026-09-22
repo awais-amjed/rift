@@ -10,6 +10,8 @@ import '../presentation/common/app_mark.dart';
 
 import '../presentation/routing/app_routes.dart';
 
+/// The app's one way to log, show a toast or an error, and navigate, so none of
+/// those is done differently in two places.
 class HelperMethods {
   static void printDebug(dynamic message) {
     if (kDebugMode) {

@@ -1,5 +1,6 @@
 part of 'channel_presence_cubit.dart';
 
+/// Somebody sitting in a voice channel, as the sidebar lists them.
 class PresenceUser {
   final String userId;
   final String displayName;
@@ -7,6 +8,7 @@ class PresenceUser {
   const PresenceUser({required this.userId, required this.displayName});
 }
 
+/// Who is online on the selected server, and which voice channel each is in.
 class ChannelPresenceState {
   /// Maps channelId → who is in that voice channel, by display name.
   ///

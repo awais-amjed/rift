@@ -7,6 +7,7 @@ import '../theme/theme_context.dart';
 import 'app_button_height.dart';
 import 'loading_dots.dart';
 
+/// How much weight an [AppButton] carries. See its comment for how each looks.
 enum AppButtonVariant { primary, secondary, danger }
 
 /// Themed button used throughout the app.

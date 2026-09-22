@@ -9,6 +9,8 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 
+/// Shown when signing in finds a cloud backup and this device already has a
+/// vault: the user keeps one or the other, and nothing is merged silently.
 class ConflictPanel extends StatelessWidget {
   final SupabaseBackupState state;
 

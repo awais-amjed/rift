@@ -15,14 +15,15 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 
+/// Export the vault to a file, or restore from one. No account involved.
 class FileBackupPanel extends StatefulWidget {
   const FileBackupPanel({super.key});
 
   @override
-  State<FileBackupPanel> createState() => FileBackupPanelState();
+  State<FileBackupPanel> createState() => _FileBackupPanelState();
 }
 
-class FileBackupPanelState extends State<FileBackupPanel> {
+class _FileBackupPanelState extends State<FileBackupPanel> {
   bool _isExporting = false;
 
   Future<void> _exportToFile() async {

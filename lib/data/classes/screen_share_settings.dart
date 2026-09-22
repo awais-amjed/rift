@@ -1,5 +1,8 @@
 import '../../src/rust/api/screenshare/types.dart';
 
+/// What the next screen share will send, remembered between calls. The source
+/// fields are per-platform: a window index everywhere, a PID on Windows, a
+/// PulseAudio source on Linux.
 class ScreenShareSettings {
   final int resolution; // height in px (720, 1080, 1440, 2160)
   final int fps;

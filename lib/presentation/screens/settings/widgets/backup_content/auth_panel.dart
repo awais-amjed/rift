@@ -12,16 +12,17 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 
+/// Sign in or create a cloud backup account, from Settings.
 class AuthPanel extends StatefulWidget {
   final SupabaseBackupState state;
 
   const AuthPanel({super.key, required this.state});
 
   @override
-  State<AuthPanel> createState() => AuthPanelState();
+  State<AuthPanel> createState() => _AuthPanelState();
 }
 
-class AuthPanelState extends State<AuthPanel>
+class _AuthPanelState extends State<AuthPanel>
     with SupabaseAuthFormState<AuthPanel> {
   @override
   Widget build(BuildContext context) {

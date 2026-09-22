@@ -1,5 +1,7 @@
 part of 'server_cubit.dart';
 
+/// Every server this device has joined, in rail order, and which one is
+/// selected. Persisted; the vault backup carries the same list.
 @JsonSerializable(explicitToJson: true)
 class ServerState {
   final List<Server> servers;

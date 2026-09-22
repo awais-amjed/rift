@@ -21,11 +21,13 @@ sealed class MessageSheetChoice {
   const MessageSheetChoice();
 }
 
+/// One of the quick reactions across the top of the sheet.
 class QuickReaction extends MessageSheetChoice {
   final String emoji;
   const QuickReaction(this.emoji);
 }
 
+/// One of the menu's actions, the same list a desktop right-click shows.
 class MenuActionChoice extends MessageSheetChoice {
   final MessageMenuAction action;
   const MenuActionChoice(this.action);

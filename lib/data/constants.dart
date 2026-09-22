@@ -1,3 +1,5 @@
+/// Layout numbers shared across files, grouped by the part of the app they
+/// shape. A number one file uses stays a named constant in that file instead.
 class K {
   // ── Radii ─────────────────────────────────────────────────
   // Three steps. A surface picks the one for what it is, never a value of

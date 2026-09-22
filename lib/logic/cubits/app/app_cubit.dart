@@ -14,6 +14,9 @@ import '../../services/windows_audio_ducking/windows_audio_ducking.dart';
 part 'app_cubit.g.dart';
 part 'app_state.dart';
 
+/// This device's layout and preferences: which pane is open, which channel is
+/// selected, audio and share settings, per-person volumes. Persisted, and never
+/// sent anywhere.
 class AppCubit extends HydratedCubit<AppState> {
   AppCubit() : super(const AppState());
 

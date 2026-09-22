@@ -1,5 +1,6 @@
 import 'user_permissions.dart';
 
+/// Our own member row on one server: who we appear as there, and what we may do.
 class ServerUser {
   final String id;
   final String username;

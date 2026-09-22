@@ -1,7 +1,10 @@
 part of 'dm_cubit.dart';
 
+/// Whether the open server DM can be read and written yet.
 enum DmChatStatus { closed, loading, ready, error }
 
+/// DMs on the selected server: the conversation list and the one open
+/// conversation.
 class DmState {
   /// Conversations on the selected server, newest activity first.
   final List<DmConversation> conversations;

@@ -1,5 +1,7 @@
 import '../enums/channel_type.dart';
 
+/// One text or voice channel as the server lists it, with the per-channel
+/// overrides that inherit from the server when null.
 class Channel {
   final String id;
   final String name;

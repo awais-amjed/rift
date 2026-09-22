@@ -1,5 +1,8 @@
 import '../../logic/helper_methods.dart';
 
+/// What every server call hands back, success or not: the `{success, data, error,
+/// code}` envelope the Edge Functions always answer with a 200. Read [success]
+/// before [data]; an HTTP status never carries the outcome.
 class APIResponse {
   final bool success;
 

@@ -6,6 +6,7 @@ import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import 'settings_tab.dart';
 
+/// The settings screen's tab list, with the way back to the app.
 class SettingsSidebar extends StatelessWidget {
   final SettingsTab activeTab;
   final ValueChanged<SettingsTab> onTabSelected;

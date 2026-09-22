@@ -100,6 +100,8 @@ class ChatAttachmentUploader {
   }
 }
 
+/// An attachment that did not upload, and the code that says whether trying
+/// again could help.
 class AttachmentUploadException implements Exception {
   final String message;
 

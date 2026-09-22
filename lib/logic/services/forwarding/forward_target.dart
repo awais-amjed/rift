@@ -21,6 +21,7 @@ sealed class ForwardTarget {
   String get context;
 }
 
+/// A channel on one server.
 class ChannelTarget extends ForwardTarget {
   final Server server;
   final Channel channel;
@@ -37,6 +38,7 @@ class ChannelTarget extends ForwardTarget {
   String get context => server.name;
 }
 
+/// A DM with a member of one server.
 class ServerDmTarget extends ForwardTarget {
   final Server server;
   final String peerId;
@@ -64,6 +66,7 @@ class ServerDmTarget extends ForwardTarget {
   String get context => '${server.name} · direct message';
 }
 
+/// A DM on central, with a friend.
 class CentralDmTarget extends ForwardTarget {
   final String peerId;
   final String peerHandle;

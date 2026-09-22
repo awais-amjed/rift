@@ -1,5 +1,6 @@
 part of 'channel_chat_cubit.dart';
 
+/// Where the open text channel stands, and so what takes the composer's place.
 enum ChannelChatStatus {
   /// No text channel open.
   closed,
@@ -46,6 +47,8 @@ enum ChannelChatStatus {
   error,
 }
 
+/// The one open text channel: its messages and paging, who is typing, and the
+/// bots and names a mention can reach.
 class ChannelChatState {
   final ChannelChatStatus status;
 

@@ -25,6 +25,9 @@ class ContextMenuScope extends InheritedWidget {
   bool updateShouldNotify(ContextMenuScope oldWidget) => false;
 }
 
+/// Opens [contextMenu] on a right-click, or on a long press on touch, at the
+/// point that was pressed. Content inside can close it through
+/// [ContextMenuScope].
 class ContextMenuRegion extends StatefulWidget {
   final Widget child;
   final Widget contextMenu;

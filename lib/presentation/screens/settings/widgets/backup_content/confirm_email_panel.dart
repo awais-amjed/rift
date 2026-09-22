@@ -10,6 +10,8 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 
+/// Settings' "check your email" step, while a new cloud account's address is
+/// unconfirmed.
 class ConfirmEmailPanel extends StatelessWidget {
   final SupabaseBackupState state;
 

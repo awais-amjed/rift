@@ -1,5 +1,6 @@
 part of 'central_dm_cubit.dart';
 
+/// How far central DMs are from usable on this device.
 enum CentralDmStatus {
   /// No central session or locked vault — central DMs unavailable.
   signedOut,
@@ -15,6 +16,9 @@ enum CentralDmStatus {
 /// but kept separate — the tiers evolve independently).
 enum DmChatStatus { closed, loading, ready, error }
 
+/// Central DMs: the conversation list, the open conversation, friends and the
+/// daily quota. Handles, not display names, because central has no server to
+/// name anybody.
 class CentralDmState {
   final CentralDmStatus status;
   final String? myHandle;

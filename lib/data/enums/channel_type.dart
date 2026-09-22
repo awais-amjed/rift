@@ -1,3 +1,4 @@
+/// Text or voice. [fromString] reads any value it does not know as text.
 enum ChannelType {
   text,
   voice;

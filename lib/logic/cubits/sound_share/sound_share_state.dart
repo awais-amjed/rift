@@ -1,7 +1,9 @@
 part of 'sound_share_cubit.dart';
 
+/// Where this device's application-sound share stands.
 enum SoundShareStatus { idle, connecting, sharing, stopping, error }
 
+/// One application's sound shared into the call, as its own connection.
 class SoundShareState {
   final SoundShareStatus status;
 

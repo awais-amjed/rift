@@ -9,6 +9,8 @@ import '../../../../common/resend_confirmation_button.dart';
 import '../onboarding_footer.dart';
 import '../onboarding_page.dart';
 
+/// Onboarding's "check your inbox" step, after an account is created and before
+/// its address is confirmed.
 class EmailConfirmationView extends StatelessWidget {
   final SupabaseBackupState state;
   final VoidCallback onBack;

@@ -10,6 +10,8 @@ import '../../../../common/message_banner.dart';
 import '../onboarding_footer.dart';
 import '../onboarding_page.dart';
 
+/// Onboarding's unlock step, for a cloud backup sealed with a vault password of
+/// its own rather than one derived from the account.
 class VaultPasswordView extends StatefulWidget {
   final SupabaseBackupState state;
   final VoidCallback onBack;
@@ -21,10 +23,10 @@ class VaultPasswordView extends StatefulWidget {
   });
 
   @override
-  State<VaultPasswordView> createState() => VaultPasswordViewState();
+  State<VaultPasswordView> createState() => _VaultPasswordViewState();
 }
 
-class VaultPasswordViewState extends State<VaultPasswordView> {
+class _VaultPasswordViewState extends State<VaultPasswordView> {
   final _vaultPasswordController = TextEditingController();
 
   @override

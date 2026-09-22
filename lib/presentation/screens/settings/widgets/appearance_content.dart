@@ -12,6 +12,8 @@ import 'appearance/palette_card.dart';
 import 'section_title.dart';
 import 'setting_toggle_row.dart';
 
+/// Settings' Appearance tab: light or dark, the palette, and the toggles for
+/// link previews, streams and sensitive content.
 class AppearanceContent extends StatelessWidget {
   const AppearanceContent({super.key});
 

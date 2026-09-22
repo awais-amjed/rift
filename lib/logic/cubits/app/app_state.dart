@@ -1,5 +1,7 @@
 part of 'app_cubit.dart';
 
+/// See [AppCubit]. Grouped by what each field belongs to; everything here is
+/// this device's choice alone.
 @JsonSerializable(explicitToJson: true)
 class AppState {
   // ── Persisted ──────────────────────────────────────────────

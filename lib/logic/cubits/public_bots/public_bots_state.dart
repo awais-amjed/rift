@@ -1,5 +1,7 @@
 part of 'public_bots_cubit.dart';
 
+/// The bot directory as the open dialog sees it: one browse and the caller's
+/// own listings. Lives only as long as that dialog.
 class PublicBotsState {
   // ── Browsing ──────────────────────────────────────────────
 

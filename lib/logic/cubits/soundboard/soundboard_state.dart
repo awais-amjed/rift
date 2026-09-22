@@ -1,5 +1,6 @@
 part of 'soundboard_cubit.dart';
 
+/// Whether the selected server's clip library has loaded.
 enum SoundboardStatus { idle, loading, ready, error }
 
 /// One clip somebody else just played here.
@@ -31,6 +32,8 @@ class SoundboardHeard {
   });
 }
 
+/// The selected server's soundboard: its clips, what this device just fired,
+/// and who else just played one.
 class SoundboardState {
   final SoundboardStatus status;
 

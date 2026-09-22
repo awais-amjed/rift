@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+/// A snapshot of one call connection, copied out of the LiveKit room for the
+/// sidebar and the tiles. A person with a shared screen or sound is more than
+/// one of these; [userId] is what joins them back up.
 class ParticipantInfo {
   final String identity;
 

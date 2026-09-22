@@ -8,6 +8,9 @@ import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/recovery_key/recovery_key_screen.dart';
 import '../screens/settings/settings_screen.dart';
 
+/// The app's routes, and the redirect that sends a new user to onboarding and
+/// an unacknowledged recovery key to its own screen. It re-runs whenever the
+/// vault changes.
 class AppRoutes {
   static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 

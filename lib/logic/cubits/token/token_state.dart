@@ -62,6 +62,7 @@ class CachedToken {
   );
 }
 
+/// See [TokenCubit].
 class TokenState {
   /// Map of channelId → cached token.
   final Map<String, CachedToken> tokens;

@@ -94,6 +94,7 @@ class ServerManifest {
       : const [];
 }
 
+/// Sync, not restore: see the library comment at the top of this file.
 class BackupMerge {
   const BackupMerge._();
 
