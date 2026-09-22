@@ -42,6 +42,12 @@ class K {
   /// A form dialog whose fields run in one column.
   static const double dialogWidth = 480;
 
+  /// A person's profile. Wide enough for who they are and what you can do
+  /// about them to sit side by side and still clear `ModalColumns`' own
+  /// arithmetic: two 260 columns, the rule and its gutters, and the modal's
+  /// padding. That is what keeps a profile one screen instead of a scroll.
+  static const double profileWidth = 640;
+
   /// A form dialog holding two groups side by side — see `ModalColumns`,
   /// which needs roughly this much before it stops stacking them.
   static const double dialogWidthWide = 760;

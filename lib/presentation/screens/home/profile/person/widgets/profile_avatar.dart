@@ -11,8 +11,8 @@ import '../../../../../theme/theme_context.dart';
 /// has no presence at all, and a grey dot there would be a claim that they
 /// are offline rather than an admission that nobody is watching.
 class ProfileAvatar extends StatelessWidget {
-  static const double _size = 44;
-  static const double _dot = 12;
+  static const double _size = 56;
+  static const double _dot = 14;
 
   final String name;
   final String? avatarPath;

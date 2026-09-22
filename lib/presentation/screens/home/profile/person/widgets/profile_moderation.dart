@@ -114,23 +114,34 @@ class ProfileModeration extends StatelessWidget {
                 ),
               ],
             ),
-          if (isAdmin) ...[
-            AppButton(
-              label: 'Edit roles',
-              variant: AppButtonVariant.secondary,
-              expanded: true,
-              icon: const Icon(Icons.shield_outlined, size: 15),
-              onPressed: () => _openRoles(context),
+          // Two to a row, matching the pair above: four full-width bars down
+          // a profile's whole width read as a stack of consequences, and the
+          // ban is the only one of them that is.
+          if (isAdmin)
+            Row(
+              spacing: 6,
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: 'Edit roles',
+                    variant: AppButtonVariant.secondary,
+                    expanded: true,
+                    icon: const Icon(Icons.shield_outlined, size: 15),
+                    onPressed: () => _openRoles(context),
+                  ),
+                ),
+                Expanded(
+                  child: QuietDangerButton(
+                    icon: member.isBanned
+                        ? Icons.lock_open_rounded
+                        : Icons.gavel_rounded,
+                    label: member.isBanned ? 'Lift ban' : 'Ban from server',
+                    isDangerous: !member.isBanned,
+                    onTap: isBusy ? null : () => _toggleBan(context),
+                  ),
+                ),
+              ],
             ),
-            QuietDangerButton(
-              icon: member.isBanned
-                  ? Icons.lock_open_rounded
-                  : Icons.gavel_rounded,
-              label: member.isBanned ? 'Lift ban' : 'Ban from server',
-              isDangerous: !member.isBanned,
-              onTap: isBusy ? null : () => _toggleBan(context),
-            ),
-          ],
         ],
       ),
     );

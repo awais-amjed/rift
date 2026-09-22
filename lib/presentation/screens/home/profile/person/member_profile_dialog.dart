@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
@@ -14,11 +16,13 @@ import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/label_pill.dart';
+import '../../../../common/modal_columns.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import 'widgets/profile_avatar.dart';
 import 'widgets/profile_banned_notice.dart';
 import 'widgets/profile_fact.dart';
+import 'widgets/profile_facts.dart';
 import 'widgets/profile_local_audio.dart';
 import 'widgets/profile_moderation.dart';
 import 'widgets/profile_roles.dart';
@@ -152,6 +156,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
         widget.userId;
 
     final name = member?.displayName ?? widget.fallbackName;
+    final actions = _actions(member, isMe);
 
     return AppModal(
       title: name,
@@ -162,52 +167,27 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
         seed: widget.userId,
         isOnline: online,
       ),
-      maxWidth: 400,
+      maxWidth: K.profileWidth,
       sheetOnPhone: true,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (member != null) ..._tags(member),
           if (member?.isBanned ?? false) const ProfileBannedNotice(),
-          ProfileSection(
-            label: 'About',
-            spaced: false,
-            child: member == null ? _pending : Column(children: _facts(member)),
+          // Who they are on the left, what you can do about them on the
+          // right — and stacked in that order on anything too narrow, which
+          // is the order the dialog had when it was one column.
+          ModalColumns(
+            minColumnWidth: _columnWidth,
+            children: [
+              _identity(member, roles),
+              // Left out rather than empty: stacked, `ModalColumns` rules
+              // between its children, and a second column with nothing in it
+              // drew a hairline under the profile with nothing after it.
+              ?actions,
+            ],
           ),
-          ProfileSection(
-            label: 'Roles',
-            child: member == null
-                ? const ProfileSkeletonBar(widthFactor: 0.34, height: 15)
-                : ProfileRoles(roles: roles),
-          ),
-          // A bot is suppressed here for the same reason as yourself, and
-          // not the same one: there is nobody on the other end. It has no
-          // ears to turn down, no chat key to seal a DM to, and nothing a
-          // server mute would reach.
-          if (!isMe && member != null && !member.isBot) ...[
-            const SizedBox(height: 18),
-            AppButton(
-              label: 'Message',
-              expanded: true,
-              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
-              // A DM has to be sealed to a key they have published. Without
-              // one there is nothing to seal to, so the button says why
-              // rather than failing on the press.
-              onPressed: member.chatPublicKey == null
-                  ? null
-                  : () => _message(member),
-            ),
-            if (member.chatPublicKey == null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  '${member.displayName} has not set up encrypted chat yet.',
-                  style: AppText.secondary.copyWith(
-                    color: context.theme.textTertiary,
-                  ),
-                ),
-              ),
-            ProfileLocalAudio(userId: widget.userId),
+          if (member != null && !isMe && !member.isBot)
             ProfileModeration(
               member: member,
               isBusy: _busy,
@@ -216,9 +196,73 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
               onModerate: ({muted, deafened, banned}) =>
                   _moderate(muted: muted, deafened: deafened, banned: banned),
             ),
-          ],
         ],
       ),
+    );
+  }
+
+  /// The narrowest a profile column may be before the two stack. Lower than
+  /// `ModalColumns`' own default: these hold facts and switches rather than
+  /// form fields, and they read fine well before 300.
+  static const double _columnWidth = 260;
+
+  /// Who they are: the facts, then their roles.
+  Widget _identity(ServerMember? member, List<Role> roles) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ProfileSection(
+          label: 'About',
+          spaced: false,
+          child: member == null
+              ? _pending
+              : ProfileFacts(facts: _facts(member)),
+        ),
+        ProfileSection(
+          label: 'Roles',
+          child: member == null
+              ? const ProfileSkeletonBar(widthFactor: 0.34, height: 15)
+              : ProfileRoles(roles: roles),
+        ),
+      ],
+    );
+  }
+
+  /// What you can do about them — nothing at all for yourself or for a bot.
+  ///
+  /// A bot is suppressed for the same reason as yourself, and not the same
+  /// one: there is nobody on the other end. It has no ears to turn down, no
+  /// chat key to seal a DM to, and nothing a server mute would reach.
+  Widget? _actions(ServerMember? member, bool isMe) {
+    if (member == null || isMe || member.isBot) return null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppButton(
+          label: 'Message',
+          expanded: true,
+          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+          // A DM has to be sealed to a key they have published. Without one
+          // there is nothing to seal to, so the button says why rather than
+          // failing on the press.
+          onPressed: member.chatPublicKey == null
+              ? null
+              : () => _message(member),
+        ),
+        if (member.chatPublicKey == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              '${member.displayName} has not set up encrypted chat yet.',
+              style: AppText.secondary.copyWith(
+                color: context.theme.textTertiary,
+              ),
+            ),
+          ),
+        ProfileLocalAudio(userId: widget.userId),
+      ],
     );
   }
 
@@ -256,7 +300,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
   /// No Status row: the dot on the avatar has already answered it, in
   /// colour, an inch above — and this is the shortest fact list in the app
   /// to be spending a third of on something already said.
-  List<Widget> _facts(ServerMember? member) {
+  List<ProfileFact> _facts(ServerMember? member) {
     final joined = member?.joinedAt;
     return [
       if (joined != null)

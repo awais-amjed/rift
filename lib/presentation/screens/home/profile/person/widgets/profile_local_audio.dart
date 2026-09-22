@@ -23,10 +23,6 @@ import 'profile_setting_row.dart';
 /// section says "server", and those two words are the whole difference
 /// between a preference and an act of moderation.
 class ProfileLocalAudio extends StatelessWidget {
-  /// Short enough to sit beside its label like a switch does, long enough
-  /// that a small drag is a small change.
-  static const double _sliderWidth = 140;
-
   final String userId;
 
   const ProfileLocalAudio({super.key, required this.userId});
@@ -92,7 +88,14 @@ class ProfileLocalAudio extends StatelessWidget {
     );
   }
 
-  /// A slider at the end of a row, with its readout beside it.
+  /// A volume: its name and what it means, then the track across the width
+  /// it has.
+  ///
+  /// The slider used to sit at the end of the row like a switch does. In a
+  /// profile column it took half the line, and every label in the section
+  /// wrapped around it — "Soundboard volume" over two lines with its
+  /// sentence broken into three. A track is the one control here that wants
+  /// the width, so it gets the line to itself.
   Widget _volumeRow(
     BuildContext context, {
     required String title,
@@ -102,32 +105,40 @@ class ProfileLocalAudio extends StatelessWidget {
     required double volume,
     ValueChanged<double>? onChanged,
   }) {
-    return ProfileSettingRow(
-      title: title,
-      hint: hint,
-      control: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: _sliderWidth,
-            child: ParticipantVolumeSlider(
-              target: target,
-              isMuted: muted,
-              volume: volume,
-              onChanged: onChanged,
+    final themeState = context.theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: AppText.row.copyWith(color: themeState.textSecondary),
+        ),
+        Text(
+          hint,
+          style: AppText.secondary.copyWith(color: themeState.textTertiary),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: ParticipantVolumeSlider(
+                target: target,
+                isMuted: muted,
+                volume: volume,
+                onChanged: onChanged,
+              ),
             ),
-          ),
-          // Wide enough for "100%", so dragging never shifts the track.
-          SizedBox(
-            width: 40,
-            child: Text(
-              ParticipantVolumeSlider.readout(isMuted: muted, volume: volume),
-              textAlign: TextAlign.right,
-              style: AppText.meta.copyWith(color: context.theme.textSecondary),
+            // Wide enough for "100%", so dragging never shifts the track.
+            SizedBox(
+              width: 40,
+              child: Text(
+                ParticipantVolumeSlider.readout(isMuted: muted, volume: volume),
+                textAlign: TextAlign.right,
+                style: AppText.meta.copyWith(color: themeState.textSecondary),
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }

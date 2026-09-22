@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../../data/classes/friend.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../data/enums/friendship_state.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../common/modal_columns.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../../dms/open_central_conversation.dart';
@@ -14,6 +16,7 @@ import '../../dms/widgets/friends/friend_actions.dart';
 import 'widgets/profile_action_button.dart';
 import 'widgets/profile_avatar.dart';
 import 'widgets/profile_fact.dart';
+import 'widgets/profile_facts.dart';
 import 'widgets/profile_handle_row.dart';
 import 'widgets/profile_section.dart';
 
@@ -87,77 +90,96 @@ class _CentralProfileDialogState extends State<CentralProfileDialog> {
         title: '@${current.handle}',
         subtitle: 'Central account',
         titleIcon: ProfileAvatar(name: current.handle, seed: current.id),
-        maxWidth: 400,
+        maxWidth: K.profileWidth,
         sheetOnPhone: true,
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ProfileSection(
-              label: 'About',
-              spaced: false,
-              child: Column(
-                children: [
-                  ..._facts(current),
-                  // Not while they are blocked. The line below says they
-                  // cannot reach you; handing over a copyable address in the
-                  // same breath contradicts it.
-                  if (_standing != FriendshipState.blocked)
-                    ProfileHandleRow(handle: current.handle),
-                ],
-              ),
-            ),
-            // Only for a block, and not because the others have no note — the
-            // friends row has one for each. It is that "Wants to be friends"
-            // and "Waiting for them" say their own consequence, and a block
-            // does not: what it actually does is make you unfindable, which
-            // is the whole reason to choose it over removing somebody.
-            if (_standing == FriendshipState.blocked)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'They cannot find or reach you.',
-                  style: AppText.secondary.copyWith(
-                    color: context.theme.textTertiary,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 18),
-            if (_standing.canSend)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: AppButton(
-                  label: 'Message',
-                  expanded: true,
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
-                  onPressed: current.chatPublicKey == null
-                      ? null
-                      : () {
-                          // Open first, close second: the helper reads two
-                          // cubits off this context, and popping deactivates
-                          // it before they can be read.
-                          openCentralConversation(
-                            context,
-                            current.toConversation(),
-                          );
-                          Navigator.of(context).pop();
-                        },
-                ),
-              ),
-            // The same switch the friends list asks — a person who can be
-            // unfriended in one place and not the other is the bug
-            // [FriendActions] exists to prevent.
-            for (final action in FriendActions.forFriend(context, current))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: ProfileActionButton(action: action),
-              ),
-          ],
+        content: ModalColumns(
+          minColumnWidth: _columnWidth,
+          children: [_identity(current), _actions(current)],
         ),
       ),
     );
   }
 
-  List<Widget> _facts(Friend current) {
+  /// See [MemberProfileDialog]; the two profiles stack at the same width.
+  static const double _columnWidth = 260;
+
+  /// Where you stand with them, and the handle to copy.
+  Widget _identity(Friend current) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ProfileSection(
+          label: 'About',
+          spaced: false,
+          child: ProfileFacts(facts: _facts(current)),
+        ),
+        // Not while they are blocked. The line below says they cannot reach
+        // you; handing over a copyable address in the same breath
+        // contradicts it.
+        if (_standing != FriendshipState.blocked) ...[
+          const SizedBox(height: 14),
+          ProfileHandleRow(handle: current.handle),
+        ],
+        // Only for a block, and not because the others have no note — the
+        // friends row has one for each. It is that "Wants to be friends" and
+        // "Waiting for them" say their own consequence, and a block does
+        // not: what it actually does is make you unfindable, which is the
+        // whole reason to choose it over removing somebody.
+        if (_standing == FriendshipState.blocked)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text(
+              'They cannot find or reach you.',
+              style: AppText.secondary.copyWith(
+                color: context.theme.textTertiary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Messaging them, and the standing itself.
+  Widget _actions(Friend current) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_standing.canSend)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: AppButton(
+              label: 'Message',
+              expanded: true,
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+              onPressed: current.chatPublicKey == null
+                  ? null
+                  : () {
+                      // Open first, close second: the helper reads two cubits
+                      // off this context, and popping deactivates it before
+                      // they can be read.
+                      openCentralConversation(
+                        context,
+                        current.toConversation(),
+                      );
+                      Navigator.of(context).pop();
+                    },
+            ),
+          ),
+        // The same switch the friends list asks — a person who can be
+        // unfriended in one place and not the other is the bug
+        // [FriendActions] exists to prevent.
+        for (final action in FriendActions.forFriend(context, current))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: ProfileActionButton(action: action),
+          ),
+      ],
+    );
+  }
+
+  List<ProfileFact> _facts(Friend current) {
     // The date came from the row that named the *old* standing, and the
     // server's answer carries no new one. Drawing it against a standing it
     // does not describe would be the worst of the three — "Friends since"
