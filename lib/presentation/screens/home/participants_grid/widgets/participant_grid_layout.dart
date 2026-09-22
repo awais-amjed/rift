@@ -11,6 +11,7 @@ import '../../../../../logic/services/voice_tiles.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../participants_tile/participant_tile.dart';
 import '../participants_tile/sound_share_tile.dart';
+import 'camera_rail.dart';
 
 /// Grid view displaying all participants with adaptive column count.
 class ParticipantGridLayout extends StatefulWidget {
@@ -185,20 +186,11 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
                   ),
                 ],
                 const SizedBox(height: gap),
-                SizedBox(
+                CameraRail(
+                  count: cameras.length,
                   height: railHeight,
-                  child: Center(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      scrollDirection: Axis.horizontal,
-                      itemCount: cameras.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: gap),
-                      itemBuilder: (context, index) => AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: _buildTile(cameras[index]),
-                      ),
-                    ),
-                  ),
+                  gap: gap,
+                  itemBuilder: (context, index) => _buildTile(cameras[index]),
                 ),
               ],
             ),
