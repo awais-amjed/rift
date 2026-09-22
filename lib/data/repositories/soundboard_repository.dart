@@ -1,10 +1,10 @@
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
 import '../../logic/services/byte_format.dart';
 import '../classes/api_response.dart';
+import 'storage_rest.dart';
 
 /// Uploads and downloads soundboard clips for a self-hosted server.
 ///
@@ -34,23 +34,11 @@ class SoundboardRepository {
   SoundboardRepository({http.Client? httpClient})
     : _http = httpClient ?? http.Client();
 
-  static final _rng = Random.secure();
-
   /// `<serverId>/<random>.audio`. The server id is the read policy's whole
   /// rule, and the random segment means a path is never reused — which is
   /// what lets every client cache a clip's bytes forever under its path.
-  static String buildPath(String serverId) {
-    final id = List.generate(
-      12,
-      (_) => _rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
-    ).join();
-    return '$serverId/$id.audio';
-  }
-
-  Map<String, String> _headers(String anonKey, String bearerToken) => {
-    'apikey': anonKey,
-    'Authorization': 'Bearer $bearerToken',
-  };
+  static String buildPath(String serverId) =>
+      StorageRest.freshPath(serverId, extension: 'audio');
 
   /// Upload [data]. On success `data` is the object path to store on the row.
   ///
@@ -69,27 +57,24 @@ class SoundboardRepository {
       final path = buildPath(serverId);
       final resp = await _http
           .post(
-            Uri.parse('$baseUrl/storage/v1/object/$bucket/$path'),
+            StorageRest.object(baseUrl, bucket, path),
             headers: {
-              ..._headers(anonKey, bearerToken),
+              ...StorageRest.headers(anonKey, bearerToken),
               'Content-Type': contentType,
               'x-upsert': 'false',
             },
             body: data,
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(StorageRest.timeout);
 
-      if (resp.statusCode == 401 || resp.statusCode == 403) {
-        return APIResponse.error('Not authorized', errorCode: 'token_expired');
-      }
       if (resp.statusCode == 413) {
         return APIResponse.error(
           'That clip is too big — ${humanSize(maxBytes)} at most',
         );
       }
-      if (resp.statusCode >= 300) {
-        return APIResponse.error('Upload failed (${resp.statusCode})');
-      }
+
+      final refused = StorageRest.refusal(resp, failed: 'Upload failed');
+      if (refused != null) return refused;
       return APIResponse.success(path);
     } catch (e) {
       return APIResponse.error(e);
@@ -106,17 +91,13 @@ class SoundboardRepository {
     try {
       final resp = await _http
           .get(
-            Uri.parse('$baseUrl/storage/v1/object/authenticated/$bucket/$path'),
-            headers: _headers(anonKey, bearerToken),
+            StorageRest.authenticated(baseUrl, bucket, path),
+            headers: StorageRest.headers(anonKey, bearerToken),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(StorageRest.timeout);
 
-      if (resp.statusCode == 401 || resp.statusCode == 403) {
-        return APIResponse.error('Not authorized', errorCode: 'token_expired');
-      }
-      if (resp.statusCode >= 300) {
-        return APIResponse.error('Download failed (${resp.statusCode})');
-      }
+      final refused = StorageRest.refusal(resp, failed: 'Download failed');
+      if (refused != null) return refused;
       return APIResponse.success(resp.bodyBytes);
     } catch (e) {
       return APIResponse.error(e);
@@ -142,19 +123,16 @@ class SoundboardRepository {
     try {
       final resp = await _http
           .delete(
-            Uri.parse('$baseUrl/storage/v1/object/$bucket/$path'),
-            headers: _headers(anonKey, bearerToken),
+            StorageRest.object(baseUrl, bucket, path),
+            headers: StorageRest.headers(anonKey, bearerToken),
           )
           .timeout(const Duration(seconds: 15));
 
-      if (resp.statusCode == 401 || resp.statusCode == 403) {
-        return APIResponse.error('Not authorized', errorCode: 'token_expired');
-      }
       // A clip whose file is already gone is the state we wanted.
       if (resp.statusCode == 404) return APIResponse.success(null);
-      if (resp.statusCode >= 300) {
-        return APIResponse.error('Delete failed (${resp.statusCode})');
-      }
+
+      final refused = StorageRest.refusal(resp, failed: 'Delete failed');
+      if (refused != null) return refused;
       return APIResponse.success(null);
     } catch (e) {
       return APIResponse.error(e);

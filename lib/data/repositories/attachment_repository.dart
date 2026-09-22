@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../classes/api_response.dart';
+import 'storage_rest.dart';
 
 /// An encrypted attachment blob ready to upload, plus the per-file key/nonce
 /// that must be stored (encrypted) inside the message body to decrypt it later.
@@ -31,16 +31,9 @@ class AttachmentRepository {
     : _crypto = crypto ?? CryptoRepository(),
       _http = httpClient ?? http.Client();
 
-  static final _rng = Random.secure();
-
   /// A random object name within a scope folder, e.g. `<scope>/ab12….bin`.
-  static String buildPath(String scopePrefix) {
-    final id = List.generate(
-      16,
-      (_) => _rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
-    ).join();
-    return '$scopePrefix/$id.bin';
-  }
+  static String buildPath(String scopePrefix) =>
+      StorageRest.freshPath(scopePrefix, extension: 'bin', bytes: 16);
 
   // ── Crypto (shared by all transports) ─────────────────────
 
@@ -69,11 +62,6 @@ class AttachmentRepository {
 
   // ── Self-hosted Storage REST transport ────────────────────
 
-  Map<String, String> _headers(String anonKey, String bearerToken) => {
-    'apikey': anonKey,
-    'Authorization': 'Bearer $bearerToken',
-  };
-
   /// Encrypt [data] and upload it to [bucket] under [scopePrefix].
   /// On success `data` is `({String path, String keyB64, String nonceB64})`.
   Future<APIResponse> uploadEncrypted({
@@ -87,25 +75,21 @@ class AttachmentRepository {
     try {
       final blob = await seal(data);
       final path = buildPath(scopePrefix);
-      final uri = Uri.parse('$baseUrl/storage/v1/object/$bucket/$path');
+      final uri = StorageRest.object(baseUrl, bucket, path);
       final resp = await _http
           .post(
             uri,
             headers: {
-              ..._headers(anonKey, bearerToken),
+              ...StorageRest.headers(anonKey, bearerToken),
               'Content-Type': 'application/octet-stream',
               'x-upsert': 'false',
             },
             body: blob.ciphertext,
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(StorageRest.timeout);
 
-      if (resp.statusCode == 401 || resp.statusCode == 403) {
-        return APIResponse.error('Not authorized', errorCode: 'token_expired');
-      }
-      if (resp.statusCode >= 300) {
-        return APIResponse.error('Upload failed (${resp.statusCode})');
-      }
+      final refused = StorageRest.refusal(resp, failed: 'Upload failed');
+      if (refused != null) return refused;
       return APIResponse.success((
         path: path,
         keyB64: blob.keyB64,
@@ -142,19 +126,15 @@ class AttachmentRepository {
           .delete(
             uri,
             headers: {
-              ..._headers(anonKey, bearerToken),
+              ...StorageRest.headers(anonKey, bearerToken),
               'Content-Type': 'application/json',
             },
             body: jsonEncode({'prefixes': paths}),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(StorageRest.timeout);
 
-      if (resp.statusCode == 401 || resp.statusCode == 403) {
-        return APIResponse.error('Not authorized', errorCode: 'token_expired');
-      }
-      if (resp.statusCode >= 300) {
-        return APIResponse.error('Delete failed (${resp.statusCode})');
-      }
+      final refused = StorageRest.refusal(resp, failed: 'Delete failed');
+      if (refused != null) return refused;
       return APIResponse.success({'deleted': paths.length});
     } catch (e) {
       return APIResponse.error(e);
@@ -173,19 +153,13 @@ class AttachmentRepository {
     required String nonceB64,
   }) async {
     try {
-      final uri = Uri.parse(
-        '$baseUrl/storage/v1/object/authenticated/$bucket/$path',
-      );
+      final uri = StorageRest.authenticated(baseUrl, bucket, path);
       final resp = await _http
-          .get(uri, headers: _headers(anonKey, bearerToken))
-          .timeout(const Duration(seconds: 30));
+          .get(uri, headers: StorageRest.headers(anonKey, bearerToken))
+          .timeout(StorageRest.timeout);
 
-      if (resp.statusCode == 401 || resp.statusCode == 403) {
-        return APIResponse.error('Not authorized', errorCode: 'token_expired');
-      }
-      if (resp.statusCode >= 300) {
-        return APIResponse.error('Download failed (${resp.statusCode})');
-      }
+      final refused = StorageRest.refusal(resp, failed: 'Download failed');
+      if (refused != null) return refused;
       final clear = await open(
         ciphertext: resp.bodyBytes,
         keyB64: keyB64,

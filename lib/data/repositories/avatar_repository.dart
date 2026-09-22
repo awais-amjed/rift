@@ -1,9 +1,9 @@
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
 import '../classes/api_response.dart';
+import 'storage_rest.dart';
 
 /// Uploads/downloads avatar images for a self-hosted server.
 ///
@@ -23,23 +23,11 @@ class AvatarRepository {
   AvatarRepository({http.Client? httpClient})
     : _http = httpClient ?? http.Client();
 
-  static final _rng = Random.secure();
-
   /// `<userId>/<random>.img`. The random segment means a new upload never
   /// collides with the cached copy of the old one — clients key their cache on
   /// the path, so reusing it would show a stale picture.
-  static String buildPath(String userId) {
-    final id = List.generate(
-      12,
-      (_) => _rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
-    ).join();
-    return '$userId/$id.img';
-  }
-
-  Map<String, String> _headers(String anonKey, String bearerToken) => {
-    'apikey': anonKey,
-    'Authorization': 'Bearer $bearerToken',
-  };
+  static String buildPath(String userId) =>
+      StorageRest.freshPath(userId, extension: 'img');
 
   /// Upload [data] (already downscaled + re-encoded as PNG). On success `data`
   /// is the object path to store on the user row.
@@ -54,22 +42,18 @@ class AvatarRepository {
       final path = buildPath(userId);
       final resp = await _http
           .post(
-            Uri.parse('$baseUrl/storage/v1/object/$bucket/$path'),
+            StorageRest.object(baseUrl, bucket, path),
             headers: {
-              ..._headers(anonKey, bearerToken),
+              ...StorageRest.headers(anonKey, bearerToken),
               'Content-Type': 'image/png',
               'x-upsert': 'false',
             },
             body: data,
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(StorageRest.timeout);
 
-      if (resp.statusCode == 401 || resp.statusCode == 403) {
-        return APIResponse.error('Not authorized', errorCode: 'token_expired');
-      }
-      if (resp.statusCode >= 300) {
-        return APIResponse.error('Avatar upload failed (${resp.statusCode})');
-      }
+      final refused = StorageRest.refusal(resp, failed: 'Avatar upload failed');
+      if (refused != null) return refused;
       return APIResponse.success(path);
     } catch (e) {
       return APIResponse.error(e);
@@ -86,17 +70,16 @@ class AvatarRepository {
     try {
       final resp = await _http
           .get(
-            Uri.parse('$baseUrl/storage/v1/object/authenticated/$bucket/$path'),
-            headers: _headers(anonKey, bearerToken),
+            StorageRest.authenticated(baseUrl, bucket, path),
+            headers: StorageRest.headers(anonKey, bearerToken),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(StorageRest.timeout);
 
-      if (resp.statusCode == 401 || resp.statusCode == 403) {
-        return APIResponse.error('Not authorized', errorCode: 'token_expired');
-      }
-      if (resp.statusCode >= 300) {
-        return APIResponse.error('Avatar download failed (${resp.statusCode})');
-      }
+      final refused = StorageRest.refusal(
+        resp,
+        failed: 'Avatar download failed',
+      );
+      if (refused != null) return refused;
       return APIResponse.success(resp.bodyBytes);
     } catch (e) {
       return APIResponse.error(e);
