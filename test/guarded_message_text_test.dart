@@ -44,7 +44,13 @@ void main() {
         BlocProvider(create: (_) => ThemeCubit()),
       ],
       child: Scaffold(
-        body: GuardedMessageText(messageId: id, text: text, child: Text(text)),
+        body: GuardedMessageText(
+          messageId: id,
+          text: text,
+          builder: (shown, reveal) => Text.rich(
+            TextSpan(text: shown, children: [?reveal]),
+          ),
+        ),
       ),
     ),
   );
@@ -52,28 +58,30 @@ void main() {
   testWidgets('a clean message is shown as is', (tester) async {
     await tester.pumpWidget(guarded('hello there'));
     expect(find.text('hello there'), findsOneWidget);
-    expect(find.text('Sensitive message'), findsNothing);
   });
 
-  testWidgets('blur mode covers a flagged message until tapped', (
+  testWidgets('blur mode covers only the word, until Show is tapped', (
     tester,
   ) async {
-    await tester.pumpWidget(guarded('well fuck'));
-    expect(find.text('well fuck'), findsNothing);
-    expect(find.text('Sensitive message'), findsOneWidget);
+    await tester.pumpWidget(guarded('well fuck that'));
+    expect(find.text('well •••• that  Show'), findsOneWidget);
 
-    await tester.tap(find.text('Sensitive message'));
+    await tester.tapOnText(find.textRange.ofSubstring('Show'));
     await tester.pump();
-    expect(find.text('well fuck'), findsOneWidget);
+    expect(find.text('well fuck that'), findsOneWidget);
   });
 
-  testWidgets('hide mode has no way through', (tester) async {
+  testWidgets('every flagged word is covered', (tester) async {
+    await tester.pumpWidget(guarded('fuck this, fuuuck that'));
+    expect(find.text('•••• this, •••••• that  Show'), findsOneWidget);
+  });
+
+  testWidgets('hide mode covers the word with no way through', (
+    tester,
+  ) async {
     app.setSensitiveContentMode(SensitiveContentMode.hide);
     await tester.pumpWidget(guarded('well fuck'));
-    await tester.tap(find.text('Sensitive message'));
-    await tester.pump();
-    expect(find.text('well fuck'), findsNothing);
-    expect(find.textContaining('Hidden by your settings'), findsOneWidget);
+    expect(find.text('well ••••'), findsOneWidget);
   });
 
   testWidgets('off shows everything', (tester) async {

@@ -73,6 +73,9 @@ class TextSafety {
   /// Verdicts by message id and text, so a rebuilt row does not rescan.
   final Map<String, TextSafetyVerdict?> _verdicts = {};
 
+  /// Covered words by message id and text, for the same reason.
+  final Map<String, List<({int start, int end})>> _ranges = {};
+
   /// Load the bundled list. Called once at startup and not awaited: until it
   /// lands, every message is shown.
   Future<void> load() async {
@@ -96,6 +99,7 @@ class TextSafety {
       '(?<![a-z0-9])(?:${_rules.map((r) => r.source).join('|')})(?![a-z0-9])',
     );
     _verdicts.clear();
+    _ranges.clear();
   }
 
   /// The verdict for [text], or null where nothing matched or the list has
@@ -110,6 +114,73 @@ class TextSafety {
     final verdict = _scan(text);
     _verdicts[key] = verdict;
     return verdict;
+  }
+
+  /// Where in [text] the words to cover are, as ranges of [text] itself —
+  /// empty where nothing sensitive matched.
+  ///
+  /// The list matches against a normalised copy whose offsets are not the
+  /// message's, so this works in words instead: the smallest run of words
+  /// that matches on its own is covered, and every word in it. One word for
+  /// `fuck`, two for `god damn`, four for `f u c k`. A match no run up to
+  /// [_widestRun] explains covers every word, because a message that is
+  /// flagged and shows nothing flagged is the one outcome that must not
+  /// happen.
+  List<({int start, int end})> sensitiveRanges(String id, String text) {
+    if (!isLoaded || text.isEmpty) return const [];
+    final key = '$id:${text.hashCode}';
+    final cached = _ranges[key];
+    if (cached != null) return cached;
+    if (_ranges.length > 4000) _ranges.clear();
+
+    return _ranges[key] = _locate(text);
+  }
+
+  static const int _widestRun = 16;
+
+  /// A word as the normaliser sees one: letters, digits and the symbols
+  /// leetspeak spells with, and `!` only between them — at the end of a word
+  /// it is punctuation, and covering it would say more than the word did.
+  static final RegExp _word = RegExp(
+    r'[\p{L}\p{N}@$]+(?:!+[\p{L}\p{N}@$]+)*',
+    unicode: true,
+  );
+
+  List<({int start, int end})> _locate(String text) {
+    if (!(_scan(text)?.isSensitive ?? false)) return const [];
+    final words = _word.allMatches(text).toList();
+    final covered = List.filled(words.length, false);
+    var found = false;
+    // Narrowest first, so a run is only covered when nothing inside it was.
+    for (var width = 1; width <= _widestRun; width++) {
+      for (var i = 0; i + width <= words.length; i++) {
+        if (covered.sublist(i, i + width).contains(true)) continue;
+        final run = text.substring(words[i].start, words[i + width - 1].end);
+        if (_scan(run)?.isSensitive ?? false) {
+          covered.fillRange(i, i + width, true);
+          found = true;
+        }
+      }
+    }
+    return [
+      for (var i = 0; i < words.length; i++)
+        if (covered[i] || !found) (start: words[i].start, end: words[i].end),
+    ];
+  }
+
+  /// [text] with every character in [ranges] replaced by a dot, so a covered
+  /// word keeps its place in the sentence and nothing else of itself.
+  static String cover(String text, List<({int start, int end})> ranges) {
+    if (ranges.isEmpty) return text;
+    final out = StringBuffer();
+    var at = 0;
+    for (final r in ranges) {
+      out
+        ..write(text.substring(at, r.start))
+        ..write('•' * (r.end - r.start));
+      at = r.end;
+    }
+    return (out..write(text.substring(at))).toString();
   }
 
   TextSafetyVerdict? _scan(String text) {

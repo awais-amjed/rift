@@ -513,12 +513,12 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
             GuardedMessageText(
               messageId: message.id,
               text: message.text,
-              child: MessageText(
+              builder: (text, reveal) => MessageText(
                 onSecondaryTap: _openContextMenu,
                 span: TextSpan(
                   children: [
                     messageMarkupSpan(
-                      message.text,
+                      text,
                       base: AppText.body.copyWith(
                         color: themeState.textSecondary,
                       ),
@@ -534,6 +534,7 @@ class _ChatMessageRowState extends State<ChatMessageRow> {
                           color: themeState.textTertiary,
                         ),
                       ),
+                    ?reveal,
                   ],
                 ),
               ),
