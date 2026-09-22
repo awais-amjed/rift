@@ -73,6 +73,11 @@ class ErrorCode {
   static const String identityTaken = 'identity_taken';
   static const String usernameTaken = 'username_taken';
 
+  /// Outside the alphabet `@`-mentions can express — see `ServerUsername`.
+  /// The forms refuse it at the keystroke, so this is for a caller that went
+  /// round them, such as a bot registering through the SDK.
+  static const String usernameInvalid = 'username_invalid';
+
   /// public_key field is not valid base64 or not exactly 32 bytes.
   static const String invalidPublicKey = 'invalid_public_key';
 

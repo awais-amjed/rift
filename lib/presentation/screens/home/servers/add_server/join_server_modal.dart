@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/resolved_invite.dart';
@@ -8,10 +9,13 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/join_defaults.dart';
+import '../../../../../logic/services/server_username.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The second join step: how you will appear on a server that has already
 /// answered to its invite.
@@ -56,7 +60,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
   String? _error;
 
   bool get _canSubmit =>
-      _usernameCtrl.text.trim().isNotEmpty &&
+      ServerUsername.isValid(_usernameCtrl.text) &&
       _displayNameCtrl.text.trim().isNotEmpty;
 
   @override
@@ -144,7 +148,19 @@ class _JoinServerModalState extends State<JoinServerModal> {
             hint: 'myusername',
             enabled: !_isLoading,
             autofocus: _usernameCtrl.text.isEmpty,
+            // Anything the mention parser cannot express is refused at the
+            // keystroke: a username with a space in it is a member nobody can
+            // ever @-mention. See [ServerUsername].
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_.-]')),
+            ],
+            maxLength: ServerUsername.maxLength,
             onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            ServerUsername.rule,
+            style: AppText.label.copyWith(color: context.theme.textTertiary),
           ),
           const SizedBox(height: 12),
           AppTextField(

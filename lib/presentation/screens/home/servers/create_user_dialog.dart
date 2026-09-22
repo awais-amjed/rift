@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/server_username.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
@@ -35,7 +37,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
   String? _error;
 
   bool get _canSubmit =>
-      _usernameCtrl.text.trim().isNotEmpty &&
+      ServerUsername.isValid(_usernameCtrl.text) &&
       _displayNameCtrl.text.trim().isNotEmpty;
 
   @override
@@ -107,9 +109,14 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
             hint: 'myusername',
             enabled: !_isLoading,
             autofocus: true,
+            // The mention parser's alphabet — see [ServerUsername].
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_.-]')),
+            ],
+            maxLength: ServerUsername.maxLength,
             onChanged: (_) => setState(() {}),
           ),
-          _fieldHint('Unique identifier for this server', themeState),
+          _fieldHint(ServerUsername.rule, themeState),
           AppTextField(
             controller: _displayNameCtrl,
             label: 'Display name',

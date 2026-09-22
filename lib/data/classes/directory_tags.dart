@@ -37,8 +37,7 @@ class DirectoryTags {
   /// turned the example itself into the single tag `gaming-board-games`.
   /// Everything else is still folded rather than refused, by [normalise].
   static List<String> normaliseAll(String input) => [
-    for (final part in input.split(','))
-      if (normalise(part) case final tag?) tag,
+    for (final part in input.split(',')) ?normalise(part),
   ];
 
   /// Fold free text into a tag, or null if nothing usable survives. Spaces
