@@ -77,6 +77,11 @@ class AppState {
   /// punctuation mark and should not be louder than the person talking.
   final double soundboardVolume;
 
+  // ── The call's own cues, as this device hears them ─────────
+  /// Mute and volume for each [CallSound] pair, keyed by its name. Absent
+  /// until somebody moves one, so [CallSound.settingIn] supplies the default.
+  final Map<String, ParticipantSetting> callSounds;
+
   /// Emoji the user reaches for, most recent first, capped at
   /// [AppCubit.maxRecentEmojis]. Kept here rather than in the emoji package's
   /// own store: its writer needs a handle to the widget it ships, which the
@@ -149,6 +154,7 @@ class AppState {
     this.recentEmojis = const [],
     this.soundboardMuted = false,
     this.soundboardVolume = 0.6,
+    this.callSounds = const {},
     this.membersSidebarOpen = true,
     this.sidebarWidth = K.sidebarWidth,
     this.membersSidebarWidth = K.membersSidebarWidth,
@@ -192,6 +198,7 @@ class AppState {
     List<String>? recentEmojis,
     bool? soundboardMuted,
     double? soundboardVolume,
+    Map<String, ParticipantSetting>? callSounds,
     bool? membersSidebarOpen,
     double? sidebarWidth,
     double? membersSidebarWidth,
@@ -241,6 +248,7 @@ class AppState {
       recentEmojis: recentEmojis ?? this.recentEmojis,
       soundboardMuted: soundboardMuted ?? this.soundboardMuted,
       soundboardVolume: soundboardVolume ?? this.soundboardVolume,
+      callSounds: callSounds ?? this.callSounds,
       membersSidebarOpen: membersSidebarOpen ?? this.membersSidebarOpen,
       sidebarWidth: sidebarWidth ?? this.sidebarWidth,
       membersSidebarWidth: membersSidebarWidth ?? this.membersSidebarWidth,

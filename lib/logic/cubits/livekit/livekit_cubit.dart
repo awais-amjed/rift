@@ -9,6 +9,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/enums/call_sound.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/participant_identity.dart';
 import '../../helper_methods.dart';
@@ -360,9 +361,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
   void _playPushToTalkTone(bool on) {
     if (state.room == null || !_shouldTransmitMic()) return;
     unawaited(
-      on
-          ? SoundService.instance.playPttOn()
-          : SoundService.instance.playPttOff(),
+      SoundService.instance.play(
+        CallSound.pushToTalk,
+        _appCubit.state.callSounds,
+        ending: !on,
+      ),
     );
   }
 

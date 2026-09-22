@@ -6,6 +6,7 @@ import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/constants.dart';
+import '../../../data/enums/call_sound.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
 import '../../../data/participant_identity.dart';
@@ -232,6 +233,22 @@ class AppCubit extends HydratedCubit<AppState> {
 
   void setSoundboardVolume(double volume) =>
       emit(state.copyWith(soundboardVolume: volume.clamp(0.0, 1.0)));
+
+  // ── Persisted: the call's cues ───────────────────────────
+
+  void setCallSoundMuted(CallSound sound, bool muted) =>
+      _setCallSound(sound, muted: muted);
+
+  void setCallSoundVolume(CallSound sound, double volume) =>
+      _setCallSound(sound, volume: volume.clamp(0.0, 1.0));
+
+  void _setCallSound(CallSound sound, {bool? muted, double? volume}) {
+    final updated = Map<String, ParticipantSetting>.from(state.callSounds)
+      ..[sound.name] = sound
+          .settingIn(state.callSounds)
+          .copyWith(muted: muted, volume: volume);
+    emit(state.copyWith(callSounds: updated));
+  }
 
   // ── Transient: sidebar hover ─────────────────────────────
 

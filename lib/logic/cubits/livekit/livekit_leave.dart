@@ -44,7 +44,13 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
       // window. Not awaited: the leave should not wait on an airhorn.
       unawaited(_soundboardCubit?.silence() ?? Future<void>.value());
 
-      unawaited(SoundService.instance.playLeave());
+      unawaited(
+        SoundService.instance.play(
+          CallSound.presence,
+          _appCubit.state.callSounds,
+          ending: true,
+        ),
+      );
       _appCubit.setParticipants([]);
       _appCubit.setSelectedChannelId(null);
 

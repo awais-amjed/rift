@@ -9,11 +9,12 @@ import 'mic_test/mic_test_section.dart';
 import 'section_title.dart';
 import 'setting_toggle_row.dart';
 import 'voice_audio/audio_processing_section.dart';
+import 'voice_audio/call_sounds/call_sounds_section.dart';
 import 'voice_audio/push_to_talk_section.dart';
 import 'voice_audio/soundboard_section.dart';
 
 /// The Voice & Audio settings tab: devices, mic processing, the mic test,
-/// the soundboard as this device hears it, and the two Windows-only
+/// the soundboard and the call's own sounds as this device hears them, and the two Windows-only
 /// sections.
 class VoiceAudioContent extends StatelessWidget {
   const VoiceAudioContent({super.key});
@@ -51,6 +52,8 @@ class VoiceAudioContent extends StatelessWidget {
               const MicTestSection(),
               _divider(context),
               SoundboardSection(appState: appState),
+              _divider(context),
+              CallSoundsSection(appState: appState),
               // The divider belongs to what follows, not to what precedes
               // it: on anything but Windows there is nothing after this and
               // the rule was hanging under the last control.

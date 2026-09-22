@@ -42,9 +42,15 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         unawaited(_registerParticipantKey(identity));
         _seedWatching(e.participant);
         if (ParticipantIdentity.isShare(identity)) {
-          SoundService.instance.playStreamStarted();
+          SoundService.instance.play(
+            CallSound.stream,
+            _appCubit.state.callSounds,
+          );
         } else {
-          SoundService.instance.playJoin();
+          SoundService.instance.play(
+            CallSound.presence,
+            _appCubit.state.callSounds,
+          );
         }
         _syncParticipants();
         _applyStoredSettings();
@@ -54,9 +60,17 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         _watchingSeen.remove(identity);
         _forgetStream(identity);
         if (ParticipantIdentity.isShare(identity)) {
-          SoundService.instance.playStreamEnded();
+          SoundService.instance.play(
+            CallSound.stream,
+            _appCubit.state.callSounds,
+            ending: true,
+          );
         } else {
-          SoundService.instance.playLeave();
+          SoundService.instance.play(
+            CallSound.presence,
+            _appCubit.state.callSounds,
+            ending: true,
+          );
         }
         _syncParticipants();
       })
@@ -79,7 +93,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
           // starting is a track arriving, not somebody joining.
           if (!ParticipantIdentity.isScreenshare(e.participant.identity) &&
               e.publication.source == TrackSource.screenShareVideo) {
-            SoundService.instance.playStreamStarted();
+            SoundService.instance.play(
+              CallSound.stream,
+              _appCubit.state.callSounds,
+            );
           }
           if (!state.subscribedScreenshares.contains(e.participant.identity)) {
             // Prevent auto-subscription to unsubscribed screenshares.
@@ -131,7 +148,11 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       ..on<TrackUnpublishedEvent>((e) {
         if (!ParticipantIdentity.isScreenshare(e.participant.identity) &&
             e.publication.source == TrackSource.screenShareVideo) {
-          SoundService.instance.playStreamEnded();
+          SoundService.instance.play(
+            CallSound.stream,
+            _appCubit.state.callSounds,
+            ending: true,
+          );
           _forgetStream(e.participant.identity);
         }
         _syncParticipants();
@@ -140,12 +161,19 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       // joining: the sharer hears it start and end like everyone else.
       ..on<LocalTrackPublishedEvent>((e) {
         if (e.publication.source == TrackSource.screenShareVideo) {
-          SoundService.instance.playStreamStarted();
+          SoundService.instance.play(
+            CallSound.stream,
+            _appCubit.state.callSounds,
+          );
         }
       })
       ..on<LocalTrackUnpublishedEvent>((e) {
         if (e.publication.source == TrackSource.screenShareVideo) {
-          SoundService.instance.playStreamEnded();
+          SoundService.instance.play(
+            CallSound.stream,
+            _appCubit.state.callSounds,
+            ending: true,
+          );
           _forgetStream(e.participant.identity);
         }
       })
@@ -228,7 +256,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// glitch.
   void _onMovedTo(String channelId) {
     if (channelId == state.currentChannelId) return;
-    SoundService.instance.playJoin();
+    SoundService.instance.play(CallSound.presence, _appCubit.state.callSounds);
     _appCubit.setSelectedChannelId(channelId);
   }
 
@@ -263,9 +291,16 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
     // One tone however many streams changed at once; the list is almost
     // always a single entry.
     if (cues.contains(WatchCue.started)) {
-      SoundService.instance.playWatchStarted();
+      SoundService.instance.play(
+        CallSound.watchers,
+        _appCubit.state.callSounds,
+      );
     } else if (cues.contains(WatchCue.stopped)) {
-      SoundService.instance.playWatchStopped();
+      SoundService.instance.play(
+        CallSound.watchers,
+        _appCubit.state.callSounds,
+        ending: true,
+      );
     }
   }
 

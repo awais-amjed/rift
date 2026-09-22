@@ -1,5 +1,6 @@
-/// This device's own mute and volume for one person or one shared sound.
-/// Nobody else sees it and no server stores it; it persists in `AppState`.
+/// This device's own mute and volume for one person, one shared sound, or one
+/// pair of call cues (`CallSound`). Nobody else sees it and no server stores
+/// it; it persists in `AppState`.
 class ParticipantSetting {
   final bool muted;
   final double volume;
