@@ -71,6 +71,7 @@ class SettingsSidebar extends StatelessWidget {
         // gradient, ring, padding and radius — so they use the same widget
         // rather than a fork that would drift.
         _tab(SettingsTab.appearance, Icons.palette_outlined, 'Appearance'),
+        _tab(SettingsTab.general, Icons.tune_rounded, 'General'),
         _tab(
           SettingsTab.voiceAndAudio,
           Icons.headset_outlined,

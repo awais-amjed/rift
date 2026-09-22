@@ -18,6 +18,7 @@ import '../../theme/app_text.dart';
 import '../../theme/theme_context.dart';
 import 'widgets/appearance_content.dart';
 import 'widgets/backup_content/backup_content.dart';
+import 'widgets/general_content.dart';
 import 'widgets/mobile_settings_list.dart';
 import 'widgets/settings_sidebar.dart';
 import 'widgets/settings_tab.dart';
@@ -53,12 +54,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String get _tabTitle => switch (_activeTab) {
     SettingsTab.appearance => 'Appearance',
+    SettingsTab.general => 'General',
     SettingsTab.voiceAndAudio => 'Voice & audio',
     SettingsTab.backup => 'Cloud backup',
   };
 
   IconData get _tabIcon => switch (_activeTab) {
     SettingsTab.appearance => Icons.palette_outlined,
+    SettingsTab.general => Icons.tune_rounded,
     SettingsTab.voiceAndAudio => Icons.headset_outlined,
     SettingsTab.backup => Icons.cloud_outlined,
   };
@@ -227,6 +230,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       child: switch (_activeTab) {
                                         SettingsTab.appearance =>
                                           const AppearanceContent(),
+                                        SettingsTab.general =>
+                                          const GeneralContent(),
                                         SettingsTab.voiceAndAudio =>
                                           const VoiceAudioContent(),
                                         SettingsTab.backup => BackupContent(

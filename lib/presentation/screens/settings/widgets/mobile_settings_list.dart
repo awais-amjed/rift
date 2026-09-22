@@ -134,6 +134,14 @@ class MobileSettingsList extends StatelessWidget {
                     ),
                     Divider(height: 1, color: theme.borderPrimary),
                     SettingsLinkRow(
+                      icon: Icons.tune_rounded,
+                      label: 'General',
+                      subtitle:
+                          'Voice channels, link previews, sensitive content',
+                      onTap: () => onTabSelected(SettingsTab.general),
+                    ),
+                    Divider(height: 1, color: theme.borderPrimary),
+                    SettingsLinkRow(
                       icon: Icons.graphic_eq_rounded,
                       label: 'Voice & audio',
                       subtitle: 'Noise suppression, mic test, sounds',
