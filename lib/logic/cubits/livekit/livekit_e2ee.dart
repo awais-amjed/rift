@@ -19,6 +19,10 @@ part of 'livekit_cubit.dart';
 /// A key has to be registered for a participant before their frames can be
 /// decrypted, and participants arrive at any time, so this runs on connect for
 /// whoever is already in the room and again whenever somebody joins.
+///
+/// Over the cubit-part budget and one job: the call's keys — preparing them,
+/// registering each participant's, and taking a rotation. Split, the ordering
+/// between those would be spread across files.
 mixin _E2EEMixin on Cubit<LiveKitState> {
   CryptoRepository get _crypto;
   VaultCubit get _vaultCubit;

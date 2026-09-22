@@ -6,6 +6,9 @@ part of 'channel_chat_cubit.dart';
 /// what a row *is* are two jobs, and only the second one carries the rule that
 /// matters: three outcomes, and two of them used to share a line. See
 /// ARCHITECTURE.md §4, *Three things a client can do with a row*.
+///
+/// Over the cubit-part budget and one job: what a row becomes, and the three
+/// outcomes are the reason it is one file.
 mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
   CryptoRepository get _crypto;

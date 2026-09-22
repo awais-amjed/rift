@@ -1,5 +1,7 @@
 part of 'livekit_cubit.dart';
 
+/// Over the cubit-part budget and one job: answering the room's events. It is a
+/// list of listeners, each short.
 mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   List<EventsListener<RoomEvent>> get _listeners;
   Map<String, Set<String>> get _watchingSeen;

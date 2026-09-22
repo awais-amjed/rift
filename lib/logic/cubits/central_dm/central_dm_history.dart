@@ -2,6 +2,9 @@ part of 'central_dm_cubit.dart';
 
 /// The open central-DM conversation: opening it, and paging its history.
 /// Turning the rows into messages is [_CentralDmDecryptMixin].
+///
+/// Over the cubit-part budget and one job: opening a conversation and paging
+/// it.
 mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
   /// See the send mixin. Read here to put failed sends back under a freshly
   /// fetched page, and to forget one the server turns out to have stored.
