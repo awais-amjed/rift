@@ -54,4 +54,26 @@ class HostPlatform {
   /// would need an accessibility-permission event tap, which is not built.
   static bool get hasPushToTalk =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
+  /// Whether push-to-talk asks the desktop for the key, through the
+  /// GlobalShortcuts portal, rather than taking it with a hook — so there is a
+  /// one-time permission prompt to warn about.
+  static bool get pushToTalkAsksDesktop => !kIsWeb && Platform.isLinux;
+
+  // ── Screen share ──────────────────────────────────────────
+
+  /// Whether the share's source is chosen in Rift's own dialog.
+  ///
+  /// Linux asks the system portal at capture time instead, so there is no
+  /// list to show up front and nothing to require before starting.
+  static bool get picksShareSourceInApp => !kIsWeb && !Platform.isLinux;
+
+  /// Whether the source list can show a thumbnail of each window. Only the
+  /// Windows capturer produces them.
+  static bool get hasShareThumbnails => !kIsWeb && Platform.isWindows;
+
+  /// Whether sharing one window's audio needs a PulseAudio source picked by
+  /// hand. Full-screen capture uses loopback everywhere, and Windows finds a
+  /// window's audio by its process.
+  static bool get picksShareAudioSource => !kIsWeb && Platform.isLinux;
 }

@@ -1,6 +1,3 @@
-import 'dart:io' show Platform;
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -39,8 +36,6 @@ class PushToTalkSection extends StatefulWidget {
 }
 
 class _PushToTalkSectionState extends State<PushToTalkSection> {
-  static final bool _isLinux = !kIsWeb && Platform.isLinux;
-
   final FocusNode _captureFocusNode = FocusNode();
   bool _isCapturing = false;
 
@@ -168,7 +163,7 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
                 ],
               ),
             ),
-          if (_isLinux && !_desktopOwnsKey) ...[
+          if (HostPlatform.pushToTalkAsksDesktop && !_desktopOwnsKey) ...[
             const SizedBox(height: 8),
             Text(
               'After you set a key, your computer asks once whether Rift may '

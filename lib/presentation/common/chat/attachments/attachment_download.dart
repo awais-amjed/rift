@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/disk_file.dart';
 import '../../confirm_dialog.dart';
 
 export '../../../../logic/services/byte_format.dart' show humanSize;
@@ -21,14 +21,14 @@ Future<void> saveToDisk(
   final location = await getSaveLocation(suggestedName: suggestedName);
   if (location == null) return;
 
-  final file = File(location.path);
-  if (await file.exists()) {
+  final path = location.path;
+  if (await DiskFile.exists(path)) {
     if (!context.mounted) return;
     final replace = await showConfirmDialog(
       context: context,
       title: 'Replace file?',
       message:
-          '"${file.uri.pathSegments.last}" already exists in that folder. '
+          '"${DiskFile.name(path)}" already exists in that folder. '
           'Replace it?',
       confirmLabel: 'Replace',
       icon: Icons.save_as_rounded,
@@ -36,6 +36,6 @@ Future<void> saveToDisk(
     if (!replace) return;
   }
 
-  await file.writeAsBytes(bytes);
+  await DiskFile.write(path, bytes);
   HelperMethods.showToast(title: 'Saved', description: suggestedName);
 }

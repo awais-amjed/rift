@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'dart:math' show max;
 import 'dart:typed_data';
 
@@ -14,6 +13,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/screen_share_sources.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../data/constants.dart';
+import '../../../../logic/services/host_platform.dart';
 import '../../../common/app_button.dart';
 import 'widgets/screen_share_settings_form.dart';
 import 'widgets/settings_dialog_header.dart';
@@ -54,7 +54,9 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   bool _loadingAudioSources = false;
 
   bool get _needsAudioSources =>
-      Platform.isLinux && _draft.shareAudio && !_draft.captureFullScreen;
+      HostPlatform.picksShareAudioSource &&
+      _draft.shareAudio &&
+      !_draft.captureFullScreen;
 
   @override
   void initState() {
@@ -63,7 +65,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
 
     // On Linux the system portal picker handles source selection at capture
     // time, so there is nothing to enumerate up front.
-    if (!Platform.isLinux) _loadCaptureSources();
+    if (HostPlatform.picksShareSourceInApp) _loadCaptureSources();
     if (_needsAudioSources) _loadAudioSources();
   }
 
@@ -90,7 +92,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     });
 
     // Thumbnails trickle in behind the list; the list does not wait for them.
-    if (Platform.isWindows) unawaited(_loadThumbnails(sources));
+    if (HostPlatform.hasShareThumbnails) unawaited(_loadThumbnails(sources));
   }
 
   /// Fetches JPEG thumbnails one source at a time (Windows only), updating
@@ -141,7 +143,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       _thumbnails.clear();
     });
 
-    if (!Platform.isLinux) _loadCaptureSources();
+    if (HostPlatform.picksShareSourceInApp) _loadCaptureSources();
     if (_needsAudioSources) _loadAudioSources();
   }
 
@@ -214,7 +216,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                       AppButton(
                         label: 'Start sharing',
                         onPressed:
-                            (!Platform.isLinux &&
+                            (HostPlatform.picksShareSourceInApp &&
                                 _draft.selectedVideoSourceIndex == null)
                             ? null
                             : _confirm,

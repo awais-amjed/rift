@@ -1,10 +1,10 @@
-import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../logic/services/host_platform.dart';
 import '../widgets/source_thumbnail_grid.dart';
 
 /// Section for selecting the capture source (screen or window).
@@ -58,7 +58,7 @@ class CaptureSourceSection extends StatelessWidget {
           const LinearProgressIndicator(minHeight: 2)
         else if (sources == null || sources!.isEmpty)
           Text('No $label sources found.')
-        else if (Platform.isWindows)
+        else if (HostPlatform.hasShareThumbnails)
           SourceThumbnailGrid(
             sources: sources!,
             selectedIndex: selectedIndex,

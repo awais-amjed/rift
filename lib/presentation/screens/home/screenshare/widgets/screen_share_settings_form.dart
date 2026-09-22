@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -64,12 +63,14 @@ class ScreenShareSettingsForm extends StatelessWidget {
 
   /// Linux picks its capture source through the system portal at capture
   /// time, so the in-app source grid is hidden there.
-  bool get _showsSourcePicker => !Platform.isLinux;
+  bool get _showsSourcePicker => HostPlatform.picksShareSourceInApp;
 
   /// Full-screen capture takes system audio via loopback; only Linux window
   /// capture needs an explicit PulseAudio source.
   bool get _showsAudioSourcePicker =>
-      Platform.isLinux && settings.shareAudio && !settings.captureFullScreen;
+      HostPlatform.picksShareAudioSource &&
+      settings.shareAudio &&
+      !settings.captureFullScreen;
 
   @override
   Widget build(BuildContext context) {
