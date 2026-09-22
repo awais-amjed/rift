@@ -166,14 +166,33 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     final peerId = state.openPeerId!;
     for (final conversation in state.conversations) {
       if (conversation.peerId == peerId) {
-        return Friend.fromConversation(conversation, state.stateFor(peerId));
+        final friend = Friend.fromConversation(
+          conversation,
+          state.stateFor(peerId),
+        );
+        // A conversation row opened straight from a profile carries no key
+        // yet — it is a row the list has not fetched. The friends page has
+        // one, and the safety code needs it.
+        if (friend.chatPublicKey != null) return friend;
+        return _fromFriends(state, peerId) ?? friend;
       }
     }
+    final known = _fromFriends(state, peerId);
+    if (known != null) return known;
     return Friend(
       id: peerId,
       handle: state.openPeerHandle ?? '',
       state: state.stateFor(peerId),
     );
+  }
+
+  /// The peer as the friends page knows them — the row that carries their
+  /// published keys.
+  Friend? _fromFriends(CentralDmState state, String peerId) {
+    for (final friend in state.friends.friends?.items ?? const <Friend>[]) {
+      if (friend.id == peerId) return friend;
+    }
+    return null;
   }
 
   Widget _buildBody(CentralDmState state, ThemeState themeState) {

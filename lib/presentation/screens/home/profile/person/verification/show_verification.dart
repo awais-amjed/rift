@@ -4,6 +4,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/vault/vault_cubit.dart';
+import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/app_sheet.dart';
 import '../../../../../responsive/shell_scope.dart';
@@ -78,7 +79,18 @@ Future<void> showSafetyCodeFor(
     myId: myId,
     host: host,
   );
-  if (code == null || !context.mounted) return;
+  if (!context.mounted) return;
+  // Never a press that does nothing: a key this client has not been given is
+  // the one case, and saying so beats a chip that looks broken.
+  if (code == null) {
+    HelperMethods.showToast(
+      title: 'Nothing to compare yet',
+      description:
+          '$personName has not published a key this device can see. Their '
+          'safety code appears once they have.',
+    );
+    return;
+  }
   showSafetyCode(
     context,
     personName: personName,
