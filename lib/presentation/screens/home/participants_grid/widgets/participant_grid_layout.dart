@@ -5,8 +5,10 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../../data/participant_identity.dart';
 import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/fit_aspect.dart';
 import '../../../../../logic/services/room_tiles.dart';
+import '../../../../../logic/services/stage_fit.dart';
 import '../../../../../logic/services/voice_tiles.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../participants_tile/participant_tile.dart';
@@ -122,9 +124,23 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   void _onTileTapped(String key) =>
       _setExpanded(_expandedKey == key ? null : key);
 
+  /// Whether [tile] is a share with a picture on it: one this listener is
+  /// watching, or this device's own. A share nobody has opened is a button on
+  /// an empty card, and gets no more room than a person does.
+  static bool _isShowingShare(
+    VoiceTile<Participant> tile,
+    Set<String> watching,
+  ) =>
+      tile.isScreenshare &&
+      (tile.participant is LocalParticipant ||
+          watching.contains(tile.participant.identity));
+
   @override
   Widget build(BuildContext context) {
     final tiles = _tiles;
+    final watching = context.select<LiveKitCubit, Set<String>>(
+      (cubit) => cubit.state.subscribedScreenshares,
+    );
 
     // If a tile is expanded, show only that tile in full view
     if (_expandedKey != null) {
@@ -150,13 +166,19 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       }
     }
 
-    // Screenshares get a hero layout: each share's box is the shape of its
-    // picture, as large as fits, with the camera tiles in a row right under
-    // it. The row stays under the share rather than beside it so the share
-    // keeps the width, and on a tall share it lands behind the floating
-    // controls instead of pushing Stop watching under them.
-    final shares = tiles.where((t) => t.isScreenshare).toList();
-    final cameras = tiles.where((t) => !t.isScreenshare).toList();
+    // Watched screenshares get a hero layout: each share's box is the shape
+    // of its picture, as large as fits, with everything else in a row right
+    // under it. The row stays under the share rather than beside it so the
+    // share keeps the width, and on a tall share it lands behind the floating
+    // controls instead of pushing Stop watching under them. Shares nobody has
+    // opened go in the row too, or in the grid when nothing is being watched:
+    // two unopened streams used to take the whole stage between them.
+    final shares = tiles.where((t) => _isShowingShare(t, watching)).toList();
+    // Unopened streams lead the row, as they lead the stage.
+    final cameras = [
+      ...tiles.where((t) => t.isScreenshare && !_isShowingShare(t, watching)),
+      ...tiles.where((t) => !t.isScreenshare),
+    ];
     if (shares.isNotEmpty && cameras.isNotEmpty) {
       // Tall enough on desktop that a full-height share clears the control
       // bar, which floats 28px up and is about 64px tall. A phone's height
@@ -199,54 +221,53 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       );
     }
 
-    // Compute grid columns based on how many cells there are
-    int cols = 1;
-    if (tiles.length >= 2) cols = 2;
-    if (tiles.length >= 5) cols = 3;
-
+    // Everything else is one stage of 16:9 tiles, streams nobody has opened
+    // first and a little larger, every row centred — a grid left its last row
+    // hanging off to one side. Sized by [stageFit], which picks the column
+    // count too: fixed counts put five tiles three to a row in a tall, narrow
+    // window and left them a third of its width.
+    final streams = tiles.where((t) => t.isScreenshare).toList();
+    final people = tiles.where((t) => !t.isScreenshare).toList();
+    const padding = 12.0;
+    const gap = 8.0;
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Calculate max width regarding the aspect ratio to ensure the grid fits vertically
-        final int rows = (tiles.length / cols).ceil();
-        const double gridPadding = 12.0;
-        const double gridSpacing = 8.0;
-
-        // Available height excludes vertical padding
-        final double availableHeight =
-            constraints.maxHeight - (gridPadding * 2);
-
-        // Height taken by spacing between rows
-        final double spacingHeight = (rows > 1) ? (rows - 1) * gridSpacing : 0;
-
-        // Remaining height for participant tiles
-        final double heightForTiles = availableHeight - spacingHeight;
-
-        double maxWidthConstraint = double.infinity;
-
-        if (heightForTiles > 0 && rows > 0 && constraints.maxHeight.isFinite) {
-          final double maxTileHeight = heightForTiles / rows;
-          final double maxTileWidth = maxTileHeight * (16 / 9);
-
-          final double spacingWidth = (cols > 1) ? (cols - 1) * gridSpacing : 0;
-          final double contentWidth = (maxTileWidth * cols) + spacingWidth;
-
-          maxWidthConstraint = contentWidth + (gridPadding * 2);
-        }
-
+        final width = constraints.maxWidth - padding * 2;
+        final height = constraints.maxHeight.isFinite
+            ? constraints.maxHeight - padding * 2
+            : width;
+        final fit = stageFit(
+          width: width,
+          height: height,
+          people: people.length,
+          streams: streams.length,
+          gap: gap,
+        );
+        Widget row(List<VoiceTile<Participant>> group, double tileWidth) =>
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                for (final tile in group)
+                  SizedBox(
+                    width: tileWidth,
+                    height: tileWidth * 9 / 16,
+                    child: _buildTile(tile),
+                  ),
+              ],
+            );
         return Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidthConstraint),
-            child: GridView.builder(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(gridPadding),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: cols,
-                crossAxisSpacing: gridSpacing,
-                mainAxisSpacing: gridSpacing,
-                childAspectRatio: 16 / 9,
-              ),
-              itemCount: tiles.length,
-              itemBuilder: (context, index) => _buildTile(tiles[index]),
+          child: Padding(
+            padding: const EdgeInsets.all(padding),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (streams.isNotEmpty) row(streams, fit.streamWidth),
+                if (streams.isNotEmpty && people.isNotEmpty)
+                  const SizedBox(height: gap),
+                if (people.isNotEmpty) row(people, fit.tileWidth),
+              ],
             ),
           ),
         );
