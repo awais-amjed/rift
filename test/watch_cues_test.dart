@@ -80,7 +80,12 @@ void main() {
       );
       // Anybody else opening that phone's stream is an audience.
       expect(
-        cues({}, {theirVoice}, watchedHere: {theirVoice}, live: {theirVoice}),
+        cues(
+          {},
+          {theirVoice},
+          watchedHere: {theirVoice},
+          live: {theirVoice},
+        ),
         [WatchCue.started],
       );
     });
