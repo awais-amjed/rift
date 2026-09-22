@@ -6,6 +6,7 @@ import '../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../logic/services/participant_video.dart';
 import '../../../logic/services/pip_focus.dart';
 import '../../../logic/services/room_tiles.dart';
+import '../../theme/media_colors.dart';
 import 'pip_audio_card.dart';
 
 /// The whole app, at the size of a floating window.
@@ -29,7 +30,7 @@ class PipCallView extends StatelessWidget {
     // Black rather than the theme's background because this is a video
     // surface, and letterboxing should read as the edge of the picture.
     return Material(
-      color: Colors.black,
+      color: MediaColors.videoGround,
       child: BlocBuilder<LiveKitCubit, LiveKitState>(
         builder: (context, state) {
           final track = _focusTrack(state);

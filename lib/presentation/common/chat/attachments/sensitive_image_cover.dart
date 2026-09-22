@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/media_colors.dart';
 
 /// A flagged image behind frosted glass, with the reason and the way through.
 ///
@@ -72,7 +73,7 @@ class _SensitiveImageCoverState extends State<SensitiveImageCover> {
             ),
             Positioned.fill(
               child: ColoredBox(
-                color: Colors.black.withValues(alpha: 0.35),
+                color: MediaColors.veil,
                 // Scaled down rather than overflowing: a sticker-sized
                 // thumbnail still gets the icon and a legible word or two.
                 child: Center(
@@ -85,12 +86,12 @@ class _SensitiveImageCoverState extends State<SensitiveImageCover> {
                         Icon(
                           Icons.visibility_off_outlined,
                           size: 20,
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color: MediaColors.onMedia,
                         ),
                         Text(
                           'Sensitive image',
                           style: AppText.secondaryStrong.copyWith(
-                            color: Colors.white,
+                            color: MediaColors.onMedia,
                           ),
                         ),
                         Text(
@@ -98,7 +99,7 @@ class _SensitiveImageCoverState extends State<SensitiveImageCover> {
                               ? 'Tap to show'
                               : 'Hidden by your settings',
                           style: AppText.meta.copyWith(
-                            color: Colors.white.withValues(alpha: 0.75),
+                            color: MediaColors.onMediaSecondary,
                           ),
                         ),
                       ],

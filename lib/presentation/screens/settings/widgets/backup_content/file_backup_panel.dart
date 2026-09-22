@@ -94,11 +94,7 @@ class FileBackupPanelState extends State<FileBackupPanel> {
             AppButton(
               label: 'Export',
               isLoading: _isExporting,
-              icon: const Icon(
-                Icons.save_alt_rounded,
-                size: 15,
-                color: Colors.white,
-              ),
+              icon: const Icon(Icons.save_alt_rounded, size: 15),
               onPressed: _isExporting ? null : _exportToFile,
             ),
             AppButton(

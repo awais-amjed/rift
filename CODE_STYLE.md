@@ -66,7 +66,8 @@ chat/
 
 ## 4. Central variables — no loose literals
 
-- **Colours**: `context.theme` getters, or `CustomColors` for semantic status. Never a
+- **Colours**: `context.theme` getters, `CustomColors` for semantic status, or
+  `MediaColors` for anything drawn over video, photos or the scrim. Never a
   `Color(0x…)` outside `presentation/theme/`, and never `ThemeState` as a constructor
   parameter.
 - **Type sizes**: an `AppText` token, never `copyWith(fontSize:)`. **Radii**: `K.radiusRow` /

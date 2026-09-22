@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../theme/app_text.dart';
+import '../../theme/media_colors.dart';
 
 /// What the floating window shows when the call has nothing to look at.
 ///
@@ -25,12 +26,14 @@ class PipAudioCard extends StatelessWidget {
               Icon(
                 state.isMicOn ? Icons.mic_rounded : Icons.mic_off_rounded,
                 size: 28,
-                color: Colors.white70,
+                color: MediaColors.onMediaSecondary,
               ),
               const SizedBox(height: 6),
               Text(
                 'In a call',
-                style: AppText.body.copyWith(color: Colors.white70),
+                style: AppText.body.copyWith(
+                  color: MediaColors.onMediaSecondary,
+                ),
               ),
             ],
           );

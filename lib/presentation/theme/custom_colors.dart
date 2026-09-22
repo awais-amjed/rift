@@ -10,6 +10,9 @@ class CustomColors {
   static const Color error = Color(0xFFF43F5E); // Rose-500
   static const Color errorDark = Color(0xFFE11D48); // Rose-600
 
+  /// Text and icons on an [error] fill — a danger button, Leave, hang up.
+  static const Color onError = Color(0xFFFFFFFF);
+
   /// Online/speaking presence indicator.
   static const Color userStatusOnline = Color(0xFF22C55E);
 }

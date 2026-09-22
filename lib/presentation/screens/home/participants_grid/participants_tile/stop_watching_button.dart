@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/media_colors.dart';
 
 /// Button to stop watching a screenshare stream
 class StopWatchingButton extends StatelessWidget {
@@ -12,7 +13,7 @@ class StopWatchingButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withValues(alpha: 0.7),
+      color: MediaColors.panel,
       borderRadius: BorderRadius.circular(K.radiusRow),
       child: InkWell(
         mouseCursor: WidgetStateMouseCursor.clickable,
@@ -23,11 +24,11 @@ class StopWatchingButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.stop_circle, size: 18, color: Colors.white),
+              Icon(Icons.stop_circle, size: 18, color: MediaColors.onMedia),
               SizedBox(width: 6),
               Text(
                 'Stop watching',
-                style: AppText.row.copyWith(color: Colors.white),
+                style: AppText.row.copyWith(color: MediaColors.onMedia),
               ),
             ],
           ),

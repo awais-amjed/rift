@@ -159,12 +159,10 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
             ),
           ),
           child: _loading
-              ? const Center(
-                  child: LoadingDots(color: Colors.white, dotSize: 4),
-                )
+              ? Center(child: LoadingDots(color: theme.onPrimary, dotSize: 4))
               : Icon(
                   _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: Colors.white,
+                  color: theme.onPrimary,
                   size: 17,
                 ),
         ),

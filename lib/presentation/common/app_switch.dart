@@ -69,7 +69,9 @@ class AppSwitch extends StatelessWidget {
                   decoration: BoxDecoration(
                     // Off, the thumb is a grey pebble rather than a white one:
                     // white on the dim track reads as a second "on" state.
-                    color: value ? Colors.white : themeState.textTertiary,
+                    color: value
+                        ? themeState.onPrimary
+                        : themeState.textTertiary,
                     shape: BoxShape.circle,
                   ),
                 ),

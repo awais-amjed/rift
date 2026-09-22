@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
+import '../../../theme/media_colors.dart';
 import 'attachment_download.dart';
 
 /// Opens a decrypted image full-screen, pannable and zoomable, with a save
@@ -15,7 +16,7 @@ Future<void> showAttachmentImageViewer(
 ) {
   return showDialog<void>(
     context: context,
-    barrierColor: Colors.black87,
+    barrierColor: MediaColors.viewerBarrier,
     builder: (context) => Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(24),
@@ -52,7 +53,7 @@ class _ViewerActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
+        color: MediaColors.toolbar,
         borderRadius: BorderRadius.circular(K.radiusPill),
       ),
       child: Padding(
@@ -61,12 +62,15 @@ class _ViewerActions extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.download_rounded, color: Colors.white),
+              icon: const Icon(
+                Icons.download_rounded,
+                color: MediaColors.onMedia,
+              ),
               tooltip: 'Save',
               onPressed: onSave,
             ),
             IconButton(
-              icon: const Icon(Icons.close_rounded, color: Colors.white),
+              icon: const Icon(Icons.close_rounded, color: MediaColors.onMedia),
               tooltip: 'Close',
               onPressed: onClose,
             ),

@@ -79,11 +79,7 @@ class SignedInPanel extends StatelessWidget {
             AppButton(
               label: 'Save',
               isLoading: isProcessing,
-              icon: const Icon(
-                Icons.cloud_upload_rounded,
-                size: 15,
-                color: Colors.white,
-              ),
+              icon: const Icon(Icons.cloud_upload_rounded, size: 15),
               onPressed: isProcessing ? null : cubit.saveBackupToCloud,
             ),
             AppButton(

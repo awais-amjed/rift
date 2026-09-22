@@ -118,6 +118,10 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
   `isDarkTheme ? ... : ...` branching inside widgets. Status colors (success/warning/error,
   online-green) stay in `CustomColors`, are shared across palettes, and must never be
   repurposed as accents.
+  What is drawn over video, photos or the app-wide scrim reads `MediaColors`
+  (`theme/media_colors.dart`): the picture underneath is dark whatever the theme. Text on an
+  accent fill is `onPrimary` — not white, which is dark on some palettes — and on the red
+  error fill `CustomColors.onError`.
 - **The surface ladder is the layout language, and its order is load-bearing:** `bgPrimary` is
   the *canvas* the floating panels sit on and is never a content background; `bgContent` carries
   content panels (chat, stage, settings body); `bgSecondary` carries chrome panels (sidebar,

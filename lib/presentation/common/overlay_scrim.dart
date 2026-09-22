@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/constants.dart';
 import '../theme/app_motion.dart';
+import '../theme/media_colors.dart';
 
 /// The dimmed, tappable layer behind an overlaid pane.
 ///
@@ -50,7 +51,7 @@ class OverlayScrim extends StatelessWidget {
           // where the colour happens to be painted.
           behavior: HitTestBehavior.opaque,
           child: const SizedBox.expand(
-            child: ColoredBox(color: Color(0x99000000)),
+            child: ColoredBox(color: MediaColors.scrim),
           ),
         ),
       ),

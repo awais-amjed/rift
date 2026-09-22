@@ -12,6 +12,7 @@ import '../../../../common/app_modal_header.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/media_colors.dart';
 import '../../../../theme/theme_context.dart';
 import '../../profile/user_dock/user_dock.dart';
 import '../../servers/add_server/add_server_dialog.dart';
@@ -29,7 +30,7 @@ Future<void> showServerSwitcherSheet(BuildContext context) {
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Close switcher',
-    barrierColor: Colors.black54,
+    barrierColor: MediaColors.scrim,
     transitionDuration: K.sidebarMotion,
     pageBuilder: (_, _, _) => const ServerSwitcherSheet(),
     transitionBuilder: (_, animation, _, child) => SlideTransition(

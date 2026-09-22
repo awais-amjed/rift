@@ -236,12 +236,12 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
                   mouseCursor: WidgetStateMouseCursor.clickable,
                   customBorder: const CircleBorder(),
                   onTap: _saving ? null : _pickAvatar,
-                  child: const Padding(
-                    padding: EdgeInsets.all(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
                     child: Icon(
                       Icons.photo_camera_rounded,
                       size: 15,
-                      color: Colors.white,
+                      color: themeState.onPrimary,
                     ),
                   ),
                 ),

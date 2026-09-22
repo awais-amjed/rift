@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/video_stats_sampler.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/media_colors.dart';
 
 /// Live receive-side statistics for one video track, drawn over the tile.
 ///
@@ -55,7 +56,7 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
     final dropped = stats.framesDroppedPerSec;
 
     return Material(
-      color: Colors.black.withValues(alpha: 0.7),
+      color: MediaColors.panel,
       borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -107,13 +108,18 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
       mainAxisSize: MainAxisSize.min,
       spacing: 6,
       children: [
-        Text('Stats', style: AppText.roleChip.copyWith(color: Colors.white54)),
+        Text(
+          'Stats',
+          style: AppText.roleChip.copyWith(color: MediaColors.onMediaTertiary),
+        ),
         IconButton(
           onPressed: _togglePinned,
           icon: Icon(
             _pinned ? Icons.push_pin : Icons.push_pin_outlined,
             size: 12,
-            color: _pinned ? Colors.white70 : Colors.white30,
+            color: _pinned
+                ? MediaColors.onMediaSecondary
+                : MediaColors.onMediaQuaternary,
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -151,7 +157,9 @@ class _StatRow extends StatelessWidget {
           style: AppText.label.copyWith(
             color: isWarning
                 ? CustomColors.warning
-                : (isMuted ? Colors.white38 : Colors.white70),
+                : (isMuted
+                      ? MediaColors.onMediaQuaternary
+                      : MediaColors.onMediaSecondary),
           ),
         ),
         Text(
@@ -159,7 +167,7 @@ class _StatRow extends StatelessWidget {
           style: AppText.chip.copyWith(
             color: isWarning
                 ? CustomColors.warning
-                : (isMuted ? Colors.white54 : Colors.white),
+                : (isMuted ? MediaColors.onMediaTertiary : MediaColors.onMedia),
           ),
         ),
       ],

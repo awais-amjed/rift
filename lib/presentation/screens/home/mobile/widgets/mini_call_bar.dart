@@ -188,7 +188,7 @@ class _BarState extends State<_Bar> {
                         child: Icon(
                           Icons.call_end,
                           size: 20,
-                          color: Colors.white,
+                          color: CustomColors.onError,
                         ),
                       ),
                     ),

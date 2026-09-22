@@ -51,7 +51,7 @@ class AppButton extends StatelessWidget {
     final fgColor = switch (variant) {
       AppButtonVariant.primary => themeState.onPrimary,
       AppButtonVariant.secondary => themeState.textSecondary,
-      AppButtonVariant.danger => Colors.white,
+      AppButtonVariant.danger => CustomColors.onError,
     };
 
     Widget child = isLoading

@@ -331,7 +331,7 @@ class _ControlBarContent extends StatelessWidget {
                               const Icon(
                                 Icons.call_end,
                                 size: 19,
-                                color: Colors.white,
+                                color: CustomColors.onError,
                               ),
                               // The word goes on a phone. The pill is a
                               // min-width row of five fixed controls and no
@@ -343,7 +343,7 @@ class _ControlBarContent extends StatelessWidget {
                                   'Leave',
                                   style: AppText.row.copyWith(
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                                    color: CustomColors.onError,
                                   ),
                                 ),
                             ],

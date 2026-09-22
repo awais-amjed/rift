@@ -168,11 +168,7 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
               onPressed: _isGenerating ? null : _generate,
               icon: _isGenerating
                   ? null
-                  : const Icon(
-                      Icons.person_add_outlined,
-                      size: 15,
-                      color: Colors.white,
-                    ),
+                  : const Icon(Icons.person_add_outlined, size: 15),
             ),
           ],
         );

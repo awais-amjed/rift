@@ -26,11 +26,7 @@ class WatchStreamButton extends StatelessWidget {
         final button = AppButton(
           label: compact ? 'Watch' : 'Watch stream',
           height: compact ? 32 : null,
-          icon: const Icon(
-            Icons.play_arrow_rounded,
-            size: 17,
-            color: Colors.white,
-          ),
+          icon: const Icon(Icons.play_arrow_rounded, size: 17),
           onPressed: onTap,
         );
         return Center(child: button);
