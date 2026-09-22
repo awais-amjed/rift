@@ -43,10 +43,19 @@ class ControlBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
+      // The toggles, not the room: every speaking change emits a new state.
+      buildWhen: (prev, curr) =>
+          prev.isMicOn != curr.isMicOn ||
+          prev.isCameraEnabled != curr.isCameraEnabled ||
+          prev.isDeafenedEffective != curr.isDeafenedEffective ||
+          prev.isServerMuted != curr.isServerMuted ||
+          prev.isServerDeafened != curr.isServerDeafened,
       builder: (context, livekitState) {
         return BlocBuilder<ScreenshareCubit, ScreenshareState>(
+          buildWhen: (prev, curr) => prev.isSharing != curr.isSharing,
           builder: (context, screenshareState) {
             return BlocBuilder<SoundShareCubit, SoundShareState>(
+              buildWhen: (prev, curr) => prev.isSharing != curr.isSharing,
               builder: (context, soundShareState) {
                 return Positioned(
                   bottom: K.callBarOffset,

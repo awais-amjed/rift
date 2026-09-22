@@ -30,6 +30,12 @@ class ParticipantsGrid extends StatelessWidget {
         }
 
         return BlocBuilder<LiveKitCubit, LiveKitState>(
+          // Only what picks the view. Every speaking change emits a new state,
+          // and [RoomView] listens for the participants itself.
+          buildWhen: (prev, curr) =>
+              prev.connectionState != curr.connectionState ||
+              prev.failure != curr.failure ||
+              prev.room != curr.room,
           builder: (context, livekitState) {
             final server = context.read<ServerCubit>().state.selectedServer;
 
