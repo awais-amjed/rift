@@ -22,7 +22,23 @@ Future<void> showAttachmentImageViewer(
       insetPadding: const EdgeInsets.all(24),
       child: Stack(
         children: [
-          InteractiveViewer(child: Center(child: Image.memory(bytes))),
+          // The viewer fills the dialog, so the barrier behind it never
+          // sees a tap: a click beside the picture has to close it here. The
+          // picture keeps its own taps, so clicking it does nothing; a drag
+          // or a pinch still pans and zooms, since a tap only wins the
+          // gesture when nothing moved.
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).pop(),
+            child: InteractiveViewer(
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {},
+                  child: Image.memory(bytes),
+                ),
+              ),
+            ),
+          ),
           Positioned(
             top: 8,
             right: 8,
