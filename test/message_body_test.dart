@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/attachment.dart';
+import 'package:rift/data/classes/chat_message.dart';
+import 'package:rift/data/classes/forwarded_message.dart';
 import 'package:rift/data/classes/message_body.dart';
 
 void main() {
@@ -63,6 +65,28 @@ void main() {
       expect(const MessageBody(text: '   ').isEmpty, isTrue);
       expect(const MessageBody(text: 'x').isEmpty, isFalse);
       expect(MessageBody(attachments: [sampleAttachment()]).isEmpty, isFalse);
+    });
+  });
+
+  group('MessageBody.edited', () {
+    test('changes the words and carries everything else through', () {
+      // An edit re-seals the whole body; whatever is not carried is lost.
+      final existing = ChatMessage(
+        id: '1',
+        authorId: 'a',
+        authorName: 'a',
+        text: 'old',
+        sentAt: DateTime.utc(2026, 9, 22),
+        isMine: true,
+        attachments: [sampleAttachment()],
+        replyToId: '9',
+        forwarded: const ForwardedMessage(text: 'quoted'),
+      );
+      final body = MessageBody.edited(existing, 'new');
+      expect(body.text, 'new');
+      expect(body.attachments, hasLength(1));
+      expect(body.replyToId, '9');
+      expect(body.forwarded!.text, 'quoted');
     });
   });
 

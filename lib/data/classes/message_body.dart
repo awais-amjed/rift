@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'attachment.dart';
+import 'chat_message.dart';
 import 'forwarded_message.dart';
 import 'link_preview.dart';
 
@@ -56,6 +57,19 @@ class MessageBody {
     this.replyToId,
     this.forwarded,
   });
+
+  /// [existing]'s body with its words replaced by [text].
+  ///
+  /// Everything else is carried through, not rebuilt. An edit re-seals the body
+  /// from scratch, so anything not named here is dropped — and an edit
+  /// silently unlinking a reply is a thread coming apart under a typo fix.
+  factory MessageBody.edited(ChatMessage existing, String text) => MessageBody(
+    text: text,
+    attachments: existing.attachments,
+    preview: existing.preview,
+    replyToId: existing.replyToId,
+    forwarded: existing.forwarded,
+  );
 
   /// A forward with no words of its own is not empty — the thing being sent
   /// is what it carries.

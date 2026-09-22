@@ -32,17 +32,7 @@ mixin _DmEditMixin on Cubit<DmState> {
     try {
       final identity = await _vaultIdentityFor(server);
       final envelope = await _crypto.sealMessage(
-        plaintext: MessageBody(
-          text: trimmed,
-          attachments: existing.attachments,
-          preview: existing.preview,
-          // Carried through, not rebuilt. The body is re-sealed from
-          // scratch on every edit, so anything not named here is dropped —
-          // and an edit silently unlinking a reply is a thread coming apart
-          // under a typo fix.
-          replyToId: existing.replyToId,
-          forwarded: existing.forwarded,
-        ).encode(),
+        plaintext: MessageBody.edited(existing, trimmed).encode(),
         messageKey: key,
         signingKeyPair: identity.keyPair,
         contextId: DmCubit.conversationContext(user.id, peerId),
