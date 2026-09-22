@@ -79,52 +79,58 @@ class ChannelList extends StatelessWidget {
       );
     }
 
+    // Rows are built only as they scroll in: a server can hold hundreds of
+    // channels, and a voice tile watches its own participants.
+    final rows = <Widget Function()>[
+      if (textChannels.isNotEmpty) ...[
+        () => SectionHeader(
+          label: 'Text',
+          addTooltip: 'Create channel',
+          onAdd: canCreate ? openCreateChannel : null,
+        ),
+        for (final ch in textChannels)
+          () => TextChannelTile(key: ValueKey(ch.id), channel: ch),
+      ],
+      if (voiceChannels.isNotEmpty) ...[
+        () => SectionHeader(
+          label: 'Voice',
+          addTooltip: 'Create channel',
+          onAdd: canCreate ? openCreateChannel : null,
+        ),
+        for (final ch in voiceChannels)
+          () => VoiceChannelTile(
+            key: ValueKey(ch.id),
+            channel: ch,
+            isSelected: selectedChannelId == ch.id,
+            onTap: () => _openVoice(context, ch),
+          ),
+      ],
+    ];
+
     return Expanded(
-      child: ListView(
+      child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 10),
-        children: [
-          if (textChannels.isNotEmpty) ...[
-            SectionHeader(
-              label: 'Text',
-              addTooltip: 'Create channel',
-              onAdd: canCreate ? openCreateChannel : null,
-            ),
-            ...textChannels.map((ch) => TextChannelTile(channel: ch)),
-          ],
-          if (voiceChannels.isNotEmpty) ...[
-            SectionHeader(
-              label: 'Voice',
-              addTooltip: 'Create channel',
-              onAdd: canCreate ? openCreateChannel : null,
-            ),
-            ...voiceChannels.map(
-              (ch) => VoiceChannelTile(
-                channel: ch,
-                isSelected: selectedChannelId == ch.id,
-                onTap: () {
-                  // On a phone the call is a page: tapping the one you are
-                  // already in takes you back into it.
-                  final shell = MobileShellScope.maybeOf(context);
-                  if (shell != null) {
-                    if (selectedChannelId == ch.id) {
-                      shell.openCall();
-                    } else {
-                      onChannelSelect?.call(ch.id);
-                    }
-                    return;
-                  }
-                  // Joining voice brings the voice pane back to the front.
-                  context.read<AppCubit>().setSurface(HomeSurface.server);
-                  context.read<ChannelChatCubit>().closeChannel();
-                  if (selectedChannelId != ch.id) {
-                    onChannelSelect?.call(ch.id);
-                  }
-                },
-              ),
-            ),
-          ],
-        ],
+        itemCount: rows.length,
+        itemBuilder: (context, i) => rows[i](),
       ),
     );
+  }
+
+  void _openVoice(BuildContext context, Channel ch) {
+    // On a phone the call is a page: tapping the one you are already in takes
+    // you back into it.
+    final shell = MobileShellScope.maybeOf(context);
+    if (shell != null) {
+      if (selectedChannelId == ch.id) {
+        shell.openCall();
+      } else {
+        onChannelSelect?.call(ch.id);
+      }
+      return;
+    }
+    // Joining voice brings the voice pane back to the front.
+    context.read<AppCubit>().setSurface(HomeSurface.server);
+    context.read<ChannelChatCubit>().closeChannel();
+    if (selectedChannelId != ch.id) onChannelSelect?.call(ch.id);
   }
 }
