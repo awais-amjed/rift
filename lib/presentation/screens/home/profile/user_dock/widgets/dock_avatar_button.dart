@@ -51,12 +51,18 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              UserAvatar(
-                avatarPath: widget.user?.avatarPath,
-                name: widget.user?.displayName ?? 'Guest',
-                size: _size,
+              _dimmed(
+                themeState,
+                UserAvatar(
+                  avatarPath: widget.user?.avatarPath,
+                  name: widget.user?.displayName ?? 'Guest',
+                  // By id, as everywhere else: seeded by name, you were one
+                  // colour here and another to everybody else.
+                  seed: widget.user?.id,
+                  size: _size,
+                ),
               ),
-              Positioned.fill(child: _overlay(themeState, radius)),
+              Positioned.fill(child: _pencil(themeState)),
               Positioned(right: -2, bottom: -2, child: _statusDot(themeState)),
             ],
           ),
@@ -67,21 +73,34 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
 
   /// Dims the picture rather than tinting it: an avatar can be a dark gradient
   /// or a bright photograph, and only darkening reads the same on both.
-  Widget _overlay(ThemeState themeState, BorderRadius radius) {
+  ///
+  /// Darkens the avatar's own pixels rather than laying a box over them. A
+  /// box has an edge of its own, and the avatar's bright edge showed round it
+  /// as a coloured rim along the bottom.
+  Widget _dimmed(ThemeState themeState, Widget avatar) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: _hovering ? 1 : 0),
+      duration: AppMotion.react,
+      child: avatar,
+      builder: (context, t, child) => ColorFiltered(
+        colorFilter: ColorFilter.mode(
+          themeState.bgPrimary.withValues(alpha: 0.62 * t),
+          BlendMode.srcATop,
+        ),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _pencil(ThemeState themeState) {
     return AnimatedOpacity(
       opacity: _hovering ? 1 : 0,
       duration: AppMotion.react,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: themeState.bgPrimary.withValues(alpha: 0.62),
-          borderRadius: radius,
-        ),
-        child: Center(
-          child: Icon(
-            Icons.edit_rounded,
-            size: 14,
-            color: themeState.textPrimary,
-          ),
+      child: Center(
+        child: Icon(
+          Icons.edit_rounded,
+          size: 14,
+          color: themeState.textPrimary,
         ),
       ),
     );

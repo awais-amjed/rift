@@ -152,7 +152,9 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
                 MessageBanner(message: _error!, kind: MessageBannerKind.error),
                 const SizedBox(height: 12),
               ],
-              Center(child: _avatarPicker(themeState, user?.avatarPath)),
+              Center(
+                child: _avatarPicker(themeState, user?.avatarPath, user?.id),
+              ),
               const SizedBox(height: 18),
               Text(
                 'Display name',
@@ -196,7 +198,11 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
     );
   }
 
-  Widget _avatarPicker(ThemeState themeState, String? currentPath) {
+  Widget _avatarPicker(
+    ThemeState themeState,
+    String? currentPath,
+    String? userId,
+  ) {
     final picked = _pickedAvatar;
     return Column(
       children: [
@@ -214,6 +220,9 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
                   : UserAvatar(
                       avatarPath: currentPath,
                       name: _nameController.text,
+                      // By id: seeded by the name, the colour changed with
+                      // every letter typed into the field below.
+                      seed: userId,
                       size: 84,
                     ),
             ),
