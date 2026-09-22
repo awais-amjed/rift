@@ -7,7 +7,7 @@ import '../../../common/app_button_height.dart';
 import '../../../common/centered_scroll_view.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_shadows.dart';
-import '../../../theme/app_text.dart';
+import 'onboarding_phone_top_bar.dart';
 import 'step_dots.dart';
 
 /// Shared layout for every onboarding page: a card floating on the canvas,
@@ -114,7 +114,7 @@ class OnboardingPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (showTopBar)
-            _PhoneTopBar(
+            OnboardingPhoneTopBar(
               onBack: onBack,
               step: step,
               label: stepLabel,
@@ -153,82 +153,6 @@ class OnboardingPage extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: Center(
                 child: StepDots(step: step!, count: stepCount),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A phone's onboarding header: the way back, and how far along you are as a
-/// bar with the step named under it.
-class _PhoneTopBar extends StatelessWidget {
-  final VoidCallback? onBack;
-  final int? step;
-  final String? label;
-  final Color? color;
-
-  const _PhoneTopBar({
-    required this.onBack,
-    required this.step,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.watch<ThemeCubit>().state;
-    final step = this.step;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 4, 20, 0),
-      child: Row(
-        spacing: 8,
-        children: [
-          SizedBox.square(
-            dimension: K.touchTargetMin,
-            child: onBack == null
-                ? null
-                : IconButton(
-                    tooltip: 'Back',
-                    onPressed: onBack,
-                    icon: Icon(
-                      Icons.chevron_left_rounded,
-                      size: 28,
-                      color: theme.textSecondary,
-                    ),
-                  ),
-          ),
-          if (step != null)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                spacing: 6,
-                children: [
-                  Row(
-                    spacing: 4,
-                    children: [
-                      for (var i = 0; i < OnboardingPage.stepCount; i++)
-                        Expanded(
-                          child: Container(
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: i <= step
-                                  ? (color ?? theme.primary)
-                                  : theme.borderElevated,
-                              borderRadius: BorderRadius.circular(K.radiusPill),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (label != null)
-                    Text(
-                      'Step ${step + 1} of ${OnboardingPage.stepCount} · $label',
-                      style: AppText.label.copyWith(color: theme.textTertiary),
-                    ),
-                ],
               ),
             ),
         ],
