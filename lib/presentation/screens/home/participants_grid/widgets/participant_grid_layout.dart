@@ -140,15 +140,12 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       _setExpanded(_expandedKey == key ? null : key);
 
   /// Whether [tile] is a share with a picture on it: one this listener is
-  /// watching, or this device's own. A share nobody has opened is a button on
-  /// an empty card, and gets no more room than a person does.
+  /// watching. A share nobody has opened is a button on an empty card, and
+  /// gets no more room than a person does.
   static bool _isShowingShare(
     VoiceTile<Participant> tile,
     Set<String> watching,
-  ) =>
-      tile.isScreenshare &&
-      (tile.participant is LocalParticipant ||
-          watching.contains(tile.participant.identity));
+  ) => tile.isScreenshare && watching.contains(tile.participant.identity);
 
   @override
   Widget build(BuildContext context) {

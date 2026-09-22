@@ -192,14 +192,12 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         // changed: a stream opened full size builds this tile before its track
         // arrives, and the arrival did not reach it — it stayed on the avatar.
         _updateVideoTrack();
-        // Camera tiles are always "subscribed"; only *remote* screenshares
-        // are opt-in. Your own screen is a local track — offering to fetch it
-        // would be offering to fetch something already here, and on a phone,
-        // where the share rides the same connection as everything else, it
-        // put a Watch Stream button over the screen you had just shared.
+        // Camera tiles are always "subscribed"; streams are opt-in, your own
+        // included. A desktop's comes back as a connection like anyone
+        // else's; a phone's is a local track, but it is hidden and shown the
+        // same way, or a phone could not put its own stream away.
         final isSubscribed =
             !_isScreenshare ||
-            widget.participant is LocalParticipant ||
             livekitState.subscribedScreenshares.contains(
               widget.participant.identity,
             );
@@ -208,15 +206,8 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           builder: (context, themeState) {
             final track = isSubscribed ? _videoPub?.track : null;
             final videoTrack = track is VideoTrack ? track : null;
-            // Only over someone *else's* share. "Stop watching" your own
-            // screen would unsubscribe from a local track, which does nothing
-            // — and the control that does mean something, stop sharing, is
-            // the one already in the call pill.
             final showStopButton =
-                _isScreenshare &&
-                isSubscribed &&
-                videoTrack != null &&
-                widget.participant is! LocalParticipant;
+                _isScreenshare && isSubscribed && videoTrack != null;
             // The identity carries a device segment (and a screenshare
             // suffix), so everything about the *person* — their name, their
             // gradient — keys off the user id inside it instead.
@@ -243,10 +234,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
             // An unopened stream has nothing to focus but a button, so the
             // whole tile is the button. A click on the button itself only
             // focused the tile, and a second one was needed to watch.
-            final opensStream =
-                _isScreenshare &&
-                !isSubscribed &&
-                widget.participant is! LocalParticipant;
+            final opensStream = _isScreenshare && !isSubscribed;
             final onTap = opensStream ? _subscribeToScreenshare : widget.onTap;
             return ContextMenuRegion(
               contextMenu: _isScreenshare && !isOwnStream

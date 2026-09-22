@@ -11,6 +11,14 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     final room = state.room;
     if (room == null) return;
 
+    // Your own stream from a phone: the picture is already here, so watching
+    // it is only a choice to show it, as it is on a desktop, where it comes
+    // back as a connection like anyone else's and can be hidden the same way.
+    if (identity == room.localParticipant?.identity) {
+      _setWatching(identity, true);
+      return;
+    }
+
     final participant = room.remoteParticipants[identity];
     if (participant == null) {
       debugPrint('Participant $identity not found');
@@ -80,6 +88,11 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     final room = state.room;
     if (room == null) return;
 
+    if (identity == room.localParticipant?.identity) {
+      _setWatching(identity, false);
+      return;
+    }
+
     final participant = room.remoteParticipants[identity];
     if (participant == null) return;
 
@@ -116,6 +129,15 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       _syncParticipants();
       unawaited(_publishSelfState());
     }
+  }
+
+  /// Records watching [identity] or not, with nothing to subscribe to.
+  void _setWatching(String identity, bool watching) {
+    final updated = Set<String>.from(state.subscribedScreenshares);
+    if (!(watching ? updated.add(identity) : updated.remove(identity))) return;
+    emit(state.copyWith(subscribedScreenshares: updated));
+    _syncParticipants();
+    unawaited(_publishSelfState());
   }
 
   /// Toggle screen sharing on/off.
