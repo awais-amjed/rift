@@ -22,11 +22,8 @@ void main() {
     height: 3,
   );
 
-  APIResponse stored(String path) => APIResponse.success((
-    path: path,
-    keyB64: 'k-$path',
-    nonceB64: 'n-$path',
-  ));
+  APIResponse stored(String path) =>
+      APIResponse.success((path: path, keyB64: 'k-$path', nonceB64: 'n-$path'));
 
   group('uploadAll', () {
     test('uploads in order and keeps each file\'s metadata', () async {

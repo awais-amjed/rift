@@ -20,7 +20,8 @@ import 'package:cryptography/dart.dart';
 ///   key whose digits happen to match somebody else's expensive, where a
 ///   single hash would be a few seconds of GPU time per try.
 /// - **Digits, not hex.** They are read aloud over a call, and a-f are the
-///   letters people mishear.
+///   letters people mishear — and reading them is the whole check, since
+///   nothing here scans anything.
 ///
 /// It covers the key messages are *sealed* to. It does not yet cover the
 /// signing key an envelope is signed with — a server member row does not
@@ -41,10 +42,6 @@ class SafetyCode {
 
   /// Rift's own, so a code can never be replayed as another app's.
   static const String _domain = 'rift-safety-code-v1';
-
-  /// What a QR carries: the version, so a future scanner can refuse a code it
-  /// does not understand rather than compare it wrongly.
-  static String qrPayload(String code) => 'rift:safety:1:$code';
 
   /// The sixty digits for a pair, identical on both devices.
   ///

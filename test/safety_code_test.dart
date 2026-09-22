@@ -35,8 +35,4 @@ void main() {
     expect(groups.length, 12);
     expect(groups.every((g) => g.length == 5), isTrue);
   });
-
-  test('the QR payload names its version', () {
-    expect(SafetyCode.qrPayload('123'), 'rift:safety:1:123');
-  });
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../../../../data/constants.dart';
@@ -9,7 +8,6 @@ import '../../../../../common/app_button.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
-import '../../../../../theme/media_colors.dart';
 import '../../../../../theme/theme_context.dart';
 
 /// The sixty digits two people compare to be sure nobody is in the middle.
@@ -18,6 +16,9 @@ import '../../../../../theme/theme_context.dart';
 /// shows the same thing, and saying "verified" on its own word would be the
 /// claim the whole exercise exists to avoid. The person reads, compares, and
 /// says so — which is what [AppCubit.setVerified] records.
+///
+/// Digits only. A QR was drawn here until nothing could scan one, and a code
+/// nobody can read is decoration on the one screen that exists to be read.
 class SafetyCodeDialog extends StatelessWidget {
   /// Their name, for the sentence that says whose code this is.
   final String personName;
@@ -33,10 +34,6 @@ class SafetyCodeDialog extends StatelessWidget {
     required this.person,
     required this.code,
   });
-
-  /// Big enough to scan off a screen at arm's length, small enough to leave
-  /// the digits beside it on a phone.
-  static const double _qrSize = 148;
 
   @override
   Widget build(BuildContext context) {
@@ -68,36 +65,7 @@ class SafetyCodeDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
           ],
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // On white, always: a QR is read by contrast, and half the
-              // palettes would leave a scanner nothing to find.
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: MediaColors.qrSurface,
-                  borderRadius: BorderRadius.circular(K.radiusRow),
-                ),
-                child: QrImageView(
-                  data: SafetyCode.qrPayload(code),
-                  size: _qrSize,
-                  padding: EdgeInsets.zero,
-                  backgroundColor: MediaColors.qrSurface,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: MediaColors.qrInk,
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: MediaColors.qrInk,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(child: _digits(context)),
-            ],
-          ),
+          _digits(context),
           const SizedBox(height: 16),
           Text(
             'Open this same screen on $personName\'s device. If the digits '
@@ -130,23 +98,35 @@ class SafetyCodeDialog extends StatelessWidget {
 
   /// The code itself, four lines of three groups — the shape that survives
   /// being read aloud and being compared side by side on two screens.
+  ///
+  /// On its own panel and given the width: it is the only thing in here to
+  /// look at, and the pair are comparing sixty digits by eye.
   Widget _digits(BuildContext context) {
+    final theme = context.theme;
     final groups = SafetyCode.groups(code);
     const perLine = 3;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < groups.length; i += perLine)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              groups.skip(i).take(perLine).join('  '),
-              // Mono, so the two screens line up column for column.
-              style: AppText.figure.copyWith(color: context.theme.textPrimary),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      decoration: BoxDecoration(
+        color: theme.bgTertiary,
+        borderRadius: BorderRadius.circular(K.radiusCard),
+        border: Border.all(color: theme.borderPrimary),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < groups.length; i += perLine)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                groups.skip(i).take(perLine).join('   '),
+                textAlign: TextAlign.center,
+                // Mono, so the two screens line up column for column.
+                style: AppText.code.copyWith(color: theme.textPrimary),
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

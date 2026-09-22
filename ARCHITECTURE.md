@@ -178,7 +178,9 @@ A published key is only somebody's key if the server handing it over is
 honest, so a pair can check for themselves: `SafetyCode` (in `rift_crypto`)
 hashes both chat public keys with both user ids — 5200 rounds of SHA-256, the
 two halves sorted by their own digits — into sixty digits both devices
-compute identically, drawn as digits and a QR in each person's profile.
+compute identically, read off each person's profile and compared aloud or
+side by side. Digits only: nothing scans a QR, so drawing one was decoration
+on the screen that exists to be read.
 
 Marking somebody verified stores **the code that was seen**, per device, in
 `AppState.verifiedCodes` and nowhere else. A key that changes afterwards no

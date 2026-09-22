@@ -89,7 +89,6 @@ dependencies:
   flutter_litert: ^3.8.0
   html: ^0.15.7
   url_launcher: ^6.3.2
-  qr_flutter: ^4.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
