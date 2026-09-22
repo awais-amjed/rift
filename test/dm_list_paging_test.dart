@@ -5,6 +5,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/dm_conversation.dart';
 import 'package:rift/data/enums/layout_mode.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/presentation/common/list_loading_footer.dart';
 import 'package:rift/presentation/screens/home/dms/widgets/dm_list_panel.dart';
 
 import 'shell_scope_harness.dart';
@@ -75,7 +76,7 @@ void main() {
 
   testWidgets('a list with more behind it says so', (tester) async {
     await pump(tester, rows: conversations(3), hasMore: true);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(ListLoadingFooter), findsOneWidget);
   });
 
   testWidgets('and a finished one does not', (tester) async {
@@ -83,7 +84,7 @@ void main() {
     // is the end of a short list" — a permanent spinner under three rows reads
     // as a list that never loaded.
     await pump(tester, rows: conversations(3), hasMore: false);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(ListLoadingFooter), findsNothing);
   });
 
   testWidgets('scrolling near the bottom asks for the next page', (

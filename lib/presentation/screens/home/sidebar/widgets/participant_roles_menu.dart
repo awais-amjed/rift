@@ -9,8 +9,10 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/role_ladder.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
+import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The submenu behind "Roles" — one row per role, ticked when held.
 ///
@@ -147,11 +149,7 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
     required ThemeState themeState,
   }) {
     if (_pendingId == role.id) {
-      return const SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
+      return LoadingDots(color: context.theme.accentBright, dotSize: 4);
     }
     return SizedBox(
       width: 16,

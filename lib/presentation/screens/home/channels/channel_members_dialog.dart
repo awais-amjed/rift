@@ -8,7 +8,9 @@ import '../../../../logic/services/member_selection.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/hint_card.dart';
+import '../../../common/loading_dots.dart';
 import '../../../common/message_banner.dart';
+import '../../../theme/theme_context.dart';
 import 'widgets/channel_member_picker.dart';
 
 /// Who is in a private channel — and, for whoever runs it, who should be.
@@ -131,9 +133,14 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
             const SizedBox(height: 12),
           ],
           if (_isLoading)
-            const SizedBox(
+            SizedBox(
               height: 200,
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              child: Center(
+                child: LoadingDots(
+                  color: context.theme.accentBright,
+                  dotSize: 6,
+                ),
+              ),
             )
           else ...[
             if (!_canManage) ...[

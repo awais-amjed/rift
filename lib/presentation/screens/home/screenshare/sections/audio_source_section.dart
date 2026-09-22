@@ -4,7 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../../data/constants.dart';
+import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import '../widgets/settings_section.dart';
 
 /// Section for selecting Linux audio source for screen sharing
@@ -45,13 +47,12 @@ class AudioSourceSection extends StatelessWidget {
           label: 'Audio source',
           children: [
             if (isLoading)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                  padding: const EdgeInsets.all(12),
+                  child: LoadingDots(
+                    color: context.theme.accentBright,
+                    dotSize: 4,
                   ),
                 ),
               )

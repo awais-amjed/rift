@@ -11,10 +11,12 @@ import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/sidebar_sizing.dart';
 import '../../../common/app_panel.dart';
+import '../../../common/loading_dots.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 import '../chat/widgets/chat_header.dart';
 import '../sidebar/widgets/sidebar_resize_handle.dart';
 import 'widgets/members_sidebar_list.dart';
@@ -224,10 +226,9 @@ class _MembersSidebarState extends State<MembersSidebar> {
           child: !roster.loaded
               ? Center(
                   child: roster.loading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                      ? LoadingDots(
+                          color: context.theme.accentBright,
+                          dotSize: 4,
                         )
                       : const SizedBox.shrink(),
                 )

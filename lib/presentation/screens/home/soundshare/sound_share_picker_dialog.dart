@@ -7,6 +7,7 @@ import '../../../../data/constants.dart';
 import '../../../../logic/services/screen_share_sources.dart';
 import '../../../../src/rust/api/screenshare/types.dart';
 import '../../../common/app_button.dart';
+import '../../../common/loading_dots.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import 'widgets/audio_source_row.dart';
@@ -130,14 +131,10 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
   Widget _body() {
     final theme = context.theme;
     if (_loading && _sources == null) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
+          padding: const EdgeInsets.all(24),
+          child: LoadingDots(color: context.theme.accentBright, dotSize: 4),
         ),
       );
     }

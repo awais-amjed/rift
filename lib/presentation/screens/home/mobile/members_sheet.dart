@@ -7,6 +7,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../common/loading_dots.dart';
 import '../../../common/popover_surface.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -32,7 +33,7 @@ Future<void> showMembersSheet(BuildContext context) {
       ),
     ),
     builder: (_) =>
-        FractionallySizedBox(heightFactor: 0.8, child: const _MembersSheet()),
+        const FractionallySizedBox(heightFactor: 0.8, child: _MembersSheet()),
   );
 }
 
@@ -87,11 +88,10 @@ class _MembersSheet extends StatelessWidget {
           ),
           Expanded(
             child: !roster.loaded
-                ? const Center(
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                ? Center(
+                    child: LoadingDots(
+                      color: context.theme.accentBright,
+                      dotSize: 4,
                     ),
                   )
                 : MembersSidebarList(

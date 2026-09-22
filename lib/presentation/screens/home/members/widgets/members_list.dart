@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
-import '../../../../common/loading_dots.dart';
-import '../../../../theme/theme_context.dart';
+import '../../../../common/list_loading_footer.dart';
 import 'member_row.dart';
 
 /// The roster inside the members dialog: one [MemberRow] per member, and the
@@ -88,7 +87,7 @@ class MembersList extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       itemCount: members.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == members.length) return _buildFooter(context);
+        if (index == members.length) return const ListLoadingFooter();
         final member = members[index];
         final isSelf = member.id == viewerId;
 
@@ -116,13 +115,4 @@ class MembersList extends StatelessWidget {
       },
     );
   }
-
-  /// The spinner at the end of a page, which is also the thing whose appearing
-  /// tells somebody the list has not simply stopped.
-  Widget _buildFooter(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 18),
-    child: Center(
-      child: LoadingDots(color: context.theme.accentBright, dotSize: 5),
-    ),
-  );
 }

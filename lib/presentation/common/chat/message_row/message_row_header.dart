@@ -5,6 +5,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
+import '../../loading_dots.dart';
 import 'message_origin_badge.dart';
 
 /// The author + timestamp line that opens a group of messages.
@@ -113,7 +114,7 @@ class MessageRowHeader extends StatelessWidget {
     final label = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
+        const Icon(
           Icons.error_outline_rounded,
           size: 11,
           color: CustomColors.warning,
@@ -146,14 +147,7 @@ class MessageRowHeader extends StatelessWidget {
     final themeState = context.theme;
     return Row(
       children: [
-        SizedBox(
-          width: 9,
-          height: 9,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.4,
-            color: themeState.textQuaternary,
-          ),
-        ),
+        LoadingDots(color: themeState.textQuaternary, dotSize: 3),
         const SizedBox(width: 5),
         Text(
           'Sending…',

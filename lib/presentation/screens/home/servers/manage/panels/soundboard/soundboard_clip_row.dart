@@ -9,6 +9,7 @@ import '../../../../../../../logic/services/byte_format.dart';
 import '../../../../../../../logic/services/soundboard_staging.dart';
 import '../../../../../../common/app_button.dart';
 import '../../../../../../common/app_text_field.dart';
+import '../../../../../../common/loading_dots.dart';
 import '../../../../../../theme/app_text.dart';
 import '../../../../../../theme/custom_colors.dart';
 import '../../../../../../theme/theme_context.dart';
@@ -183,12 +184,9 @@ class _SoundboardClipRowState extends State<SoundboardClipRow> {
           ),
         ),
         if (widget.busy)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: SizedBox.square(
-              dimension: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: LoadingDots(color: context.theme.accentBright, dotSize: 4),
           )
         else ...[
           IconButton(

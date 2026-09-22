@@ -10,7 +10,9 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
+import '../../../../common/loading_dots.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../theme/theme_context.dart';
 import '../../../settings/widgets/setting_toggle_row.dart';
 import 'widgets/bot_access_list.dart';
 
@@ -128,9 +130,14 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
             const SizedBox(height: 12),
           ],
           if (_isLoading)
-            const SizedBox(
+            SizedBox(
               height: 140,
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              child: Center(
+                child: LoadingDots(
+                  color: context.theme.accentBright,
+                  dotSize: 6,
+                ),
+              ),
             )
           else ...[
             BotAccessList(

@@ -7,6 +7,7 @@ import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/notification_level.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/list_loading_footer.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
@@ -173,25 +174,12 @@ class DmListPanel extends StatelessWidget {
                 ? const SizedBox(height: 4)
                 : const SectionHeader(label: 'Conversations');
           }
-          if (index > conversations.length) return _buildFooter();
+          if (index > conversations.length) return const ListLoadingFooter();
           return _tile(themeState, conversations[index - 1]);
         },
       ),
     );
   }
-
-  /// The spinner at the end of a page, which is also what says the list has not
-  /// simply stopped.
-  Widget _buildFooter() => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 16),
-    child: Center(
-      child: SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-    ),
-  );
 
   Widget _tile(ThemeState themeState, DmConversation conversation) {
     final onLevelChanged = this.onLevelChanged;

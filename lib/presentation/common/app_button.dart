@@ -6,6 +6,7 @@ import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
 import 'app_button_height.dart';
+import 'loading_dots.dart';
 
 enum AppButtonVariant { primary, secondary, danger }
 
@@ -54,11 +55,7 @@ class AppButton extends StatelessWidget {
     };
 
     Widget child = isLoading
-        ? SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: fgColor),
-          )
+        ? LoadingDots(color: fgColor, dotSize: 4)
         : Row(
             mainAxisSize: MainAxisSize.min,
             children: [

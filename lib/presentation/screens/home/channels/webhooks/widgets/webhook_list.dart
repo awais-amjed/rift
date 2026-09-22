@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/webhook.dart';
+import '../../../../../common/loading_dots.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import 'webhook_row.dart';
@@ -30,14 +31,7 @@ class WebhookList extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Center(
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: themeState.textTertiary,
-            ),
-          ),
+          child: LoadingDots(color: themeState.textTertiary, dotSize: 4),
         ),
       );
     }

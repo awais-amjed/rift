@@ -9,6 +9,9 @@ import '../../../../../../data/classes/paged.dart';
 import '../../../../../../data/enums/friendship_state.dart';
 import '../../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../common/empty_state.dart';
+import '../../../../../common/list_loading_footer.dart';
+import '../../../../../common/loading_dots.dart';
+import '../../../../../theme/theme_context.dart';
 import '../../../channels/channel_list/widgets/section_header.dart';
 import '../../../profile/person/show_person_profile.dart';
 import '../../open_central_conversation.dart';
@@ -58,7 +61,9 @@ class FriendsList extends StatelessWidget {
     // saying the latter while the first page is in flight tells somebody
     // something untrue about their own account.
     if (pages.any((page) => page == null)) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return Center(
+        child: LoadingDots(color: context.theme.accentBright, dotSize: 6),
+      );
     }
     if (pages.every((page) => page!.isEmpty)) return _empty();
 
@@ -87,7 +92,7 @@ class FriendsList extends StatelessWidget {
       }
       rows.addAll([for (final friend in pages[i].items) _row(context, friend)]);
     }
-    if (pages.any((page) => page.hasMore)) rows.add(_footer());
+    if (pages.any((page) => page.hasMore)) rows.add(const ListLoadingFooter());
 
     return ListView.builder(
       padding: const EdgeInsets.only(top: 6, bottom: 24),
@@ -102,19 +107,6 @@ class FriendsList extends StatelessWidget {
     FriendBucket.friends => 'Friends',
     FriendBucket.blocked => 'Blocked',
   };
-
-  /// The spinner at the end of a page, which is also what says the list has
-  /// not simply stopped.
-  Widget _footer() => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 16),
-    child: Center(
-      child: SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-    ),
-  );
 
   Widget _row(BuildContext context, Friend friend) {
     return Padding(

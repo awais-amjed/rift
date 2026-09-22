@@ -5,6 +5,9 @@ import '../../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/empty_state.dart';
 import '../../../../common/hint_card.dart';
+import '../../../../common/list_loading_footer.dart';
+import '../../../../common/loading_dots.dart';
+import '../../../../theme/theme_context.dart';
 import 'public_bot_tile.dart';
 
 /// What the bot browser shows where the results go: the list, or the reason
@@ -63,7 +66,9 @@ class BotResults extends StatelessWidget {
     // previous results on screen rather than blinking to a spinner per
     // keystroke.
     if (state.loading && !state.hasBrowsed) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return Center(
+        child: LoadingDots(color: context.theme.accentBright, dotSize: 6),
+      );
     }
 
     if (state.results.isEmpty) {
@@ -92,7 +97,7 @@ class BotResults extends StatelessWidget {
         itemCount: state.results.length + (state.hasMore ? 1 : 0),
         separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
-          if (index == state.results.length) return _buildFooter();
+          if (index == state.results.length) return const ListLoadingFooter();
           final bot = state.results[index];
           return PublicBotTile(
             bot: bot,
@@ -105,17 +110,4 @@ class BotResults extends StatelessWidget {
       ),
     );
   }
-
-  /// The spinner at the end of a page, which is also what tells somebody the
-  /// directory has not simply stopped at fifty.
-  Widget _buildFooter() => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 18),
-    child: Center(
-      child: SizedBox(
-        width: 18,
-        height: 18,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-    ),
-  );
 }

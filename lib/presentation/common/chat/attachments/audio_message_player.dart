@@ -9,6 +9,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../../loading_dots.dart';
 import 'attachment_loader.dart';
 
 /// Inline player for an audio attachment (voice note or attached audio file).
@@ -158,12 +159,8 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
             ),
           ),
           child: _loading
-              ? const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
+              ? const Center(
+                  child: LoadingDots(color: Colors.white, dotSize: 4),
                 )
               : Icon(
                   _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,

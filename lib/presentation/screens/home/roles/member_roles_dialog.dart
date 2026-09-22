@@ -9,8 +9,10 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
+import '../../../common/loading_dots.dart';
 import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 import 'widgets/role_row.dart';
 
 /// Which roles one member holds.
@@ -110,9 +112,14 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
             const SizedBox(height: 12),
           ],
           if (_isLoading)
-            const SizedBox(
+            SizedBox(
               height: 160,
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              child: Center(
+                child: LoadingDots(
+                  color: context.theme.accentBright,
+                  dotSize: 6,
+                ),
+              ),
             )
           else if (_roles.isEmpty)
             Padding(

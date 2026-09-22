@@ -8,8 +8,10 @@ import '../../../../../logic/services/voice_move.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The submenu behind "Move to" — one row per voice channel they could go to.
 ///
@@ -89,11 +91,7 @@ class _ParticipantMoveMenuState extends State<ParticipantMoveMenu> {
                 label: channel.name,
                 onTap: () => _move(channel),
                 trailing: _pending == channel.id
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? LoadingDots(color: context.theme.accentBright, dotSize: 4)
                     : const SizedBox(width: 16, height: 16),
               ),
             if (_error != null)

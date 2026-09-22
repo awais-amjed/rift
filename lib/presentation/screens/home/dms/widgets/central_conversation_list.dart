@@ -8,6 +8,7 @@ import '../../../../../data/classes/friend.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/hint_card.dart';
+import '../../../../common/list_loading_footer.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import '../open_central_conversation.dart';
 import 'dm_conversation_tile.dart';
@@ -71,7 +72,7 @@ class CentralConversationList extends StatelessWidget {
             return _tile(context, state, themeState, conversations[at]);
           }
           if (state.hasMoreConversations && at == conversations.length) {
-            return _buildFooter();
+            return const ListLoadingFooter();
           }
           return const Padding(
             padding: EdgeInsets.fromLTRB(2, 14, 2, 12),
@@ -88,19 +89,6 @@ class CentralConversationList extends StatelessWidget {
 
   /// How close to the bottom counts as "nearly there" — about three tiles.
   static const double _loadMoreSlack = 180;
-
-  /// The spinner at the end of a page, which is also what says the list has not
-  /// simply stopped.
-  Widget _buildFooter() => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 16),
-    child: Center(
-      child: SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-    ),
-  );
 
   Widget _tile(
     BuildContext context,

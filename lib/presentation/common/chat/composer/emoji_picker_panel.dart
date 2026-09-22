@@ -9,6 +9,7 @@ import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../emoji_text.dart';
+import '../../loading_dots.dart';
 import '../../tap_to_focus.dart';
 
 /// The emoji picker's contents: a search row, a flat row of category icons,
@@ -236,12 +237,8 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
 
   Widget _buildBody(ThemeState themeState) {
     if (_set.isEmpty) {
-      return const Center(
-        child: SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+      return Center(
+        child: LoadingDots(color: context.theme.accentBright, dotSize: 4),
       );
     }
     if (_searchController.text.trim().isNotEmpty) {

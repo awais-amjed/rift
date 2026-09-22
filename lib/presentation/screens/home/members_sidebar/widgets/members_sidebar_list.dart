@@ -4,6 +4,7 @@ import '../../../../../data/classes/server_member.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/services/member_roster.dart';
+import '../../../../common/list_loading_footer.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import 'member_row.dart';
 
@@ -104,7 +105,7 @@ class MembersSidebarList extends StatelessWidget {
     final member = entry.member;
     if (member == null) {
       return entry.label == null
-          ? _buildFooter()
+          ? const ListLoadingFooter()
           : SectionHeader(label: entry.label!);
     }
     return MemberRow(
@@ -138,17 +139,6 @@ class MembersSidebarList extends StatelessWidget {
       for (final member in members) _Entry.member(member),
     ];
   }
-
-  Widget _buildFooter() => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 16),
-    child: Center(
-      child: SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-    ),
-  );
 }
 
 /// One line of the flattened list: a group header, a member, or the footer.

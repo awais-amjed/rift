@@ -11,6 +11,7 @@ import '../../../../logic/services/image_safety.dart';
 import '../../../../logic/services/image_safety_classifier.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/theme_context.dart';
+import '../../loading_dots.dart';
 import 'attachment_image_viewer.dart';
 import 'attachment_loader.dart';
 import 'sensitive_image_cover.dart';
@@ -127,14 +128,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
           return _placeholder(
             box,
             Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: context.theme.primary,
-                ),
-              ),
+              child: LoadingDots(color: context.theme.primary, dotSize: 4),
             ),
           );
         }

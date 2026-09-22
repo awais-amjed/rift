@@ -7,6 +7,7 @@ import '../../../../logic/helper_methods.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../icon_tile.dart';
+import '../../loading_dots.dart';
 import 'attachment_download.dart';
 import 'attachment_loader.dart';
 
@@ -118,10 +119,6 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
     if (!_busy) {
       return Icon(Icons.download_rounded, size: 18, color: theme.textTertiary);
     }
-    return SizedBox(
-      width: 18,
-      height: 18,
-      child: CircularProgressIndicator(strokeWidth: 2, color: theme.primary),
-    );
+    return LoadingDots(color: theme.primary, dotSize: 4);
   }
 }

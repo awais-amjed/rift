@@ -7,6 +7,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/clean_picture_gate.dart';
 import '../../../../../logic/services/video_stats_sampler.dart';
+import '../../../../common/loading_dots.dart';
 import '../../../../theme/theme_context.dart';
 
 /// A remote video, covered until its picture is clean — see
@@ -128,13 +129,7 @@ class _DecryptedVideoState extends State<DecryptedVideo> {
           ColoredBox(
             color: context.theme.bgSecondary,
             child: Center(
-              child: SizedBox.square(
-                dimension: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: context.theme.textTertiary,
-                ),
-              ),
+              child: LoadingDots(color: context.theme.textTertiary, dotSize: 4),
             ),
           ),
       ],
