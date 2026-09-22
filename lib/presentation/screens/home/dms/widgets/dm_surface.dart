@@ -16,7 +16,8 @@ import '../../../../theme/theme_context.dart';
 /// 393px screen left the conversation a gutter to live in. So only the list is
 /// drawn there, and an open conversation is a page the phone shell pushes over
 /// it. There is no "pick a conversation" panel in that mode because you would
-/// be reading it instead of the list it is telling you to use.
+/// be reading it instead of the list it is telling you to use. A panel too
+/// narrow for both on a desktop does the same, without the page.
 class DmSurface extends StatelessWidget {
   final Widget list;
 
@@ -29,6 +30,10 @@ class DmSurface extends StatelessWidget {
   final IconData emptyIcon;
 
   static const double listWidth = 280;
+
+  /// The narrowest the open conversation may be beside the list. Below it the
+  /// two take turns, as on a phone — see [build].
+  static const double minConversationWidth = 320;
 
   const DmSurface({
     super.key,
@@ -44,16 +49,29 @@ class DmSurface extends StatelessWidget {
     if (context.layoutMode.isCompact) return list;
 
     final themeState = context.theme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ColoredBox(
-          color: themeState.bgSecondary,
-          child: SizedBox(width: listWidth, child: list),
-        ),
-        Container(width: 1, color: themeState.borderPrimary),
-        Expanded(child: conversation ?? _buildEmpty(themeState)),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The layout mode follows the window, not this panel. A narrow
+        // desktop window with the sidebar open is not compact, and left the
+        // conversation a few dozen pixels beside the list, its text wrapping
+        // a letter to a line. Short of room for both, the two take turns:
+        // the conversation while one is open — its close button goes back —
+        // and the list otherwise.
+        if (constraints.maxWidth < listWidth + minConversationWidth) {
+          return conversation ?? list;
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ColoredBox(
+              color: themeState.bgSecondary,
+              child: SizedBox(width: listWidth, child: list),
+            ),
+            Container(width: 1, color: themeState.borderPrimary),
+            Expanded(child: conversation ?? _buildEmpty(themeState)),
+          ],
+        );
+      },
     );
   }
 
