@@ -11,6 +11,32 @@ class ChatMessageOps {
   /// How many rows a single history page asks for.
   static const int pageSize = 50;
 
+  /// Half the window a jump lands in — this many either side of the target.
+  static const int windowHalf = 25;
+
+  /// The list a jump to [targetId] lands in.
+  ///
+  /// [older] is the page ending at the target, newest-first as the API returns
+  /// it; [newer] is the page after it. Null when the target is not among them:
+  /// the row is there but this client will not show it — dropped on
+  /// verification, or sealed under a key it does not hold — and leaving the
+  /// list alone is the honest outcome, since there is nothing to land on.
+  ///
+  /// [newerRowCount] is the rows the newer page *returned*, before any were
+  /// dropped: a full page of them means the window stops short of the
+  /// present, and asking for one more than fits would be a third request to
+  /// learn what the count already says.
+  static ({List<ChatMessage> messages, bool hasNewer})? windowAround(
+    String targetId, {
+    required List<ChatMessage> older,
+    required List<ChatMessage> newer,
+    required int newerRowCount,
+  }) {
+    final messages = [...older.reversed, ...newer];
+    if (!messages.any((m) => m.id == targetId)) return null;
+    return (messages: messages, hasNewer: newerRowCount >= windowHalf);
+  }
+
   /// Sentinel for "no acknowledged message yet" when scanning for the oldest
   /// id — callers guard on an empty list before paginating. It has to be
   /// *above* every real id, because it is the seed of a running minimum and

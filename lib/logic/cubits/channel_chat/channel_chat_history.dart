@@ -177,12 +177,12 @@ mixin _ChannelChatHistoryMixin
     final older = await _serverCubit.listChatMessages(
       channelId: channelId,
       beforeId: id + 1,
-      limit: _windowHalf,
+      limit: ChatMessageOps.windowHalf,
     );
     final newer = await _serverCubit.listChatMessages(
       channelId: channelId,
       afterId: id,
-      limit: _windowHalf,
+      limit: ChatMessageOps.windowHalf,
     );
     if (state.channelId != channelId) return false;
     if (!older.success || !newer.success) {
@@ -201,31 +201,27 @@ mixin _ChannelChatHistoryMixin
     final after = await _decryptRows(channelId, newerRows);
     if (state.channelId != channelId) return false;
 
-    final window = [...before.reversed, ...after];
-    if (!window.any((m) => m.id == messageId)) {
-      // The row is there but this client will not show it — dropped on
-      // verification, or sealed under a key it does not hold. Leaving the
-      // list alone is the honest outcome: there is nothing to land on.
+    final window = ChatMessageOps.windowAround(
+      messageId,
+      older: before,
+      newer: after,
+      newerRowCount: newerRows.length,
+    );
+    if (window == null) {
       emit(state.copyWith(isLoadingMore: false));
       return false;
     }
 
     emit(
       state.copyWith(
-        messages: window,
+        messages: window.messages,
         hasMoreHistory: olderData['has_more'] as bool? ?? false,
-        // A full page of newer rows means the window stops short of the
-        // present. Asking for one more than fits would be a third request to
-        // learn something the page count already says.
-        hasNewerHistory: newerRows.length >= _windowHalf,
+        hasNewerHistory: window.hasNewer,
         isLoadingMore: false,
       ),
     );
     return true;
   }
-
-  /// Half the window a jump lands in — this many either side of the target.
-  static const int _windowHalf = 25;
 
   /// Scroll-down pagination, the mirror of [loadMoreHistory]. Only ever runs
   /// while the list is a window into history; at the live tail there is

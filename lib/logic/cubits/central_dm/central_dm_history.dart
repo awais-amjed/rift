@@ -171,12 +171,12 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     final older = await _repo.listDms(
       peerId: peerId,
       beforeId: id + 1,
-      limit: _windowHalf,
+      limit: ChatMessageOps.windowHalf,
     );
     final newer = await _repo.listDms(
       peerId: peerId,
       afterId: id,
-      limit: _windowHalf,
+      limit: ChatMessageOps.windowHalf,
     );
     if (state.openPeerId != peerId) return false;
     if (!older.success || !newer.success) {
@@ -196,27 +196,27 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     final after = await _decryptRows(peerId, newerRows);
     if (state.openPeerId != peerId) return false;
 
-    final window = [...before.reversed, ...after];
-    if (!window.any((m) => m.id == messageId)) {
-      // There but unshowable — dropped on verification. Leaving the list
-      // alone is the honest outcome: there is nothing to land on.
+    final window = ChatMessageOps.windowAround(
+      messageId,
+      older: before,
+      newer: after,
+      newerRowCount: newerRows.length,
+    );
+    if (window == null) {
       emit(state.copyWith(isLoadingMore: false));
       return false;
     }
 
     emit(
       state.copyWith(
-        messages: window,
+        messages: window.messages,
         hasMoreHistory: olderData['has_more'] as bool? ?? false,
-        hasNewerHistory: newerRows.length >= _windowHalf,
+        hasNewerHistory: window.hasNewer,
         isLoadingMore: false,
       ),
     );
     return true;
   }
-
-  /// Half the window a jump lands in — this many either side of the target.
-  static const int _windowHalf = 25;
 
   /// Scroll-down pagination, the mirror of [loadMoreHistory]. Only runs
   /// while the list is a window into history.

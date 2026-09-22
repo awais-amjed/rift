@@ -176,4 +176,40 @@ void main() {
       expect(result.first, same(first));
     });
   });
+
+  group('windowAround', () {
+    test('turns the older page oldest-first and joins the newer one', () {
+      final w = ChatMessageOps.windowAround(
+        '3',
+        older: [msg('3'), msg('2'), msg('1')], // newest-first, as sent
+        newer: [msg('4'), msg('5')],
+        newerRowCount: 2,
+      );
+      expect(w!.messages.map((m) => m.id), ['1', '2', '3', '4', '5']);
+      expect(w.hasNewer, isFalse);
+    });
+
+    test('a target that did not open lands nowhere', () {
+      // Dropped on verification, or sealed under a key this device lacks.
+      final w = ChatMessageOps.windowAround(
+        '3',
+        older: [msg('2'), msg('1')],
+        newer: [msg('4')],
+        newerRowCount: 1,
+      );
+      expect(w, isNull);
+    });
+
+    test('a full newer page means the present is further on', () {
+      // Counted on the rows returned, not the ones that opened: a dropped row
+      // still means there was a full page.
+      final w = ChatMessageOps.windowAround(
+        '1',
+        older: [msg('1')],
+        newer: [msg('2')],
+        newerRowCount: ChatMessageOps.windowHalf,
+      );
+      expect(w!.hasNewer, isTrue);
+    });
+  });
 }
