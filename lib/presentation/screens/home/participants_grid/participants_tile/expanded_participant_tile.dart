@@ -92,6 +92,9 @@ class ExpandedParticipantTile extends StatelessWidget {
       behavior: HitTestBehavior.translucent,
       onPointerMove: (_) => onActivity(),
       onPointerHover: (_) => onActivity(),
+      // A phone has no hover, and a tap is no move: its Stop watching went
+      // for good two seconds in, while the call's own controls came back.
+      onPointerDown: (_) => onActivity(),
       // Only someone else's share you are watching has receive stats.
       child: LayoutBuilder(
         builder: (context, constraints) {
