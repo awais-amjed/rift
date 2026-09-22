@@ -32,12 +32,13 @@ class ChatHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    final chatState = context.watch<ChannelChatCubit>().state;
+    // Selected, not watched: the chat state changes with every message and
+    // every keystroke someone else types, and all this needs is which channel.
+    final channelId = context.select((ChannelChatCubit c) => c.state.channelId);
     final channels =
-        context.watch<ServerCubit>().state.selectedServer?.channels ?? [];
-    final channel = channels
-        .where((c) => c.id == chatState.channelId)
-        .firstOrNull;
+        context.select((ServerCubit c) => c.state.selectedServer?.channels) ??
+        const [];
+    final channel = channels.where((c) => c.id == channelId).firstOrNull;
     final name = channel?.name;
 
     // The drawer button takes the place of the leading padding, so the title
