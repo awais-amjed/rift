@@ -18,6 +18,8 @@ class SoundService {
   static const _streamEndedAsset = 'audio/stream_ended.mp3';
   static const _pttOnAsset = 'audio/ptt_on.mp3';
   static const _pttOffAsset = 'audio/ptt_off.mp3';
+  static const _watchStartedAsset = 'audio/watch_started.mp3';
+  static const _watchStoppedAsset = 'audio/watch_stopped.mp3';
 
   /// How long to wait for a sound to finish before reclaiming its player.
   static const _maxPlaybackWait = Duration(seconds: 10);
@@ -35,6 +37,12 @@ class SoundService {
   /// leave, cut to 160ms so they never trail into the first word.
   Future<void> playPttOn() => _play(_pttOnAsset);
   Future<void> playPttOff() => _play(_pttOffAsset);
+
+  /// Somebody starting or stopping watching a stream, heard by its sharer and
+  /// the people already watching. Three quick notes, rising or falling, so it
+  /// is not mistaken for anyone joining or a stream itself starting.
+  Future<void> playWatchStarted() => _play(_watchStartedAsset);
+  Future<void> playWatchStopped() => _play(_watchStoppedAsset);
 
   // ──────────────────────────────────────────────────────────
   // Private helpers

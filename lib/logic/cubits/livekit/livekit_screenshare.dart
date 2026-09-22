@@ -3,6 +3,9 @@ part of 'livekit_cubit.dart';
 mixin _ScreenshareMixin on Cubit<LiveKitState> {
   void _syncParticipants();
 
+  /// Watching is published, so the sharer and the others watching hear it.
+  Future<void> _publishSelfState();
+
   /// Subscribes to a participant's screenshare tracks.
   Future<void> subscribeToScreenshare(String identity) async {
     final room = state.room;
@@ -46,6 +49,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
         ..add(identity);
       emit(state.copyWith(subscribedScreenshares: updated));
       _syncParticipants();
+      unawaited(_publishSelfState());
     } else {
       debugPrint('No screenshare tracks found for $identity');
     }
@@ -90,6 +94,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
         ..remove(identity);
       emit(state.copyWith(subscribedScreenshares: updated));
       _syncParticipants();
+      unawaited(_publishSelfState());
     }
   }
 

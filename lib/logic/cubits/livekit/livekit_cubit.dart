@@ -35,6 +35,7 @@ import '../../services/voice_attributes.dart';
 import '../../services/voice_keys.dart';
 import '../../services/voice_rejoin.dart';
 import '../../services/voice_signal.dart';
+import '../../services/watch_cues.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
@@ -87,6 +88,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
   SoundboardCubit? _soundboardCubit;
   @override
   final List<EventsListener<RoomEvent>> _listeners = [];
+
+  /// The streams each remote participant was last seen watching, so a change
+  /// can be told from where somebody already was — see `watchCues`.
+  @override
+  final Map<String, Set<String>> _watchingSeen = {};
 
   /// Guards `disconnect` against re-entering itself — see its doc comment.
   /// State, so it lives here rather than in either mixin that reads it.
@@ -429,7 +435,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
   /// Tells the room what this client is doing that it cannot see for itself.
   ///
-  /// Only deafening, so far. Failures are logged and dropped: the call is not
+  /// Deafening and the streams being watched. Failures are logged and dropped: the call is not
   /// worse for a roster icon being wrong, and this runs on a toggle somebody
   /// is watching the rest of the effects of.
   @override
@@ -438,7 +444,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
     if (local == null) return;
     try {
       await local.setAttributes(
-        VoiceAttributes.forSelf(deafened: state.isDeafened),
+        VoiceAttributes.forSelf(
+          deafened: state.isDeafened,
+          watching: state.subscribedScreenshares,
+        ),
       );
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] publishing own state: $e');

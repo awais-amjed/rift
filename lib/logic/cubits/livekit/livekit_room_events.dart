@@ -2,6 +2,7 @@ part of 'livekit_cubit.dart';
 
 mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   List<EventsListener<RoomEvent>> get _listeners;
+  Map<String, Set<String>> get _watchingSeen;
   SoundboardCubit? get _soundboardCubit;
   AppCubit get _appCubit;
   TokenCubit get _tokenCubit;
@@ -27,6 +28,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   void setupRoomListeners(Room room) {
     final listener = room.createListener();
     _listeners.add(listener);
+    _watchingSeen.clear();
 
     listener
       ..on<ParticipantConnectedEvent>((e) {
@@ -35,6 +37,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         // participant drops their frames, and somebody who joined a moment
         // before you registered them would simply never be audible.
         unawaited(_registerParticipantKey(identity));
+        _seedWatching(e.participant);
         if (ParticipantIdentity.isShare(identity)) {
           SoundService.instance.playStreamStarted();
         } else {
@@ -45,6 +48,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       })
       ..on<ParticipantDisconnectedEvent>((e) {
         final identity = e.participant.identity;
+        _watchingSeen.remove(identity);
         if (ParticipantIdentity.isShare(identity)) {
           SoundService.instance.playStreamEnded();
         } else {
@@ -53,6 +57,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         _syncParticipants();
       })
       ..on<TrackPublishedEvent>((e) {
+        _seedWatching(e.participant);
         _syncParticipants();
         _applyStoredSettings();
 
@@ -79,6 +84,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         }
       })
       ..on<TrackSubscribedEvent>((e) {
+        _seedWatching(e.participant);
         _syncParticipants();
         // Their key, again, and this is the one that actually matters for
         // somebody who was already here when we arrived: `room.connect`
@@ -125,7 +131,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       ..on<ParticipantMetadataUpdatedEvent>((e) => _syncParticipants())
       // Somebody deafening themselves is published rather than visible —
       // see [VoiceAttributes].
-      ..on<ParticipantAttributesChanged>((e) => _syncParticipants())
+      ..on<ParticipantAttributesChanged>((e) {
+        _syncParticipants();
+        _cueWatching(e);
+      })
       ..on<ParticipantPermissionsUpdatedEvent>((e) => _syncParticipants())
       // Two things arrive on the data channel, and which one a packet is
       // turns on whether it has a sender.
@@ -195,5 +204,40 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
     if (channelId == state.currentChannelId) return;
     SoundService.instance.playJoin();
     _appCubit.setSelectedChannelId(channelId);
+  }
+
+  /// Records where [participant] already is, the first time this client
+  /// hears of them. Everyone present when this client joins arrives without a
+  /// `ParticipantConnected` (see `TrackSubscribedEvent` below), and an
+  /// attribute change is only a change against something already known.
+  void _seedWatching(Participant participant) {
+    if (participant is! RemoteParticipant) return;
+    _watchingSeen.putIfAbsent(
+      participant.identity,
+      () => VoiceAttributes.watchingOf(participant.attributes),
+    );
+  }
+
+  /// Plays a tone when somebody else starts or stops watching a stream this
+  /// client is sharing or watching — see [watchCues].
+  void _cueWatching(ParticipantAttributesChanged e) {
+    if (e.participant is! RemoteParticipant) return;
+    if (!e.attributes.containsKey(VoiceAttributes.watchingKey)) return;
+    final identity = e.participant.identity;
+    final current = VoiceAttributes.watchingOf(e.participant.attributes);
+    final cues = watchCues(
+      previous: _watchingSeen[identity],
+      current: current,
+      localIdentity: state.room?.localParticipant?.identity,
+      watchedHere: state.subscribedScreenshares,
+    );
+    _watchingSeen[identity] = current;
+    // One tone however many streams changed at once; the list is almost
+    // always a single entry.
+    if (cues.contains(WatchCue.started)) {
+      SoundService.instance.playWatchStarted();
+    } else if (cues.contains(WatchCue.stopped)) {
+      SoundService.instance.playWatchStopped();
+    }
   }
 }
