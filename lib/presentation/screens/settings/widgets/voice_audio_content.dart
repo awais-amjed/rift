@@ -51,6 +51,17 @@ class VoiceAudioContent extends StatelessWidget {
               const SizedBox(height: 20),
               const MicTestSection(),
               _divider(context),
+              const SectionTitle(label: 'Voice channels'),
+              const SizedBox(height: 12),
+              SettingToggleRow(
+                title: 'Ask before switching voice channels',
+                description:
+                    'Clicking another voice channel while you are in a call '
+                    'asks first, so a stray click does not leave the call.',
+                value: appState.askBeforeVoiceSwitch,
+                onChanged: context.read<AppCubit>().setAskBeforeVoiceSwitch,
+              ),
+              _divider(context),
               SoundboardSection(appState: appState),
               _divider(context),
               SoundsSection(appState: appState),

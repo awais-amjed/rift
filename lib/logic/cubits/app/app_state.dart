@@ -23,6 +23,11 @@ class AppState {
   final double? windowX;
   final double? windowY;
   final bool disableAudioDucking;
+
+  /// Whether clicking another voice channel while in a call asks first. On
+  /// by default: one click used to drop the call and join the next room, and
+  /// the people left behind hear you leave whether or not you meant to.
+  final bool askBeforeVoiceSwitch;
   final bool statsOverlayPinned;
 
   /// Whether a watched stream shows the full stats card. Off by default: the
@@ -142,6 +147,7 @@ class AppState {
     this.windowX,
     this.windowY,
     this.disableAudioDucking = false,
+    this.askBeforeVoiceSwitch = true,
     this.statsOverlayPinned = false,
     this.showStreamStats = false,
     this.sensitiveContentMode = SensitiveContentMode.blur,
@@ -184,6 +190,7 @@ class AppState {
     double? windowX,
     double? windowY,
     bool? disableAudioDucking,
+    bool? askBeforeVoiceSwitch,
     bool? statsOverlayPinned,
     bool? showStreamStats,
     SensitiveContentMode? sensitiveContentMode,
@@ -232,6 +239,7 @@ class AppState {
       windowX: windowX ?? this.windowX,
       windowY: windowY ?? this.windowY,
       disableAudioDucking: disableAudioDucking ?? this.disableAudioDucking,
+      askBeforeVoiceSwitch: askBeforeVoiceSwitch ?? this.askBeforeVoiceSwitch,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
       showStreamStats: showStreamStats ?? this.showStreamStats,
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,

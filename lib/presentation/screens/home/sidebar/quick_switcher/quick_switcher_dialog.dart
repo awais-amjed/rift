@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,6 +17,7 @@ import '../../../../common/tap_to_focus.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import '../../channels/confirm_voice_switch.dart';
 import 'widgets/quick_switcher_row.dart';
 
 /// Type-to-jump over the current server's channels.
@@ -59,19 +62,25 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
     _open(results[_highlighted.clamp(0, results.length - 1)]);
   }
 
-  void _open(Channel channel) {
+  Future<void> _open(Channel channel) async {
     final appCubit = context.read<AppCubit>();
     final chatCubit = context.read<ChannelChatCubit>();
 
-    appCubit.setSurface(HomeSurface.server);
     if (channel.channelType == ChannelType.text) {
-      chatCubit.openChannel(channel.id);
-    } else {
-      // Voice takes over the centre pane, so any open chat has to close or it
-      // would keep the stage hidden behind it.
-      chatCubit.closeChannel();
-      appCubit.setSelectedChannelId(channel.id);
+      appCubit.setSurface(HomeSurface.server);
+      unawaited(chatCubit.openChannel(channel.id));
+      Navigator.of(context).pop();
+      return;
     }
+    // Over the switcher, which stays open behind it: cancelling goes back to
+    // the search rather than throwing it away.
+    if (!await confirmVoiceSwitch(context, channel)) return;
+    if (!mounted) return;
+    appCubit.setSurface(HomeSurface.server);
+    // Voice takes over the centre pane, so any open chat has to close or it
+    // would keep the stage hidden behind it.
+    unawaited(chatCubit.closeChannel());
+    appCubit.setSelectedChannelId(channel.id);
     Navigator.of(context).pop();
   }
 

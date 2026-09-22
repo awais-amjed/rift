@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -10,6 +12,7 @@ import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../mobile/mobile_shell_scope.dart';
+import '../confirm_voice_switch.dart';
 import '../create_channel_dialog.dart';
 import 'widgets/empty_channels_view.dart';
 import 'widgets/section_header.dart';
@@ -116,21 +119,25 @@ class ChannelList extends StatelessWidget {
     );
   }
 
-  void _openVoice(BuildContext context, Channel ch) {
+  Future<void> _openVoice(BuildContext context, Channel ch) async {
     // On a phone the call is a page: tapping the one you are already in takes
     // you back into it.
     final shell = MobileShellScope.maybeOf(context);
+    if (shell != null && selectedChannelId == ch.id) {
+      shell.openCall();
+      return;
+    }
+    // Asked before anything moves, so cancelling leaves the screen exactly as
+    // it was — the chat you were reading included.
+    if (!await confirmVoiceSwitch(context, ch)) return;
+    if (!context.mounted) return;
     if (shell != null) {
-      if (selectedChannelId == ch.id) {
-        shell.openCall();
-      } else {
-        onChannelSelect?.call(ch.id);
-      }
+      onChannelSelect?.call(ch.id);
       return;
     }
     // Joining voice brings the voice pane back to the front.
     context.read<AppCubit>().setSurface(HomeSurface.server);
-    context.read<ChannelChatCubit>().closeChannel();
+    unawaited(context.read<ChannelChatCubit>().closeChannel());
     if (selectedChannelId != ch.id) onChannelSelect?.call(ch.id);
   }
 }
