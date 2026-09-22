@@ -12,18 +12,29 @@ class WatchStreamButton extends StatelessWidget {
 
   const WatchStreamButton({super.key, required this.onTap});
 
+  /// Below this a tile gets the short label and a shorter button.
+  static const _compactHeight = 150.0;
+
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: AppButton(
-        label: 'Watch stream',
-        icon: const Icon(
-          Icons.play_arrow_rounded,
-          size: 17,
-          color: Colors.white,
-        ),
-        onPressed: onTap,
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // An unopened stream is a tile about the size of a person's, so in a
+        // busy call it is small. Still centred: the name badge sits over it
+        // the way it sits over an avatar.
+        final compact = constraints.maxHeight < _compactHeight;
+        final button = AppButton(
+          label: compact ? 'Watch' : 'Watch stream',
+          height: compact ? 32 : null,
+          icon: const Icon(
+            Icons.play_arrow_rounded,
+            size: 17,
+            color: Colors.white,
+          ),
+          onPressed: onTap,
+        );
+        return Center(child: button);
+      },
     );
   }
 }
