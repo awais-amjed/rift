@@ -51,7 +51,7 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                FeatureHeader(
+                const FeatureHeader(
                   icon: Icons.vpn_key_rounded,
                   title: 'Your recovery key',
                   subtitle:

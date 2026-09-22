@@ -38,10 +38,7 @@ class RailServerList extends StatelessWidget {
               a.servers != b.servers ||
               a.selectedServerId != b.selectedServerId,
           builder: (context, serverState) {
-            return BlocBuilder<
-              ServerNotificationsCubit,
-              NotificationsState
-            >(
+            return BlocBuilder<ServerNotificationsCubit, NotificationsState>(
               builder: (context, notifications) {
                 return ReorderableListView.builder(
                   shrinkWrap: true,

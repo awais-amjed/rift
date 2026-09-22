@@ -171,7 +171,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
         next,
         screenShareCaptureOptions:
             captureOptions ??
-            ScreenShareCaptureOptions(useiOSBroadcastExtension: false),
+            const ScreenShareCaptureOptions(useiOSBroadcastExtension: false),
       );
       emit(state.copyWith(isScreenSharing: next));
       _syncParticipants();

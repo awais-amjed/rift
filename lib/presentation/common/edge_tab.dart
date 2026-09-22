@@ -45,7 +45,7 @@ class _EdgeTabState extends State<EdgeTab> {
   @override
   Widget build(BuildContext context) {
     final isLeft = widget.side.isLeft;
-    final rounded = Radius.circular(K.radiusRow);
+    final rounded = const Radius.circular(K.radiusRow);
 
     final themeState = context.theme;
     return Tooltip(

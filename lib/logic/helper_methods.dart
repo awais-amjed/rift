@@ -108,7 +108,7 @@ class HelperMethods {
       description: Text(description),
       type: type,
       closeOnClick: true,
-      autoCloseDuration: autoClose ? Duration(seconds: 3) : null,
+      autoCloseDuration: autoClose ? const Duration(seconds: 3) : null,
       icon: const AppMark(size: 24),
       callbacks: ToastificationCallbacks(
         onTap: (_) {

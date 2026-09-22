@@ -67,10 +67,10 @@ class _BackupBody extends StatelessWidget {
               const SizedBox(height: 28),
               ChangePasswordPanel(state: state),
               const SizedBox(height: 28),
-              RecoveryKeyPanel(),
+              const RecoveryKeyPanel(),
             ],
             const SizedBox(height: 28),
-            FileBackupPanel(),
+            const FileBackupPanel(),
             const SizedBox(height: 28),
             ThisDeviceSection(
               signedIn: state.isSignedIn,

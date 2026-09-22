@@ -77,7 +77,7 @@ class FileBackupPanelState extends State<FileBackupPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Backup file'),
+        const SectionTitle(label: 'Backup file'),
         const SizedBox(height: 4),
         Text(
           'Export your encrypted backup as a file, or restore from one. '

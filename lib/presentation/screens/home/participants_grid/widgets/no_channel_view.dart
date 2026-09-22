@@ -12,7 +12,7 @@ class NoChannelView extends StatelessWidget {
     final themeState = context.theme;
     return Container(
       color: themeState.bgSecondary,
-      child: EmptyState(
+      child: const EmptyState(
         icon: Icons.mic_none_rounded,
         title: 'No channel selected',
         message: 'Pick a voice channel from the sidebar to join.',

@@ -58,7 +58,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
 
   static _PasswordStrength _calculateStrength(String password) {
     if (password.isEmpty) {
-      return _PasswordStrength(0, 'Enter a password', Colors.transparent);
+      return const _PasswordStrength(0, 'Enter a password', Colors.transparent);
     }
 
     int score = 0;
@@ -89,10 +89,10 @@ class PasswordStrengthIndicator extends StatelessWidget {
     };
 
     return switch (level) {
-      1 => _PasswordStrength(1, 'Weak', CustomColors.error),
-      2 => _PasswordStrength(2, 'Fair', CustomColors.warning),
-      3 => _PasswordStrength(3, 'Strong', CustomColors.success),
-      _ => _PasswordStrength(4, 'Very strong', CustomColors.success),
+      1 => const _PasswordStrength(1, 'Weak', CustomColors.error),
+      2 => const _PasswordStrength(2, 'Fair', CustomColors.warning),
+      3 => const _PasswordStrength(3, 'Strong', CustomColors.success),
+      _ => const _PasswordStrength(4, 'Very strong', CustomColors.success),
     };
   }
 }

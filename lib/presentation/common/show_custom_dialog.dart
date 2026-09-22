@@ -20,7 +20,7 @@ Future<T?> showCustomDialog<T>({
     barrierDismissible: barrierDismissible,
     builder: (ctx) => CallbackShortcuts(
       bindings: {
-        SingleActivator(LogicalKeyboardKey.escape): () =>
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(ctx).pop(),
       },
       child: Focus(autofocus: true, child: _Entrance(child: builder(ctx))),

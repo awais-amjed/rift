@@ -41,7 +41,7 @@ class ServerPushSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Notifications'),
+        const SectionTitle(label: 'Notifications'),
         const SizedBox(height: 4),
         Text(
           'Wake members’ phones for messages that arrive while Rift is '

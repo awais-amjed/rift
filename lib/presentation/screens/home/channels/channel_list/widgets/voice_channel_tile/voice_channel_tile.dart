@@ -104,7 +104,9 @@ class VoiceChannelTile extends StatelessWidget {
                     // below, so the lock has to be put on twice. Missing
                     // here is the case you would never notice by reading:
                     // an empty channel is exactly the one nobody is in.
-                    iconBadge: channel.isPrivate ? ChannelLockBadge() : null,
+                    iconBadge: channel.isPrivate
+                        ? const ChannelLockBadge()
+                        : null,
                     label: channel.name,
                     trailing: VoiceListeningBadge(
                       listeners: context.watch<VoiceListenersCubit>().listening(

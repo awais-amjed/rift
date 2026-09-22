@@ -50,7 +50,7 @@ class ServerDiscoverySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Discovery'),
+        const SectionTitle(label: 'Discovery'),
         const SizedBox(height: 4),
         Text(
           'A listed server can be found and joined by anyone with a Rift '

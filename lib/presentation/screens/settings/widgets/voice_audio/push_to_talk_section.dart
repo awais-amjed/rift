@@ -115,7 +115,7 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Push-to-talk'),
+        const SectionTitle(label: 'Push-to-talk'),
         const SizedBox(height: 12),
         SettingToggleRow(
           title: 'Enable push-to-talk',

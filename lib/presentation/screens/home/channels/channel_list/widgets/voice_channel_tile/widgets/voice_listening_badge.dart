@@ -50,7 +50,11 @@ class VoiceListeningBadge extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: 4,
           children: [
-            Icon(Icons.hearing_rounded, size: 11, color: CustomColors.warning),
+            const Icon(
+              Icons.hearing_rounded,
+              size: 11,
+              color: CustomColors.warning,
+            ),
             Text(
               // The count, not the name: a sidebar row is already carrying a
               // channel name and a roster, and the names are one hover away in

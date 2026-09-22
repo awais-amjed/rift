@@ -21,7 +21,7 @@ class AppearanceContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Theme'),
+        const SectionTitle(label: 'Theme'),
         const SizedBox(height: 12),
         // One segmented row, not two cards: it is a two-way choice, and the
         // segment is how the app spells those (channel type, sign in / create).
@@ -47,7 +47,7 @@ class AppearanceContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        SectionTitle(label: 'Colour palette'),
+        const SectionTitle(label: 'Colour palette'),
         const SizedBox(height: 4),
         Text(
           'Changes the accent and surface tones across the whole app.',
@@ -70,7 +70,7 @@ class AppearanceContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        SectionTitle(label: 'Link previews'),
+        const SectionTitle(label: 'Link previews'),
         const SizedBox(height: 12),
         SettingToggleRow(
           title: 'Preview links you send',
@@ -86,7 +86,7 @@ class AppearanceContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        SectionTitle(label: 'Streams'),
+        const SectionTitle(label: 'Streams'),
         const SizedBox(height: 12),
         SettingToggleRow(
           title: 'Detailed stream stats',
@@ -100,7 +100,7 @@ class AppearanceContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        SectionTitle(label: 'Sensitive content'),
+        const SectionTitle(label: 'Sensitive content'),
         const SizedBox(height: 4),
         Text(
           'Pictures and messages are checked on this device after they are '

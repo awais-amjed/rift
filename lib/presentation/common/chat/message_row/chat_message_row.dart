@@ -349,7 +349,7 @@ class _ChatMessageRowState extends State<ChatMessageRow>
                 : () => widget.onRetry!(message.id),
           ),
         if (message.isLocked)
-          MessageLockedBody()
+          const MessageLockedBody()
         // A panel replaces the body rather than sitting beside it: its text is
         // in its blocks, and rendering `text` as well would show whatever the
         // bot happened to leave in the column twice or not at all.

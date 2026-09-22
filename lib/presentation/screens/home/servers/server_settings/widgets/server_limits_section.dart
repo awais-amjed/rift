@@ -54,7 +54,7 @@ class ServerLimitsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            SectionTitle(label: 'Size and history'),
+            const SectionTitle(label: 'Size and history'),
             const SizedBox(height: 4),
             Text(
               'Nothing here is on unless you turn it on. Leave a box empty and '
@@ -127,7 +127,7 @@ class ServerLimitsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            SectionTitle(label: 'Calls'),
+            const SectionTitle(label: 'Calls'),
             const SizedBox(height: 4),
             Text(
               'Calls cost upload, not disk, and the cost is the number talking '

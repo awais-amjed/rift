@@ -99,7 +99,7 @@ class _PasswordStepState extends State<PasswordStep> {
               // Icon
               // Green rather than accent: this step's badge is making a claim
               // about safety, not numbering a step.
-              FeatureHeader(
+              const FeatureHeader(
                 icon: Icons.shield_outlined,
                 title: 'Create a local vault',
                 subtitle:

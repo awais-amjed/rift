@@ -40,7 +40,11 @@ class ComposerPlaintextNotice extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 8,
         children: [
-          Icon(Icons.lock_open_rounded, size: 14, color: CustomColors.warning),
+          const Icon(
+            Icons.lock_open_rounded,
+            size: 14,
+            color: CustomColors.warning,
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

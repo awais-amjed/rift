@@ -62,7 +62,7 @@ class SignedInPanel extends StatelessWidget {
         const SizedBox(height: 20),
 
         // ── Save backup ────────────────────────────────────────
-        SectionTitle(label: 'Cloud'),
+        const SectionTitle(label: 'Cloud'),
         const SizedBox(height: 4),
         Text(
           'Upload your current encrypted vault backup to the cloud. '

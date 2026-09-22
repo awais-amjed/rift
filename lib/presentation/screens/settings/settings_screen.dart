@@ -226,9 +226,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       alignment: Alignment.topLeft,
                                       child: switch (_activeTab) {
                                         SettingsTab.appearance =>
-                                          AppearanceContent(),
+                                          const AppearanceContent(),
                                         SettingsTab.voiceAndAudio =>
-                                          VoiceAudioContent(),
+                                          const VoiceAudioContent(),
                                         SettingsTab.backup => BackupContent(
                                           onResetVault: _resetVault,
                                         ),

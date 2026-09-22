@@ -42,10 +42,13 @@ class VoiceAudioContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_canPickDevices) ...[AudioDeviceSection(), _divider(context)],
+              if (_canPickDevices) ...[
+                const AudioDeviceSection(),
+                _divider(context),
+              ],
               AudioProcessingSection(appState: appState),
               const SizedBox(height: 20),
-              MicTestSection(),
+              const MicTestSection(),
               _divider(context),
               SoundboardSection(appState: appState),
               // The divider belongs to what follows, not to what precedes
@@ -53,7 +56,7 @@ class VoiceAudioContent extends StatelessWidget {
               // the rule was hanging under the last control.
               if (HostPlatform.ducksOtherApps) ...[
                 _divider(context),
-                SectionTitle(label: 'Audio ducking'),
+                const SectionTitle(label: 'Audio ducking'),
                 const SizedBox(height: 12),
                 SettingToggleRow(
                   title: 'Disable automatic volume lowering',

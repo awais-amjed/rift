@@ -24,7 +24,7 @@ class ConfirmEmailPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Check your email'),
+        const SectionTitle(label: 'Check your email'),
         const SizedBox(height: 4),
         Text(
           email != null

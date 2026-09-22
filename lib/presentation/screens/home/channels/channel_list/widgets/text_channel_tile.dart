@@ -52,7 +52,7 @@ class TextChannelTile extends StatelessWidget {
             overflowMenu: ChannelContextMenu(channel: channel),
             pushes: true,
             icon: Icons.tag_rounded,
-            iconBadge: channel.isPrivate ? ChannelLockBadge() : null,
+            iconBadge: channel.isPrivate ? const ChannelLockBadge() : null,
             label: channel.name,
             isSelected: isSelected,
             // A muted channel is still unread — the name stays lifted, so it

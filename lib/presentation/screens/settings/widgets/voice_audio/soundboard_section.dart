@@ -32,7 +32,7 @@ class SoundboardSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Soundboard'),
+        const SectionTitle(label: 'Soundboard'),
         const SizedBox(height: 12),
         SettingToggleRow(
           title: 'Mute everyone else\'s soundboard',

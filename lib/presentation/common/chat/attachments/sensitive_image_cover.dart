@@ -83,7 +83,7 @@ class _SensitiveImageCoverState extends State<SensitiveImageCover> {
                       mainAxisSize: MainAxisSize.min,
                       spacing: 4,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.visibility_off_outlined,
                           size: 20,
                           color: MediaColors.onMedia,

@@ -65,7 +65,7 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FeatureHeader(
+          const FeatureHeader(
             icon: Icons.lock_open_rounded,
             title: 'Unlock your backup',
             subtitle:

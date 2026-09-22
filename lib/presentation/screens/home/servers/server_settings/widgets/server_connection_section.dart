@@ -32,7 +32,7 @@ class ServerConnectionSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SectionTitle(label: 'Server'),
+        const SectionTitle(label: 'Server'),
         const SizedBox(height: 14),
         AppTextField(
           controller: nameCtrl,

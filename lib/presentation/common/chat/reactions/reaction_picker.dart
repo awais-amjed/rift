@@ -50,7 +50,7 @@ Future<void> showReactionPicker(
       maxWidth: _popoverWidth,
     ),
     items: [
-      PopupMenuItem<String>(
+      const PopupMenuItem<String>(
         padding: EdgeInsets.zero,
         child: Builder(builder: _grid),
       ),

@@ -66,7 +66,10 @@ class WebhookRow extends StatelessWidget {
             tooltip: 'Revoke',
             iconSize: 16,
             visualDensity: VisualDensity.compact,
-            icon: Icon(Icons.delete_outline_rounded, color: CustomColors.error),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: CustomColors.error,
+            ),
           ),
         ],
       ),

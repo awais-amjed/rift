@@ -64,7 +64,7 @@ class _RailServerChipState extends State<RailServerChip> {
               clipBehavior: Clip.none,
               children: [
                 if (widget.isSelected)
-                  Positioned(
+                  const Positioned(
                     left: -_haloExtent,
                     top: -_haloExtent,
                     right: -_haloExtent,

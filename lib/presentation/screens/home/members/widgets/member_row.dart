@@ -116,13 +116,13 @@ class MemberRow extends StatelessWidget {
                           ),
                         ),
                       if (member.isMuted)
-                        MemberBadge(
+                        const MemberBadge(
                           icon: Icons.mic_off,
                           tooltip: 'Muted by a moderator',
                           color: CustomColors.error,
                         ),
                       if (member.isDeafened)
-                        MemberBadge(
+                        const MemberBadge(
                           icon: Icons.headset_off,
                           tooltip: 'Deafened by a moderator',
                           color: CustomColors.error,
@@ -131,7 +131,10 @@ class MemberRow extends StatelessWidget {
                       // and the only place a ban can be lifted; the row
                       // has to say so.
                       if (member.isBanned)
-                        LabelPill(label: 'Banned', color: CustomColors.error),
+                        const LabelPill(
+                          label: 'Banned',
+                          color: CustomColors.error,
+                        ),
                     ],
                   ),
                   if (_expandable) ...[

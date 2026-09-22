@@ -37,7 +37,7 @@ class VaultPasswordPanelState extends State<VaultPasswordPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Unlock cloud backup'),
+        const SectionTitle(label: 'Unlock cloud backup'),
         const SizedBox(height: 4),
         Text(
           'This backup is protected by a separately chosen vault password '

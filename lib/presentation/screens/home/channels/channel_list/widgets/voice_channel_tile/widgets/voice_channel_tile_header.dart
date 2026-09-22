@@ -78,7 +78,7 @@ class VoiceChannelTileHeader extends StatelessWidget {
                             : themeState.textTertiary,
                       ),
                       if (channel.isPrivate)
-                        Positioned(
+                        const Positioned(
                           right: -4,
                           bottom: -3,
                           child: ChannelLockBadge(),

@@ -70,7 +70,7 @@ class _ChangePasswordPanelState extends State<ChangePasswordPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Password'),
+        const SectionTitle(label: 'Password'),
         const SizedBox(height: 4),
         Text(
           state.isSignedIn

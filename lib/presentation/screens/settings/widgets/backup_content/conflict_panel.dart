@@ -23,7 +23,7 @@ class ConflictPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(label: 'Two identities'),
+        const SectionTitle(label: 'Two identities'),
         const SizedBox(height: 4),
         Text(
           'Your account already has a cloud backup, and this device has its '
