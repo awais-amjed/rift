@@ -8,7 +8,7 @@ import '../../../../../../../../logic/cubits/server_members/server_members_cubit
 import '../../../../../../../common/context_menu/context_menu_button.dart';
 import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/hover_builder.dart';
-import '../../../../../../../common/squircle_avatar.dart';
+import '../../../../../../../common/member_avatar.dart';
 import '../../../../../../../responsive/shell_scope.dart';
 import '../../../../../../../theme/custom_colors.dart';
 import '../../../../../../../theme/theme_context.dart';
@@ -68,9 +68,9 @@ class PresenceMemberRow extends StatelessWidget {
         child: Row(
           spacing: 8,
           children: [
-            SquircleAvatar(
+            MemberAvatar(
+              userId: user.userId,
               name: name,
-              seed: user.userId,
               size: RosterRowMetrics.of(context).avatarSize,
             ),
             Expanded(

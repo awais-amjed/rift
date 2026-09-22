@@ -14,7 +14,7 @@ import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
-import '../../../../common/squircle_avatar.dart';
+import '../../../../common/member_avatar.dart';
 import '../../profile/person/show_person_profile.dart';
 import 'participant_admin_section.dart';
 import 'participant_bot_section.dart';
@@ -181,7 +181,7 @@ class ParticipantContextMenu extends StatelessWidget {
             return ContextMenuPanel(
               heading: isLocal ? 'You' : (isLive ? 'Participant' : 'Member'),
               subheading: name,
-              leading: SquircleAvatar(name: name, seed: targetUserId, size: 24),
+              leading: MemberAvatar(userId: targetUserId, name: name, size: 24),
               children: [
                 Divider(height: 1, color: borderColor),
                 const SizedBox(height: 4),

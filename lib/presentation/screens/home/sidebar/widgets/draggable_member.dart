@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/voice_drag.dart';
 import '../../../../../data/constants.dart';
-import '../../../../common/squircle_avatar.dart';
+import '../../../../common/member_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
@@ -73,7 +73,7 @@ class _Chip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             spacing: 8,
             children: [
-              SquircleAvatar(name: member.name, seed: member.userId, size: 20),
+              MemberAvatar(userId: member.userId, name: member.name, size: 20),
               Text(
                 member.name,
                 style: AppText.row.copyWith(color: themeState.textPrimary),

@@ -28,7 +28,7 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// the same here as in the sidebar. Not the LiveKit identity: that carries a
   /// device segment, so seeding with it gave the same person a different
   /// colour here, and a third one again for their screenshare.
-  final String? userId;
+  final String userId;
   final bool isMicEnabled;
   final bool isMuted;
   final bool isScreenshare;
@@ -58,7 +58,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     super.key,
     required this.videoTrack,
     required this.name,
-    this.userId,
+    required this.userId,
     required this.isMicEnabled,
     required this.isMuted,
     required this.isScreenshare,
@@ -123,7 +123,7 @@ class ExpandedParticipantTile extends StatelessWidget {
             child: VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain),
           )
         else if (!showWatchButton)
-          AvatarPlaceholder(name: name, seed: userId),
+          AvatarPlaceholder(name: name, userId: userId),
         if (showStats && stats != null)
           AnimatedPositioned(
             duration: _fade,

@@ -207,9 +207,12 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     final bots = await _serverCubit.listBots();
     final counts = await _serverCubit.memberCounts();
     final roles = await _serverCubit.listRoles();
-    final refreshed = await _serverCubit.membersByIds(
-      state.people.members.map((m) => m.id).toList(),
-    );
+    // Everybody we hold, paged or resolved by id: somebody known only from a
+    // call or a message kept their old name and picture until they left.
+    final refreshed = await _serverCubit.membersByIds({
+      ...state.people.members.map((m) => m.id),
+      ...state.known.keys,
+    }.toList());
     if (_stale(loadId, serverId)) return;
 
     final byId = {for (final member in refreshed) member.id: member};
@@ -234,8 +237,6 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
         },
       ),
     );
-    // Whoever we already hold is re-resolved above; anybody in `known` who was
-    // not in a page is refreshed on their next presence tick.
   }
 
   /// Whether a load that started as [loadId] is still the one we want.

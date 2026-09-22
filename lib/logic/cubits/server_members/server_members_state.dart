@@ -110,6 +110,14 @@ class ServerMembersState {
   String nameFor(String userId, String fallback) =>
       byId[userId]?.displayName ?? fallback;
 
+  /// The current picture for [userId], by the same rule as [nameFor]: the
+  /// roster's copy for anybody it holds — none, if they removed theirs — and
+  /// [fallback] only for somebody it has not resolved yet.
+  String? avatarFor(String userId, String? fallback) {
+    final member = byId[userId];
+    return member == null ? fallback : member.avatarPath;
+  }
+
   ServerMembersState copyWith({
     List<ServerMember>? bots,
     Map<String, ServerMember>? known,

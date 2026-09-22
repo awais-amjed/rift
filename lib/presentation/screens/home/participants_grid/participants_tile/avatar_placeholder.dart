@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
 
-import '../../../../common/squircle_avatar.dart';
+import '../../../../common/member_avatar.dart';
 
 /// Stands in for a participant who has no camera on.
 ///
-/// The same squircle and identity gradient as everywhere else, just large:
-/// a tile with the camera off should still show *who* it is, and the
-/// gradient does that faster than an initial on grey.
+/// Their picture, or the same squircle and identity gradient as everywhere
+/// else, just large: a tile with the camera off should still show *who* it is.
 class AvatarPlaceholder extends StatelessWidget {
   final String name;
 
-  /// The participant's *user* id, so their colour matches their avatar
-  /// everywhere else in the app. A LiveKit identity is the wrong thing to pass:
-  /// it varies by device and by screenshare, and the gradient would with it.
-  final String? seed;
+  /// The participant's *user* id, which picks their picture and their
+  /// colour. A LiveKit identity is the wrong thing to pass: it varies by
+  /// device and by screenshare, and neither would be found under it.
+  final String userId;
 
-  const AvatarPlaceholder({super.key, required this.name, this.seed});
+  const AvatarPlaceholder({
+    super.key,
+    required this.name,
+    required this.userId,
+  });
 
   static const _maxSize = 96.0;
 
@@ -26,9 +29,9 @@ class AvatarPlaceholder extends StatelessWidget {
     // share is under 100px tall, and a fixed 96 was cut off top and bottom.
     return LayoutBuilder(
       builder: (context, constraints) => Center(
-        child: SquircleAvatar(
+        child: MemberAvatar(
+          userId: userId,
           name: name,
-          seed: seed,
           size: (constraints.biggest.shortestSide * 0.7).clamp(0.0, _maxSize),
         ),
       ),

@@ -4,9 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/voice_drag.dart';
+import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/channel_drop_target.dart';
 import 'package:rift/presentation/screens/home/sidebar/widgets/draggable_member.dart';
+
+import 'support/stub_members_cubit.dart';
 
 /// In-memory stand-in so the hydrated theme cubit can be built in tests.
 class _MemoryStorage implements Storage {
@@ -41,10 +44,13 @@ Widget _harness({
   required String channelId,
   void Function(VoiceDrag)? onDropped,
 }) {
-  // The cubit sits above the MaterialApp so the drag feedback, which lives in
-  // the app's overlay rather than under `home`, can still reach the theme.
-  return BlocProvider(
-    create: (_) => ThemeCubit(),
+  // The cubits sit above the MaterialApp so the drag feedback, which lives in
+  // the app's overlay rather than under `home`, can still reach them.
+  return MultiBlocProvider(
+    providers: [
+      BlocProvider(create: (_) => ThemeCubit()),
+      BlocProvider<ServerMembersCubit>(create: (_) => StubMembersCubit()),
+    ],
     child: MaterialApp(
       home: Scaffold(
         body: Column(

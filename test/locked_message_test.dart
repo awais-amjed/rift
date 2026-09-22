@@ -6,12 +6,15 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/chat_message.dart';
 import 'package:rift/data/enums/message_origin.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
+import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/services/message_permissions.dart';
 import 'package:rift/presentation/common/chat/chat_message_list.dart';
 import 'package:rift/presentation/common/chat/message_row/message_locked_body.dart';
 import 'package:rift/presentation/common/chat/message_row/message_origin_badge.dart';
 import 'package:rift/presentation/common/chat/message_row/message_row_header.dart';
+
+import 'support/stub_members_cubit.dart';
 
 class _MemoryStorage implements Storage {
   final Map<String, dynamic> _data = {};
@@ -85,6 +88,7 @@ void main() {
           BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
           // The row's message cover reads the sensitive-content setting.
           BlocProvider<AppCubit>(create: (_) => AppCubit()),
+          BlocProvider<ServerMembersCubit>(create: (_) => StubMembersCubit()),
         ],
         child: MaterialApp(
           home: Scaffold(

@@ -9,8 +9,8 @@ import '../../../../../data/constants.dart';
 import '../../../../common/context_menu/context_menu_button.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/hover_builder.dart';
+import '../../../../common/member_avatar.dart';
 import '../../../../common/speaking_ring.dart';
-import '../../../../common/squircle_avatar.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_row_metrics.dart';
 import 'voice_status_row_icons.dart';
@@ -78,9 +78,9 @@ class ParticipantListItem extends StatelessWidget {
                   borderRadius: BorderRadius.circular(
                     metrics.avatarSize * K.avatarRadiusRatio,
                   ),
-                  child: SquircleAvatar(
+                  child: MemberAvatar(
+                    userId: participant.userId,
                     name: name,
-                    seed: participant.userId,
                     size: metrics.avatarSize,
                   ),
                 ),

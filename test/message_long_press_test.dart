@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/chat_message.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
+import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/chat/message_row/chat_message_row.dart';
+
+import 'support/stub_members_cubit.dart';
 
 /// In-memory stand-in so [ThemeCubit] (a HydratedCubit) can be built in tests.
 class _MemoryStorage implements Storage {
@@ -69,6 +72,9 @@ void main() {
               BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
               // The row's message cover reads the sensitive-content setting.
               BlocProvider<AppCubit>(create: (_) => AppCubit()),
+              BlocProvider<ServerMembersCubit>(
+                create: (_) => StubMembersCubit(),
+              ),
             ],
             child: BlocBuilder<ThemeCubit, ThemeState>(
               builder: (context, themeState) => Scaffold(
