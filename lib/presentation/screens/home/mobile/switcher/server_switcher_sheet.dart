@@ -8,7 +8,7 @@ import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
-import '../../../../common/app_modal_header.dart';
+import '../../../../common/app_modal_header_button.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';

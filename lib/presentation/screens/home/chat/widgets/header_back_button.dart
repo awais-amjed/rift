@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../common/back_chevron_button.dart';
-import '../../../../responsive/shell_scope.dart';
 import '../../mobile/mobile_shell_scope.dart';
-import 'chat_header_button.dart';
 
 /// The way back out of a page on a phone — to the list, or to the call a
 /// conversation was opened over.
@@ -23,24 +21,5 @@ class HeaderBackButton extends StatelessWidget {
     final navigator = Navigator.of(context);
     if (!navigator.canPop()) return const SizedBox.shrink();
     return BackChevronButton(onPressed: navigator.maybePop);
-  }
-}
-
-/// Opens the member list from a panel header — a sheet, on a phone.
-///
-/// Only on compact widths, not everywhere the list is overlaid: at medium the
-/// content still has room to spare and the edge tab is a perfectly good target
-/// for a pointer, which is what is on the other end of a window that size.
-class HeaderMembersButton extends StatelessWidget {
-  const HeaderMembersButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    if (!context.layoutMode.isCompact) return const SizedBox.shrink();
-    return ChatHeaderButton(
-      icon: Icons.people_alt_rounded,
-      tooltip: 'Show members',
-      onTap: ShellScope.of(context).toggleMembers,
-    );
   }
 }

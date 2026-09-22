@@ -10,7 +10,7 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../chat/widgets/chat_header.dart';
 import '../../chat/widgets/chat_header_button.dart';
-import '../../chat/widgets/header_pane_buttons.dart';
+import '../../chat/widgets/header_back_button.dart';
 
 /// Header of an open DM conversation.
 ///

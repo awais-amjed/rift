@@ -15,7 +15,8 @@ import '../../../../theme/custom_colors.dart';
 import '../../channels/channel_list/widgets/channel_context_menu.dart';
 import 'channel_listeners_chip.dart';
 import 'chat_header_button.dart';
-import 'header_pane_buttons.dart';
+import 'header_back_button.dart';
+import 'header_members_button.dart';
 
 /// The chat panel's top bar: which channel you're in, that it's encrypted, and
 /// the controls that change what the panel shows.

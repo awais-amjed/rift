@@ -9,7 +9,7 @@ import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/squircle_avatar.dart';
-import '../../../../common/unread_badge.dart';
+import '../../../../common/unread_dot.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';

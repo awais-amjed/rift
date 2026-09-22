@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../chat/widgets/header_pane_buttons.dart';
+import '../../chat/widgets/header_back_button.dart';
 import '../../participants_grid/participants_grid.dart';
 
 /// The call, standing on its own.
