@@ -224,6 +224,10 @@ class K {
   /// stage keeps clear, so the controls do not sit on somebody's tile.
   static const double callBarClearance = callBarOffset + 64;
 
+  /// The same for the pill a phone leaves behind when its controls fade:
+  /// the call's length and the mic, in a 40px capsule.
+  static const double callPillClearance = callBarOffset + 40;
+
   /// Settings' nav panel. Narrower than the home sidebar — it holds three
   /// labels, not a channel tree.
   static const double settingsNavWidth = 264;

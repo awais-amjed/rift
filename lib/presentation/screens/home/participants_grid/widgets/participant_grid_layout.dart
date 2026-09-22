@@ -1,10 +1,11 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../../data/participant_identity.dart';
 import '../../../../../data/classes/participant_setting.dart';
-import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/fit_aspect.dart';
@@ -12,6 +13,7 @@ import '../../../../../logic/services/room_tiles.dart';
 import '../../../../../logic/services/stage_fit.dart';
 import '../../../../../logic/services/voice_tiles.dart';
 import '../../../../responsive/shell_scope.dart';
+import '../../../../theme/app_motion.dart';
 import '../participants_tile/participant_tile.dart';
 import '../participants_tile/sound_share_tile.dart';
 import 'camera_rail.dart';
@@ -27,8 +29,11 @@ class ParticipantGridLayout extends StatefulWidget {
   /// How much of the top a floating bar covers while a cell is focused.
   final double focusTopInset;
 
-  /// How much of the bottom the call controls cover while a cell is focused.
-  final double focusBottomInset;
+  /// How much of the stage's foot the call controls cover right now: their
+  /// full height while they show, nothing once they fade. The stage keeps it
+  /// free, following them as they come and go the way it follows the top
+  /// strip, and a focused stream lifts its badges past it.
+  final double controlsInset;
 
   const ParticipantGridLayout({
     super.key,
@@ -36,7 +41,7 @@ class ParticipantGridLayout extends StatefulWidget {
     required this.participantSettings,
     this.onFocusChanged,
     this.focusTopInset = 0,
-    this.focusBottomInset = 0,
+    this.controlsInset = 0,
   });
 
   @override
@@ -56,9 +61,10 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   /// Each share's picture shape, by [_keyOf], once its first frame arrives.
   final Map<String, double> _aspects = {};
 
-  /// Kept clear at the stage's foot, beyond its padding, for the floating
-  /// call controls — tiles ran under them, names and all.
-  static const _barRoom = K.callBarClearance + 8 - 12;
+  /// What the stage keeps clear at its foot, beyond its own 12px padding,
+  /// for controls covering [inset] of it — tiles ran under them, names and
+  /// all. A gap of 8 above them, like the gap between tiles.
+  static double _roomFor(double inset) => max(0, inset + 8 - 12);
 
   /// What a share is drawn as until its picture says otherwise.
   static const _defaultAspect = 16 / 9;
@@ -169,13 +175,31 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
           onTap: () => _onTileTapped(_keyOf(expanded)),
           isExpanded: true,
           topInset: widget.focusTopInset,
-          bottomInset: widget.focusBottomInset,
+          bottomInset: widget.controlsInset,
           // Nothing left to focus on once the share is gone from this screen.
           onWatchStopped: () => _setExpanded(null),
         );
       }
     }
 
+    // The controls fade in and out, and the stage follows them: room at the
+    // foot while they show, the full height once they go.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: widget.controlsInset),
+      duration: AppMotion.enter,
+      curve: Curves.easeInOut,
+      builder: (context, inset, _) =>
+          _stage(context, tiles, watching, barRoom: _roomFor(inset)),
+    );
+  }
+
+  /// Everything but a focused cell, with [barRoom] kept clear at the foot.
+  Widget _stage(
+    BuildContext context,
+    List<VoiceTile<Participant>> tiles,
+    Set<String> watching, {
+    required double barRoom,
+  }) {
     // Watched screenshares get a hero layout: each share's box is the shape
     // of its picture, as large as fits, with everything else in a row right
     // under it. The row stays under the share rather than beside it so the
@@ -198,14 +222,14 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
         builder: (context, constraints) {
           final width = constraints.maxWidth - padding * 2;
           final shareSpace =
-              constraints.maxHeight - padding * 2 - _barRoom - gap - railHeight;
+              constraints.maxHeight - padding * 2 - barRoom - gap - railHeight;
           final slot = (shareSpace - gap * (shares.length - 1)) / shares.length;
           return Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               padding,
               padding,
               padding,
-              padding + _barRoom,
+              padding + barRoom,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -247,7 +271,7 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       builder: (context, constraints) {
         final width = constraints.maxWidth - padding * 2;
         final height = constraints.maxHeight.isFinite
-            ? constraints.maxHeight - padding * 2 - _barRoom
+            ? constraints.maxHeight - padding * 2 - barRoom
             : width;
         final fit = stageFit(
           width: width,
@@ -271,7 +295,7 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
               ],
             );
         return Padding(
-          padding: const EdgeInsets.only(bottom: _barRoom),
+          padding: EdgeInsets.only(bottom: barRoom),
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(padding),

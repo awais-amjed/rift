@@ -166,8 +166,11 @@ class _RoomViewState extends State<RoomView> {
                                         compact: context.layoutMode.isCompact,
                                       )
                                     : 0,
-                                focusBottomInset: _chromeVisible
+                                // A phone keeps a pill up when the bar goes.
+                                controlsInset: _chromeVisible
                                     ? K.callBarClearance
+                                    : context.layoutMode.isCompact
+                                    ? K.callPillClearance
                                     : 0,
                                 onFocusChanged: (focused) {
                                   setState(() => _focused = focused);
