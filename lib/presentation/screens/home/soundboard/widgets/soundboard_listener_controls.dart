@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../common/app_switch.dart';
+import '../../../../common/volume_slider.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
@@ -71,21 +72,11 @@ class SoundboardListenerControls extends StatelessWidget {
             ),
           ],
         ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-            activeTrackColor: theme.primary,
-            inactiveTrackColor: theme.bgActive,
-            thumbColor: theme.primary,
-          ),
-          child: Slider(
-            value: muted ? 0 : volume,
-            onChanged: muted
-                ? null
-                : context.read<AppCubit>().setSoundboardVolume,
-          ),
+        VolumeSlider(
+          value: muted ? 0 : volume,
+          onChanged: muted
+              ? null
+              : context.read<AppCubit>().setSoundboardVolume,
         ),
       ],
     );

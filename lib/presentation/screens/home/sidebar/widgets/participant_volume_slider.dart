@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../theme/theme_context.dart';
+import '../../../../common/volume_slider.dart';
 
 /// The bare track for how loud somebody is in your ears — no label, no
 /// readout — so the menu can stack it under its heading and a profile can
@@ -34,36 +34,22 @@ class ParticipantVolumeSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
-    return SliderTheme(
-      data: SliderTheme.of(context).copyWith(
-        trackHeight: 3,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-        activeTrackColor: themeState.primary,
-        inactiveTrackColor: themeState.bgActive,
-        thumbColor: themeState.primary,
-      ),
-      child: Slider(
-        // Flutter pads the track by the overlay's radius on each side, which
-        // leaves it well short of whatever it is lined up with. The thumb's
-        // own radius is all it needs: at either end, its edge meets theirs.
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        value: isMuted ? 0 : volume,
-        onChanged: isMuted
-            ? null
-            : (value) {
-                final handler = onChanged;
-                if (handler != null) {
-                  handler(value);
-                  return;
-                }
-                context.read<LiveKitCubit>().setParticipantVolume(
-                  target,
-                  value,
-                );
-              },
-      ),
+    return VolumeSlider(
+      // Flutter pads the track by the overlay's radius on each side, which
+      // leaves it well short of whatever it is lined up with. The thumb's
+      // own radius is all it needs: at either end, its edge meets theirs.
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      value: isMuted ? 0 : volume,
+      onChanged: isMuted
+          ? null
+          : (value) {
+              final handler = onChanged;
+              if (handler != null) {
+                handler(value);
+                return;
+              }
+              context.read<LiveKitCubit>().setParticipantVolume(target, value);
+            },
     );
   }
 

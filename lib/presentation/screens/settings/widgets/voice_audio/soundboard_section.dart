@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../common/volume_slider.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
@@ -58,21 +59,11 @@ class SoundboardSection extends StatelessWidget {
             ),
           ],
         ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-            activeTrackColor: theme.primary,
-            inactiveTrackColor: theme.bgActive,
-            thumbColor: theme.primary,
-          ),
-          child: Slider(
-            value: appState.soundboardMuted ? 0 : appState.soundboardVolume,
-            onChanged: appState.soundboardMuted
-                ? null
-                : context.read<AppCubit>().setSoundboardVolume,
-          ),
+        VolumeSlider(
+          value: appState.soundboardMuted ? 0 : appState.soundboardVolume,
+          onChanged: appState.soundboardMuted
+              ? null
+              : context.read<AppCubit>().setSoundboardVolume,
         ),
       ],
     );
