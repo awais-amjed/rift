@@ -1,11 +1,13 @@
 part of 'server_cubit.dart';
 
-/// Chat API wrappers (E2E messaging). Thin pass-throughs to the repository —
+/// Channel messages and channel keys (E2E messaging). Attachments and DMs
+/// are their own parts.
+///
+/// Chat API wrappers. Thin pass-throughs to the repository —
 /// all crypto happens in ChannelChatCubit/CryptoRepository; these only add
 /// token auto-refresh and server resolution.
 mixin _ServerChatApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
-  AttachmentRepository get _attachments;
 
   /// See [_ServerApiMixin] — what a direct PostgREST call needs alongside the
   /// bearer token.
@@ -21,118 +23,10 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     Future<APIResponse> Function(String token) call,
   );
 
-  Server? _target(String? serverId);
   String _noTarget(String? serverId);
 
-  /// The server a call is aimed at, and the refresher that goes with it.
-  ///
-  /// Every call below used to read `state.selectedServer`, which is right for
-  /// the conversation somebody is looking at and wrong for the one they are
-  /// forwarding into — a forward's destination is named by the caller and is
-  /// routinely on another server entirely. Resolving both together is what
-  /// stops the two halves disagreeing: sealing for one server and posting the
-  /// envelope to another produces a message nobody in either room can open.
-  ({Server server, String anonKey})? _chatTarget(String? serverId) {
-    final server = _target(serverId);
-    final anonKey = server?.supabaseKey;
-    if (server == null || anonKey == null) return null;
-    return (server: server, anonKey: anonKey);
-  }
-
-  /// Each server owns its own attachment bucket (`002_limits.sql`), named for its
-  /// id. One Supabase project can host several servers, and a shared bucket
-  /// could carry only one `file_size_limit` between them — and let a member of
-  /// one read another's objects. A bucket each makes both exact.
-  static String _bucketFor(Server server) => 'chat-${server.id}';
-
-  /// Encrypt + upload an attachment blob to the selected server, scoped under
-  /// [scopePrefix] (channel id / DM context). On success `data` is
-  /// `({String path, String keyB64, String nonceB64})`.
-  /// [serverId] names a server other than the open one — a forward's
-  /// destination. Omitted, it is the open one, which is every other caller.
-  Future<APIResponse> uploadAttachment({
-    required String scopePrefix,
-    required Uint8List data,
-    String? serverId,
-  }) {
-    final target = _chatTarget(serverId);
-    if (target == null) {
-      return Future.value(APIResponse.error(_noTarget(serverId)));
-    }
-    return _callFor(
-      target.server,
-      (token) => _attachments.uploadEncrypted(
-        baseUrl: target.server.supabaseUrl,
-        anonKey: target.anonKey,
-        bearerToken: token,
-        bucket: _bucketFor(target.server),
-        scopePrefix: scopePrefix,
-        data: data,
-      ),
-    );
-  }
-
-  /// Remove attachment blobs from the selected server.
-  ///
-  /// Called when a message carrying them is deleted: the client has just
-  /// decrypted that message, so it is the only party that knows which blobs
-  /// belong to it. Best-effort — see [AttachmentRepository.deleteObjects].
-  Future<APIResponse> deleteAttachments(List<String> paths) {
-    final server = state.selectedServer;
-    final anonKey = server?.supabaseKey;
-    if (server == null || anonKey == null) {
-      return Future.value(APIResponse.error('No server selected'));
-    }
-    return _callWithAutoRefresh(
-      (token) => _attachments.deleteObjects(
-        baseUrl: server.supabaseUrl,
-        anonKey: anonKey,
-        bearerToken: token,
-        bucket: _bucketFor(server),
-        paths: paths,
-      ),
-    );
-  }
-
-  /// Apply this server's retention settings and clear out the attachment blobs
-  /// whose messages are gone. Safe for any member to call — it removes only
-  /// unreferenced objects.
-  Future<APIResponse> sweepAttachments() {
-    final server = state.selectedServer;
-    if (server == null) {
-      return Future.value(APIResponse.error('No server selected'));
-    }
-    return _callWithAutoRefresh(
-      (token) =>
-          _repository.sweepAttachments(server.supabaseUrl, bearerToken: token),
-    );
-  }
-
-  /// Download + decrypt an attachment blob from the selected server. On success
-  /// `data` is the decrypted `Uint8List`.
-  Future<APIResponse> downloadAttachment({
-    required String path,
-    required String keyB64,
-    required String nonceB64,
-    String? serverId,
-  }) {
-    final target = _chatTarget(serverId);
-    if (target == null) {
-      return Future.value(APIResponse.error(_noTarget(serverId)));
-    }
-    return _callFor(
-      target.server,
-      (token) => _attachments.downloadDecrypted(
-        baseUrl: target.server.supabaseUrl,
-        anonKey: target.anonKey,
-        bearerToken: token,
-        bucket: _bucketFor(target.server),
-        path: path,
-        keyB64: keyB64,
-        nonceB64: nonceB64,
-      ),
-    );
-  }
+  /// See [ServerCubit._chatTarget].
+  ({Server server, String anonKey})? _chatTarget(String? serverId);
 
   /// Publish the local user's X25519 chat public key (idempotent).
   Future<APIResponse> publishChatKey(String chatPublicKey) =>
@@ -223,31 +117,6 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
       bearerToken: token,
     ),
   );
-
-  /// Replace one server-DM envelope (sender only).
-  Future<APIResponse> editDm({
-    required int messageId,
-    required Map<String, dynamic> envelope,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.editDm(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      messageId: messageId,
-      envelope: envelope,
-      bearerToken: token,
-    ),
-  );
-
-  /// Hard-delete one server DM (sender only).
-  Future<APIResponse> deleteDm({required int messageId}) =>
-      _callWithAutoRefresh(
-        (token) => _repository.deleteDm(
-          state.selectedServer!.supabaseUrl,
-          anonKey: _anonKey,
-          messageId: messageId,
-          bearerToken: token,
-        ),
-      );
 
   /// Page through a channel's message envelopes.
   Future<APIResponse> listChatMessages({
@@ -352,61 +221,6 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
       bearerToken: token,
     ),
   );
-
-  /// Store one E2E DM envelope for [recipientId].
-  Future<APIResponse> sendDm({
-    required String recipientId,
-    required Map<String, dynamic> envelope,
-    String? serverId,
-  }) {
-    final target = _chatTarget(serverId);
-    if (target == null) {
-      return Future.value(APIResponse.error(_noTarget(serverId)));
-    }
-    return _callFor(
-      target.server,
-      (token) => _repository.sendDm(
-        target.server.supabaseUrl,
-        anonKey: target.anonKey,
-        recipientId: recipientId,
-        envelope: envelope,
-        bearerToken: token,
-      ),
-    );
-  }
-
-  /// Page through the DM conversation with [peerId].
-  Future<APIResponse> listDms({
-    required String peerId,
-    int? beforeId,
-    int? afterId,
-    int? limit,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.listDms(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      userId: _userId,
-      peerId: peerId,
-      beforeId: beforeId,
-      afterId: afterId,
-      limit: limit,
-      bearerToken: token,
-    ),
-  );
-
-  /// One page of the local user's DM conversations, newest activity first.
-  ///
-  /// [before] is the cursor: the newest message id of the last row already
-  /// held. Null asks for the top.
-  Future<APIResponse> listDmConversations({int? before}) =>
-      _callWithAutoRefresh(
-        (token) => _repository.listDmConversations(
-          state.selectedServer!.supabaseUrl,
-          anonKey: _anonKey,
-          bearerToken: token,
-          before: before,
-        ),
-      );
 
   /// Store sealed keyring entries for a key version.
   Future<APIResponse> postChannelKeys({

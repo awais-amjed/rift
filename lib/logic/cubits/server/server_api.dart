@@ -1,5 +1,7 @@
 part of 'server_cubit.dart';
 
+/// A server itself: creating one, its listing token, its settings and
+/// details, and leaving it. Voice and invites are their own parts.
 mixin _ServerApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
   void removeServer(String serverId);
@@ -47,60 +49,6 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   /// caller named, or the selection when it named none.
   Server? _target(String? serverId);
   String _noTarget(String? serverId);
-
-  // ──────────────────────────────────────────────────────────
-  // API Operations
-  // ──────────────────────────────────────────────────────────
-
-  /// Returns a LiveKit JWT for [channelId]. Token refresh is handled automatically.
-  Future<APIResponse> getChannelToken(
-    String channelId, {
-    bool screenShare = false,
-    bool soundShare = false,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.getChannelToken(
-      state.selectedServer!.supabaseUrl,
-      channelId,
-      screenShare: screenShare,
-      soundShare: soundShare,
-      bearerToken: token,
-    ),
-  );
-
-  /// Moves a member into another voice channel (requires channel manager or
-  /// server admin). They have to be in a call for there to be anything to move.
-  Future<APIResponse> moveUser({
-    required String userId,
-    required String channelId,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.moveUser(
-      state.selectedServer!.supabaseUrl,
-      bearerToken: token,
-      userId: userId,
-      channelId: channelId,
-    ),
-  );
-
-  /// Disconnects a member from the voice channel they're in (requires channel
-  /// manager or server admin). They have to be in a call for there to be
-  /// anything to end, and nothing stops them rejoining — see `kick_user`.
-  Future<APIResponse> kickUser({required String userId}) =>
-      _callWithAutoRefresh(
-        (token) => _repository.kickUser(
-          state.selectedServer!.supabaseUrl,
-          bearerToken: token,
-          userId: userId,
-        ),
-      );
-
-  /// Who is in which voice channel on the selected server, straight from
-  /// LiveKit: `{roster: {userId: channelId}}`.
-  Future<APIResponse> voiceRoster() => _callWithAutoRefresh(
-    (token) => _repository.voiceRoster(
-      state.selectedServer!.supabaseUrl,
-      bearerToken: token,
-    ),
-  );
 
   /// Creates a new server. On success returns the single-use admin invite code.
   Future<({bool success, String? inviteCode, String? error})> createServer({
@@ -163,84 +111,6 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     return token == null
         ? (token: null, error: 'This server did not return a listing token.')
         : (token: token, error: null);
-  }
-
-  Future<({bool success, String? inviteCode, String? error})> createInvite({
-    int? maxUses = 1,
-    int? expiresInSeconds,
-    String? serverId,
-    bool isBot = false,
-    String? roleId,
-  }) async {
-    final server = _target(serverId);
-    if (server == null) {
-      return (success: false, inviteCode: null, error: _noTarget(serverId));
-    }
-
-    final response = await _callFor(
-      server,
-      (token) => _repository.createInvite(
-        server.supabaseUrl,
-        anonKey: server.supabaseKey ?? '',
-        serverId: server.id,
-        userId: server.user?.id ?? '',
-        bearerToken: token,
-        maxUses: maxUses,
-        expiresInSeconds: expiresInSeconds,
-        isBot: isBot,
-        roleId: roleId,
-      ),
-    );
-
-    if (response.success) {
-      final inviteCode = response.data['invite_code'] as String;
-      return (success: true, inviteCode: inviteCode, error: null);
-    } else {
-      return (
-        success: false,
-        inviteCode: null,
-        error: response.error ?? 'Failed to generate invite',
-      );
-    }
-  }
-
-  /// Read an invite link and ask its server what it opens, without using it.
-  ///
-  /// The first of the two join steps. A link that does not parse is refused
-  /// here, in words; one that parses is put to the server, which answers with
-  /// the name — or with why not, which is the same answer registration would
-  /// have given a screen later, after a username had been typed for nothing.
-  Future<({ResolvedInvite? invite, String? error})> resolveInvite(
-    String rawLink,
-  ) async {
-    final link = InviteLink.parse(rawLink);
-    if (link == null) {
-      return (
-        invite: null,
-        error:
-            "That doesn't look like a complete invite link. Ask the server "
-            'admin for a new one.',
-      );
-    }
-    final resolved = await _repository.resolveInvite(
-      link.serverUrl,
-      link.inviteCode,
-    );
-    if (!resolved.success || resolved.serverId == null) {
-      return (
-        invite: null,
-        error: resolved.error ?? 'That invite cannot be used any more.',
-      );
-    }
-    return (
-      invite: ResolvedInvite(
-        serverUrl: link.serverUrl,
-        inviteCode: link.inviteCode,
-        serverId: resolved.serverId!,
-        serverName: resolved.serverName ?? link.serverUrl,
-      ),
-      error: null,
-    );
   }
 
   /// Update the settings of [serverId], or of the selected server (admin only).

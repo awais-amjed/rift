@@ -41,10 +41,13 @@ import '../../services/soundboard_cache.dart';
 import '../vault/vault_cubit.dart';
 
 part 'server_api.dart';
+part 'server_attachments_api.dart';
 part 'server_bots_api.dart';
 part 'server_channels_api.dart';
 part 'server_chat_api.dart';
 part 'server_crud.dart';
+part 'server_dms_api.dart';
+part 'server_invites_api.dart';
 part 'server_cubit.g.dart';
 part 'server_member_lookup_api.dart';
 part 'server_members_api.dart';
@@ -56,12 +59,13 @@ part 'server_roles_api.dart';
 part 'server_selection.dart';
 part 'server_soundboard_api.dart';
 part 'server_state.dart';
+part 'server_voice_api.dart';
 part 'server_voice_bots_api.dart';
 part 'server_webhooks_api.dart';
 
 /// The servers this identity has joined, and every call made to one of them.
 ///
-/// Over the cubit-hub budget and one job. The seventeen parts hold the API
+/// Over the cubit-hub budget and one job. The parts hold the API
 /// calls; what is left here is what they all share and CODE_STYLE §5 says the
 /// class must hold — the session refresh every call goes through, the
 /// member-name cache, and the one place a server's row is updated.
@@ -79,6 +83,10 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerChannelsApiMixin,
         _ServerPrivateChannelsApiMixin,
         _ServerChatApiMixin,
+        _ServerAttachmentsApiMixin,
+        _ServerDmsApiMixin,
+        _ServerVoiceApiMixin,
+        _ServerInvitesApiMixin,
         _ServerProfileApiMixin,
         _ServerPushApiMixin,
         _ServerSoundboardApiMixin,
@@ -158,6 +166,22 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   Server? _target(String? serverId) =>
       serverId == null ? state.selectedServer : state.serverById(serverId);
+
+  /// The server a call is aimed at, and the refresher that goes with it.
+  ///
+  /// Every chat call used to read `state.selectedServer`, which is right for
+  /// the conversation somebody is looking at and wrong for the one they are
+  /// forwarding into — a forward's destination is named by the caller and is
+  /// routinely on another server entirely. Resolving both together is what
+  /// stops the two halves disagreeing: sealing for one server and posting the
+  /// envelope to another produces a message nobody in either room can open.
+  @override
+  ({Server server, String anonKey})? _chatTarget(String? serverId) {
+    final server = _target(serverId);
+    final anonKey = server?.supabaseKey;
+    if (server == null || anonKey == null) return null;
+    return (server: server, anonKey: anonKey);
+  }
 
   /// What to say when [_target] finds nothing. A named server that isn't here is
   /// a different failure from having nothing selected, and telling them apart is
