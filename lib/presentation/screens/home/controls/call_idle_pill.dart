@@ -50,7 +50,7 @@ class _CallIdlePillState extends State<CallIdlePill> {
     final micOn = call.isMicOn;
 
     return Positioned(
-      bottom: 28,
+      bottom: K.callBarOffset,
       left: 0,
       right: 0,
       child: Center(

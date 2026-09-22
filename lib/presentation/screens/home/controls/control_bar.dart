@@ -46,7 +46,7 @@ class ControlBar extends StatelessWidget {
             return BlocBuilder<SoundShareCubit, SoundShareState>(
               builder: (context, soundShareState) {
                 return Positioned(
-                  bottom: 28,
+                  bottom: K.callBarOffset,
                   left: 0,
                   right: 0,
                   child: Center(

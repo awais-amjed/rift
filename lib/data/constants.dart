@@ -215,6 +215,15 @@ class K {
   static const double membersSidebarMaxWidth = 420;
   static const double membersSidebarMaxWindowFraction = 0.35;
 
+  // ── Call controls ───────────────────────────────────────
+  /// How far above the stage's bottom edge the floating call controls sit.
+  static const double callBarOffset = 28;
+
+  /// Where the floating call controls' top edge is, measured up from the
+  /// stage's bottom: the offset plus 46px buttons in 8px of padding. What the
+  /// stage keeps clear, so the controls do not sit on somebody's tile.
+  static const double callBarClearance = callBarOffset + 64;
+
   /// Settings' nav panel. Narrower than the home sidebar — it holds three
   /// labels, not a channel tree.
   static const double settingsNavWidth = 264;
