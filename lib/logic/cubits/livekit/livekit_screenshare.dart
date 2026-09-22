@@ -17,6 +17,20 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       return;
     }
 
+    // Watching is recorded before the subscription is asked for, not after.
+    // Starting to watch also opens the stream full size, and the tile that
+    // opens checks this set as it appears — finding the stream not yet in
+    // it, it unsubscribed from what had just been asked for, and the stage
+    // showed the sharer's avatar instead of their screen.
+    final wasWatching = state.subscribedScreenshares.contains(identity);
+    if (!wasWatching) {
+      emit(
+        state.copyWith(
+          subscribedScreenshares: {...state.subscribedScreenshares, identity},
+        ),
+      );
+    }
+
     var subscribedAny = false;
 
     for (final pub in participant.videoTrackPublications) {
@@ -45,13 +59,19 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     }
 
     if (subscribedAny) {
-      final updated = Set<String>.from(state.subscribedScreenshares)
-        ..add(identity);
-      emit(state.copyWith(subscribedScreenshares: updated));
       _syncParticipants();
       unawaited(_publishSelfState());
     } else {
       debugPrint('No screenshare tracks found for $identity');
+      if (!wasWatching) {
+        emit(
+          state.copyWith(
+            subscribedScreenshares: Set<String>.from(
+              state.subscribedScreenshares,
+            )..remove(identity),
+          ),
+        );
+      }
     }
   }
 

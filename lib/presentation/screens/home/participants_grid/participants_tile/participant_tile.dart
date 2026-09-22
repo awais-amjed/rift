@@ -184,6 +184,10 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
       builder: (context, livekitState) {
+        // Read again on every rebuild, not only when the participant says it
+        // changed: a stream opened full size builds this tile before its track
+        // arrives, and the arrival did not reach it — it stayed on the avatar.
+        _updateVideoTrack();
         // Camera tiles are always "subscribed"; only *remote* screenshares
         // are opt-in. Your own screen is a local track — offering to fetch it
         // would be offering to fetch something already here, and on a phone,
@@ -232,6 +236,14 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                   widget.participant.identity,
                   livekitState.room?.localParticipant?.identity,
                 );
+            // An unopened stream has nothing to focus but a button, so the
+            // whole tile is the button. A click on the button itself only
+            // focused the tile, and a second one was needed to watch.
+            final opensStream =
+                _isScreenshare &&
+                !isSubscribed &&
+                widget.participant is! LocalParticipant;
+            final onTap = opensStream ? _subscribeToScreenshare : widget.onTap;
             return ContextMenuRegion(
               contextMenu: _isScreenshare && !isOwnStream
                   ? StreamContextMenu(
@@ -244,11 +256,11 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       isLocal: widget.participant is LocalParticipant,
                     ),
               child: MouseRegion(
-                cursor: widget.onTap != null
+                cursor: onTap != null
                     ? SystemMouseCursors.click
                     : MouseCursor.defer,
                 child: GestureDetector(
-                  onTap: widget.onTap,
+                  onTap: onTap,
                   behavior: HitTestBehavior.opaque,
                   child: widget.isExpanded
                       ? ExpandedParticipantTile(
