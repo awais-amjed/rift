@@ -9,7 +9,6 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/limit_field.dart';
-import '../../../common/message_banner.dart';
 
 /// Per-channel settings for a channel manager: the name, and how much history
 /// this channel keeps.
@@ -118,14 +117,11 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
     return AppModal(
       title: 'Channel settings',
       subtitle: '#${widget.channel.name}',
+      error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           AppTextField(
             controller: _nameCtrl,
             label: 'Channel name',

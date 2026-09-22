@@ -10,7 +10,6 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/icon_tile.dart';
-import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 
@@ -101,14 +100,11 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
         radius: K.radiusRow,
         iconSize: 18,
       ),
+      error: _error,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           AppTextField(
             controller: _usernameCtrl,
             label: 'Username',

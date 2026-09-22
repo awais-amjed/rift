@@ -85,14 +85,11 @@ class _ChangeHandleDialogState extends State<ChangeHandleDialog> {
     final themeState = context.theme;
     return AppModal(
       title: 'Change handle',
+      error: _error,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           AppTextField(
             controller: _controller,
             label: 'Handle',

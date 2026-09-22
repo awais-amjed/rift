@@ -11,7 +11,6 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/loading_block.dart';
-import '../../../../common/message_banner.dart';
 import '../../../settings/widgets/setting_toggle_row.dart';
 import 'widgets/bot_access_list.dart';
 
@@ -120,14 +119,11 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
       title: 'What it can reach',
       subtitle: widget.bot.displayName,
       maxWidth: 480,
+      error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           if (_isLoading)
             const LoadingBlock(height: 140)
           else ...[

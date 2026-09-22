@@ -8,6 +8,7 @@ import 'app_button_height.dart';
 import 'app_modal_header.dart';
 import 'back_chevron_button.dart';
 import 'button_footer.dart';
+import 'message_banner.dart';
 
 export 'show_custom_dialog.dart';
 
@@ -34,6 +35,12 @@ class AppModal extends StatelessWidget {
   /// A form: padded, and scrolled as a whole when there is not room for it.
   /// Exactly one of [content] and [body] is given.
   final Widget? content;
+
+  /// Why the last attempt failed, shown above [content] until it is cleared.
+  ///
+  /// Every form dialog had the same banner and the same gap hand-placed at the
+  /// top of its column; this is that, once.
+  final String? error;
 
   /// A body that owns its own scrolling — a `ListView` with a search row
   /// above it, say. Given the remaining height and no padding; what is inside
@@ -96,6 +103,7 @@ class AppModal extends StatelessWidget {
     this.count,
     this.headerActions = const [],
     this.content,
+    this.error,
     this.body,
     this.actions,
     this.maxWidth = 448,
@@ -108,6 +116,19 @@ class AppModal extends StatelessWidget {
          (content == null) != (body == null),
          'Give a modal a content form or a self-scrolling body, not both',
        );
+
+  /// [content] with the [error] banner above it, when there is one.
+  Widget? get _form => error == null || content == null
+      ? content
+      : Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          spacing: 12,
+          children: [
+            MessageBanner(message: error!, kind: MessageBannerKind.error),
+            content!,
+          ],
+        );
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +184,7 @@ class AppModal extends StatelessWidget {
                       horizontal: 20,
                       vertical: 18,
                     ),
-                    child: content,
+                    child: _form,
                   ),
             ),
             if (actions != null) ...[

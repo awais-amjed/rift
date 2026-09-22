@@ -13,7 +13,6 @@ import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/loading_block.dart';
-import '../../../../common/message_banner.dart';
 import 'widgets/channel_bot_row.dart';
 
 /// Which bots hold the key to this channel.
@@ -126,14 +125,11 @@ class _ChannelBotsDialogState extends State<ChannelBotsDialog> {
       title: 'Bots reading this',
       subtitle: '#${widget.channel.name}',
       maxWidth: 480,
+      error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           if (_isLoading)
             const LoadingBlock(height: 140)
           else if (_bots.isEmpty)

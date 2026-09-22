@@ -11,7 +11,6 @@ import '../../../../../logic/services/avatar_image.dart';
 import '../../../../../logic/services/mime_util.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
-import '../../../../common/message_banner.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -148,13 +147,10 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
     return AppModal(
       title: 'Edit profile',
       subtitle: 'How you appear on ${server?.name ?? 'this server'}',
+      error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           Center(child: _avatarPicker(themeState, user?.avatarPath, user?.id)),
           const SizedBox(height: 18),
           Text(

@@ -7,7 +7,6 @@ import '../../../../logic/services/limit_input.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/limit_field.dart';
-import '../../../common/message_banner.dart';
 
 /// How much history this server's DMs keep (`002_limits.sql`).
 ///
@@ -110,14 +109,11 @@ class _ServerDmSettingsDialogState extends State<ServerDmSettingsDialog> {
     return AppModal(
       title: 'Server DM settings',
       subtitle: 'Applies to every conversation on this server',
+      error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           LimitField(
             controller: _retentionCtrl,
             label: 'Delete messages older than',

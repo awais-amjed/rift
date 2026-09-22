@@ -54,7 +54,7 @@ extension _AppModalPhone on AppModal {
                       horizontal: 20,
                       vertical: 18,
                     ),
-                    child: content,
+                    child: _form,
                   ),
             ),
             if (actions != null) ...[
@@ -121,7 +121,7 @@ extension _AppModalPhone on AppModal {
                   // buttons are the reason the sheet was opened.
                   child: AppButtonHeight(
                     height: K.thumbCtaHeight,
-                    child: content!,
+                    child: _form!,
                   ),
                 ),
           ),
@@ -196,7 +196,7 @@ extension _AppModalPhone on AppModal {
                     body ??
                     SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                      child: content,
+                      child: _form,
                     ),
               ),
               if (commit != null)

@@ -11,7 +11,6 @@ import '../../../../logic/services/member_selection.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
-import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../settings/widgets/setting_toggle_row.dart';
@@ -112,14 +111,11 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
     final themeState = context.theme;
     return AppModal(
       title: 'Create channel',
+      error: _error,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           AppTextField(
             controller: _nameCtrl,
             label: 'Channel name',

@@ -162,6 +162,8 @@ Before hand-rolling chrome, check `presentation/common/`:
 | Two groups in one dialog | `ModalColumns` — side by side when there's room, stacked when there isn't |
 | "Are you sure?" | `showConfirmDialog` — returns a non-null `bool`; dismiss means no |
 | An inline error / notice | `MessageBanner` — every error, never a bare red `Text`; `caution` is the amber kind |
+| A dialog form's error | `AppModal(error:)` — the banner above the form, placed once |
+| A body still loading | `LoadingBlock` (`height:` in a dialog) |
 | A button | `AppButton` (`AppButtonVariant.danger` for destructive) |
 | The buttons at the end of a panel or dialog | `ButtonFooter` — equal widths at the trailing edge, never one stretched |
 | A two- or three-way choice that shapes a form | `SegmentedControl` (sign in / create, person / bot, text / voice) |

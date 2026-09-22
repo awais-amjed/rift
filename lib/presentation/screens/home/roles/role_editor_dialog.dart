@@ -8,7 +8,6 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/confirm_dialog.dart';
-import '../../../common/message_banner.dart';
 import 'widgets/permission_matrix.dart';
 import 'widgets/role_colour_picker.dart';
 
@@ -138,14 +137,11 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
           ? 'What everybody can do, before any role is handed out'
           : null,
       maxWidth: 560,
+      error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           AppTextField(
             controller: _nameCtrl,
             label: 'Name',

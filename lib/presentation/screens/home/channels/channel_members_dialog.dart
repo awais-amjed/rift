@@ -9,7 +9,6 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/hint_card.dart';
 import '../../../common/loading_block.dart';
-import '../../../common/message_banner.dart';
 import 'widgets/channel_member_picker.dart';
 
 /// Who is in a private channel — and, for whoever runs it, who should be.
@@ -123,14 +122,11 @@ class _ChannelMembersDialogState extends State<ChannelMembersDialog> {
     return AppModal(
       title: 'Who can see this',
       subtitle: '#${widget.channel.name}',
+      error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           if (_isLoading)
             const LoadingBlock(height: 200)
           else ...[

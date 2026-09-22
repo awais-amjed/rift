@@ -9,7 +9,6 @@ import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/loading_block.dart';
-import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import 'widgets/role_row.dart';
@@ -102,14 +101,11 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
       title: 'Roles',
       subtitle: widget.member.displayName,
       maxWidth: 460,
+      error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_error != null) ...[
-            MessageBanner(message: _error!, kind: MessageBannerKind.error),
-            const SizedBox(height: 12),
-          ],
           if (_isLoading)
             const LoadingBlock(height: 160)
           else if (_roles.isEmpty)
