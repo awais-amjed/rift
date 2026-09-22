@@ -7,6 +7,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   AppCubit get _appCubit;
   TokenCubit get _tokenCubit;
   void _syncParticipants();
+  Future<void> _publishSelfState();
 
   /// Implemented by [_LiveKitConnectionMixin]; a dropped call joins again
   /// through the same path as a click.
@@ -49,6 +50,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       ..on<ParticipantDisconnectedEvent>((e) {
         final identity = e.participant.identity;
         _watchingSeen.remove(identity);
+        _forgetStream(identity);
         if (ParticipantIdentity.isShare(identity)) {
           SoundService.instance.playStreamEnded();
         } else {
@@ -70,7 +72,13 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
           if (_isOwnShare(e.participant.identity) && e.publication.subscribed) {
             e.publication.unsubscribe();
           }
-        } else if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
+        } else if (_isStreamTrack(e.participant, e.publication)) {
+          // A phone streams on the connection it talks on, so its stream
+          // starting is a track arriving, not somebody joining.
+          if (!ParticipantIdentity.isScreenshare(e.participant.identity) &&
+              e.publication.source == TrackSource.screenShareVideo) {
+            SoundService.instance.playStreamStarted();
+          }
           if (!state.subscribedScreenshares.contains(e.participant.identity)) {
             // Prevent auto-subscription to unsubscribed screenshares.
             if (e.publication.subscribed) e.publication.unsubscribe();
@@ -102,7 +110,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
           if (_isOwnShare(e.participant.identity)) {
             e.publication.unsubscribe();
           }
-        } else if (ParticipantIdentity.isScreenshare(e.participant.identity)) {
+        } else if (_isStreamTrack(e.participant, e.publication)) {
           if (e.publication.source == TrackSource.screenShareVideo) {
             if (state.subscribedScreenshares.contains(e.participant.identity)) {
               e.publication.setVideoQuality(VideoQuality.HIGH);
@@ -116,13 +124,29 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
               e.publication.unsubscribe();
             }
           }
-        } else {
-          if (e.publication.source == TrackSource.screenShareVideo) {
-            e.publication.setVideoQuality(VideoQuality.HIGH);
-          }
         }
       })
-      ..on<TrackUnpublishedEvent>((e) => _syncParticipants())
+      ..on<TrackUnpublishedEvent>((e) {
+        if (!ParticipantIdentity.isScreenshare(e.participant.identity) &&
+            e.publication.source == TrackSource.screenShareVideo) {
+          SoundService.instance.playStreamEnded();
+          _forgetStream(e.participant.identity);
+        }
+        _syncParticipants();
+      })
+      // Your own phone stream, which on a desktop would arrive as somebody
+      // joining: the sharer hears it start and end like everyone else.
+      ..on<LocalTrackPublishedEvent>((e) {
+        if (e.publication.source == TrackSource.screenShareVideo) {
+          SoundService.instance.playStreamStarted();
+        }
+      })
+      ..on<LocalTrackUnpublishedEvent>((e) {
+        if (e.publication.source == TrackSource.screenShareVideo) {
+          SoundService.instance.playStreamEnded();
+          _forgetStream(e.participant.identity);
+        }
+      })
       ..on<ActiveSpeakersChangedEvent>((e) => _syncParticipants())
       ..on<TrackMutedEvent>((e) => _syncParticipants())
       ..on<TrackUnmutedEvent>((e) => _syncParticipants())
@@ -226,10 +250,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
     final identity = e.participant.identity;
     final current = VoiceAttributes.watchingOf(e.participant.attributes);
     final cues = watchCues(
+      watcher: identity,
       previous: _watchingSeen[identity],
       current: current,
       localIdentity: state.room?.localParticipant?.identity,
       watchedHere: state.subscribedScreenshares,
+      live: _liveStreams(),
     );
     _watchingSeen[identity] = current;
     // One tone however many streams changed at once; the list is almost
@@ -239,5 +265,48 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
     } else if (cues.contains(WatchCue.stopped)) {
       SoundService.instance.playWatchStopped();
     }
+  }
+
+  /// Whether [publication] is part of somebody's stream, and so waits for
+  /// them to be watched. A desktop streams on a `_screenshare` connection of
+  /// its own; a phone publishes its screen beside its microphone, and was
+  /// sent to everyone in the call whether they had asked to watch or not.
+  static bool _isStreamTrack(
+    Participant participant,
+    TrackPublication publication,
+  ) =>
+      ParticipantIdentity.isScreenshare(participant.identity) ||
+      publication.source == TrackSource.screenShareVideo ||
+      publication.source == TrackSource.screenShareAudio;
+
+  /// The streams on air in this call, by the identity a watcher records.
+  Set<String> _liveStreams() {
+    final room = state.room;
+    if (room == null) return const {};
+    bool streams(Participant p) =>
+        ParticipantIdentity.isScreenshare(p.identity) ||
+        p.videoTrackPublications.any(
+          (pub) => pub.source == TrackSource.screenShareVideo,
+        );
+    return {
+      for (final p in room.remoteParticipants.values)
+        if (streams(p)) p.identity,
+      if (room.localParticipant case final local? when streams(local))
+        local.identity,
+    };
+  }
+
+  /// Stops counting [identity]'s stream as watched once it has ended. It
+  /// stayed in the list, so the next stream from the same phone opened
+  /// already watched, and the room was told this client was still watching.
+  void _forgetStream(String identity) {
+    if (!state.subscribedScreenshares.contains(identity)) return;
+    emit(
+      state.copyWith(
+        subscribedScreenshares: Set<String>.from(state.subscribedScreenshares)
+          ..remove(identity),
+      ),
+    );
+    unawaited(_publishSelfState());
   }
 }

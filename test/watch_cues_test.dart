@@ -12,11 +12,15 @@ void main() {
     Set<String>? previous,
     Set<String> current, {
     Set<String> watchedHere = const {},
+    Set<String> live = const {me, myStream, theirStream, otherStream},
+    String watcher = 'someone~d9',
   }) => watchCues(
+    watcher: watcher,
     previous: previous,
     current: current,
     localIdentity: me,
     watchedHere: watchedHere,
+    live: live,
   );
 
   group('watchCues', () {
@@ -30,10 +34,9 @@ void main() {
     });
 
     test('somebody already watching hears a new watcher arrive', () {
-      expect(
-        cues({}, {theirStream}, watchedHere: {theirStream}),
-        [WatchCue.started],
-      );
+      expect(cues({}, {theirStream}, watchedHere: {theirStream}), [
+        WatchCue.started,
+      ]);
     });
 
     test('a stream this client has nothing to do with is silent', () {
@@ -48,11 +51,50 @@ void main() {
       expect(cues({myStream}, {myStream}), isEmpty);
     });
 
-    test('switching streams stops one and starts the other', () {
+    test('watchers leaving a stream that has ended are silent', () {
+      expect(cues({myStream}, {}, live: {}), isEmpty);
+      expect(cues({me}, {}, live: {}), isEmpty);
+    });
+
+    test('a sharer previewing their own stream is not an audience', () {
+      const theirVoice = 'them~d2';
       expect(
-        cues({myStream}, {theirStream}, watchedHere: {theirStream}),
-        [WatchCue.started, WatchCue.stopped],
+        cues(
+          {},
+          {theirStream},
+          watchedHere: {theirStream},
+          watcher: theirVoice,
+        ),
+        isEmpty,
       );
+      // A phone streams on its voice connection.
+      expect(
+        cues(
+          {},
+          {theirVoice},
+          watchedHere: {theirVoice},
+          watcher: theirVoice,
+          live: {theirVoice},
+        ),
+        isEmpty,
+      );
+      // Anybody else opening that phone's stream is an audience.
+      expect(
+        cues(
+          {},
+          {theirVoice},
+          watchedHere: {theirVoice},
+          live: {theirVoice},
+        ),
+        [WatchCue.started],
+      );
+    });
+
+    test('switching streams stops one and starts the other', () {
+      expect(cues({myStream}, {theirStream}, watchedHere: {theirStream}), [
+        WatchCue.started,
+        WatchCue.stopped,
+      ]);
     });
   });
 

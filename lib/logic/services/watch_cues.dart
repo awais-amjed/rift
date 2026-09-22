@@ -13,17 +13,31 @@ enum WatchCue { started, stopped }
 ///
 /// [localIdentity] is this client's voice identity: a desktop share runs on a
 /// `_screenshare` connection of its own, a phone's rides the voice one.
+///
+/// [watcher] is whose list changed. Their own stream is not in it for
+/// anyone else: a sharer opening or closing the preview of their own screen
+/// is not an audience arriving or leaving, and closing it as the stream ended
+/// sounded a "stopped" over the stream's own end.
+///
+/// [live] is the streams still on air. A stream that ends sends every watcher
+/// back to not watching it, and the sharer, who had just heard it end, then
+/// heard one "stopped" per watcher on top.
 List<WatchCue> watchCues({
+  required String watcher,
   required Set<String>? previous,
   required Set<String> current,
   required String? localIdentity,
   required Set<String> watchedHere,
+  required Set<String> live,
 }) {
   if (previous == null) return const [];
   bool concernsMe(String share) =>
-      share == localIdentity ||
-      ParticipantIdentity.isShareOf(share, localIdentity) ||
-      watchedHere.contains(share);
+      live.contains(share) &&
+      share != watcher &&
+      !ParticipantIdentity.isShareOf(share, watcher) &&
+      (share == localIdentity ||
+          ParticipantIdentity.isShareOf(share, localIdentity) ||
+          watchedHere.contains(share));
   return [
     for (final share in current.difference(previous))
       if (concernsMe(share)) WatchCue.started,
