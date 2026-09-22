@@ -111,15 +111,19 @@ class SoundShareTile extends StatelessWidget {
               Positioned(
                 bottom: 12,
                 left: 12,
-                child: ParticipantNameBadge(
-                  name: soundShareLabel(
-                    owner: ownerName,
-                    app: app,
-                    isOwn: isOwn,
+                right: 12,
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: ParticipantNameBadge(
+                    name: soundShareLabel(
+                      owner: ownerName,
+                      app: app,
+                      isOwn: isOwn,
+                    ),
+                    leadingIcon: Icons.graphic_eq_rounded,
+                    isMicEnabled: true,
+                    isMuted: false,
                   ),
-                  leadingIcon: Icons.graphic_eq_rounded,
-                  isMicEnabled: true,
-                  isMuted: false,
                 ),
               ),
               if (!isOwn)

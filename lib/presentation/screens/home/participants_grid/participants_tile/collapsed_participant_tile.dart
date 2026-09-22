@@ -99,22 +99,28 @@ class CollapsedParticipantTile extends StatelessWidget {
               Positioned(
                 bottom: 12,
                 left: 12,
+                right: 12,
                 // Only someone else's share you are watching has receive
                 // stats; the poller does nothing for anything else.
-                child: StreamStatsPoller(
-                  track: showStopButton ? videoTrack : null,
-                  builder: (context, stats) => Row(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: 6,
-                    children: [
-                      ParticipantNameBadge(
-                        name: name,
-                        isMicEnabled: isMicEnabled,
-                        isMuted: isMuted,
-                        isScreenshare: isScreenshare,
-                      ),
-                      StreamQualityBadge(stats: stats),
-                    ],
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: StreamStatsPoller(
+                    track: showStopButton ? videoTrack : null,
+                    builder: (context, stats) => Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 6,
+                      children: [
+                        Flexible(
+                          child: ParticipantNameBadge(
+                            name: name,
+                            isMicEnabled: isMicEnabled,
+                            isMuted: isMuted,
+                            isScreenshare: isScreenshare,
+                          ),
+                        ),
+                        StreamQualityBadge(stats: stats),
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -53,9 +53,18 @@ class ParticipantNameBadge extends StatelessWidget {
                 children: [
                   if (icon != null)
                     Icon(icon, size: 13, color: themeState.accentBright),
-                  Text(
-                    name,
-                    style: AppText.row.copyWith(color: themeState.textPrimary),
+                  // Shortened rather than spilling: the row under a screen
+                  // share is narrower than a long name, and the badge ran
+                  // out of its tile and was cut mid-letter.
+                  Flexible(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.row.copyWith(
+                        color: themeState.textPrimary,
+                      ),
+                    ),
                   ),
                   if (!isScreenshare && (!isMicEnabled || isMuted))
                     const Icon(

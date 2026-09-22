@@ -125,20 +125,26 @@ class ExpandedParticipantTile extends StatelessWidget {
         Positioned(
           bottom: 12,
           left: 12,
-          child: _fading(
-            visible: showOverlays,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 6,
-              children: [
-                ParticipantNameBadge(
-                  name: name,
-                  isMicEnabled: isMicEnabled,
-                  isMuted: isMuted,
-                  isScreenshare: isScreenshare,
-                ),
-                StreamQualityBadge(stats: stats),
-              ],
+          right: 12,
+          child: Align(
+            alignment: Alignment.bottomLeft,
+            child: _fading(
+              visible: showOverlays,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 6,
+                children: [
+                  Flexible(
+                    child: ParticipantNameBadge(
+                      name: name,
+                      isMicEnabled: isMicEnabled,
+                      isMuted: isMuted,
+                      isScreenshare: isScreenshare,
+                    ),
+                  ),
+                  StreamQualityBadge(stats: stats),
+                ],
+              ),
             ),
           ),
         ),
