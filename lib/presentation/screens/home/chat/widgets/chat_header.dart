@@ -5,7 +5,6 @@ import '../../../../../data/classes/channel.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../common/context_menu/context_menu_sheet.dart';
 import '../../../../common/status_chip.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -15,6 +14,7 @@ import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/channel_context_menu.dart';
 import 'channel_listeners_chip.dart';
 import 'chat_header_button.dart';
+import 'chat_phone_title.dart';
 import 'header_back_button.dart';
 import 'header_members_button.dart';
 
@@ -79,7 +79,10 @@ class ChatHeader extends StatelessWidget {
                   ),
                   Flexible(
                     child: compact
-                        ? _PhoneTitle(channel: channel, name: name ?? 'channel')
+                        ? ChatPhoneTitle(
+                            channel: channel,
+                            name: name ?? 'channel',
+                          )
                         : Text(
                             name ?? 'channel',
                             maxLines: 1,
@@ -173,77 +176,6 @@ class _WithChannelMenu extends StatelessWidget {
       context: context,
       channel: channel,
       child: child,
-    );
-  }
-}
-
-/// The channel's name with the line under it that a phone's header carries:
-/// the server it belongs to — so a channel opened from a notification still
-/// says where you are — and how many people are in it, or that it's private.
-class _PhoneTitle extends StatelessWidget {
-  final Channel? channel;
-  final String name;
-
-  const _PhoneTitle({required this.channel, required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final server = context.select<ServerCubit, String?>(
-      (c) => c.state.selectedServer?.name,
-    );
-    final members = context.select<ServerMembersCubit, int?>(
-      (c) => c.state.loaded ? c.state.peopleCount : null,
-    );
-    final private = channel?.isPrivate ?? false;
-    final detail = [
-      ?server,
-      if (private)
-        'private'
-      else if (members != null)
-        '$members ${members == 1 ? 'member' : 'members'}',
-    ].join(' · ');
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          spacing: 5,
-          children: [
-            Flexible(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.panelTitle.copyWith(color: theme.textPrimary),
-              ),
-            ),
-            if (private)
-              Icon(Icons.lock_outline, size: 13, color: theme.textTertiary),
-          ],
-        ),
-        if (detail.isNotEmpty)
-          Row(
-            spacing: 4,
-            children: [
-              if (!private)
-                const Icon(
-                  Icons.lock_outline,
-                  size: 11,
-                  color: CustomColors.success,
-                ),
-              Flexible(
-                child: Text(
-                  detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.label.copyWith(color: theme.textTertiary),
-                ),
-              ),
-            ],
-          ),
-      ],
     );
   }
 }

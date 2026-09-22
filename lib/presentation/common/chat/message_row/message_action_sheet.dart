@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/chat_message.dart';
-import '../../../../data/constants.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../context_menu/context_menu_item.dart';
 import '../../context_menu/context_menu_sheet.dart';
-import '../../emoji_text.dart';
 import '../../popover_surface.dart';
 import '../../sheet_handle.dart';
 import '../composer/emoji_picker_panel.dart';
 import '../reactions/reaction_picker.dart';
 import 'message_context_menu.dart';
+import 'message_sheet_preview.dart';
+import 'message_sheet_quick_reactions.dart';
 
 /// What was picked from the phone's message sheet: a quick reaction, or one
 /// of the menu's actions.
@@ -81,10 +80,12 @@ Future<MessageSheetChoice?> showMessageActionSheet({
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SheetHandle(margin: EdgeInsets.only(bottom: 10)),
-                  _Preview(message: message),
+                  MessageSheetPreview(message: message),
                   if (canReact) ...[
                     const SizedBox(height: 8),
-                    _QuickReactions(onPick: (e) => pick(QuickReaction(e))),
+                    MessageSheetQuickReactions(
+                      onPick: (e) => pick(QuickReaction(e)),
+                    ),
                   ],
                   Divider(height: 17, color: theme.borderPrimary),
                   if (canReact)
@@ -172,71 +173,4 @@ Future<String?> showEmojiReactionSheet(BuildContext context) {
       ),
     ),
   );
-}
-
-/// Which message the sheet is about — the author and the start of what they
-/// said — since the row itself is under the scrim.
-class _Preview extends StatelessWidget {
-  final ChatMessage message;
-
-  const _Preview({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final text = message.text.isEmpty ? 'Attachment' : message.text;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: theme.bgHover,
-        borderRadius: BorderRadius.circular(K.radiusCard),
-        border: Border.all(color: theme.borderElevated),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 2,
-        children: [
-          Text(
-            message.authorName,
-            style: AppText.strong.copyWith(color: theme.textPrimary),
-          ),
-          Text(
-            text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.secondary.copyWith(color: theme.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickReactions extends StatelessWidget {
-  final ValueChanged<String> onPick;
-
-  const _QuickReactions({required this.onPick});
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(K.radiusRow);
-    return GridView.count(
-      crossAxisCount: 8,
-      shrinkWrap: true,
-      padding: EdgeInsets.zero,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        for (final emoji in quickReactionEmojis)
-          Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              mouseCursor: WidgetStateMouseCursor.clickable,
-              borderRadius: radius,
-              onTap: () => onPick(emoji),
-              child: Center(child: Text(emoji, style: EmojiSize.sheet)),
-            ),
-          ),
-      ],
-    );
-  }
 }

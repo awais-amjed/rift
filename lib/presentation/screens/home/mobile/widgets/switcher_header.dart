@@ -5,18 +5,17 @@ import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../common/unread_dot.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
-import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
-import '../../dms/widgets/central_identity_line.dart';
-import '../../dms/widgets/change_handle_dialog.dart';
 import '../../sidebar/widgets/sidebar_header.dart';
+import 'switcher_home_line.dart';
+import 'switcher_home_mark.dart';
+import 'switcher_server_line.dart';
 
 /// The top of a phone's list: where you are, and the way to anywhere else.
 ///
@@ -38,7 +37,7 @@ class SwitcherHeader extends StatelessWidget {
   const SwitcherHeader({super.key});
 
   static const double height = 56;
-  static const double _avatarSize = 36;
+  static const double avatarSize = 36;
 
   @override
   Widget build(BuildContext context) {
@@ -83,12 +82,12 @@ class SwitcherHeader extends StatelessWidget {
                         clipBehavior: Clip.none,
                         children: [
                           onHome || server == null
-                              ? _HomeMark(isHome: onHome)
+                              ? SwitcherHomeMark(isHome: onHome)
                               : SquircleAvatar(
                                   name: server.name,
                                   seed: server.id,
                                   imageUrl: server.iconUrl,
-                                  size: _avatarSize,
+                                  size: avatarSize,
                                 ),
                           if (elsewhere)
                             const Positioned(
@@ -128,9 +127,9 @@ class SwitcherHeader extends StatelessWidget {
                               ],
                             ),
                             if (onHome)
-                              const _HomeLine()
+                              const SwitcherHomeLine()
                             else if (server != null)
-                              _ServerLine(serverId: server.id)
+                              SwitcherServerLine(serverId: server.id)
                             else
                               Text(
                                 'Join or create one',
@@ -178,51 +177,6 @@ class SwitcherHeader extends StatelessWidget {
   }
 }
 
-/// A server's second line: that it is encrypted, and who is here.
-///
-/// Presence is followed for the selected server only, which is the one this
-/// header names, so the count is live and costs nothing to read.
-class _ServerLine extends StatelessWidget {
-  final String serverId;
-
-  const _ServerLine({required this.serverId});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final online = context.select<ChannelPresenceCubit, int>(
-      (c) => c.state.onlineUserIds.length,
-    );
-    return Row(
-      spacing: 5,
-      children: [
-        const Icon(Icons.lock_outline, size: 11, color: CustomColors.success),
-        Text(
-          '$online online',
-          style: AppText.label.copyWith(color: theme.textTertiary),
-        ),
-      ],
-    );
-  }
-}
-
-/// Home's second line: the central account's handle, with the way to change
-/// it — the line the conversation list used to open with.
-class _HomeLine extends StatelessWidget {
-  const _HomeLine();
-
-  @override
-  Widget build(BuildContext context) {
-    final handle = context.select<CentralDmCubit, String?>(
-      (c) => c.state.myHandle,
-    );
-    return CentralIdentityLine(
-      handle: handle,
-      onChangeHandle: () => showChangeHandle(context, handle!),
-    );
-  }
-}
-
 /// The server's identity as far as the header draws it, so a message arriving
 /// on the server — which replaces the server object — doesn't rebuild it.
 class _ServerIdentity {
@@ -241,32 +195,4 @@ class _ServerIdentity {
 
   @override
   int get hashCode => Object.hash(id, name, iconUrl);
-}
-
-/// Home's mark, in the slot a server's avatar takes — or, with no server at
-/// all, a plus that says where joining one starts.
-class _HomeMark extends StatelessWidget {
-  final bool isHome;
-
-  const _HomeMark({required this.isHome});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Container(
-      width: SwitcherHeader._avatarSize,
-      height: SwitcherHeader._avatarSize,
-      decoration: BoxDecoration(
-        color: isHome ? theme.primary : theme.bgActive,
-        borderRadius: BorderRadius.circular(
-          SwitcherHeader._avatarSize * K.avatarRadiusRatio,
-        ),
-      ),
-      child: Icon(
-        isHome ? Icons.forum_rounded : Icons.add_rounded,
-        size: 18,
-        color: isHome ? theme.onPrimary : theme.textSecondary,
-      ),
-    );
-  }
 }

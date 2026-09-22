@@ -2,15 +2,15 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/constants.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
-import '../../emoji_text.dart';
 import '../../loading_dots.dart';
 import '../../tap_to_focus.dart';
+import 'emoji_category_button.dart';
+import 'emoji_picker_cell.dart';
 
 /// The emoji picker's contents: a search row, a flat row of category icons,
 /// and the grid.
@@ -226,7 +226,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           for (final entry in _categoryIcons.entries)
-            _CategoryButton(
+            EmojiCategoryButton(
               icon: entry.value,
               onTap: () => _scrollTo(entry.key),
             ),
@@ -298,7 +298,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
         crossAxisSpacing: _cellSpacing,
       ),
       itemCount: emoji.length,
-      itemBuilder: (context, index) => _EmojiCell(
+      itemBuilder: (context, index) => EmojiPickerCell(
         emoji: emoji[index].emoji,
         onTap: () => _pick(emoji[index].emoji),
       ),
@@ -316,46 +316,4 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
     Category.SYMBOLS => 'Symbols',
     Category.FLAGS => 'Flags',
   };
-}
-
-class _CategoryButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _CategoryButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final themeState = context.theme;
-    return InkWell(
-      mouseCursor: WidgetStateMouseCursor.clickable,
-      borderRadius: BorderRadius.circular(K.radiusRow),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Icon(icon, size: 16, color: themeState.textQuaternary),
-      ),
-    );
-  }
-}
-
-class _EmojiCell extends StatelessWidget {
-  final String emoji;
-  final VoidCallback onTap;
-
-  const _EmojiCell({required this.emoji, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(K.radiusRow);
-    return Material(
-      color: Colors.transparent,
-      borderRadius: radius,
-      child: InkWell(
-        mouseCursor: WidgetStateMouseCursor.clickable,
-        borderRadius: radius,
-        onTap: onTap,
-        child: Center(child: Text(emoji, style: EmojiSize.grid)),
-      ),
-    );
-  }
 }
