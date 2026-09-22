@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 import 'centered_scroll_view.dart';
 import 'loading_dots.dart';
 
@@ -57,7 +56,7 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
 
     return CenteredScrollView(
       // Not quite centred: the extra room at the bottom lifts the block a

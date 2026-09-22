@@ -14,6 +14,7 @@ import '../../../../common/app_modal.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Edit your profile on the **selected server**.
 ///
@@ -138,63 +139,58 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final server = context.read<ServerCubit>().state.selectedServer;
-        final user = server?.user;
-        return AppModal(
-          title: 'Edit profile',
-          subtitle: 'How you appear on ${server?.name ?? 'this server'}',
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_error != null) ...[
-                MessageBanner(message: _error!, kind: MessageBannerKind.error),
-                const SizedBox(height: 12),
-              ],
-              Center(
-                child: _avatarPicker(themeState, user?.avatarPath, user?.id),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Display name',
-                style: AppText.secondaryStrong.copyWith(
-                  color: themeState.textTertiary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _nameController,
-                enabled: !_saving,
-                maxLength: 32,
-                style: AppText.input.copyWith(color: themeState.textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'Your name on this server',
-                  counterText: '',
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Each server is a separate identity — this name and picture '
-                'apply here only.',
-                style: AppText.label.copyWith(color: themeState.textTertiary),
-              ),
-            ],
-          ),
-          actions: [
-            AppButton(
-              label: 'Cancel',
-              variant: AppButtonVariant.secondary,
-              onPressed: _saving ? null : () => Navigator.of(context).pop(),
-            ),
-            AppButton(
-              label: 'Save',
-              isLoading: _saving,
-              onPressed: _saving ? null : _save,
-            ),
+    final themeState = context.theme;
+    final server = context.read<ServerCubit>().state.selectedServer;
+    final user = server?.user;
+    return AppModal(
+      title: 'Edit profile',
+      subtitle: 'How you appear on ${server?.name ?? 'this server'}',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_error != null) ...[
+            MessageBanner(message: _error!, kind: MessageBannerKind.error),
+            const SizedBox(height: 12),
           ],
-        );
-      },
+          Center(child: _avatarPicker(themeState, user?.avatarPath, user?.id)),
+          const SizedBox(height: 18),
+          Text(
+            'Display name',
+            style: AppText.secondaryStrong.copyWith(
+              color: themeState.textTertiary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _nameController,
+            enabled: !_saving,
+            maxLength: 32,
+            style: AppText.input.copyWith(color: themeState.textPrimary),
+            decoration: const InputDecoration(
+              hintText: 'Your name on this server',
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Each server is a separate identity — this name and picture '
+            'apply here only.',
+            style: AppText.label.copyWith(color: themeState.textTertiary),
+          ),
+        ],
+      ),
+      actions: [
+        AppButton(
+          label: 'Cancel',
+          variant: AppButtonVariant.secondary,
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+        ),
+        AppButton(
+          label: 'Save',
+          isLoading: _saving,
+          onPressed: _saving ? null : _save,
+        ),
+      ],
     );
   }
 

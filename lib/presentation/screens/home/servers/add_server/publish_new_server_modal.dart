@@ -7,7 +7,6 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
@@ -17,6 +16,7 @@ import '../../../../common/message_banner.dart';
 import '../../../../common/no_central_account.dart';
 import '../../../../common/tag_editor.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The last step of [AddServerDialog] for anybody who ends up an admin:
 /// offering the server to the directory, and describing it.
@@ -186,7 +186,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
   }
 
   Widget _form() {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
 
     return Column(
       mainAxisSize: MainAxisSize.min,

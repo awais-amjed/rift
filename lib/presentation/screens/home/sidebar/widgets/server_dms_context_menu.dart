@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../theme/theme_context.dart';
 import '../../dms/server_dm_settings_dialog.dart';
 
 /// Right-click menu for the Server DMs entry — the way to its retention
@@ -57,7 +57,7 @@ class ServerDmsContextMenu extends StatelessWidget {
       leading: Icon(
         Icons.forum_outlined,
         size: 16,
-        color: context.watch<ThemeCubit>().state.textTertiary,
+        color: context.theme.textTertiary,
       ),
       children: [
         ContextMenuItem(

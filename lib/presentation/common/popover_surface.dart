@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_shadows.dart';
+import '../theme/theme_context.dart';
 
 /// The card every popover sits in — context menus, the reaction and emoji
 /// pickers.
@@ -35,27 +34,24 @@ class PopoverSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: themeState.bgElevated,
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: themeState.borderElevated),
-            boxShadow: AppShadows.popover,
-          ),
-          // Inside the fill, not around it. An InkWell paints its hover and
-          // splash on the nearest Material above it, so a Material wrapping
-          // this container put the ink *behind* an opaque background and every
-          // highlight in the popover was drawn and then covered — which is why
-          // `ContextMenuItem` had to carry a Material of its own, and why the
-          // emoji picker's category icons lit up for nobody. Here it serves
-          // both jobs: text still has the Material ancestor it needs to escape
-          // the framework's error style, and ink lands where it can be seen.
-          child: Material(type: MaterialType.transparency, child: child),
-        );
-      },
+    final themeState = context.theme;
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: themeState.bgElevated,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: themeState.borderElevated),
+        boxShadow: AppShadows.popover,
+      ),
+      // Inside the fill, not around it. An InkWell paints its hover and
+      // splash on the nearest Material above it, so a Material wrapping
+      // this container put the ink *behind* an opaque background and every
+      // highlight in the popover was drawn and then covered — which is why
+      // `ContextMenuItem` had to carry a Material of its own, and why the
+      // emoji picker's category icons lit up for nobody. Here it serves
+      // both jobs: text still has the Material ancestor it needs to escape
+      // the framework's error style, and ink lands where it can be seen.
+      child: Material(type: MaterialType.transparency, child: child),
     );
   }
 }

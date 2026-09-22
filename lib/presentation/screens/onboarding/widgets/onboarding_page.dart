@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button_height.dart';
 import '../../../common/centered_scroll_view.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_shadows.dart';
+import '../../../theme/theme_context.dart';
 import 'onboarding_phone_top_bar.dart';
 import 'step_dots.dart';
 
@@ -64,46 +63,43 @@ class OnboardingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.layoutMode.isCompact) return _buildForPhone(context);
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return CenteredScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          maxWidth: _contentWidth,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.fromLTRB(48, 44, 48, 40),
-                decoration: BoxDecoration(
-                  // Translucent, so the canvas glow reads through the card
-                  // instead of stopping at its edge.
-                  color: themeState.bgSecondary.withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(K.radiusCard),
-                  border: Border.all(color: themeState.borderElevated),
-                  boxShadow: AppShadows.dialog,
-                ),
-                child: footer == null
-                    ? child
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          child,
-                          const SizedBox(height: 24),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 360),
-                            child: footer,
-                          ),
-                        ],
+    final themeState = context.theme;
+    return CenteredScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      maxWidth: _contentWidth,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(48, 44, 48, 40),
+            decoration: BoxDecoration(
+              // Translucent, so the canvas glow reads through the card
+              // instead of stopping at its edge.
+              color: themeState.bgSecondary.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(K.radiusCard),
+              border: Border.all(color: themeState.borderElevated),
+              boxShadow: AppShadows.dialog,
+            ),
+            child: footer == null
+                ? child
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      child,
+                      const SizedBox(height: 24),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 360),
+                        child: footer,
                       ),
-              ),
-              if (step != null) ...[
-                const SizedBox(height: 20),
-                StepDots(step: step!, count: stepCount, label: stepLabel),
-              ],
-            ],
+                    ],
+                  ),
           ),
-        );
-      },
+          if (step != null) ...[
+            const SizedBox(height: 20),
+            StepDots(step: step!, count: stepCount, label: stepLabel),
+          ],
+        ],
+      ),
     );
   }
 

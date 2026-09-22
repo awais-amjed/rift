@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// Where the composer would be, for a request of your own that is still
 /// unanswered.
@@ -29,7 +29,7 @@ class PendingRequestNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 13, 12, 13),

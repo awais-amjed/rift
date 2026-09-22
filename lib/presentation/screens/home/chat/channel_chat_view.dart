@@ -11,7 +11,6 @@ import '../../../../data/classes/server_member.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../logic/services/chat_failure.dart';
 import '../../../../logic/services/link_preview_fetcher.dart';
@@ -52,65 +51,60 @@ class _ChannelChatViewState extends State<ChannelChatView>
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return BlocBuilder<ChannelChatCubit, ChannelChatState>(
-          builder: (context, chatState) {
-            // No background of its own: the content panel it sits in owns
-            // that, and painting over it would break the panel's rounding.
-            return DefaultTextStyle.merge(
-              style: TextStyle(color: themeState.textSecondary),
-              child: Column(
-                children: [
-                  const ChatHeader(),
-                  Expanded(child: _buildBody(context, chatState)),
-                  // A phone's way back into the call, just above whatever
-                  // holds the composer's slot. Nothing on a desktop.
-                  if (chatState.status != ChannelChatStatus.ready)
-                    const MiniCallBar(),
-                  // Sending needs the key too, so read-only gets the banner
-                  // in the composer's place rather than a composer that would
-                  // refuse every message typed into it.
-                  // Waiting keeps the slot too: a composer that is plainly
-                  // coming says "this will work later", where an absent one
-                  // says this channel has none.
-                  if (chatState.status == ChannelChatStatus.readOnly)
-                    const ChatReadOnlyBanner()
-                  else if (chatState.status == ChannelChatStatus.waitingForKey)
-                    const ChatReadOnlyBanner(waitingForKey: true),
-                  if (chatState.status == ChannelChatStatus.ready) ...[
-                    TypingIndicator(
-                      names: chatState.typingUsers.values.toList(),
-                    ),
-                    const MiniCallBar(),
-                    ChatComposer(
-                      onSend: (text, attachments, preview) =>
-                          _send(context, text, attachments, preview),
-                      replyingTo: replyingTo,
-                      onCancelReply: cancelReply,
-                      // A channel is the one surface with somebody to ring
-                      // who is not already being written to.
-                      replyPings: replyPings,
-                      onToggleReplyPing: setReplyPing,
-                      onTyping: () =>
-                          context.read<ChannelChatCubit>().notifyTyping(),
-                      maxAttachmentBytes: _maxAttachmentBytes(context),
-                      remainingStorageBytes: _remainingStorage(context),
-                      bots: chatState.bots,
-                      onMentionSearch: (query) =>
-                          _searchMentionable(context, query),
-                      selfUserId: context
-                          .read<ServerCubit>()
-                          .state
-                          .selectedServer
-                          ?.user
-                          ?.id,
-                    ),
-                  ],
-                ],
-              ),
-            );
-          },
+    final themeState = context.theme;
+    return BlocBuilder<ChannelChatCubit, ChannelChatState>(
+      builder: (context, chatState) {
+        // No background of its own: the content panel it sits in owns
+        // that, and painting over it would break the panel's rounding.
+        return DefaultTextStyle.merge(
+          style: TextStyle(color: themeState.textSecondary),
+          child: Column(
+            children: [
+              const ChatHeader(),
+              Expanded(child: _buildBody(context, chatState)),
+              // A phone's way back into the call, just above whatever
+              // holds the composer's slot. Nothing on a desktop.
+              if (chatState.status != ChannelChatStatus.ready)
+                const MiniCallBar(),
+              // Sending needs the key too, so read-only gets the banner
+              // in the composer's place rather than a composer that would
+              // refuse every message typed into it.
+              // Waiting keeps the slot too: a composer that is plainly
+              // coming says "this will work later", where an absent one
+              // says this channel has none.
+              if (chatState.status == ChannelChatStatus.readOnly)
+                const ChatReadOnlyBanner()
+              else if (chatState.status == ChannelChatStatus.waitingForKey)
+                const ChatReadOnlyBanner(waitingForKey: true),
+              if (chatState.status == ChannelChatStatus.ready) ...[
+                TypingIndicator(names: chatState.typingUsers.values.toList()),
+                const MiniCallBar(),
+                ChatComposer(
+                  onSend: (text, attachments, preview) =>
+                      _send(context, text, attachments, preview),
+                  replyingTo: replyingTo,
+                  onCancelReply: cancelReply,
+                  // A channel is the one surface with somebody to ring
+                  // who is not already being written to.
+                  replyPings: replyPings,
+                  onToggleReplyPing: setReplyPing,
+                  onTyping: () =>
+                      context.read<ChannelChatCubit>().notifyTyping(),
+                  maxAttachmentBytes: _maxAttachmentBytes(context),
+                  remainingStorageBytes: _remainingStorage(context),
+                  bots: chatState.bots,
+                  onMentionSearch: (query) =>
+                      _searchMentionable(context, query),
+                  selfUserId: context
+                      .read<ServerCubit>()
+                      .state
+                      .selectedServer
+                      ?.user
+                      ?.id,
+                ),
+              ],
+            ],
+          ),
         );
       },
     );

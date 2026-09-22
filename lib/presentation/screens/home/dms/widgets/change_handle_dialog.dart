@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/central_handle.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Change the handle other people use to find this central account.
 ///
@@ -82,58 +82,53 @@ class _ChangeHandleDialogState extends State<ChangeHandleDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return AppModal(
-          title: 'Change handle',
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_error != null) ...[
-                MessageBanner(message: _error!, kind: MessageBannerKind.error),
-                const SizedBox(height: 12),
-              ],
-              AppTextField(
-                controller: _controller,
-                label: 'Handle',
-                hint: widget.currentHandle,
-                enabled: !_isLoading,
-                autofocus: true,
-                // Editing retracts the last refusal: it described the handle
-                // that was submitted, not the one being typed now.
-                onChanged: (_) => setState(() => _error = null),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                CentralHandle.rule,
-                style: AppText.secondary.copyWith(
-                  color: themeState.textQuaternary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              MessageBanner(
-                message:
-                    'Anyone searching for @${widget.currentHandle} will stop '
-                    'finding you. Conversations you already have are unaffected.',
-                kind: MessageBannerKind.caution,
-              ),
-            ],
-          ),
-          actions: [
-            AppButton(
-              label: 'Cancel',
-              variant: AppButtonVariant.secondary,
-              onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-            ),
-            AppButton(
-              label: _isLoading ? 'Changing...' : 'Change handle',
-              isLoading: _isLoading,
-              onPressed: _canSubmit && !_isLoading ? _submit : null,
-            ),
+    final themeState = context.theme;
+    return AppModal(
+      title: 'Change handle',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_error != null) ...[
+            MessageBanner(message: _error!, kind: MessageBannerKind.error),
+            const SizedBox(height: 12),
           ],
-        );
-      },
+          AppTextField(
+            controller: _controller,
+            label: 'Handle',
+            hint: widget.currentHandle,
+            enabled: !_isLoading,
+            autofocus: true,
+            // Editing retracts the last refusal: it described the handle
+            // that was submitted, not the one being typed now.
+            onChanged: (_) => setState(() => _error = null),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            CentralHandle.rule,
+            style: AppText.secondary.copyWith(color: themeState.textQuaternary),
+          ),
+          const SizedBox(height: 12),
+          MessageBanner(
+            message:
+                'Anyone searching for @${widget.currentHandle} will stop '
+                'finding you. Conversations you already have are unaffected.',
+            kind: MessageBannerKind.caution,
+          ),
+        ],
+      ),
+      actions: [
+        AppButton(
+          label: 'Cancel',
+          variant: AppButtonVariant.secondary,
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+        ),
+        AppButton(
+          label: _isLoading ? 'Changing...' : 'Change handle',
+          isLoading: _isLoading,
+          onPressed: _canSubmit && !_isLoading ? _submit : null,
+        ),
+      ],
     );
   }
 }

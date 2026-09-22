@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/constants.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/squircle_avatar.dart';
 import '../../../../../theme/app_motion.dart';
@@ -47,61 +45,57 @@ class _RailServerChipState extends State<RailServerChip> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return ContextMenuRegion(
-          contextMenu: ServerChipMenu(server: widget.server),
-          child: Tooltip(
-            message: widget.server.name,
-            waitDuration: K.tooltipDelay,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              onEnter: (_) => setState(() => _hovered = true),
-              onExit: (_) => setState(() => _hovered = false),
-              child: GestureDetector(
-                onTap: widget.onTap,
-                behavior: HitTestBehavior.opaque,
-                // Both the halo and the badge overhang the chip, so the stack
-                // can't clip — and neither may size it, or picking a server
-                // would shift the whole rail.
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    if (widget.isSelected)
-                      Positioned(
-                        left: -_haloExtent,
-                        top: -_haloExtent,
-                        right: -_haloExtent,
-                        bottom: -_haloExtent,
-                        child: _SelectionHalo(),
-                      ),
-                    AnimatedOpacity(
-                      duration: AppMotion.state,
-                      opacity: widget.isSelected || _hovered ? 1 : 0.85,
-                      child: SquircleAvatar(
-                        name: widget.server.name,
-                        seed: widget.server.id,
-                        imageUrl: widget.server.iconUrl,
-                        size: K.serverRailChipSize,
-                        // Stated rather than left to the avatar's size/3, so
-                        // the halo's corners can be derived from the same
-                        // number the chip is actually drawn with.
-                        radius: K.radiusRailChip,
-                      ),
-                    ),
-                    if (widget.unreadCount > 0 && !widget.isSelected)
-                      Positioned(
-                        top: -3,
-                        right: -3,
-                        child: RailUnreadBadge(count: widget.unreadCount),
-                      ),
-                  ],
+    return ContextMenuRegion(
+      contextMenu: ServerChipMenu(server: widget.server),
+      child: Tooltip(
+        message: widget.server.name,
+        waitDuration: K.tooltipDelay,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: GestureDetector(
+            onTap: widget.onTap,
+            behavior: HitTestBehavior.opaque,
+            // Both the halo and the badge overhang the chip, so the stack
+            // can't clip — and neither may size it, or picking a server
+            // would shift the whole rail.
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                if (widget.isSelected)
+                  Positioned(
+                    left: -_haloExtent,
+                    top: -_haloExtent,
+                    right: -_haloExtent,
+                    bottom: -_haloExtent,
+                    child: _SelectionHalo(),
+                  ),
+                AnimatedOpacity(
+                  duration: AppMotion.state,
+                  opacity: widget.isSelected || _hovered ? 1 : 0.85,
+                  child: SquircleAvatar(
+                    name: widget.server.name,
+                    seed: widget.server.id,
+                    imageUrl: widget.server.iconUrl,
+                    size: K.serverRailChipSize,
+                    // Stated rather than left to the avatar's size/3, so
+                    // the halo's corners can be derived from the same
+                    // number the chip is actually drawn with.
+                    radius: K.radiusRailChip,
+                  ),
                 ),
-              ),
+                if (widget.unreadCount > 0 && !widget.isSelected)
+                  Positioned(
+                    top: -3,
+                    right: -3,
+                    child: RailUnreadBadge(count: widget.unreadCount),
+                  ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

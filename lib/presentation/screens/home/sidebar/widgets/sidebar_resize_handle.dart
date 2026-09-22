@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_motion.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The grab strip between the sidebar and the content.
 ///
@@ -69,7 +68,7 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
                 width: 3,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: context.watch<ThemeCubit>().state.primary.withValues(
+                  color: context.theme.primary.withValues(
                     alpha: _dragging ? 0.9 : 0.5,
                   ),
                   borderRadius: BorderRadius.circular(K.radiusPill),

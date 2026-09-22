@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_shadows.dart';
+import '../theme/theme_context.dart';
 
 /// Wraps anything that should glow while its owner is talking — a voice tile,
 /// an avatar in the sidebar roster.
@@ -66,29 +65,26 @@ class _SpeakingRingState extends State<SpeakingRing>
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            final active = widget.isSpeaking || _controller.value > 0;
-            return DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: widget.borderRadius,
-                boxShadow: active
-                    ? AppShadows.speakingRing(
-                        themeState.primary,
-                        t: _controller.value,
-                        bloom: widget.bloom,
-                      )
-                    : null,
-              ),
-              child: child,
-            );
-          },
-          child: widget.child,
+    final themeState = context.theme;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final active = widget.isSpeaking || _controller.value > 0;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: widget.borderRadius,
+            boxShadow: active
+                ? AppShadows.speakingRing(
+                    themeState.primary,
+                    t: _controller.value,
+                    bloom: widget.bloom,
+                  )
+                : null,
+          ),
+          child: child,
         );
       },
+      child: widget.child,
     );
   }
 }

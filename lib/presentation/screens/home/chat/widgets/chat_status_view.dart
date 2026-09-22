@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/centered_scroll_view.dart';
 import '../../../../common/icon_tile.dart';
 import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Centered status panel for the non-ready chat states (waiting for the
 /// channel key, load errors), with an optional retry button.
@@ -40,7 +40,7 @@ class ChatStatusView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
 
     return CenteredScrollView(
       padding: const EdgeInsets.all(24),

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Placeholder shown when no server is selected.
 class NoServerButton extends StatelessWidget {
@@ -12,64 +11,59 @@ class NoServerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            mouseCursor: WidgetStateMouseCursor.clickable,
-            onTap: onTap,
-            hoverColor: themeState.bgHover,
-            child: Container(
-              height: 64,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: themeState.borderPrimary),
+    final themeState = context.theme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+        onTap: onTap,
+        hoverColor: themeState.bgHover,
+        child: Container(
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: themeState.bgTertiary,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.dns_outlined,
+                  size: 16,
+                  color: themeState.textQuaternary,
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: themeState.bgTertiary,
-                      shape: BoxShape.circle,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'No server selected',
+                      style: AppText.strong.copyWith(
+                        color: themeState.textTertiary,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.dns_outlined,
-                      size: 16,
-                      color: themeState.textQuaternary,
+                    Text(
+                      'Click to add',
+                      style: AppText.label.copyWith(
+                        color: themeState.textTertiary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'No server selected',
-                          style: AppText.strong.copyWith(
-                            color: themeState.textTertiary,
-                          ),
-                        ),
-                        Text(
-                          'Click to add',
-                          style: AppText.label.copyWith(
-                            color: themeState.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

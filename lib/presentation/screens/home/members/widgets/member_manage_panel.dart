@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -82,65 +81,62 @@ class MemberManagePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-          decoration: BoxDecoration(
-            color: themeState.bgSecondary,
-            borderRadius: BorderRadius.circular(K.radiusCard),
-            border: Border.all(color: themeState.borderPrimary),
-          ),
-          child: Column(
-            children: [
-              // A bot's roles are beside the point — what it can *read* is the
-              // only grant anybody worries about, and it is the one that
-              // cannot be taken back.
-              if (member.isBot)
-                _PanelRow(
-                  icon: Icons.hearing_rounded,
-                  label: 'What it can read',
-                  onTap: isBusy ? null : () => _openBotAccess(context),
-                ),
-              // The one way in. There used to be three toggles above this for
-              // admin, channel manager and invites — the three the old model
-              // had — and they wrote roles underneath, so they agreed with
-              // this. Two controls for one fact is one of them going stale the
-              // first time somebody edits a role.
-              if (canManagePermissions && !member.isBot)
-                _PanelRow(
-                  icon: Icons.shield_outlined,
-                  label: 'Roles',
-                  onTap: isBusy ? null : () => _openRoles(context),
-                ),
-              // Owner only, and only for somebody who could hold it. Below
-              // roles rather than among them: it is not a role you hand out,
-              // it is the one you give up.
-              if (OwnershipActions.canTransferTo(
-                context.read<ServerCubit>(),
-                member,
-              ))
-                _PanelRow(
-                  icon: Icons.workspace_premium_outlined,
-                  label: 'Transfer ownership',
-                  onTap: isBusy
-                      ? null
-                      : () => OwnershipActions.transfer(context, member),
-                ),
-              MemberModerationRow(
-                member: member,
+    final themeState = context.theme;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      decoration: BoxDecoration(
+        color: themeState.bgSecondary,
+        borderRadius: BorderRadius.circular(K.radiusCard),
+        border: Border.all(color: themeState.borderPrimary),
+      ),
+      child: Column(
+        children: [
+          // A bot's roles are beside the point — what it can *read* is the
+          // only grant anybody worries about, and it is the one that
+          // cannot be taken back.
+          if (member.isBot)
+            _PanelRow(
+              icon: Icons.hearing_rounded,
+              label: 'What it can read',
+              onTap: isBusy ? null : () => _openBotAccess(context),
+            ),
+          // The one way in. There used to be three toggles above this for
+          // admin, channel manager and invites — the three the old model
+          // had — and they wrote roles underneath, so they agreed with
+          // this. Two controls for one fact is one of them going stale the
+          // first time somebody edits a role.
+          if (canManagePermissions && !member.isBot)
+            _PanelRow(
+              icon: Icons.shield_outlined,
+              label: 'Roles',
+              onTap: isBusy ? null : () => _openRoles(context),
+            ),
+          // Owner only, and only for somebody who could hold it. Below
+          // roles rather than among them: it is not a role you hand out,
+          // it is the one you give up.
+          if (OwnershipActions.canTransferTo(
+            context.read<ServerCubit>(),
+            member,
+          ))
+            _PanelRow(
+              icon: Icons.workspace_premium_outlined,
+              label: 'Transfer ownership',
+              onTap: isBusy
+                  ? null
+                  : () => OwnershipActions.transfer(context, member),
+            ),
+          MemberModerationRow(
+            member: member,
 
-                isBusy: isBusy,
-                canModerate: canModerate,
-                canBan: canManagePermissions,
-                dividerAbove: canManagePermissions,
-                onModerate: onModerate,
-                onToggleBan: () => _toggleBan(context),
-              ),
-            ],
+            isBusy: isBusy,
+            canModerate: canModerate,
+            canBan: canManagePermissions,
+            dividerAbove: canManagePermissions,
+            onModerate: onModerate,
+            onToggleBan: () => _toggleBan(context),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }

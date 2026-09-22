@@ -2,10 +2,10 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../../logic/cubits/vault/vault_cubit.dart';
 import '../../logic/helper_methods.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 import 'app_button.dart';
 import 'app_modal.dart';
 import 'app_text_field.dart';
@@ -149,9 +149,7 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
                 _useRecoveryKey
                     ? 'Use the password instead'
                     : 'Forgotten the password? Use a recovery key',
-                style: AppText.secondary.copyWith(
-                  color: context.read<ThemeCubit>().state.primary,
-                ),
+                style: AppText.secondary.copyWith(color: context.theme.primary),
               ),
             ),
           ),

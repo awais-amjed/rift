@@ -95,48 +95,45 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
     };
     final listed = roster.roles.where((r) => !r.isEveryone).toList();
 
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        if (member == null) {
-          return ContextMenuPanel(
-            heading: 'Roles',
-            children: [_note('Member list still loading.', themeState)],
-          );
-        }
-        if (listed.isEmpty) {
-          return ContextMenuPanel(
-            heading: 'Roles',
-            children: [_note('No roles to hand out yet.', themeState)],
-          );
-        }
+    final themeState = context.theme;
+    if (member == null) {
+      return ContextMenuPanel(
+        heading: 'Roles',
+        children: [_note('Member list still loading.', themeState)],
+      );
+    }
+    if (listed.isEmpty) {
+      return ContextMenuPanel(
+        heading: 'Roles',
+        children: [_note('No roles to hand out yet.', themeState)],
+      );
+    }
 
-        return ContextMenuPanel(
-          heading: 'Roles',
-          children: [
-            for (final role in listed)
-              ContextMenuItem(
-                icon: Icons.shield_outlined,
-                label: role.name,
-                // Inert rather than absent, so the rule is visible. Tapping a
-                // role you do not outrank does nothing, which is what the
-                // database would have said a round trip later.
-                onTap: () {
-                  if (assignable.contains(role.id)) {
-                    _toggle(role, !held.contains(role.id));
-                  }
-                },
-                trailing: _trailing(
-                  role: role,
-                  isHeld: held.contains(role.id),
-                  outranked: !assignable.contains(role.id),
-                  themeState: themeState,
-                ),
-              ),
-            if (_error != null)
-              _note(_error!, themeState, color: CustomColors.error),
-          ],
-        );
-      },
+    return ContextMenuPanel(
+      heading: 'Roles',
+      children: [
+        for (final role in listed)
+          ContextMenuItem(
+            icon: Icons.shield_outlined,
+            label: role.name,
+            // Inert rather than absent, so the rule is visible. Tapping a
+            // role you do not outrank does nothing, which is what the
+            // database would have said a round trip later.
+            onTap: () {
+              if (assignable.contains(role.id)) {
+                _toggle(role, !held.contains(role.id));
+              }
+            },
+            trailing: _trailing(
+              role: role,
+              isHeld: held.contains(role.id),
+              outranked: !assignable.contains(role.id),
+              themeState: themeState,
+            ),
+          ),
+        if (_error != null)
+          _note(_error!, themeState, color: CustomColors.error),
+      ],
     );
   }
 

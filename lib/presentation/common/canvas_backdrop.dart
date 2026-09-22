@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/theme_context.dart';
 
 /// The near-black ground the floating panels sit on, lit by a single accent
 /// glow from off the top-left corner.
@@ -32,26 +31,23 @@ class CanvasBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return DecoratedBox(
-          decoration: BoxDecoration(color: themeState.bgPrimary),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: glowCenter,
-                radius: glowRadius,
-                colors: [
-                  themeState.primary.withValues(alpha: glowOpacity),
-                  themeState.primary.withValues(alpha: 0),
-                ],
-                stops: const [0, 0.6],
-              ),
-            ),
-            child: child,
+    final themeState = context.theme;
+    return DecoratedBox(
+      decoration: BoxDecoration(color: themeState.bgPrimary),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: glowCenter,
+            radius: glowRadius,
+            colors: [
+              themeState.primary.withValues(alpha: glowOpacity),
+              themeState.primary.withValues(alpha: 0),
+            ],
+            stops: const [0, 0.6],
           ),
-        );
-      },
+        ),
+        child: child,
+      ),
     );
   }
 }

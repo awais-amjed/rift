@@ -2,14 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/classes/chat_message.dart';
-import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/helper_methods.dart';
 import '../../../logic/services/quote_lookup.dart';
 import '../../theme/app_text.dart';
+import '../../theme/theme_context.dart';
 import 'attachments/attachment_loader.dart';
 import 'date_divider.dart';
 import 'history_window_bar.dart';
@@ -416,38 +415,35 @@ class _ChatMessageListState extends State<ChatMessageList> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        if (widget.messages.isEmpty) {
-          return Center(
-            child: Text(
-              widget.emptyMessage,
-              style: AppText.body.copyWith(color: themeState.textTertiary),
-            ),
-          );
-        }
+    final themeState = context.theme;
+    if (widget.messages.isEmpty) {
+      return Center(
+        child: Text(
+          widget.emptyMessage,
+          style: AppText.body.copyWith(color: themeState.textTertiary),
+        ),
+      );
+    }
 
-        final items = _buildItems();
-        // Built once per frame rather than searched per row: a list of five
-        // hundred messages where most are replies is otherwise a scan of the
-        // whole history for every row the viewport builds.
-        final byId = {for (final m in widget.messages) m.id: m};
-        _jumper.keepOnly({for (final m in widget.messages) m.rowId});
+    final items = _buildItems();
+    // Built once per frame rather than searched per row: a list of five
+    // hundred messages where most are replies is otherwise a scan of the
+    // whole history for every row the viewport builds.
+    final byId = {for (final m in widget.messages) m.id: m};
+    _jumper.keepOnly({for (final m in widget.messages) m.rowId});
 
-        // In the column rather than floating over it. A bar that takes
-        // layout space normally means the conversation jumps when it
-        // appears — but this one appears and leaves only when the list is
-        // being replaced wholesale anyway, so there is no reading to
-        // interrupt, and floating it put the pill on top of the newest
-        // message in the window.
-        return Column(
-          children: [
-            Expanded(child: _buildList(items, byId)),
-            if (widget.viewingHistory && widget.onReturnToPresent != null)
-              HistoryWindowBar(onReturn: () => unawaited(_returnToPresent())),
-          ],
-        );
-      },
+    // In the column rather than floating over it. A bar that takes
+    // layout space normally means the conversation jumps when it
+    // appears — but this one appears and leaves only when the list is
+    // being replaced wholesale anyway, so there is no reading to
+    // interrupt, and floating it put the pill on top of the newest
+    // message in the window.
+    return Column(
+      children: [
+        Expanded(child: _buildList(items, byId)),
+        if (widget.viewingHistory && widget.onReturnToPresent != null)
+          HistoryWindowBar(onReturn: () => unawaited(_returnToPresent())),
+      ],
     );
   }
 

@@ -9,6 +9,7 @@ import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/list_loading_footer.dart';
+import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import '../open_central_conversation.dart';
 import 'dm_conversation_tile.dart';
@@ -46,7 +47,7 @@ class CentralConversationList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final state = context.watch<CentralDmCubit>().state;
     final conversations = state.conversations;
 

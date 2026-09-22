@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// A labeled section container for grouping related settings
 class SettingsSection extends StatelessWidget {
@@ -17,23 +16,20 @@ class SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label.toUpperCase(),
-              style: AppText.sectionLabel.copyWith(
-                letterSpacing: 1.3,
-                color: themeState.textTertiary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...children,
-          ],
-        );
-      },
+    final themeState = context.theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: AppText.sectionLabel.copyWith(
+            letterSpacing: 1.3,
+            color: themeState.textTertiary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...children,
+      ],
     );
   }
 }

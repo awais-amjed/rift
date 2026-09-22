@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../responsive/shell_scope.dart';
 import '../theme/app_motion.dart';
+import '../theme/theme_context.dart';
 
 /// The app's on/off toggle.
 ///
@@ -41,45 +40,40 @@ class AppSwitch extends StatelessWidget {
     final trackHeight = touch ? _touchTrackHeight : _trackHeight;
     final thumbSize = touch ? _touchThumbSize : _thumbSize;
 
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return MouseRegion(
-          cursor: onChanged == null
-              ? SystemMouseCursors.basic
-              : SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: onChanged == null ? null : () => onChanged!(!value),
-            child: AnimatedContainer(
-              duration: AppMotion.state,
-              curve: Curves.easeOut,
-              width: trackWidth,
-              height: trackHeight,
-              padding: const EdgeInsets.all(_inset),
+    final themeState = context.theme;
+    return MouseRegion(
+      cursor: onChanged == null
+          ? SystemMouseCursors.basic
+          : SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onChanged == null ? null : () => onChanged!(!value),
+        child: AnimatedContainer(
+          duration: AppMotion.state,
+          curve: Curves.easeOut,
+          width: trackWidth,
+          height: trackHeight,
+          padding: const EdgeInsets.all(_inset),
+          decoration: BoxDecoration(
+            color: value ? themeState.primary : themeState.bgActive,
+            borderRadius: BorderRadius.circular(K.radiusPill),
+          ),
+          child: AnimatedAlign(
+            duration: AppMotion.state,
+            curve: Curves.easeOut,
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              width: thumbSize,
+              height: thumbSize,
               decoration: BoxDecoration(
-                color: value ? themeState.primary : themeState.bgActive,
-                borderRadius: BorderRadius.circular(K.radiusPill),
-              ),
-              child: AnimatedAlign(
-                duration: AppMotion.state,
-                curve: Curves.easeOut,
-                alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  width: thumbSize,
-                  height: thumbSize,
-                  decoration: BoxDecoration(
-                    // Off, the thumb is a grey pebble rather than a white one:
-                    // white on the dim track reads as a second "on" state.
-                    color: value
-                        ? themeState.onPrimary
-                        : themeState.textTertiary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+                // Off, the thumb is a grey pebble rather than a white one:
+                // white on the dim track reads as a second "on" state.
+                color: value ? themeState.onPrimary : themeState.textTertiary,
+                shape: BoxShape.circle,
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

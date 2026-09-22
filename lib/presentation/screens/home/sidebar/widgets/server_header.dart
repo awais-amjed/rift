@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
@@ -8,6 +7,7 @@ import '../../../../common/squircle_avatar.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 import 'sidebar_peek_scope.dart';
 
 /// The selected server's identity at the top of the sidebar column.
@@ -40,31 +40,28 @@ class ServerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        // Material for the icon buttons' ink — the panel around this brings
-        // none of its own.
-        return Material(
-          color: Colors.transparent,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 8, 12),
-            child: Row(
-              spacing: 11,
-              children: [
-                SquircleAvatar(
-                  name: server.name,
-                  seed: server.id,
-                  imageUrl: server.iconUrl,
-                  size: 38,
-                ),
-                Expanded(child: _buildIdentity(themeState)),
-                if (onOpenSettings != null) _buildSettingsButton(themeState),
-                if (showHideButton) _buildHideButton(context, themeState),
-              ],
+    final themeState = context.theme;
+    // Material for the icon buttons' ink — the panel around this brings
+    // none of its own.
+    return Material(
+      color: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 8, 12),
+        child: Row(
+          spacing: 11,
+          children: [
+            SquircleAvatar(
+              name: server.name,
+              seed: server.id,
+              imageUrl: server.iconUrl,
+              size: 38,
             ),
-          ),
-        );
-      },
+            Expanded(child: _buildIdentity(themeState)),
+            if (onOpenSettings != null) _buildSettingsButton(themeState),
+            if (showHideButton) _buildHideButton(context, themeState),
+          ],
+        ),
+      ),
     );
   }
 

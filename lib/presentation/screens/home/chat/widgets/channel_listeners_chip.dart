@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/status_chip.dart';
 import '../../../../theme/custom_colors.dart';
 
@@ -42,9 +40,6 @@ class ChannelListenersChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (listeners.isEmpty) return const SizedBox.shrink();
-    // Read for the theme so the chip participates in palette changes like
-    // everything else in the header.
-    context.watch<ThemeCubit>();
     return StatusChip(
       icon: Icons.hearing_rounded,
       label: _label,

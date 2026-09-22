@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
+import '../theme/theme_context.dart';
 
 /// What a [MessageBanner] is saying — which sets its colour and icon.
 ///
@@ -35,35 +34,32 @@ class MessageBanner extends StatelessWidget {
       MessageBannerKind.error => (CustomColors.error, Icons.error_outlined),
     };
 
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(K.radiusRow),
-            border: Border.all(color: color.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            // Top-aligned so the icon stays beside the first line rather than
-            // drifting to the middle of a message that wraps.
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 10,
-            children: [
-              Icon(icon, size: 16, color: color),
-              Expanded(
-                child: Text(
-                  message,
-                  style: AppText.secondary.copyWith(
-                    height: 1.5,
-                    color: themeState.textSecondary,
-                  ),
-                ),
+    final themeState = context.theme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(K.radiusRow),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        // Top-aligned so the icon stays beside the first line rather than
+        // drifting to the middle of a message that wraps.
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 10,
+        children: [
+          Icon(icon, size: 16, color: color),
+          Expanded(
+            child: Text(
+              message,
+              style: AppText.secondary.copyWith(
+                height: 1.5,
+                color: themeState.textSecondary,
               ),
-            ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }

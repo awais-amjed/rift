@@ -6,7 +6,6 @@ import '../../../../data/classes/user_permissions.dart';
 import '../../../../data/enums/channel_type.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/member_selection.dart';
 import '../../../common/app_button.dart';
@@ -14,6 +13,7 @@ import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 import '../../settings/widgets/setting_toggle_row.dart';
 import 'widgets/channel_member_picker.dart';
 import 'widgets/channel_type_toggle.dart';
@@ -109,81 +109,78 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return AppModal(
-          title: 'Create channel',
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_error != null) ...[
-                MessageBanner(message: _error!, kind: MessageBannerKind.error),
-                const SizedBox(height: 12),
-              ],
-              AppTextField(
-                controller: _nameCtrl,
-                label: 'Channel name',
-                hint: 'general',
-                enabled: !_isLoading,
-                autofocus: true,
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'CHANNEL TYPE',
-                style: AppText.sectionLabel.copyWith(
-                  color: themeState.textTertiary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ChannelTypeToggle(
-                value: _type,
-                onChanged: _isLoading ? null : (t) => setState(() => _type = t),
-              ),
-              const SizedBox(height: 16),
-              // The description says what actually differs, and says the part
-              // people get wrong: an admin is outside this too, because an
-              // admin holds no key to it either (ARCHITECTURE.md §4).
-              SettingToggleRow(
-                title: 'Private channel',
-                description: _mayMakePublic
-                    ? 'Only the people you pick can see it — server admins '
-                          'included. You can add or remove people later.'
-                    : 'Only the people you pick can see it. Making a channel '
-                          'the whole server can see needs the manage-channels '
-                          'permission.',
-                value: _isPrivate,
-                onChanged: _isLoading || !_mayMakePublic
-                    ? null
-                    : (v) => setState(() => _isPrivate = v),
-              ),
-              if (_isPrivate) ...[
-                const SizedBox(height: 16),
-                ChannelMemberPicker(
-                  selection: _selection,
-                  onSearch: _searchMembers,
-                  enabled: !_isLoading,
-                  onToggle: (member) =>
-                      setState(() => _selection = _selection.toggled(member)),
-                ),
-              ],
-            ],
+    final themeState = context.theme;
+    return AppModal(
+      title: 'Create channel',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_error != null) ...[
+            MessageBanner(message: _error!, kind: MessageBannerKind.error),
+            const SizedBox(height: 12),
+          ],
+          AppTextField(
+            controller: _nameCtrl,
+            label: 'Channel name',
+            hint: 'general',
+            enabled: !_isLoading,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
           ),
-          actions: [
-            AppButton(
-              label: 'Cancel',
-              variant: AppButtonVariant.secondary,
-              onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          const SizedBox(height: 16),
+          Text(
+            'CHANNEL TYPE',
+            style: AppText.sectionLabel.copyWith(
+              color: themeState.textTertiary,
             ),
-            AppButton(
-              label: _isLoading ? 'Creating...' : 'Create channel',
-              isLoading: _isLoading,
-              onPressed: _canSubmit && !_isLoading ? _submit : null,
+          ),
+          const SizedBox(height: 8),
+          ChannelTypeToggle(
+            value: _type,
+            onChanged: _isLoading ? null : (t) => setState(() => _type = t),
+          ),
+          const SizedBox(height: 16),
+          // The description says what actually differs, and says the part
+          // people get wrong: an admin is outside this too, because an
+          // admin holds no key to it either (ARCHITECTURE.md §4).
+          SettingToggleRow(
+            title: 'Private channel',
+            description: _mayMakePublic
+                ? 'Only the people you pick can see it — server admins '
+                      'included. You can add or remove people later.'
+                : 'Only the people you pick can see it. Making a channel '
+                      'the whole server can see needs the manage-channels '
+                      'permission.',
+            value: _isPrivate,
+            onChanged: _isLoading || !_mayMakePublic
+                ? null
+                : (v) => setState(() => _isPrivate = v),
+          ),
+          if (_isPrivate) ...[
+            const SizedBox(height: 16),
+            ChannelMemberPicker(
+              selection: _selection,
+              onSearch: _searchMembers,
+              enabled: !_isLoading,
+              onToggle: (member) =>
+                  setState(() => _selection = _selection.toggled(member)),
             ),
           ],
-        );
-      },
+        ],
+      ),
+      actions: [
+        AppButton(
+          label: 'Cancel',
+          variant: AppButtonVariant.secondary,
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+        ),
+        AppButton(
+          label: _isLoading ? 'Creating...' : 'Create channel',
+          isLoading: _isLoading,
+          onPressed: _canSubmit && !_isLoading ? _submit : null,
+        ),
+      ],
     );
   }
 }

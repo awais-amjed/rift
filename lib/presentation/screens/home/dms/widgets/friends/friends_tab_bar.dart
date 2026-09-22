@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/constants.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// Which list the friends page is showing.
 enum FriendsTab {
@@ -73,7 +72,7 @@ class _TabPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final radius = BorderRadius.circular(K.radiusPill);
 
     return Material(

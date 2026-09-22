@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import 'central_conversation_list.dart';
 import 'central_handle_panel.dart';
 import 'central_identity_line.dart';
@@ -24,7 +25,7 @@ class CentralDmListPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final state = context.watch<CentralDmCubit>().state;
     final ready = state.status == CentralDmStatus.ready;
 

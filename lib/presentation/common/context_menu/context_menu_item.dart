@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/constants.dart';
-import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
 import '../../theme/custom_colors.dart';
+import '../../theme/theme_context.dart';
 import 'context_menu_sheet.dart';
 
 /// One row in a context menu.
@@ -32,53 +31,49 @@ class ContextMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final color = isDangerous
-            ? CustomColors.error
-            : themeState.textSecondary;
-        final radius = BorderRadius.circular(K.radiusRow);
-        // A thumb's row in a sheet: past the 44px floor by padding, with the
-        // label at row size rather than a pointer menu's quieter one.
-        final inSheet = ContextMenuPresentation.isSheet(context);
+    final themeState = context.theme;
+    final color = isDangerous ? CustomColors.error : themeState.textSecondary;
+    final radius = BorderRadius.circular(K.radiusRow);
+    // A thumb's row in a sheet: past the 44px floor by padding, with the
+    // label at row size rather than a pointer menu's quieter one.
+    final inSheet = ContextMenuPresentation.isSheet(context);
 
-        return Material(
-          color: isDangerous
-              ? CustomColors.error.withValues(alpha: 0.07)
-              : Colors.transparent,
-          borderRadius: radius,
-          child: InkWell(
-            mouseCursor: WidgetStateMouseCursor.clickable,
-            borderRadius: radius,
-            hoverColor: isDangerous
-                ? CustomColors.error.withValues(alpha: 0.14)
-                : themeState.bgHover,
-            onTap: onTap,
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: inSheet ? 14 : 8,
-              ),
-              child: Row(
-                spacing: inSheet ? 14 : 10,
-                children: [
-                  Icon(icon, size: inSheet ? 19 : 15, color: color),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: (inSheet ? AppText.row : AppText.rowQuiet)
-                          .copyWith(color: color),
-                    ),
-                  ),
-                  ?trailing,
-                ],
-              ),
-            ),
+    return Material(
+      color: isDangerous
+          ? CustomColors.error.withValues(alpha: 0.07)
+          : Colors.transparent,
+      borderRadius: radius,
+      child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+        borderRadius: radius,
+        hoverColor: isDangerous
+            ? CustomColors.error.withValues(alpha: 0.14)
+            : themeState.bgHover,
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: inSheet ? 14 : 8,
           ),
-        );
-      },
+          child: Row(
+            spacing: inSheet ? 14 : 10,
+            children: [
+              Icon(icon, size: inSheet ? 19 : 15, color: color),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: (inSheet ? AppText.row : AppText.rowQuiet).copyWith(
+                    color: color,
+                  ),
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

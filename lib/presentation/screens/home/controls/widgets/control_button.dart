@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 
 /// One round control in the call's floating bar.
 ///
@@ -31,43 +30,40 @@ class ControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        Color bgColor = Colors.transparent;
-        Color iconColor;
+    final themeState = context.theme;
+    Color bgColor = Colors.transparent;
+    Color iconColor;
 
-        if (isActive) {
-          bgColor = themeState.channelActiveBg;
-          iconColor = themeState.primary;
-        } else if (isError) {
-          bgColor = CustomColors.error.withValues(alpha: 0.1);
-          iconColor = CustomColors.error;
-        } else if (isDimmed) {
-          bgColor = themeState.bgTertiary;
-          iconColor = themeState.textTertiary;
-        } else {
-          iconColor = themeState.textSecondary;
-        }
+    if (isActive) {
+      bgColor = themeState.channelActiveBg;
+      iconColor = themeState.primary;
+    } else if (isError) {
+      bgColor = CustomColors.error.withValues(alpha: 0.1);
+      iconColor = CustomColors.error;
+    } else if (isDimmed) {
+      bgColor = themeState.bgTertiary;
+      iconColor = themeState.textTertiary;
+    } else {
+      iconColor = themeState.textSecondary;
+    }
 
-        return Tooltip(
-          message: tooltip,
-          child: Material(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(K.radiusRow),
-            child: InkWell(
-              mouseCursor: WidgetStateMouseCursor.clickable,
-              borderRadius: BorderRadius.circular(K.radiusRow),
-              hoverColor: themeState.bgHover,
-              onTap: onTap,
-              child: SizedBox(
-                width: 46,
-                height: 46,
-                child: Icon(icon, size: 21, color: iconColor),
-              ),
-            ),
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(K.radiusRow),
+        child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          borderRadius: BorderRadius.circular(K.radiusRow),
+          hoverColor: themeState.bgHover,
+          onTap: onTap,
+          child: SizedBox(
+            width: 46,
+            height: 46,
+            child: Icon(icon, size: 21, color: iconColor),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

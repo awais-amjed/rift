@@ -145,7 +145,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     // Rebuild the recents section as soon as one is picked.
     context.watch<AppCubit>();
 

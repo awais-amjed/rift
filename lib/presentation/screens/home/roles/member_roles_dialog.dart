@@ -5,7 +5,6 @@ import '../../../../data/classes/role.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
@@ -97,7 +96,7 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
 
     return AppModal(
       title: 'Roles',

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/constants.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/custom_colors.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// One of the small square controls on the right of the user dock.
 ///
@@ -26,38 +25,33 @@ class DockIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final radius = BorderRadius.circular(K.radiusRow);
+    final themeState = context.theme;
+    final radius = BorderRadius.circular(K.radiusRow);
 
-        return Tooltip(
-          message: tooltip,
-          waitDuration: K.tooltipDelay,
-          child: Material(
-            color: isError
-                ? CustomColors.error.withValues(alpha: 0.12)
-                : Colors.transparent,
-            borderRadius: radius,
-            child: InkWell(
-              mouseCursor: WidgetStateMouseCursor.clickable,
-              borderRadius: radius,
-              hoverColor: themeState.bgActive,
-              onTap: onTap,
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: Icon(
-                  icon,
-                  size: 15,
-                  color: isError
-                      ? CustomColors.error
-                      : themeState.textSecondary,
-                ),
-              ),
+    return Tooltip(
+      message: tooltip,
+      waitDuration: K.tooltipDelay,
+      child: Material(
+        color: isError
+            ? CustomColors.error.withValues(alpha: 0.12)
+            : Colors.transparent,
+        borderRadius: radius,
+        child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          borderRadius: radius,
+          hoverColor: themeState.bgActive,
+          onTap: onTap,
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: Icon(
+              icon,
+              size: 15,
+              color: isError ? CustomColors.error : themeState.textSecondary,
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 import 'tap_to_focus.dart';
 
 /// Themed text field used throughout the app.
@@ -96,7 +95,7 @@ class _AppTextFieldState extends State<AppTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
+    final themeState = context.theme;
     final borderColor = themeState.borderElevated;
     // A focused field is ringed in a *tinted* accent, not the flat accent —
     // full strength reads as an error state next to the quiet surfaces around
@@ -203,7 +202,7 @@ class _RevealButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
+    final themeState = context.theme;
     return IconButton(
       tooltip: revealed ? 'Hide' : 'Show',
       onPressed: onPressed,

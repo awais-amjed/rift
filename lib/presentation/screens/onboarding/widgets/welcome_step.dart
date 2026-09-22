@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_mark.dart';
 import '../../../theme/app_text.dart';
@@ -23,7 +21,7 @@ class WelcomeStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.read<ThemeCubit>().state;
+    final theme = context.theme;
 
     return OnboardingPage(
       step: 0,

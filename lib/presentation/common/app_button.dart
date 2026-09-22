@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
+import '../theme/theme_context.dart';
 import 'app_button_height.dart';
 import 'loading_dots.dart';
 
@@ -42,7 +41,7 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.read<ThemeCubit>().state;
+    final themeState = context.theme;
     final height =
         this.height ?? AppButtonHeight.of(context) ?? K.controlHeight;
     final isPrimary = variant == AppButtonVariant.primary;

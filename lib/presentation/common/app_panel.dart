@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../responsive/shell_scope.dart';
+import '../theme/theme_context.dart';
 
 /// One of the app's floating panels — sidebar, content, members.
 ///
@@ -64,39 +63,36 @@ class AppPanel extends StatelessWidget {
         borderRadius ??
         (islands ? BorderRadius.circular(corner) : BorderRadius.zero);
 
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          width: width,
-          decoration: BoxDecoration(
-            color: color ?? themeState.bgSecondary,
-            borderRadius: radius,
-            // A border traces the edge of an island. Against the screen's own
-            // edge it is a hairline of not-quite-black that reads as a
-            // rendering fault rather than a boundary.
-            border: islands
-                ? Border.all(
-                    color: themeState.borderPrimary.withValues(
-                      alpha: themeState.borderPrimary.a * (1 - bleed),
-                    ),
-                  )
-                : null,
-            boxShadow: shadow,
-          ),
-          child: ClipRRect(
-            // The border is painted inside the box, so the clip shrinks by its
-            // width or children bleed over it at the corners. Nothing to
-            // shrink by where there is no border.
-            borderRadius: islands
-                ? BorderRadius.circular((corner - 1).clamp(0, K.radiusCard))
-                : radius,
-            // Only where the panel is the screen. While it is an island the
-            // workspace is already clear of everything, and a second inset
-            // here would push the content in twice.
-            child: islands ? child : SafeArea(child: child),
-          ),
-        );
-      },
+    final themeState = context.theme;
+    return Container(
+      width: width,
+      decoration: BoxDecoration(
+        color: color ?? themeState.bgSecondary,
+        borderRadius: radius,
+        // A border traces the edge of an island. Against the screen's own
+        // edge it is a hairline of not-quite-black that reads as a
+        // rendering fault rather than a boundary.
+        border: islands
+            ? Border.all(
+                color: themeState.borderPrimary.withValues(
+                  alpha: themeState.borderPrimary.a * (1 - bleed),
+                ),
+              )
+            : null,
+        boxShadow: shadow,
+      ),
+      child: ClipRRect(
+        // The border is painted inside the box, so the clip shrinks by its
+        // width or children bleed over it at the corners. Nothing to
+        // shrink by where there is no border.
+        borderRadius: islands
+            ? BorderRadius.circular((corner - 1).clamp(0, K.radiusCard))
+            : radius,
+        // Only where the panel is the screen. While it is an island the
+        // workspace is already clear of everything, and a second inset
+        // here would push the content in twice.
+        child: islands ? child : SafeArea(child: child),
+      ),
     );
   }
 }

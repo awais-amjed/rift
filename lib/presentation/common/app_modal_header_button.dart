@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/theme_context.dart';
 import 'app_modal_header.dart';
 
 /// One icon button in a modal's header: the close, or an action beside it.
@@ -21,24 +20,21 @@ class AppModalHeaderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return IconButton(
-          onPressed: onPressed,
-          tooltip: tooltip,
-          icon: Icon(icon, color: themeState.textTertiary, size: 18),
-          constraints: const BoxConstraints.tightFor(
-            width: AppModalHeader.buttonSize,
-            height: AppModalHeader.buttonSize,
-          ),
-          padding: EdgeInsets.zero,
-          style: IconButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(K.radiusRow),
-            ),
-          ),
-        );
-      },
+    final themeState = context.theme;
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      icon: Icon(icon, color: themeState.textTertiary, size: 18),
+      constraints: const BoxConstraints.tightFor(
+        width: AppModalHeader.buttonSize,
+        height: AppModalHeader.buttonSize,
+      ),
+      padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(K.radiusRow),
+        ),
+      ),
     );
   }
 }

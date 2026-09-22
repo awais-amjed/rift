@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../../data/constants.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
+import '../../theme/theme_context.dart';
 import '../app_mark.dart';
 import 'window_button.dart';
 
@@ -68,47 +68,44 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        // The bar is mounted in the root Overlay, above the Navigator, so
-        // nothing here inherits a Scaffold's Material. Without one there is no
-        // `DefaultTextStyle` but the framework's error style, which is what
-        // strikes the wordmark through with a double yellow underline. Painting
-        // no surface of its own, so the fill below still shows through.
-        return Material(
-          type: MaterialType.transparency,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: widget.pinned
-                  ? Colors.transparent
-                  : themeState.bgSecondary.withValues(alpha: 0.72),
-            ),
-            child: SizedBox(
-              height: widget.height,
-              child: Stack(
-                children: [
-                  // Draggable region covering the full bar, under the controls.
-                  const Positioned.fill(
-                    child: DragToMoveArea(child: SizedBox.expand()),
-                  ),
-                  Positioned(
-                    left: 16,
-                    top: 0,
-                    bottom: 0,
-                    child: _buildBrand(themeState),
-                  ),
-                  Positioned(
-                    right: 8,
-                    top: 0,
-                    bottom: 0,
-                    child: _buildControls(themeState),
-                  ),
-                ],
+    final themeState = context.theme;
+    // The bar is mounted in the root Overlay, above the Navigator, so
+    // nothing here inherits a Scaffold's Material. Without one there is no
+    // `DefaultTextStyle` but the framework's error style, which is what
+    // strikes the wordmark through with a double yellow underline. Painting
+    // no surface of its own, so the fill below still shows through.
+    return Material(
+      type: MaterialType.transparency,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: widget.pinned
+              ? Colors.transparent
+              : themeState.bgSecondary.withValues(alpha: 0.72),
+        ),
+        child: SizedBox(
+          height: widget.height,
+          child: Stack(
+            children: [
+              // Draggable region covering the full bar, under the controls.
+              const Positioned.fill(
+                child: DragToMoveArea(child: SizedBox.expand()),
               ),
-            ),
+              Positioned(
+                left: 16,
+                top: 0,
+                bottom: 0,
+                child: _buildBrand(themeState),
+              ),
+              Positioned(
+                right: 8,
+                top: 0,
+                bottom: 0,
+                child: _buildControls(themeState),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 

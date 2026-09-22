@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../responsive/shell_scope.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 import 'app_button_height.dart';
 import 'app_modal_header.dart';
 import 'back_chevron_button.dart';
@@ -215,68 +214,65 @@ class AppModal extends StatelessWidget {
           ? _buildPageForPhone(context)
           : _buildForPhone(context);
     }
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final borderColor = themeState.borderPrimary;
+    final themeState = context.theme;
+    final borderColor = themeState.borderPrimary;
 
-        return Dialog(
-          // The design puts dialogs on the *panel* surface, with the shadow
-          // doing the lifting — elevated is reserved for menus and popovers,
-          // which open on top of dialogs and need to out-rank them.
-          backgroundColor: themeState.bgSecondary,
-          // Flutter's default inset is 40 a side, which is a tenth of a phone
-          // spent on margin before the dialog's own padding starts. [maxWidth]
-          // still decides the size wherever there is room for it; this only
-          // changes what "no room" leaves behind.
-          insetPadding: EdgeInsets.symmetric(
-            horizontal: context.layoutMode.isCompact ? K.panelGutter * 1.6 : 40,
-            vertical: 24,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(K.radiusCard),
-            side: BorderSide(color: themeState.borderElevated),
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: maxWidth,
-              maxHeight:
-                  maxHeight ??
-                  MediaQuery.sizeOf(context).height * _maxHeightFraction,
+    return Dialog(
+      // The design puts dialogs on the *panel* surface, with the shadow
+      // doing the lifting — elevated is reserved for menus and popovers,
+      // which open on top of dialogs and need to out-rank them.
+      backgroundColor: themeState.bgSecondary,
+      // Flutter's default inset is 40 a side, which is a tenth of a phone
+      // spent on margin before the dialog's own padding starts. [maxWidth]
+      // still decides the size wherever there is room for it; this only
+      // changes what "no room" leaves behind.
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: context.layoutMode.isCompact ? K.panelGutter * 1.6 : 40,
+        vertical: 24,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(K.radiusCard),
+        side: BorderSide(color: themeState.borderElevated),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxWidth,
+          maxHeight:
+              maxHeight ??
+              MediaQuery.sizeOf(context).height * _maxHeightFraction,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppModalHeader(
+              title: title,
+              subtitle: subtitle,
+              titleIcon: titleIcon,
+              count: count,
+              actions: headerActions,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppModalHeader(
-                  title: title,
-                  subtitle: subtitle,
-                  titleIcon: titleIcon,
-                  count: count,
-                  actions: headerActions,
-                ),
-                Divider(height: 1, color: borderColor),
-                Flexible(
-                  child:
-                      body ??
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 18,
-                        ),
-                        child: content,
-                      ),
-                ),
-                if (actions != null) ...[
-                  Divider(height: 1, color: borderColor),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-                    child: ButtonFooter(buttons: actions!),
+            Divider(height: 1, color: borderColor),
+            Flexible(
+              child:
+                  body ??
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
+                    child: content,
                   ),
-                ],
-              ],
             ),
-          ),
-        );
-      },
+            if (actions != null) ...[
+              Divider(height: 1, color: borderColor),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                child: ButtonFooter(buttons: actions!),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -288,7 +284,7 @@ class AppModal extends StatelessWidget {
   /// happened to end. Filling the screen puts the commit at the bottom every
   /// time, at the taller thumb height, and gives a long form one scroll.
   Widget _buildForPhone(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final borderColor = themeState.borderPrimary;
     final safe = MediaQuery.paddingOf(context);
     const margin = 10.0;
@@ -348,7 +344,7 @@ class AppModal extends StatelessWidget {
   /// No [Dialog] and no surface of its own: the sheet route paints both, so
   /// drawing another here would be a card inside a card.
   Widget _buildSheetForPhone(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final borderColor = themeState.borderPrimary;
 
     return ConstrainedBox(
@@ -411,7 +407,7 @@ class AppModal extends StatelessWidget {
 
   /// See [pageOnPhone].
   Widget _buildPageForPhone(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final actions = this.actions ?? const <Widget>[];
     final commit = actions.length >= 2 ? actions.last : null;
 

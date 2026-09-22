@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../data/constants.dart';
@@ -10,6 +9,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/list_loading_footer.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import 'dm_conversation_tile.dart';
 import 'dm_list_header.dart';
@@ -91,53 +91,50 @@ class DmListPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final compact = context.layoutMode.isCompact;
-        final list = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            DmListHeader(title: title, subtitle: subtitle),
-            if (search != null && !(compact && this.onNew != null))
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
-                child: search!,
-              ),
-            Expanded(child: _buildList(themeState, compact)),
-          ],
-        );
-        final onNew = this.onNew;
-        if (!compact || onNew == null) return list;
-        return Stack(
-          children: [
-            Positioned.fill(child: list),
-            Positioned(
-              right: 16,
-              bottom: 16,
-              child: FloatingActionButton.extended(
-                heroTag: null,
-                onPressed: onNew,
-                backgroundColor: themeState.primary,
-                foregroundColor: themeState.onPrimary,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(K.radiusCard),
-                ),
-                // Outlined, like every other glyph in the app: Material ships
-                // edit_square filled only, which read as a solid block here.
-                icon: const Icon(Icons.edit_outlined, size: 19),
-                label: Text(
-                  'New',
-                  style: AppText.row.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: themeState.onPrimary,
-                  ),
-                ),
+    final themeState = context.theme;
+    final compact = context.layoutMode.isCompact;
+    final list = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DmListHeader(title: title, subtitle: subtitle),
+        if (search != null && !(compact && this.onNew != null))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+            child: search!,
+          ),
+        Expanded(child: _buildList(themeState, compact)),
+      ],
+    );
+    final onNew = this.onNew;
+    if (!compact || onNew == null) return list;
+    return Stack(
+      children: [
+        Positioned.fill(child: list),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton.extended(
+            heroTag: null,
+            onPressed: onNew,
+            backgroundColor: themeState.primary,
+            foregroundColor: themeState.onPrimary,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(K.radiusCard),
+            ),
+            // Outlined, like every other glyph in the app: Material ships
+            // edit_square filled only, which read as a solid block here.
+            icon: const Icon(Icons.edit_outlined, size: 19),
+            label: Text(
+              'New',
+              style: AppText.row.copyWith(
+                fontWeight: FontWeight.w700,
+                color: themeState.onPrimary,
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 

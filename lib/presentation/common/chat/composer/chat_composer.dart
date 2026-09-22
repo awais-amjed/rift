@@ -20,6 +20,7 @@ import '../../../../logic/services/link_preview_parser.dart';
 import '../../../../logic/services/mention_suggestions.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
 import '../../../theme/app_motion.dart';
+import '../../../theme/theme_context.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
 import 'composer_command_menu.dart';
@@ -363,54 +364,51 @@ class _ChatComposerState extends State<ChatComposer>
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        // The mention menu floats rather than sitting in the column: a list
-        // that took layout space shoved the whole conversation up as somebody
-        // typed a name, and dropped it back on every keystroke that narrowed
-        // the list. A popup that covers the last message costs nothing — it is
-        // gone by the time you read it.
-        //
-        // The `/` menu still takes space, and should: it only ever opens on an
-        // empty composer, where there is no message right above it to hide.
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-          child: Builder(
-            builder: (context) {
-              return CompositedTransformTarget(
+    final themeState = context.theme;
+    // The mention menu floats rather than sitting in the column: a list
+    // that took layout space shoved the whole conversation up as somebody
+    // typed a name, and dropped it back on every keystroke that narrowed
+    // the list. A popup that covers the last message costs nothing — it is
+    // gone by the time you read it.
+    //
+    // The `/` menu still takes space, and should: it only ever opens on an
+    // empty composer, where there is no message right above it to hide.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+      child: Builder(
+        builder: (context) {
+          return CompositedTransformTarget(
+            link: _menuLink,
+            child: OverlayPortal(
+              controller: _menuOverlay,
+              // In the app's overlay rather than in this subtree, because a
+              // child drawn outside its parent's box paints but does not
+              // hit-test — the menu appeared and could not be clicked.
+              overlayChildBuilder: (context) => CompositedTransformFollower(
                 link: _menuLink,
-                child: OverlayPortal(
-                  controller: _menuOverlay,
-                  // In the app's overlay rather than in this subtree, because a
-                  // child drawn outside its parent's box paints but does not
-                  // hit-test — the menu appeared and could not be clicked.
-                  overlayChildBuilder: (context) => CompositedTransformFollower(
-                    link: _menuLink,
-                    // The menu's bottom edge sits on the composer's top edge.
-                    targetAnchor: Alignment.topLeft,
-                    followerAnchor: Alignment.bottomLeft,
-                    // Shrink-wrapped: an overlay child is handed the whole
-                    // screen to fill, and a popup that took it covered the
-                    // conversation entirely instead of sitting above the bar.
-                    // The menu sets its own width, like every other popover.
-                    child: Align(
-                      alignment: Alignment.bottomLeft,
-                      widthFactor: 1,
-                      heightFactor: 1,
-                      child: ComposerMentionMenu(
-                        members: _mentions,
+                // The menu's bottom edge sits on the composer's top edge.
+                targetAnchor: Alignment.topLeft,
+                followerAnchor: Alignment.bottomLeft,
+                // Shrink-wrapped: an overlay child is handed the whole
+                // screen to fill, and a popup that took it covered the
+                // conversation entirely instead of sitting above the bar.
+                // The menu sets its own width, like every other popover.
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: ComposerMentionMenu(
+                    members: _mentions,
 
-                        onSelected: _pickMention,
-                      ),
-                    ),
+                    onSelected: _pickMention,
                   ),
-                  child: _buildColumn(themeState),
                 ),
-              );
-            },
-          ),
-        );
-      },
+              ),
+              child: _buildColumn(themeState),
+            ),
+          );
+        },
+      ),
     );
   }
 

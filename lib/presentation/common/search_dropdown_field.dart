@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 import 'tap_to_focus.dart';
 
 /// A search field that drops its results directly underneath itself.
@@ -168,13 +168,10 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return CompositedTransformTarget(
-          link: _link,
-          child: _buildField(themeState),
-        );
-      },
+    final themeState = context.theme;
+    return CompositedTransformTarget(
+      link: _link,
+      child: _buildField(themeState),
     );
   }
 
@@ -247,7 +244,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
   }
 
   Widget _buildOverlay() {
-    final themeState = context.read<ThemeCubit>().state;
+    final themeState = context.theme;
     final width = (context.findRenderObject() as RenderBox?)?.size.width ?? 240;
 
     return Positioned(

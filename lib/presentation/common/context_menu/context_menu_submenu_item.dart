@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../logic/cubits/theme/theme_cubit.dart';
+import '../../theme/theme_context.dart';
 import '../context_menu_region.dart';
 import 'context_menu_item.dart';
 import 'context_menu_sheet.dart';
@@ -122,37 +121,34 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
   @override
   Widget build(BuildContext context) {
     final sheet = ContextMenuPresentation.of(context);
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final chevron = Icon(
-          Icons.chevron_right_rounded,
-          size: 16,
-          color: themeState.textQuaternary,
-        );
-        // No room beside a sheet, so the submenu takes the sheet's place and
-        // its heading carries the way back.
-        if (sheet != null) {
-          return ContextMenuItem(
-            icon: widget.icon,
-            label: widget.label,
-            onTap: () => sheet.pushSubmenu(widget.submenuBuilder),
-            trailing: chevron,
-          );
-        }
-        return MouseRegion(
-          onEnter: (_) => _open(),
-          onExit: (_) => _scheduleClose(),
-          child: KeyedSubtree(
-            key: _rowKey,
-            child: ContextMenuItem(
-              icon: widget.icon,
-              label: widget.label,
-              onTap: () => _isOpen ? _close() : _open(),
-              trailing: chevron,
-            ),
-          ),
-        );
-      },
+    final themeState = context.theme;
+    final chevron = Icon(
+      Icons.chevron_right_rounded,
+      size: 16,
+      color: themeState.textQuaternary,
+    );
+    // No room beside a sheet, so the submenu takes the sheet's place and
+    // its heading carries the way back.
+    if (sheet != null) {
+      return ContextMenuItem(
+        icon: widget.icon,
+        label: widget.label,
+        onTap: () => sheet.pushSubmenu(widget.submenuBuilder),
+        trailing: chevron,
+      );
+    }
+    return MouseRegion(
+      onEnter: (_) => _open(),
+      onExit: (_) => _scheduleClose(),
+      child: KeyedSubtree(
+        key: _rowKey,
+        child: ContextMenuItem(
+          icon: widget.icon,
+          label: widget.label,
+          onTap: () => _isOpen ? _close() : _open(),
+          trailing: chevron,
+        ),
+      ),
     );
   }
 }

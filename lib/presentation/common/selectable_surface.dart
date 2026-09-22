@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/theme_context.dart';
 
 /// The wash-and-ring treatment shared by every pick-one control — expiry
 /// chips, max-use chips, the text/voice channel type segments.
@@ -33,45 +32,42 @@ class SelectableSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Material(
-          color: selected ? themeState.channelActiveBg : themeState.bgHover,
-          borderRadius: borderRadius,
-          child: InkWell(
-            mouseCursor: WidgetStateMouseCursor.clickable,
-            onTap: onTap,
+    final themeState = context.theme;
+    return Material(
+      color: selected ? themeState.channelActiveBg : themeState.bgHover,
+      borderRadius: borderRadius,
+      child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+        onTap: onTap,
+        borderRadius: borderRadius,
+        hoverColor: selected ? Colors.transparent : themeState.bgActive,
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
             borderRadius: borderRadius,
-            hoverColor: selected ? Colors.transparent : themeState.bgActive,
-            child: Container(
-              padding: padding,
-              decoration: BoxDecoration(
-                borderRadius: borderRadius,
-                border: Border.all(
-                  color: selected
-                      ? themeState.channelActiveBorder
-                      : themeState.borderElevated,
-                ),
-              ),
-              child: IconTheme(
-                data: IconThemeData(
-                  color: selected
-                      ? themeState.accentBright
-                      : themeState.textTertiary,
-                ),
-                child: DefaultTextStyle.merge(
-                  style: TextStyle(
-                    color: selected
-                        ? themeState.channelActiveText
-                        : themeState.textSecondary,
-                  ),
-                  child: child,
-                ),
-              ),
+            border: Border.all(
+              color: selected
+                  ? themeState.channelActiveBorder
+                  : themeState.borderElevated,
             ),
           ),
-        );
-      },
+          child: IconTheme(
+            data: IconThemeData(
+              color: selected
+                  ? themeState.accentBright
+                  : themeState.textTertiary,
+            ),
+            child: DefaultTextStyle.merge(
+              style: TextStyle(
+                color: selected
+                    ? themeState.channelActiveText
+                    : themeState.textSecondary,
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

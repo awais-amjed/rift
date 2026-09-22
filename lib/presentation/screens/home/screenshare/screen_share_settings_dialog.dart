@@ -9,12 +9,12 @@ import 'package:sizer/sizer.dart';
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/screen_share_sources.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/services/host_platform.dart';
 import '../../../common/app_button.dart';
+import '../../../theme/theme_context.dart';
 import 'widgets/screen_share_settings_form.dart';
 import 'widgets/settings_dialog_header.dart';
 
@@ -163,72 +163,66 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Dialog(
-          backgroundColor: themeState.bgElevated,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(K.radiusCard),
-            side: BorderSide(color: themeState.borderPrimary),
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: max(480, 50.w),
-              maxHeight: max(720, 80.h),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+    final themeState = context.theme;
+    return Dialog(
+      backgroundColor: themeState.bgElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(K.radiusCard),
+        side: BorderSide(color: themeState.borderPrimary),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: max(480, 50.w),
+          maxHeight: max(720, 80.h),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SettingsDialogHeader(onClose: () => Navigator.of(context).pop()),
+              Divider(height: 24, color: themeState.borderPrimary),
+              Flexible(
+                child: ScreenShareSettingsForm(
+                  settings: _draft,
+                  maxShareMbps: widget.maxShareMbps,
+                  onChanged: (settings) => setState(() => _draft = settings),
+                  captureSources: _captureSources,
+                  loadingCaptureSources: _loadingCaptureSources,
+                  thumbnails: _thumbnails,
+                  onRefreshCaptureSources: _loadCaptureSources,
+                  audioSources: _audioSources,
+                  loadingAudioSources: _loadingAudioSources,
+                  onRefreshAudioSources: _loadAudioSources,
+                  onCaptureTypeChanged: _onCaptureTypeChanged,
+                  onAudioToggle: _onAudioToggle,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  SettingsDialogHeader(
-                    onClose: () => Navigator.of(context).pop(),
+                  AppButton(
+                    label: 'Cancel',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
-                  Divider(height: 24, color: themeState.borderPrimary),
-                  Flexible(
-                    child: ScreenShareSettingsForm(
-                      settings: _draft,
-                      maxShareMbps: widget.maxShareMbps,
-                      onChanged: (settings) =>
-                          setState(() => _draft = settings),
-                      captureSources: _captureSources,
-                      loadingCaptureSources: _loadingCaptureSources,
-                      thumbnails: _thumbnails,
-                      onRefreshCaptureSources: _loadCaptureSources,
-                      audioSources: _audioSources,
-                      loadingAudioSources: _loadingAudioSources,
-                      onRefreshAudioSources: _loadAudioSources,
-                      onCaptureTypeChanged: _onCaptureTypeChanged,
-                      onAudioToggle: _onAudioToggle,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      AppButton(
-                        label: 'Cancel',
-                        variant: AppButtonVariant.secondary,
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                      const SizedBox(width: 10),
-                      AppButton(
-                        label: 'Start sharing',
-                        onPressed:
-                            (HostPlatform.picksShareSourceInApp &&
-                                _draft.selectedVideoSourceIndex == null)
-                            ? null
-                            : _confirm,
-                      ),
-                    ],
+                  const SizedBox(width: 10),
+                  AppButton(
+                    label: 'Start sharing',
+                    onPressed:
+                        (HostPlatform.picksShareSourceInApp &&
+                            _draft.selectedVideoSourceIndex == null)
+                        ? null
+                        : _confirm,
                   ),
                 ],
               ),
-            ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

@@ -44,7 +44,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final state = context.watch<DmCubit>().state;
 
     return Column(

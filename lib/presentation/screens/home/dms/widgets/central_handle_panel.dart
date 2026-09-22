@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/central_handle.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/button_footer.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Inline claim-a-handle panel, shown when the user is signed in to central
 /// but hasn't created a directory profile yet.
@@ -30,7 +30,7 @@ class _CentralHandlePanelState extends State<CentralHandlePanel> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final state = context.watch<CentralDmCubit>().state;
 
     return Padding(

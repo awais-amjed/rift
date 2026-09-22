@@ -112,93 +112,86 @@ class _MembersSidebarState extends State<MembersSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return BlocBuilder<AppCubit, AppState>(
-          buildWhen: (a, b) =>
-              a.participantSettings != b.participantSettings ||
-              a.membersSidebarWidth != b.membersSidebarWidth,
-          builder: (context, appState) {
-            final mode = context.layoutMode;
-            final gutter = mode.panelGutter;
-            final windowWidth = MediaQuery.sizeOf(context).width;
-            // Floating, the drawer keeps its default width: it is covering
-            // the content, and a width dragged for sitting beside it does
-            // not carry over.
-            final width = widget.floating
-                ? K.membersSidebarWidth
-                : MembersSidebarSizing.clamp(
-                    _dragWidth ?? appState.membersSidebarWidth,
-                    windowWidth: windowWidth,
-                  );
-            final fullWidth = _fullWidth(width, gutter);
-            return AnimatedContainer(
-              // A drag tracks the pointer exactly; see the left sidebar.
-              duration: _dragWidth != null ? Duration.zero : K.sidebarMotion,
-              curve: AppMotion.panel,
-              width: widget.open ? fullWidth : 0,
-              onEnd: () {
-                if (!widget.open && _showContent) {
-                  setState(() => _showContent = false);
-                }
-              },
-              // The width animates but `open` flips at once, so without the
-              // clip the full-width content spends the whole animation being
-              // laid out at a few pixels — a row of overflow errors every
-              // toggle. Pin the child to its real width and clip instead: it
-              // slides out through the right edge rather than being squeezed.
-              child: !_showContent
-                  ? const SizedBox.shrink()
-                  : ClipRect(
-                      child: OverflowBox(
-                        alignment: Alignment.centerLeft,
-                        minWidth: fullWidth,
-                        maxWidth: fullWidth,
-                        child: Row(
-                          children: [
-                            if (widget.floating)
-                              SizedBox(width: gutter)
-                            else
-                              SidebarResizeHandle(
-                                onDrag: (delta) => _onDrag(
-                                  delta,
-                                  appState.membersSidebarWidth,
-                                  windowWidth,
-                                ),
-                                onDragEnd: _onDragEnd,
-                                onReset: _reset,
-                              ),
-                            SizedBox(
-                              width: width,
-                              // A panel in its own right — the same chrome as
-                              // the left sidebar, floating beside the content
-                              // rather than bordering it.
-                              child: AppPanel(
-                                shadow: widget.floating
-                                    ? AppShadows.overlayPane
-                                    : null,
-                                // Mirrors the left drawer: square against the
-                                // screen edge, rounded on the content side.
-                                borderRadius:
-                                    widget.floating && !mode.panelsAreIslands
-                                    ? const BorderRadius.horizontal(
-                                        left: Radius.circular(K.radiusCard),
-                                      )
-                                    : null,
-                                child: _buildList(
-                                  context,
-                                  themeState,
-                                  appState,
-                                ),
-                              ),
-                            ),
-                            if (widget.floating) SizedBox(width: gutter),
-                          ],
-                        ),
-                      ),
-                    ),
-            );
+    final themeState = context.theme;
+    return BlocBuilder<AppCubit, AppState>(
+      buildWhen: (a, b) =>
+          a.participantSettings != b.participantSettings ||
+          a.membersSidebarWidth != b.membersSidebarWidth,
+      builder: (context, appState) {
+        final mode = context.layoutMode;
+        final gutter = mode.panelGutter;
+        final windowWidth = MediaQuery.sizeOf(context).width;
+        // Floating, the drawer keeps its default width: it is covering
+        // the content, and a width dragged for sitting beside it does
+        // not carry over.
+        final width = widget.floating
+            ? K.membersSidebarWidth
+            : MembersSidebarSizing.clamp(
+                _dragWidth ?? appState.membersSidebarWidth,
+                windowWidth: windowWidth,
+              );
+        final fullWidth = _fullWidth(width, gutter);
+        return AnimatedContainer(
+          // A drag tracks the pointer exactly; see the left sidebar.
+          duration: _dragWidth != null ? Duration.zero : K.sidebarMotion,
+          curve: AppMotion.panel,
+          width: widget.open ? fullWidth : 0,
+          onEnd: () {
+            if (!widget.open && _showContent) {
+              setState(() => _showContent = false);
+            }
           },
+          // The width animates but `open` flips at once, so without the
+          // clip the full-width content spends the whole animation being
+          // laid out at a few pixels — a row of overflow errors every
+          // toggle. Pin the child to its real width and clip instead: it
+          // slides out through the right edge rather than being squeezed.
+          child: !_showContent
+              ? const SizedBox.shrink()
+              : ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.centerLeft,
+                    minWidth: fullWidth,
+                    maxWidth: fullWidth,
+                    child: Row(
+                      children: [
+                        if (widget.floating)
+                          SizedBox(width: gutter)
+                        else
+                          SidebarResizeHandle(
+                            onDrag: (delta) => _onDrag(
+                              delta,
+                              appState.membersSidebarWidth,
+                              windowWidth,
+                            ),
+                            onDragEnd: _onDragEnd,
+                            onReset: _reset,
+                          ),
+                        SizedBox(
+                          width: width,
+                          // A panel in its own right — the same chrome as
+                          // the left sidebar, floating beside the content
+                          // rather than bordering it.
+                          child: AppPanel(
+                            shadow: widget.floating
+                                ? AppShadows.overlayPane
+                                : null,
+                            // Mirrors the left drawer: square against the
+                            // screen edge, rounded on the content side.
+                            borderRadius:
+                                widget.floating && !mode.panelsAreIslands
+                                ? const BorderRadius.horizontal(
+                                    left: Radius.circular(K.radiusCard),
+                                  )
+                                : null,
+                            child: _buildList(context, themeState, appState),
+                          ),
+                        ),
+                        if (widget.floating) SizedBox(width: gutter),
+                      ],
+                    ),
+                  ),
+                ),
         );
       },
     );

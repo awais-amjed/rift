@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
@@ -11,6 +10,7 @@ import '../../../common/message_banner.dart';
 import '../../../common/restore_file_dialog.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
+import '../../../theme/theme_context.dart';
 import 'onboarding_footer.dart';
 import 'onboarding_page.dart';
 import 'password_strength_indicator.dart';
@@ -54,7 +54,7 @@ class _PasswordStepState extends State<PasswordStep> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.read<ThemeCubit>().state;
+    final theme = context.theme;
 
     return BlocBuilder<VaultCubit, VaultState>(
       buildWhen: (prev, curr) =>

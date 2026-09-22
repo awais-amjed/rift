@@ -4,11 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Sending a summoned bot away.
 ///
@@ -84,18 +84,17 @@ class ParticipantBotSection extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Divider(height: 9, color: themeState.borderPrimary),
-          ContextMenuItem(
-            icon: Icons.logout_rounded,
-            label: 'Send away',
-            onTap: () => _dismiss(context),
-          ),
-        ],
-      ),
+    final themeState = context.theme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Divider(height: 9, color: themeState.borderPrimary),
+        ContextMenuItem(
+          icon: Icons.logout_rounded,
+          label: 'Send away',
+          onTap: () => _dismiss(context),
+        ),
+      ],
     );
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/public_server.dart';
 import '../../../../../../data/constants.dart';
@@ -7,6 +6,7 @@ import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/squircle_avatar.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// One server in the browser.
 ///
@@ -25,43 +25,40 @@ class PublicServerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: themeState.bgHover,
-            borderRadius: BorderRadius.circular(K.radiusCard),
-            border: Border.all(color: themeState.borderPrimary),
+    final themeState = context.theme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: themeState.bgHover,
+        borderRadius: BorderRadius.circular(K.radiusCard),
+        border: Border.all(color: themeState.borderPrimary),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 12,
+        children: [
+          SquircleAvatar(
+            name: server.name,
+            seed: server.serverId,
+            imageUrl: server.iconUrl,
+            size: 40,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 12,
-            children: [
-              SquircleAvatar(
-                name: server.name,
-                seed: server.serverId,
-                imageUrl: server.iconUrl,
-                size: 40,
-              ),
-              Expanded(child: _details(themeState)),
-              if (onJoin != null)
-                AppButton(label: 'Join', onPressed: onJoin)
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  child: Text(
-                    'Joined',
-                    style: AppText.label.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: themeState.textTertiary,
-                    ),
-                  ),
+          Expanded(child: _details(themeState)),
+          if (onJoin != null)
+            AppButton(label: 'Join', onPressed: onJoin)
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 9),
+              child: Text(
+                'Joined',
+                style: AppText.label.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: themeState.textTertiary,
                 ),
-            ],
-          ),
-        );
-      },
+              ),
+            ),
+        ],
+      ),
     );
   }
 

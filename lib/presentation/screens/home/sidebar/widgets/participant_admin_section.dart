@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_submenu_item.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import 'participant_move_menu.dart';
 import 'participant_removal_items.dart';
 import 'participant_roles_menu.dart';
@@ -81,89 +82,84 @@ class ParticipantAdminSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!_showsAnything) return const SizedBox.shrink();
 
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Named, so the staff half of a long menu reads as a group of its
-            // own rather than more of the same list — on a phone this menu is
-            // a sheet most of a screen tall.
-            Divider(height: 9, color: themeState.borderPrimary),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
-              child: Text(
-                'MODERATION',
-                style: AppText.sectionLabel.copyWith(
-                  color: themeState.textTertiary,
-                ),
+    final themeState = context.theme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Named, so the staff half of a long menu reads as a group of its
+        // own rather than more of the same list — on a phone this menu is
+        // a sheet most of a screen tall.
+        Divider(height: 9, color: themeState.borderPrimary),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+          child: Text(
+            'MODERATION',
+            style: AppText.sectionLabel.copyWith(
+              color: themeState.textTertiary,
+            ),
+          ),
+        ),
+        if (isModerator && isLive) ...[
+          ContextMenuItem(
+            icon: isServerMuted ? Icons.mic : Icons.mic_off,
+            label: isServerMuted ? 'Server unmute' : 'Server mute',
+            isDangerous: !isServerMuted,
+            onTap: () => context.read<LiveKitCubit>().moderateParticipant(
+              participantIdentity: target,
+              muted: !isServerMuted,
+            ),
+          ),
+          ContextMenuItem(
+            icon: isServerDeafened ? Icons.headset : Icons.headset_off,
+            label: isServerDeafened ? 'Server undeafen' : 'Server deafen',
+            isDangerous: !isServerDeafened,
+            onTap: () => context.read<LiveKitCubit>().moderateParticipant(
+              participantIdentity: target,
+              deafened: !isServerDeafened,
+            ),
+          ),
+        ],
+        if (_canMove)
+          ContextMenuSubmenuItem(
+            icon: Icons.moving_rounded,
+            label: 'Move to',
+            submenuBuilder: (_) => MultiBlocProvider(
+              providers: [
+                BlocProvider.value(value: context.read<ServerCubit>()),
+                BlocProvider.value(value: context.read<ThemeCubit>()),
+              ],
+              child: ParticipantMoveMenu(
+                userId: targetUserId,
+                fromChannelId: voiceChannelId,
               ),
             ),
-            if (isModerator && isLive) ...[
-              ContextMenuItem(
-                icon: isServerMuted ? Icons.mic : Icons.mic_off,
-                label: isServerMuted ? 'Server unmute' : 'Server mute',
-                isDangerous: !isServerMuted,
-                onTap: () => context.read<LiveKitCubit>().moderateParticipant(
-                  participantIdentity: target,
-                  muted: !isServerMuted,
-                ),
-              ),
-              ContextMenuItem(
-                icon: isServerDeafened ? Icons.headset : Icons.headset_off,
-                label: isServerDeafened ? 'Server undeafen' : 'Server deafen',
-                isDangerous: !isServerDeafened,
-                onTap: () => context.read<LiveKitCubit>().moderateParticipant(
-                  participantIdentity: target,
-                  deafened: !isServerDeafened,
-                ),
-              ),
-            ],
-            if (_canMove)
-              ContextMenuSubmenuItem(
-                icon: Icons.moving_rounded,
-                label: 'Move to',
-                submenuBuilder: (_) => MultiBlocProvider(
-                  providers: [
-                    BlocProvider.value(value: context.read<ServerCubit>()),
-                    BlocProvider.value(value: context.read<ThemeCubit>()),
-                  ],
-                  child: ParticipantMoveMenu(
-                    userId: targetUserId,
-                    fromChannelId: voiceChannelId,
-                  ),
-                ),
-              ),
-            if (isServerAdmin)
-              ContextMenuSubmenuItem(
-                icon: Icons.badge_outlined,
-                label: 'Roles',
-                submenuBuilder: (_) => MultiBlocProvider(
-                  // A submenu is its own overlay entry, so it starts outside
-                  // this tree and has to be handed the cubits it reads.
-                  providers: [
-                    BlocProvider.value(value: context.read<ServerCubit>()),
-                    BlocProvider.value(
-                      value: context.read<ServerMembersCubit>(),
-                    ),
-                    BlocProvider.value(value: context.read<ThemeCubit>()),
-                  ],
-                  child: ParticipantRolesMenu(userId: targetUserId),
-                ),
-              ),
-            ParticipantRemovalItems(
-              targetUserId: targetUserId,
-              name: name,
-              canDisconnect: _canDisconnect,
-              // Admin only, matching `moderate_user`'s own `app.is_admin()`,
-              // and never against another admin, which it also refuses.
-              canBan: isServerAdmin && !targetIsAdmin,
+          ),
+        if (isServerAdmin)
+          ContextMenuSubmenuItem(
+            icon: Icons.badge_outlined,
+            label: 'Roles',
+            submenuBuilder: (_) => MultiBlocProvider(
+              // A submenu is its own overlay entry, so it starts outside
+              // this tree and has to be handed the cubits it reads.
+              providers: [
+                BlocProvider.value(value: context.read<ServerCubit>()),
+                BlocProvider.value(value: context.read<ServerMembersCubit>()),
+                BlocProvider.value(value: context.read<ThemeCubit>()),
+              ],
+              child: ParticipantRolesMenu(userId: targetUserId),
             ),
-            Divider(height: 9, color: themeState.borderPrimary),
-          ],
-        );
-      },
+          ),
+        ParticipantRemovalItems(
+          targetUserId: targetUserId,
+          name: name,
+          canDisconnect: _canDisconnect,
+          // Admin only, matching `moderate_user`'s own `app.is_admin()`,
+          // and never against another admin, which it also refuses.
+          canBan: isServerAdmin && !targetIsAdmin,
+        ),
+        Divider(height: 9, color: themeState.borderPrimary),
+      ],
     );
   }
 }

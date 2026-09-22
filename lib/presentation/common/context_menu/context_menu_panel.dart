@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
+import '../../theme/theme_context.dart';
 import '../back_chevron_button.dart';
 import '../popover_surface.dart';
 import 'context_menu_sheet.dart';
@@ -42,48 +42,45 @@ class ContextMenuPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sheet = ContextMenuPresentation.of(context);
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        // In a sheet the sheet is the surface: full width, no card of its own,
-        // and a rule under the heading because there is no card edge to end
-        // the heading against.
-        if (sheet != null) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (heading != null) ...[
-                  Row(
-                    children: [
-                      if (sheet.popSubmenu != null)
-                        BackChevronButton(onPressed: sheet.popSubmenu),
-                      Expanded(child: _buildHeading(themeState)),
-                    ],
-                  ),
-                  Divider(height: 9, color: themeState.borderPrimary),
+    final themeState = context.theme;
+    // In a sheet the sheet is the surface: full width, no card of its own,
+    // and a rule under the heading because there is no card edge to end
+    // the heading against.
+    if (sheet != null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (heading != null) ...[
+              Row(
+                children: [
+                  if (sheet.popSubmenu != null)
+                    BackChevronButton(onPressed: sheet.popSubmenu),
+                  Expanded(child: _buildHeading(themeState)),
                 ],
-                ...children,
-              ],
-            ),
-          );
-        }
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: PopoverSurface(
-            padding: const EdgeInsets.all(6),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (heading != null) _buildHeading(themeState),
-                ...children,
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+              Divider(height: 9, color: themeState.borderPrimary),
+            ],
+            ...children,
+          ],
+        ),
+      );
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: PopoverSurface(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (heading != null) _buildHeading(themeState),
+            ...children,
+          ],
+        ),
+      ),
     );
   }
 

@@ -8,13 +8,13 @@ import '../../../../../../logic/cubits/channel_presence/channel_presence_cubit.d
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/member_avatar.dart';
+import '../../../../theme/theme_context.dart';
 import '../../profile/person/show_person_profile.dart';
 import 'participant_admin_section.dart';
 import 'participant_bot_section.dart';
@@ -107,173 +107,170 @@ class ParticipantContextMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final borderColor = themeState.borderPrimary;
+    final themeState = context.theme;
+    final borderColor = themeState.borderPrimary;
 
-        return BlocBuilder<AppCubit, AppState>(
-          builder: (context, appState) {
-            // For local participant, use the LiveKit mic state
-            final liveKitState = context.watch<LiveKitCubit>().state;
-            final serverState = context.watch<ServerCubit>().state;
-            final permissions = serverState.myPermissions;
-            final isServerAdmin = permissions?.isServerAdmin ?? false;
-            final isModerator =
-                (permissions?.isChannelManager ?? false) || isServerAdmin;
+    return BlocBuilder<AppCubit, AppState>(
+      builder: (context, appState) {
+        // For local participant, use the LiveKit mic state
+        final liveKitState = context.watch<LiveKitCubit>().state;
+        final serverState = context.watch<ServerCubit>().state;
+        final permissions = serverState.myPermissions;
+        final isServerAdmin = permissions?.isServerAdmin ?? false;
+        final isModerator =
+            (permissions?.isChannelManager ?? false) || isServerAdmin;
 
-            // Server-side moderation state of the target (from LiveKit
-            // participant metadata), matched by user id so a screenshare or
-            // multi-device identity still resolves to the right person.
-            final targetUserId = ParticipantIdentity.userIdOf(identity);
-            final targetInfo = appState.participants
-                .where((p) => p.userId == targetUserId)
-                .firstOrNull;
-            final isServerMuted = targetInfo?.isServerMuted ?? false;
-            final isServerDeafened = targetInfo?.isServerDeafened ?? false;
-            // Absent from the roster → not in a voice channel with us, so
-            // their moderation state is unknown here.
-            final isLive = targetInfo != null;
+        // Server-side moderation state of the target (from LiveKit
+        // participant metadata), matched by user id so a screenshare or
+        // multi-device identity still resolves to the right person.
+        final targetUserId = ParticipantIdentity.userIdOf(identity);
+        final targetInfo = appState.participants
+            .where((p) => p.userId == targetUserId)
+            .firstOrNull;
+        final isServerMuted = targetInfo?.isServerMuted ?? false;
+        final isServerDeafened = targetInfo?.isServerDeafened ?? false;
+        // Absent from the roster → not in a voice channel with us, so
+        // their moderation state is unknown here.
+        final isLive = targetInfo != null;
 
-            // An admin is not a moderation target for another admin — the
-            // server says so, and the menu should agree rather than offering
-            // a button that comes back "cannot_moderate_admin". Unknown
-            // resolves to false on purpose: the member list may not have
-            // loaded yet, and hiding the controls from everyone until it does
-            // would be the worse failure.
-            final targetIsAdmin =
-                context
-                    .watch<ServerMembersCubit>()
-                    .state
-                    .byId[targetUserId]
-                    ?.permissions
-                    .isServerAdmin ??
-                false;
+        // An admin is not a moderation target for another admin — the
+        // server says so, and the menu should agree rather than offering
+        // a button that comes back "cannot_moderate_admin". Unknown
+        // resolves to false on purpose: the member list may not have
+        // loaded yet, and hiding the controls from everyone until it does
+        // would be the worse failure.
+        final targetIsAdmin =
+            context
+                .watch<ServerMembersCubit>()
+                .state
+                .byId[targetUserId]
+                ?.permissions
+                .isServerAdmin ??
+            false;
 
-            // Which call they're in, if any: ours when they're on the roster,
-            // otherwise whatever presence says. Only "Move to" needs it — and
-            // only to leave out the channel they're already in.
-            final voiceChannelId = isLive
-                ? liveKitState.currentChannelId
-                : context.watch<ChannelPresenceCubit>().state.channelOf(
-                    targetUserId,
+        // Which call they're in, if any: ours when they're on the roster,
+        // otherwise whatever presence says. Only "Move to" needs it — and
+        // only to leave out the channel they're already in.
+        final voiceChannelId = isLive
+            ? liveKitState.currentChannelId
+            : context.watch<ChannelPresenceCubit>().state.channelOf(
+                targetUserId,
+              );
+
+        final soundboardMuted =
+            appState
+                .participantSettings[ParticipantIdentity.soundboardSettingsKey(
+                  targetUserId,
+                )]
+                ?.muted ??
+            false;
+
+        final bool isMuted;
+        final double volume;
+
+        if (isLocal) {
+          isMuted = !liveKitState.isMicOn;
+          volume = 1.0; // Volume slider not applicable for self
+        } else {
+          final setting = appState.participantSettings[targetUserId];
+          isMuted = setting?.muted ?? false;
+          volume = setting?.volume ?? 1.0;
+        }
+
+        return ContextMenuPanel(
+          heading: isLocal ? 'You' : (isLive ? 'Participant' : 'Member'),
+          subheading: name,
+          leading: MemberAvatar(userId: targetUserId, name: name, size: 24),
+          children: [
+            Divider(height: 1, color: borderColor),
+            const SizedBox(height: 4),
+            ContextMenuItem(
+              icon: Icons.person_outline_rounded,
+              label: 'View profile',
+              onTap: () => _openProfile(context),
+            ),
+            if (isLocal) Divider(height: 9, color: borderColor),
+            // Messaging — not offered for yourself.
+            if (!isLocal) ...[
+              ContextMenuItem(
+                icon: Icons.chat_bubble_outline_rounded,
+                label: 'Message',
+                onTap: () => _openServerDm(context),
+              ),
+              ContextMenuItem(
+                icon: Icons.public_rounded,
+                label: 'Add on Central',
+                onTap: () => _openCentralDm(context),
+              ),
+              Divider(height: 9, color: borderColor),
+            ],
+            // Volume above the mutes: how loud they are, then whether
+            // you hear them at all.
+            if (!isLocal)
+              ParticipantVolumeControl(
+                target: identity,
+                isMuted: isMuted,
+                volume: volume,
+              ),
+            // Mute toggle (local only)
+            ContextMenuItem(
+              icon: isMuted ? Icons.mic_off : Icons.mic,
+              label: isMuted ? 'Unmute' : 'Mute',
+              isDangerous: isMuted,
+              onTap: () {
+                if (isLocal) {
+                  context.read<LiveKitCubit>().toggleMicrophone();
+                } else {
+                  context.read<LiveKitCubit>().setParticipantMute(
+                    identity,
+                    !isMuted,
                   );
-
-            final soundboardMuted =
-                appState
-                    .participantSettings[ParticipantIdentity.soundboardSettingsKey(
-                      targetUserId,
-                    )]
-                    ?.muted ??
-                false;
-
-            final bool isMuted;
-            final double volume;
-
-            if (isLocal) {
-              isMuted = !liveKitState.isMicOn;
-              volume = 1.0; // Volume slider not applicable for self
-            } else {
-              final setting = appState.participantSettings[targetUserId];
-              isMuted = setting?.muted ?? false;
-              volume = setting?.volume ?? 1.0;
-            }
-
-            return ContextMenuPanel(
-              heading: isLocal ? 'You' : (isLive ? 'Participant' : 'Member'),
-              subheading: name,
-              leading: MemberAvatar(userId: targetUserId, name: name, size: 24),
-              children: [
-                Divider(height: 1, color: borderColor),
-                const SizedBox(height: 4),
-                ContextMenuItem(
-                  icon: Icons.person_outline_rounded,
-                  label: 'View profile',
-                  onTap: () => _openProfile(context),
+                }
+              },
+            ),
+            // Their soundboard, separately. A clip is played by this
+            // device, so this switches off nothing for anybody else —
+            // and it leaves their voice alone, which is the reason it is
+            // not the mute above.
+            if (!isLocal)
+              ContextMenuItem(
+                icon: soundboardMuted
+                    ? Icons.graphic_eq_rounded
+                    : Icons.graphic_eq_outlined,
+                label: soundboardMuted
+                    ? 'Unmute their soundboard'
+                    : 'Mute their soundboard',
+                isDangerous: soundboardMuted,
+                onTap: () => context.read<AppCubit>().setSoundboardMutedFor(
+                  targetUserId,
+                  !soundboardMuted,
                 ),
-                if (isLocal) Divider(height: 9, color: borderColor),
-                // Messaging — not offered for yourself.
-                if (!isLocal) ...[
-                  ContextMenuItem(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    label: 'Message',
-                    onTap: () => _openServerDm(context),
-                  ),
-                  ContextMenuItem(
-                    icon: Icons.public_rounded,
-                    label: 'Add on Central',
-                    onTap: () => _openCentralDm(context),
-                  ),
-                  Divider(height: 9, color: borderColor),
-                ],
-                // Volume above the mutes: how loud they are, then whether
-                // you hear them at all.
-                if (!isLocal)
-                  ParticipantVolumeControl(
-                    target: identity,
-                    isMuted: isMuted,
-                    volume: volume,
-                  ),
-                // Mute toggle (local only)
-                ContextMenuItem(
-                  icon: isMuted ? Icons.mic_off : Icons.mic,
-                  label: isMuted ? 'Unmute' : 'Mute',
-                  isDangerous: isMuted,
-                  onTap: () {
-                    if (isLocal) {
-                      context.read<LiveKitCubit>().toggleMicrophone();
-                    } else {
-                      context.read<LiveKitCubit>().setParticipantMute(
-                        identity,
-                        !isMuted,
-                      );
-                    }
-                  },
-                ),
-                // Their soundboard, separately. A clip is played by this
-                // device, so this switches off nothing for anybody else —
-                // and it leaves their voice alone, which is the reason it is
-                // not the mute above.
-                if (!isLocal)
-                  ContextMenuItem(
-                    icon: soundboardMuted
-                        ? Icons.graphic_eq_rounded
-                        : Icons.graphic_eq_outlined,
-                    label: soundboardMuted
-                        ? 'Unmute their soundboard'
-                        : 'Mute their soundboard',
-                    isDangerous: soundboardMuted,
-                    onTap: () => context.read<AppCubit>().setSoundboardMutedFor(
-                      targetUserId,
-                      !soundboardMuted,
-                    ),
-                  ),
-                // Sending a summoned bot away — not moderation, and not
-                // behind the same permission. Above the admin section because
-                // for a bot it is the only item on here anybody usually wants.
-                if (!isLocal)
-                  ParticipantBotSection(
-                    targetUserId: targetUserId,
-                    voiceChannelId: voiceChannelId,
-                    name: name,
-                  ),
-                // Moderation and roles, each behind its own permission.
-                if (!isLocal)
-                  ParticipantAdminSection(
-                    target: identity,
-                    targetUserId: targetUserId,
-                    isModerator: isModerator,
-                    name: name,
-                    isServerAdmin: isServerAdmin,
-                    isLive: isLive,
-                    voiceChannelId: voiceChannelId,
-                    targetIsAdmin: targetIsAdmin,
-                    isServerMuted: isServerMuted,
-                    isServerDeafened: isServerDeafened,
-                  ),
-                const SizedBox(height: 2),
-              ],
-            );
-          },
+              ),
+            // Sending a summoned bot away — not moderation, and not
+            // behind the same permission. Above the admin section because
+            // for a bot it is the only item on here anybody usually wants.
+            if (!isLocal)
+              ParticipantBotSection(
+                targetUserId: targetUserId,
+                voiceChannelId: voiceChannelId,
+                name: name,
+              ),
+            // Moderation and roles, each behind its own permission.
+            if (!isLocal)
+              ParticipantAdminSection(
+                target: identity,
+                targetUserId: targetUserId,
+                isModerator: isModerator,
+                name: name,
+                isServerAdmin: isServerAdmin,
+                isLive: isLive,
+                voiceChannelId: voiceChannelId,
+                targetIsAdmin: targetIsAdmin,
+                isServerMuted: isServerMuted,
+                isServerDeafened: isServerDeafened,
+              ),
+            const SizedBox(height: 2),
+          ],
         );
       },
     );

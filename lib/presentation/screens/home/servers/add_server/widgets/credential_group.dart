@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// One labelled block of credentials in the create-server form — the heading
 /// rule and the fields under it.
@@ -23,33 +22,27 @@ class CredentialGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+    final themeState = context.theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Text(
-                  label.toUpperCase(),
-                  style: AppText.sectionLabel.copyWith(
-                    color: themeState.textTertiary,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Divider(color: themeState.borderPrimary, height: 1),
-                ),
-              ],
+            Text(
+              label.toUpperCase(),
+              style: AppText.sectionLabel.copyWith(
+                color: themeState.textTertiary,
+              ),
             ),
-            for (final field in fields) ...[
-              const SizedBox(height: _gap),
-              field,
-            ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Divider(color: themeState.borderPrimary, height: 1),
+            ),
           ],
-        );
-      },
+        ),
+        for (final field in fields) ...[const SizedBox(height: _gap), field],
+      ],
     );
   }
 }

@@ -115,21 +115,20 @@ class _MyAppState extends State<MyApp>
           vaultCubit: widget.vaultCubit,
           child: Sizer(
             builder: (context, orientation, screenType) {
-              return BlocBuilder<ThemeCubit, ThemeState>(
-                builder: (context, themeState) {
-                  return PushToTalkListener(
-                    child: MaterialApp.router(
-                      routerConfig: _router,
-                      darkTheme: AppTheme.dark(themeState.palette),
-                      theme: AppTheme.light(themeState.palette),
-                      themeMode: themeState.themeMode,
-                      builder: EasyLoading.init(
-                        builder: (context, child) =>
-                            PipOverlay(child: TitleBarOverlay(child: child!)),
-                      ),
-                    ),
-                  );
-                },
+              // Watched, not `context.theme`: this is what builds the theme,
+              // so there is no Theme above it yet to read one from.
+              final themeState = context.watch<ThemeCubit>().state;
+              return PushToTalkListener(
+                child: MaterialApp.router(
+                  routerConfig: _router,
+                  darkTheme: AppTheme.dark(themeState.palette),
+                  theme: AppTheme.light(themeState.palette),
+                  themeMode: themeState.themeMode,
+                  builder: EasyLoading.init(
+                    builder: (context, child) =>
+                        PipOverlay(child: TitleBarOverlay(child: child!)),
+                  ),
+                ),
               );
             },
           ),

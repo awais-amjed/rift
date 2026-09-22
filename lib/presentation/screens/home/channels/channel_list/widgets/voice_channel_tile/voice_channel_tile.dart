@@ -9,6 +9,7 @@ import '../../../../../../../logic/cubits/channel_presence/channel_presence_cubi
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../../common/nav_row.dart';
+import '../../../../../../theme/theme_context.dart';
 import '../channel_context_menu.dart';
 import '../channel_lock_badge.dart';
 import 'widgets/channel_drop_target.dart';
@@ -36,103 +37,95 @@ class VoiceChannelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return BlocBuilder<AppCubit, AppState>(
-          // This tile reads two of `AppState`'s thirty fields, and there is one
-          // of it per voice channel in the sidebar. Without this, a hover flag
-          // or an audio preference rebuilt every one of them, along with each
-          // tile's whole roster.
-          //
-          // `identical` is the right test rather than `==`: the cubit replaces
-          // both wholesale — `participantSettings` is copied into a new map on
-          // every change — so a shared instance really does mean unchanged, and
-          // neither has a value equality to fall back on anyway.
-          buildWhen: (previous, current) =>
-              !identical(previous.participants, current.participants) ||
-              !identical(
-                previous.participantSettings,
-                current.participantSettings,
-              ),
-          builder: (context, appState) {
-            return BlocBuilder<ChannelPresenceCubit, ChannelPresenceState>(
-              builder: (context, presenceState) {
-                // A share's connection isn't a person, and anyone
-                // who has since announced another channel has left this one —
-                // LiveKit just hasn't said so yet (ChannelPresenceState.
-                // isElsewhere).
-                final participants = isSelected
-                    ? [
-                        for (final participant in appState.participants)
-                          if (!participant.isShare &&
-                              !presenceState.isElsewhere(
-                                participant.userId,
-                                channel.id,
-                              ))
-                            participant,
-                      ]
-                    : const <ParticipantInfo>[];
-                final presenceUsers = isSelected
-                    ? const <PresenceUser>[]
-                    : presenceState.usersIn(channel.id);
-                // Bots called into this channel, arrived or not. A summon that
-                // nothing answered is the case this is for: it makes the
-                // channel occupied enough to draw a roster, which is the only
-                // place it can be seen or sent away.
-                final summoned = context.watch<VoiceListenersCubit>().summoned(
-                  channel.id,
-                );
-                final isOccupied =
-                    isSelected ||
-                    participants.isNotEmpty ||
-                    presenceUsers.isNotEmpty ||
-                    summoned.isNotEmpty;
+    final themeState = context.theme;
+    return BlocBuilder<AppCubit, AppState>(
+      // This tile reads two of `AppState`'s thirty fields, and there is one
+      // of it per voice channel in the sidebar. Without this, a hover flag
+      // or an audio preference rebuilt every one of them, along with each
+      // tile's whole roster.
+      //
+      // `identical` is the right test rather than `==`: the cubit replaces
+      // both wholesale — `participantSettings` is copied into a new map on
+      // every change — so a shared instance really does mean unchanged, and
+      // neither has a value equality to fall back on anyway.
+      buildWhen: (previous, current) =>
+          !identical(previous.participants, current.participants) ||
+          !identical(previous.participantSettings, current.participantSettings),
+      builder: (context, appState) {
+        return BlocBuilder<ChannelPresenceCubit, ChannelPresenceState>(
+          builder: (context, presenceState) {
+            // A share's connection isn't a person, and anyone
+            // who has since announced another channel has left this one —
+            // LiveKit just hasn't said so yet (ChannelPresenceState.
+            // isElsewhere).
+            final participants = isSelected
+                ? [
+                    for (final participant in appState.participants)
+                      if (!participant.isShare &&
+                          !presenceState.isElsewhere(
+                            participant.userId,
+                            channel.id,
+                          ))
+                        participant,
+                  ]
+                : const <ParticipantInfo>[];
+            final presenceUsers = isSelected
+                ? const <PresenceUser>[]
+                : presenceState.usersIn(channel.id);
+            // Bots called into this channel, arrived or not. A summon that
+            // nothing answered is the case this is for: it makes the
+            // channel occupied enough to draw a roster, which is the only
+            // place it can be seen or sent away.
+            final summoned = context.watch<VoiceListenersCubit>().summoned(
+              channel.id,
+            );
+            final isOccupied =
+                isSelected ||
+                participants.isNotEmpty ||
+                presenceUsers.isNotEmpty ||
+                summoned.isNotEmpty;
 
-                // An empty channel is the most likely place to drop someone,
-                // so it catches a drag as readily as an occupied one.
-                if (!isOccupied) {
-                  return ChannelDropTarget(
-                    channelId: channel.id,
-                    builder: (context, isTargeted) => ChannelContextMenu.wrap(
-                      context: context,
-                      channel: channel,
-                      child: NavRow(
-                        overflowMenu: ChannelContextMenu(channel: channel),
-                        pushes: true,
-                        icon: Icons.volume_up_rounded,
-                        // An empty voice channel is a plain row, not the card
-                        // below, so the lock has to be put on twice. Missing
-                        // here is the case you would never notice by reading:
-                        // an empty channel is exactly the one nobody is in.
-                        iconBadge: channel.isPrivate
-                            ? ChannelLockBadge()
-                            : null,
-                        label: channel.name,
-                        trailing: VoiceListeningBadge(
-                          listeners: context
-                              .watch<VoiceListenersCubit>()
-                              .listening(channel.id),
-                        ),
-                        onTap: onTap,
-                        isSelected: isTargeted,
+            // An empty channel is the most likely place to drop someone,
+            // so it catches a drag as readily as an occupied one.
+            if (!isOccupied) {
+              return ChannelDropTarget(
+                channelId: channel.id,
+                builder: (context, isTargeted) => ChannelContextMenu.wrap(
+                  context: context,
+                  channel: channel,
+                  child: NavRow(
+                    overflowMenu: ChannelContextMenu(channel: channel),
+                    pushes: true,
+                    icon: Icons.volume_up_rounded,
+                    // An empty voice channel is a plain row, not the card
+                    // below, so the lock has to be put on twice. Missing
+                    // here is the case you would never notice by reading:
+                    // an empty channel is exactly the one nobody is in.
+                    iconBadge: channel.isPrivate ? ChannelLockBadge() : null,
+                    label: channel.name,
+                    trailing: VoiceListeningBadge(
+                      listeners: context.watch<VoiceListenersCubit>().listening(
+                        channel.id,
                       ),
                     ),
-                  );
-                }
-
-                return ChannelDropTarget(
-                  channelId: channel.id,
-                  builder: (context, isTargeted) => _buildCard(
-                    context,
-                    themeState,
-                    appState,
-                    participants: participants,
-                    presenceUsers: presenceUsers,
-                    summoned: summoned,
-                    isTargeted: isTargeted,
+                    onTap: onTap,
+                    isSelected: isTargeted,
                   ),
-                );
-              },
+                ),
+              );
+            }
+
+            return ChannelDropTarget(
+              channelId: channel.id,
+              builder: (context, isTargeted) => _buildCard(
+                context,
+                themeState,
+                appState,
+                participants: participants,
+                presenceUsers: presenceUsers,
+                summoned: summoned,
+                isTargeted: isTargeted,
+              ),
             );
           },
         );

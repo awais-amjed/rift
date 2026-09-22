@@ -12,6 +12,7 @@ import '../../../common/app_text_field.dart';
 import '../../../common/icon_tile.dart';
 import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// Dialog shown when user joins a server and needs to create a profile.
 class CreateUserDialog extends StatefulWidget {
@@ -87,61 +88,58 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return AppModal(
-          title: 'Create your account',
-          subtitle: 'Set up your profile for this server',
-          // The rounded tile every other dialog opens with. It was a circle
-          // here alone, which read as a different app's dialog.
-          titleIcon: IconTile(
-            icon: Icons.person_outline,
-            color: themeState.primary,
-            size: 36,
-            radius: K.radiusRow,
-            iconSize: 18,
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_error != null) ...[
-                MessageBanner(message: _error!, kind: MessageBannerKind.error),
-                const SizedBox(height: 12),
-              ],
-              AppTextField(
-                controller: _usernameCtrl,
-                label: 'Username',
-                hint: 'myusername',
-                enabled: !_isLoading,
-                autofocus: true,
-                onChanged: (_) => setState(() {}),
-              ),
-              _fieldHint('Unique identifier for this server', themeState),
-              AppTextField(
-                controller: _displayNameCtrl,
-                label: 'Display name',
-                hint: 'My display name',
-                enabled: !_isLoading,
-                onChanged: (_) => setState(() {}),
-              ),
-              _fieldHint('How others will see you', themeState),
-            ],
-          ),
-          actions: [
-            AppButton(
-              label: 'Later',
-              variant: AppButtonVariant.secondary,
-              onPressed: _isLoading ? null : _dismiss,
-            ),
-            AppButton(
-              label: _isLoading ? 'Creating...' : 'Create account',
-              isLoading: _isLoading,
-              onPressed: _canSubmit && !_isLoading ? _submit : null,
-            ),
+    final themeState = context.theme;
+    return AppModal(
+      title: 'Create your account',
+      subtitle: 'Set up your profile for this server',
+      // The rounded tile every other dialog opens with. It was a circle
+      // here alone, which read as a different app's dialog.
+      titleIcon: IconTile(
+        icon: Icons.person_outline,
+        color: themeState.primary,
+        size: 36,
+        radius: K.radiusRow,
+        iconSize: 18,
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_error != null) ...[
+            MessageBanner(message: _error!, kind: MessageBannerKind.error),
+            const SizedBox(height: 12),
           ],
-        );
-      },
+          AppTextField(
+            controller: _usernameCtrl,
+            label: 'Username',
+            hint: 'myusername',
+            enabled: !_isLoading,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+          ),
+          _fieldHint('Unique identifier for this server', themeState),
+          AppTextField(
+            controller: _displayNameCtrl,
+            label: 'Display name',
+            hint: 'My display name',
+            enabled: !_isLoading,
+            onChanged: (_) => setState(() {}),
+          ),
+          _fieldHint('How others will see you', themeState),
+        ],
+      ),
+      actions: [
+        AppButton(
+          label: 'Later',
+          variant: AppButtonVariant.secondary,
+          onPressed: _isLoading ? null : _dismiss,
+        ),
+        AppButton(
+          label: _isLoading ? 'Creating...' : 'Create account',
+          isLoading: _isLoading,
+          onPressed: _canSubmit && !_isLoading ? _submit : null,
+        ),
+      ],
     );
   }
 

@@ -14,6 +14,7 @@ import '../../../../../logic/services/channel_search.dart';
 import '../../../../common/tap_to_focus.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import 'widgets/quick_switcher_row.dart';
 
 /// Type-to-jump over the current server's channels.
@@ -95,41 +96,38 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final results = _results;
+    final themeState = context.theme;
+    final results = _results;
 
-        return Align(
-          // Sits high rather than centred: the results grow downward and the
-          // eye should stay on the field it is typing into.
-          alignment: const Alignment(0, -0.55),
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              // A cap, not a width. 520 is wider than a phone, and a Container
-              // given a fixed width takes it whatever the window says — the
-              // one shape in the app that overflowed rather than shrinking.
-              // The margin keeps it off the edges once it does shrink.
-              margin: const EdgeInsets.symmetric(horizontal: K.panelGutter),
-              constraints: const BoxConstraints(maxWidth: 520, maxHeight: 420),
-              decoration: BoxDecoration(
-                color: themeState.bgElevated,
-                borderRadius: BorderRadius.circular(K.radiusCard),
-                border: Border.all(color: themeState.borderElevated),
-                boxShadow: AppShadows.dialog,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildField(themeState),
-                  Divider(height: 1, color: themeState.borderPrimary),
-                  Flexible(child: _buildResults(themeState, results)),
-                ],
-              ),
-            ),
+    return Align(
+      // Sits high rather than centred: the results grow downward and the
+      // eye should stay on the field it is typing into.
+      alignment: const Alignment(0, -0.55),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          // A cap, not a width. 520 is wider than a phone, and a Container
+          // given a fixed width takes it whatever the window says — the
+          // one shape in the app that overflowed rather than shrinking.
+          // The margin keeps it off the edges once it does shrink.
+          margin: const EdgeInsets.symmetric(horizontal: K.panelGutter),
+          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 420),
+          decoration: BoxDecoration(
+            color: themeState.bgElevated,
+            borderRadius: BorderRadius.circular(K.radiusCard),
+            border: Border.all(color: themeState.borderElevated),
+            boxShadow: AppShadows.dialog,
           ),
-        );
-      },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildField(themeState),
+              Divider(height: 1, color: themeState.borderPrimary),
+              Flexible(child: _buildResults(themeState, results)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

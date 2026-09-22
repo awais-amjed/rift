@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../common/icon_tile.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// Widget for choosing how to get onto a server: find one, join one you were
 /// invited to, or build your own.
@@ -70,67 +69,64 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final radius = BorderRadius.circular(K.radiusCard);
+    final themeState = context.theme;
+    final radius = BorderRadius.circular(K.radiusCard);
 
-        return Material(
-          color: themeState.bgHover,
-          borderRadius: radius,
-          child: InkWell(
-            mouseCursor: WidgetStateMouseCursor.clickable,
-            onTap: onTap,
+    return Material(
+      color: themeState.bgHover,
+      borderRadius: radius,
+      child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+        onTap: onTap,
+        borderRadius: radius,
+        hoverColor: themeState.bgActive,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
             borderRadius: radius,
-            hoverColor: themeState.bgActive,
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                border: Border.all(color: themeState.borderElevated),
-              ),
-              child: Row(
-                spacing: 14,
-                children: [
-                  // Accent-tinted, not a neutral well: these two cards are the
-                  // only things on the screen to press.
-                  IconTile(
-                    icon: icon,
-                    color: themeState.accentBright,
-                    size: 44,
-                    radius: K.radiusCard,
-                    iconSize: 20,
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: AppText.row.copyWith(
-                            color: themeState.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          subtitle,
-                          style: AppText.secondary.copyWith(
-                            color: themeState.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: themeState.textQuaternary,
-                  ),
-                ],
-              ),
-            ),
+            border: Border.all(color: themeState.borderElevated),
           ),
-        );
-      },
+          child: Row(
+            spacing: 14,
+            children: [
+              // Accent-tinted, not a neutral well: these two cards are the
+              // only things on the screen to press.
+              IconTile(
+                icon: icon,
+                color: themeState.accentBright,
+                size: 44,
+                radius: K.radiusCard,
+                iconSize: 20,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppText.row.copyWith(
+                        color: themeState.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle,
+                      style: AppText.secondary.copyWith(
+                        color: themeState.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: themeState.textQuaternary,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

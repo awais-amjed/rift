@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../logic/cubits/theme/theme_cubit.dart';
+import '../theme/theme_context.dart';
 
 /// Sections of a form that sit side by side when there is room for them and
 /// stack when there isn't, with a rule between either way.
@@ -36,19 +35,16 @@ class ModalColumns extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final rule = themeState.borderPrimary;
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final needed =
-                minColumnWidth * children.length +
-                _ruleExtent * (children.length - 1);
-            return constraints.maxWidth >= needed
-                ? _sideBySide(rule)
-                : _stacked(rule);
-          },
-        );
+    final themeState = context.theme;
+    final rule = themeState.borderPrimary;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final needed =
+            minColumnWidth * children.length +
+            _ruleExtent * (children.length - 1);
+        return constraints.maxWidth >= needed
+            ? _sideBySide(rule)
+            : _stacked(rule);
       },
     );
   }

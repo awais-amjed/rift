@@ -6,12 +6,12 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/context_menu/context_menu_sheet.dart';
 import '../../../../common/status_chip.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/channel_context_menu.dart';
 import 'channel_listeners_chip.dart';
 import 'chat_header_button.dart';
@@ -31,7 +31,7 @@ class ChatHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final chatState = context.watch<ChannelChatCubit>().state;
     final channels =
         context.watch<ServerCubit>().state.selectedServer?.channels ?? [];
@@ -188,7 +188,7 @@ class _PhoneTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeCubit>().state;
+    final theme = context.theme;
     final server = context.select<ServerCubit, String?>(
       (c) => c.state.selectedServer?.name,
     );

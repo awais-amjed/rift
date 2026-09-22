@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The two-column layout a DM surface uses: conversation list on the chrome
 /// surface, the open conversation on the content surface.
@@ -43,20 +43,17 @@ class DmSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     if (context.layoutMode.isCompact) return list;
 
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ColoredBox(
-              color: themeState.bgSecondary,
-              child: SizedBox(width: listWidth, child: list),
-            ),
-            Container(width: 1, color: themeState.borderPrimary),
-            Expanded(child: conversation ?? _buildEmpty(themeState)),
-          ],
-        );
-      },
+    final themeState = context.theme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ColoredBox(
+          color: themeState.bgSecondary,
+          child: SizedBox(width: listWidth, child: list),
+        ),
+        Container(width: 1, color: themeState.borderPrimary),
+        Expanded(child: conversation ?? _buildEmpty(themeState)),
+      ],
     );
   }
 

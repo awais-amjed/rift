@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// The "Jump to…" field under the server header — the entry point to the quick
 /// switcher.
@@ -26,62 +26,59 @@ class JumpField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
-          child: Material(
-            color: themeState.bgHover,
-            borderRadius: BorderRadius.circular(K.radiusRow),
-            child: InkWell(
-              mouseCursor: WidgetStateMouseCursor.clickable,
+    final themeState = context.theme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+      child: Material(
+        color: themeState.bgHover,
+        borderRadius: BorderRadius.circular(K.radiusRow),
+        child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          borderRadius: BorderRadius.circular(K.radiusRow),
+          hoverColor: themeState.bgActive,
+          onTap: onTap,
+          child: Container(
+            height: K.fieldHeight,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(K.radiusRow),
-              hoverColor: themeState.bgActive,
-              onTap: onTap,
-              child: Container(
-                height: K.fieldHeight,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(K.radiusRow),
-                  border: Border.all(color: themeState.borderElevated),
+              border: Border.all(color: themeState.borderElevated),
+            ),
+            child: Row(
+              spacing: 8,
+              children: [
+                Icon(
+                  Icons.search_rounded,
+                  size: 16,
+                  color: themeState.textTertiary,
                 ),
-                child: Row(
-                  spacing: 8,
-                  children: [
-                    Icon(
-                      Icons.search_rounded,
-                      size: 16,
+                Expanded(
+                  child: Text(
+                    // The switcher searches channels and people alike,
+                    // and the short label undersold it. A phone keeps it
+                    // short: there is no room for the rest.
+                    HostPlatform.isMobile
+                        ? 'Jump to…'
+                        : 'Jump to a channel or person…',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    // Tertiary, not quaternary: quaternary is placeholder
+                    // ink, and this is a control rather than an empty
+                    // field.
+                    style: AppText.secondary.copyWith(
                       color: themeState.textTertiary,
                     ),
-                    Expanded(
-                      child: Text(
-                        // The switcher searches channels and people alike,
-                        // and the short label undersold it. A phone keeps it
-                        // short: there is no room for the rest.
-                        HostPlatform.isMobile
-                            ? 'Jump to…'
-                            : 'Jump to a channel or person…',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        // Tertiary, not quaternary: quaternary is placeholder
-                        // ink, and this is a control rather than an empty
-                        // field.
-                        style: AppText.secondary.copyWith(
-                          color: themeState.textTertiary,
-                        ),
-                      ),
-                    ),
-                    // A phone has no Ctrl key to press, so the chip is
-                    // instructions for a keyboard that isn't there — and the
-                    // width it takes is width the field wanted.
-                    if (!HostPlatform.isMobile) _buildKbdChip(themeState),
-                  ],
+                  ),
                 ),
-              ),
+                // A phone has no Ctrl key to press, so the chip is
+                // instructions for a keyboard that isn't there — and the
+                // width it takes is width the field wanted.
+                if (!HostPlatform.isMobile) _buildKbdChip(themeState),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 

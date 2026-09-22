@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Sits under a channel this member can see but not fully read, in place of the
 /// composer.
@@ -28,7 +28,7 @@ class ChatReadOnlyBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
       child: Container(

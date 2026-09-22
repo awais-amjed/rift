@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/constants.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/custom_colors.dart';
+import '../../../../../theme/theme_context.dart';
 import 'friend_row_action.dart';
 
 /// The round icon button carrying one [FriendRowAction] at the end of a
@@ -22,7 +21,7 @@ class FriendActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final color = action.isDangerous
         ? CustomColors.error
         : themeState.textSecondary;

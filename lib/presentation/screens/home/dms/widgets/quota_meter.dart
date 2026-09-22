@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Composer footer for central DMs: how many messages are left today, and the
 /// nudge to move somewhere without a limit.
@@ -29,7 +30,7 @@ class QuotaMeter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final state = context.watch<CentralDmCubit>().state;
     final remaining = state.remaining;
     final quota = state.quota;

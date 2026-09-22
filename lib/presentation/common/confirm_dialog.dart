@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
+import '../theme/theme_context.dart';
 import 'app_button.dart';
 import 'app_modal.dart';
 import 'context_menu_region.dart';
@@ -73,45 +72,42 @@ class _ConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final accent = isDestructive ? CustomColors.error : themeState.primary;
-        return AppModal(
-          staysDialogOnPhone: true,
-          title: title,
-          // The icon once, in the header badge; it used to be here and on
-          // the confirm button both.
-          titleIcon: IconTile(
-            icon: icon,
-            color: accent,
-            size: 36,
-            radius: K.radiusRow,
-            iconSize: 18,
-          ),
-          // Wide enough that a two-word confirm ("Delete channel", "Sign
-          // out") fits beside Cancel at the same width, rather than being
-          // ellipsised down to something the button no longer explains.
-          maxWidth: 400,
-          content: Text(
-            message,
-            style: AppText.body.copyWith(color: themeState.textSecondary),
-          ),
-          actions: [
-            AppButton(
-              label: cancelLabel,
-              variant: AppButtonVariant.secondary,
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            AppButton(
-              label: confirmLabel,
-              variant: isDestructive
-                  ? AppButtonVariant.danger
-                  : AppButtonVariant.primary,
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
+    final themeState = context.theme;
+    final accent = isDestructive ? CustomColors.error : themeState.primary;
+    return AppModal(
+      staysDialogOnPhone: true,
+      title: title,
+      // The icon once, in the header badge; it used to be here and on
+      // the confirm button both.
+      titleIcon: IconTile(
+        icon: icon,
+        color: accent,
+        size: 36,
+        radius: K.radiusRow,
+        iconSize: 18,
+      ),
+      // Wide enough that a two-word confirm ("Delete channel", "Sign
+      // out") fits beside Cancel at the same width, rather than being
+      // ellipsised down to something the button no longer explains.
+      maxWidth: 400,
+      content: Text(
+        message,
+        style: AppText.body.copyWith(color: themeState.textSecondary),
+      ),
+      actions: [
+        AppButton(
+          label: cancelLabel,
+          variant: AppButtonVariant.secondary,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        AppButton(
+          label: confirmLabel,
+          variant: isDestructive
+              ? AppButtonVariant.danger
+              : AppButtonVariant.primary,
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+      ],
     );
   }
 }

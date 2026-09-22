@@ -10,6 +10,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../routing/app_routes.dart';
+import '../../../../theme/theme_context.dart';
 import '../add_server/add_server_dialog.dart';
 import 'widgets/rail_chip_button.dart';
 import 'widgets/rail_server_list.dart';
@@ -29,31 +30,28 @@ class ServerRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          width: K.serverRailWidth,
-          decoration: BoxDecoration(
-            color: themeState.railStrip,
-            border: Border(right: BorderSide(color: themeState.borderPrimary)),
+    final themeState = context.theme;
+    return Container(
+      width: K.serverRailWidth,
+      decoration: BoxDecoration(
+        color: themeState.railStrip,
+        border: Border(right: BorderSide(color: themeState.borderPrimary)),
+      ),
+      child: Column(
+        children: [
+          SizedBox(height: topPadding + 12),
+          _buildHomeButton(context),
+          _buildDivider(themeState),
+          Expanded(child: _buildServerList(context)),
+          const SizedBox(height: 8),
+          RailChipButton(
+            icon: Icons.settings_outlined,
+            tooltip: 'Settings',
+            onTap: () => context.push(AppRoutes.settings),
           ),
-          child: Column(
-            children: [
-              SizedBox(height: topPadding + 12),
-              _buildHomeButton(context),
-              _buildDivider(themeState),
-              Expanded(child: _buildServerList(context)),
-              const SizedBox(height: 8),
-              RailChipButton(
-                icon: Icons.settings_outlined,
-                tooltip: 'Settings',
-                onTap: () => context.push(AppRoutes.settings),
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
+          const SizedBox(height: 12),
+        ],
+      ),
     );
   }
 

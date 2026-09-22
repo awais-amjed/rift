@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../../data/constants.dart';
 import '../../../../common/loading_dots.dart';
@@ -41,94 +39,85 @@ class AudioSourceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return SettingsSection(
-          label: 'Audio source',
-          children: [
-            if (isLoading)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: LoadingDots(
-                    color: context.theme.accentBright,
-                    dotSize: 4,
-                  ),
+    final themeState = context.theme;
+    return SettingsSection(
+      label: 'Audio source',
+      children: [
+        if (isLoading)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: LoadingDots(color: context.theme.accentBright, dotSize: 4),
+            ),
+          )
+        else if (audioSources == null || audioSources!.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: themeState.textTertiary,
                 ),
-              )
-            else if (audioSources == null || audioSources!.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No audio sources found. Make sure an application is playing audio.',
+                    style: AppText.secondary.copyWith(
                       color: themeState.textTertiary,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'No audio sources found. Make sure an application is playing audio.',
-                        style: AppText.secondary.copyWith(
-                          color: themeState.textTertiary,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: onRefresh,
-                      child: const Text('Refresh'),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(K.radiusRow),
-                  border: Border.all(color: themeState.borderPrimary),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<AudioSource>(
-                    value: selectedAudioSource,
-                    isExpanded: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    icon: Icon(
-                      Icons.arrow_drop_down,
-                      color: themeState.textSecondary,
-                    ),
-                    dropdownColor: themeState.bgElevated,
-                    borderRadius: BorderRadius.circular(K.radiusRow),
-                    hint: Text(
-                      'Select audio source',
-                      style: AppText.rowQuiet.copyWith(
-                        color: themeState.textTertiary,
-                      ),
-                    ),
-                    items: audioSources!.map((source) {
-                      return DropdownMenuItem<AudioSource>(
-                        value: source,
-                        child: Text(
-                          _buildLabel(source),
-                          style: AppText.rowQuiet.copyWith(
-                            color: themeState.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (source) {
-                      if (source != null) {
-                        onChanged(source);
-                      }
-                    },
                   ),
                 ),
+                TextButton(onPressed: onRefresh, child: const Text('Refresh')),
+              ],
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(K.radiusRow),
+              border: Border.all(color: themeState.borderPrimary),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<AudioSource>(
+                value: selectedAudioSource,
+                isExpanded: true,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  color: themeState.textSecondary,
+                ),
+                dropdownColor: themeState.bgElevated,
+                borderRadius: BorderRadius.circular(K.radiusRow),
+                hint: Text(
+                  'Select audio source',
+                  style: AppText.rowQuiet.copyWith(
+                    color: themeState.textTertiary,
+                  ),
+                ),
+                items: audioSources!.map((source) {
+                  return DropdownMenuItem<AudioSource>(
+                    value: source,
+                    child: Text(
+                      _buildLabel(source),
+                      style: AppText.rowQuiet.copyWith(
+                        color: themeState.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (source) {
+                  if (source != null) {
+                    onChanged(source);
+                  }
+                },
               ),
-          ],
-        );
-      },
+            ),
+          ),
+      ],
     );
   }
 }

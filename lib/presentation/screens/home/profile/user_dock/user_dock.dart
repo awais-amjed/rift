@@ -10,6 +10,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import '../connection_quality/connection_quality_indicator.dart';
 import '../edit/profile_edit_modal.dart';
 import 'widgets/dock_avatar_button.dart';
@@ -31,38 +32,35 @@ class UserDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return BlocBuilder<ServerCubit, ServerState>(
-          buildWhen: (a, b) => a.selectedServer?.user != b.selectedServer?.user,
-          builder: (context, serverState) {
-            final user = serverState.selectedServer?.user;
+    final themeState = context.theme;
+    return BlocBuilder<ServerCubit, ServerState>(
+      buildWhen: (a, b) => a.selectedServer?.user != b.selectedServer?.user,
+      builder: (context, serverState) {
+        final user = serverState.selectedServer?.user;
 
-            return Container(
-              margin: const EdgeInsets.all(10),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: themeState.bgHover,
-                borderRadius: BorderRadius.circular(K.radiusCard),
-                border: Border.all(color: themeState.borderElevated),
-              ),
-              child: Row(
-                spacing: 9,
-                children: [
-                  DockAvatarButton(
-                    user: user,
+        return Container(
+          margin: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: themeState.bgHover,
+            borderRadius: BorderRadius.circular(K.radiusCard),
+            border: Border.all(color: themeState.borderElevated),
+          ),
+          child: Row(
+            spacing: 9,
+            children: [
+              DockAvatarButton(
+                user: user,
 
-                    onTap: () => showAppModal<bool>(
-                      context: context,
-                      modal: const ProfileEditModal(),
-                    ),
-                  ),
-                  Expanded(child: _buildIdentity(themeState, user)),
-                  _buildControls(context),
-                ],
+                onTap: () => showAppModal<bool>(
+                  context: context,
+                  modal: const ProfileEditModal(),
+                ),
               ),
-            );
-          },
+              Expanded(child: _buildIdentity(themeState, user)),
+              _buildControls(context),
+            ],
+          ),
         );
       },
     );

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 
 /// A quiet explanatory card for an empty or unconfigured state.
 ///
@@ -24,41 +23,38 @@ class HintCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: themeState.bgHover,
-            borderRadius: BorderRadius.circular(K.radiusRow),
-            border: Border.all(color: themeState.borderPrimary),
-          ),
-          child: Column(
+    final themeState = context.theme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: themeState.bgHover,
+        borderRadius: BorderRadius.circular(K.radiusRow),
+        border: Border.all(color: themeState.borderPrimary),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+            spacing: 9,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 9,
-                children: [
-                  if (icon != null)
-                    Icon(icon, size: 15, color: themeState.textQuaternary),
-                  Expanded(
-                    child: Text(
-                      text,
-                      style: AppText.secondary.copyWith(
-                        height: 1.5,
-                        color: themeState.textTertiary,
-                      ),
-                    ),
+              if (icon != null)
+                Icon(icon, size: 15, color: themeState.textQuaternary),
+              Expanded(
+                child: Text(
+                  text,
+                  style: AppText.secondary.copyWith(
+                    height: 1.5,
+                    color: themeState.textTertiary,
                   ),
-                ],
+                ),
               ),
-              if (action != null) ...[const SizedBox(height: 10), action!],
             ],
           ),
-        );
-      },
+          if (action != null) ...[const SizedBox(height: 10), action!],
+        ],
+      ),
     );
   }
 }

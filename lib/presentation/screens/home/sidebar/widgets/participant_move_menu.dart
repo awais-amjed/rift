@@ -78,27 +78,24 @@ class _ParticipantMoveMenuState extends State<ParticipantMoveMenu> {
       from: widget.fromChannelId,
     );
 
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return ContextMenuPanel(
-          heading: 'Move to',
-          children: [
-            if (destinations.isEmpty)
-              _note('No other voice channel to move them to.', themeState),
-            for (final channel in destinations)
-              ContextMenuItem(
-                icon: Icons.volume_up_rounded,
-                label: channel.name,
-                onTap: () => _move(channel),
-                trailing: _pending == channel.id
-                    ? LoadingDots(color: context.theme.accentBright, dotSize: 4)
-                    : const SizedBox(width: 16, height: 16),
-              ),
-            if (_error != null)
-              _note(_error!, themeState, color: CustomColors.error),
-          ],
-        );
-      },
+    final themeState = context.theme;
+    return ContextMenuPanel(
+      heading: 'Move to',
+      children: [
+        if (destinations.isEmpty)
+          _note('No other voice channel to move them to.', themeState),
+        for (final channel in destinations)
+          ContextMenuItem(
+            icon: Icons.volume_up_rounded,
+            label: channel.name,
+            onTap: () => _move(channel),
+            trailing: _pending == channel.id
+                ? LoadingDots(color: context.theme.accentBright, dotSize: 4)
+                : const SizedBox(width: 16, height: 16),
+          ),
+        if (_error != null)
+          _note(_error!, themeState, color: CustomColors.error),
+      ],
     );
   }
 

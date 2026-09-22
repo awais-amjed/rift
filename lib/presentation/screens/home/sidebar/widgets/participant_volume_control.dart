@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import 'participant_volume_slider.dart';
 
 /// The local volume slider at the foot of a participant's context menu:
@@ -34,43 +33,38 @@ class ParticipantVolumeControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: Column(
+    final themeState = context.theme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'VOLUME',
-                    style: AppText.sectionLabel.copyWith(
-                      color: themeState.textTertiary,
-                    ),
-                  ),
-                  Text(
-                    ParticipantVolumeSlider.readout(
-                      isMuted: isMuted,
-                      volume: volume,
-                    ),
-                    style: AppText.chip.copyWith(
-                      color: themeState.textSecondary,
-                    ),
-                  ),
-                ],
+              Text(
+                'VOLUME',
+                style: AppText.sectionLabel.copyWith(
+                  color: themeState.textTertiary,
+                ),
               ),
-              const SizedBox(height: 8),
-              ParticipantVolumeSlider(
-                target: target,
-                isMuted: isMuted,
-                volume: volume,
-                onChanged: onChanged,
+              Text(
+                ParticipantVolumeSlider.readout(
+                  isMuted: isMuted,
+                  volume: volume,
+                ),
+                style: AppText.chip.copyWith(color: themeState.textSecondary),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 8),
+          ParticipantVolumeSlider(
+            target: target,
+            isMuted: isMuted,
+            volume: volume,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 }

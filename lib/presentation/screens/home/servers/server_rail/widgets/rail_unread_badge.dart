@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/constants.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// The unread count riding on a server chip's corner.
 ///
@@ -20,23 +19,20 @@ class RailUnreadBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          constraints: const BoxConstraints(minWidth: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-          decoration: BoxDecoration(
-            color: themeState.primary,
-            borderRadius: BorderRadius.circular(K.radiusPill),
-            border: Border.all(color: themeState.bgSecondary, width: 2),
-          ),
-          child: Text(
-            count > max ? '$max+' : '$count',
-            textAlign: TextAlign.center,
-            style: AppText.badge.copyWith(color: themeState.onPrimary),
-          ),
-        );
-      },
+    final themeState = context.theme;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: themeState.primary,
+        borderRadius: BorderRadius.circular(K.radiusPill),
+        border: Border.all(color: themeState.bgSecondary, width: 2),
+      ),
+      child: Text(
+        count > max ? '$max+' : '$count',
+        textAlign: TextAlign.center,
+        style: AppText.badge.copyWith(color: themeState.onPrimary),
+      ),
     );
   }
 }

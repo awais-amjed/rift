@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/services/connection_failure.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/button_footer.dart';
 import '../../../../common/empty_state.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Shown when a voice channel could not be joined.
 ///
@@ -36,33 +35,30 @@ class ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Container(
-          color: themeState.bgSecondary,
-          child: EmptyState(
-            icon: Icons.cloud_off_rounded,
-            title: failure.title,
-            message: failure.message,
-            detail: failure.detail,
-            action: onRetry == null && onLeave == null
-                ? null
-                : ButtonFooter(
-                    alignment: MainAxisAlignment.center,
-                    buttons: [
-                      if (onLeave != null)
-                        AppButton(
-                          label: 'Leave channel',
-                          variant: AppButtonVariant.secondary,
-                          onPressed: onLeave,
-                        ),
-                      if (onRetry != null)
-                        AppButton(label: 'Try again', onPressed: onRetry),
-                    ],
-                  ),
-          ),
-        );
-      },
+    final themeState = context.theme;
+    return Container(
+      color: themeState.bgSecondary,
+      child: EmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: failure.title,
+        message: failure.message,
+        detail: failure.detail,
+        action: onRetry == null && onLeave == null
+            ? null
+            : ButtonFooter(
+                alignment: MainAxisAlignment.center,
+                buttons: [
+                  if (onLeave != null)
+                    AppButton(
+                      label: 'Leave channel',
+                      variant: AppButtonVariant.secondary,
+                      onPressed: onLeave,
+                    ),
+                  if (onRetry != null)
+                    AppButton(label: 'Try again', onPressed: onRetry),
+                ],
+              ),
+      ),
     );
   }
 }

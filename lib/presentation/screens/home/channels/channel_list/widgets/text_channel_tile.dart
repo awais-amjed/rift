@@ -8,10 +8,10 @@ import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/nav_row.dart';
 import '../../../../../common/unread_badge.dart';
 import '../../../../../responsive/shell_scope.dart';
+import '../../../../../theme/theme_context.dart';
 import 'channel_context_menu.dart';
 import 'channel_lock_badge.dart';
 
@@ -65,7 +65,7 @@ class TextChannelTile extends StatelessWidget {
                 ? Icon(
                     Icons.notifications_off_outlined,
                     size: 13,
-                    color: context.watch<ThemeCubit>().state.textTertiary,
+                    color: context.theme.textTertiary,
                   )
                 : null,
             onTap: () {

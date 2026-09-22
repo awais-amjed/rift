@@ -13,6 +13,7 @@ import '../../../../../../logic/services/member_roster_pager.dart';
 import '../../../../../common/loading_dots.dart';
 import '../../../../../common/message_banner.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 import '../../../members/widgets/members_list.dart';
 import '../../../members/widgets/members_search_field.dart';
 import '../widgets/manage_panel.dart';
@@ -223,11 +224,12 @@ class _MembersPanelState extends State<MembersPanel> {
     return BlocListener<ServerCubit, ServerState>(
       listenWhen: (previous, next) => _ownsIt(previous) != _ownsIt(next),
       listener: (_, _) => unawaited(_reloadRoles()),
-      child: BlocBuilder<ThemeCubit, ThemeState>(builder: _build),
+      child: _build(context),
     );
   }
 
-  Widget _build(BuildContext context, ThemeState themeState) {
+  Widget _build(BuildContext context) {
+    final themeState = context.theme;
     // Live rather than read off the passed-in snapshot, so being demoted
     // while the dialog is open takes the controls away.
     final viewer = context

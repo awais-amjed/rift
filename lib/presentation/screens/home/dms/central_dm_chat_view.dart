@@ -47,7 +47,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final state = context.watch<CentralDmCubit>().state;
     final quotaEmpty = state.remaining != null && state.remaining! <= 0;
     final peerId = state.openPeerId;

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_shadows.dart';
+import '../theme/theme_context.dart';
 
 /// Which edge a tab hangs off.
 enum EdgeTabSide {
@@ -48,54 +47,47 @@ class _EdgeTabState extends State<EdgeTab> {
     final isLeft = widget.side.isLeft;
     final rounded = Radius.circular(K.radiusRow);
 
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Tooltip(
-          message: widget.tooltip,
-          waitDuration: K.tooltipDelay,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            child: GestureDetector(
-              onTap: widget.onTap,
-              child: AnimatedContainer(
-                duration: AppMotion.state,
-                width: _hovered ? 22 : 18,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: _hovered
-                      ? themeState.bgTertiary
-                      : themeState.bgSecondary,
-                  // Square against the edge it grows out of, rounded on the
-                  // side that faces the app.
-                  borderRadius: BorderRadius.only(
-                    topLeft: isLeft ? Radius.zero : rounded,
-                    bottomLeft: isLeft ? Radius.zero : rounded,
-                    topRight: isLeft ? rounded : Radius.zero,
-                    bottomRight: isLeft ? rounded : Radius.zero,
-                  ),
-                  border: Border.all(color: themeState.borderPrimary),
-                  boxShadow: AppShadows.edgeTab(
-                    dark: themeState.isDarkTheme,
-                    dx: isLeft ? 2 : -2,
-                  ),
-                ),
-                // Points the way the panel will arrive from.
-                child: Icon(
-                  isLeft
-                      ? Icons.chevron_right_rounded
-                      : Icons.chevron_left_rounded,
-                  size: 16,
-                  color: _hovered
-                      ? themeState.textPrimary
-                      : themeState.textTertiary,
-                ),
+    final themeState = context.theme;
+    return Tooltip(
+      message: widget.tooltip,
+      waitDuration: K.tooltipDelay,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: AppMotion.state,
+            width: _hovered ? 22 : 18,
+            height: 72,
+            decoration: BoxDecoration(
+              color: _hovered ? themeState.bgTertiary : themeState.bgSecondary,
+              // Square against the edge it grows out of, rounded on the
+              // side that faces the app.
+              borderRadius: BorderRadius.only(
+                topLeft: isLeft ? Radius.zero : rounded,
+                bottomLeft: isLeft ? Radius.zero : rounded,
+                topRight: isLeft ? rounded : Radius.zero,
+                bottomRight: isLeft ? rounded : Radius.zero,
+              ),
+              border: Border.all(color: themeState.borderPrimary),
+              boxShadow: AppShadows.edgeTab(
+                dark: themeState.isDarkTheme,
+                dx: isLeft ? 2 : -2,
               ),
             ),
+            // Points the way the panel will arrive from.
+            child: Icon(
+              isLeft ? Icons.chevron_right_rounded : Icons.chevron_left_rounded,
+              size: 16,
+              color: _hovered
+                  ? themeState.textPrimary
+                  : themeState.textTertiary,
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

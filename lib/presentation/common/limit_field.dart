@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 import 'app_text_field.dart';
 
 /// One numeric operator limit, with the sentence that says what leaving it
@@ -40,33 +39,28 @@ class LimitField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppTextField(
-              controller: controller,
-              label: unit == null ? label : '$label ($unit)',
-              hint: hint,
-              enabled: enabled,
-              keyboardType: TextInputType.number,
-              // Digits only, so a limit field can't be given a decimal point
-              // or a minus sign the server would reject a round trip later.
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: onChanged,
-            ),
-            const SizedBox(height: 5),
-            Text(
-              helper,
-              style: AppText.secondary.copyWith(
-                color: themeState.textQuaternary,
-              ),
-            ),
-          ],
-        );
-      },
+    final themeState = context.theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppTextField(
+          controller: controller,
+          label: unit == null ? label : '$label ($unit)',
+          hint: hint,
+          enabled: enabled,
+          keyboardType: TextInputType.number,
+          // Digits only, so a limit field can't be given a decimal point
+          // or a minus sign the server would reject a round trip later.
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          onChanged: onChanged,
+        ),
+        const SizedBox(height: 5),
+        Text(
+          helper,
+          style: AppText.secondary.copyWith(color: themeState.textQuaternary),
+        ),
+      ],
     );
   }
 }

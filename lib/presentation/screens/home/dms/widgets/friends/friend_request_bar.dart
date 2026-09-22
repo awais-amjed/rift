@@ -4,9 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/friend.dart';
 import '../../../../../../data/enums/friendship_state.dart';
 import '../../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 import 'friend_actions.dart';
 
 /// Where the composer would be, for somebody who has asked to be your friend.
@@ -32,7 +32,7 @@ class FriendRequestBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
     final cubit = context.read<CentralDmCubit>();
 
     return Container(

@@ -6,13 +6,13 @@ import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../../data/enums/notification_level.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
+import '../../../../../theme/theme_context.dart';
 import 'channel_menu_actions.dart';
 
 /// Right-click menu for a channel in the sidebar — how loud it is, and, for
@@ -99,7 +99,7 @@ class ChannelContextMenu extends StatelessWidget {
       leading: Icon(
         isVoice ? Icons.volume_up_rounded : Icons.tag_rounded,
         size: 16,
-        color: context.watch<ThemeCubit>().state.textTertiary,
+        color: context.theme.textTertiary,
       ),
       children: [
         // Voice channels have no messages, so there is nothing here to be

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/constants.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_motion.dart';
+import '../../../../../theme/theme_context.dart';
 import 'rail_unread_badge.dart';
 
 /// A rail slot holding an icon rather than an identity — Home, add-server,
@@ -45,69 +44,66 @@ class _RailChipButtonState extends State<RailChipButton> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final Color background;
-        if (widget.isSelected) {
-          background = themeState.primary.withValues(alpha: 0.12);
-        } else if (_hovered) {
-          background = themeState.bgHover;
-        } else {
-          background = Colors.transparent;
-        }
+    final themeState = context.theme;
+    final Color background;
+    if (widget.isSelected) {
+      background = themeState.primary.withValues(alpha: 0.12);
+    } else if (_hovered) {
+      background = themeState.bgHover;
+    } else {
+      background = Colors.transparent;
+    }
 
-        final Color? ringColor = widget.isSelected
-            ? themeState.primary.withValues(alpha: 0.3)
-            : (widget.ghostRing ? themeState.borderElevated : null);
+    final Color? ringColor = widget.isSelected
+        ? themeState.primary.withValues(alpha: 0.3)
+        : (widget.ghostRing ? themeState.borderElevated : null);
 
-        return Tooltip(
-          message: widget.tooltip,
-          waitDuration: K.tooltipDelay,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            child: GestureDetector(
-              onTap: widget.onTap,
-              behavior: HitTestBehavior.opaque,
-              // The badge overhangs the chip and must not size it, or unread
-              // news would shift the rail — same rule as a server chip.
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  AnimatedContainer(
-                    duration: AppMotion.state,
-                    width: K.serverRailChipSize,
-                    height: K.serverRailChipSize,
-                    decoration: BoxDecoration(
-                      color: background,
-                      borderRadius: BorderRadius.circular(K.radiusRailChip),
-                      border: ringColor == null
-                          ? null
-                          : Border.all(color: ringColor),
-                    ),
-                    child: Icon(
-                      widget.icon,
-                      size: 19,
-                      color: widget.isSelected
-                          ? themeState.accentBright
-                          : themeState.textTertiary,
-                    ),
-                  ),
-                  // Not while selected: you're looking at the list, which
-                  // badges each conversation itself.
-                  if (widget.unreadCount > 0 && !widget.isSelected)
-                    Positioned(
-                      top: -3,
-                      right: -3,
-                      child: RailUnreadBadge(count: widget.unreadCount),
-                    ),
-                ],
+    return Tooltip(
+      message: widget.tooltip,
+      waitDuration: K.tooltipDelay,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          // The badge overhangs the chip and must not size it, or unread
+          // news would shift the rail — same rule as a server chip.
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              AnimatedContainer(
+                duration: AppMotion.state,
+                width: K.serverRailChipSize,
+                height: K.serverRailChipSize,
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: BorderRadius.circular(K.radiusRailChip),
+                  border: ringColor == null
+                      ? null
+                      : Border.all(color: ringColor),
+                ),
+                child: Icon(
+                  widget.icon,
+                  size: 19,
+                  color: widget.isSelected
+                      ? themeState.accentBright
+                      : themeState.textTertiary,
+                ),
               ),
-            ),
+              // Not while selected: you're looking at the list, which
+              // badges each conversation itself.
+              if (widget.unreadCount > 0 && !widget.isSelected)
+                Positioned(
+                  top: -3,
+                  right: -3,
+                  child: RailUnreadBadge(count: widget.unreadCount),
+                ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

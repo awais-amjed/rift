@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/theme_context.dart';
 
 /// The uppercase divider above a group of rows — TEXT, VOICE, ONLINE — with
 /// the group's own "add" affordance on the right where one exists.
@@ -27,25 +26,22 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(9, 16, 9, 6),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label.toUpperCase(),
-                  style: AppText.sectionLabel.copyWith(
-                    color: themeState.textTertiary,
-                  ),
-                ),
+    final themeState = context.theme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(9, 16, 9, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label.toUpperCase(),
+              style: AppText.sectionLabel.copyWith(
+                color: themeState.textTertiary,
               ),
-              if (onAdd != null) _AddButton(onTap: onAdd!, tooltip: addTooltip),
-            ],
+            ),
           ),
-        );
-      },
+          if (onAdd != null) _AddButton(onTap: onAdd!, tooltip: addTooltip),
+        ],
+      ),
     );
   }
 }
@@ -60,7 +56,7 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.watch<ThemeCubit>().state;
+    final themeState = context.theme;
 
     return Tooltip(
       message: tooltip,

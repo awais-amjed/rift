@@ -5,13 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../data/invite_link.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../data/classes/role.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/icon_tile.dart';
+import '../../../theme/theme_context.dart';
 import 'invite_summary.dart';
 import 'widgets/invite_form.dart';
 import 'widgets/invite_options.dart';
@@ -95,84 +95,81 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final inviteLink = _inviteToken == null
-            ? null
-            : InviteLink.build(widget.server.supabaseUrl, _inviteToken!);
+    final themeState = context.theme;
+    final inviteLink = _inviteToken == null
+        ? null
+        : InviteLink.build(widget.server.supabaseUrl, _inviteToken!);
 
-        return AppModal(
-          title: 'Invite to ${widget.server.name}',
-          subtitle: InviteSummary.of(
-            expiryIndex: _expiryIndex,
-            usesIndex: _usesIndex,
-            role: selectedRole,
-          ),
-          titleIcon: IconTile(
-            icon: Icons.person_add_outlined,
-            color: themeState.primary,
-            size: 36,
-            radius: 10,
-            iconSize: 18,
-          ),
-          content: InviteForm(
-            expiryIndex: _expiryIndex,
-            usesIndex: _usesIndex,
-            onExpirySelected: (i) => setState(() {
-              _expiryIndex = i;
-              _resetToken();
-            }),
-            onUsesSelected: (i) => setState(() {
-              _usesIndex = i;
-              _resetToken();
-            }),
-            roles: roles,
-            roleId: roleId,
-            onRoleSelected: (id) => setState(() {
-              roleId = id;
-              // A link already on screen was minted with the other role, so it
-              // no longer matches what the picker says.
-              _resetToken();
-            }),
-            isBot: _isBot,
-            onIsBotChanged: (value) => setState(() {
-              _isBot = value;
-              // A link already on screen was minted as the other kind, so it
-              // no longer matches what the switch says.
-              _resetToken();
-            }),
-            inviteLink: inviteLink,
-            isGenerating: _isGenerating,
-            copied: _copiedLink,
-            onCopy: inviteLink == null
-                ? null
-                : () => _copyToClipboard(
-                    inviteLink,
-                    (v) => setState(() => _copiedLink = v),
-                  ),
-            error: _error,
-          ),
-          actions: [
-            AppButton(
-              label: 'Close',
-              variant: AppButtonVariant.secondary,
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            AppButton(
-              label: _isGenerating
-                  ? 'Generating...'
-                  : _inviteToken != null
-                  ? 'Regenerate'
-                  : 'Generate',
-              isLoading: _isGenerating,
-              onPressed: _isGenerating ? null : _generate,
-              icon: _isGenerating
-                  ? null
-                  : const Icon(Icons.person_add_outlined, size: 15),
-            ),
-          ],
-        );
-      },
+    return AppModal(
+      title: 'Invite to ${widget.server.name}',
+      subtitle: InviteSummary.of(
+        expiryIndex: _expiryIndex,
+        usesIndex: _usesIndex,
+        role: selectedRole,
+      ),
+      titleIcon: IconTile(
+        icon: Icons.person_add_outlined,
+        color: themeState.primary,
+        size: 36,
+        radius: 10,
+        iconSize: 18,
+      ),
+      content: InviteForm(
+        expiryIndex: _expiryIndex,
+        usesIndex: _usesIndex,
+        onExpirySelected: (i) => setState(() {
+          _expiryIndex = i;
+          _resetToken();
+        }),
+        onUsesSelected: (i) => setState(() {
+          _usesIndex = i;
+          _resetToken();
+        }),
+        roles: roles,
+        roleId: roleId,
+        onRoleSelected: (id) => setState(() {
+          roleId = id;
+          // A link already on screen was minted with the other role, so it
+          // no longer matches what the picker says.
+          _resetToken();
+        }),
+        isBot: _isBot,
+        onIsBotChanged: (value) => setState(() {
+          _isBot = value;
+          // A link already on screen was minted as the other kind, so it
+          // no longer matches what the switch says.
+          _resetToken();
+        }),
+        inviteLink: inviteLink,
+        isGenerating: _isGenerating,
+        copied: _copiedLink,
+        onCopy: inviteLink == null
+            ? null
+            : () => _copyToClipboard(
+                inviteLink,
+                (v) => setState(() => _copiedLink = v),
+              ),
+        error: _error,
+      ),
+      actions: [
+        AppButton(
+          label: 'Close',
+          variant: AppButtonVariant.secondary,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        AppButton(
+          label: _isGenerating
+              ? 'Generating...'
+              : _inviteToken != null
+              ? 'Regenerate'
+              : 'Generate',
+          isLoading: _isGenerating,
+          onPressed: _isGenerating ? null : _generate,
+          icon: _isGenerating
+              ? null
+              : const Icon(Icons.person_add_outlined, size: 15),
+        ),
+      ],
     );
   }
 }

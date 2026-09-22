@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../data/constants.dart';
 import '../../../../common/app_switch.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 
 /// Audio sharing toggle widget
 class AudioToggle extends StatelessWidget {
@@ -20,66 +19,63 @@ class AudioToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        return MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: onToggle,
-            child: AnimatedContainer(
-              duration: AppMotion.state,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: shareAudio
-                    ? themeState.primary.withValues(alpha: 0.08)
-                    : themeState.bgTertiary,
-                borderRadius: BorderRadius.circular(K.radiusCard),
-                border: Border.all(
-                  color: shareAudio
-                      ? themeState.primary.withValues(alpha: 0.35)
-                      : themeState.borderPrimary,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    shareAudio ? Icons.volume_up : Icons.volume_off,
-                    size: 17,
-                    color: shareAudio
-                        ? themeState.primary
-                        : themeState.textQuaternary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Share audio',
-                          style: AppText.row.copyWith(
-                            color: shareAudio
-                                ? themeState.textPrimary
-                                : themeState.textSecondary,
-                          ),
-                        ),
-                        Text(
-                          shareAudio
-                              ? 'System audio will be captured'
-                              : 'No audio will be shared',
-                          style: AppText.label.copyWith(
-                            color: themeState.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  AppSwitch(value: shareAudio, onChanged: (_) => onToggle()),
-                ],
-              ),
+    final themeState = context.theme;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onToggle,
+        child: AnimatedContainer(
+          duration: AppMotion.state,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: shareAudio
+                ? themeState.primary.withValues(alpha: 0.08)
+                : themeState.bgTertiary,
+            borderRadius: BorderRadius.circular(K.radiusCard),
+            border: Border.all(
+              color: shareAudio
+                  ? themeState.primary.withValues(alpha: 0.35)
+                  : themeState.borderPrimary,
             ),
           ),
-        );
-      },
+          child: Row(
+            children: [
+              Icon(
+                shareAudio ? Icons.volume_up : Icons.volume_off,
+                size: 17,
+                color: shareAudio
+                    ? themeState.primary
+                    : themeState.textQuaternary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Share audio',
+                      style: AppText.row.copyWith(
+                        color: shareAudio
+                            ? themeState.textPrimary
+                            : themeState.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      shareAudio
+                          ? 'System audio will be captured'
+                          : 'No audio will be shared',
+                      style: AppText.label.copyWith(
+                        color: themeState.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              AppSwitch(value: shareAudio, onChanged: (_) => onToggle()),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

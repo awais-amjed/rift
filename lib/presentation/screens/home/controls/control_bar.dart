@@ -11,7 +11,6 @@ import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/sound_share/sound_share_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
@@ -22,6 +21,7 @@ import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
+import '../../../theme/theme_context.dart';
 import '../screenshare/screen_share_settings_dialog.dart';
 import '../soundboard/soundboard_button.dart';
 import '../soundshare/sound_share_picker_dialog.dart';
@@ -207,157 +207,148 @@ class _ControlBarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
-      builder: (context, themeState) {
-        final bgColor = themeState.bgElevated;
-        final compact = context.layoutMode.isCompact;
+    final themeState = context.theme;
+    final bgColor = themeState.bgElevated;
+    final compact = context.layoutMode.isCompact;
 
-        final radius = BorderRadius.circular(K.radiusCard);
+    final radius = BorderRadius.circular(K.radiusCard);
 
-        // Glass, not a slab: the pill floats over live video, so it blurs
-        // what's behind it rather than hiding it. The shadow sits outside the
-        // clip — inside, the clip would eat it.
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            boxShadow: AppShadows.voicePill,
-          ),
-          child: ClipRRect(
-            borderRadius: radius,
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: bgColor.withValues(alpha: 0.9),
-                  borderRadius: radius,
-                  border: Border.all(color: themeState.borderElevated),
+    // Glass, not a slab: the pill floats over live video, so it blurs
+    // what's behind it rather than hiding it. The shadow sits outside the
+    // clip — inside, the clip would eat it.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: AppShadows.voicePill,
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: bgColor.withValues(alpha: 0.9),
+              borderRadius: radius,
+              border: Border.all(color: themeState.borderElevated),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // The soundboard, first because it is the one control
+                // here that is not about this person's own microphone or
+                // screen — it is the room's.
+                const SoundboardButton(),
+                // Sound share. Desktop only: capturing another
+                // application's output is something a phone and a browser
+                // tab cannot do at all, so there is no button rather than
+                // a button that explains itself.
+                if (SoundShareCubit.isSupported) ...[
+                  ControlButton(
+                    icon: isSharingSound
+                        ? Icons.music_note_rounded
+                        : Icons.music_note_outlined,
+                    isActive: isSharingSound,
+                    tooltip: isSharingSound
+                        ? 'Stop sharing sound'
+                        : 'Share sound',
+                    onTap: () => _handleSoundShare(context),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                // Screen share
+                ControlButton(
+                  icon: isScreenSharing
+                      ? Icons.monitor_outlined
+                      : Icons.present_to_all,
+                  isActive: isScreenSharing,
+                  tooltip: isScreenSharing ? 'Stop sharing' : 'Share screen',
+                  onTap: () => _handleScreenShare(context),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // The soundboard, first because it is the one control
-                    // here that is not about this person's own microphone or
-                    // screen — it is the room's.
-                    const SoundboardButton(),
-                    // Sound share. Desktop only: capturing another
-                    // application's output is something a phone and a browser
-                    // tab cannot do at all, so there is no button rather than
-                    // a button that explains itself.
-                    if (SoundShareCubit.isSupported) ...[
-                      ControlButton(
-                        icon: isSharingSound
-                            ? Icons.music_note_rounded
-                            : Icons.music_note_outlined,
-                        isActive: isSharingSound,
-                        tooltip: isSharingSound
-                            ? 'Stop sharing sound'
-                            : 'Share sound',
-                        onTap: () => _handleSoundShare(context),
+                const SizedBox(width: 4),
+                // Camera
+                ControlButton(
+                  icon: isCameraEnabled ? Icons.videocam : Icons.videocam_off,
+                  isDimmed: !isCameraEnabled,
+                  tooltip: isCameraEnabled
+                      ? 'Turn off camera'
+                      : 'Turn on camera',
+                  onTap: () => _toggleCamera(context),
+                ),
+                const SizedBox(width: 4),
+                // Mic
+                ControlButton(
+                  icon: isMicOn ? Icons.mic : Icons.mic_off,
+                  isError: !isMicOn,
+                  tooltip: isServerMuted || isServerDeafened
+                      ? 'Muted by a moderator'
+                      : (isMicOn ? 'Mute' : 'Unmute'),
+                  onTap: () => _toggleMic(context),
+                ),
+                const SizedBox(width: 4),
+                // Deafen
+                ControlButton(
+                  icon: isDeafened ? Icons.headset_off : Icons.headset,
+                  isError: isDeafened,
+                  tooltip: isServerDeafened
+                      ? 'Deafened by a moderator'
+                      : (isDeafened ? 'Undeafen' : 'Deafen'),
+                  onTap: () => _toggleDeafen(context),
+                ),
+                // Divider
+                Container(
+                  margin: EdgeInsets.symmetric(horizontal: compact ? 6 : 10),
+                  width: 1,
+                  height: 30,
+                  color: themeState.borderElevated,
+                ),
+                // Leave
+                Material(
+                  color: CustomColors.error,
+                  borderRadius: BorderRadius.circular(K.radiusRow),
+                  child: InkWell(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
+                    borderRadius: BorderRadius.circular(K.radiusRow),
+                    // Opaque, so hovering deepens the red rather than
+                    // washing it — the one control here you can't undo.
+                    hoverColor: CustomColors.errorDark,
+                    onTap: () => _leave(context),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? 12 : 20,
+                        vertical: 12,
                       ),
-                      const SizedBox(width: 4),
-                    ],
-                    // Screen share
-                    ControlButton(
-                      icon: isScreenSharing
-                          ? Icons.monitor_outlined
-                          : Icons.present_to_all,
-                      isActive: isScreenSharing,
-                      tooltip: isScreenSharing
-                          ? 'Stop sharing'
-                          : 'Share screen',
-                      onTap: () => _handleScreenShare(context),
-                    ),
-                    const SizedBox(width: 4),
-                    // Camera
-                    ControlButton(
-                      icon: isCameraEnabled
-                          ? Icons.videocam
-                          : Icons.videocam_off,
-                      isDimmed: !isCameraEnabled,
-                      tooltip: isCameraEnabled
-                          ? 'Turn off camera'
-                          : 'Turn on camera',
-                      onTap: () => _toggleCamera(context),
-                    ),
-                    const SizedBox(width: 4),
-                    // Mic
-                    ControlButton(
-                      icon: isMicOn ? Icons.mic : Icons.mic_off,
-                      isError: !isMicOn,
-                      tooltip: isServerMuted || isServerDeafened
-                          ? 'Muted by a moderator'
-                          : (isMicOn ? 'Mute' : 'Unmute'),
-                      onTap: () => _toggleMic(context),
-                    ),
-                    const SizedBox(width: 4),
-                    // Deafen
-                    ControlButton(
-                      icon: isDeafened ? Icons.headset_off : Icons.headset,
-                      isError: isDeafened,
-                      tooltip: isServerDeafened
-                          ? 'Deafened by a moderator'
-                          : (isDeafened ? 'Undeafen' : 'Deafen'),
-                      onTap: () => _toggleDeafen(context),
-                    ),
-                    // Divider
-                    Container(
-                      margin: EdgeInsets.symmetric(
-                        horizontal: compact ? 6 : 10,
-                      ),
-                      width: 1,
-                      height: 30,
-                      color: themeState.borderElevated,
-                    ),
-                    // Leave
-                    Material(
-                      color: CustomColors.error,
-                      borderRadius: BorderRadius.circular(K.radiusRow),
-                      child: InkWell(
-                        mouseCursor: WidgetStateMouseCursor.clickable,
-                        borderRadius: BorderRadius.circular(K.radiusRow),
-                        // Opaque, so hovering deepens the red rather than
-                        // washing it — the one control here you can't undo.
-                        hoverColor: CustomColors.errorDark,
-                        onTap: () => _leave(context),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: compact ? 12 : 20,
-                            vertical: 12,
+                      child: Row(
+                        spacing: 8,
+                        children: [
+                          const Icon(
+                            Icons.call_end,
+                            size: 19,
+                            color: CustomColors.onError,
                           ),
-                          child: Row(
-                            spacing: 8,
-                            children: [
-                              const Icon(
-                                Icons.call_end,
-                                size: 19,
+                          // The word goes on a phone. The pill is a
+                          // min-width row of five fixed controls and no
+                          // flex, so anything it cannot fit it overflows
+                          // — and the red circle-with-a-handset is not a
+                          // symbol anyone needs the caption for.
+                          if (!compact)
+                            Text(
+                              'Leave',
+                              style: AppText.row.copyWith(
+                                fontWeight: FontWeight.w700,
                                 color: CustomColors.onError,
                               ),
-                              // The word goes on a phone. The pill is a
-                              // min-width row of five fixed controls and no
-                              // flex, so anything it cannot fit it overflows
-                              // — and the red circle-with-a-handset is not a
-                              // symbol anyone needs the caption for.
-                              if (!compact)
-                                Text(
-                                  'Leave',
-                                  style: AppText.row.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: CustomColors.onError,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                            ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

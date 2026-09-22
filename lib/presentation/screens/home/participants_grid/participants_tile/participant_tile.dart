@@ -12,6 +12,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/participant_roster.dart';
 import '../../../../../logic/services/participant_video.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../theme/theme_context.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'collapsed_participant_tile.dart';
 import 'expanded_participant_tile.dart';
@@ -202,90 +203,86 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
               widget.participant.identity,
             );
 
-        return BlocBuilder<ThemeCubit, ThemeState>(
-          builder: (context, themeState) {
-            final track = isSubscribed ? _videoPub?.track : null;
-            final videoTrack = track is VideoTrack ? track : null;
-            final showStopButton =
-                _isScreenshare && isSubscribed && videoTrack != null;
-            // The identity carries a device segment (and a screenshare
-            // suffix), so everything about the *person* — their name, their
-            // gradient — keys off the user id inside it instead.
-            final userId = ParticipantIdentity.userIdOf(
-              widget.participant.identity,
-            );
-            // `participant.name` is the display name frozen into the LiveKit
-            // token at mint time, and tokens are cached for their full hour —
-            // so a rename mid-call left the old name on the tile even after a
-            // reconnect. The roster is the live copy.
-            final name = context.watch<ServerMembersCubit>().state.nameFor(
-              userId,
-              widget.participant.name,
-            );
+        final themeState = context.theme;
+        final track = isSubscribed ? _videoPub?.track : null;
+        final videoTrack = track is VideoTrack ? track : null;
+        final showStopButton =
+            _isScreenshare && isSubscribed && videoTrack != null;
+        // The identity carries a device segment (and a screenshare
+        // suffix), so everything about the *person* — their name, their
+        // gradient — keys off the user id inside it instead.
+        final userId = ParticipantIdentity.userIdOf(
+          widget.participant.identity,
+        );
+        // `participant.name` is the display name frozen into the LiveKit
+        // token at mint time, and tokens are cached for their full hour —
+        // so a rename mid-call left the old name on the tile even after a
+        // reconnect. The roster is the live copy.
+        final name = context.watch<ServerMembersCubit>().state.nameFor(
+          userId,
+          widget.participant.name,
+        );
 
-            // Somebody else's stream opens a menu for its sound. Your own is
-            // still you: there is nothing of it here to turn down.
-            final isOwnStream =
-                widget.participant is LocalParticipant ||
-                ParticipantIdentity.isShareOf(
-                  widget.participant.identity,
-                  livekitState.room?.localParticipant?.identity,
-                );
-            // An unopened stream has nothing to focus but a button, so the
-            // whole tile is the button. A click on the button itself only
-            // focused the tile, and a second one was needed to watch.
-            final opensStream = _isScreenshare && !isSubscribed;
-            final onTap = opensStream ? _subscribeToScreenshare : widget.onTap;
-            return ContextMenuRegion(
-              contextMenu: _isScreenshare && !isOwnStream
-                  ? StreamContextMenu(
-                      identity: widget.participant.identity,
-                      ownerName: name,
-                    )
-                  : ParticipantContextMenu(
-                      identity: widget.participant.identity,
-                      name: name,
-                      isLocal: widget.participant is LocalParticipant,
-                    ),
-              child: MouseRegion(
-                cursor: onTap != null
-                    ? SystemMouseCursors.click
-                    : MouseCursor.defer,
-                child: GestureDetector(
-                  onTap: onTap,
-                  behavior: HitTestBehavior.opaque,
-                  child: widget.isExpanded
-                      ? ExpandedParticipantTile(
-                          videoTrack: videoTrack,
-                          name: name,
-                          userId: userId,
-                          isMicEnabled: widget.participant
-                              .isMicrophoneEnabled(),
-                          isMuted: widget.isMuted,
-                          isScreenshare: _isScreenshare,
-                          showWatchButton: _isScreenshare && !isSubscribed,
-                          showStopButton: showStopButton,
-                          showOverlays: _showOverlays,
-                          statsPinned: _statsPinned,
-                          onActivity: _onActivity,
-                          onWatch: _subscribeToScreenshare,
-                          onStopWatching: _unsubscribeFromScreenshare,
-                          onStatsPinnedChanged: _onStatsPinnedChanged,
-                          topInset: widget.topInset,
-                          bottomInset: widget.bottomInset,
-                        )
-                      : _buildCollapsed(
-                          themeState: themeState,
-                          videoTrack: videoTrack,
-                          name: name,
-                          userId: userId,
-                          isSubscribed: isSubscribed,
-                          showStopButton: showStopButton,
-                        ),
-                ),
-              ),
+        // Somebody else's stream opens a menu for its sound. Your own is
+        // still you: there is nothing of it here to turn down.
+        final isOwnStream =
+            widget.participant is LocalParticipant ||
+            ParticipantIdentity.isShareOf(
+              widget.participant.identity,
+              livekitState.room?.localParticipant?.identity,
             );
-          },
+        // An unopened stream has nothing to focus but a button, so the
+        // whole tile is the button. A click on the button itself only
+        // focused the tile, and a second one was needed to watch.
+        final opensStream = _isScreenshare && !isSubscribed;
+        final onTap = opensStream ? _subscribeToScreenshare : widget.onTap;
+        return ContextMenuRegion(
+          contextMenu: _isScreenshare && !isOwnStream
+              ? StreamContextMenu(
+                  identity: widget.participant.identity,
+                  ownerName: name,
+                )
+              : ParticipantContextMenu(
+                  identity: widget.participant.identity,
+                  name: name,
+                  isLocal: widget.participant is LocalParticipant,
+                ),
+          child: MouseRegion(
+            cursor: onTap != null
+                ? SystemMouseCursors.click
+                : MouseCursor.defer,
+            child: GestureDetector(
+              onTap: onTap,
+              behavior: HitTestBehavior.opaque,
+              child: widget.isExpanded
+                  ? ExpandedParticipantTile(
+                      videoTrack: videoTrack,
+                      name: name,
+                      userId: userId,
+                      isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                      isMuted: widget.isMuted,
+                      isScreenshare: _isScreenshare,
+                      showWatchButton: _isScreenshare && !isSubscribed,
+                      showStopButton: showStopButton,
+                      showOverlays: _showOverlays,
+                      statsPinned: _statsPinned,
+                      onActivity: _onActivity,
+                      onWatch: _subscribeToScreenshare,
+                      onStopWatching: _unsubscribeFromScreenshare,
+                      onStatsPinnedChanged: _onStatsPinnedChanged,
+                      topInset: widget.topInset,
+                      bottomInset: widget.bottomInset,
+                    )
+                  : _buildCollapsed(
+                      themeState: themeState,
+                      videoTrack: videoTrack,
+                      name: name,
+                      userId: userId,
+                      isSubscribed: isSubscribed,
+                      showStopButton: showStopButton,
+                    ),
+            ),
+          ),
         );
       },
     );
