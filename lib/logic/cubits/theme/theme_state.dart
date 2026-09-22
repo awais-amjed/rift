@@ -110,6 +110,12 @@ class ThemeState extends ThemeExtension<ThemeState> {
   // Sidebar
   Color get sidebarBg => colors.sidebarBg;
 
+  // Call
+  /// A participant's tile on the stage. The chrome step in dark, where the
+  /// stage is darker than the tiles; the inset step in light, where the chrome
+  /// step is the stage's own colour and a tile would vanish into it.
+  Color get callTileBg => isDarkTheme ? bgSecondary : bgTertiary;
+
   factory ThemeState.fromJson(Map<String, dynamic> json) =>
       _$ThemeStateFromJson(json);
 

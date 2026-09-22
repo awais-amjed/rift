@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/constants.dart';
 import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_motion.dart';
+import '../theme/app_shadows.dart';
 
 /// Which edge a tab hangs off.
 enum EdgeTabSide {
@@ -75,15 +76,10 @@ class _EdgeTabState extends State<EdgeTab> {
                     bottomRight: isLeft ? rounded : Radius.zero,
                   ),
                   border: Border.all(color: themeState.borderPrimary),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: themeState.isDarkTheme ? 0.3 : 0.1,
-                      ),
-                      blurRadius: 8,
-                      offset: Offset(isLeft ? 2 : -2, 0),
-                    ),
-                  ],
+                  boxShadow: AppShadows.edgeTab(
+                    dark: themeState.isDarkTheme,
+                    dx: isLeft ? 2 : -2,
+                  ),
                 ),
                 // Points the way the panel will arrive from.
                 child: Icon(

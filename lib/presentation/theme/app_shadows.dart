@@ -37,6 +37,25 @@ class AppShadows {
     BoxShadow(color: Color(0x80000000), blurRadius: 40, offset: Offset(0, 12)),
   ];
 
+  /// The edge tab that pulls a pane back in, cast toward the app along [dx].
+  /// Lighter in light mode, where the same black reads as a smudge.
+  static List<BoxShadow> edgeTab({required bool dark, required double dx}) => [
+    BoxShadow(
+      color: Color(dark ? 0x4D000000 : 0x1A000000),
+      blurRadius: 8,
+      offset: Offset(dx, 0),
+    ),
+  ];
+
+  /// The ring pulsing out of the LIVE dot: grows to 5px and fades as [t]
+  /// runs 0..1.
+  static List<BoxShadow> livePulse(Color color, double t) => [
+    BoxShadow(
+      color: color.withValues(alpha: 0.45 * (1 - t)),
+      spreadRadius: 5 * t,
+    ),
+  ];
+
   /// Cast under primary/action buttons so they read as lit, not just filled.
   static List<BoxShadow> accentGlow(
     Color accent, {

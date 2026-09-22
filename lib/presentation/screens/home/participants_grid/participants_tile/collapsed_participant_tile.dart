@@ -66,9 +66,7 @@ class CollapsedParticipantTile extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppMotion.state,
         decoration: BoxDecoration(
-          color: themeState.isDarkTheme
-              ? themeState.bgSecondary
-              : themeState.bgTertiary,
+          color: themeState.callTileBg,
           borderRadius: radius,
           // The same hairline speaking or not. Speech is the ring outside
           // the tile; a border swapping from 1px to 2px nudged the video

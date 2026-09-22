@@ -95,7 +95,7 @@ class SoundShareTile extends StatelessWidget {
         child: AnimatedContainer(
           duration: AppMotion.state,
           decoration: BoxDecoration(
-            color: theme.isDarkTheme ? theme.bgSecondary : theme.bgTertiary,
+            color: theme.callTileBg,
             borderRadius: radius,
             border: Border.all(color: theme.borderElevated),
           ),

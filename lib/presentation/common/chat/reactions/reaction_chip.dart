@@ -127,10 +127,7 @@ class _ReactionChipState extends State<ReactionChip>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                widget.reaction.emoji,
-                style: emojiRunStyle.copyWith(fontSize: 13),
-              ),
+              Text(widget.reaction.emoji, style: EmojiSize.chip),
               const SizedBox(width: 5),
               _count(themeState, mine),
             ],

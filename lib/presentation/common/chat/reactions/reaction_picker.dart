@@ -97,9 +97,7 @@ class _EmojiCell extends StatelessWidget {
         mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: radius,
         onTap: onTap,
-        child: Center(
-          child: Text(emoji, style: emojiRunStyle.copyWith(fontSize: 19)),
-        ),
+        child: Center(child: Text(emoji, style: EmojiSize.grid)),
       ),
     );
   }

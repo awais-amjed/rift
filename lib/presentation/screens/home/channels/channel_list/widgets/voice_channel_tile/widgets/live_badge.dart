@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../../../data/constants.dart';
+import '../../../../../../../theme/app_shadows.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/custom_colors.dart';
 
@@ -53,14 +54,7 @@ class _LiveBadgeState extends State<LiveBadge>
                 decoration: BoxDecoration(
                   color: CustomColors.success,
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: CustomColors.success.withValues(
-                        alpha: 0.45 * (1 - t),
-                      ),
-                      spreadRadius: 5 * t,
-                    ),
-                  ],
+                  boxShadow: AppShadows.livePulse(CustomColors.success, t),
                 ),
               );
             },

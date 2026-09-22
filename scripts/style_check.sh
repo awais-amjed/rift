@@ -26,7 +26,7 @@ over 200 lib/data/classes lib/data/enums lib/logic/services
 section "colour literals outside presentation/theme"
 grep -rn 'Color(0x' lib --include=*.dart | grep -v 'lib/presentation/theme/' || true
 section "fontSize outside app_text.dart"
-grep -rn 'fontSize:' lib/presentation --include=*.dart | grep -v 'theme/app_text.dart' || true
+grep -rn 'fontSize:' lib/presentation --include=*.dart | grep -v -e 'theme/app_text.dart' -e 'common/emoji_text.dart' || true
 section "literal radii"
 grep -rnE 'BorderRadius\.circular\([0-9]' lib/presentation --include=*.dart || true
 section "CircularProgressIndicator (use LoadingDots)"

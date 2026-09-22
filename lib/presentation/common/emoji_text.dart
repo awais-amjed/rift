@@ -10,6 +10,33 @@ const TextStyle emojiRunStyle = TextStyle(
   fontFamilyFallback: emojiFontFamilyFallback,
 );
 
+/// Emoji shown on their own, as the thing you pick or count.
+///
+/// Pictures rather than type, so they sit outside `AppText`'s six steps —
+/// but on a scale of their own, not a size per call site.
+class EmojiSize {
+  /// Beside a count, in a reaction chip.
+  static const TextStyle chip = TextStyle(
+    fontFamily: emojiFontFamily,
+    fontFamilyFallback: emojiFontFamilyFallback,
+    fontSize: 13,
+  );
+
+  /// A cell in a picker grid.
+  static const TextStyle grid = TextStyle(
+    fontFamily: emojiFontFamily,
+    fontFamilyFallback: emojiFontFamilyFallback,
+    fontSize: 19,
+  );
+
+  /// The quick reactions across a phone's action sheet, sized for a thumb.
+  static const TextStyle sheet = TextStyle(
+    fontFamily: emojiFontFamily,
+    fontFamilyFallback: emojiFontFamilyFallback,
+    fontSize: 24,
+  );
+}
+
 /// Builds a span for [text] with every emoji stretch handed to the colour
 /// emoji font and everything else left on [style].
 TextSpan emojiTextSpan(String text, {TextStyle? style}) {

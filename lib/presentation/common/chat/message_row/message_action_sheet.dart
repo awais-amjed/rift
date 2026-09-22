@@ -233,9 +233,7 @@ class _QuickReactions extends StatelessWidget {
               mouseCursor: WidgetStateMouseCursor.clickable,
               borderRadius: radius,
               onTap: () => onPick(emoji),
-              child: Center(
-                child: Text(emoji, style: emojiRunStyle.copyWith(fontSize: 24)),
-              ),
+              child: Center(child: Text(emoji, style: EmojiSize.sheet)),
             ),
           ),
       ],
