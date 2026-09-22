@@ -39,6 +39,9 @@ class ForwardResult {
 /// Built at the call site from the cubits already in scope rather than
 /// provided app-wide: it owns no state, it is used by one dialog, and the
 /// alternative is a fourth chat cubit that only ever writes.
+///
+/// Over the helper budget and one job: forwarding a message. Blobs and DMs are
+/// already parts.
 class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
   @override
   final ServerCubit servers;

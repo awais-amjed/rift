@@ -11,6 +11,9 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 /// rooms. Each case below says what actually went wrong and whether trying
 /// again can fix it, and keeps the original text in [detail] so a bug report is
 /// still worth something.
+///
+/// Over the helper budget and one job: turning a failed join into a sentence.
+/// Each case is a few lines and there are many cases.
 class ConnectionFailure {
   /// Short statement of what failed. Reads as a headline, no trailing period.
   final String title;

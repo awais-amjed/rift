@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../logic/services/video_stats_sampler.dart';
+import '../../../../../logic/services/video_stream_stats.dart';
 
 /// Polls a watched stream's receive stats once a second and hands them to
 /// [builder]. One poller feeds both the quality badge and the stats card, so

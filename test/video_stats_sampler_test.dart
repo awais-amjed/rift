@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:rift/logic/services/video_stats_sampler.dart';
+import 'package:rift/logic/services/video_stream_stats.dart';
 
 /// Report timestamps are microseconds, so one second is 1e6.
 const _oneSecond = 1000000.0;

@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
-import '../../../../../logic/services/video_stats_sampler.dart';
+import '../../../../../logic/services/video_stream_stats.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 

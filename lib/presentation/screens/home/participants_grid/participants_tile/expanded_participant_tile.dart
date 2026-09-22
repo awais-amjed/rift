@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/services/video_stats_sampler.dart';
+import '../../../../../logic/services/video_stream_stats.dart';
 import '../../../../theme/app_motion.dart';
 import 'avatar_placeholder.dart';
 import 'decrypted_video.dart';

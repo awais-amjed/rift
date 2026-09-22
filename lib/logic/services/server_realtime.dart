@@ -32,6 +32,10 @@ typedef RealtimeDispatch = void Function(String key, RealtimePayload payload);
 /// (`app.can_use_topic`, migration 017) say this member may hear it. So the
 /// connection carries the member's JWT, followed as it rotates — a join on an
 /// expired token is refused, and one whose token ran out is closed.
+///
+/// Over the helper budget and one job: one socket per server, shared by every
+/// holder. RealtimeLease is the holder's handle on it and needs the private
+/// topic, so they stay together.
 class ServerRealtime {
   final SupabaseClient Function(String url, String key) _connect;
   final Future<http.Response> Function(

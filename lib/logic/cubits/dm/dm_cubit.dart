@@ -17,7 +17,7 @@ import '../../services/broadcast_payload.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/link_preview_fetcher.dart';
-import '../../services/notification_service.dart';
+import '../../services/new_message_notifier.dart';
 import '../../services/outbox.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/reaction_ops.dart';

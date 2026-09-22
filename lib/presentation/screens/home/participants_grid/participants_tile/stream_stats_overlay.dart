@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/services/video_stats_sampler.dart';
+import '../../../../../logic/services/video_stream_stats.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/media_colors.dart';

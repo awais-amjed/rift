@@ -2,6 +2,7 @@ import 'channel.dart';
 import 'server_limits.dart';
 import 'server_user.dart';
 
+/// Over the helper budget and one job: the server model.
 class Server {
   final String id;
   final String name;

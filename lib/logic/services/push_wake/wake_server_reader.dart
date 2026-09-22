@@ -28,6 +28,9 @@ part 'wake_server_channels.dart';
 /// derived key costs one round trip and leaves nothing shared behind. Reusing
 /// the app's session would mean refreshing it, and a refresh token rotated by
 /// an isolate is one the still-running app is about to be logged out by.
+///
+/// Over the helper budget and one job: reading one server from a push-woken
+/// isolate. Its channels and keys are already parts.
 class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
   @override
   final CryptoRepository _crypto;
