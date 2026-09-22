@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -8,29 +7,24 @@ import '../../../../logic/services/text_safety.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 
-/// The message body with the words the list flags covered, when the setting
-/// says to cover.
+/// The message body, or a collapsed line standing in for it when the word
+/// list flags it and the setting says to cover.
 ///
-/// Only the words: covering the whole message for one of them hid everything
-/// else it said, and the sentence around a swear is nearly always the part
-/// worth reading. In blur mode a "Show" at the end uncovers them, remembered
-/// for the session by message rather than by widget; in hide mode there is
-/// no way through. The row builds the body from whatever [text] this hands
-/// it, so everything about deciding stays here.
+/// The text version of the image cover: one line saying why, a tap through
+/// in blur mode, none in hide mode, and a reveal remembered for the session
+/// by message rather than by widget. The row hands over the finished
+/// [child] and the message it was built from; everything about deciding
+/// lives here, so the row grows by a wrapper and nothing else.
 class GuardedMessageText extends StatefulWidget {
   final String messageId;
   final String text;
-
-  /// Builds the body from the text to show — the message, or a copy with the
-  /// flagged words dotted out — and a span to end it with, which is the way
-  /// to uncover them when there is one.
-  final Widget Function(String text, InlineSpan? reveal) builder;
+  final Widget child;
 
   const GuardedMessageText({
     super.key,
     required this.messageId,
     required this.text,
-    required this.builder,
+    required this.child,
   });
 
   static final Set<String> _revealed = {};
@@ -43,17 +37,6 @@ class GuardedMessageText extends StatefulWidget {
 }
 
 class _GuardedMessageTextState extends State<GuardedMessageText> {
-  // A span cannot own its recognizer, so the widget does.
-  late final TapGestureRecognizer _reveal = TapGestureRecognizer()
-    ..onTap = () =>
-        setState(() => GuardedMessageText._revealed.add(widget.messageId));
-
-  @override
-  void dispose() {
-    _reveal.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final mode = context.select<AppCubit, SensitiveContentMode>(
@@ -61,26 +44,42 @@ class _GuardedMessageTextState extends State<GuardedMessageText> {
     );
     if (mode == SensitiveContentMode.off ||
         GuardedMessageText._revealed.contains(widget.messageId)) {
-      return widget.builder(widget.text, null);
+      return widget.child;
     }
-    final ranges = TextSafety.instance.sensitiveRanges(
-      widget.messageId,
-      widget.text,
-    );
-    if (ranges.isEmpty) return widget.builder(widget.text, null);
+    final verdict = TextSafety.instance.check(widget.messageId, widget.text);
+    if (verdict == null || !verdict.isSensitive) return widget.child;
 
-    final covered = TextSafety.cover(widget.text, ranges);
-    if (mode != SensitiveContentMode.blur) return widget.builder(covered, null);
-
-    return widget.builder(
-      covered,
-      TextSpan(
-        text: '  Show',
-        style: AppText.secondaryStrong.copyWith(
-          color: context.theme.textTertiary,
+    final canReveal = mode == SensitiveContentMode.blur;
+    final themeState = context.theme;
+    return MouseRegion(
+      cursor: canReveal ? SystemMouseCursors.click : MouseCursor.defer,
+      child: GestureDetector(
+        onTap: canReveal
+            ? () => setState(
+                () => GuardedMessageText._revealed.add(widget.messageId),
+              )
+            : null,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 6,
+          children: [
+            Icon(
+              Icons.visibility_off_outlined,
+              size: 15,
+              color: themeState.textTertiary,
+            ),
+            Text(
+              'Sensitive message',
+              style: AppText.body.copyWith(color: themeState.textTertiary),
+            ),
+            Text(
+              canReveal ? '· Tap to show' : '· Hidden by your settings',
+              style: AppText.secondary.copyWith(
+                color: themeState.textQuaternary,
+              ),
+            ),
+          ],
         ),
-        mouseCursor: SystemMouseCursors.click,
-        recognizer: _reveal,
       ),
     );
   }

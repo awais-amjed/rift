@@ -72,28 +72,4 @@ void main() {
       expect(safety.check('m12', 'fuck'), isNotNull);
     });
   });
-
-  group('covering', () {
-    String covered(String id, String text) =>
-        TextSafety.cover(text, safety.sensitiveRanges(id, text));
-
-    test('covers the flagged words and nothing else', () {
-      expect(covered('c1', 'well fuck that'), 'well •••• that');
-      expect(covered('c2', 'fuck it, fvck it all'), '•••• it, •••• it all');
-      // Punctuation after a word is not part of it.
-      expect(covered('c3', 'fuuuck!!'), '••••••!!');
-    });
-
-    test('a match spread over words covers each of them', () {
-      expect(covered('c4', 'you are a f u c k'), 'you are a • • • •');
-      expect(covered('c5', 'god damn it'), '••• •••• it');
-      expect(covered('c6', 'oh F.U.C.K no'), 'oh •.•.•.• no');
-    });
-
-    test('mild words and clean messages are left alone', () {
-      expect(covered('c7', 'damn it'), 'damn it');
-      expect(covered('c8', 'kick ass, damn fuck'), 'kick ass, damn ••••');
-      expect(covered('c9', 'first class'), 'first class');
-    });
-  });
 }
