@@ -59,6 +59,12 @@ part 'server_state.dart';
 part 'server_voice_bots_api.dart';
 part 'server_webhooks_api.dart';
 
+/// The servers this identity has joined, and every call made to one of them.
+///
+/// Over the cubit-hub budget and one job. The seventeen parts hold the API
+/// calls; what is left here is what they all share and CODE_STYLE §5 says the
+/// class must hold — the session refresh every call goes through, the
+/// member-name cache, and the one place a server's row is updated.
 class ServerCubit extends HydratedCubit<ServerState>
     with
         _ServerCrudMixin,
