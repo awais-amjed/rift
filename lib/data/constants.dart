@@ -68,6 +68,10 @@ class K {
   /// rather than one running off the screen.
   static const double manageDialogHeightFraction = 0.88;
 
+  /// The column an onboarding step's form keeps to, so every step's fields
+  /// line up with the one before it however wide the window is.
+  static const double onboardingFormWidth = 360;
+
   // ── Touch ─────────────────────────────────────────────────
   /// The shortest a row may be where a finger is the pointer.
   ///

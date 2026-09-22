@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
@@ -126,7 +127,7 @@ class _VoiceBotsDialogState extends State<VoiceBotsDialog> {
     return AppModal(
       title: 'Bots hearing this',
       subtitle: widget.channel.name,
-      maxWidth: 480,
+      maxWidth: K.dialogWidth,
       error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
@@ -113,7 +114,9 @@ class _PasswordStepState extends State<PasswordStep> {
 
               // Form
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 360),
+                constraints: const BoxConstraints(
+                  maxWidth: K.onboardingFormWidth,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

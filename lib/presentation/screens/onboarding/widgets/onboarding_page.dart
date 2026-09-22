@@ -88,7 +88,9 @@ class OnboardingPage extends StatelessWidget {
                       child,
                       const SizedBox(height: 24),
                       ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 360),
+                        constraints: const BoxConstraints(
+                          maxWidth: K.onboardingFormWidth,
+                        ),
                         child: footer,
                       ),
                     ],

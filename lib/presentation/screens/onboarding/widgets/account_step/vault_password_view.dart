@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
@@ -75,7 +76,7 @@ class VaultPasswordViewState extends State<VaultPasswordView> {
           ),
           const SizedBox(height: 32),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
+            constraints: const BoxConstraints(maxWidth: K.onboardingFormWidth),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

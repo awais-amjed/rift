@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_button.dart';
@@ -118,7 +119,7 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
     return AppModal(
       title: 'What it can reach',
       subtitle: widget.bot.displayName,
-      maxWidth: 480,
+      maxWidth: K.dialogWidth,
       error: _error,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
