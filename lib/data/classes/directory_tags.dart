@@ -22,14 +22,24 @@ class DirectoryTags {
   /// add, so saving has to pick it up rather than discard it. Duplicates and
   /// anything over [maxCount] are dropped, exactly as adding it would have.
   static List<String> withPending(List<String> committed, String pending) {
-    final tag = normalise(pending);
-    if (tag == null ||
-        committed.contains(tag) ||
-        committed.length >= maxCount) {
-      return committed;
+    final out = [...committed];
+    for (final tag in normaliseAll(pending)) {
+      if (out.length >= maxCount) break;
+      if (!out.contains(tag)) out.add(tag);
     }
-    return [...committed, tag];
+    return out;
   }
+
+  /// Fold free text into *tags*, splitting on commas.
+  ///
+  /// A comma separates, it does not fold. The field's own placeholder is
+  /// `gaming, board-games` — two tags — so a comma that survived into the slug
+  /// turned the example itself into the single tag `gaming-board-games`.
+  /// Everything else is still folded rather than refused, by [normalise].
+  static List<String> normaliseAll(String input) => [
+    for (final part in input.split(','))
+      if (normalise(part) case final tag?) tag,
+  ];
 
   /// Fold free text into a tag, or null if nothing usable survives. Spaces
   /// become hyphens rather than being dropped, so "board games" is one tag

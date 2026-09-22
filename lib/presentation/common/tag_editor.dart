@@ -102,9 +102,9 @@ class TagEditor extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'How people filter the browser. Lowercase, no spaces — anything else '
-          'is folded into that shape. Whatever is still in the box when you '
-          'save is added too.',
+          'How people filter the browser. Commas separate them; lowercase and '
+          'no spaces, anything else is folded into that shape. Whatever is '
+          'still in the box when you save is added too.',
           style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
       ],

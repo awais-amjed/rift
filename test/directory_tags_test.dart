@@ -69,4 +69,46 @@ void main() {
       expect(DirectoryTags.withPending(const [], 'tech'), ['tech']);
     });
   });
+
+  /// The field's placeholder is `gaming, board-games`, so a comma has to mean
+  /// two tags. It used to be stripped like any other stray character, which
+  /// folded the example itself into the single tag `gaming-board-games`.
+  group('DirectoryTags.normaliseAll', () {
+    test('a comma separates rather than folding', () {
+      expect(DirectoryTags.normaliseAll('gaming, board-games'), [
+        'gaming',
+        'board-games',
+      ]);
+      expect(DirectoryTags.normaliseAll('testing, Dev Stuff'), [
+        'testing',
+        'dev-stuff',
+      ]);
+    });
+
+    test('unusable pieces drop out and the rest survive', () {
+      expect(DirectoryTags.normaliseAll('music, !, ,  , art'), [
+        'music',
+        'art',
+      ]);
+    });
+
+    test('no comma is still one tag', () {
+      expect(DirectoryTags.normaliseAll('Board Games'), ['board-games']);
+      expect(DirectoryTags.normaliseAll('  '), isEmpty);
+    });
+
+    test('a comma-separated list fills chips up to the limit and stops', () {
+      expect(
+        DirectoryTags.withPending(const [], 'a1, b2, c3, d4, e5, f6'),
+        ['a1', 'b2', 'c3', 'd4', 'e5'],
+      );
+    });
+
+    test('duplicates inside one box collapse', () {
+      expect(DirectoryTags.withPending(const ['music'], 'Music, art, art'), [
+        'music',
+        'art',
+      ]);
+    });
+  });
 }
