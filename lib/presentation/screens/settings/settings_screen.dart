@@ -97,7 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Settings altogether, and is not on screen here anyway.
           if (showBack)
             IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              icon: const Icon(Icons.chevron_left_rounded, size: 26),
               color: themeState.textSecondary,
               tooltip: 'All settings',
               onPressed: () => setState(() => _detailOpen = false),

@@ -438,8 +438,8 @@ class AppModal extends StatelessWidget {
                       tooltip: 'Back',
                       onPressed: onBack ?? () => Navigator.of(context).pop(),
                       icon: Icon(
-                        Icons.arrow_back_rounded,
-                        size: 22,
+                        Icons.chevron_left_rounded,
+                        size: 28,
                         color: themeState.textSecondary,
                       ),
                     ),

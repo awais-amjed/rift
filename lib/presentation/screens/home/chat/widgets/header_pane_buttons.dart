@@ -29,8 +29,8 @@ class HeaderBackButton extends StatelessWidget {
         tooltip: 'Back',
         onPressed: navigator.maybePop,
         icon: Icon(
-          Icons.arrow_back_rounded,
-          size: 22,
+          Icons.chevron_left_rounded,
+          size: 28,
           color: context.theme.textSecondary,
         ),
       ),

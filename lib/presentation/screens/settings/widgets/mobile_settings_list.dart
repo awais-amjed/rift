@@ -64,8 +64,8 @@ class MobileSettingsList extends StatelessWidget {
                   tooltip: 'Back to home',
                   onPressed: onBack,
                   icon: Icon(
-                    Icons.arrow_back_rounded,
-                    size: 22,
+                    Icons.chevron_left_rounded,
+                    size: 28,
                     color: theme.textSecondary,
                   ),
                 ),

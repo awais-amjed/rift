@@ -61,8 +61,8 @@ class ContextMenuPanel extends StatelessWidget {
                           tooltip: 'Back',
                           onPressed: sheet.popSubmenu,
                           icon: Icon(
-                            Icons.arrow_back_rounded,
-                            size: 20,
+                            Icons.chevron_left_rounded,
+                            size: 26,
                             color: themeState.textSecondary,
                           ),
                         ),
