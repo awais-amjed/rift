@@ -91,6 +91,19 @@ void main() {
     });
   });
 
+  group('dropRetired', () {
+    test('forgets only the entries whose rows the merge retired', () {
+      // Their sends reached the server after all; offering them again would
+      // send a message that is already in the conversation.
+      final outbox = Outbox()
+        ..hold(entry('landed'))
+        ..hold(entry('still-failed'));
+      outbox.dropRetired(['landed', 'never-held']);
+      expect(outbox.holds('landed'), isFalse);
+      expect(outbox.holds('still-failed'), isTrue);
+    });
+  });
+
   group('holding and taking', () {
     test('take hands the entry back exactly once', () {
       final outbox = Outbox()..hold(entry('pending-0'));

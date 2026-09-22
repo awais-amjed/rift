@@ -70,13 +70,7 @@ mixin _ChannelChatHistoryMixin
     );
     if (result.fresh.isEmpty) return;
 
-    // A send can time out *after* the server stored it. When that message comes
-    // back the merge retires the row it belongs to — and the outbox entry
-    // behind it has to go too, or reopening the channel would offer to send a
-    // message that is already in it.
-    for (final pendingId in result.retired) {
-      _outbox.drop(pendingId);
-    }
+    _outbox.dropRetired(result.retired);
     emit(state.copyWith(messages: result.merged));
 
     final freshIncoming = result.fresh.where((m) => !m.isMine).toList();

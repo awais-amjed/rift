@@ -110,11 +110,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     );
     if (result.fresh.isEmpty) return;
 
-    // A send can time out after the server stored it; when that message comes
-    // back, the entry behind the row it retires has to go with it.
-    for (final pendingId in result.retired) {
-      _outbox.drop(pendingId);
-    }
+    _outbox.dropRetired(result.retired);
     emit(state.copyWith(messages: result.merged));
 
     if (result.fresh.any((m) => !m.isMine)) _onOpenPeerMessage();

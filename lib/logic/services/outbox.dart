@@ -70,6 +70,14 @@ class Outbox {
   /// Forget one entry without retrying it — the row is going away.
   void drop(String pendingId) => _held.remove(pendingId);
 
+  /// Forget the entries behind rows a merge has just retired.
+  ///
+  /// A send can time out *after* the server stored it. When that message comes
+  /// back, the merge retires the row it belongs to — and the entry behind it
+  /// has to go too, or reopening the conversation would offer to send a
+  /// message that is already in it.
+  void dropRetired(Iterable<String> pendingIds) => pendingIds.forEach(drop);
+
   /// Forget everything for one conversation.
   void dropDestination(String destination) =>
       _held.removeWhere((_, entry) => entry.destination == destination);
