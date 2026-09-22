@@ -6,8 +6,7 @@ import '../../../../../common/app_button.dart';
 import '../../../../../common/empty_state.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/list_loading_footer.dart';
-import '../../../../../common/loading_dots.dart';
-import '../../../../../theme/theme_context.dart';
+import '../../../../../common/loading_block.dart';
 import 'public_server_tile.dart';
 
 /// What the browser shows where the results go: the list, or the reason there
@@ -66,9 +65,7 @@ class BrowseResults extends StatelessWidget {
     // previous results on screen rather than blinking to a spinner per
     // keystroke.
     if (state.loading && !state.hasBrowsed) {
-      return Center(
-        child: LoadingDots(color: context.theme.accentBright, dotSize: 6),
-      );
+      return const LoadingBlock();
     }
 
     if (state.results.isEmpty) {

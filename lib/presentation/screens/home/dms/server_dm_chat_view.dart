@@ -16,7 +16,7 @@ import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/typing_indicator.dart';
-import '../../../common/loading_dots.dart';
+import '../../../common/loading_block.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../mobile/widgets/mini_call_bar.dart';
@@ -182,9 +182,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           mentionable: _mentionable(state),
         );
       case DmChatStatus.loading:
-        return Center(
-          child: LoadingDots(color: context.theme.accentBright, dotSize: 6),
-        );
+        return const LoadingBlock();
       case DmChatStatus.error:
         return Center(
           child: Padding(

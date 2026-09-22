@@ -7,8 +7,7 @@ import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/services/role_ladder.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
-import '../../../../../common/loading_dots.dart';
-import '../../../../../theme/theme_context.dart';
+import '../../../../../common/loading_block.dart';
 import '../../../roles/role_editor_dialog.dart';
 import '../../../roles/widgets/role_row.dart';
 import '../widgets/manage_panel.dart';
@@ -168,15 +167,7 @@ class _RolesPanelState extends State<RolesPanel> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_isLoading)
-            SizedBox(
-              height: 180,
-              child: Center(
-                child: LoadingDots(
-                  color: context.theme.accentBright,
-                  dotSize: 6,
-                ),
-              ),
-            )
+            const LoadingBlock(height: 180)
           else ...[
             if (!_mayManage) ...[
               const HintCard(

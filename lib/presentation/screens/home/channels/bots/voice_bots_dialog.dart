@@ -10,9 +10,8 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/hint_card.dart';
-import '../../../../common/loading_dots.dart';
+import '../../../../common/loading_block.dart';
 import '../../../../common/message_banner.dart';
-import '../../../../theme/theme_context.dart';
 import 'widgets/channel_bot_row.dart';
 
 /// Which bots can hear this call.
@@ -138,15 +137,7 @@ class _VoiceBotsDialogState extends State<VoiceBotsDialog> {
             const SizedBox(height: 12),
           ],
           if (_isLoading)
-            SizedBox(
-              height: 140,
-              child: Center(
-                child: LoadingDots(
-                  color: context.theme.accentBright,
-                  dotSize: 6,
-                ),
-              ),
-            )
+            const LoadingBlock(height: 140)
           else if (_bots.isEmpty)
             const HintCard(
               icon: Icons.smart_toy_outlined,

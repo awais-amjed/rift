@@ -10,8 +10,7 @@ import '../../../../../../data/enums/friendship_state.dart';
 import '../../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../common/empty_state.dart';
 import '../../../../../common/list_loading_footer.dart';
-import '../../../../../common/loading_dots.dart';
-import '../../../../../theme/theme_context.dart';
+import '../../../../../common/loading_block.dart';
 import '../../../channels/channel_list/widgets/section_header.dart';
 import '../../../profile/person/show_person_profile.dart';
 import '../../open_central_conversation.dart';
@@ -61,9 +60,7 @@ class FriendsList extends StatelessWidget {
     // saying the latter while the first page is in flight tells somebody
     // something untrue about their own account.
     if (pages.any((page) => page == null)) {
-      return Center(
-        child: LoadingDots(color: context.theme.accentBright, dotSize: 6),
-      );
+      return const LoadingBlock();
     }
     if (pages.every((page) => page!.isEmpty)) return _empty();
 

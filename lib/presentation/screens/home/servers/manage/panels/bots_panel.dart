@@ -6,8 +6,7 @@ import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
-import '../../../../../common/loading_dots.dart';
-import '../../../../../theme/theme_context.dart';
+import '../../../../../common/loading_block.dart';
 import '../../../bots/bot_directory_dialog.dart';
 import '../../../channels/bots/bot_access_dialog.dart';
 import '../widgets/bot_row.dart';
@@ -74,7 +73,6 @@ class _BotsPanelState extends State<BotsPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
     return ManagePanel(
       title: 'Bots',
       subtitle: 'What each one can read and hear',
@@ -90,12 +88,7 @@ class _BotsPanelState extends State<BotsPanel> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_isLoading)
-            Padding(
-              padding: const EdgeInsets.all(32),
-              child: Center(
-                child: LoadingDots(color: themeState.accentBright, dotSize: 6),
-              ),
-            )
+            const LoadingBlock(padding: EdgeInsets.all(32))
           else if (_bots.isEmpty)
             const HintCard(
               icon: Icons.smart_toy_outlined,

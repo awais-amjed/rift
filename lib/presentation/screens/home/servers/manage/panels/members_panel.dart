@@ -10,7 +10,7 @@ import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/services/member_roster_pager.dart';
-import '../../../../../common/loading_dots.dart';
+import '../../../../../common/loading_block.dart';
 import '../../../../../common/message_banner.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
@@ -287,12 +287,7 @@ class _MembersPanelState extends State<MembersPanel> {
     bool viewerIsModerator,
   ) {
     if (_searching || (!_pager.isLoaded && !_isSearching)) {
-      return Padding(
-        padding: const EdgeInsets.all(32),
-        child: Center(
-          child: LoadingDots(color: themeState.accentBright, dotSize: 6),
-        ),
-      );
+      return const LoadingBlock(padding: EdgeInsets.all(32));
     }
 
     final rows = _rows;

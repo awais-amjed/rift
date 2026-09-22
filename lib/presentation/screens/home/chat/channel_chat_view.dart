@@ -21,7 +21,7 @@ import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/typing_indicator.dart';
-import '../../../common/loading_dots.dart';
+import '../../../common/loading_block.dart';
 import '../../../theme/theme_context.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../profile/person/show_person_profile.dart';
@@ -272,9 +272,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
       // Drawn the same as loading, and that is the whole point: a key being
       // wrapped for a new member is work in progress, not a refusal.
       case ChannelChatStatus.healingKey:
-        return Center(
-          child: LoadingDots(color: context.theme.accentBright, dotSize: 6),
-        );
+        return const LoadingBlock();
       case ChannelChatStatus.waitingForKey:
         final channel = _channel(context, chatState.channelId);
         return ChatStatusView(

@@ -8,8 +8,7 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/empty_state.dart';
 import '../../../common/hint_card.dart';
-import '../../../common/loading_dots.dart';
-import '../../../theme/theme_context.dart';
+import '../../../common/loading_block.dart';
 import 'widgets/my_bot_row.dart';
 
 /// The bots this account has listed, and the cap they count against.
@@ -69,9 +68,7 @@ class _MyBotsModalState extends State<MyBotsModal> {
 
   Widget _body(BuildContext context, PublicBotsState state) {
     if (state.savingListing && state.myListings.isEmpty) {
-      return Center(
-        child: LoadingDots(color: context.theme.accentBright, dotSize: 6),
-      );
+      return const LoadingBlock();
     }
     if (state.myListings.isEmpty) {
       return const EmptyState(

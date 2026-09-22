@@ -8,7 +8,7 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
-import '../../../common/loading_dots.dart';
+import '../../../common/loading_block.dart';
 import '../../../common/message_banner.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -111,15 +111,7 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
             const SizedBox(height: 12),
           ],
           if (_isLoading)
-            SizedBox(
-              height: 160,
-              child: Center(
-                child: LoadingDots(
-                  color: context.theme.accentBright,
-                  dotSize: 6,
-                ),
-              ),
-            )
+            const LoadingBlock(height: 160)
           else if (_roles.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
