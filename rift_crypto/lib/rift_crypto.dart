@@ -21,5 +21,6 @@ library;
 export 'src/chat_identity.dart';
 export 'src/crypto_repository.dart';
 export 'src/message_envelope.dart';
+export 'src/safety_code.dart';
 export 'src/server_identity.dart';
 export 'src/wrapped_key.dart';
