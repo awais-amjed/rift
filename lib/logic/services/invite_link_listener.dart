@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
-import 'package:flutter/foundation.dart';
 
 import '../../data/invite_link.dart';
+import '../helper_methods.dart';
 
 /// Invites arriving from outside the app — a tapped link, or a click handed
 /// over by the web landing page.
@@ -63,12 +63,13 @@ class InviteLinkListener {
         // read.
         _subscription = _appLinks.stringLinkStream.listen(
           _handle,
-          onError: (Object e) => debugPrint('InviteLinkListener: stream – $e'),
+          onError: (Object e) =>
+              HelperMethods.printDebug('InviteLinkListener: stream – $e'),
         );
       } catch (e) {
         // A platform with no link plumbing is not a reason to fail startup —
         // pasting an invite still works everywhere.
-        debugPrint('InviteLinkListener: could not listen – $e');
+        HelperMethods.printDebug('InviteLinkListener: could not listen – $e');
       }
     }
 
@@ -94,7 +95,9 @@ class InviteLinkListener {
       _echo = initial;
       Timer(const Duration(seconds: 3), () => _echo = null);
     } catch (e) {
-      debugPrint('InviteLinkListener: could not read the launch link – $e');
+      HelperMethods.printDebug(
+        'InviteLinkListener: could not read the launch link – $e',
+      );
     }
   }
 
@@ -109,7 +112,7 @@ class InviteLinkListener {
     }
     final invite = InviteLink.parse(link);
     if (invite == null) {
-      debugPrint('InviteLinkListener: not an invite – $link');
+      HelperMethods.printDebug('InviteLinkListener: not an invite – $link');
       return;
     }
     final receiver = _onInvite;

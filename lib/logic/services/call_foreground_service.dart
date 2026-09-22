@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../helper_methods.dart';
 import 'call_notification_content.dart';
 import 'call_notification_task.dart';
 import 'host_platform.dart';
@@ -215,7 +216,7 @@ class CallForegroundService {
       // A call that runs without the service is still a call — it is only
       // less likely to survive the app being put away. Not worth refusing to
       // connect over.
-      debugPrint('CallForegroundService: could not start – $e');
+      HelperMethods.printDebug('CallForegroundService: could not start – $e');
     }
   }
 
@@ -230,7 +231,9 @@ class CallForegroundService {
       return true;
     } catch (e) {
       _sharing = false;
-      debugPrint('CallForegroundService: could not add mediaProjection – $e');
+      HelperMethods.printDebug(
+        'CallForegroundService: could not add mediaProjection – $e',
+      );
       return false;
     }
   }
@@ -242,7 +245,9 @@ class CallForegroundService {
     try {
       await _apply();
     } catch (e) {
-      debugPrint('CallForegroundService: could not drop back – $e');
+      HelperMethods.printDebug(
+        'CallForegroundService: could not drop back – $e',
+      );
     }
   }
 
@@ -255,7 +260,9 @@ class CallForegroundService {
     try {
       await _refresh();
     } catch (e) {
-      debugPrint('CallForegroundService: could not follow the mic – $e');
+      HelperMethods.printDebug(
+        'CallForegroundService: could not follow the mic – $e',
+      );
     }
   }
 
@@ -273,7 +280,9 @@ class CallForegroundService {
     try {
       await _apply();
     } catch (e) {
-      debugPrint('CallForegroundService: could not follow the camera – $e');
+      HelperMethods.printDebug(
+        'CallForegroundService: could not follow the camera – $e',
+      );
     }
   }
 
@@ -293,7 +302,7 @@ class CallForegroundService {
         await FlutterForegroundTask.stopService();
       }
     } catch (e) {
-      debugPrint('CallForegroundService: could not stop – $e');
+      HelperMethods.printDebug('CallForegroundService: could not stop – $e');
     }
   }
 }

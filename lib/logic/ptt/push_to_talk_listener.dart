@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../cubits/app/app_cubit.dart';
 import '../cubits/livekit/livekit_cubit.dart';
+import '../helper_methods.dart';
 import 'linux_push_to_talk.dart';
 import 'win32_key_codes.dart';
 
@@ -128,7 +129,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
 
   static void _warnUnmappedKeybind(int keyId) {
     if (!_warnedKeyIds.add(keyId)) return;
-    debugPrint(
+    HelperMethods.printDebug(
       'PushToTalkListener: keyId 0x${keyId.toRadixString(16)} has no Win32 VK '
       'mapping, so PTT cannot fire while the app is in the background.',
     );

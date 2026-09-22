@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/classes/soundboard_sound.dart';
 import '../../../data/enums/server_permission.dart';
 import '../../../data/participant_identity.dart';
+import '../../helper_methods.dart';
 import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
 import '../../services/soundboard_cache.dart';
@@ -264,7 +265,9 @@ class SoundboardCubit extends Cubit<SoundboardState> {
         topic: SoundboardPlay.topic,
       );
     } catch (e) {
-      debugPrint('SoundboardCubit: could not send the press – $e');
+      HelperMethods.printDebug(
+        'SoundboardCubit: could not send the press – $e',
+      );
     }
 
     await _playLocally(sound, volume: _volumeFor(null));

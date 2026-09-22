@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../src/rust/api/audio_endpoints.dart';
+import '../helper_methods.dart';
 
 /// Re-exported so callers reading formats through [AudioDevices] don't have to
 /// reach into the generated bridge themselves.
@@ -172,7 +172,7 @@ class AudioDevices {
   }) async {
     final format = await unusableFormatFor(device, isInput: isInput);
     if (format == null) return true;
-    debugPrint(
+    HelperMethods.printDebug(
       '[AudioDevices] not applying saved ${isInput ? 'input' : 'output'} '
       '"${labelOf(device)}": Windows runs it at $format',
     );

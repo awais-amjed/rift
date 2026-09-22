@@ -24,7 +24,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
       isDeafened: deafened,
     );
     if (!response.success) {
-      debugPrint('moderateParticipant error: ${response.error}');
+      HelperMethods.printDebug('moderateParticipant error: ${response.error}');
     }
     return response.success;
   }
@@ -74,7 +74,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
       try {
         await rtc.Helper.setVolume(volume, track);
       } catch (e) {
-        debugPrint('setVolumeFor error: $e');
+        HelperMethods.printDebug('setVolumeFor error: $e');
       }
     }
     _appCubit.setParticipantSetting(key, volume: volume);

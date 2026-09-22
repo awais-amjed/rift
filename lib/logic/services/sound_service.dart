@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
+import '../helper_methods.dart';
 
 /// Plays UI sound effects (e.g. join / leave channel tones).
 ///
@@ -56,7 +56,7 @@ class SoundService {
       await player.setVolume(0.15);
       await player.play(AssetSource(asset));
     } catch (e) {
-      debugPrint('SoundService: failed to play $asset – $e');
+      HelperMethods.printDebug('SoundService: failed to play $asset – $e');
       await _dispose(player);
       return;
     }
@@ -78,7 +78,7 @@ class SoundService {
         Future<void>.delayed(_maxPlaybackWait),
       ]);
     } catch (e) {
-      debugPrint('SoundService: playback wait failed – $e');
+      HelperMethods.printDebug('SoundService: playback wait failed – $e');
     }
     await _dispose(player);
   }
@@ -87,7 +87,7 @@ class SoundService {
     try {
       await player.dispose();
     } catch (e) {
-      debugPrint('SoundService: failed to dispose player – $e');
+      HelperMethods.printDebug('SoundService: failed to dispose player – $e');
     }
   }
 }

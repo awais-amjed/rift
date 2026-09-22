@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../helper_methods.dart';
 import 'linux_desktop_entry.dart';
 
 /// Opens the desktop's own page for Rift's global shortcuts.
@@ -29,7 +30,9 @@ class DesktopShortcutSettings {
         LinuxDesktopEntry.appId,
       ], mode: ProcessStartMode.detached);
     } catch (e) {
-      debugPrint('DesktopShortcutSettings: could not open Settings – $e');
+      HelperMethods.printDebug(
+        'DesktopShortcutSettings: could not open Settings – $e',
+      );
     }
   }
 }

@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../helper_methods.dart';
 import 'host_platform.dart';
 import 'notification_service.dart';
 import 'push_wake/push_wake_service.dart';
@@ -70,7 +71,7 @@ class PushService {
       // and posting here as well would show everything twice.
       FirebaseMessaging.onMessage.listen((_) {});
     } catch (e) {
-      debugPrint('PushService: init failed – $e');
+      HelperMethods.printDebug('PushService: init failed – $e');
     }
   }
 }

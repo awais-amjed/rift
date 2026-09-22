@@ -209,10 +209,9 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     final roles = await _serverCubit.listRoles();
     // Everybody we hold, paged or resolved by id: somebody known only from a
     // call or a message kept their old name and picture until they left.
-    final refreshed = await _serverCubit.membersByIds({
-      ...state.people.members.map((m) => m.id),
-      ...state.known.keys,
-    }.toList());
+    final refreshed = await _serverCubit.membersByIds(
+      {...state.people.members.map((m) => m.id), ...state.known.keys}.toList(),
+    );
     if (_stale(loadId, serverId)) return;
 
     final byId = {for (final member in refreshed) member.id: member};

@@ -8,6 +8,7 @@ import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
+import '../../helper_methods.dart';
 import '../../services/call_foreground_service.dart';
 import '../../services/host_platform.dart';
 import '../livekit/livekit_cubit.dart';
@@ -229,7 +230,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       );
 
       final result = await startScreenshare(config: config);
-      debugPrint('✓ Rust connection result: $result');
+      HelperMethods.printDebug('✓ Rust connection result: $result');
 
       emit(
         state.copyWith(
@@ -239,7 +240,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         ),
       );
     } catch (e) {
-      debugPrint('✗ Screen share error: $e');
+      HelperMethods.printDebug('✗ Screen share error: $e');
       emit(
         state.copyWith(
           status: ScreenshareStatus.error,
@@ -280,9 +281,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       }
 
       // On desktop, use the Rust implementation.
-      debugPrint('Stopping screenshare...');
+      HelperMethods.printDebug('Stopping screenshare...');
       final result = await stopScreenshare();
-      debugPrint('✓ Rust disconnect result: $result');
+      HelperMethods.printDebug('✓ Rust disconnect result: $result');
 
       emit(
         state.copyWith(
@@ -293,7 +294,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         ),
       );
     } catch (e) {
-      debugPrint('✗ Stop screenshare error: $e');
+      HelperMethods.printDebug('✗ Stop screenshare error: $e');
       emit(
         state.copyWith(
           status: ScreenshareStatus.error,

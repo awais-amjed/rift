@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import '../helper_methods.dart';
 
 /// One entry of the bundled profanity list (dsojevic/profanity-list, MIT).
 ///
@@ -81,7 +82,7 @@ class TextSafety {
       final raw = await rootBundle.loadString(asset);
       install(json.decode(raw) as List);
     } catch (e) {
-      debugPrint('TextSafety: list unavailable – $e');
+      HelperMethods.printDebug('TextSafety: list unavailable – $e');
     }
   }
 

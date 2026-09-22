@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../../src/rust/api/soundshare.dart' as rust;
+import '../../helper_methods.dart';
 import '../../services/host_platform.dart';
 import '../../services/screen_share_sources.dart';
 import '../livekit/livekit_cubit.dart';
@@ -102,7 +102,7 @@ class SoundShareCubit extends Cubit<SoundShareState> {
           e2EeKeyIndex: encryption.index,
         ),
       );
-      debugPrint('✓ Sound share connection result: $result');
+      HelperMethods.printDebug('✓ Sound share connection result: $result');
 
       emit(
         state.copyWith(
@@ -113,7 +113,7 @@ class SoundShareCubit extends Cubit<SoundShareState> {
         ),
       );
     } catch (e) {
-      debugPrint('✗ Sound share error: $e');
+      HelperMethods.printDebug('✗ Sound share error: $e');
       _fail('Failed to share sound: $e');
     }
   }
@@ -125,7 +125,7 @@ class SoundShareCubit extends Cubit<SoundShareState> {
 
     try {
       final result = await rust.stopSoundShare();
-      debugPrint('✓ Sound share disconnect result: $result');
+      HelperMethods.printDebug('✓ Sound share disconnect result: $result');
       emit(
         state.copyWith(
           status: SoundShareStatus.idle,
@@ -135,7 +135,7 @@ class SoundShareCubit extends Cubit<SoundShareState> {
         ),
       );
     } catch (e) {
-      debugPrint('✗ Stop sound share error: $e');
+      HelperMethods.printDebug('✗ Stop sound share error: $e');
       _fail('Failed to stop sharing sound: $e');
     }
   }

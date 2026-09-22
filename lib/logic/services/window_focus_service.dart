@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../helper_methods.dart';
 
 /// Tracks whether the app window currently has OS focus.
 ///
@@ -25,7 +26,7 @@ class WindowFocusService {
     if (value == focused.value) return;
     if (kDebugMode) {
       // Cheap breadcrumb; focus transitions are rare.
-      debugPrint('[WindowFocus] focused=$value');
+      HelperMethods.printDebug('[WindowFocus] focused=$value');
     }
     focused.value = value;
   }

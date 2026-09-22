@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../helper_methods.dart';
 import 'host_platform.dart';
 
 /// Picture-in-picture: the floating window a call shrinks into when the app is
@@ -40,7 +41,9 @@ class PipService {
       return _available ??=
           await _channel.invokeMethod<bool>('isAvailable') ?? false;
     } catch (e) {
-      debugPrint('PipService: could not ask about availability – $e');
+      HelperMethods.printDebug(
+        'PipService: could not ask about availability – $e',
+      );
       return false;
     }
   }
@@ -59,7 +62,7 @@ class PipService {
       await _channel.invokeMethod('setAutoEnter', {'enabled': armed});
     } catch (e) {
       _armed = !armed;
-      debugPrint('PipService: could not arm – $e');
+      HelperMethods.printDebug('PipService: could not arm – $e');
     }
   }
 

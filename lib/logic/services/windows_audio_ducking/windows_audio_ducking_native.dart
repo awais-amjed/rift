@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:win32_registry/win32_registry.dart';
+import '../../helper_methods.dart';
 
 /// Manages Windows Audio Ducking via the registry.
 ///
@@ -35,9 +36,9 @@ class WindowsAudioDucking {
       );
       key.setValue(_valueName, RegistryValue.dword(preference));
       key.close();
-      debugPrint('[AudioDucking] $outcome');
+      HelperMethods.printDebug('[AudioDucking] $outcome');
     } catch (e) {
-      debugPrint('[AudioDucking] Failed to $verb: $e');
+      HelperMethods.printDebug('[AudioDucking] Failed to $verb: $e');
     }
   }
 

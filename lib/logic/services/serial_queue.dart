@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import '../helper_methods.dart';
 
 /// Runs asynchronous steps one at a time, in submission order.
 ///
@@ -22,7 +22,9 @@ class SerialQueue {
   Future<void> add(Future<void> Function() step) {
     final next = _tail
         .then((_) => step())
-        .catchError((Object e) => debugPrint('$_label: step failed – $e'));
+        .catchError(
+          (Object e) => HelperMethods.printDebug('$_label: step failed – $e'),
+        );
     _tail = next;
     return next;
   }

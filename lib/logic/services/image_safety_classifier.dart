@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_litert/flutter_litert.dart';
 
+import '../helper_methods.dart';
 import 'image_safety.dart';
 import 'image_safety_worker.dart';
 
@@ -55,7 +56,7 @@ class ImageSafetyClassifier {
     try {
       pixels = await _pixels(bytes);
     } catch (e) {
-      debugPrint('ImageSafetyClassifier: could not decode – $e');
+      HelperMethods.printDebug('ImageSafetyClassifier: could not decode – $e');
       return null;
     }
 
@@ -73,7 +74,7 @@ class ImageSafetyClassifier {
         scores = output[0];
       }
     } catch (e) {
-      debugPrint('ImageSafetyClassifier: inference failed – $e');
+      HelperMethods.printDebug('ImageSafetyClassifier: inference failed – $e');
       return null;
     }
 
@@ -102,12 +103,14 @@ class ImageSafetyClassifier {
         try {
           _worker = await ImageSafetyWorker.start(bytes);
         } catch (e) {
-          debugPrint('ImageSafetyClassifier: compiled path unavailable – $e');
+          HelperMethods.printDebug(
+            'ImageSafetyClassifier: compiled path unavailable – $e',
+          );
         }
       }
       return true;
     } catch (e) {
-      debugPrint('ImageSafetyClassifier: model unavailable – $e');
+      HelperMethods.printDebug('ImageSafetyClassifier: model unavailable – $e');
       return false;
     }
   }

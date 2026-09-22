@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:dbus/dbus.dart';
-import 'package:flutter/foundation.dart';
+import '../helper_methods.dart';
 
 /// Push-to-talk outside the window on Linux, through the desktop's
 /// GlobalShortcuts portal.
@@ -83,7 +83,7 @@ class GlobalShortcutsPortal {
         await Future<void>.delayed(_retryDelay);
       }
     } catch (e) {
-      debugPrint('GlobalShortcutsPortal: unavailable – $e');
+      HelperMethods.printDebug('GlobalShortcutsPortal: unavailable – $e');
       return null;
     }
   }
@@ -142,7 +142,9 @@ class GlobalShortcutsPortal {
       );
       final trigger = _triggerOf(bound.results);
       if (bound.results != null && trigger == null) {
-        debugPrint('GlobalShortcutsPortal: bound nothing – ${bound.results}');
+        HelperMethods.printDebug(
+          'GlobalShortcutsPortal: bound nothing – ${bound.results}',
+        );
       }
       if (trigger == null || epoch != _epoch) {
         await _end(mine);
@@ -184,7 +186,7 @@ class GlobalShortcutsPortal {
       );
     } catch (e) {
       // Already closed by the portal, e.g. after a declined dialog.
-      debugPrint('GlobalShortcutsPortal: close failed – $e');
+      HelperMethods.printDebug('GlobalShortcutsPortal: close failed – $e');
     }
   }
 
@@ -216,7 +218,9 @@ class GlobalShortcutsPortal {
         replySignature: DBusSignature(''),
       );
     } catch (e) {
-      debugPrint('GlobalShortcutsPortal: Register refused, going on – $e');
+      HelperMethods.printDebug(
+        'GlobalShortcutsPortal: Register refused, going on – $e',
+      );
     }
   }
 
@@ -258,7 +262,9 @@ class GlobalShortcutsPortal {
       final code = signal.values[0].asUint32();
       if (code != 0) {
         // 1 is the user saying no, 2 anything else the desktop refused.
-        debugPrint('GlobalShortcutsPortal: $method answered $code');
+        HelperMethods.printDebug(
+          'GlobalShortcutsPortal: $method answered $code',
+        );
         return (code: code, results: null);
       }
       return (code: 0, results: signal.values[1].asStringVariantDict());

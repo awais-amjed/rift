@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
-
 import 'package:rift_crypto/rift_crypto.dart';
+
 import '../../../data/repositories/secure_storage_repository.dart';
+import '../../helper_methods.dart';
 import '../notification_service.dart';
 import '../storage_namespace.dart';
 import 'wake_central_reader.dart';
@@ -106,7 +106,7 @@ class PushWakeService {
       await marks.save();
       return true;
     } catch (e) {
-      debugPrint('PushWakeService: wake failed – $e');
+      HelperMethods.printDebug('PushWakeService: wake failed – $e');
       return false;
     }
   }

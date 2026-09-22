@@ -135,7 +135,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     } else {
       final response = await _serverCubit!.getChannelToken(channelId);
       if (!response.success) {
-        debugPrint('[LiveKit] Failed to get channel token: ${response.error}');
+        HelperMethods.printDebug(
+          '[LiveKit] Failed to get channel token: ${response.error}',
+        );
         emit(
           state.copyWith(
             connectionState: LiveKitConnectionState.error,

@@ -198,9 +198,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
             [for (final s in state.servers) s.id].join();
     if (sameOrder && merged.orderClock == state.orderClock) return false;
 
-    emit(
-      state.copyWith(servers: ordered, orderClock: merged.orderClock),
-    );
+    emit(state.copyWith(servers: ordered, orderClock: merged.orderClock));
     return !sameOrder;
   }
 

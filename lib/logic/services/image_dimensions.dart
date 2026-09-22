@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import '../helper_methods.dart';
 
 /// Reads an encoded image's pixel dimensions without decoding it.
 ///
@@ -19,7 +20,7 @@ Future<({int width, int height})?> readImageDimensions(Uint8List bytes) async {
   } catch (e) {
     // A format this platform can't parse is not worth failing a send over —
     // the thumbnail just falls back to sizing itself once decoded.
-    debugPrint('readImageDimensions: could not read header – $e');
+    HelperMethods.printDebug('readImageDimensions: could not read header – $e');
     return null;
   } finally {
     descriptor?.dispose();

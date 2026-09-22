@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
 
+import '../helper_methods.dart';
 import 'soundboard_play.dart';
 
 /// Plays soundboard clips out of this device's own speakers.
@@ -45,7 +45,7 @@ class SoundboardPlayer {
       await player.setVolume(volume.clamp(0.0, 1.0));
       await player.play(source);
     } catch (e) {
-      debugPrint('SoundboardPlayer: could not play – $e');
+      HelperMethods.printDebug('SoundboardPlayer: could not play – $e');
       await _retire(player);
       return;
     }
@@ -74,7 +74,7 @@ class SoundboardPlayer {
         Future<void>.delayed(SoundboardPlay.maxPlayback),
       ]);
     } catch (e) {
-      debugPrint('SoundboardPlayer: playback wait failed – $e');
+      HelperMethods.printDebug('SoundboardPlayer: playback wait failed – $e');
     }
     await _retire(player);
   }
@@ -89,7 +89,7 @@ class SoundboardPlayer {
     try {
       await player.dispose();
     } catch (e) {
-      debugPrint('SoundboardPlayer: could not dispose – $e');
+      HelperMethods.printDebug('SoundboardPlayer: could not dispose – $e');
     }
   }
 }

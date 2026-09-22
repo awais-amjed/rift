@@ -3,8 +3,8 @@ library;
 
 import 'dart:js_interop';
 
-import 'package:flutter/foundation.dart';
 import 'package:web/web.dart' as web;
+import '../helper_methods.dart';
 
 /// Asks the browser for notification permission, returning whether it was
 /// granted.
@@ -26,7 +26,7 @@ Future<bool> requestBrowserNotificationPermission() async {
     return result.toDart == 'granted';
   } catch (e) {
     // Notification is absent in insecure contexts and some embedded webviews.
-    debugPrint('browser notifications unavailable – $e');
+    HelperMethods.printDebug('browser notifications unavailable – $e');
     return false;
   }
 }
@@ -41,7 +41,7 @@ void showBrowserNotification({required String title, required String body}) {
   try {
     web.Notification(title, web.NotificationOptions(body: body));
   } catch (e) {
-    debugPrint('browser notification failed – $e');
+    HelperMethods.printDebug('browser notification failed – $e');
   }
 }
 

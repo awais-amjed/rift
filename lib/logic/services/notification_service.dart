@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../data/classes/dm_conversation.dart';
+import '../helper_methods.dart';
 import 'browser_apis.dart';
 import 'window_focus_service.dart';
 
@@ -93,7 +94,7 @@ class NotificationService {
       _ready = true;
       if (askForPermission) await _requestAndroidPermission();
     } catch (e) {
-      debugPrint('NotificationService: init failed – $e');
+      HelperMethods.printDebug('NotificationService: init failed – $e');
     }
   }
 
@@ -115,7 +116,9 @@ class NotificationService {
       // Throws where there is no Activity to attach a dialog to — a background
       // isolate woken by a push, most of all. Nothing to do about it there and
       // nothing worth failing over.
-      debugPrint('NotificationService: permission request skipped – $e');
+      HelperMethods.printDebug(
+        'NotificationService: permission request skipped – $e',
+      );
     }
   }
 
@@ -175,7 +178,7 @@ class NotificationService {
         ),
       );
     } catch (e) {
-      debugPrint('NotificationService: show failed – $e');
+      HelperMethods.printDebug('NotificationService: show failed – $e');
     }
   }
 }

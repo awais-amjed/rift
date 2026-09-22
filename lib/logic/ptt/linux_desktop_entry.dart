@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
+import '../helper_methods.dart';
 
 /// Makes sure the desktop can find a `.desktop` file for Rift's app id.
 ///
@@ -39,7 +39,9 @@ class LinuxDesktopEntry {
         'Exec=${Platform.resolvedExecutable}\n',
       );
     } catch (e) {
-      debugPrint('LinuxDesktopEntry: could not write $fileName – $e');
+      HelperMethods.printDebug(
+        'LinuxDesktopEntry: could not write $fileName – $e',
+      );
     }
   }
 

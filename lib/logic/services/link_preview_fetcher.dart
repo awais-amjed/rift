@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import '../../data/classes/attachment.dart';
 import '../../data/classes/pending_attachment.dart';
+import '../helper_methods.dart';
 import 'link_preview_parser.dart';
 
 /// A preview as the composer holds it before the message goes: the words,
@@ -73,7 +74,7 @@ class LinkPreviewFetcher {
         image: image,
       );
     } catch (e) {
-      debugPrint('LinkPreviewFetcher: $url – $e');
+      HelperMethods.printDebug('LinkPreviewFetcher: $url – $e');
       return null;
     }
   }

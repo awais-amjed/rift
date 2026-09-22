@@ -21,7 +21,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
 
     final participant = room.remoteParticipants[identity];
     if (participant == null) {
-      debugPrint('Participant $identity not found');
+      HelperMethods.printDebug('[LiveKit] Participant $identity not found');
       return;
     }
 
@@ -46,10 +46,14 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
         try {
           await pub.subscribe();
           await pub.setVideoQuality(VideoQuality.HIGH);
-          debugPrint('✓ Subscribed to screenshare video from $identity');
+          HelperMethods.printDebug(
+            '[LiveKit] Subscribed to screenshare video from $identity',
+          );
           subscribedAny = true;
         } catch (e) {
-          debugPrint('✗ Failed to subscribe to screenshare video: $e');
+          HelperMethods.printDebug(
+            '[LiveKit] Failed to subscribe to screenshare video: $e',
+          );
         }
       }
     }
@@ -58,10 +62,14 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       if (pub.source == TrackSource.screenShareAudio) {
         try {
           await pub.subscribe();
-          debugPrint('✓ Subscribed to screenshare audio from $identity');
+          HelperMethods.printDebug(
+            '[LiveKit] Subscribed to screenshare audio from $identity',
+          );
           subscribedAny = true;
         } catch (e) {
-          debugPrint('✗ Failed to subscribe to screenshare audio: $e');
+          HelperMethods.printDebug(
+            '[LiveKit] Failed to subscribe to screenshare audio: $e',
+          );
         }
       }
     }
@@ -70,7 +78,9 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       _syncParticipants();
       unawaited(_publishSelfState());
     } else {
-      debugPrint('No screenshare tracks found for $identity');
+      HelperMethods.printDebug(
+        '[LiveKit] No screenshare tracks found for $identity',
+      );
       if (!wasWatching) {
         emit(
           state.copyWith(
@@ -102,10 +112,14 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       if (pub.source == TrackSource.screenShareVideo) {
         try {
           await pub.unsubscribe();
-          debugPrint('✓ Unsubscribed from screenshare video from $identity');
+          HelperMethods.printDebug(
+            '[LiveKit] Unsubscribed from screenshare video from $identity',
+          );
           unsubscribedAny = true;
         } catch (e) {
-          debugPrint('✗ Failed to unsubscribe from screenshare video: $e');
+          HelperMethods.printDebug(
+            '[LiveKit] Failed to unsubscribe from screenshare video: $e',
+          );
         }
       }
     }
@@ -114,10 +128,14 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       if (pub.source == TrackSource.screenShareAudio) {
         try {
           await pub.unsubscribe();
-          debugPrint('✓ Unsubscribed from screenshare audio from $identity');
+          HelperMethods.printDebug(
+            '[LiveKit] Unsubscribed from screenshare audio from $identity',
+          );
           unsubscribedAny = true;
         } catch (e) {
-          debugPrint('✗ Failed to unsubscribe from screenshare audio: $e');
+          HelperMethods.printDebug(
+            '[LiveKit] Failed to unsubscribe from screenshare audio: $e',
+          );
         }
       }
     }
@@ -164,7 +182,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       // anyone. Surfacing a failed screen share properly needs its own channel;
       // pretending it is a connection failure would replace a live call with an
       // error page.
-      debugPrint('✗ Screen share failed: $e');
+      HelperMethods.printDebug('[LiveKit] Screen share failed: $e');
     }
   }
 }
