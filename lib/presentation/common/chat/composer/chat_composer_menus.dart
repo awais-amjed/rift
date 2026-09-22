@@ -88,6 +88,26 @@ mixin _ComposerMenusMixin
     setState(() {});
   }
 
+  /// Enter and Tab, while a menu is open: take its best row instead of
+  /// sending.
+  ///
+  /// Both menus are ranked, so the first row is the one being offered — and
+  /// with no keyboard path to it at all, Enter used to send the half-typed
+  /// fragment the menu existed to finish. Answers false when nothing is open,
+  /// which is what leaves Enter meaning send.
+  bool _acceptSuggestion() {
+    if (_mentions.isNotEmpty) {
+      _pickMention(_mentions.first);
+      return true;
+    }
+    final commands = _suggestions;
+    if (commands.isNotEmpty) {
+      _pickCommand(commands.first.name);
+      return true;
+    }
+    return false;
+  }
+
   /// Replace the typed fragment with the chosen command and leave the caret
   /// after it, ready for arguments.
   void _pickCommand(String name) {

@@ -20,6 +20,9 @@ class ComposerInputRow extends StatelessWidget {
   final String hintText;
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmit;
+
+  /// Passed straight to [ComposerTextField] — see its doc.
+  final bool Function()? onAcceptSuggestion;
   final VoidCallback onPickFiles;
   final VoidCallback onStartRecording;
   final VoidCallback onEmojiInserted;
@@ -34,6 +37,7 @@ class ComposerInputRow extends StatelessWidget {
     required this.hintText,
     required this.onChanged,
     required this.onSubmit,
+    this.onAcceptSuggestion,
     required this.onPickFiles,
     required this.onStartRecording,
     required this.onEmojiInserted,
@@ -64,6 +68,7 @@ class ComposerInputRow extends StatelessWidget {
             hintText: hintText,
             onChanged: onChanged,
             onSubmit: onSubmit,
+            onAcceptSuggestion: onAcceptSuggestion,
           ),
         ),
         // Builder so the popover can anchor to the button's own box.

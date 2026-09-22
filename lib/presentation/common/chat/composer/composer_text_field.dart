@@ -23,6 +23,13 @@ class ComposerTextField extends StatelessWidget {
   /// Enter sends; Shift+Enter falls through to the field as a newline.
   final VoidCallback onSubmit;
 
+  /// First refusal on Enter and Tab, for the `@` and `/` menus.
+  ///
+  /// An autocomplete that only takes a mouse click is a trap in a field you
+  /// are typing into: with the menu open, Enter sent `@ben` as a message
+  /// rather than completing it. Returns true when it consumed the key.
+  final bool Function()? onAcceptSuggestion;
+
   const ComposerTextField({
     super.key,
     required this.controller,
@@ -31,10 +38,20 @@ class ComposerTextField extends StatelessWidget {
     required this.hintText,
     required this.onChanged,
     required this.onSubmit,
+    this.onAcceptSuggestion,
   });
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    // Tab belongs to the menus alone: with nothing open it is still the way
+    // out of the field.
+    if (event.logicalKey == LogicalKeyboardKey.tab) {
+      return (onAcceptSuggestion?.call() ?? false)
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+
     if (event.logicalKey != LogicalKeyboardKey.enter &&
         event.logicalKey != LogicalKeyboardKey.numpadEnter) {
       return KeyEventResult.ignored;
@@ -42,6 +59,9 @@ class ComposerTextField extends StatelessWidget {
     if (HardwareKeyboard.instance.isShiftPressed) {
       return KeyEventResult.ignored;
     }
+    // A suggestion showing takes Enter first — otherwise the half-typed name
+    // it is offering to complete goes out as the message.
+    if (onAcceptSuggestion?.call() ?? false) return KeyEventResult.handled;
     onSubmit();
     return KeyEventResult.handled;
   }

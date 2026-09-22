@@ -367,6 +367,7 @@ class _ChatComposerState extends State<ChatComposer>
               hintText: widget.hintText,
               onChanged: _onTextChanged,
               onSubmit: _send,
+              onAcceptSuggestion: _acceptSuggestion,
               onPickFiles: _pickFiles,
               onStartRecording: _startRecording,
               onEmojiInserted: () => setState(() {}),
