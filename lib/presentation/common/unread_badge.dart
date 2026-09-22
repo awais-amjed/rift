@@ -82,16 +82,23 @@ class _UnreadBadgeState extends State<UnreadBadge>
             : null,
         borderRadius: BorderRadius.circular(K.radiusPill),
       ),
-      alignment: Alignment.center,
-      child: Text(
-        widget.count > 99 ? '99+' : '${widget.count}',
-        // The count is knocked *out* of the accent rather than written on it, so
-        // the ink is the canvas the pill floats over — near-black in dark,
-        // near-white in light. `onPrimary` is white in both, which turns the
-        // dark palette's bright accent into a low-contrast smudge.
-        style: AppText.badge.copyWith(
-          height: 1.2,
-          color: isMuted ? themeState.textTertiary : themeState.bgPrimary,
+      // Centred by a Center that sizes to its text, not by the Container's
+      // own `alignment`: that one expands to all the height it is offered,
+      // and in a row taller than the pill — the phone's Channels tab — it
+      // drew a capsule the height of the row.
+      child: Center(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Text(
+          widget.count > 99 ? '99+' : '${widget.count}',
+          // The count is knocked *out* of the accent rather than written on it, so
+          // the ink is the canvas the pill floats over — near-black in dark,
+          // near-white in light. `onPrimary` is white in both, which turns the
+          // dark palette's bright accent into a low-contrast smudge.
+          style: AppText.badge.copyWith(
+            height: 1.2,
+            color: isMuted ? themeState.textTertiary : themeState.bgPrimary,
+          ),
         ),
       ),
     );
