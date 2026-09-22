@@ -15,7 +15,8 @@ import '../../chat/widgets/header_back_button.dart';
 /// Header of an open DM conversation.
 ///
 /// Carries two chips rather than one: which tier the conversation is on, and
-/// that it's encrypted. The tier matters here in a way it doesn't in a
+/// that it's encrypted — the second of which opens the safety code, because
+/// the claim and the way to check it belong together. The tier matters here in a way it doesn't in a
 /// channel — a central DM is quota-limited and a server DM isn't, and that's
 /// worth saying before someone starts typing.
 class DmChatHeader extends StatelessWidget {
@@ -34,6 +35,10 @@ class DmChatHeader extends StatelessWidget {
   /// tier with no profile to show.
   final VoidCallback? onOpenProfile;
 
+  /// Open the safety code for this conversation — the encryption chip's
+  /// press. Null while there is nobody to compare keys with.
+  final VoidCallback? onVerify;
+
   const DmChatHeader({
     super.key,
     required this.title,
@@ -42,6 +47,7 @@ class DmChatHeader extends StatelessWidget {
     required this.onClose,
     this.peerId,
     this.onOpenProfile,
+    this.onVerify,
   });
 
   /// The peer's picture and name, opening their profile where there is one.
@@ -123,11 +129,14 @@ class DmChatHeader extends StatelessWidget {
                         color: themeState.accentBright,
                       ),
                     if (!compact && width >= K.dmHeaderEncryptedChipMin)
-                      const StatusChip(
+                      StatusChip(
                         icon: Icons.lock_outline,
                         label: 'Encrypted',
                         color: CustomColors.success,
-                        tooltip: StatusChip.encryptedTooltip,
+                        tooltip: onVerify == null
+                            ? StatusChip.encryptedTooltip
+                            : StatusChip.encryptedVerifyTooltip,
+                        onTap: onVerify,
                       ),
                   ],
                 ),

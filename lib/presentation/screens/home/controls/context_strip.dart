@@ -9,9 +9,12 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/services/call_duration.dart';
+import '../../../common/status_chip.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
+import '../profile/person/verification/show_channel_encryption.dart';
 import 'phone_context_strip.dart';
 
 /// Slim strip above the participant grid: channel name, live participant
@@ -135,6 +138,25 @@ class _ContextStripState extends State<ContextStrip> {
                           ],
                         ),
                       ),
+                      // The same claim the chat header makes, in the surface
+                      // where the keys are doing the work — and pressable
+                      // for the same reason: a claim you cannot check is
+                      // one you have to take on trust.
+                      StatusChip(
+                        icon: Icons.lock_outline,
+                        label: 'Encrypted',
+                        color: CustomColors.success,
+                        tooltip: StatusChip.encryptedVerifyTooltip,
+                        onTap: () => showCallEncryption(
+                          context,
+                          channelName: channelName ?? 'Voice',
+                          participants: context
+                              .read<AppCubit>()
+                              .state
+                              .participants,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
                       elapsed,
                     ],
                   ),

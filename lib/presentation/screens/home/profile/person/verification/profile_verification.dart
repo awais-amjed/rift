@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../common/app_button.dart';
-import '../../../../../common/app_modal.dart';
-import '../../../../../common/app_sheet.dart';
-import '../../../../../responsive/shell_scope.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
 import '../widgets/profile_section.dart';
-import 'safety_code_dialog.dart';
+import 'show_verification.dart';
 
 /// Whether this person's key has been checked, and the way to check it.
 ///
@@ -64,44 +59,23 @@ class _ProfileVerificationState extends State<ProfileVerification> {
   /// it does the section says nothing rather than offering a button that
   /// would open an empty dialog.
   Future<void> _compute() async {
-    final theirKey = widget.theirChatKey;
-    if (theirKey == null) return;
-    final identity = await context.read<VaultCubit>().getChatIdentityForHost(
-      widget.host,
+    final code = await safetyCodeFor(
+      context,
+      theirId: widget.personId,
+      theirChatKey: widget.theirChatKey,
+      myId: widget.myId,
+      host: widget.host,
     );
-    if (!mounted) return;
-    setState(() {
-      _code = SafetyCode.between(
-        myKey: identity.publicKeyBase64,
-        myId: widget.myId,
-        theirKey: theirKey,
-        theirId: widget.personId,
-      );
-    });
+    if (!mounted || code == null) return;
+    setState(() => _code = code);
   }
 
-  void _open(String code) {
-    // Built here, with the cubit read here: the sheet and the dialog are both
-    // routes, and this widget's context is the one that still has an AppCubit
-    // above it.
-    final dialog = BlocProvider.value(
-      value: context.read<AppCubit>(),
-      child: SafetyCodeDialog(
-        personName: widget.personName,
-        person: _person,
-        code: code,
-      ),
-    );
-    // A sheet over the profile's own sheet on a phone. As a dialog it drew
-    // its contents straight onto the profile behind it, with no surface of
-    // its own — `sheetOnPhone` styles the modal for a sheet and expects to be
-    // opened as one.
-    if (context.layoutMode.isCompact) {
-      showAppSheet<void>(context, dialog);
-      return;
-    }
-    showCustomDialog<void>(context: context, builder: (_) => dialog);
-  }
+  void _open(String code) => showSafetyCode(
+    context,
+    personName: widget.personName,
+    person: _person,
+    code: code,
+  );
 
   @override
   Widget build(BuildContext context) {

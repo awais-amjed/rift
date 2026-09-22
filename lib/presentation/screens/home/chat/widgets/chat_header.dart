@@ -12,6 +12,7 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/channel_context_menu.dart';
+import '../../profile/person/verification/show_channel_encryption.dart';
 import 'channel_listeners_chip.dart';
 import 'chat_header_button.dart';
 import 'chat_phone_title.dart';
@@ -98,11 +99,17 @@ class ChatHeader extends StatelessWidget {
                   // restating it leaves the one thing that differs between them
                   // — the channel's name — squeezed to nothing.
                   if (!compact)
-                    const StatusChip(
+                    StatusChip(
                       icon: Icons.lock_outline,
                       label: 'Encrypted',
                       color: CustomColors.success,
-                      tooltip: StatusChip.encryptedTooltip,
+                      tooltip: StatusChip.encryptedVerifyTooltip,
+                      // A channel has more than one other person in it, so
+                      // the chip opens the list rather than one code.
+                      onTap: () => showChannelEncryption(
+                        context,
+                        channelName: name ?? 'channel',
+                      ),
                     ),
                   // Both of these are shown at every width, including the
                   // one where "Encrypted" is dropped for room. That chip

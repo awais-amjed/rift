@@ -10,6 +10,7 @@ import '../../../../data/enums/friendship_state.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/link_preview_fetcher.dart';
+import '../../../../supabase_config.dart';
 import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
@@ -20,6 +21,7 @@ import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../profile/person/show_person_profile.dart';
+import '../profile/person/verification/show_verification.dart';
 import 'widgets/dm_chat_header.dart';
 import 'widgets/friends/friend_request_bar.dart';
 import 'widgets/friends/not_friends_note.dart';
@@ -70,6 +72,9 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
               : () => unawaited(
                   showCentralProfile(context, friend: _peer(state)),
                 ),
+          onVerify: state.openPeerId == null
+              ? null
+              : () => unawaited(_verify(context, state)),
           onClose: () => context.read<CentralDmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),
@@ -142,6 +147,21 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
   /// where their published keys are — the profile needs them to offer a
   /// message. Falling back to the id and handle alone still draws a profile;
   /// it just cannot say whether they have set encrypted chat up.
+  /// The peer's key as the conversation carries it, against my own central
+  /// account — the pair a central DM is sealed between.
+  Future<void> _verify(BuildContext context, CentralDmState state) async {
+    final peer = _peer(state);
+    await showSafetyCodeFor(
+      context,
+      personName: '@${peer.handle}',
+      tier: 'central',
+      theirId: peer.id,
+      theirChatKey: peer.chatPublicKey,
+      myId: context.read<CentralDmCubit>().myUserId ?? '',
+      host: Uri.parse(SupabaseConfig.supabaseUrl).host,
+    );
+  }
+
   Friend _peer(CentralDmState state) {
     final peerId = state.openPeerId!;
     for (final conversation in state.conversations) {

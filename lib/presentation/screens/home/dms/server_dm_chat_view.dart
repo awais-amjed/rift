@@ -21,6 +21,7 @@ import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../profile/person/show_person_profile.dart';
+import '../profile/person/verification/show_verification.dart';
 import 'widgets/dm_chat_header.dart';
 
 /// Over the widget budget and one job: the open server DM.
@@ -44,6 +45,30 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
   @override
   void loadNewerHistory() => context.read<DmCubit>().loadNewerHistory();
 
+  /// The peer's key, as the conversation list knows it — the same key this
+  /// conversation's messages are sealed to.
+  Future<void> _verify(BuildContext context, DmState state) async {
+    final peerId = state.openPeerId;
+    final server = context.read<ServerCubit>().state.selectedServer;
+    if (peerId == null || server == null) return;
+    String? key;
+    for (final conversation in state.conversations) {
+      if (conversation.peerId == peerId) {
+        key = conversation.peerChatPublicKey;
+        break;
+      }
+    }
+    await showSafetyCodeFor(
+      context,
+      personName: state.openPeerName ?? '',
+      tier: 'server',
+      theirId: peerId,
+      theirChatKey: key,
+      myId: server.user?.id ?? '',
+      host: Uri.parse(server.supabaseUrl).host,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
@@ -65,6 +90,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
                     name: state.openPeerName ?? '',
                   ),
                 ),
+          onVerify: state.openPeerId == null
+              ? null
+              : () => unawaited(_verify(context, state)),
           onClose: () => context.read<DmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),

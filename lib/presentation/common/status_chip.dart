@@ -50,17 +50,43 @@ class StatusChip extends StatelessWidget {
   /// already says everything it claims.
   final String? tooltip;
 
+  /// What pressing it does, for a chip that leads somewhere — the encryption
+  /// chip opens the keys it is making a claim about. Null leaves the chip a
+  /// statement, which is what most of them are.
+  final VoidCallback? onTap;
+
   const StatusChip({
     super.key,
     required this.icon,
     required this.label,
     required this.color,
     this.tooltip,
+    this.onTap,
   });
+
+  /// The encryption chip's tooltip once it can be pressed: same claim, plus
+  /// the way to check it rather than take it on trust.
+  static const String encryptedVerifyTooltip =
+      '$encryptedTooltip Click to check the keys.';
 
   @override
   Widget build(BuildContext context) {
-    final chip = _chip();
+    final press = onTap;
+    // Inside the tooltip, not around it: the ink has to be clipped to the
+    // pill, and the hand cursor belongs to the thing that answers the click.
+    Widget chip = _chip();
+    if (press != null) {
+      chip = Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(K.radiusPill),
+        child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          borderRadius: BorderRadius.circular(K.radiusPill),
+          onTap: press,
+          child: chip,
+        ),
+      );
+    }
     final message = tooltip;
     // Look and delay come from `tooltipTheme`, so this matches every other
     // tooltip in the app.

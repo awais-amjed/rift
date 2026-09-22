@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../common/status_chip.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
+import '../profile/person/verification/show_channel_encryption.dart';
 import 'context_strip.dart';
 
 /// The strip on a phone, where the call is a page of its own.
@@ -97,11 +100,16 @@ class PhoneContextStrip extends StatelessWidget {
               ],
             ),
           ),
-          const StatusChip(
+          StatusChip(
             icon: Icons.lock_outline,
             label: 'Encrypted',
             color: CustomColors.success,
-            tooltip: StatusChip.encryptedTooltip,
+            tooltip: StatusChip.encryptedVerifyTooltip,
+            onTap: () => showCallEncryption(
+              context,
+              channelName: channelName,
+              participants: context.read<AppCubit>().state.participants,
+            ),
           ),
         ],
       ),
