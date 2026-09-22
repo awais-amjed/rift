@@ -136,8 +136,7 @@ class MobileSettingsList extends StatelessWidget {
                     SettingsLinkRow(
                       icon: Icons.graphic_eq_rounded,
                       label: 'Voice & audio',
-                      subtitle:
-                          'Noise suppression, echo cancellation, mic test',
+                      subtitle: 'Noise suppression, mic test, call sounds',
                       onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
                     ),
                     Divider(height: 1, color: theme.borderPrimary),
