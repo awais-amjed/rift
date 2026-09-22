@@ -1,5 +1,6 @@
 //! The second connection a share opens into the call's room.
 use livekit::e2ee::key_provider::{KeyProvider, KeyProviderOptions};
+use livekit::e2ee::manager::E2eeManager;
 use livekit::e2ee::{E2eeOptions, EncryptionType};
 use livekit::prelude::*;
 
@@ -26,13 +27,15 @@ pub(crate) async fn connect(
         key_provider,
     });
 
-    let (room, _events) = Room::connect(livekit_url, livekit_token, room_options)
+    let (room, events) = Room::connect(livekit_url, livekit_token, room_options)
         .await
         .map_err(|e| format!("Failed to connect to LiveKit: {e:?}"))?;
+    keep_key_index_pinned(room.e2ee_manager().clone(), events, e2ee_key_index);
     Ok(room)
 }
 
-/// Point every cryptor at the slot the room is actually reading.
+/// Point every cryptor at the slot the room is actually reading, every time
+/// one is made.
 ///
 /// The Rust SDK creates a sender's frame cryptor and never sets its key index,
 /// so it encrypts into libwebrtc's default slot 0 — while every Rift client
@@ -40,10 +43,26 @@ pub(crate) async fn connect(
 /// happily and decrypts for nobody: the sharer sees "sharing", the room sees a
 /// black tile or silence, and nothing anywhere reports an error.
 ///
-/// Called after every track is published, because a cryptor does not exist
-/// until its track does.
-pub(crate) fn pin_key_index(room: &Room, e2ee_key_index: i32) {
-    for (_, cryptor) in room.e2ee_manager().frame_cryptors() {
-        cryptor.set_key_index(e2ee_key_index);
-    }
+/// Not once after publishing, which is what this used to be: a reconnect
+/// republishes every track with a fresh cryptor back on slot 0, so a share that
+/// survived the server restarting went on to scramble for everyone. The SDK
+/// makes the cryptor before it announces the publish, so the event is late
+/// enough. The task ends when the room closes and its event channel with it.
+fn keep_key_index_pinned(
+    e2ee: E2eeManager,
+    mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>,
+    e2ee_key_index: i32,
+) {
+    tokio::spawn(async move {
+        while let Some(event) = events.recv().await {
+            if matches!(
+                event,
+                RoomEvent::LocalTrackPublished { .. } | RoomEvent::Reconnected
+            ) {
+                for (_, cryptor) in e2ee.frame_cryptors() {
+                    cryptor.set_key_index(e2ee_key_index);
+                }
+            }
+        }
+    });
 }

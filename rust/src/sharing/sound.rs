@@ -63,9 +63,6 @@ pub(crate) async fn start(config: SoundShareConfig) -> Result<String, String> {
         return Err("Could not capture that application’s sound".to_string());
     };
 
-    // After the track, because a cryptor does not exist until its track does.
-    room::pin_key_index(&room, config.e2ee_key_index);
-
     *slot = Some(Session { room, audio });
     log::info!("sound share: started");
     Ok(format!("Connected to room: {room_name} ({room_sid})"))

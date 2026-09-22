@@ -71,10 +71,6 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
         }
     };
 
-    // After both tracks, because a cryptor does not exist until its track
-    // does, and the system-audio track is published later than the video one.
-    room::pin_key_index(&room, config.e2ee_key_index);
-
     *slot = Some(Session {
         room,
         capture,
