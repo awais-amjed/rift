@@ -4,8 +4,10 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../data/enums/app_sound.dart';
 import '../helper_methods.dart';
 import 'browser_apis.dart';
+import 'sound_service.dart';
 import 'window_focus_service.dart';
 
 /// Local notifications for incoming chat messages, on Linux, Windows, macOS,
@@ -164,15 +166,24 @@ class NotificationService {
         !Platform.isAndroid) {
       return;
     }
+    // On a desktop the chime is Rift's own, so it follows the volume and the
+    // mute in settings, and the system's is silenced so there are not two.
+    // Android keeps the system's: its channel is where a phone's owner
+    // already decides how a notification sounds.
+    if (!Platform.isAndroid) {
+      unawaited(SoundService.instance.play(AppSound.message));
+    }
     try {
       await _plugin.show(
         id: id ?? _nextId++,
         title: title,
         body: body,
-        notificationDetails: const NotificationDetails(
-          linux: LinuxNotificationDetails(),
-          windows: WindowsNotificationDetails(),
-          macOS: DarwinNotificationDetails(),
+        notificationDetails: NotificationDetails(
+          linux: const LinuxNotificationDetails(suppressSound: true),
+          windows: WindowsNotificationDetails(
+            audio: WindowsNotificationAudio.silent(),
+          ),
+          macOS: const DarwinNotificationDetails(presentSound: false),
           android: _androidDetails,
         ),
       );

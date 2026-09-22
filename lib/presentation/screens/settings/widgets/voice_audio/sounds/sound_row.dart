@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../data/constants.dart';
-import '../../../../../../data/enums/call_sound.dart';
+import '../../../../../../data/enums/app_sound.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/services/sound_service.dart';
 import '../../../../../common/app_switch.dart';
@@ -11,16 +11,16 @@ import '../../../../../common/volume_slider.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
-/// One pair of call cues: whether it plays, and how loud.
+/// One of Rift's sounds: whether it plays, and how loud.
 ///
 /// Moving the slider plays the cue at the level it is moving through. A
 /// volume for a sound you cannot hear while choosing it is a number, and the
 /// only way to tell whether 40% is too quiet is to listen to 40%.
-class CallSoundRow extends StatelessWidget {
-  final CallSound sound;
+class SoundRow extends StatelessWidget {
+  final AppSound sound;
   final ParticipantSetting setting;
 
-  const CallSoundRow({super.key, required this.sound, required this.setting});
+  const SoundRow({super.key, required this.sound, required this.setting});
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +73,7 @@ class CallSoundRow extends StatelessWidget {
             // every other switch on this page does.
             AppSwitch(
               value: !muted,
-              onChanged: (on) => cubit.setCallSoundMuted(sound, !on),
+              onChanged: (on) => cubit.setSoundMuted(sound, !on),
             ),
           ],
         ),
@@ -85,7 +85,7 @@ class CallSoundRow extends StatelessWidget {
                 onChanged: muted
                     ? null
                     : (volume) {
-                        cubit.setCallSoundVolume(sound, volume);
+                        cubit.setSoundVolume(sound, volume);
                         SoundService.instance.preview(sound, volume);
                       },
               ),

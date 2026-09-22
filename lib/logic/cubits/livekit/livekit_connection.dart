@@ -237,12 +237,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
           onLeave: disconnect,
         ),
       );
-      unawaited(
-        SoundService.instance.play(
-          CallSound.presence,
-          _appCubit.state.callSounds,
-        ),
-      );
+      unawaited(SoundService.instance.play(AppSound.presence));
       // Joining already deafened is a state nobody else can see unless it is
       // said — and rejoining while deafened is exactly what a reconnect does.
       unawaited(_publishSelfState());

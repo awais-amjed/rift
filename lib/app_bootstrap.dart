@@ -11,6 +11,7 @@ import 'logic/services/browser_apis.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/push_service.dart';
+import 'logic/services/sound_service.dart';
 import 'logic/services/storage_namespace.dart';
 import 'logic/services/text_safety.dart';
 import 'logic/services/tray_service.dart';
@@ -38,6 +39,9 @@ class AppBootstrap {
     await _initHydratedStorage(storageSuffix);
 
     final appCubit = AppCubit();
+    // Every sound reads its mute and volume from here, including the ones
+    // raised by services that hold no cubit of their own.
+    SoundService.instance.readSettingsFrom(() => appCubit.state.appSounds);
     // Desktop, not "not web". window_manager ships no Android or iOS
     // implementation at all, so calling it there is a method channel with
     // nothing on the other end — a MissingPluginException thrown before the

@@ -1,5 +1,5 @@
 /// This device's own mute and volume for one person, one shared sound, or one
-/// pair of call cues (`CallSound`). Nobody else sees it and no server stores
+/// of Rift's own sounds (`AppSound`). Nobody else sees it and no server stores
 /// it; it persists in `AppState`.
 class ParticipantSetting {
   final bool muted;

@@ -15,6 +15,7 @@ import '../../../data/classes/friend_buckets.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/paged.dart';
 import '../../../data/classes/pending_attachment.dart';
+import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/friendship_state.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/notification_level.dart';
@@ -32,6 +33,7 @@ import '../../services/new_message_notifier.dart';
 import '../../services/outbox.dart';
 import '../../services/push_service.dart';
 import '../../services/quote_lookup.dart';
+import '../../services/sound_service.dart';
 import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';
 import '../vault/vault_cubit.dart';
@@ -157,9 +159,18 @@ class CentralDmCubit extends Cubit<CentralDmState>
   void _onIncoming(String senderId) {
     if (isClosed) return;
     unawaited(refreshConversation(senderId));
-    if (state.chatStatus == DmChatStatus.ready &&
-        state.openPeerId == senderId) {
-      unawaited(_fetchAfterLatest());
+    final isOpen =
+        state.chatStatus == DmChatStatus.ready && state.openPeerId == senderId;
+    if (isOpen) unawaited(_fetchAfterLatest());
+
+    // The chime for a focused window, when the conversation is not the one
+    // on screen. Unfocused, the notification carries it — see
+    // [NotificationService.showMessage].
+    final onScreen = isOpen && _lastSurface == HomeSurface.centralDms;
+    final muted =
+        (state.levelsByPeer[senderId] ?? NotificationLevel.dmDefault).isMuted;
+    if (WindowFocusService.instance.isFocused && !onScreen && !muted) {
+      unawaited(SoundService.instance.play(AppSound.message));
     }
   }
 

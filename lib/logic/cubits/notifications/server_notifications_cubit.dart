@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
 import '../../../data/classes/server.dart';
+import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../services/broadcast_payload.dart';
@@ -12,6 +13,7 @@ import '../../services/notification_service.dart';
 import '../../services/per_server_map.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
+import '../../services/sound_service.dart';
 import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';
 import '../channel_chat/channel_chat_cubit.dart';
@@ -206,9 +208,16 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     // a mention from an ordinary line. Whoever can read it should be the one
     // describing it — and only one of us may, or it arrives twice.
     final level = state.channelLevel(serverId, channelId);
-    if (!focused &&
-        !isOpenChannel &&
-        level.announces(mentioned: _rowNamesMe(serverId, row))) {
+    if (!level.announces(mentioned: _rowNamesMe(serverId, row))) return;
+
+    // Looking at the app but not at this channel: no notification, which
+    // would be a banner over the window you are using, but the chime. An
+    // unfocused window gets it from [NotificationService] instead.
+    if (focused) {
+      unawaited(SoundService.instance.play(AppSound.message));
+      return;
+    }
+    if (!isOpenChannel) {
       final server = _serverById(serverId);
       String? channelName;
       for (final c in server?.channels ?? const []) {
@@ -254,9 +263,15 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
 
     // A DM has nobody else in it to be named among, so `mentions` reads as
     // `all` here — the same answer the server's ring trigger gives it.
-    if (!WindowFocusService.instance.isFocused &&
-        !state.dmLevel(serverId, peerId).isMuted &&
-        serverId != _serverCubit.state.selectedServerId) {
+    if (state.dmLevel(serverId, peerId).isMuted) return;
+
+    // Focused, on any server: the chime, as for a channel. DmCubit never
+    // speaks while the window is focused, so this is the only one that does.
+    if (WindowFocusService.instance.isFocused) {
+      unawaited(SoundService.instance.play(AppSound.message));
+      return;
+    }
+    if (serverId != _serverCubit.state.selectedServerId) {
       unawaited(_notifyBackgroundDm(serverId, peerId));
     }
   }

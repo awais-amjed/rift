@@ -51,8 +51,8 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
       const [],
   soundboardMuted: json['soundboardMuted'] as bool? ?? false,
   soundboardVolume: (json['soundboardVolume'] as num?)?.toDouble() ?? 0.6,
-  callSounds:
-      (json['callSounds'] as Map<String, dynamic>?)?.map(
+  appSounds:
+      (json['appSounds'] as Map<String, dynamic>?)?.map(
         (k, e) =>
             MapEntry(k, ParticipantSetting.fromJson(e as Map<String, dynamic>)),
       ) ??
@@ -96,7 +96,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'autoGainControl': instance.autoGainControl,
   'soundboardMuted': instance.soundboardMuted,
   'soundboardVolume': instance.soundboardVolume,
-  'callSounds': instance.callSounds.map((k, e) => MapEntry(k, e.toJson())),
+  'appSounds': instance.appSounds.map((k, e) => MapEntry(k, e.toJson())),
   'recentEmojis': instance.recentEmojis,
 };
 

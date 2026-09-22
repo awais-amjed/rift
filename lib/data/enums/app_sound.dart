@@ -1,12 +1,23 @@
 import '../classes/participant_setting.dart';
 
-/// The cues a call plays on this device, in the pairs a person thinks of
-/// them in: nobody wants the join tone and not the leave tone.
+/// The sounds Rift plays on this device. The call's come in the pairs a
+/// person thinks of them in — nobody wants the join tone and not the leave
+/// tone — and a new message is the one that stands alone.
 ///
-/// Each pair is muted and turned down as one, in `AppState.callSounds` under
+/// Each is muted and turned down as one, in `AppState.appSounds` under
 /// its [name]. A volume there is a share of `SoundService`'s ceiling, not of
 /// the speaker, so the slider's middle is what the app has always played.
-enum CallSound {
+enum AppSound {
+  /// Two falling notes, F5 to D5: above the call's cues, which sit around A4,
+  /// so a message is never mistaken for somebody joining, and falling where
+  /// join rises.
+  message(
+    label: 'New messages',
+    description:
+        'A message you would be notified about, in a conversation you are '
+        'not looking at.',
+    startAsset: 'audio/message.mp3',
+  ),
   presence(
     label: 'Join and leave',
     description: 'Someone, you included, enters or leaves your voice channel.',
@@ -35,13 +46,15 @@ enum CallSound {
   final String label;
   final String description;
   final String startAsset;
-  final String endAsset;
 
-  const CallSound({
+  /// The closing half of a pair, or null for a sound that has none.
+  final String? endAsset;
+
+  const AppSound({
     required this.label,
     required this.description,
     required this.startAsset,
-    required this.endAsset,
+    this.endAsset,
   });
 
   /// Where a slider starts before anybody has touched it: half the ceiling,

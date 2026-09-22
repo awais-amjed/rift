@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 
 import '../../data/classes/participant_setting.dart';
-import '../../data/enums/call_sound.dart';
+import '../../data/enums/app_sound.dart';
 import '../helper_methods.dart';
 
-/// Plays the call's cues — join and leave, push-to-talk, streams, viewers —
-/// at the volume each is set to in settings.
+/// Plays Rift's own sounds — a new message, and the call's cues — at the
+/// volume each is set to in settings.
 ///
 /// The service manages its own [AudioPlayer] pool so that rapid successive
 /// calls never block or cut off a previous sound.
@@ -18,7 +18,7 @@ class SoundService {
 
   /// The player volume at 100% on a settings slider. Twice what every cue
   /// played at before the sliders existed, so the default sits mid-track
-  /// with room to go both ways — see [CallSound.defaultVolume].
+  /// with room to go both ways — see [AppSound.defaultVolume].
   static const _ceiling = 0.3;
 
   /// How long to wait for a sound to finish before reclaiming its player.
@@ -29,28 +29,47 @@ class SoundService {
   /// in which no single tone, and so no volume, can be heard.
   static const _previewGap = Duration(milliseconds: 250);
 
+  /// The shortest gap between two message chimes — see [play].
+  static const _messageGap = Duration(seconds: 1);
+
   // ──────────────────────────────────────────────────────────
   // Public API
   // ──────────────────────────────────────────────────────────
 
-  /// Plays one side of [sound] — the opening tone, or with [ending] the
-  /// closing one — as [settings] says: not at all when that pair is muted,
-  /// and otherwise at its share of [_ceiling].
+  /// Where [play] reads each sound's mute and volume — `AppState.appSounds`,
+  /// connected once at startup by [readSettingsFrom].
   ///
-  /// [settings] is `AppState.callSounds`, handed in rather than read here
-  /// so this stays a player and the choice stays in the cubit that holds it.
-  Future<void> play(
-    CallSound sound,
-    Map<String, ParticipantSetting> settings, {
-    bool ending = false,
-  }) async {
-    final setting = sound.settingIn(settings);
+  /// A getter rather than a copy, so a change in settings is heard on the
+  /// next sound without anything having to tell this service. Until it is
+  /// connected every sound plays at its default, which only the push
+  /// isolate ever sees, and that plays nothing.
+  Map<String, ParticipantSetting> Function() _settings = () => const {};
+
+  /// Connects [play] to the settings — see [_settings].
+  void readSettingsFrom(Map<String, ParticipantSetting> Function() settings) =>
+      _settings = settings;
+
+  /// Plays one side of [sound] — the opening tone, or with [ending] the
+  /// closing one — as the settings say: not at all when it is muted, and
+  /// otherwise at its share of [_ceiling].
+  ///
+  /// A burst of messages is one chime, not a run of them: the second of two
+  /// arriving inside [_messageGap] says nothing the first did not.
+  Future<void> play(AppSound sound, {bool ending = false}) async {
+    final setting = sound.settingIn(_settings());
     if (setting.muted || setting.volume <= 0) return;
+    if (sound == AppSound.message) {
+      final now = DateTime.now();
+      if (now.difference(_lastMessage) < _messageGap) return;
+      _lastMessage = now;
+    }
     await _play(
-      ending ? sound.endAsset : sound.startAsset,
+      ending ? (sound.endAsset ?? sound.startAsset) : sound.startAsset,
       setting.volume * _ceiling,
     );
   }
+
+  DateTime _lastMessage = DateTime.fromMillisecondsSinceEpoch(0);
 
   /// Plays [sound] at [volume] for somebody choosing it in settings.
   ///
@@ -58,7 +77,7 @@ class SoundService {
   /// is still sounding, a drag only turns it up or down, so the change is
   /// heard *on* the sound rather than as a new one — and a long tone is not
   /// stacked on itself a dozen times by one sweep of the thumb.
-  Future<void> preview(CallSound sound, double volume) async {
+  Future<void> preview(AppSound sound, double volume) async {
     final player = _previewPlayer ??= AudioPlayer();
     final gain = volume.clamp(0.0, 1.0) * _ceiling;
     try {
@@ -79,7 +98,7 @@ class SoundService {
   }
 
   AudioPlayer? _previewPlayer;
-  CallSound? _previewing;
+  AppSound? _previewing;
   DateTime _lastPreviewStart = DateTime.fromMillisecondsSinceEpoch(0);
 
   // ──────────────────────────────────────────────────────────
