@@ -5,11 +5,9 @@ import '../../../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../../../data/constants.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../../../common/context_menu/context_menu_button.dart';
 import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/hover_builder.dart';
 import '../../../../../../../common/member_avatar.dart';
-import '../../../../../../../responsive/shell_scope.dart';
 import '../../../../../../../theme/custom_colors.dart';
 import '../../../../../../../theme/theme_context.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
@@ -92,8 +90,6 @@ class PresenceMemberRow extends StatelessWidget {
                 size: RosterRowMetrics.of(context).iconSize + 2,
                 color: CustomColors.error,
               ),
-            if (!context.layoutMode.isCompact)
-              ContextMenuButton(menu: menu, visible: hovered),
           ],
         ),
       ),

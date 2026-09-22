@@ -18,11 +18,6 @@ import 'server_dms_context_menu.dart';
 class ServerDmsRow extends StatelessWidget {
   const ServerDmsRow({super.key});
 
-  /// The menu is admin-only — see [ServerDmsContextMenu.wrap].
-  bool _isAdmin(BuildContext context) => context.select<ServerCubit, bool>(
-    (c) => c.state.selectedServer?.user?.permissions.isServerAdmin ?? false,
-  );
-
   @override
   Widget build(BuildContext context) {
     // Unread DMs, not a tally of open conversations: the badge used to show how
@@ -48,11 +43,6 @@ class ServerDmsRow extends StatelessWidget {
           child: ServerDmsContextMenu.wrap(
             context: context,
             child: NavRow(
-              // Server DM settings live in this menu, and used to be reachable
-              // only by right-clicking a row nobody thinks to right-click.
-              overflowMenu: _isAdmin(context)
-                  ? const ServerDmsContextMenu()
-                  : null,
               icon: Icons.forum_outlined,
               label: 'Server DMs',
               isSelected: appState.surface == HomeSurface.serverDms,

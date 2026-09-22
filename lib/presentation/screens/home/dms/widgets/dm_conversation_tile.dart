@@ -4,10 +4,8 @@ import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/notification_level.dart';
 import '../../../../../logic/services/conversation_time.dart';
-import '../../../../common/context_menu/context_menu_button.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
-import '../../../../common/hover_builder.dart';
 import '../../../../common/notifications/notification_level_submenu.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../common/unread_badge.dart';
@@ -71,15 +69,10 @@ class DmConversationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final onLevelChanged = this.onLevelChanged;
-    if (onLevelChanged == null && menuItems.isEmpty) {
-      return _tile(context, null, false);
-    }
-    final menu = _menu(onLevelChanged);
+    if (onLevelChanged == null && menuItems.isEmpty) return _tile(context);
     return ContextMenuRegion(
-      contextMenu: menu,
-      child: HoverBuilder(
-        builder: (context, hovered) => _tile(context, menu, hovered),
-      ),
+      contextMenu: _menu(onLevelChanged),
+      child: _tile(context),
     );
   }
 
@@ -112,16 +105,13 @@ class DmConversationTile extends StatelessWidget {
     );
   }
 
-  /// [menu] also opens from a ••• while the tile is hovered or open, taking
-  /// the place of an unread count the way a channel row's does.
-  Widget _tile(BuildContext context, Widget? menu, bool hovered) {
+  Widget _tile(BuildContext context) {
     final themeState = context.theme;
     // A step rounder than a channel row: this tile carries two lines and an
     // avatar, and at the row radius it reads as a cramped version of one.
     final radius = BorderRadius.circular(K.radiusRow);
     final preview = conversation.lastMessage?.text;
     final compact = context.layoutMode.isCompact;
-    final showButton = menu != null && !compact;
     final sentAt = conversation.lastMessage?.sentAt;
 
     return Material(
@@ -201,7 +191,7 @@ class DmConversationTile extends StatelessWidget {
                       ),
                   ],
                 )
-              else if (unreadCount > 0 && !(showButton && hovered))
+              else if (unreadCount > 0)
                 UnreadBadge(count: unreadCount, isMuted: level.isMuted)
               else if (level.isMuted)
                 Icon(
@@ -209,8 +199,6 @@ class DmConversationTile extends StatelessWidget {
                   size: 14,
                   color: themeState.textTertiary,
                 ),
-              if (showButton)
-                ContextMenuButton(menu: menu, visible: hovered || isSelected),
             ],
           ),
         ),

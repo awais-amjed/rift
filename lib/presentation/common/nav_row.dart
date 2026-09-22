@@ -6,8 +6,6 @@ import '../responsive/shell_scope.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
-import 'context_menu/context_menu_button.dart';
-import 'unread_badge.dart';
 
 /// Over the widget budget and one job: the sidebar row, whose three states and
 /// their motion are the point of it.
@@ -21,13 +19,7 @@ import 'unread_badge.dart';
 /// ways; unread only brightens the text and adds a count, so a long list
 /// still reads as one selected row among many rather than a wall of
 /// highlights.
-///
-/// [overflowMenu] is the row's right-click menu, handed over again so it can
-/// also be opened from a ••• that appears while the row is hovered or
-/// selected (see [ContextMenuButton]). An unread count gives way to it — a
-/// count you are about to act on is noise — while a state icon such as a muted
-/// bell stays, with the button after it.
-class NavRow extends StatefulWidget {
+class NavRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
@@ -51,10 +43,6 @@ class NavRow extends StatefulWidget {
   /// so it never draws one.
   final bool pushes;
 
-  /// The menu the ••• opens. Null draws no button. Not on a phone, where
-  /// long-press already opens it and there is no hover to reveal one.
-  final Widget? overflowMenu;
-
   const NavRow({
     super.key,
     required this.icon,
@@ -64,53 +52,23 @@ class NavRow extends StatefulWidget {
     this.trailing,
     this.iconBadge,
     this.onTap,
-    this.overflowMenu,
     this.pushes = false,
   });
 
-  @override
-  State<NavRow> createState() => _NavRowState();
-}
-
-class _NavRowState extends State<NavRow> {
-  bool _hovered = false;
-
-  IconData get icon => widget.icon;
-  String get label => widget.label;
-  bool get isSelected => widget.isSelected;
-  bool get isUnread => widget.isUnread;
-  Widget? get iconBadge => widget.iconBadge;
-  VoidCallback? get onTap => widget.onTap;
-
-  /// The trailing slot with the overflow button worked in.
+  /// The trailing slot, with a phone's chevron on a row that opens a page.
   Widget? _trailing(BuildContext context) {
-    final trailing = widget.trailing;
-    final menu = widget.overflowMenu;
-    if (context.layoutMode.isCompact) {
-      if (!widget.pushes) return trailing;
-      final chevron = Icon(
-        Icons.chevron_right_rounded,
-        size: 18,
-        color: context.theme.textQuaternary,
-      );
-      if (trailing == null) return chevron;
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 8,
-        children: [trailing, chevron],
-      );
-    }
-    if (menu == null) return trailing;
-
-    final active = _hovered || isSelected;
-    final button = ContextMenuButton(menu: menu, visible: active);
-    // Badges yield, state icons don't.
-    if (trailing is UnreadBadge && active) return button;
-    if (trailing == null) return button;
+    final trailing = this.trailing;
+    if (!context.layoutMode.isCompact || !pushes) return trailing;
+    final chevron = Icon(
+      Icons.chevron_right_rounded,
+      size: 18,
+      color: context.theme.textQuaternary,
+    );
+    if (trailing == null) return chevron;
     return Row(
       mainAxisSize: MainAxisSize.min,
-      spacing: 6,
-      children: [trailing, button],
+      spacing: 8,
+      children: [trailing, chevron],
     );
   }
 
@@ -127,11 +85,6 @@ class _NavRowState extends State<NavRow> {
         borderRadius: radius,
         hoverColor: themeState.bgHover,
         onTap: onTap,
-        // The row's own hover, which the ••• follows — not a second
-        // region watching the same pointer.
-        onHover: widget.overflowMenu == null
-            ? null
-            : (hovered) => setState(() => _hovered = hovered),
         // Lights up over [AppMotion.state] rather than switching. Nothing
         // waits on it — the row you picked is already the selected one the
         // moment you press — but selection moving between two rows is the

@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../../../../../../data/classes/channel.dart';
 import '../../../../../../../../data/constants.dart';
-import '../../../../../../../common/context_menu/context_menu_button.dart';
-import '../../../../../../../common/hover_builder.dart';
-import '../../../../../../../responsive/shell_scope.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/theme_context.dart';
 import '../../channel_lock_badge.dart';
@@ -28,16 +25,12 @@ class VoiceChannelTileHeader extends StatelessWidget {
 
   final VoidCallback? onTap;
 
-  /// The channel's menu, for the ••• at the end of the row. Null draws none.
-  final Widget? menu;
-
   const VoiceChannelTileHeader({
     super.key,
     required this.channel,
     required this.isSelected,
     required this.listeners,
     this.onTap,
-    this.menu,
   });
 
   @override
@@ -47,72 +40,62 @@ class VoiceChannelTileHeader extends StatelessWidget {
     // otherwise the highlight lands on the sidebar behind and the card covers
     // it, and the one row you can click looks exactly like the roster rows
     // under it, which you cannot.
-    return HoverBuilder(
-      builder: (context, hovered) => Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          mouseCursor: WidgetStateMouseCursor.clickable,
-          borderRadius: BorderRadius.circular(K.radiusRow),
-          onTap: onTap,
-          child: Padding(
-            // The people rows' horizontal padding, so the speaker icon lines
-            // up with the avatars under it and the two hovers are one width.
-            padding: EdgeInsets.symmetric(
-              horizontal: RosterRowMetrics.of(context).padding.left,
-              vertical: RosterRowMetrics.of(context).headerVerticalPadding,
-            ),
-            child: Row(
-              spacing: 9,
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Icon(
-                        Icons.volume_up_rounded,
-                        size: 16,
-                        color: isSelected
-                            ? themeState.accentBright
-                            : themeState.textTertiary,
-                      ),
-                      if (channel.isPrivate)
-                        const Positioned(
-                          right: -4,
-                          bottom: -3,
-                          child: ChannelLockBadge(),
-                        ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    channel.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.row.copyWith(
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+        borderRadius: BorderRadius.circular(K.radiusRow),
+        onTap: onTap,
+        child: Padding(
+          // The people rows' horizontal padding, so the speaker icon lines
+          // up with the avatars under it and the two hovers are one width.
+          padding: EdgeInsets.symmetric(
+            horizontal: RosterRowMetrics.of(context).padding.left,
+            vertical: RosterRowMetrics.of(context).headerVerticalPadding,
+          ),
+          child: Row(
+            spacing: 9,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      Icons.volume_up_rounded,
+                      size: 16,
                       color: isSelected
-                          ? themeState.channelActiveText
-                          : themeState.textSecondary,
+                          ? themeState.accentBright
+                          : themeState.textTertiary,
                     ),
+                    if (channel.isPrivate)
+                      const Positioned(
+                        right: -4,
+                        bottom: -3,
+                        child: ChannelLockBadge(),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  channel.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.row.copyWith(
+                    color: isSelected
+                        ? themeState.channelActiveText
+                        : themeState.textSecondary,
                   ),
                 ),
-                // Before LIVE, not after: whether you can be heard by a bot is
-                // the thing to read before deciding to speak, and LIVE is about
-                // the call you already joined.
-                VoiceListeningBadge(listeners: listeners),
-                if (isSelected) const LiveBadge(),
-                // After the badges, not before: they describe the channel, and
-                // this acts on it. Only the header can be pressed, so the button
-                // belongs to its row rather than to the card.
-                if (menu != null && !context.layoutMode.isCompact)
-                  ContextMenuButton(
-                    menu: menu!,
-                    visible: hovered || isSelected,
-                  ),
-              ],
-            ),
+              ),
+              // Before LIVE, not after: whether you can be heard by a bot is
+              // the thing to read before deciding to speak, and LIVE is about
+              // the call you already joined.
+              VoiceListeningBadge(listeners: listeners),
+              if (isSelected) const LiveBadge(),
+            ],
           ),
         ),
       ),

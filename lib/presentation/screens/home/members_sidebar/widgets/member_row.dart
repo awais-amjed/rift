@@ -4,11 +4,9 @@ import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
-import '../../../../common/context_menu/context_menu_button.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/hover_builder.dart';
 import '../../../../common/user_avatar.dart';
-import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
@@ -62,8 +60,6 @@ class MemberRow extends StatelessWidget {
     );
   }
 
-  /// [menu] also opens from a ••• on hover — local mute and volume are in it,
-  /// and nothing on the row said so.
   Widget _buildRow(BuildContext context, Widget? menu, bool hovered) {
     final themeState = context.theme;
     final locallyMuted = setting?.muted ?? false;
@@ -99,8 +95,6 @@ class MemberRow extends StatelessWidget {
                 ),
               ),
               ..._badges(locallyMuted),
-              if (menu != null && !context.layoutMode.isCompact)
-                ContextMenuButton(menu: menu, visible: hovered),
             ],
           ),
         ),

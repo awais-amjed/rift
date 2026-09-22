@@ -8,9 +8,8 @@ import 'context_menu_watcher.dart';
 
 /// One open context menu, owned by whatever opened it.
 ///
-/// Shared by the right-click region and the overflow button, so a menu opened
-/// either way is the same object: placed against the same point, dismissed by
-/// the same barrier, and shown as a bottom sheet on a phone. The owner calls
+/// Owned by the right-click region: placed against the pointer, dismissed by
+/// a barrier, and shown as a bottom sheet on a phone. The owner calls
 /// [dismiss] when it goes away, so a menu never outlives the row it belongs to.
 class ContextMenuOverlay {
   OverlayEntry? _entry;

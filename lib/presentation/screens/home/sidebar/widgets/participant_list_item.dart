@@ -5,12 +5,10 @@ import '../../../../../data/classes/participant_info.dart';
 import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../common/context_menu/context_menu_button.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/hover_builder.dart';
 import '../../../../common/member_avatar.dart';
 import '../../../../common/speaking_ring.dart';
-import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_row_metrics.dart';
 import 'voice_status_row_icons.dart';
@@ -56,7 +54,7 @@ class ParticipantListItem extends StatelessWidget {
 
     // A tint rather than an ink well: clicking a person does nothing —
     // their profile and everything else is in the menu — and a well with
-    // no tap would not light up at all, hiding the row's ••• with it.
+    // no tap would not light up at all.
     Widget content = Material(
       // Transparent at rest, not null: a null Material paints the canvas
       // colour, which drew a dark strip inside the channel's card.
@@ -102,12 +100,6 @@ class ParticipantListItem extends StatelessWidget {
             ),
             // What they are doing: sharing, deafened, muted.
             VoiceStatusRowIcons(participant: participant, mutedForYou: isMuted),
-            // Local mute and volume live in this menu, and nothing on
-            // the row suggested they existed.
-            if (contextMenu != null && !context.layoutMode.isCompact) ...[
-              const SizedBox(width: 6),
-              ContextMenuButton(menu: contextMenu!, visible: hovered),
-            ],
           ],
         ),
       ),

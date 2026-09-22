@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Rebuilds [builder] with whether the pointer is over [child]'s area.
 ///
 /// For rows that have no hover of their own to borrow — a presence row, a
-/// participant — and need one to show an overflow button.
+/// participant — and need one to light up under the pointer.
 class HoverBuilder extends StatefulWidget {
   final Widget Function(BuildContext context, bool hovered) builder;
 
