@@ -76,6 +76,15 @@ class VideoStreamStats {
   }
 }
 
+/// How many keyframes the inbound video stream has decoded, or null before
+/// the stream is in [reports] — see `CleanPictureGate`.
+int? keyFramesDecodedIn(List<StatsReport> reports) {
+  final inbound = reports
+      .where((r) => r.type == 'inbound-rtp' && r.values['kind'] == 'video')
+      .firstOrNull;
+  return (inbound?.values['keyFramesDecoded'] as num?)?.toInt();
+}
+
 /// Turns successive WebRTC stats reports into [VideoStreamStats].
 ///
 /// Stateful on purpose: bitrate, FPS and dropped frames are *rates*, so each

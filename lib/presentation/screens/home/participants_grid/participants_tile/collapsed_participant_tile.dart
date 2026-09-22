@@ -6,6 +6,7 @@ import '../../../../common/speaking_ring.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/theme_context.dart';
 import 'avatar_placeholder.dart';
+import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
 import 'shape_reporting_video.dart';
 import 'stop_watching_button.dart';
@@ -80,13 +81,22 @@ class CollapsedParticipantTile extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (videoTrack != null && onAspectRatio != null)
-                ShapeReportingVideo(
-                  key: ObjectKey(videoTrack),
+                DecryptedVideo(
                   track: videoTrack!,
-                  onAspectRatio: onAspectRatio!,
+                  child: ShapeReportingVideo(
+                    key: ObjectKey(videoTrack),
+                    track: videoTrack!,
+                    onAspectRatio: onAspectRatio!,
+                  ),
                 )
               else if (videoTrack != null)
-                VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain)
+                DecryptedVideo(
+                  track: videoTrack!,
+                  child: VideoTrackRenderer(
+                    videoTrack!,
+                    fit: VideoViewFit.contain,
+                  ),
+                )
               else if (!showWatchButton)
                 AvatarPlaceholder(name: name, seed: userId),
               if (showWatchButton) WatchStreamButton(onTap: onWatch),

@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/video_stats_sampler.dart';
 import '../../../../theme/app_motion.dart';
 import 'avatar_placeholder.dart';
+import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
 import 'stop_watching_button.dart';
 import 'stream_quality_badge.dart';
@@ -94,7 +95,10 @@ class ExpandedParticipantTile extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         if (videoTrack != null)
-          VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain)
+          DecryptedVideo(
+            track: videoTrack!,
+            child: VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain),
+          )
         else if (!showWatchButton)
           AvatarPlaceholder(name: name, seed: userId),
         if (showStats && stats != null)
