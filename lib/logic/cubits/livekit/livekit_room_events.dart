@@ -102,7 +102,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         // connect registers nobody, and `ParticipantConnected` only ever fires
         // for people who arrive *after* you. Whoever joined second heard
         // silence — connected, subscribed, and decrypting nothing.
-        unawaited(_registerSubscribedKey(e.participant.identity));
+        unawaited(_registerTrackKey(e.participant.identity));
         // Saved mute and volume, now that there is a track to put them on.
         // Publishing is too early: the track arrives after it, so somebody
         // who came back, or streamed again, was heard at full volume.
@@ -139,6 +139,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       // Your own phone stream, which on a desktop would arrive as somebody
       // joining: the sharer hears it start and end like everyone else.
       ..on<LocalTrackPublishedEvent>((e) {
+        // And your own key, on the cryptor LiveKit has just built for this
+        // track. Your microphone is published *inside* `room.connect`, before
+        // any key exists to index by — see [_registerTrackKey] for what that
+        // costs. Every later publish comes through here too: unmuting, the
+        // camera, a rebuilt track after the input device moved.
+        unawaited(_registerTrackKey(e.participant.identity));
         if (e.publication.source == TrackSource.screenShareVideo) {
           SoundService.instance.play(AppSound.stream);
         }

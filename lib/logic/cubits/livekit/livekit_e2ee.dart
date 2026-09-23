@@ -313,15 +313,25 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     );
   }
 
-  /// Register a key for somebody whose track just arrived, and point their
-  /// frame cryptor at the right slot.
+  /// Register a key for a track that has just appeared, and point the frame
+  /// cryptor LiveKit made for it at the right slot.
   ///
-  /// The cryptor is created by LiveKit's own `TrackSubscribed` listener, which
-  /// reads the key index *at that moment* — and the order of two listeners on
-  /// one event is not something to rely on. So the index is set again here
-  /// rather than assumed: setting it twice costs nothing, and getting it once
-  /// too late is a participant nobody can hear.
-  Future<void> _registerSubscribedKey(String identity) async {
+  /// The cryptor is created by LiveKit's own track listener, which reads the
+  /// key index *at that moment* — and the order of two listeners on one event
+  /// is not something to rely on. So the index is set again here rather than
+  /// assumed: setting it twice costs nothing, and getting it once too late is
+  /// a participant nobody can hear.
+  ///
+  /// **This matters most for your own microphone.** `room.connect` publishes
+  /// it through `FastConnectOptions`, which means `LocalTrackPublished` fires
+  /// *inside* connect — before anything has registered a key. LiveKit's
+  /// `getLatestIndex` then answers 0, the sender's cryptor is built on slot 0,
+  /// and the key arrives a moment later on slot `version % 16`, which for the
+  /// ordinary version 1 is slot 1. Nothing afterwards moves the cryptor. The
+  /// call connects, the track publishes, the roster fills in, every log line
+  /// is green, and not one frame of that person's voice ever encrypts — so
+  /// nobody hears them, and nothing says why.
+  Future<void> _registerTrackKey(String identity) async {
     await _registerParticipantKey(identity);
     try {
       await state.room?.e2eeManager?.setKeyIndex(

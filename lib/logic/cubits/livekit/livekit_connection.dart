@@ -199,6 +199,18 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // registered is one nobody can hear, so this happens before the state
       // says connected.
       await _registerAllParticipantKeys(room);
+      // And every cryptor that already exists is pointed at the slot those
+      // keys went into. The microphone is published by `FastConnectOptions`
+      // *inside* the connect above, so its sender cryptor was built before
+      // there was a key to index by and took slot 0 — while the key lands on
+      // `version % 16`, which is slot 1 for an unrotated channel. Without
+      // this the call comes up perfectly and nobody can hear you.
+      //
+      // Not the listener's job: `LocalTrackPublished` fires while
+      // `state.room` is still null, so it has no room to ask. It covers every
+      // publish after this one — unmuting, the camera, a track rebuilt when
+      // the input device moved.
+      await room.e2eeManager?.setKeyIndex(_callKeyIndex);
       // And from here on, a key rotated by somebody being removed has to reach
       // this call rather than waiting for a rejoin.
       _watchKeyRotations(server, channelId);
