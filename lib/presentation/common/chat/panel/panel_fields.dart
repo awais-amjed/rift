@@ -28,10 +28,16 @@ class PanelFields extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // A fixed column, so the values line up down the page —
+                  // that is the whole reason this is a table. Capped at two
+                  // lines, or a long label wraps into a narrow ribbon beside
+                  // its value.
                   SizedBox(
-                    width: 96,
+                    width: 112,
                     child: Text(
                       field.label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: AppText.meta.copyWith(
                         color: themeState.textTertiary,
                       ),

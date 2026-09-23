@@ -4,6 +4,7 @@ import '../../../../data/classes/panel_block.dart';
 import '../../../../data/constants.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../link_preview_card.dart';
 import 'panel_actions.dart';
 import 'panel_fields.dart';
 
@@ -30,18 +31,32 @@ class PanelView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    return Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: themeState.bgSecondary,
-        borderRadius: BorderRadius.circular(K.radiusRow),
-        border: Border.all(color: themeState.borderPrimary),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [for (final block in panel.blocks) _block(context, block)],
+    // Bounded, and no wider than its content. A panel used to take the whole
+    // chat column whatever it held, so a bot answering "Stopped" got a
+    // bordered card three quarters of the screen wide around one word, which
+    // reads as a rendering fault rather than a reply. The same width as a
+    // link preview, because they are the same kind of thing: a bounded card
+    // inside a message.
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: LinkPreviewCard.maxWidth),
+        child: Container(
+          margin: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: themeState.bgSecondary,
+            borderRadius: BorderRadius.circular(K.radiusRow),
+            border: Border.all(color: themeState.borderPrimary),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final block in panel.blocks) _block(context, block),
+            ],
+          ),
+        ),
       ),
     );
   }
