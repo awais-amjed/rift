@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../responsive/compact_only.dart';
 import '../theme/theme_context.dart';
 import 'popover_surface.dart';
 
@@ -9,6 +10,10 @@ import 'popover_surface.dart';
 /// one of them wrong is silent: without `isScrollControlled` a tall sheet is
 /// cut off at half the screen, and without a background the modal it contains
 /// draws straight over whatever is behind it.
+///
+/// A sheet is the phone's shape for a dialog and has no wide form, so it is
+/// wrapped in a [CompactOnly]: widening the window past the breakpoint
+/// closes it rather than leaving it stranded over chrome that has come back.
 ///
 /// [child] is built by the caller while its context is still mounted — a
 /// route rebuilds for reasons that have nothing to do with what opened it,
@@ -26,6 +31,6 @@ Future<T?> showAppSheet<T>(BuildContext context, Widget child) {
         top: Radius.circular(PopoverSurface.radius),
       ),
     ),
-    builder: (_) => child,
+    builder: (_) => CompactOnly(child: child),
   );
 }

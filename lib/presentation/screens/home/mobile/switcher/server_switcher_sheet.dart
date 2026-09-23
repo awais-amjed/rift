@@ -10,6 +10,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_modal_header_button.dart';
 import '../../../../common/title_bar_overlay.dart';
+import '../../../../responsive/compact_only.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
@@ -33,7 +34,8 @@ Future<void> showServerSwitcherSheet(BuildContext context) {
     barrierLabel: 'Close switcher',
     barrierColor: MediaColors.scrim,
     transitionDuration: K.sidebarMotion,
-    pageBuilder: (_, _, _) => const ServerSwitcherSheet(),
+    pageBuilder: (_, _, _) =>
+        const CompactOnly(child: ServerSwitcherSheet()),
     transitionBuilder: (_, animation, _, child) => SlideTransition(
       position: Tween(
         begin: const Offset(-1, 0),
