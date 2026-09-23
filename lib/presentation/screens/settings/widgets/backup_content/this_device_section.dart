@@ -6,8 +6,8 @@ import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/confirm_dialog.dart';
+import '../../../../common/setting_row.dart';
 import '../section_title.dart';
-import 'device_action_row.dart';
 
 /// What can be done to *this device*, at the end of the Cloud backup tab:
 /// sign it out, and wipe its vault.
@@ -70,12 +70,12 @@ class ThisDeviceSection extends StatelessWidget {
         const SectionTitle(label: 'This device'),
         const SizedBox(height: 14),
         if (signedIn) ...[
-          DeviceActionRow(
-            label: 'Sign out of this device',
+          SettingRow(
+            title: 'Sign out of this device',
             description:
                 'Removes the vault and server list here. Your cloud backup '
                 'stays, and signing back in restores them.',
-            button: AppButton(
+            control: AppButton(
               label: 'Sign out',
               variant: AppButtonVariant.secondary,
               onPressed: () => _signOutOfDevice(context),
@@ -83,10 +83,10 @@ class ThisDeviceSection extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
-        DeviceActionRow(
-          label: 'Reset vault',
+        SettingRow(
+          title: 'Reset vault',
           description: 'Wipes your keys and servers from this device.',
-          button: AppButton(
+          control: AppButton(
             label: 'Reset vault',
             variant: AppButtonVariant.danger,
             onPressed: onResetVault,
