@@ -107,9 +107,15 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
     final open = tabs.contains(_active) ? _active : null;
     final themeState = context.theme;
     if (open == null) {
+      // A page, like the pages it leads to. As a dialog it was a floating card
+      // you tapped a row in to land on a full screen, and backing out of that
+      // screen put you on a card again — one flow drawn two ways. No `onBack`,
+      // so the chevron leaves Manage server: this is the first step, and there
+      // is nothing behind it to go back to.
       return AppModal(
         title: 'Manage server',
         subtitle: server.name,
+        pageOnPhone: true,
         body: SingleChildScrollView(
           child: ManageNav(
             tabs: tabs,
