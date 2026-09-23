@@ -23,6 +23,11 @@ class PaletteCard extends StatelessWidget {
     required this.onTap,
   });
 
+  /// [AppText.secondary]'s size at [_lineSpacing], twice over — the two lines
+  /// every card's description is given whether it fills them or not.
+  static const double _lineSpacing = 1.4;
+  static const double _lineHeight = 12 * _lineSpacing * 2;
+
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
@@ -65,11 +70,24 @@ class PaletteCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 2),
-            Text(
-              palette.description,
-              style: AppText.secondary.copyWith(
-                height: 1.4,
-                color: themeState.textTertiary,
+            // Two lines, always. A row of cards is one object, and a
+            // one-line description left its card a line shorter than the
+            // three beside it — on the selected card, whose border is
+            // drawing attention to exactly those edges. Reserved rather
+            // than fixed, so the row still holds together when the text is
+            // scaled up.
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.textScalerOf(context).scale(_lineHeight),
+              ),
+              child: Text(
+                palette.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.secondary.copyWith(
+                  height: _lineSpacing,
+                  color: themeState.textTertiary,
+                ),
               ),
             ),
           ],
