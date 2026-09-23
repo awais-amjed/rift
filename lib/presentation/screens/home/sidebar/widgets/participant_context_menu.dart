@@ -151,6 +151,18 @@ class ParticipantContextMenu extends StatelessWidget {
                 .isServerAdmin ??
             false;
 
+        // A bot is a member here and nowhere else. Two items below cannot
+        // mean anything for one, and one of them is worse than useless:
+        // "Add on Central" seeds the add-friend field with a name, and a
+        // bot's name on central is a stranger who happens to share it.
+        final targetIsBot =
+            context
+                .watch<ServerMembersCubit>()
+                .state
+                .byId[targetUserId]
+                ?.isBot ??
+            false;
+
         // Which call they're in, if any: ours when they're on the roster,
         // otherwise whatever presence says. Only "Move to" needs it — and
         // only to leave out the channel they're already in.
@@ -200,11 +212,12 @@ class ParticipantContextMenu extends StatelessWidget {
                 label: 'Message',
                 onTap: () => _openServerDm(context),
               ),
-              ContextMenuItem(
-                icon: Icons.public_rounded,
-                label: 'Add on Central',
-                onTap: () => _openCentralDm(context),
-              ),
+              if (!targetIsBot)
+                ContextMenuItem(
+                  icon: Icons.public_rounded,
+                  label: 'Add on Central',
+                  onTap: () => _openCentralDm(context),
+                ),
               Divider(height: 9, color: borderColor),
             ],
             // Volume above the mutes: how loud they are, then whether
@@ -234,8 +247,8 @@ class ParticipantContextMenu extends StatelessWidget {
             // Their soundboard, separately. A clip is played by this
             // device, so this switches off nothing for anybody else —
             // and it leaves their voice alone, which is the reason it is
-            // not the mute above.
-            if (!isLocal)
+            // not the mute above. A bot has no soundboard to turn down.
+            if (!isLocal && !targetIsBot)
               ContextMenuItem(
                 icon: soundboardMuted
                     ? Icons.graphic_eq_rounded
