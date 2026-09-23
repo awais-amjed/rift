@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/participant_setting.dart';
@@ -5,11 +7,11 @@ import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../common/context_menu_region.dart';
-import '../../../../common/hover_builder.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
+import '../../profile/person/show_person_profile.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'role_chip.dart';
 
@@ -52,15 +54,10 @@ class MemberRow extends StatelessWidget {
       name: member.displayName,
       isLocal: isMe,
     );
-    return ContextMenuRegion(
-      contextMenu: menu,
-      child: HoverBuilder(
-        builder: (context, hovered) => _buildRow(context, menu, hovered),
-      ),
-    );
+    return ContextMenuRegion(contextMenu: menu, child: _buildRow(context));
   }
 
-  Widget _buildRow(BuildContext context, Widget? menu, bool hovered) {
+  Widget _buildRow(BuildContext context) {
     final themeState = context.theme;
     final locallyMuted = setting?.muted ?? false;
     // Offline members stay on the list but recede — the roster should be a
@@ -70,32 +67,47 @@ class MemberRow extends StatelessWidget {
 
     return Opacity(
       opacity: dim,
-      // A tint, not an ink well: clicking a person does nothing — their
-      // profile is in the menu — and a well with no tap never lights up.
+      // A well, because clicking a person opens their profile. It used to
+      // do nothing at all — the profile was in the right-click menu and the
+      // row did not even change the cursor, so there was nothing to say the
+      // row was live.
       child: Material(
-        color: hovered ? themeState.bgHover : Colors.transparent,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(K.radiusRow),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            spacing: 9,
-            children: [
-              _avatar(context),
-              Expanded(
-                child: Text(
-                  member.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.rowQuiet.copyWith(
-                    // A role's colour is the point of giving it one, and the
-                    // name is the only thing on this row long enough to
-                    // carry it. Uncoloured roles leave the name alone.
-                    color: colourRole?.displayColor ?? themeState.textSecondary,
+        child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          borderRadius: BorderRadius.circular(K.radiusRow),
+          hoverColor: themeState.bgHover,
+          onTap: () => unawaited(
+            showMemberProfile(
+              context,
+              userId: member.id,
+              name: member.displayName,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              spacing: 9,
+              children: [
+                _avatar(context),
+                Expanded(
+                  child: Text(
+                    member.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.rowQuiet.copyWith(
+                      // A role's colour is the point of giving it one, and the
+                      // name is the only thing on this row long enough to
+                      // carry it. Uncoloured roles leave the name alone.
+                      color:
+                          colourRole?.displayColor ?? themeState.textSecondary,
+                    ),
                   ),
                 ),
-              ),
-              ..._badges(locallyMuted),
-            ],
+                ..._badges(locallyMuted),
+              ],
+            ),
           ),
         ),
       ),
