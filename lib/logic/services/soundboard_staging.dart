@@ -140,6 +140,10 @@ class SoundboardStaging {
   /// `1.2 s`, or an em dash for a length nobody could measure.
   static String durationLabel(Duration duration) {
     if (duration <= Duration.zero) return '—';
-    return '${(duration.inMilliseconds / 1000).toStringAsFixed(1)} s';
+    // A whole number of seconds drops its decimal, the way [humanSize] does:
+    // the cap this labels is 30 seconds, and "30.0 s" reads as a measurement
+    // rather than as the rule it is.
+    final text = (duration.inMilliseconds / 1000).toStringAsFixed(1);
+    return '${text.endsWith('.0') ? text.substring(0, text.length - 2) : text} s';
   }
 }

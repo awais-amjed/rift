@@ -119,6 +119,12 @@ void main() {
         SoundboardStaging.durationLabel(const Duration(milliseconds: 1240)),
         '1.2 s',
       );
+      // A whole number keeps no decimal: the cap this labels is 30 seconds,
+      // and "30.0 s" reads as a measurement rather than as the rule it is.
+      expect(
+        SoundboardStaging.durationLabel(const Duration(seconds: 30)),
+        '30 s',
+      );
     });
 
     test('a clip past the ceiling is refused, with its real length', () {
@@ -129,7 +135,7 @@ void main() {
         duration: const Duration(seconds: 72, milliseconds: 400),
       );
       expect(rejection, contains('72.4 s'));
-      expect(rejection, contains('30.0 s'));
+      expect(rejection, contains('30 s'));
     });
 
     test('one inside it passes, including one exactly at it', () {

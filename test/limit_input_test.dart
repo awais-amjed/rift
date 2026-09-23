@@ -100,8 +100,8 @@ void main() {
         alreadyStaged: 0,
       );
       expect(rejection, contains('holiday.mp4'));
-      expect(rejection, contains('30.0 MB'));
-      expect(rejection, contains('25.0 MB'));
+      expect(rejection, contains('30 MB'));
+      expect(rejection, contains('25 MB'));
     });
 
     test('the count cap is checked before the size cap', () {
@@ -121,7 +121,8 @@ void main() {
     test('picks a unit a person would use', () {
       expect(humanSize(512), '512 B');
       expect(humanSize(2048), '2 KB');
-      expect(humanSize(5 * 1024 * 1024), '5.0 MB');
+      expect(humanSize(5 * 1024 * 1024), '5 MB');
+      expect(humanSize(5 * 1024 * 1024 + 300 * 1024), '5.3 MB');
     });
   });
 }
