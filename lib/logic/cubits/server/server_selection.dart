@@ -30,6 +30,9 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     String? token,
   });
 
+  /// Implemented by [ServerCubit]: drop a server from the rail.
+  void removeServer(String serverId);
+
   // ──────────────────────────────────────────────────────────
   // Server selection
   // ──────────────────────────────────────────────────────────
@@ -55,6 +58,20 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
       anonKey: server.supabaseKey ?? '',
     );
 
+    // The same answer `_fetchServerDetails` gives, on the path that reaches a
+    // deleted server first. A cold selection logs in before it refreshes, and
+    // SIWS keeps working after the server is gone — the GoTrue account
+    // outlives the membership — so this is where a member who was deleted out
+    // from under finds out. Without it the rail kept a chip that opened a
+    // server with no channels, signed in as "Guest".
+    if (result.error == ServerDb.serverGone) {
+      removeServer(server.id);
+      HelperMethods.showToast(
+        title: 'No longer on ${server.name}',
+        description: 'The server was deleted, or you were removed from it.',
+      );
+      return false;
+    }
     if (!result.success || result.data == null) return false;
 
     final data = result.data!;

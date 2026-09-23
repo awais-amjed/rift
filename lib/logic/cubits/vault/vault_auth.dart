@@ -107,16 +107,26 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
       }
       final token = login.accessToken!;
 
-      final data = <String, dynamic>{'token': token};
       final details = await _serverRepo.getServerDetails(
         supabaseUrl,
         anonKey: anonKey,
         bearerToken: token,
       );
-      if (details.success && details.data is Map) {
-        data.addAll(details.data as Map<String, dynamic>);
-        data['token'] = token; // context no longer carries a token
+      // A login that cannot say who it logged in as has not succeeded, and
+      // reporting it as one is how a deleted server became a room with no
+      // channels signed in as "Guest": SIWS still works after the server is
+      // gone — the GoTrue account outlives it — so the only thing that knows
+      // is `get_server_details` coming back null, and this threw that away.
+      // The transient case wants the same answer for the opposite reason: the
+      // caller lands what comes back, and an empty reply blanks a server that
+      // is merely unreachable.
+      if (!details.success || details.data is! Map) {
+        return (success: false, error: details.error, data: null);
       }
+      final data = <String, dynamic>{
+        ...details.data as Map<String, dynamic>,
+        'token': token, // context no longer carries a token
+      };
       return (success: true, error: null, data: data);
     } catch (e) {
       HelperMethods.printDebug('[Vault] loginToServer error: $e');
