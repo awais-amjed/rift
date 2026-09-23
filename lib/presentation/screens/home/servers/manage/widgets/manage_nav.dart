@@ -42,7 +42,7 @@ class ManageNav extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 1),
               child: NavRow(
                 icon: _icon(tab),
-                label: _label(tab),
+                label: tab.label,
                 // Nothing is selected in a phone's list — it is the way in,
                 // and the page opened is on its own screen.
                 isSelected: !expand && tab == active,
@@ -64,16 +64,5 @@ class ManageNav extends StatelessWidget {
     ServerManageTab.webhooks => Icons.webhook_rounded,
     ServerManageTab.soundboard => Icons.graphic_eq_rounded,
     ServerManageTab.danger => Icons.warning_amber_rounded,
-  };
-
-  static String _label(ServerManageTab tab) => switch (tab) {
-    ServerManageTab.overview => 'Overview',
-    ServerManageTab.limits => 'Limits',
-    ServerManageTab.roles => 'Roles',
-    ServerManageTab.members => 'Members',
-    ServerManageTab.bots => 'Bots',
-    ServerManageTab.webhooks => 'Webhooks',
-    ServerManageTab.soundboard => 'Soundboard',
-    ServerManageTab.danger => 'Danger zone',
   };
 }

@@ -73,6 +73,7 @@ class ManagePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     final readOnly = ManageReadOnly.of(context);
+    final headingAbove = ManageHeadingAbove.of(context);
     final child = this.child;
     final body = this.body;
 
@@ -83,7 +84,7 @@ class ManagePanel extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _heading(themeState, scrollsAway: false),
+          if (!headingAbove) _heading(themeState, scrollsAway: false),
           Expanded(
             child: ScrolledUnderRule(
               child: MoreBelowFade(color: themeState.bgSecondary, child: body),
@@ -108,9 +109,16 @@ class ManagePanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _heading(themeState, scrollsAway: true),
+                  if (!headingAbove) _heading(themeState, scrollsAway: true),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+                    // The heading supplied the top gap; without it the content
+                    // would start flush against the header above.
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      headingAbove ? 14 : 0,
+                      24,
+                      18,
+                    ),
                     child: readOnly
                         ? Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,6 +165,24 @@ class ManagePanel extends StatelessWidget {
 /// are each one mistap from a change nobody meant, on a screen where the
 /// reader can see a fraction of the page at once. Showing the current state
 /// keeps them useful for checking; changing them waits for a bigger screen.
+/// Set where the page's name is already drawn above the panel.
+///
+/// On a phone the modal is a page and its header carries the name of the page
+/// you are on, so a [ManagePanel] that drew its own heading as well gave the
+/// screen two headlines and four lines of titling before any content. On a
+/// desktop the two sit in different regions — a header bar above a rule, then
+/// the nav beside the page — and read as chrome and content, so there the
+/// panel keeps its own.
+class ManageHeadingAbove extends InheritedWidget {
+  const ManageHeadingAbove({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ManageHeadingAbove>() != null;
+
+  @override
+  bool updateShouldNotify(ManageHeadingAbove old) => false;
+}
+
 class ManageReadOnly extends InheritedWidget {
   const ManageReadOnly({super.key, required super.child});
 

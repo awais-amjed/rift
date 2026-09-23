@@ -132,16 +132,24 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) setState(() => _active = null);
       },
+      // The headline is the page you are on, and "Manage server" steps down
+      // to the line under it. It used to be the other way round, so the page
+      // opened with two headlines — "Manage server / Rift Test" at the page
+      // size, then the panel's own "Members / 3 members" under it — and four
+      // lines of titling before anything you came for. [ManageHeadingAbove]
+      // is what stops the panel drawing the second one.
       child: AppModal(
-        title: 'Manage server',
-        subtitle: server.name,
+        title: open.label,
+        subtitle: 'Manage server · ${server.name}',
         pageOnPhone: true,
         onBack: () => setState(() => _active = null),
         body: ColoredBox(
           color: themeState.bgSecondary,
-          child: open == ServerManageTab.members
-              ? page
-              : ManageReadOnly(child: page),
+          child: ManageHeadingAbove(
+            child: open == ServerManageTab.members
+                ? page
+                : ManageReadOnly(child: page),
+          ),
         ),
       ),
     );

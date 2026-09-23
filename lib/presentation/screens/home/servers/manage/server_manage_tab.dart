@@ -13,6 +13,24 @@ enum ServerManageTab {
   danger,
 }
 
+/// What each page is called.
+///
+/// On the enum rather than inside the nav, because the nav is no longer the
+/// only thing that names a page: on a phone the page's own name is the
+/// headline at the top of it.
+extension ServerManageTabLabel on ServerManageTab {
+  String get label => switch (this) {
+    ServerManageTab.overview => 'Overview',
+    ServerManageTab.limits => 'Limits',
+    ServerManageTab.roles => 'Roles',
+    ServerManageTab.members => 'Members',
+    ServerManageTab.bots => 'Bots',
+    ServerManageTab.webhooks => 'Webhooks',
+    ServerManageTab.soundboard => 'Soundboard',
+    ServerManageTab.danger => 'Danger zone',
+  };
+}
+
 /// Which pages somebody gets, decided on what they hold.
 ///
 /// One place rather than a condition per nav row. The dialog is for the
