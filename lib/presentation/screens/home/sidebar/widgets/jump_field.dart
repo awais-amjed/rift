@@ -54,12 +54,16 @@ class JumpField extends StatelessWidget {
                 ),
                 Expanded(
                   child: Text(
-                    // The switcher searches channels and people alike,
-                    // and the short label undersold it. A phone keeps it
-                    // short: there is no room for the rest.
+                    // The switcher searches channels and people alike, so
+                    // the label says more than "Jump to a channel" did —
+                    // but not much more. The sidebar is a fixed width and
+                    // the Ctrl K chip takes a bite out of it, so a longer
+                    // label does not fit at *any* window size: "Jump to a
+                    // channel or person…" came out as "…or per…" on a
+                    // 1500px window.
                     HostPlatform.isMobile
                         ? 'Jump to…'
-                        : 'Jump to a channel or person…',
+                        : 'Jump to anything…',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     // Tertiary, not quaternary: quaternary is placeholder

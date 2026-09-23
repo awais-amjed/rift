@@ -86,8 +86,14 @@ class ServerHeader extends StatelessWidget {
               color: CustomColors.success,
             ),
             Flexible(
+              // One word, because the sidebar is a fixed width and the
+              // header spends it on a name, a gear and a collapse chevron:
+              // "End-to-end encrypted" came out as "End-to-end encryp…" on a
+              // 1500px window, which is a claim cut off halfway through
+              // making it. The padlock beside it carries the rest, and
+              // "Encrypted" is the word the chat header's own chip uses.
               child: Text(
-                'End-to-end encrypted',
+                'Encrypted',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppText.label.copyWith(color: themeState.textTertiary),
