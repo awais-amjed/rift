@@ -141,11 +141,17 @@ class DmChatHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              ChatHeaderButton(
-                icon: Icons.close_rounded,
-                tooltip: 'Close conversation',
-                onTap: onClose,
-              ),
+              // On a phone back is the way out, so a close beside it would
+              // be a second button for the same thing — the rule the
+              // channel header already follows. Nothing takes the slot: a
+              // conversation's one other destination is the person, and
+              // tapping their name is how you get there.
+              if (!compact)
+                ChatHeaderButton(
+                  icon: Icons.close_rounded,
+                  tooltip: 'Close conversation',
+                  onTap: onClose,
+                ),
             ],
           );
         },
