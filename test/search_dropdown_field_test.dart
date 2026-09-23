@@ -43,7 +43,11 @@ class _FakeSearch {
   void completeLast(List<String> results) => pending.last.complete(results);
 }
 
-Future<void> _pump(WidgetTester tester, _FakeSearch search) async {
+Future<void> _pump(
+  WidgetTester tester,
+  _FakeSearch search, {
+  bool openOnFocus = false,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -56,6 +60,7 @@ Future<void> _pump(WidgetTester tester, _FakeSearch search) async {
               child: SearchDropdownField<String>(
                 hintText: 'Find…',
                 emptyMessage: 'Nobody found.',
+                openOnFocus: openOnFocus,
                 onSearch: search.call,
                 itemBuilder: (context, item, dismiss) =>
                     GestureDetector(onTap: dismiss, child: Text(item)),
@@ -162,6 +167,51 @@ void main() {
 
       await tester.enterText(find.byType(TextField), '');
       await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('maya'), findsNothing);
+    });
+
+    /// The member picker browses, so it opens on focus with an empty query —
+    /// and `dismiss` clears the field, which is a text change, which armed a
+    /// search for that empty query. It landed after the drop-down had been
+    /// closed and the field unfocused, re-opened it, and left the whole
+    /// roster floating over the conversation list with no way to shut it.
+    testWidgets('picking a result does not re-open the drop-down', (
+      tester,
+    ) async {
+      final search = _FakeSearch();
+      await _pump(tester, search, openOnFocus: true);
+
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      search.completeLast(['maya']);
+      await tester.pump();
+      expect(find.text('maya'), findsOneWidget);
+
+      // The row calls `dismiss`, as every itemBuilder does once its action
+      // has been taken.
+      await tester.tap(find.text('maya'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      if (search.pending.length > 1) search.completeLast(['maya']);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('maya'), findsNothing, reason: 'it came back');
+    });
+
+    testWidgets('an unfocused field never opens a drop-down', (tester) async {
+      final search = _FakeSearch();
+      await _pump(tester, search, openOnFocus: true);
+
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      search.completeLast(['maya']);
+      await tester.pump();
+      expect(find.text('maya'), findsOneWidget);
+
+      // Focus leaves without anything being picked — clicking the list behind.
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('maya'), findsNothing);
     });

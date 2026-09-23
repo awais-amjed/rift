@@ -137,6 +137,10 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
 
   Future<void> _search(String value) async {
     if (!mounted) return;
+    // Nothing drops out of a field nobody is in. The drop-down is anchored to
+    // this field but drawn in the overlay, so one opened without focus can
+    // never be closed by losing it — it just sits over whatever is behind.
+    if (!_focusNode.hasFocus) return;
     final id = ++_requestId;
     setState(() => _searching = true);
     _showOverlay();
@@ -151,6 +155,12 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
 
   void _dismiss() {
     _controller.clear();
+    // Clearing the field is a text change, and with [openOnFocus] a text
+    // change arms a search for the empty query — which used to land after
+    // everything below and re-open the drop-down on a field that was no
+    // longer focused. Picking a member left the whole roster floating over
+    // the conversation list, permanently.
+    _debounce?.cancel();
     _removeOverlay();
     _focusNode.unfocus();
   }
