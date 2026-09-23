@@ -9,6 +9,7 @@ import 'app_modal_header.dart';
 import 'back_chevron_button.dart';
 import 'button_footer.dart';
 import 'message_banner.dart';
+import 'title_bar_overlay.dart';
 
 export 'show_custom_dialog.dart';
 

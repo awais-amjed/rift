@@ -9,6 +9,7 @@ import '../../../../../logic/cubits/notifications/server_notifications_cubit.dar
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_modal_header_button.dart';
+import '../../../../common/title_bar_overlay.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
@@ -92,6 +93,10 @@ class ServerSwitcherSheet extends StatelessWidget {
             height: double.infinity,
             child: SafeArea(
               right: false,
+              // Full height, so on a desktop the app's own title bar is over
+              // this panel's heading and its close button — see
+              // [titleBarInset].
+              minimum: EdgeInsets.only(top: titleBarInset()),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

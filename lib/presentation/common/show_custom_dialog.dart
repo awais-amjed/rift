@@ -32,8 +32,11 @@ Future<T?> showCustomDialog<T>({
     barrierDismissible: barrierDismissible,
     builder: (ctx) => CallbackShortcuts(
       bindings: {
+        // maybePop, so a dialog that has put a [PopScope] in the way gets to
+        // answer. A plain pop closes the whole dialog out from under a page
+        // whose Escape should have been one step back.
         const SingleActivator(LogicalKeyboardKey.escape): () =>
-            Navigator.of(ctx).pop(),
+            Navigator.of(ctx).maybePop(),
       },
       child: Focus(autofocus: true, child: _Entrance(child: dialog)),
     ),

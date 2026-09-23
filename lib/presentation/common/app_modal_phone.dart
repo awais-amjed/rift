@@ -27,7 +27,7 @@ extension _AppModalPhone on AppModal {
       backgroundColor: themeState.bgSecondary,
       insetPadding: EdgeInsets.fromLTRB(
         margin,
-        margin + safe.top,
+        margin + safe.top + titleBarInset(),
         margin,
         margin + safe.bottom,
       ),
@@ -157,6 +157,11 @@ extension _AppModalPhone on AppModal {
       child: Dialog.fullscreen(
         backgroundColor: themeState.bgSecondary,
         child: SafeArea(
+          // Clears the window's own title bar as well as the phone's status
+          // bar: a full-screen page starts at y=0, and the back arrow below is
+          // the first thing the title bar would cover — and swallow the click
+          // for.
+          minimum: EdgeInsets.only(top: titleBarInset()),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

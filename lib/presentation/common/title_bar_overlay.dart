@@ -112,3 +112,22 @@ class _TitleBarOverlayState extends State<TitleBarOverlay> {
     );
   }
 }
+
+/// How much of the top of the window the app's own title bar is sitting on.
+///
+/// [TitleBarOverlay] paints the bar above the Navigator deliberately, so that
+/// it stays reachable over dialogs. A desktop dialog is inset from the top and
+/// never reaches it. A *compact* one fills the window, so its first
+/// [K.titleBarHeight] pixels — which is exactly where a page puts its way back
+/// — are drawn underneath a bar that takes the click as well, leaving the page
+/// with no exit at all.
+///
+/// Reserved whether the bar is showing or not. It comes back on a hover at the
+/// top edge, so a surface that only cleared it while it was pinned would be
+/// covered again by the very gesture used to reach it.
+///
+/// Zero on a phone and on the web, which have their own chrome and never draw
+/// ours — [MediaQuery]'s own padding is what matters there, and this adds to
+/// it rather than replacing it.
+double titleBarInset() =>
+    HostPlatform.drawsOwnWindowChrome ? K.titleBarHeight : 0;
