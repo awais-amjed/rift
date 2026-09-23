@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/button_footer.dart';
 import '../../../../../common/hint_card.dart';
+import '../../../../../common/more_below_fade.dart';
 import '../../../../../common/scrolled_under_rule.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
@@ -83,7 +84,11 @@ class ManagePanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _heading(themeState, scrollsAway: false),
-          Expanded(child: ScrolledUnderRule(child: body)),
+          Expanded(
+            child: ScrolledUnderRule(
+              child: MoreBelowFade(color: themeState.bgSecondary, child: body),
+            ),
+          ),
           if (footer.isNotEmpty && !readOnly) ..._footer(themeState),
         ],
       );
@@ -93,33 +98,40 @@ class ManagePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _heading(themeState, scrollsAway: true),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
-                  child: readOnly
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          spacing: 16,
-                          children: [
-                            const HintCard(
-                              icon: Icons.visibility_outlined,
-                              text:
-                                  'View only on a phone. This page is easy to '
-                                  'get wrong on a small screen, so changing it '
-                                  'needs Rift on a computer.',
-                            ),
-                            // Inside the scroll view, so the page still scrolls
-                            // while nothing on it can be pressed.
-                            AbsorbPointer(child: ExcludeFocus(child: child!)),
-                          ],
-                        )
-                      : child,
-                ),
-              ],
+          // Faded at the foot, or the page is sliced against the footer
+          // wherever the cut falls — a field label cut through the middle of
+          // its letters, with a hairline under it that reads as the end of
+          // the panel rather than the middle of it.
+          child: MoreBelowFade(
+            color: themeState.bgSecondary,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _heading(themeState, scrollsAway: true),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+                    child: readOnly
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            spacing: 16,
+                            children: [
+                              const HintCard(
+                                icon: Icons.visibility_outlined,
+                                text:
+                                    'View only on a phone. This page is easy to '
+                                    'get wrong on a small screen, so changing it '
+                                    'needs Rift on a computer.',
+                              ),
+                              // Inside the scroll view, so the page still scrolls
+                              // while nothing on it can be pressed.
+                              AbsorbPointer(child: ExcludeFocus(child: child!)),
+                            ],
+                          )
+                        : child,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
