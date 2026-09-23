@@ -248,6 +248,21 @@ class K {
   /// labels, not a channel tree.
   static const double settingsNavWidth = 264;
 
+  /// How wide a page of settings is allowed to get, however wide the window
+  /// is.
+  ///
+  /// A settings row puts its label at one edge and its control at the other,
+  /// so an unbounded row on a 1500px window leaves a switch some 900px from
+  /// the words it belongs to, and the line explaining it runs to about 130
+  /// characters — roughly twice a comfortable measure. One pane already
+  /// capped itself and three did not, which is how the same screen came to
+  /// disagree with itself about how wide a setting is.
+  ///
+  /// Applied once by the settings screen, so a pane cannot opt out of it.
+  /// A *control* inside a pane may still be narrower than this — a theme
+  /// picker or a segmented choice is sized to its own content.
+  static const double settingsMeasure = 720;
+
   // ── Message rows ──────────────────────────────────────────
   /// Left/right padding on a message row. The design's rows run wider than
   /// the panel's own padding so the text has room to breathe at the edges.

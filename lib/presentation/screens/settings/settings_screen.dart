@@ -225,19 +225,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     // Loosened again inside, or the
                                     // full width arrives tight and a
                                     // tab's reading measure is ignored.
+                                    // [K.settingsMeasure] is that measure,
+                                    // applied here so a pane cannot opt out
+                                    // of it — three of the four used to.
                                     child: Align(
                                       alignment: Alignment.topLeft,
-                                      child: switch (_activeTab) {
-                                        SettingsTab.appearance =>
-                                          const AppearanceContent(),
-                                        SettingsTab.general =>
-                                          const GeneralContent(),
-                                        SettingsTab.voiceAndAudio =>
-                                          const VoiceAudioContent(),
-                                        SettingsTab.backup => BackupContent(
-                                          onResetVault: _resetVault,
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxWidth: K.settingsMeasure,
                                         ),
-                                      },
+                                        child: switch (_activeTab) {
+                                          SettingsTab.appearance =>
+                                            const AppearanceContent(),
+                                          SettingsTab.general =>
+                                            const GeneralContent(),
+                                          SettingsTab.voiceAndAudio =>
+                                            const VoiceAudioContent(),
+                                          SettingsTab.backup => BackupContent(
+                                            onResetVault: _resetVault,
+                                          ),
+                                        },
+                                      ),
                                     ),
                                   ),
                                 ),

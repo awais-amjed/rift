@@ -34,48 +34,45 @@ class VoiceAudioContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AppCubit, AppState>(
       builder: (context, appState) {
-        // Held to a readable measure. Every row here is a short label over a
-        // sentence of explanation, and on a wide window those sentences would
-        // otherwise run the full width of the panel.
-        return ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_canPickDevices) ...[
-                const AudioDeviceSection(),
-                _divider(context),
-              ],
-              AudioProcessingSection(appState: appState),
-              const SizedBox(height: 20),
-              const MicTestSection(),
+        // The reading measure this pane used to set for itself is
+        // [K.settingsMeasure] now, applied by the settings screen to every
+        // pane — this one was the only one that had it.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_canPickDevices) ...[
+              const AudioDeviceSection(),
               _divider(context),
-              SoundboardSection(appState: appState),
-              _divider(context),
-              SoundsSection(appState: appState),
-              // The divider belongs to what follows, not to what precedes
-              // it: on anything but Windows there is nothing after this and
-              // the rule was hanging under the last control.
-              if (HostPlatform.ducksOtherApps) ...[
-                _divider(context),
-                const SectionTitle(label: 'Audio ducking'),
-                const SizedBox(height: 12),
-                SettingToggleRow(
-                  title: 'Disable automatic volume lowering',
-                  description:
-                      "Windows lowers other apps' volume when a call is "
-                      'active. Enable this to prevent that.',
-                  value: appState.disableAudioDucking,
-                  onChanged: context.read<AppCubit>().setDisableAudioDucking,
-                ),
-              ],
-              if (HostPlatform.hasPushToTalk) ...[
-                _divider(context),
-                PushToTalkSection(appState: appState),
-              ],
             ],
-          ),
+            AudioProcessingSection(appState: appState),
+            const SizedBox(height: 20),
+            const MicTestSection(),
+            _divider(context),
+            SoundboardSection(appState: appState),
+            _divider(context),
+            SoundsSection(appState: appState),
+            // The divider belongs to what follows, not to what precedes
+            // it: on anything but Windows there is nothing after this and
+            // the rule was hanging under the last control.
+            if (HostPlatform.ducksOtherApps) ...[
+              _divider(context),
+              const SectionTitle(label: 'Audio ducking'),
+              const SizedBox(height: 12),
+              SettingToggleRow(
+                title: 'Disable automatic volume lowering',
+                description:
+                    "Windows lowers other apps' volume when a call is "
+                    'active. Enable this to prevent that.',
+                value: appState.disableAudioDucking,
+                onChanged: context.read<AppCubit>().setDisableAudioDucking,
+              ),
+            ],
+            if (HostPlatform.hasPushToTalk) ...[
+              _divider(context),
+              PushToTalkSection(appState: appState),
+            ],
+          ],
         );
       },
     );
