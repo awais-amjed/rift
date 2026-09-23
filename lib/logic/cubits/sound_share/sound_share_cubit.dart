@@ -142,8 +142,15 @@ class SoundShareCubit extends Cubit<SoundShareState> {
 
   void clearError() => emit(state.copyWith(clearError: true));
 
+  /// Record a failure *and* say it out loud — see [ScreenshareCubit._fail],
+  /// which had the same gap: the control bar reads only `isSharing`, so a
+  /// refusal emitted into `error` was a field nothing ever looked at.
   void _fail(String message) {
     emit(state.copyWith(status: SoundShareStatus.error, error: message));
+    HelperMethods.showError(
+      error: message,
+      autoCloseDuration: const Duration(seconds: 6),
+    );
   }
 
   @override

@@ -46,6 +46,22 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     }
   }
 
+  /// Record a failure *and* say it out loud.
+  ///
+  /// Every refusal here used to be emitted into [ScreenshareState.error] and
+  /// nothing ever read it — no listener, no widget, not even `hasError`. So
+  /// pressing Start sharing and having it fail showed nothing at all: the
+  /// control went back to not-sharing and the reason, which is usually
+  /// actionable ("this call's encryption key is not ready", "no frames
+  /// arrived from the selected source in 10 seconds"), stayed in a field.
+  void _fail(String message) {
+    emit(state.copyWith(status: ScreenshareStatus.error, error: message));
+    HelperMethods.showError(error: message, autoCloseDuration: _errorDuration);
+  }
+
+  /// Long enough to read a sentence about why a share did not start.
+  static const Duration _errorDuration = Duration(seconds: 6);
+
   void _onRustScreenshareEvent(ScreenshareEvent event) {
     if (event == ScreenshareEvent.sourceClosed &&
         state.status == ScreenshareStatus.sharing) {
@@ -65,23 +81,13 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       // libwebrtc does not build its capturer for Android at all.
       if (_sdkCapturesScreen) {
         if (_livekitCubit == null) {
-          emit(
-            state.copyWith(
-              status: ScreenshareStatus.error,
-              error: 'LiveKit cubit not available',
-            ),
-          );
+          _fail('LiveKit cubit not available');
           return;
         }
 
         final channelId = _livekitCubit.state.currentChannelId;
         if (channelId == null) {
-          emit(
-            state.copyWith(
-              status: ScreenshareStatus.error,
-              error: 'Not connected to a channel',
-            ),
-          );
+          _fail('Not connected to a channel');
           return;
         }
 
@@ -112,45 +118,25 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       // Resolve server context
       final server = _serverCubit.state.selectedServer;
       if (server == null) {
-        emit(
-          state.copyWith(
-            status: ScreenshareStatus.error,
-            error: 'No server selected',
-          ),
-        );
+        _fail('No server selected');
         return;
       }
 
       final livekitUrl = server.livekitUrl;
       if (livekitUrl == null) {
-        emit(
-          state.copyWith(
-            status: ScreenshareStatus.error,
-            error: 'No LiveKit URL configured',
-          ),
-        );
+        _fail('No LiveKit URL configured');
         return;
       }
 
       final user = server.user;
       if (user == null) {
-        emit(
-          state.copyWith(
-            status: ScreenshareStatus.error,
-            error: 'No user info available',
-          ),
-        );
+        _fail('No user info available');
         return;
       }
 
       final channelId = _livekitCubit?.state.currentChannelId;
       if (channelId == null) {
-        emit(
-          state.copyWith(
-            status: ScreenshareStatus.error,
-            error: 'Not connected to a channel',
-          ),
-        );
+        _fail('Not connected to a channel');
         return;
       }
 
@@ -162,12 +148,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       );
 
       if (!response.success) {
-        emit(
-          state.copyWith(
-            status: ScreenshareStatus.error,
-            error: response.error ?? 'Failed to get channel token',
-          ),
-        );
+        _fail(response.error ?? 'Failed to get channel token');
         return;
       }
 
@@ -196,13 +177,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       // the same encrypted room.
       final encryption = _livekitCubit?.callEncryption;
       if (encryption == null) {
-        emit(
-          state.copyWith(
-            status: ScreenshareStatus.error,
-            error:
-                'Cannot share yet — this call’s encryption key is not ready. '
-                'Rejoining the channel usually clears it.',
-          ),
+        _fail(
+          'Cannot share yet — this call’s encryption key is not ready. '
+          'Rejoining the channel usually clears it.',
         );
         return;
       }
@@ -241,12 +218,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       );
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share error: $e');
-      emit(
-        state.copyWith(
-          status: ScreenshareStatus.error,
-          error: 'Failed to start screen share: $e',
-        ),
-      );
+      _fail('Failed to start screen share: $e');
     }
   }
 
@@ -295,12 +267,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       );
     } catch (e) {
       HelperMethods.printDebug('✗ Stop screenshare error: $e');
-      emit(
-        state.copyWith(
-          status: ScreenshareStatus.error,
-          error: 'Failed to stop screen share: $e',
-        ),
-      );
+      _fail('Failed to stop screen share: $e');
     }
   }
 
