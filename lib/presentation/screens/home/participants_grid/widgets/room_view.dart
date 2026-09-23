@@ -62,7 +62,16 @@ class _RoomViewState extends State<RoomView> {
   void initState() {
     super.initState();
     _appCubit = context.read<AppCubit>();
-    _scheduleHide();
+    // A phone's chrome fades on its own: there is no pointer to wait for, and
+    // a thumb that wants it back only has to touch the stage.
+    //
+    // A desktop's waits for the first sign of life. A call is joined by
+    // clicking the channel in the sidebar, which leaves the cursor over there
+    // — so the timer used to start and finish without the pointer ever
+    // entering the stage, and the first thing anybody saw of a call they had
+    // just joined was a black rectangle with no channel name, no timer, no
+    // microphone and no way to leave.
+    if (HostPlatform.isMobile) _scheduleHide();
   }
 
   @override
