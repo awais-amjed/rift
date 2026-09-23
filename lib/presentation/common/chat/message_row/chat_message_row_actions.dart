@@ -12,12 +12,17 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
   ThemeState get themeState;
   void _startEditing();
 
-  bool get _canReact =>
+  /// Whether a reaction could be shown at all — the surface supports them and
+  /// this message is one that can carry one. Separate from [_canReact], which
+  /// also asks whether this member may add their own.
+  bool get _canReactAtAll =>
       widget.onToggleReaction != null &&
       !message.isPending &&
       // Reacting to a message you cannot read is a mis-click waiting to
       // happen, and the tally would be visible to everyone who can.
       !message.isLocked;
+
+  bool get _canReact => _canReactAtAll && widget.canReact;
   bool get _canCopy => message.text.isNotEmpty;
   bool get _canReply =>
       widget.onReply != null &&

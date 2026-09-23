@@ -105,6 +105,12 @@ class ChatComposer extends StatefulWidget {
   final bool? replyPings;
   final ValueChanged<bool>? onToggleReplyPing;
 
+  /// Whether this member may attach anything here at all. False takes the
+  /// attach button and the voice-note button away — a voice note is an
+  /// attachment — and says why, rather than offering a picker whose upload
+  /// the server will refuse (`chat_attachments_insert`).
+  final bool canAttach;
+
   /// Per-file size cap for this surface, in bytes.
   ///
   /// Checked here so an oversized file is refused with a sentence at the
@@ -126,6 +132,7 @@ class ChatComposer extends StatefulWidget {
     this.hintText = 'Send a message',
     this.enabled = true,
     this.footer,
+    this.canAttach = true,
     this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
     this.remainingStorageBytes,
     this.bots = const [],
@@ -364,6 +371,7 @@ class _ChatComposerState extends State<ChatComposer>
                   widget.enabled &&
                   (_controller.text.trim().isNotEmpty || _staged.isNotEmpty),
               atAttachmentLimit: _atAttachmentLimit,
+              canAttach: widget.canAttach,
               hintText: widget.hintText,
               onChanged: _onTextChanged,
               onSubmit: _send,

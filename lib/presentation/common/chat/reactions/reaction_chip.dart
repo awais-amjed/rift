@@ -18,7 +18,10 @@ import '../../emoji_text.dart';
 /// re-popping it would claim something arrived that didn't.
 class ReactionChip extends StatefulWidget {
   final MessageReaction reaction;
-  final VoidCallback onTap;
+
+  /// Null where this member may not react. The chip still reads — it is a
+  /// count of other people — and simply does not answer a tap.
+  final VoidCallback? onTap;
 
   /// Whether this chip appeared after the bar was first built. False for
   /// everything already on a message when it came into view — see
@@ -29,7 +32,7 @@ class ReactionChip extends StatefulWidget {
   const ReactionChip({
     super.key,
     required this.reaction,
-    required this.onTap,
+    this.onTap,
     required this.isNew,
   });
 

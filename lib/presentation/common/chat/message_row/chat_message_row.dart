@@ -108,6 +108,11 @@ class ChatMessageRow extends StatefulWidget {
   /// Whether the local user may delete *other* people's messages here.
   final bool isModerator;
 
+  /// Whether this member's role lets them react at all. False hides the
+  /// affordances and leaves the tally: a reaction already on a message is
+  /// somebody else's and is still worth reading.
+  final bool canReact;
+
   /// Lower-cased names an `@mention` can reach — see [ChatMessageList].
   final Set<String> mentionable;
 
@@ -137,6 +142,7 @@ class ChatMessageRow extends StatefulWidget {
     this.onRetry,
     this.onPanelAction,
     this.isModerator = false,
+    this.canReact = true,
     this.mentionable = const {},
     this.mentionNames = const {},
     this.animateIn = false,
@@ -327,7 +333,10 @@ class _ChatMessageRowState extends State<ChatMessageRow>
   }
 
   Widget _buildBody() {
-    final showReactions = _canReact && message.reactions.isNotEmpty;
+    // Drawn whenever there is one, not only when this member may add their
+    // own: taking `ADD_REACTIONS` away must not blank the tally everybody
+    // else can see.
+    final showReactions = _canReactAtAll && message.reactions.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -421,8 +430,8 @@ class _ChatMessageRowState extends State<ChatMessageRow>
           MessageReactionsBar(
             reactions: message.reactions,
 
-            onToggle: _toggle,
-            onAdd: _pickReaction,
+            onToggle: _canReact ? _toggle : null,
+            onAdd: _canReact ? _pickReaction : null,
           ),
       ],
     );

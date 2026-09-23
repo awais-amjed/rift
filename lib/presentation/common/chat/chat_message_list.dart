@@ -93,6 +93,11 @@ class ChatMessageList extends StatefulWidget {
   /// (channel manager / server admin). Always false in DMs.
   final bool isModerator;
 
+  /// Whether this member's role lets them react here. False leaves every
+  /// tally on screen and takes away the ways to add one — see
+  /// [ChatMessageRow.canReact].
+  final bool canReact;
+
   /// Lower-cased names an `@mention` can reach on this surface.
   ///
   /// Supplied by the surface rather than looked up here, because only the
@@ -130,6 +135,7 @@ class ChatMessageList extends StatefulWidget {
     this.onRetry,
     this.onPanelAction,
     this.isModerator = false,
+    this.canReact = true,
     this.mentionable = const {},
     this.mentionNames = const {},
   });
@@ -343,6 +349,7 @@ class _ChatMessageListState extends State<ChatMessageList>
             onRetry: widget.onRetry,
             onPanelAction: widget.onPanelAction,
             isModerator: widget.isModerator,
+            canReact: widget.canReact,
             mentionable: widget.mentionable,
             mentionNames: widget.mentionNames,
             animateIn: _animating.contains(msg.id),

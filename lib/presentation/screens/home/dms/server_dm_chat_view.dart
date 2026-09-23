@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
+import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
@@ -106,6 +107,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           const MiniCallBar(),
           ChatComposer(
             hintText: 'Message ${state.openPeerName ?? ''}',
+            canAttach: _canAttach(),
             maxAttachmentBytes: _maxAttachmentBytes(),
             remainingStorageBytes: _remainingStorage(),
             onSend: (text, attachments, preview) =>
@@ -139,6 +141,18 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
       replyToId: answering,
     );
   }
+
+  /// A server DM's attachments go into the server's own bucket, so the
+  /// permission that governs the channels governs these too.
+  bool _canAttach() =>
+      context
+          .read<ServerCubit>()
+          .state
+          .selectedServer
+          ?.user
+          ?.permissions
+          .can(ServerPermission.attachFiles) ??
+      false;
 
   /// The operator's per-file attachment cap for this server.
   int _maxAttachmentBytes() =>

@@ -8,6 +8,8 @@ import '../../../../data/classes/chat_message.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/classes/server_member.dart';
+import '../../../../data/classes/user_permissions.dart';
+import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -93,6 +95,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                   onToggleReplyPing: setReplyPing,
                   onTyping: () =>
                       context.read<ChannelChatCubit>().notifyTyping(),
+                  canAttach: _canAttach(context),
                   maxAttachmentBytes: _maxAttachmentBytes(context),
                   remainingStorageBytes: _remainingStorage(context),
                   bots: chatState.bots,
@@ -222,15 +225,27 @@ class _ChannelChatViewState extends State<ChannelChatView>
 
   /// Channel managers and server admins may delete anyone's message here.
   bool _isModerator(BuildContext context) {
-    final permissions = context
-        .read<ServerCubit>()
-        .state
-        .selectedServer
-        ?.user
-        ?.permissions;
+    final permissions = _myPermissions(context);
     return (permissions?.isChannelManager ?? false) ||
         (permissions?.isServerAdmin ?? false);
   }
+
+  UserPermissions? _myPermissions(BuildContext context) => context
+      .read<ServerCubit>()
+      .state
+      .selectedServer
+      ?.user
+      ?.permissions;
+
+  /// Asked here rather than inside the list, because the answer is the
+  /// server's and a DM surface has no roles to ask about. The database
+  /// refuses the row either way (`message_reactions_insert`); this is so the
+  /// button is not offered in the first place.
+  bool _canReact(BuildContext context) =>
+      _myPermissions(context)?.can(ServerPermission.addReactions) ?? false;
+
+  bool _canAttach(BuildContext context) =>
+      _myPermissions(context)?.can(ServerPermission.attachFiles) ?? false;
 
   Widget _buildBody(BuildContext context, ChannelChatState chatState) {
     switch (chatState.status) {
@@ -260,6 +275,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
           onPanelAction: context.read<ChannelChatCubit>().pressPanelAction,
           // Channel managers and admins may remove anyone's message.
           isModerator: _isModerator(context),
+          canReact: _canReact(context),
           // Only the names these messages actually say, resolved against this
           // channel — see [ChannelChatState.mentionNames]. `@all` is added
           // here because it names everybody in the room and so lights up like

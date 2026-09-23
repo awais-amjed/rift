@@ -16,14 +16,18 @@ import 'reaction_chip.dart';
 /// up afterwards animates.
 class MessageReactionsBar extends StatefulWidget {
   final List<MessageReaction> reactions;
-  final void Function(String emoji) onToggle;
-  final void Function(BuildContext anchorContext) onAdd;
+
+  /// Null where this member's role does not let them react: the chips are
+  /// still drawn and still say who reacted, they simply do not answer a tap,
+  /// and the "+" that adds one is not offered.
+  final void Function(String emoji)? onToggle;
+  final void Function(BuildContext anchorContext)? onAdd;
 
   const MessageReactionsBar({
     super.key,
     required this.reactions,
-    required this.onToggle,
-    required this.onAdd,
+    this.onToggle,
+    this.onAdd,
   });
 
   @override
@@ -77,10 +81,12 @@ class _MessageReactionsBarState extends State<MessageReactionsBar> {
               key: ValueKey(r.emoji),
               reaction: r,
 
-              onTap: () => widget.onToggle(r.emoji),
+              onTap: widget.onToggle == null
+                  ? null
+                  : () => widget.onToggle!(r.emoji),
               isNew: _arrived.contains(r.emoji),
             ),
-          _AddReactionButton(onTap: widget.onAdd),
+          if (widget.onAdd case final onAdd?) _AddReactionButton(onTap: onAdd),
         ],
       ),
     );

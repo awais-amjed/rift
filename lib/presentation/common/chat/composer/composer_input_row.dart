@@ -17,6 +17,11 @@ class ComposerInputRow extends StatelessWidget {
   final bool enabled;
   final bool canSend;
   final bool atAttachmentLimit;
+
+  /// Whether this member's role lets them attach anything. False disables the
+  /// two controls that make one — the picker and the voice note — and says so
+  /// in their tooltip; an absent control explains nothing.
+  final bool canAttach;
   final String hintText;
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmit;
@@ -34,6 +39,7 @@ class ComposerInputRow extends StatelessWidget {
     required this.enabled,
     required this.canSend,
     required this.atAttachmentLimit,
+    this.canAttach = true,
     required this.hintText,
     required this.onChanged,
     required this.onSubmit,
@@ -55,9 +61,11 @@ class ComposerInputRow extends StatelessWidget {
         // affordance on the bar, and it is the only control left of the text.
         ComposerIconButton(
           icon: Icons.add_rounded,
-          tooltip: 'Attach files',
+          tooltip: canAttach
+              ? 'Attach files'
+              : 'Your role cannot attach files here',
 
-          onPressed: enabled ? onPickFiles : null,
+          onPressed: (enabled && canAttach) ? onPickFiles : null,
         ),
         Expanded(
           child: ComposerTextField(
@@ -82,9 +90,14 @@ class ComposerInputRow extends StatelessWidget {
         ),
         ComposerIconButton(
           icon: Icons.mic_none_rounded,
-          tooltip: 'Record a voice message',
+          // A voice note is an attachment, and is refused by the same policy.
+          tooltip: canAttach
+              ? 'Record a voice message'
+              : 'Your role cannot attach files here',
 
-          onPressed: (enabled && !atAttachmentLimit) ? onStartRecording : null,
+          onPressed: (enabled && canAttach && !atAttachmentLimit)
+              ? onStartRecording
+              : null,
         ),
         ComposerSendButton(enabled: canSend, onPressed: onSubmit),
       ],
