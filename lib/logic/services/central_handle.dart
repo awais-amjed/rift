@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart';
+
 /// What makes a central handle valid, in one place.
 ///
 /// A handle is checked twice: once by whatever screen is asking for it, so the
@@ -26,4 +28,46 @@ class CentralHandle {
   static String normalize(String raw) => raw.trim().toLowerCase();
 
   static bool isValid(String raw) => _pattern.hasMatch(normalize(raw));
+
+  /// Fold the field as it is typed, into exactly what [normalize] would
+  /// claim.
+  ///
+  /// Here rather than at each field because the fold is [normalize]'s
+  /// behaviour, not a keyboard restriction: a plain allow-list would refuse
+  /// the capital that this class has always been willing to fix. Showing the
+  /// fold instead means the box and the account agree — `Noor` becomes `noor`
+  /// under the cursor rather than at submit, and a space or a `!` never
+  /// arrives to be silently dropped later.
+  static final List<TextInputFormatter> inputFormatters = [
+    _FoldToHandle(),
+  ];
+}
+
+class _FoldToHandle extends TextInputFormatter {
+  static final _disallowed = RegExp(r'[^a-z0-9_]');
+
+  static String _fold(String raw) =>
+      raw.toLowerCase().replaceAll(_disallowed, '');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue previous,
+    TextEditingValue next,
+  ) {
+    final folded = _fold(next.text);
+    if (folded == next.text) return next;
+    // Where the caret lands is counted through the same fold, not carried
+    // over: dropping two characters from the middle of a paste moves
+    // everything after them, and an offset taken from the unfolded text
+    // would put the caret past the end of the field.
+    final caret = next.selection.baseOffset < 0
+        ? next.text.length
+        : next.selection.baseOffset;
+    return TextEditingValue(
+      text: folded,
+      selection: TextSelection.collapsed(
+        offset: _fold(next.text.substring(0, caret)).length,
+      ),
+    );
+  }
 }

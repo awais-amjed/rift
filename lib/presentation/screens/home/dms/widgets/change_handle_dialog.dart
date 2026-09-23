@@ -5,10 +5,8 @@ import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/services/central_handle.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
-import '../../../../common/app_text_field.dart';
+import '../../../../common/handle_field.dart';
 import '../../../../common/message_banner.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../theme/theme_context.dart';
 
 /// Change the handle other people use to find this central account.
 ///
@@ -82,7 +80,6 @@ class _ChangeHandleDialogState extends State<ChangeHandleDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
     return AppModal(
       title: 'Change handle',
       error: _error,
@@ -90,20 +87,13 @@ class _ChangeHandleDialogState extends State<ChangeHandleDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppTextField(
+          HandleField(
             controller: _controller,
-            label: 'Handle',
-            hint: widget.currentHandle,
             enabled: !_isLoading,
             autofocus: true,
             // Editing retracts the last refusal: it described the handle
             // that was submitted, not the one being typed now.
             onChanged: (_) => setState(() => _error = null),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            CentralHandle.rule,
-            style: AppText.secondary.copyWith(color: themeState.textQuaternary),
           ),
           const SizedBox(height: 12),
           MessageBanner(
