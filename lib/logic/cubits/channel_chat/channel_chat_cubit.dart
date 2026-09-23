@@ -354,6 +354,14 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     for (final m in incoming) {
       _removeTyping(m.authorId);
     }
+    // Every system message a channel carries is the server saying a bot was
+    // handed this channel's key or had it taken away, so one arriving is the
+    // signal that the header chip is stale. The dialog refreshes it for
+    // whoever granted; this is what tells the room, which is told nothing
+    // else — and the room is who the chip is for.
+    if (incoming.any((m) => m.origin == MessageOrigin.system)) {
+      unawaited(refreshBotListeners());
+    }
     // A locked row has no text, so a notification for one would be an empty
     // quote under somebody's name. Being unable to read it is exactly the
     // reason not to speak for it.
