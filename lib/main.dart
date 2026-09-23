@@ -8,6 +8,7 @@ import 'package:toastification/toastification.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app_bootstrap.dart';
+import 'data/constants.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/vault/vault_cubit.dart';
@@ -16,6 +17,7 @@ import 'logic/ptt/push_to_talk_listener.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/window_focus_service.dart';
 import 'presentation/app_providers.dart';
+import 'presentation/common/app_toast.dart';
 import 'presentation/common/title_bar_overlay.dart';
 import 'presentation/routing/app_routes.dart';
 import 'presentation/screens/pip/pip_overlay.dart';
@@ -108,32 +110,46 @@ class _MyAppState extends State<MyApp>
 
   @override
   Widget build(BuildContext context) {
-    return ToastificationWrapper(
-      child: KeyboardDismisser(
-        child: AppProviders(
-          appCubit: widget.appCubit,
-          vaultCubit: widget.vaultCubit,
-          child: Sizer(
-            builder: (context, orientation, screenType) {
-              // Watched, not `context.theme`: this is what builds the theme,
-              // so there is no Theme above it yet to read one from.
-              final themeState = context.watch<ThemeCubit>().state;
-              return PushToTalkListener(
-                child: MaterialApp.router(
-                  routerConfig: _router,
-                  darkTheme: AppTheme.dark(themeState.palette),
-                  theme: AppTheme.light(themeState.palette),
-                  themeMode: themeState.themeMode,
-                  builder: EasyLoading.init(
-                    builder: (context, child) =>
-                        PipOverlay(child: TitleBarOverlay(child: child!)),
+    return KeyboardDismisser(
+      child: AppProviders(
+        appCubit: widget.appCubit,
+        vaultCubit: widget.vaultCubit,
+        child: Sizer(
+          builder: (context, orientation, screenType) {
+            // Watched, not `context.theme`: this is what builds the theme,
+            // so there is no Theme above it yet to read one from.
+            final themeState = context.watch<ThemeCubit>().state;
+            return PushToTalkListener(
+              child: MaterialApp.router(
+                routerConfig: _router,
+                darkTheme: AppTheme.dark(themeState.palette),
+                theme: AppTheme.light(themeState.palette),
+                themeMode: themeState.themeMode,
+                // Inside the app, not around it: a toast is drawn by
+                // `AppToast`, which reads the palette off the `ThemeData`
+                // this `MaterialApp` installs — around it there is no theme
+                // to read and every toast fell back to the package's own.
+                builder: EasyLoading.init(
+                  builder: (context, child) => ToastificationWrapper(
+                    // Clear of the title bar: a toast arrives in the same
+                    // corner the window buttons live in.
+                    config: const ToastificationConfig(
+                      alignment: Alignment.topRight,
+                      itemWidth: AppToast.maxWidth,
+                      marginBuilder: _toastMargin,
+                    ),
+                    child: PipOverlay(child: TitleBarOverlay(child: child!)),
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 }
+
+/// Where a toast sits: below the title bar, in from the window's edge.
+EdgeInsetsGeometry _toastMargin(BuildContext context, AlignmentGeometry _) =>
+    const EdgeInsets.only(top: K.titleBarHeight + 12, right: 16, left: 16);

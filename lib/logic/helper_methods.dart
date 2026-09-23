@@ -7,6 +7,7 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:toastification/toastification.dart';
 
 import '../presentation/common/app_mark.dart';
+import '../presentation/common/app_toast.dart';
 
 import '../presentation/routing/app_routes.dart';
 
@@ -55,6 +56,8 @@ class HelperMethods {
     }
   }
 
+  /// Drawn by [AppToast] rather than by toastification's own styles, so a
+  /// message arrives on the same surface as every other panel in the app.
   static void showToast({
     required String title,
     required String description,
@@ -62,11 +65,14 @@ class HelperMethods {
     bool autoClose = true,
     Duration autoCloseDuration = const Duration(seconds: 3),
   }) {
-    toastification.show(
-      title: Text(title),
-      description: Text(description),
-      type: type,
+    toastification.showCustom(
       autoCloseDuration: autoClose ? autoCloseDuration : null,
+      builder: (context, item) => AppToast(
+        title: title,
+        description: description,
+        type: type,
+        onClose: () => toastification.dismiss(item),
+      ),
     );
   }
 
