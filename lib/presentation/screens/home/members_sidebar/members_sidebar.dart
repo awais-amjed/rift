@@ -212,12 +212,11 @@ class _MembersSidebarState extends State<MembersSidebar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // The server's own count, not the length of what has been paged in.
-        _header(
-          context,
-          themeState,
-          roster.loaded ? roster.peopleCount + roster.bots.length : null,
-        ),
+        // The server's own count, not the length of what has been paged in —
+        // and people only, because that is what the word beside it means
+        // everywhere else. The bots have their own heading further down,
+        // carrying their own count.
+        _header(context, themeState, roster.loaded ? roster.peopleCount : null),
         Expanded(
           child: !roster.loaded
               ? Center(

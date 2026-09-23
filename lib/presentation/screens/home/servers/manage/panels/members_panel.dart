@@ -86,9 +86,14 @@ class _MembersPanelState extends State<MembersPanel> {
   /// the response ceiling sooner than the roster itself did.
   Map<String, List<Role>> _memberRoles = const {};
 
-  /// How many members there are, from the database rather than from the length
-  /// of what has been loaded.
-  int? _total;
+  /// How many people and how many bots there are, from the database rather
+  /// than from the length of what has been loaded.
+  ///
+  /// Counted apart, and said apart, because "members" has to mean the same
+  /// thing everywhere it is written. The roster and the phone's channel
+  /// header both mean people by it, so a total that folded the bots in made
+  /// this page disagree with both of them about the same server.
+  ({int people, int bots})? _counts;
 
   String? _error;
   String? _expandedId;
@@ -135,7 +140,7 @@ class _MembersPanelState extends State<MembersPanel> {
       serverId: widget.server.id,
     );
     if (!mounted) return;
-    setState(() => _total = counts.people + counts.bots);
+    setState(() => _counts = counts);
   }
 
   /// Role chips for [members], merged into what is already known.
@@ -269,10 +274,12 @@ class _MembersPanelState extends State<MembersPanel> {
 
     return ManagePanel(
       title: 'Members',
-      subtitle: switch (_total) {
+      subtitle: switch (_counts) {
         null => widget.server.name,
-        1 => '1 member',
-        final n => '$n members',
+        final c => [
+          c.people == 1 ? '1 member' : '${c.people} members',
+          if (c.bots == 1) '1 bot' else if (c.bots > 1) '${c.bots} bots',
+        ].join(' · '),
       },
       body: Column(
         mainAxisSize: MainAxisSize.min,
