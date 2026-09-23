@@ -128,8 +128,8 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
   members); `bgTertiary` is inset (fields, composer); `bgElevated` floats above everything
   (dialogs, menus, popovers). `test/app_palette_test.dart` fails if a palette breaks the
   ordering or drops body text below WCAG AA on the content panel.
-- **Type:** `AppText` (`theme/app_text.dart`) holds the scale: six sizes, 11 / 12 / 13 / 14 /
-  15 / 21, and every style is one of them. A call site never sets a size —
+- **Type:** `AppText` (`theme/app_text.dart`) holds the scale: seven sizes, 11 / 12 / 13 / 14 /
+  15 / 18 / 21, and every style is one of them. A call site never sets a size —
   `copyWith(fontSize:)` is banned; a place that needs a size needs a token. Styles carry size,
   weight, spacing and family but never colour — finish one with
   `.copyWith(color: theme.textSecondary)`. Geist for UI; `figure`/`kbd`/`code`/`mnemonic` are

@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
-/// The app's type scale: six sizes, 11 / 12 / 13 / 14 / 15 / 21.
+/// The app's type scale: seven sizes, 11 / 12 / 13 / 14 / 15 / 18 / 21.
 ///
-/// Every style here is one of those six. A call site never sets a size of
+/// Every style here is one of those seven. A call site never sets a size of
 /// its own — `copyWith(fontSize:)` is how a scale grows thirteen steps that
 /// are half a pixel apart — so if a place needs a size, it needs a token,
-/// and the token has to land on one of the six.
+/// and the token has to land on one of the seven.
+///
+/// 18 was the sixth's replacement rather than an addition to it: a modal
+/// that becomes a full screen on a phone used to take the 21 meant for a
+/// hero, and the only step under it was the 15 a section heading uses. See
+/// [modalPageTitle]. Adding an eighth needs the same kind of argument —
+/// two things that must not look alike and no room between them.
 ///
 /// Styles carry size, weight, spacing and family — never colour. Colour is
 /// themed and comes from `ThemeState`, so call sites finish a style with
@@ -21,12 +27,32 @@ class AppText {
 
   // ── 21 ────────────────────────────────────────────────────────────────────
 
-  /// Screen titles: onboarding steps, the banned notice, welcome.
+  /// The hero at the top of an arrival: onboarding steps, the banned notice,
+  /// welcome. Not a page you are passing through — that is [modalPageTitle].
   static const TextStyle pageTitle = TextStyle(
     fontSize: 21,
     fontWeight: FontWeight.w700,
     height: 1.2,
     letterSpacing: -0.2,
+  );
+
+  // ── 18 ────────────────────────────────────────────────────────────────────
+
+  /// The title of a page you are passing *through*: a modal that becomes a
+  /// full screen on a phone.
+  ///
+  /// The seventh size, and the reason for it. Such a page used to borrow
+  /// [pageTitle], which is the hero size — so "Manage server" was set in the
+  /// same type as the welcome screen, on a screen narrow enough for that to
+  /// be most of the width. The step below it is 15, which is what a section
+  /// heading *inside* a page uses, so dropping to that would have made the
+  /// name of the screen indistinguishable from a group within it. 18 keeps
+  /// the three apart: hero, page, section.
+  static const TextStyle modalPageTitle = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: -0.15,
   );
 
   // ── 15 ────────────────────────────────────────────────────────────────────

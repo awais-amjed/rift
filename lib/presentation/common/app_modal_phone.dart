@@ -182,7 +182,7 @@ extension _AppModalPhone on AppModal {
                   children: [
                     Text(
                       title,
-                      style: AppText.pageTitle.copyWith(
+                      style: AppText.modalPageTitle.copyWith(
                         color: themeState.textPrimary,
                       ),
                     ),
