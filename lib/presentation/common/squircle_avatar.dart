@@ -13,6 +13,25 @@ class SquircleAvatar extends StatelessWidget {
   /// Supplies the initial when there's no image.
   final String name;
 
+  /// The letter this avatar draws: the first letter or digit in [name], not
+  /// simply its first character.
+  ///
+  /// A handle is shown with its `@` — the DM header's title is
+  /// `@lana_clean` — and taking character zero drew an avatar with `@` on it
+  /// while the conversation list beside it, given the bare handle, drew `L`
+  /// for the same person. Punctuation is never the initial anyone means.
+  static String initialOf(String name) {
+    for (final rune in name.runes) {
+      final character = String.fromCharCode(rune);
+      if (RegExp(r'[A-Za-z0-9]').hasMatch(character)) {
+        return character.toUpperCase();
+      }
+    }
+    // Nothing alphanumeric at all: a name that is only emoji or CJK keeps its
+    // first character, because that *is* what somebody would call it.
+    return name.isEmpty ? '?' : name.characters.first.toUpperCase();
+  }
+
   /// Stable id that picks the gradient. Falls back to [name], which is fine
   /// for servers but wrong for people — pass a user id so a rename doesn't
   /// change someone's colour.
@@ -67,7 +86,7 @@ class SquircleAvatar extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        initialOf(name),
         style: TextStyle(
           color: identity.onColor,
           fontWeight: FontWeight.w700,
