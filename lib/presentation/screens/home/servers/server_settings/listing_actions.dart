@@ -29,19 +29,21 @@ class ListingActions {
   }) async {
     if (!draft.touchesDirectory) return null;
 
-    final code = await _inviteCode(draft, serverCubit, server.id);
-    if (code == null) {
-      return 'Server settings saved, but the listing needs a join link and '
-          'one could not be created. Try Save again.';
-    }
-
-    // Proof that an admin of this server asked for the listing. Central cannot
-    // tell an administrator from any other member, so it redeems this against
-    // the server's own domain before writing anything.
+    // Proof that an admin of this server asked for the listing, before
+    // anything is minted. Central cannot tell an administrator from any other
+    // member, so it redeems this against the server's own domain before
+    // writing anything.
     final proof = await serverCubit.listingToken(serverId: server.id);
     if (proof.token == null) {
       return 'Server settings saved, but the public listing did not: '
           '${proof.error ?? 'this server would not confirm it.'}';
+    }
+
+    final minted = await _inviteCode(draft, serverCubit, server.id);
+    final code = minted.code;
+    if (code == null) {
+      return 'Server settings saved, but the listing needs a join link and '
+          'one could not be created. Try Save again.';
     }
 
     final saved = await publicServers.publish(
@@ -59,6 +61,12 @@ class ListingActions {
       isListed: draft.isListed,
     );
     if (saved == null) {
+      // A link minted for a listing that did not happen points at nothing and
+      // never expires. The one the listing already had is left alone — it is
+      // still in use by the row that is still there.
+      if (minted.isNew) {
+        await serverCubit.revokeInvite(inviteCode: code, serverId: server.id);
+      }
       return 'Server settings saved, but the public listing did not: '
           '${publicServers.state.error ?? 'central could not be reached.'}';
     }
@@ -102,13 +110,18 @@ class ListingActions {
 
   /// The invite code the listing will carry: the one it already has, or a
   /// fresh unlimited-use, permissionless invite minted on the server itself.
-  static Future<String?> _inviteCode(
+  ///
+  /// [isNew] says which, because only a link minted here may be taken back
+  /// when the publish fails.
+  static Future<({String? code, bool isNew})> _inviteCode(
     ListingDraft draft,
     ServerCubit serverCubit,
     String serverId,
   ) async {
     final existing = draft.listing?.inviteCode;
-    if (existing != null && !draft.resetLink) return existing;
+    if (existing != null && !draft.resetLink) {
+      return (code: existing, isNew: false);
+    }
 
     final result = await serverCubit.createInvite(
       maxUses: null,
@@ -116,6 +129,6 @@ class ListingActions {
       // The listing's server, which is not necessarily the one on screen.
       serverId: serverId,
     );
-    return result.success ? result.inviteCode : null;
+    return (code: result.success ? result.inviteCode : null, isNew: true);
   }
 }

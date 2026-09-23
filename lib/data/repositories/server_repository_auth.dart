@@ -122,6 +122,27 @@ mixin _AuthApiMixin {
     });
   }
 
+  /// Delete an invite the caller minted.
+  ///
+  /// `invites_delete_own` (`008_security.sql`) matches on `created_by`, so
+  /// this can only ever reach a link this account made. It exists for the
+  /// publish flows: the listing's join link has to be minted before central
+  /// is asked to publish it, and a publish that is then refused would
+  /// otherwise leave an unlimited, never-expiring invite on the server with
+  /// nothing pointing at it.
+  Future<APIResponse> deleteInvite(
+    String supabaseUrl, {
+    required String anonKey,
+    required String inviteCode,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      await db.from('invites').delete().eq('code', inviteCode);
+      return <String, dynamic>{};
+    });
+  }
+
   /// Update the caller's own display name and/or avatar path.
   /// [clearAvatar] sends an explicit null, which removes the picture.
   ///

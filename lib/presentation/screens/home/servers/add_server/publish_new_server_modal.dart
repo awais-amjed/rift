@@ -80,7 +80,31 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       _error = null;
     });
 
+    // Proof that an admin of this server asked, before anything is minted.
+    // Central redeems it against the server's own domain, because it has no
+    // other way to tell an administrator from any other member — see the
+    // publish_server edge function on central.
+    final proof = await context.read<ServerCubit>().listingToken(
+      serverId: server.id,
+    );
+    if (!mounted) return;
+    if (proof.token == null) {
+      setState(() {
+        _publishing = false;
+        // The server's own words. "Only an admin can do this" is one of the
+        // things it might say, and saying it for every failure told an admin
+        // they were not one whenever anything else went wrong.
+        _error = proof.error ?? 'This server would not confirm the listing.';
+      });
+      return;
+    }
+
     // The listing's own invite: unlimited uses, no expiry, no permissions.
+    // Central needs the code in the publish call, so it has to exist first —
+    // which means a refused publish has to take it back down again. It is
+    // refused routinely: a server on a private address can never be listed,
+    // and every press would otherwise have left another permanent open door
+    // on it.
     final invite = await context.read<ServerCubit>().createInvite(
       maxUses: null,
       expiresInSeconds: null,
@@ -93,25 +117,6 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       setState(() {
         _publishing = false;
         _error = invite.error ?? 'Could not create a join link.';
-      });
-      return;
-    }
-
-    // Proof that an admin of this server asked. Central redeems it against the
-    // server's own domain, because it has no other way to tell an
-    // administrator from any other member — see the publish_server edge
-    // function on central.
-    final proof = await context.read<ServerCubit>().listingToken(
-      serverId: server.id,
-    );
-    if (!mounted) return;
-    if (proof.token == null) {
-      setState(() {
-        _publishing = false;
-        // The server's own words. "Only an admin can do this" is one of the
-        // things it might say, and saying it for every failure told an admin
-        // they were not one whenever anything else went wrong.
-        _error = proof.error ?? 'This server would not confirm the listing.';
       });
       return;
     }
@@ -135,6 +140,11 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     if (!mounted) return;
 
     if (saved == null) {
+      await context.read<ServerCubit>().revokeInvite(
+        inviteCode: invite.inviteCode!,
+        serverId: server.id,
+      );
+      if (!mounted) return;
       setState(() {
         _publishing = false;
         _error = cubit.state.error;

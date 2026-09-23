@@ -51,6 +51,28 @@ mixin _ServerInvitesApiMixin on Cubit<ServerState> {
     }
   }
 
+  /// Throw away an invite this account minted.
+  ///
+  /// Best effort and deliberately quiet: the callers are failure paths that
+  /// already have something to say, and "the listing failed, and so did
+  /// tidying up after it" is not a second thing to put in front of somebody.
+  Future<void> revokeInvite({
+    required String inviteCode,
+    String? serverId,
+  }) async {
+    final server = _target(serverId);
+    if (server == null) return;
+    await _callFor(
+      server,
+      (token) => _repository.deleteInvite(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        inviteCode: inviteCode,
+        bearerToken: token,
+      ),
+    );
+  }
+
   /// Read an invite link and ask its server what it opens, without using it.
   ///
   /// The first of the two join steps. A link that does not parse is refused
