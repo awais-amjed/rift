@@ -56,7 +56,7 @@ Future<void> showMemberProfile(
   return showCustomDialog(
     context: context,
     barrierDismissible: true,
-    builder: (_) => dialog,
+    build: (_) => dialog,
   );
 }
 
@@ -77,6 +77,6 @@ Future<void> showCentralProfile(
   return showCustomDialog(
     context: context,
     barrierDismissible: true,
-    builder: (_) => dialog,
+    build: (_) => dialog,
   );
 }

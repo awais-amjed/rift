@@ -58,7 +58,7 @@ void showSafetyCode(
     showAppSheet<void>(context, dialog);
     return;
   }
-  showCustomDialog<void>(context: context, builder: (_) => dialog);
+  showCustomDialog<void>(context: context, build: (_) => dialog);
 }
 
 /// Compute and show in one step, for a surface that knows exactly whose key

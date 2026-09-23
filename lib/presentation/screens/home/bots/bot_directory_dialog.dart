@@ -100,7 +100,7 @@ Future<void> showBotDirectory(BuildContext context) {
   final backup = context.read<SupabaseBackupCubit>();
   return showCustomDialog<void>(
     context: context,
-    builder: (_) => MultiBlocProvider(
+    build: (_) => MultiBlocProvider(
       providers: [
         BlocProvider.value(value: servers),
         BlocProvider.value(value: backup),

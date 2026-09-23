@@ -118,5 +118,5 @@ void _show(
     showAppSheet<void>(context, dialog);
     return;
   }
-  showCustomDialog<void>(context: context, builder: (_) => dialog);
+  showCustomDialog<void>(context: context, build: (_) => dialog);
 }

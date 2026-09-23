@@ -63,7 +63,7 @@ class ChannelList extends StatelessWidget {
     // typing a name made a text channel, quietly, in the other section.
     void openCreateChannel(ChannelType type) => showCustomDialog(
       context: context,
-      builder: (_) => MultiBlocProvider(
+      build: (_) => MultiBlocProvider(
         providers: [
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<AppCubit>()),

@@ -10,11 +10,23 @@ import 'context_menu_region.dart';
 ///   typed, and wrong for a picker like the quick switcher, which holds
 ///   nothing and should go away when the eye moves on
 /// - CAN be dismissed by pressing Escape
+///
+/// [build] runs **once, here, before the route exists**, and the route is
+/// handed the finished widget. That is the whole reason it is not called
+/// `builder`: a `WidgetBuilder` handed to [showDialog] is re-invoked every
+/// time the route rebuilds, and a route rebuilds for reasons that have nothing
+/// to do with the dialog — **resizing the window is enough**. Nearly every
+/// dialog here opens with `BlocProvider.value(value: context.read<Foo>())`,
+/// which is a lookup through the *caller's* element; re-running it after the
+/// caller has been unmounted throws, and in a release build the whole app goes
+/// grey. Building once, while the caller is certainly still mounted, is what
+/// stops that, so [build] must stay a one-shot.
 Future<T?> showCustomDialog<T>({
   required BuildContext context,
-  required WidgetBuilder builder,
+  required WidgetBuilder build,
   bool barrierDismissible = false,
 }) {
+  final dialog = build(context);
   return showDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
@@ -23,7 +35,7 @@ Future<T?> showCustomDialog<T>({
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(ctx).pop(),
       },
-      child: Focus(autofocus: true, child: _Entrance(child: builder(ctx))),
+      child: Focus(autofocus: true, child: _Entrance(child: dialog)),
     ),
   );
 }
@@ -63,31 +75,18 @@ Future<T?> showAppModal<T>({
   required BuildContext context,
   required Widget modal,
 }) {
-  return showCustomDialog<T>(context: context, builder: (_) => modal);
+  return showCustomDialog<T>(context: context, build: (_) => modal);
 }
 
 /// Opens a dialog from inside a context menu.
 ///
-/// A menu is an overlay entry rather than a route, so it has to dismiss itself
-/// before the dialog opens — and its [BuildContext] is deactivated the moment
-/// it does. That makes the obvious spelling a trap:
-///
-/// ```dart
-/// dismiss?.call();
-/// showCustomDialog(context: menu, builder: (_) => BlocProvider.value(
-///   value: menu.read<ServerCubit>(), child: const SomeDialog()));
-/// ```
-///
-/// The `read` runs inside the *route's* builder, which Flutter re-invokes
-/// whenever the route rebuilds — and a route rebuilds for reasons that have
-/// nothing to do with the dialog. **Resizing the window is enough.** So it
-/// works on the first build and throws "Looking up a deactivated widget's
-/// ancestor" on the next.
-///
-/// [build] is therefore called **once, here, while the menu is still mounted**,
-/// and the route is handed the finished widget. The navigator is captured for
-/// the same reason: it outlives the overlay entry, and the menu's context
-/// won't.
+/// [showCustomDialog] already builds once rather than per rebuild, which is
+/// what keeps a `context.read` inside a dialog safe. A menu needs one thing
+/// more: it is an overlay entry rather than a route, so it dismisses itself
+/// before the dialog opens, and its [BuildContext] is deactivated the moment
+/// it does. So [build] runs here, **before** the dismissal, while the menu is
+/// still mounted. The navigator is captured for the same reason: it outlives
+/// the overlay entry, and the menu's context won't.
 Future<T?> showDialogFromMenu<T>({
   required BuildContext context,
   required Widget Function(BuildContext) build,
@@ -98,6 +97,6 @@ Future<T?> showDialogFromMenu<T>({
   dismiss?.call();
   return showCustomDialog<T>(
     context: navigator.context,
-    builder: (_) => dialog,
+    build: (_) => dialog,
   );
 }

@@ -143,7 +143,7 @@ class _ControlBarContent extends StatelessWidget {
       // a number and then quietly uses a different one is the wrong control.
       final dialogSettings = await showCustomDialog<ScreenShareSettings>(
         context: context,
-        builder: (_) => ScreenShareSettingsDialog(
+        build: (_) => ScreenShareSettingsDialog(
           maxShareMbps:
               serverCubit.state.selectedServer?.limits.maxShareMbps ??
               ServerLimits.unlimited,
@@ -171,7 +171,7 @@ class _ControlBarContent extends StatelessWidget {
 
     final source = await showCustomDialog<AudioSource>(
       context: context,
-      builder: (_) => const SoundSharePickerDialog(),
+      build: (_) => const SoundSharePickerDialog(),
     );
     if (source == null) return;
     if (livekitCubit.state.currentChannelId == null) return;

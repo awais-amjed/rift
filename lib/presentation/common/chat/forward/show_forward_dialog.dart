@@ -50,7 +50,7 @@ Future<void> showForwardDialog(
 
   return showCustomDialog(
     context: context,
-    builder: (_) => MultiBlocProvider(
+    build: (_) => MultiBlocProvider(
       providers: [
         BlocProvider.value(value: themeCubit),
         BlocProvider.value(value: servers),

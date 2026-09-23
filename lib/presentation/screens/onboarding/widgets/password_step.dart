@@ -83,7 +83,7 @@ class _PasswordStepState extends State<PasswordStep> {
                   ? null
                   : () => showCustomDialog(
                       context: context,
-                      builder: (_) => BlocProvider.value(
+                      build: (_) => BlocProvider.value(
                         value: context.read<VaultCubit>(),
                         child: const RestoreFileDialog(),
                       ),

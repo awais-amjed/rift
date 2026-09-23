@@ -87,7 +87,7 @@ Future<({bool confirmed, bool dontAskAgain})> _show({
 
   final answer = await showCustomDialog<({bool confirmed, bool dontAskAgain})>(
     context: dialogContext,
-    builder: (_) => _ConfirmDialog(
+    build: (_) => _ConfirmDialog(
       title: title,
       message: message,
       confirmLabel: confirmLabel,

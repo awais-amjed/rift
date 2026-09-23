@@ -134,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showCustomDialog(
       context: context,
-      builder: (_) => MultiBlocProvider(
+      build: (_) => MultiBlocProvider(
         providers: [
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<VaultCubit>()),

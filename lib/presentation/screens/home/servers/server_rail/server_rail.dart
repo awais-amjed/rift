@@ -108,7 +108,7 @@ class ServerRail extends StatelessWidget {
   void _openAddServerDialog(BuildContext context) {
     showCustomDialog(
       context: context,
-      builder: (_) => MultiBlocProvider(
+      build: (_) => MultiBlocProvider(
         providers: [
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<AppCubit>()),

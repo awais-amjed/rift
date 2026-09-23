@@ -179,7 +179,7 @@ class ServerSwitcherSheet extends StatelessWidget {
                                 navigator.pop();
                                 showCustomDialog(
                                   context: navigator.context,
-                                  builder: (_) => MultiBlocProvider(
+                                  build: (_) => MultiBlocProvider(
                                     providers: [
                                       BlocProvider.value(value: serverCubit),
                                       BlocProvider.value(value: appCubit),
