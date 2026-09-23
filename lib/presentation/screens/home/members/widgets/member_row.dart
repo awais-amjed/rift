@@ -111,6 +111,12 @@ class MemberRow extends StatelessWidget {
                     spacing: 4,
                     runSpacing: 4,
                     children: [
+                      // First, because it is the most load-bearing thing
+                      // about the row: it decides what may be done to this
+                      // member and whether the row is a person at all. The
+                      // roster says it with a heading; this list is sorted
+                      // by name, so it has to say it here.
+                      if (member.isBot) const LabelPill(label: 'Bot'),
                       for (final role in _badges.take(3))
                         RoleChip(role: role, maxChars: RoleChip.wide),
                       if (_badges.length > 3)
