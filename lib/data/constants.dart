@@ -261,7 +261,13 @@ class K {
   /// Applied once by the settings screen, so a pane cannot opt out of it.
   /// A *control* inside a pane may still be narrower than this — a theme
   /// picker or a segmented choice is sized to its own content.
-  static const double settingsMeasure = 720;
+  ///
+  /// 760 rather than a rounder number because the widest thing on any pane is
+  /// the row of four palette cards, and at 720 it wrapped with the last one
+  /// alone on a line of its own. It is the same measure the self-host console
+  /// holds its whole column to, which is the other place Rift writes a
+  /// paragraph next to a control.
+  static const double settingsMeasure = 760;
 
   // ── Message rows ──────────────────────────────────────────
   /// Left/right padding on a message row. The design's rows run wider than
