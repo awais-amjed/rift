@@ -133,18 +133,35 @@ class ServerChipMenu extends StatelessWidget {
         build: (ctx) => serverManageDialog(ctx, server: server, initial: tab),
       );
 
+  /// Leaving is local: the row on the server stays, and so does everything
+  /// that row carries.
+  ///
+  /// Which is worth saying out loud to an **owner**, because for them the
+  /// consequence is not "you need a new invite" — it is that the one person
+  /// who can end the server or hand it on has walked out of the only place
+  /// they could do either from. Nobody else can do it for them, and an invite
+  /// back has to come from an admin who is still there. The danger zone
+  /// already points at Transfer ownership; this is the other door into the
+  /// same mistake.
   Future<void> _leave(BuildContext context) async {
     final dismiss = ContextMenuScope.of(context);
     final serverCubit = context.read<ServerCubit>();
     final host = context;
+    final isOwner = server.user?.permissions.isOwner ?? false;
     dismiss?.call();
 
     final confirmed = await showConfirmDialog(
       context: host,
       title: 'Leave ${server.name}?',
-      message:
-          'This removes the server and its keys from this device. You will '
-          'need a new invite to rejoin.',
+      message: isOwner
+          ? 'This removes the server and its keys from this device, but you '
+                'stay its owner — and the owner is the only person who can '
+                'end it or hand it on. Nobody left behind can do either, and '
+                'getting back in needs an invite from an admin who is still '
+                'there. To step down properly, open Members and choose '
+                'Transfer ownership first.'
+          : 'This removes the server and its keys from this device. You will '
+                'need a new invite to rejoin.',
       confirmLabel: 'Leave',
       icon: Icons.logout_rounded,
       isDestructive: true,
