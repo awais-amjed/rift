@@ -31,8 +31,8 @@ class MemberManagePanel extends StatelessWidget {
 
   /// Told when the roles dialog closes. It writes each toggle as it is
   /// flipped, so by the time it is shut the list above it is out of date —
-  /// and the chips on these rows are the one thing on the page that would
-  /// carry on saying otherwise.
+  /// the chips on these rows, and the row itself, since `ADMINISTRATOR` is
+  /// folded into `is_server_admin` and that decides what this panel offers.
   final VoidCallback? onRolesChanged;
 
   const MemberManagePanel({

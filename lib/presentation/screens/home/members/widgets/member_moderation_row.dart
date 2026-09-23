@@ -38,7 +38,12 @@ class MemberModerationRow extends StatelessWidget {
     final themeState = context.theme;
     return Column(
       children: [
-        if (canModerate) ...[
+        // An admin is nobody's moderation target — `moderate_user` raises
+        // `cannot_moderate_admin` for all three of these, whoever asks,
+        // the owner included. Offered anyway, muting one took a confirm
+        // dialog and a round trip to say so. Ban already knew; mute and
+        // deafen did not.
+        if (canModerate && !member.permissions.isServerAdmin) ...[
           if (dividerAbove) Divider(height: 1, color: themeState.borderPrimary),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -73,12 +78,8 @@ class MemberModerationRow extends StatelessWidget {
         ],
         // Admin-only, matching `moderate_user`'s own `app.is_admin()`,
         // and never against another admin, which it also refuses —
-        // removing that standing is a permission change, and the
-        // toggles above are where that happens.
-        //
-        // The mute/deafen row above is offered more widely than the RPC
-        // actually allows; that mismatch predates this and is tracked in
-        // TODO.md rather than widened here.
+        // removing that standing is a permission change, and the roles
+        // dialog is where that happens.
         if (canBan && !member.permissions.isServerAdmin) ...[
           Divider(height: 1, color: themeState.borderPrimary),
           Padding(

@@ -67,6 +67,12 @@ class _MembersPanelState extends State<MembersPanel> {
   /// cleared.
   int _searchId = 0;
 
+  /// What the field last asked, so a reload can ask it again. A search is
+  /// answered over the whole roster, so re-running it is the only way to
+  /// refresh a matched row — resetting the pager refreshes the list the
+  /// matches are standing in front of.
+  String _query = '';
+
   /// Moderation applied since the page a member arrived on.
   ///
   /// Held apart rather than written into the pager's list: the pager owns what
@@ -158,6 +164,7 @@ class _MembersPanelState extends State<MembersPanel> {
 
   Future<void> _search(String query) async {
     final id = ++_searchId;
+    _query = query;
     if (query.trim().isEmpty) {
       setState(() {
         _matches = null;
@@ -209,14 +216,29 @@ class _MembersPanelState extends State<MembersPanel> {
     });
   }
 
-  /// Forget every chip and ask again for the rows on screen.
+  /// Forget what the page holds about people and ask again.
   ///
-  /// After a transfer, two rows' roles changed at once — ours and the new
-  /// owner's — and the chips are the one thing on this page that would go on
-  /// saying otherwise.
-  Future<void> _reloadRoles() async {
-    setState(() => _memberRoles = const {});
-    await _loadRoles(_rows);
+  /// After a transfer, two rows changed at once — ours and the new owner's —
+  /// and after the roles dialog, one did. Both change the same two things:
+  /// the chips, and the **row**, because `ADMINISTRATOR` is folded into
+  /// `users.is_server_admin` by a trigger.
+  ///
+  /// The row is why this resets the pager rather than only the chips. An admin
+  /// is never a moderation target, so the panel hides Ban for one — off the
+  /// row it was handed. Reloading the chips alone left that row saying
+  /// "ordinary member", and the page went on offering a ban that comes back
+  /// *Admins cannot be moderated* after a confirm dialog. Losing the scroll
+  /// position is the right price: both callers are a deliberate act on one
+  /// person, not something that happens while reading.
+  Future<void> _reloadPeople() async {
+    _pager.reset();
+    setState(() {
+      _memberRoles = const {};
+      _moderated.clear();
+    });
+    await _loadMore();
+    if (!mounted) return;
+    if (_query.trim().isNotEmpty) await _search(_query);
   }
 
   bool _ownsIt(ServerState state) =>
@@ -226,7 +248,7 @@ class _MembersPanelState extends State<MembersPanel> {
   Widget build(BuildContext context) {
     return BlocListener<ServerCubit, ServerState>(
       listenWhen: (previous, next) => _ownsIt(previous) != _ownsIt(next),
-      listener: (_, _) => unawaited(_reloadRoles()),
+      listener: (_, _) => unawaited(_reloadPeople()),
       child: _build(context),
     );
   }
@@ -310,7 +332,7 @@ class _MembersPanelState extends State<MembersPanel> {
       hasMore: !_isSearching && _pager.hasMore,
       onLoadMore: () => unawaited(_loadMore()),
       memberRoles: _memberRoles,
-      onRolesChanged: () => unawaited(_reloadRoles()),
+      onRolesChanged: () => unawaited(_reloadPeople()),
       viewerId: viewerId,
       viewerIsAdmin: viewerIsAdmin,
       viewerIsModerator: viewerIsModerator,
