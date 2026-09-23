@@ -13,16 +13,27 @@ import '../../../../common/label_pill.dart';
 /// somebody holds belongs in the members dialog, where there is room for it and
 /// where somebody has gone looking.
 ///
-/// Uppercased, and cut to eight characters. A role's name is whoever made it's
-/// to choose and can be anything; a chip that grew with it would push the name
-/// it is annotating off the row.
+/// Uppercased, and cut to [maxChars]. A role's name is whoever made it's to
+/// choose and can be anything; a chip that grew with it would push the name it
+/// is annotating off the row.
+///
+/// Eight fits the sidebar, which is the tightest row the chip appears on. The
+/// members page has a row several times as wide and is where somebody goes to
+/// read roles, so it asks for more — without it the default "Moderator" was
+/// ellipsised on the one screen that exists to show roles.
 class RoleChip extends StatelessWidget {
   final Role role;
-  const RoleChip({super.key, required this.role});
+
+  /// How much of the name fits here.
+  final int maxChars;
+
+  const RoleChip({super.key, required this.role, this.maxChars = 8});
 
   String get _label {
     final name = role.name.trim().toUpperCase();
-    return name.length <= 8 ? name : '${name.substring(0, 7)}…';
+    return name.length <= maxChars
+        ? name
+        : '${name.substring(0, maxChars - 1)}…';
   }
 
   @override

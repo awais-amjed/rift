@@ -107,7 +107,8 @@ class MemberRow extends StatelessWidget {
                     spacing: 4,
                     runSpacing: 4,
                     children: [
-                      for (final role in _badges.take(3)) RoleChip(role: role),
+                      for (final role in _badges.take(3))
+                        RoleChip(role: role, maxChars: 18),
                       if (_badges.length > 3)
                         Text(
                           '+${_badges.length - 3}',

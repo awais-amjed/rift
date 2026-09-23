@@ -120,6 +120,30 @@ void main() {
       expect(find.text('MODERAT\u2026'), findsOneWidget);
     });
 
+    testWidgets('and says the whole of it where the row is wide', (
+      tester,
+    ) async {
+      // The members page is the screen somebody opens to read roles. Cutting
+      // a nine-letter default there was the sidebar's rule applied to a row
+      // several times its width.
+      await pump(
+        tester,
+        Builder(
+          builder: (context) => RoleChip(
+            role: const Role(
+              id: 'r',
+              name: 'Moderator',
+              position: 2,
+              permissions: 0,
+            ),
+            maxChars: 18,
+          ),
+        ),
+      );
+
+      expect(find.text('MODERATOR'), findsOneWidget);
+    });
+
     testWidgets('takes its colour from the role, when it was given one', (
       tester,
     ) async {

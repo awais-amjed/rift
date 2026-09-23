@@ -167,11 +167,21 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// Asked for the rows on screen rather than for the whole server:
   /// `member_role_list` is one row per (member, role), so reading it whole hit
   /// the response ceiling sooner than the roster itself did.
-  Future<void> _loadRoles(List<ServerMember> members) async {
+  ///
+  /// [force] re-reads people already answered for. Paging leaves them alone —
+  /// a page that has its chips does not need them again — but a refresh is
+  /// here *because* something changed, and a role given or taken away is one
+  /// of the things that changes. Without it the cache had no way of ever
+  /// being wrong out loud: the chip stayed as it was first read until the
+  /// server was switched.
+  Future<void> _loadRoles(
+    List<ServerMember> members, {
+    bool force = false,
+  }) async {
     final serverId = _watcher.serverId;
     final wanted = [
       for (final member in members)
-        if (!state.memberRoles.containsKey(member.id)) member.id,
+        if (force || !state.memberRoles.containsKey(member.id)) member.id,
     ];
     if (serverId == null || wanted.isEmpty) return;
 
@@ -236,6 +246,10 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
         },
       ),
     );
+    // The permission cache on a `users` row is written by the same trigger
+    // that a role change fires, so this runs on exactly the event that can
+    // have moved somebody's roles.
+    await _loadRoles(refreshed, force: true);
   }
 
   /// Whether a load that started as [loadId] is still the one we want.
