@@ -38,10 +38,13 @@ class _MemberSearchFieldState extends State<MemberSearchField> {
     // would be a use-after-dispose if the panel closed mid-flight.
     final cubit = context.read<ServerCubit>();
     final myId = cubit.state.selectedServer?.user?.id;
-    // Bots are excluded by the query rather than by a filter afterwards: a bot
-    // has no DM inbox, and one dropped from a page after the fact would leave
-    // the drop-down a row shorter than it asked for.
-    final results = await cubit.searchMembers(query: query, bots: false);
+    // Bots included, because a DM to a bot is a conversation like any other
+    // — sealed between the two of you, unreadable by the server, and the one
+    // way to say something to a bot that the rest of a channel does not see
+    // (BOTS.md §3). Excluding them here was the only thing standing between
+    // that and the app: the database allows it and the bot SDK is written
+    // around answering it.
+    final results = await cubit.searchMembers(query: query);
     return [
       for (final member in results)
         if (member.id != myId) member,

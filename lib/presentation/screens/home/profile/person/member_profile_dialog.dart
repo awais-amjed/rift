@@ -233,7 +233,8 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
               : ProfileRoles(roles: roles),
         ),
         // Never for yourself or a bot: your own key is not somebody else's to
-        // check, and a bot holds no chat key at all.
+        // check, and a safety number is compared out of band with a person who
+        // can read it back to you — a bot has a chat key and nobody to say it.
         if (member != null && !isMe && !member.isBot && server != null)
           ProfileVerification(
             tier: 'server',
@@ -247,13 +248,38 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     );
   }
 
-  /// What you can do about them — nothing at all for yourself or for a bot.
+  /// What you can do about them — nothing at all for yourself.
   ///
-  /// A bot is suppressed for the same reason as yourself, and not the same
-  /// one: there is nobody on the other end. It has no ears to turn down, no
-  /// chat key to seal a DM to, and nothing a server mute would reach.
+  /// A bot gets the one action that means something: **Message**. A DM to a
+  /// bot is a real conversation, sealed between the two of you and unreadable
+  /// by the server (BOTS.md §3), and a bot publishes a chat key like anybody
+  /// else — this dialog used to say it held none and suppress the button on
+  /// that basis, which left a capability the database allows and the bot SDK
+  /// implements with no way into it from the app at all.
+  ///
+  /// What a bot does not get is the rest: there is nobody on the other end to
+  /// turn down, and nothing a server mute would reach.
   Widget? _actions(ServerMember? member, bool isMe) {
-    if (member == null || isMe || member.isBot) return null;
+    if (member == null || isMe) return null;
+    if (member.isBot) {
+      // Wrapped, and not decoration: this column is laid out beside the
+      // about panel, so a lone `expanded` button stretches to the height of
+      // whatever is taller. `min` keeps it button-sized.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppButton(
+            label: 'Message',
+            expanded: true,
+            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+            onPressed: member.chatPublicKey == null
+                ? null
+                : () => _message(member),
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
