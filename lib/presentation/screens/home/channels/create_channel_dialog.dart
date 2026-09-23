@@ -122,7 +122,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
             hint: 'general',
             enabled: !_isLoading,
             autofocus: true,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _error = null),
           ),
           const SizedBox(height: 16),
           Text(

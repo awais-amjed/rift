@@ -155,7 +155,10 @@ class _JoinServerModalState extends State<JoinServerModal> {
               FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_.-]')),
             ],
             maxLength: ServerUsername.maxLength,
-            onChanged: (_) => setState(() {}),
+            // A refusal describes what was submitted, not what is being typed
+            // now — "that username is taken" has to go once it is a different
+            // username.
+            onChanged: (_) => setState(() => _error = null),
           ),
           const SizedBox(height: 6),
           Text(
@@ -169,7 +172,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
             hint: 'How others will see you',
             enabled: !_isLoading,
             autofocus: _usernameCtrl.text.isNotEmpty,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _error = null),
             onEditingComplete: _canSubmit && !_isLoading ? _submit : null,
           ),
         ],

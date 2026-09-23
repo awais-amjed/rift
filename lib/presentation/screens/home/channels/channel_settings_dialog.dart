@@ -128,7 +128,7 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
             hint: 'general',
             enabled: !_isLoading,
             autofocus: true,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _error = null),
             onEditingComplete: _submit,
           ),
           if (widget.channel.hasMessages) ...[
@@ -144,7 +144,7 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
                 'keep forever',
               ),
               enabled: !_isLoading,
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => setState(() => _error = null),
             ),
             const SizedBox(height: 16),
             LimitField(
@@ -158,7 +158,7 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
                 'keep everything',
               ),
               enabled: !_isLoading,
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => setState(() => _error = null),
             ),
           ],
         ],

@@ -111,7 +111,11 @@ class _InviteLinkModalState extends State<InviteLinkModal> {
             hint: 'https://…#code',
             enabled: !_isLoading,
             autofocus: true,
-            onChanged: (_) => setState(() {}),
+            // Editing retracts the last refusal: it described the link that
+            // was submitted, not the one being typed now. Without this, "That
+            // doesn't look like a complete invite link" sat above a corrected
+            // link right up until Continue was pressed again.
+            onChanged: (_) => setState(() => _error = null),
             onEditingComplete: _canSubmit ? _submit : null,
           ),
         ],

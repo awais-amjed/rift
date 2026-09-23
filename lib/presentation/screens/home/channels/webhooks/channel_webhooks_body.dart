@@ -150,7 +150,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
         WebhookCreateRow(
           controller: _nameCtrl,
           isBusy: _isCreating,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) => setState(() => _error = null),
           onCreate: _name.isEmpty || _isCreating ? null : _create,
         ),
         WebhookList(

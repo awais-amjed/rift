@@ -151,7 +151,7 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
             // recognise in the one place it appears.
             enabled: !_isSaving && !_isEveryone,
             autofocus: _isNew,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _error = null),
           ),
           if (!_isEveryone) ...[
             const SizedBox(height: 16),

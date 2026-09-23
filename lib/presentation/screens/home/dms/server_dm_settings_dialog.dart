@@ -125,7 +125,7 @@ class _ServerDmSettingsDialogState extends State<ServerDmSettingsDialog> {
               'keep forever',
             ),
             enabled: !_isLoading,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _error = null),
           ),
           const SizedBox(height: 16),
           LimitField(
@@ -139,7 +139,7 @@ class _ServerDmSettingsDialogState extends State<ServerDmSettingsDialog> {
                 '${_inheritHelper(_initial.messageHistoryCap, 'messages', 'keep everything')} '
                 'Counts both people together.',
             enabled: !_isLoading,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _error = null),
           ),
         ],
       ),

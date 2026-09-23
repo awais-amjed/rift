@@ -114,7 +114,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
               FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_.-]')),
             ],
             maxLength: ServerUsername.maxLength,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _error = null),
           ),
           _fieldHint(ServerUsername.rule, themeState),
           AppTextField(
@@ -122,7 +122,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
             label: 'Display name',
             hint: 'My display name',
             enabled: !_isLoading,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _error = null),
           ),
           _fieldHint('How others will see you', themeState),
         ],
