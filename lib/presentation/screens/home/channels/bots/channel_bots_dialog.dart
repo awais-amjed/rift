@@ -138,7 +138,7 @@ class _ChannelBotsDialogState extends State<ChannelBotsDialog> {
               icon: Icons.smart_toy_outlined,
               text:
                   'No bots on this server yet. A bot joins through an invite '
-                  'with “this invite is for a bot” ticked.',
+                  'minted from “Invite people” with Bot chosen.',
             )
           else ...[
             if (!_mayManage) ...[

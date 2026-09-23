@@ -93,9 +93,9 @@ class _BotsPanelState extends State<BotsPanel> {
             const HintCard(
               icon: Icons.smart_toy_outlined,
               text:
-                  'No bots here yet. Browse the directory below to find one, '
-                  'or mint your own invite with “this invite is for a bot” '
-                  'ticked under Invites.',
+                  'No bots here yet. Browse bots below to find one, or mint '
+                  'an invite of your own from “Invite people” on the server '
+                  'menu and choose Bot.',
             )
           else ...[
             const HintCard(
