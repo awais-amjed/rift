@@ -82,7 +82,7 @@ void main() {
     ) async {
       final opened = await _pumpHeader(tester);
 
-      await tester.tap(find.text('End-to-end encrypted'));
+      await tester.tap(find.text('Encrypted'));
       await tester.pump();
 
       expect(opened(), 0);
