@@ -8,8 +8,12 @@ part 'theme_cubit.g.dart';
 
 part 'theme_state.dart';
 
-/// Light or dark, and which palette. Persisted. Widgets read the result through
-/// `context.theme`, not from this cubit.
+/// Light, dark or whatever the system is doing, and which palette. Persisted.
+///
+/// This holds the *preference*. Widgets read the *result* through
+/// `context.theme`, whose own `themeMode` is the brightness actually being
+/// drawn — [ThemeMode.system] resolves before it gets there, so nothing below
+/// has to think about it.
 class ThemeCubit extends HydratedCubit<ThemeState> {
   ThemeCubit() : super(ThemeState());
 
@@ -21,12 +25,16 @@ class ThemeCubit extends HydratedCubit<ThemeState> {
     emit(state.copyWith(paletteId: paletteId));
   }
 
-  void switchTheme() {
+  /// Flip to the other brightness, leaving [ThemeMode.system] behind.
+  ///
+  /// [showing] is the brightness on screen right now, which is the only thing
+  /// that knows what "the other one" means while the preference is System.
+  void switchTheme({Brightness showing = Brightness.dark}) {
     emit(
       state.copyWith(
-        themeMode: state.themeMode == ThemeMode.light
-            ? ThemeMode.dark
-            : ThemeMode.light,
+        themeMode: showing == Brightness.dark
+            ? ThemeMode.light
+            : ThemeMode.dark,
       ),
     );
   }

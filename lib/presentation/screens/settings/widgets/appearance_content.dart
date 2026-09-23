@@ -25,14 +25,25 @@ class AppearanceContent extends StatelessWidget {
       children: [
         const SectionTitle(label: 'Theme'),
         const SizedBox(height: 12),
-        // One segmented row, not two cards: it is a two-way choice, and the
-        // segment is how the app spells those (channel type, sign in / create).
+        // One segmented row, not three cards: it is a small closed choice, and
+        // the segment is how the app spells those (channel type, sign in /
+        // create).
+        //
+        // The value is the *preference*, read from the cubit rather than from
+        // `context.theme` — the theme's own `themeMode` is whichever
+        // brightness is being drawn, which is never System and would leave the
+        // third segment permanently unselected.
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 300),
+          constraints: const BoxConstraints(maxWidth: 380),
           child: SegmentedControl<ThemeMode>(
-            value: themeState.themeMode,
+            value: context.watch<ThemeCubit>().state.themeMode,
             onChanged: context.read<ThemeCubit>().setTheme,
             options: const [
+              SegmentOption(
+                value: ThemeMode.system,
+                label: 'System',
+                icon: Icons.brightness_auto_outlined,
+              ),
               SegmentOption(
                 value: ThemeMode.dark,
                 label: 'Dark',
