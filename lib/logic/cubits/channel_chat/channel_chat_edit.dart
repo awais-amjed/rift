@@ -13,6 +13,11 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
   Map<int, Uint8List> get _keys;
   int get _currentKeyVersion;
 
+  /// Implemented by [_ChannelChatRowsMixin]. An edit applied here never goes
+  /// back through `_decryptRows`, so a name the new text adds would draw as
+  /// plain text until the channel was reopened.
+  Future<void> _resolveMentionNames(List<ChatMessage> messages);
+
   /// Re-seal [messageId] with [newText]. Attachments are carried over
   /// unchanged. No-ops when the text is unchanged or empty.
   Future<void> editMessage(String messageId, String newText) async {
@@ -61,16 +66,18 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
       }
 
       final data = response.data as Map<String, dynamic>;
-      emit(
-        state.copyWith(
-          messages: ChatMessageOps.applyEdit(
-            state.messages,
-            messageId: messageId,
-            text: trimmed,
-            editedAt:
-                DateTime.tryParse('${data['edited_at']}') ?? DateTime.now(),
-          ),
-        ),
+      final edited = ChatMessageOps.applyEdit(
+        state.messages,
+        messageId: messageId,
+        text: trimmed,
+        editedAt: DateTime.tryParse('${data['edited_at']}') ?? DateTime.now(),
+      );
+      emit(state.copyWith(messages: edited));
+      unawaited(
+        _resolveMentionNames([
+          for (final message in edited)
+            if (message.id == messageId) message,
+        ]),
       );
     } catch (e) {
       HelperMethods.printDebug('[Chat] edit failed: $e');

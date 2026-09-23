@@ -21,6 +21,12 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// history mixin restores from it too (CODE_STYLE §5).
   Outbox get _outbox;
 
+  /// Implemented by [_ChannelChatRowsMixin]. A message built here never went
+  /// through `_decryptRows`, so the names it says have to be resolved from
+  /// here or they never are — which made the sender the one person who could
+  /// not see their own mention light up.
+  Future<void> _resolveMentionNames(List<ChatMessage> messages);
+
   int _pendingCounter = 0;
 
   /// Seal, sign, and send a message ([text] and/or [attachments]); shows an
@@ -106,6 +112,10 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     );
     // Show the text immediately; attachments appear once uploaded.
     emit(state.copyWith(messages: [...state.messages, pending]));
+    // And resolve the names it says, the same way an arriving row does. Not
+    // awaited, for the same reason: the message renders now, and a mention
+    // nobody has resolved yet draws as the text that was typed.
+    unawaited(_resolveMentionNames([pending]));
 
     try {
       Future<APIResponse> uploadOne(Uint8List bytes) =>
