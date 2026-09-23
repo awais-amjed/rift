@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../../data/classes/bot_manifest.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/field_label.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
-import '../../invites/widgets/field_label.dart';
 import 'bot_command_row.dart';
 
 /// The manifest half of the listing form: the data-use sentence, and the

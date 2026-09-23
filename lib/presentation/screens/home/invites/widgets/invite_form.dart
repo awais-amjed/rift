@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/role.dart';
+import '../../../../common/field_label.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/segmented_control.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import 'chip_selector.dart';
 import 'copyable_field.dart';
-import 'field_label.dart';
 import 'invite_options.dart';
 import 'invite_role_picker.dart';
 

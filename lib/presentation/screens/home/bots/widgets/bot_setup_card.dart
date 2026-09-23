@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 
 import '../../../../../data/classes/public_bot.dart';
 import '../../../../../data/constants.dart';
+import '../../../../common/field_label.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../../invites/widgets/copyable_field.dart';
-import '../../invites/widgets/field_label.dart';
 
 /// The second step of adding a bot: the invite the server just minted, and
 /// what to do with it.

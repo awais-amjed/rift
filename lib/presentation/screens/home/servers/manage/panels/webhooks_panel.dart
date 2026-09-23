@@ -5,8 +5,8 @@ import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../common/field_label.dart';
 import '../../../../../common/hint_card.dart';
-import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../../settings/widgets/device_dropdown.dart';
 import '../../../channels/webhooks/channel_webhooks_body.dart';
@@ -71,11 +71,9 @@ class _WebhooksPanelState extends State<WebhooksPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Channel',
-                  style: AppText.label.copyWith(
-                    color: themeState.textSecondary,
-                  ),
+                FieldLabel(
+                  label: 'Channel',
+                  textColor: themeState.textTertiary,
                 ),
                 const SizedBox(height: 6),
                 DeviceDropdown<String>(
