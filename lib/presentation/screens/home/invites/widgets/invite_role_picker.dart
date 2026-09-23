@@ -59,7 +59,11 @@ class InviteRolePicker extends StatelessWidget {
               _Option(
                 selected: selectedId == role.id,
                 onTap: onSelected == null ? null : () => onSelected!(role.id),
-                child: RoleChip(role: role),
+                // The picker wraps, so there is no row for a long name to
+                // push anything off — the sidebar's eight characters turned
+                // the stock "Moderator" into "MODERAT…" in a dialog with
+                // room for three of it.
+                child: RoleChip(role: role, maxChars: RoleChip.wide),
               ),
           ],
         ),

@@ -136,7 +136,7 @@ void main() {
               position: 2,
               permissions: 0,
             ),
-            maxChars: 18,
+            maxChars: RoleChip.wide,
           ),
         ),
       );

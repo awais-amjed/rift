@@ -22,6 +22,11 @@ import '../../../../common/label_pill.dart';
 /// read roles, so it asks for more — without it the default "Moderator" was
 /// ellipsised on the one screen that exists to show roles.
 class RoleChip extends StatelessWidget {
+  /// What [maxChars] should be anywhere that is not a sidebar row: the
+  /// members page, the invite picker — surfaces several times as wide, where
+  /// the default silently ellipsised the stock role names.
+  static const int wide = 18;
+
   final Role role;
 
   /// How much of the name fits here.
