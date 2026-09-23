@@ -26,7 +26,7 @@ class ParticipantsGrid extends StatelessWidget {
           previous.selectedChannelId != current.selectedChannelId,
       builder: (context, appState) {
         if (appState.selectedChannelId == null) {
-          return const NoChannelView();
+          return const NoChannelView.nothingSelected();
         }
 
         return BlocBuilder<LiveKitCubit, LiveKitState>(
@@ -57,7 +57,7 @@ class ParticipantsGrid extends StatelessWidget {
 
             switch (livekitState.connectionState) {
               case LiveKitConnectionState.disconnected:
-                return const NoChannelView();
+                return const NoChannelView.notInCall();
               case LiveKitConnectionState.connecting:
                 return const ConnectingView();
               case LiveKitConnectionState.error:
