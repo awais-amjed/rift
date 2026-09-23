@@ -310,6 +310,7 @@ class _MembersPanelState extends State<MembersPanel> {
       hasMore: !_isSearching && _pager.hasMore,
       onLoadMore: () => unawaited(_loadMore()),
       memberRoles: _memberRoles,
+      onRolesChanged: () => unawaited(_reloadRoles()),
       viewerId: viewerId,
       viewerIsAdmin: viewerIsAdmin,
       viewerIsModerator: viewerIsModerator,

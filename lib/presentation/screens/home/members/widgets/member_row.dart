@@ -30,6 +30,9 @@ class MemberRow extends StatelessWidget {
   final VoidCallback onTap;
   final void Function({bool? muted, bool? deafened, bool? banned}) onModerate;
 
+  /// Passed to the panel — see [MemberManagePanel.onRolesChanged].
+  final VoidCallback? onRolesChanged;
+
   const MemberRow({
     super.key,
     required this.member,
@@ -41,6 +44,7 @@ class MemberRow extends StatelessWidget {
     this.roles = const [],
     required this.onTap,
     required this.onModerate,
+    this.onRolesChanged,
   });
 
   bool get _expandable => canManagePermissions || canModerate;
@@ -158,6 +162,7 @@ class MemberRow extends StatelessWidget {
             canManagePermissions: canManagePermissions,
             canModerate: canModerate,
             onModerate: onModerate,
+            onRolesChanged: onRolesChanged,
           ),
       ],
     );

@@ -45,6 +45,10 @@ class MembersList extends StatelessWidget {
   })
   onModerate;
 
+  /// Told when somebody's roles were edited from a row — see
+  /// [MemberManagePanel.onRolesChanged].
+  final VoidCallback? onRolesChanged;
+
   const MembersList({
     super.key,
     required this.members,
@@ -58,6 +62,7 @@ class MembersList extends StatelessWidget {
     required this.busyId,
     required this.onTap,
     required this.onModerate,
+    this.onRolesChanged,
   });
 
   /// How close to the bottom counts as "nearly there".
@@ -111,6 +116,7 @@ class MembersList extends StatelessWidget {
             deafened: deafened,
             banned: banned,
           ),
+          onRolesChanged: onRolesChanged,
         );
       },
     );

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -27,6 +29,12 @@ class MemberManagePanel extends StatelessWidget {
   final bool canModerate;
   final void Function({bool? muted, bool? deafened, bool? banned}) onModerate;
 
+  /// Told when the roles dialog closes. It writes each toggle as it is
+  /// flipped, so by the time it is shut the list above it is out of date —
+  /// and the chips on these rows are the one thing on the page that would
+  /// carry on saying otherwise.
+  final VoidCallback? onRolesChanged;
+
   const MemberManagePanel({
     super.key,
     required this.member,
@@ -34,6 +42,7 @@ class MemberManagePanel extends StatelessWidget {
     required this.canManagePermissions,
     required this.canModerate,
     required this.onModerate,
+    this.onRolesChanged,
   });
 
   /// Bans ask first; lifting one doesn't.
@@ -69,14 +78,15 @@ class MemberManagePanel extends StatelessWidget {
     );
   }
 
-  void _openRoles(BuildContext context) {
-    showDialog<void>(
+  Future<void> _openRoles(BuildContext context) async {
+    await showDialog<void>(
       context: context,
       builder: (ctx) => BlocProvider.value(
         value: context.read<ServerCubit>(),
         child: MemberRolesDialog(member: member),
       ),
     );
+    onRolesChanged?.call();
   }
 
   @override
@@ -109,7 +119,7 @@ class MemberManagePanel extends StatelessWidget {
             _PanelRow(
               icon: Icons.shield_outlined,
               label: 'Roles',
-              onTap: isBusy ? null : () => _openRoles(context),
+              onTap: isBusy ? null : () => unawaited(_openRoles(context)),
             ),
           // Owner only, and only for somebody who could hold it. Below
           // roles rather than among them: it is not a role you hand out,
