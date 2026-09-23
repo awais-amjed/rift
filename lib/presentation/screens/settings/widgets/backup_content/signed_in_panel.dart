@@ -83,8 +83,11 @@ class SignedInPanel extends StatelessWidget {
               icon: const Icon(Icons.cloud_upload_rounded, size: 15),
               onPressed: isProcessing ? null : cubit.saveBackupToCloud,
             ),
+            // Named for where it restores from. The page carries a second
+            // Restore further down, for a file, and the only thing telling
+            // the two apart was the heading each sat under.
             AppButton(
-              label: 'Restore',
+              label: 'Restore from cloud',
               variant: AppButtonVariant.secondary,
               onPressed: isProcessing
                   ? null

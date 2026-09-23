@@ -99,7 +99,7 @@ class _FileBackupPanelState extends State<FileBackupPanel> {
               onPressed: _isExporting ? null : _exportToFile,
             ),
             AppButton(
-              label: 'Restore',
+              label: 'Restore from file',
               variant: AppButtonVariant.secondary,
               onPressed: _isExporting ? null : _restoreFromFile,
             ),
