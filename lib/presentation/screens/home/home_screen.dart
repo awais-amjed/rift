@@ -298,7 +298,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         // The edge tab is the way back to a hidden sidebar.
-                        const Positioned(top: 12, left: 0, child: SidebarTab()),
+                        // Halfway down, mirroring the member list's — see
+                        // `main_content.dart` for why it is not at the top.
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: SidebarTab(),
+                        ),
                       ],
                     ),
                   ),

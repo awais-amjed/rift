@@ -108,7 +108,16 @@ class MainContent extends StatelessWidget {
             // Sits over the content's right edge, mirroring the left
             // sidebar's tab. Above the Row so it isn't clipped by the panel
             // that just slid out from under it.
-            const Positioned(top: 12, right: 0, child: MembersSidebarTab()),
+            //
+            // Halfway down rather than at the top. At the top it landed on
+            // the chat panel's rounded corner — three borders stacked in one
+            // place — nineteen pixels from the channel's close button: two
+            // small controls with different jobs, touching. Halfway is clear
+            // of both, and is where a handle for pulling a panel out belongs.
+            const Align(
+              alignment: Alignment.centerRight,
+              child: MembersSidebarTab(),
+            ),
           ],
         );
       },
