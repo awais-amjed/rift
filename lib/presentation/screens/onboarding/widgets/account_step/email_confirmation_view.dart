@@ -34,10 +34,12 @@ class EmailConfirmationView extends StatelessWidget {
       onBack: back,
       footer: OnboardingFooter(
         onBack: back,
-        primary: AppButton(
-          label: 'I\'ve confirmed — sign in',
-          onPressed: onSignIn,
-        ),
+        // Short enough to survive the pair. ButtonFooter gives both buttons
+        // the widest label's width and ellipsises when that will not fit, so
+        // "I've confirmed — sign in" beside Back rendered as
+        // "I've confirmed — sig…" — half of the only action on the step. The
+        // subtitle above already says signing in is what comes next.
+        primary: AppButton(label: 'I\'ve confirmed', onPressed: onSignIn),
         // Under the commit rather than beside Back: it belongs to the
         // confirming, not to going back.
         secondary: ResendConfirmationButton(

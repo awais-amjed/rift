@@ -19,7 +19,11 @@ import 'widgets/channel_type_toggle.dart';
 
 /// Dialog to create a new channel (text or voice) in the current server.
 class CreateChannelDialog extends StatefulWidget {
-  const CreateChannelDialog({super.key});
+  /// Which kind the dialog opens on — the section whose "+" was pressed. The
+  /// toggle still offers the other one; this only decides where it starts.
+  final ChannelType initialType;
+
+  const CreateChannelDialog({super.key, this.initialType = ChannelType.text});
 
   @override
   State<CreateChannelDialog> createState() => _CreateChannelDialogState();
@@ -28,7 +32,7 @@ class CreateChannelDialog extends StatefulWidget {
 class _CreateChannelDialogState extends State<CreateChannelDialog> {
   final _nameCtrl = TextEditingController();
 
-  ChannelType _type = ChannelType.text;
+  late ChannelType _type = widget.initialType;
   bool _isPrivate = false;
 
   /// Somebody who may only make private channels gets one, with the switch

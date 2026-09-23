@@ -57,14 +57,18 @@ class ChannelList extends StatelessWidget {
         !banned &&
         (permissions?.can(ServerPermission.manageChannels) == true ||
             permissions?.can(ServerPermission.createPrivateChannel) == true);
-    void openCreateChannel() => showCustomDialog(
+    // The "+" opens the dialog on the kind of channel its own header is
+    // for. It is the only way to make a voice channel, and it used to open
+    // on Text whatever was pressed — so pressing the one under VOICE and
+    // typing a name made a text channel, quietly, in the other section.
+    void openCreateChannel(ChannelType type) => showCustomDialog(
       context: context,
       builder: (_) => MultiBlocProvider(
         providers: [
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<AppCubit>()),
         ],
-        child: const CreateChannelDialog(),
+        child: CreateChannelDialog(initialType: type),
       ),
     );
 
@@ -77,7 +81,8 @@ class ChannelList extends StatelessWidget {
       if (banned) return const Expanded(child: SizedBox.shrink());
       return Expanded(
         child: EmptyChannelsView(
-          onCreate: canCreate ? openCreateChannel : null,
+          // A server's first channel is one people can talk in.
+          onCreate: canCreate ? () => openCreateChannel(ChannelType.text) : null,
         ),
       );
     }
@@ -88,8 +93,8 @@ class ChannelList extends StatelessWidget {
       if (textChannels.isNotEmpty) ...[
         () => SectionHeader(
           label: 'Text',
-          addTooltip: 'Create channel',
-          onAdd: canCreate ? openCreateChannel : null,
+          addTooltip: 'Create text channel',
+          onAdd: canCreate ? () => openCreateChannel(ChannelType.text) : null,
         ),
         for (final ch in textChannels)
           () => TextChannelTile(key: ValueKey(ch.id), channel: ch),
@@ -97,8 +102,8 @@ class ChannelList extends StatelessWidget {
       if (voiceChannels.isNotEmpty) ...[
         () => SectionHeader(
           label: 'Voice',
-          addTooltip: 'Create channel',
-          onAdd: canCreate ? openCreateChannel : null,
+          addTooltip: 'Create voice channel',
+          onAdd: canCreate ? () => openCreateChannel(ChannelType.voice) : null,
         ),
         for (final ch in voiceChannels)
           () => VoiceChannelTile(
