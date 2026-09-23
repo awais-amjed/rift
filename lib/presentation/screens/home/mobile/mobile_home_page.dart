@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../data/enums/home_surface.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -9,6 +10,7 @@ import '../../../theme/theme_context.dart';
 import '../dms/server_dm_view.dart';
 import '../dms/widgets/central_dm_list_panel.dart';
 import '../main_content/widgets/banned_notice.dart';
+import '../profile/user_dock/user_dock.dart';
 import '../sidebar/widgets/sidebar_channel_list.dart';
 import 'widgets/mini_call_bar.dart';
 import 'widgets/server_surface_tabs.dart';
@@ -75,7 +77,24 @@ class MobileHomePage extends StatelessWidget {
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [const SwitcherHeader(), body, const MiniCallBar()],
+          children: [
+            const SwitcherHeader(),
+            body,
+            // You, at the foot of the list, the way you are at the foot of
+            // the sidebar on a desktop. It used to live only inside the
+            // switcher sheet, which made muting yourself something you did
+            // by opening a server picker.
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                K.panelGutter,
+                0,
+                K.panelGutter,
+                K.panelGutter,
+              ),
+              child: UserDock(showSettings: true),
+            ),
+            const MiniCallBar(),
+          ],
         ),
       ),
     );
