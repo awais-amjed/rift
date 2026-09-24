@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../classes/livekit_node.dart';
@@ -76,7 +77,7 @@ class VoiceRegionProbe {
   /// the liveness check, so a probe costs the node a constant and reveals
   /// nothing about who asked.
   Future<_Result?> _measure(LiveKitNode node) async {
-    final url = _httpUrl(node.url);
+    final url = httpUrlFor(node.url);
     if (url == null) return null;
 
     final watch = Stopwatch()..start();
@@ -96,7 +97,12 @@ class VoiceRegionProbe {
   }
 
   /// `wss://host` → `https://host/`, `ws://host` → `http://host/`.
-  static Uri? _httpUrl(String livekitUrl) {
+  ///
+  /// Visible for tests: getting this wrong measures nothing and silently
+  /// falls back to the default node, which looks exactly like a server with
+  /// one region.
+  @visibleForTesting
+  static Uri? httpUrlFor(String livekitUrl) {
     final trimmed = livekitUrl.trim();
     final swapped = trimmed.startsWith('wss://')
         ? trimmed.replaceFirst('wss://', 'https://')

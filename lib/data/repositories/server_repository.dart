@@ -30,6 +30,7 @@ part 'server_repository_server.dart';
 part 'server_repository_soundboard.dart';
 part 'server_repository_unread.dart';
 part 'server_repository_voice.dart';
+part 'server_repository_voice_regions.dart';
 part 'server_repository_webhooks.dart';
 
 /// All I/O against a self-hosted server.
@@ -68,6 +69,7 @@ class ServerRepository
         _SoundboardApiMixin,
         _UnreadApiMixin,
         _VoiceApiMixin,
+        _VoiceRegionsMixin,
         _WebhookApiMixin {
   @override
   final ServerDb _db = ServerDb();

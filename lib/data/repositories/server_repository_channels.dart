@@ -156,6 +156,8 @@ mixin _ChannelApiMixin {
     bool clearRetentionDays = false,
     int? historyCap,
     bool clearHistoryCap = false,
+    String? livekitNodeId,
+    bool clearLivekitNodeId = false,
   }) {
     return ServerDb.run(() async {
       final patch = <String, dynamic>{
@@ -168,6 +170,12 @@ mixin _ChannelApiMixin {
           'history_cap': null
         else
           'history_cap': ?historyCap,
+        // Null is a value here, not an omission: it is "automatic", which is
+        // a different answer from "leave the pin alone".
+        if (clearLivekitNodeId)
+          'livekit_node_id': null
+        else
+          'livekit_node_id': ?livekitNodeId,
       };
       if (patch.isEmpty) {
         throw const PostgrestException(message: 'Nothing to update');
@@ -178,7 +186,8 @@ mixin _ChannelApiMixin {
           .update(patch)
           .eq('id', channelId)
           .select(
-            'id, name, channel_type, retention_days, history_cap, is_private',
+            'id, name, channel_type, retention_days, history_cap, is_private, '
+            'livekit_node_id',
           );
       if ((rows as List).isEmpty) {
         throw const PostgrestException(

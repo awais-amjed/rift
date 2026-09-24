@@ -8,6 +8,7 @@ import '../listing_draft.dart';
 import 'server_connection_section.dart';
 import 'server_discovery_section.dart';
 import 'server_push_section.dart';
+import 'server_voice_regions_section.dart';
 
 /// The two groups of server settings that say what a server *is*: what it
 /// connects to, and who can find it. What it is allowed to grow into is the
@@ -78,13 +79,24 @@ class ServerSettingsForm extends StatelessWidget {
         ],
         ModalColumns(
           children: [
-            ServerConnectionSection(
-              nameCtrl: nameCtrl,
-              livekitUrlCtrl: livekitUrlCtrl,
-              apiKeyCtrl: apiKeyCtrl,
-              secretCtrl: secretCtrl,
+            // Connection and regions share a column because the second is
+            // the first repeated: the LiveKit URL above is this server's
+            // default region, and the list below is the rest of them.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ServerConnectionSection(
+                  nameCtrl: nameCtrl,
+                  livekitUrlCtrl: livekitUrlCtrl,
+                  apiKeyCtrl: apiKeyCtrl,
+                  secretCtrl: secretCtrl,
 
-              enabled: enabled,
+                  enabled: enabled,
+                ),
+                const SizedBox(height: 22),
+                ServerVoiceRegionsSection(enabled: enabled),
+              ],
             ),
             // Discovery and notifications share a column because they are the
             // same kind of setting — the two things this server asks central

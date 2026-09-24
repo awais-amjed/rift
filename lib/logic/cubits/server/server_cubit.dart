@@ -62,6 +62,7 @@ part 'server_selection.dart';
 part 'server_soundboard_api.dart';
 part 'server_state.dart';
 part 'server_voice_api.dart';
+part 'server_voice_regions_api.dart';
 part 'server_voice_bots_api.dart';
 part 'server_webhooks_api.dart';
 
@@ -88,6 +89,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerAttachmentsApiMixin,
         _ServerDmsApiMixin,
         _ServerVoiceApiMixin,
+        _ServerVoiceRegionsApiMixin,
         _ServerInvitesApiMixin,
         _ServerProfileApiMixin,
         _ServerPushApiMixin,

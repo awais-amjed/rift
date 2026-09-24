@@ -9,13 +9,16 @@ import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/limit_field.dart';
+import 'widgets/voice_region_field.dart';
 
-/// Per-channel settings for a channel manager: the name, and how much history
-/// this channel keeps.
+/// Per-channel settings for a channel manager: the name, how much history
+/// this channel keeps, and — for a voice channel — which LiveKit its calls
+/// are held on.
 ///
-/// A voice channel gets the name and nothing else — it holds no messages, so
-/// there is no history for a retention setting to act on, and showing one would
-/// be offering a switch wired to nothing.
+/// The two halves are exclusive, because each is wired to nothing on the
+/// other kind. A voice channel holds no messages, so a retention setting
+/// there would act on nothing; a text channel holds no calls, so a region
+/// would name where nothing happens.
 ///
 /// Both retention boxes are three-valued and the helper line under each is what
 /// makes that legible: blank inherits the server's number, 0 opts this channel
@@ -44,6 +47,11 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
     text: widget.channel.historyCap?.toString() ?? '',
   );
 
+  /// Null is "automatic", which is a real answer rather than an unset one —
+  /// so the change check compares against the channel's own value rather than
+  /// testing for null.
+  late String? _nodeId = widget.channel.livekitNodeId;
+
   bool _isLoading = false;
   String? _error;
 
@@ -54,12 +62,13 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
   bool get _nameChanged => _name.isNotEmpty && _name != widget.channel.name;
   bool get _retentionChanged => _retention != widget.channel.retentionDays;
   bool get _capChanged => _cap != widget.channel.historyCap;
+  bool get _nodeChanged => _nodeId != widget.channel.livekitNodeId;
 
   bool get _canSubmit =>
       _name.isNotEmpty &&
       _retention != LimitInput.invalid &&
       _cap != LimitInput.invalid &&
-      (_nameChanged || _retentionChanged || _capChanged);
+      (_nameChanged || _retentionChanged || _capChanged || _nodeChanged);
 
   ServerLimits get _serverLimits =>
       context.read<ServerCubit>().state.selectedServer?.limits ??
@@ -99,6 +108,8 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
       clearRetentionDays: _retentionChanged && retention == null,
       historyCap: _capChanged ? cap : null,
       clearHistoryCap: _capChanged && cap == null,
+      livekitNodeId: _nodeChanged ? _nodeId : null,
+      clearLivekitNodeId: _nodeChanged && _nodeId == null,
     );
     if (!mounted) return;
 
@@ -159,6 +170,22 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
               ),
               enabled: !_isLoading,
               onChanged: (_) => setState(() => _error = null),
+            ),
+          ],
+          if (!widget.channel.hasMessages) ...[
+            const SizedBox(height: 16),
+            VoiceRegionField(
+              nodes:
+                  context.read<ServerCubit>().state.selectedServer
+                      ?.livekitNodes ??
+                  const [],
+              selectedNodeId: _nodeId,
+              liveNodeId: widget.channel.voiceNodeId,
+              enabled: !_isLoading,
+              onChanged: (value) => setState(() {
+                _nodeId = value;
+                _error = null;
+              }),
             ),
           ],
         ],

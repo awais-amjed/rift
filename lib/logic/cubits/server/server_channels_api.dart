@@ -65,11 +65,12 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     return (success: true, error: null);
   }
 
-  /// Change a channel's name and/or its retention overrides (channel manager
-  /// only).
+  /// Change a channel's name, its retention overrides, or which LiveKit its
+  /// calls are held on (channel manager only).
   ///
   /// An override omitted leaves that column alone; the matching `clear…` flag
-  /// puts the channel back to inheriting the server's number.
+  /// puts the channel back to inheriting the server's number — or, for
+  /// [livekitNodeId], back to picking a node automatically.
   Future<({bool success, String? error})> updateChannel({
     required String channelId,
     String? name,
@@ -77,6 +78,8 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     bool clearRetentionDays = false,
     int? historyCap,
     bool clearHistoryCap = false,
+    String? livekitNodeId,
+    bool clearLivekitNodeId = false,
   }) => _changeChannel(
     (server, token) => _repository.updateChannel(
       server.supabaseUrl,
@@ -88,6 +91,8 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
       clearRetentionDays: clearRetentionDays,
       historyCap: historyCap,
       clearHistoryCap: clearHistoryCap,
+      livekitNodeId: livekitNodeId,
+      clearLivekitNodeId: clearLivekitNodeId,
     ),
     failure: 'Failed to update channel',
   );
