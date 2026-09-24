@@ -184,6 +184,23 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
           return;
         }
 
+        // The call itself has moved to another LiveKit. The channel is the
+        // one we are already in, so nothing about the sidebar changes — but
+        // the cached token names the node we are leaving, so it goes first or
+        // the rejoin lands us straight back where we were.
+        if (VoiceSignal.isRejoin(
+          data: e.data,
+          topic: e.topic,
+          fromServer: e.participant == null,
+        )) {
+          final here = state.currentChannelId;
+          if (here != null) {
+            _tokenCubit.invalidateToken(here);
+            unawaited(connectToChannel(channelId: here));
+          }
+          return;
+        }
+
         // Somebody pressing a soundboard clip. Here the sender is the point:
         // it decides whose cooldown applies and whose mute is honoured, so a
         // packet without one is dropped rather than played.

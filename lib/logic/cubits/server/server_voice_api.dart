@@ -41,6 +41,23 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
     );
   }
 
+  /// Moves the call in [channelId] to [nodeId] (channel manager or admin).
+  ///
+  /// Everybody in it reconnects, which is a second or two of silence for the
+  /// whole room — so this is a deliberate action, never a side effect of
+  /// changing a setting on a channel nobody is in.
+  Future<APIResponse> moveCall({
+    required String channelId,
+    required String nodeId,
+  }) => _callWithAutoRefresh(
+    (token) => _repository.moveCall(
+      state.selectedServer!.supabaseUrl,
+      channelId: channelId,
+      nodeId: nodeId,
+      bearerToken: token,
+    ),
+  );
+
   /// Moves a member into another voice channel (requires channel manager or
   /// server admin). They have to be in a call for there to be anything to move.
   Future<APIResponse> moveUser({

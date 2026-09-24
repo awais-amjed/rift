@@ -42,6 +42,26 @@ mixin _VoiceApiMixin {
     }, bearerToken: bearerToken);
   }
 
+  /// Move the call running in [channelId] to another LiveKit region.
+  ///
+  /// A room cannot migrate, so the server does this in two halves: it
+  /// re-points the record of where the call is, then tells everybody in the
+  /// room to reconnect. They each ask for a fresh token, which names the new
+  /// region, so they arrive together.
+  ///
+  /// Answers `{moved}` — how many connections were told — with `reason`
+  /// `no_call` when nothing is up, which is success rather than failure: the
+  /// channel's own setting decides the next one.
+  Future<APIResponse> moveCall(
+    String supabaseUrl, {
+    required String channelId,
+    required String nodeId,
+    String? bearerToken,
+  }) => _post(supabaseUrl, 'move_call', {
+    'channel_id': channelId,
+    'node_id': nodeId,
+  }, bearerToken: bearerToken);
+
   /// Apply the server's retention settings and remove the attachment blobs
   /// left behind (`002_limits.sql`).
   ///

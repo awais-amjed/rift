@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/channel.dart';
 import 'package:rift/data/classes/livekit_node.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/data/repositories/voice_region_probe.dart';
+import 'package:rift/logic/services/voice_signal.dart';
 
 void main() {
   group('LiveKitNode', () {
@@ -81,6 +84,79 @@ void main() {
       expect(
         title(const LiveKitNode(id: 'n', label: 'Singapore', url: 'ws://h')),
         'Singapore',
+      );
+    });
+  });
+
+  group('the rejoin signal', () {
+    List<int> packet(Map<String, Object?> body) => utf8.encode(jsonEncode(body));
+
+    test('is obeyed when the server sent it', () {
+      expect(
+        VoiceSignal.isRejoin(
+          data: packet({'v': 1, 'type': 'rejoin', 'channel_id': 'c1'}),
+          topic: VoiceSignal.moveTopic,
+          fromServer: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('is refused from a member', () {
+      // A packet with a sender is another person in the room talking, and a
+      // member cannot move everybody else's call.
+      expect(
+        VoiceSignal.isRejoin(
+          data: packet({'v': 1, 'type': 'rejoin', 'channel_id': 'c1'}),
+          topic: VoiceSignal.moveTopic,
+          fromServer: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('is not confused with a move between channels', () {
+      final move = packet({'v': 1, 'type': 'move', 'channel_id': 'c2'});
+      expect(
+        VoiceSignal.isRejoin(
+          data: move,
+          topic: VoiceSignal.moveTopic,
+          fromServer: true,
+        ),
+        isFalse,
+      );
+      // And the other way round, or a moved call would drag people into a
+      // channel they were not in.
+      final rejoin = packet({'v': 1, 'type': 'rejoin', 'channel_id': 'c1'});
+      expect(
+        VoiceSignal.moveDestination(
+          data: rejoin,
+          topic: VoiceSignal.moveTopic,
+          fromServer: true,
+        ),
+        isNull,
+      );
+    });
+
+    test('ignores a version it does not know', () {
+      expect(
+        VoiceSignal.isRejoin(
+          data: packet({'v': 99, 'type': 'rejoin', 'channel_id': 'c1'}),
+          topic: VoiceSignal.moveTopic,
+          fromServer: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('survives rubbish on the data channel', () {
+      expect(
+        VoiceSignal.isRejoin(
+          data: const [1, 2, 3],
+          topic: VoiceSignal.moveTopic,
+          fromServer: true,
+        ),
+        isFalse,
       );
     });
   });

@@ -16,9 +16,13 @@ import '../../../../theme/theme_context.dart';
 ///
 /// **A channel setting, not a member's.** Everybody in a call shares one room
 /// on one node, so a member who could choose would be choosing a different
-/// call. The pin also only takes effect on the *next* call: a room cannot
-/// move once it exists, which is why [liveNodeId] exists to say so rather
-/// than letting the setting quietly disagree with what is happening.
+/// call.
+///
+/// A room cannot migrate, so a call that is already up does not follow this
+/// setting on its own — moving one means everybody in it reconnecting, and
+/// that costs the room a second or two of silence. Saving a different region
+/// while a call is running is what asks for it, and [liveNodeId] is how the
+/// helper line says so before the button is pressed rather than after.
 class VoiceRegionField extends StatelessWidget {
   /// Every node this server may hold a call on, default first.
   final List<LiveKitNode> nodes;
@@ -75,8 +79,9 @@ class VoiceRegionField extends StatelessWidget {
     if (live != null) {
       final pinned = _nodeById(selectedNodeId);
       if (pinned != null && pinned.id != live.id) {
-        return 'A call is running in ${live.label}. A call cannot move, so '
-            '${pinned.label} takes effect the next time this channel is empty.';
+        return 'A call is running in ${live.label}. Saving moves it to '
+            '${pinned.label} — everyone in it reconnects, which takes a '
+            'moment.';
       }
       return 'A call is running in ${live.label}.';
     }

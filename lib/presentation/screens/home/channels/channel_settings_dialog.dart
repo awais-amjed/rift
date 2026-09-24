@@ -64,6 +64,13 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
   bool get _capChanged => _cap != widget.channel.historyCap;
   bool get _nodeChanged => _nodeId != widget.channel.livekitNodeId;
 
+  /// Whether there is a call running somewhere other than where it is now
+  /// being sent. Null [voiceNodeId] is "nobody is in it", which is the common
+  /// case and needs no move at all.
+  bool get _shouldMoveLiveCall =>
+      widget.channel.voiceNodeId != null &&
+      widget.channel.voiceNodeId != _nodeId;
+
   bool get _canSubmit =>
       _name.isNotEmpty &&
       _retention != LimitInput.invalid &&
@@ -120,6 +127,30 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
       });
       return;
     }
+
+    // A call that is already up does not follow the setting on its own — a
+    // room cannot migrate, so moving one means everybody in it reconnecting,
+    // and that only happens because somebody asked for it. Saving a different
+    // region while a call is running *is* asking.
+    if (_nodeChanged && _nodeId != null && _shouldMoveLiveCall) {
+      final moved = await context.read<ServerCubit>().moveCall(
+        channelId: widget.channel.id,
+        nodeId: _nodeId!,
+      );
+      if (!mounted) return;
+      if (!moved.success) {
+        // The setting is saved; only the live call stayed put. Say which, or
+        // the next call landing correctly reads as the error fixing itself.
+        setState(() {
+          _isLoading = false;
+          _error =
+              '${moved.error ?? 'Could not move the call that is running.'} '
+              'The region is saved and the next call will use it.';
+        });
+        return;
+      }
+    }
+
     Navigator.of(context).pop();
   }
 
