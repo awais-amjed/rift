@@ -90,7 +90,7 @@ class _CentralProfileDialogState extends State<CentralProfileDialog> {
       listener: (_, _) => _ask(),
       child: AppModal(
         title: '@${current.handle}',
-        subtitle: 'Central account',
+        subtitle: 'Rift account',
         titleIcon: ProfileAvatar(name: current.handle, seed: current.id),
         maxWidth: K.profileWidth,
         sheetOnPhone: true,

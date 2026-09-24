@@ -215,7 +215,7 @@ class ParticipantContextMenu extends StatelessWidget {
               if (!targetIsBot)
                 ContextMenuItem(
                   icon: Icons.public_rounded,
-                  label: 'Add on Central',
+                  label: 'Add on Rift',
                   onTap: () => _openCentralDm(context),
                 ),
               Divider(height: 9, color: borderColor),

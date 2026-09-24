@@ -199,7 +199,7 @@ void main() {
       // way in that does nothing.
       await pumpLine(tester, handle: null, onTap: () {});
       expect(find.byType(InkWell), findsNothing);
-      expect(find.text('central account'), findsOneWidget);
+      expect(find.text('Rift account'), findsOneWidget);
     });
   });
 }

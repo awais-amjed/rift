@@ -43,7 +43,7 @@ class _RestingState extends StatelessWidget {
 
     final (title, message) = switch (status) {
       CentralDmStatus.signedOut => (
-        'Central DMs need an account',
+        'Rift DMs need an account',
         'Sign in under Settings → Account & backup to message people across '
             'servers.',
       ),
@@ -53,7 +53,7 @@ class _RestingState extends StatelessWidget {
       ),
       // Reached only while a readiness pass is still running, or after one
       // failed — `ready` is answered by the friends page above.
-      _ => ('Your central DMs', 'Finding your account…'),
+      _ => ('Your Rift DMs', 'Finding your account…'),
     };
 
     return Center(

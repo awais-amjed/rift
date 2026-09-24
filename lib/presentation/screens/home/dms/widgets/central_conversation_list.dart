@@ -79,7 +79,7 @@ class CentralConversationList extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(2, 14, 2, 12),
             child: HintCard(
               text:
-                  'Central DMs are for finding each other. For longer chats, '
+                  'Rift DMs are for finding each other. For longer chats, '
                   'move to a server you share.',
             ),
           );

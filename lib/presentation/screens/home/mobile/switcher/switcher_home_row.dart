@@ -38,7 +38,7 @@ class SwitcherHomeRow extends StatelessWidget {
       ),
       title: 'Home',
       subtitle: Text(
-        'Your central DMs',
+        'Your Rift DMs',
         style: SwitcherRow.subtitleStyle(theme),
       ),
       trailing: unread > 0 ? UnreadBadge(count: unread) : null,

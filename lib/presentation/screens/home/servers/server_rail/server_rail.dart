@@ -65,8 +65,8 @@ class ServerRail extends StatelessWidget {
         return RailChipButton(
           icon: Icons.forum_rounded,
           tooltip: unread > 0
-              ? 'Home — $unread unread central DM${unread == 1 ? '' : 's'}'
-              : 'Home — your central DMs',
+              ? 'Home — $unread unread Rift DM${unread == 1 ? '' : 's'}'
+              : 'Home — your Rift DMs',
           isSelected: appState.surface == HomeSurface.centralDms,
           unreadCount: unread,
           onTap: () =>

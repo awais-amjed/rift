@@ -64,7 +64,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
       children: [
         DmChatHeader(
           tierIcon: Icons.public,
-          tierLabel: 'Central',
+          tierLabel: 'Rift',
           title: '@${state.openPeerHandle ?? ''}',
           peerId: state.openPeerId,
           onOpenProfile: state.openPeerId == null

@@ -84,7 +84,7 @@ class _ServerDmViewState extends State<ServerDmView> {
                 text: server == null
                     ? 'Join a server to message its members.'
                     : 'No conversations on this server yet. These are '
-                          'unlimited — unlike central DMs, they stay on the '
+                          'unlimited — unlike Rift DMs, they stay on the '
                           'server.',
               ),
         onlineFor: context.watch<ChannelPresenceCubit>().state.isOnline,

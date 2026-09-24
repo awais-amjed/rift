@@ -49,7 +49,7 @@ class CentralIdentityLine extends StatelessWidget {
             ),
           ),
         Text(
-          handle == null ? 'central account' : '· central account',
+          handle == null ? 'Rift account' : '· Rift account',
           style: AppText.label.copyWith(
             fontWeight: FontWeight.w400,
             color: themeState.textTertiary,
