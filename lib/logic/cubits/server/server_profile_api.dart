@@ -20,6 +20,11 @@ mixin _ServerProfileApiMixin on Cubit<ServerState> {
   ///
   /// The old object is intentionally left behind: another member may still be
   /// rendering it from cache, and storage is cheap next to a broken picture.
+  /// It is left behind, not abandoned — the server's sweep collects every
+  /// avatar object no `users.avatar_path` names once it is past the grace
+  /// period, and refuses an upload from anyone already holding a screenful of
+  /// them. Before that sweep learned about this bucket, every picture anybody
+  /// had ever set stayed on the operator's disk for good.
   Future<APIResponse> uploadAvatar(Uint8List imageBytes) async {
     final server = state.selectedServer;
     final anonKey = server?.supabaseKey;
