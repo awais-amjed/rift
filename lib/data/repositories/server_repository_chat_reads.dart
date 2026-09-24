@@ -75,16 +75,32 @@ mixin _ChatReadApiMixin {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final pageSize = limit ?? ChatMessageOps.pageSize;
-      var query = db
-          .from('messages')
-          .select(_messageColumns)
-          .eq('channel_id', channelId);
-      if (afterId != null) query = query.gt('id', afterId);
-      if (beforeId != null) query = query.lt('id', beforeId);
-      // One row past the page — see Paging.split.
-      final rows = await query
-          .order('id', ascending: afterId != null)
-          .limit(pageSize + 1);
+      // `channel_messages`, not `from('messages')`, and that is a performance
+      // fix rather than a tidy-up. Messages from every channel share one table
+      // and one sequence, so `order id.desc limit 51` can be answered by
+      // walking the primary key — which means crossing everything every other
+      // channel has said since this one last spoke. Opening a channel that had
+      // gone quiet took 4.4 seconds against five million messages. The RPC
+      // takes the page as ids first, off `idx_messages_channel`, and fetches
+      // the rows by key: 1.5 ms, and 1.1 → 2,693 requests a second measured
+      // end to end. See `app.channel_page_ids` for why it cannot be written
+      // here.
+      //
+      // The ordering and the spare row are unchanged: the RPC returns newest
+      // first, or oldest first when `p_after` is given, which is the order
+      // this method has always produced.
+      final rows = await db
+          .rpc(
+            'channel_messages',
+            params: {
+              'p_channel': channelId,
+              'p_before': beforeId,
+              'p_after': afterId,
+              // One row past the page — see Paging.split.
+              'p_limit': pageSize + 1,
+            },
+          )
+          .select(_messageColumns);
       final page = Paging.split(
         (rows as List).cast<Map<String, dynamic>>(),
         limit: pageSize,
