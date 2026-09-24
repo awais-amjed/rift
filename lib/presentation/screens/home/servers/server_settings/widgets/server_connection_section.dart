@@ -50,7 +50,7 @@ class ServerConnectionSection extends StatelessWidget {
         const SizedBox(height: 16),
         AppTextField(
           controller: apiKeyCtrl,
-          label: 'LiveKit API Key',
+          label: 'LiveKit API key',
           hint: 'Leave blank to keep current',
           enabled: enabled,
           obscureText: true,
@@ -58,7 +58,7 @@ class ServerConnectionSection extends StatelessWidget {
         const SizedBox(height: 16),
         AppTextField(
           controller: secretCtrl,
-          label: 'LiveKit Secret Key',
+          label: 'LiveKit secret key',
           hint: 'Leave blank to keep current',
           enabled: enabled,
           obscureText: true,

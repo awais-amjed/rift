@@ -168,12 +168,16 @@ class _CreateServerModalState extends State<CreateServerModal> {
           // scroll.
           ModalColumns(
             children: [
+              // The group names the product, so the fields inside do not
+              // repeat it — and every hint says where the value is found
+              // rather than restating its own label, which is the only thing
+              // somebody stuck on this form actually needs.
               CredentialGroup(
-                label: 'Supabase configuration',
+                label: 'Supabase — where messages and accounts live',
                 fields: [
                   AppTextField(
                     controller: _supabaseUrlCtrl,
-                    label: 'Supabase URL',
+                    label: 'Project URL',
                     hint: 'https://xxxxx.supabase.co',
                     enabled: !_isLoading,
                     onChanged: (_) => setState(() => _error = null),
@@ -181,7 +185,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
                   AppTextField(
                     controller: _setupSecretCtrl,
                     label: 'Service role key',
-                    hint: 'Your Supabase service_role key',
+                    hint: 'Project Settings → API → service_role',
                     obscureText: true,
                     enabled: !_isLoading,
                     onChanged: (_) => setState(() => _error = null),
@@ -189,26 +193,26 @@ class _CreateServerModalState extends State<CreateServerModal> {
                 ],
               ),
               CredentialGroup(
-                label: 'LiveKit Configuration',
+                label: 'LiveKit — where calls run',
                 fields: [
                   AppTextField(
                     controller: _livekitUrlCtrl,
-                    label: 'LiveKit URL',
+                    label: 'Server URL',
                     hint: 'wss://xxxxx.livekit.cloud',
                     enabled: !_isLoading,
                     onChanged: (_) => setState(() => _error = null),
                   ),
                   AppTextField(
                     controller: _apiKeyCtrl,
-                    label: 'LiveKit API Key',
-                    hint: 'API Key',
+                    label: 'API key',
+                    hint: 'From your LiveKit project\'s keys page',
                     enabled: !_isLoading,
                     onChanged: (_) => setState(() => _error = null),
                   ),
                   AppTextField(
                     controller: _secretKeyCtrl,
-                    label: 'LiveKit Secret Key',
-                    hint: 'Secret key',
+                    label: 'Secret key',
+                    hint: 'Shown beside the API key, once',
                     obscureText: true,
                     enabled: !_isLoading,
                     onChanged: (_) => setState(() => _error = null),

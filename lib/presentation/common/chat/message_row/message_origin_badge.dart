@@ -31,9 +31,9 @@ class MessageOriginBadge extends StatelessWidget {
   static bool isNeededFor(ChatMessage message) =>
       !message.isEncrypted || !message.origin.isMember || message.isEphemeral;
 
-  /// Amber rather than red. An integration posting build results is working
-  /// exactly as intended; the badge is a label, not an alarm, and colouring it
-  /// like an error would teach people to ignore it.
+  /// Amber rather than red. An outside service posting build results is
+  /// working exactly as intended; the badge is a label, not an alarm, and
+  /// coloring it like an error would teach people to ignore it.
   /// A private reply is not a caution, so it is not amber. It is a fact about
   /// who is looking, and it reads as one.
   Color _color(BuildContext context) =>
@@ -57,7 +57,7 @@ class MessageOriginBadge extends StatelessWidget {
     MessageOrigin.webhook =>
       // The break is at the sentence, not left to the wrap: two facts, one a
       // line. The width cap in `tooltipTheme` is the backstop, not the shape.
-      'Posted by an integration, not a member.\n'
+      'Posted by an outside service, not a member.\n'
           'Unencrypted — the server can read it.',
     MessageOrigin.system =>
       'Written by this server, not by anybody in it.\n'

@@ -67,8 +67,8 @@ class ConnectionFailure {
   const ConnectionFailure.tokenRequest(String? error)
     : title = 'Could not get access to this channel',
       message =
-          'The server would not issue a token for this channel. You may have '
-          'lost access to it, or the server may be having trouble.',
+          'The server would not let this device into the channel. You may '
+          'have lost access to it, or the server may be having trouble.',
       detail = error,
       canRetry = true;
 
@@ -157,23 +157,24 @@ class ConnectionFailure {
     // `reason` then generalises to NotAllowed along with every real permission
     // failure.
     if (e.statusCode == 404 || body.contains('does not exist')) {
+      // Says nothing about rooms or tokens: the person reading this wanted to
+      // join a call, and cannot act on either. The raw error still travels in
+      // [detail], which is where anybody debugging it will look.
       return ConnectionFailure(
-        title: 'This channel has no room open',
+        title: 'This call needs reopening',
         message:
-            'Rift creates the room when it issues a channel token, and LiveKit '
-            'closes rooms once they have been empty for a few minutes. The '
-            'saved token skipped that step. Trying again mints a fresh one and '
-            'reopens the room.',
+            'Nobody has been in here for a while, so the call closed itself. '
+            'Trying again opens it back up.',
         detail: detail,
       );
     }
 
     if (e.statusCode == 401 || e.statusCode == 403) {
       return ConnectionFailure(
-        title: 'The voice server refused the token',
+        title: 'Could not get into this call',
         message:
-            'Your access to this channel may have changed, or the token may '
-            'have expired. Trying again requests a new one.',
+            'Your access may have changed, or too long has passed since you '
+            'last joined. Trying again asks for fresh permission.',
         detail: detail,
       );
     }
@@ -200,7 +201,7 @@ class ConnectionFailure {
 
     return ConnectionFailure(
       title: 'The voice server rejected the connection',
-      message: 'It answered, but would not let this client in.',
+      message: 'It answered, but would not let this device in.',
       detail: detail,
     );
   }
@@ -208,9 +209,9 @@ class ConnectionFailure {
   static ConnectionFailure _unreachable(String? detail) => ConnectionFailure(
     title: 'Cannot reach this server\'s voice service',
     message:
-        'Nothing answered at the server\'s LiveKit address. It is probably '
-        'offline — otherwise check your own connection, or that the address is '
-        'still correct.',
+        'Nothing answered at the address this server uses for calls. It is '
+        'probably offline — otherwise check your own connection, or that the '
+        'address is still correct.',
     detail: detail,
   );
 

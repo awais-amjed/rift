@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
+import '../../logic/helper_methods.dart';
 import '../classes/api_response.dart';
 
 /// What every repository that keeps files on a self-hosted server's Storage
@@ -53,7 +54,12 @@ abstract final class StorageRest {
 
   /// What [response] means when it is not a success, or null when it is.
   ///
-  /// [failed] names the operation for the message: "Upload failed (500)".
+  /// [failed] names the operation: "Upload failed", "Avatar upload failed".
+  ///
+  /// The status code goes to the log rather than into the sentence. It used
+  /// to be the sentence — "Upload failed (500)" — which tells somebody whose
+  /// picture would not send nothing they can act on, and tells whoever is
+  /// debugging it no more than the log already does.
   static APIResponse? refusal(
     http.Response response, {
     required String failed,
@@ -62,7 +68,12 @@ abstract final class StorageRest {
     if (code == 401 || code == 403) {
       return APIResponse.error('Not authorized', errorCode: 'token_expired');
     }
-    if (code >= 300) return APIResponse.error('$failed ($code)');
-    return null;
+    if (code < 300) return null;
+    HelperMethods.printDebug('[Storage] $failed: HTTP $code');
+    return APIResponse.error(
+      code >= 500
+          ? '$failed — the server is having trouble. Try again in a moment.'
+          : '$failed — the server would not accept it.',
+    );
   }
 }

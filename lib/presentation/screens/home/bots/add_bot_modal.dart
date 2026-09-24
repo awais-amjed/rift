@@ -156,7 +156,7 @@ class _AddBotModalState extends State<AddBotModal> {
         const HintCard(
           icon: Icons.vpn_key_outlined,
           text:
-              'Your server mints a single-use invite marked as a bot. It is '
+              'Your server creates a single-use invite marked as a bot. It is '
               'spent the first time the program runs, and it is the only '
               'thing that ever leaves this dialog — the bot signs in with a '
               'key it makes itself, which Rift never sees.',

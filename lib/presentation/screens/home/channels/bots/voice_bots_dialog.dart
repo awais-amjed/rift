@@ -140,7 +140,7 @@ class _VoiceBotsDialogState extends State<VoiceBotsDialog> {
               icon: Icons.smart_toy_outlined,
               text:
                   'No bots on this server yet. A bot joins through an invite '
-                  'minted from “Invite people” with Bot chosen.',
+                  'created from “Invite people” with Bot chosen.',
             )
           else ...[
             const HintCard(

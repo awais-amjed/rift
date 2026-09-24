@@ -65,7 +65,8 @@ enum ServerPermission {
     4,
     PermissionGroup.server,
     'Create invites',
-    'Mint invite links. An invite can never carry more than its maker holds.',
+    'Create invite links. An invite can never carry more than its maker '
+        'holds.',
   ),
   kickMembers(
     5,

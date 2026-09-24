@@ -93,7 +93,7 @@ class _BotsPanelState extends State<BotsPanel> {
             const HintCard(
               icon: Icons.smart_toy_outlined,
               text:
-                  'No bots here yet. Browse bots below to find one, or mint '
+                  'No bots here yet. Browse bots below to find one, or create '
                   'an invite of your own from “Invite people” on the server '
                   'menu and choose Bot.',
             )

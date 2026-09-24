@@ -210,7 +210,7 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
         ),
         const SizedBox(height: 16),
         SettingToggleRow(
-          title: 'Show it in the browser',
+          title: 'Show it in the bot browser',
           // Delisting keeps the row and its likes, which is the difference
           // between hiding a bot for a week and giving up its listing.
           description: 'Off keeps the listing and its likes, hidden',

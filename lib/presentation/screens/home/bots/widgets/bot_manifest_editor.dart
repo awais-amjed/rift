@@ -93,7 +93,7 @@ class _BotManifestEditorState extends State<BotManifestEditor> {
           // BOTS.md §8. For a bot that ships text somewhere else, this
           // sentence is worth more than any amount of key management — and
           // it is only worth anything before the bot is installed.
-          'Shown above the commands in the browser. Leave it empty only if '
+          'Shown above the commands in the bot browser. Leave it empty only if '
           'nothing the bot is told ever leaves the server.',
           style: AppText.label.copyWith(
             fontWeight: FontWeight.w400,

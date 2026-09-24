@@ -18,10 +18,24 @@ void main() {
       }
     });
 
-    test('any other failure names the operation and the status', () {
+    test('any other failure names the operation, without the status', () {
+      // The code belongs in the log: "Upload failed (500)" told the person
+      // whose picture would not send nothing they could act on.
       final r = StorageRest.refusal(reply(500), failed: 'Upload failed');
-      expect(r!.error, 'Upload failed (500)');
+      expect(r!.error, startsWith('Upload failed'));
+      expect(r.error, isNot(contains('500')));
       expect(r.errorCode, isNull);
+    });
+
+    test('a server fault reads differently from a refusal', () {
+      expect(
+        StorageRest.refusal(reply(500), failed: 'Upload failed')!.error,
+        contains('having trouble'),
+      );
+      expect(
+        StorageRest.refusal(reply(413), failed: 'Upload failed')!.error,
+        contains('would not accept'),
+      );
     });
 
     test('a success is not a refusal', () {
