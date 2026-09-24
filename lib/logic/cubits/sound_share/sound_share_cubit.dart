@@ -57,10 +57,6 @@ class SoundShareCubit extends Cubit<SoundShareState> {
 
     try {
       final server = _serverCubit.state.selectedServer;
-      final livekitUrl = server?.livekitUrl;
-      if (livekitUrl == null) {
-        return _fail('No LiveKit URL configured');
-      }
 
       final channelId = _livekitCubit?.state.currentChannelId;
       if (channelId == null) {
@@ -87,6 +83,15 @@ class SoundShareCubit extends Cubit<SoundShareState> {
       );
       if (!response.success) {
         return _fail(response.error ?? 'Failed to get channel token');
+      }
+
+      // Where to take it. Same rule as the screen share: this is a second
+      // connection into the call's own room, so it follows the mint's answer
+      // rather than the server row.
+      final livekitUrl =
+          response.data['livekit_url'] as String? ?? server?.livekitUrl;
+      if (livekitUrl == null) {
+        return _fail('No LiveKit URL configured');
       }
 
       final result = await rust.startSoundShare(

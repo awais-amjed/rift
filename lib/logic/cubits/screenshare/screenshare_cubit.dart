@@ -122,12 +122,6 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         return;
       }
 
-      final livekitUrl = server.livekitUrl;
-      if (livekitUrl == null) {
-        _fail('No LiveKit URL configured');
-        return;
-      }
-
       final user = server.user;
       if (user == null) {
         _fail('No user info available');
@@ -155,6 +149,17 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       // The token carries the identity, including the per-device segment
       // that keeps the base and screenshare connections paired.
       final livekitToken = response.data['token'] as String;
+
+      // And where to take it. A share is a second connection into the call's
+      // own room, so it has to land on the same LiveKit the call did — which
+      // is the mint's answer, not the server row, once a channel can sit on a
+      // node of its own.
+      final livekitUrl =
+          response.data['livekit_url'] as String? ?? server.livekitUrl;
+      if (livekitUrl == null) {
+        _fail('No LiveKit URL configured');
+        return;
+      }
 
       // And the operator's budget for a share, which rides along with the
       // token so a change takes effect on the next share rather than the

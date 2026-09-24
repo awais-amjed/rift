@@ -28,6 +28,16 @@ class CachedToken {
   /// before the field existed.
   final String? deviceId;
 
+  /// Which LiveKit to take this token to, as the mint named it.
+  ///
+  /// Cached with the token rather than looked up again, because the two
+  /// belong together: a token is minted for one node, and a server free to
+  /// answer with a different node per channel would make a token and a
+  /// separately-read address disagree. Null for entries persisted before this
+  /// field existed, and for a server old enough not to send one — both fall
+  /// back to the server row.
+  final String? livekitUrl;
+
   const CachedToken({
     required this.supabaseUrl,
     required this.channelId,
@@ -36,6 +46,7 @@ class CachedToken {
     required this.createdAt,
     this.grantVersion,
     this.deviceId,
+    this.livekitUrl,
   });
 
   /// Tokens have a 1-hour TTL; we consider them valid for 55 minutes.
@@ -49,6 +60,7 @@ class CachedToken {
     'createdAt': createdAt.toIso8601String(),
     'grantVersion': grantVersion,
     'deviceId': deviceId,
+    'livekitUrl': livekitUrl,
   };
 
   factory CachedToken.fromJson(Map<String, dynamic> json) => CachedToken(
@@ -59,6 +71,7 @@ class CachedToken {
     createdAt: DateTime.parse(json['createdAt'] as String),
     grantVersion: json['grantVersion'] as int?,
     deviceId: json['deviceId'] as String?,
+    livekitUrl: json['livekitUrl'] as String?,
   );
 }
 

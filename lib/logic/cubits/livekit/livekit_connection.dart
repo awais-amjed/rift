@@ -98,17 +98,6 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       );
       return;
     }
-    final livekitUrl = server.livekitUrl;
-    if (livekitUrl == null) {
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          failure: const ConnectionFailure.noLiveKitUrl(),
-        ),
-      );
-      return;
-    }
-
     // A cached token belongs to the account it was minted for, and this
     // device may have been signed into more than one. Without the user in the
     // lookup, signing in as someone else reuses the previous account's token
@@ -125,6 +114,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     }
 
     String livekitToken;
+    // Where the mint said to take it. Null from a server too old to say, and
+    // then the server row answers — see [CachedToken.livekitUrl].
+    String? mintedUrl;
     final cached = _tokenCubit.getValidToken(
       server.supabaseUrl,
       channelId,
@@ -132,6 +124,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     );
     if (cached != null) {
       livekitToken = cached.token;
+      mintedUrl = cached.livekitUrl;
     } else {
       final response = await _serverCubit!.getChannelToken(channelId);
       if (!response.success) {
@@ -149,12 +142,29 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         return;
       }
       livekitToken = response.data['token'] as String;
+      mintedUrl = response.data['livekit_url'] as String?;
       _tokenCubit.saveToken(
         server.supabaseUrl,
         channelId,
         userId,
         livekitToken,
+        livekitUrl: mintedUrl,
       );
+    }
+
+    // The address the token was minted for, then the server's own. Checked
+    // here rather than before the token, because the token is what names it:
+    // a channel able to live on a different LiveKit than its server's default
+    // has to be told so by the thing that decided it.
+    final livekitUrl = mintedUrl ?? server.livekitUrl;
+    if (livekitUrl == null) {
+      emit(
+        state.copyWith(
+          connectionState: LiveKitConnectionState.error,
+          failure: const ConnectionFailure.noLiveKitUrl(),
+        ),
+      );
+      return;
     }
 
     // The key before the room. A call joined without one would connect, work,

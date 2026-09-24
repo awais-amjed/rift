@@ -75,13 +75,14 @@ class TokenCubit extends HydratedCubit<TokenState> {
   }
 
   /// Stores a newly fetched token for [channelId], against the user it was
-  /// minted for.
+  /// minted for, and the LiveKit the mint named — see [CachedToken.livekitUrl].
   void saveToken(
     String supabaseUrl,
     String channelId,
     String userId,
-    String token,
-  ) {
+    String token, {
+    String? livekitUrl,
+  }) {
     final updated = Map<String, CachedToken>.from(state.tokens);
     updated[channelId] = CachedToken(
       grantVersion: grantVersion,
@@ -91,6 +92,7 @@ class TokenCubit extends HydratedCubit<TokenState> {
       userId: userId,
       token: token,
       createdAt: DateTime.now(),
+      livekitUrl: livekitUrl,
     );
     emit(state.copyWith(tokens: updated));
   }
