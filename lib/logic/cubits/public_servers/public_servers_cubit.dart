@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/public_server.dart';
 import '../../../data/repositories/public_server_repository.dart';
+import '../../services/directory_icon_publish.dart';
 
 part 'public_servers_state.dart';
 
@@ -176,12 +177,22 @@ class PublicServersCubit extends Cubit<PublicServersState> {
     required String name,
     required String listingToken,
     String? description,
-    String? iconUrl,
+
+    /// The server's **own** icon address, not a listing path. The bytes are
+    /// copied into central here so the directory never fetches a picture from
+    /// the publisher's host — see [DirectoryIconPublish]. Null, and a failed
+    /// copy, both mean the listing draws its initial.
+    String? iconSourceUrl,
     List<String> tags = const [],
     int memberCount = 0,
     bool isListed = true,
   }) async {
     emit(state.copyWith(savingListing: true, clearError: true));
+
+    // Before the publish rather than after: a listing that named an object
+    // which had not been stored yet would draw nothing until the next save.
+    final iconPath = await DirectoryIconPublish.copyToCentral(iconSourceUrl);
+    if (isClosed) return null;
 
     final response = await _repo.publish(
       supabaseUrl: supabaseUrl,
@@ -190,7 +201,7 @@ class PublicServersCubit extends Cubit<PublicServersState> {
       name: name,
       listingToken: listingToken,
       description: description,
-      iconUrl: iconUrl,
+      iconPath: iconPath,
       tags: tags,
       memberCount: memberCount,
       isListed: isListed,

@@ -130,7 +130,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       name: server.name,
       listingToken: proof.token!,
       description: description.isEmpty ? null : description,
-      iconUrl: server.iconUrl,
+      iconSourceUrl: server.iconUrl,
       tags: DirectoryTags.withPending(_tags, _tagCtrl.text),
       // Brand new, so its only member is the admin who just registered — the
       // roster fetch for it may not even have landed yet.

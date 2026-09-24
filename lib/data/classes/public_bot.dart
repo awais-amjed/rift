@@ -21,7 +21,7 @@ class PublicBot {
 
   final String name;
   final String? description;
-  final String? iconUrl;
+  final String? iconPath;
 
   /// Where the code is. `https://…`, enforced by the column.
   final String sourceUrl;
@@ -64,7 +64,7 @@ class PublicBot {
     required this.ownerId,
     required this.name,
     this.description,
-    this.iconUrl,
+    this.iconPath,
     required this.sourceUrl,
     this.tags = const [],
     this.manifest = BotManifest.empty,
@@ -96,7 +96,7 @@ class PublicBot {
       ownerId: json['owner_id'] as String,
       name: json['name'] as String,
       description: json['description'] as String?,
-      iconUrl: json['icon_url'] as String?,
+      iconPath: json['icon_path'] as String?,
       sourceUrl: json['source_url'] as String,
       tags:
           (json['tags'] as List<dynamic>?)?.map((t) => t as String).toList() ??
@@ -119,7 +119,7 @@ class PublicBot {
     'owner_id': ownerId,
     'name': name,
     'description': description,
-    'icon_url': iconUrl,
+    'icon_path': iconPath,
     'source_url': sourceUrl,
     'tags': tags,
     'manifest': manifest.toJson(),
@@ -136,7 +136,7 @@ class PublicBot {
     ownerId: ownerId,
     name: name,
     description: description,
-    iconUrl: iconUrl,
+    iconPath: iconPath,
     sourceUrl: sourceUrl,
     tags: tags,
     manifest: manifest,

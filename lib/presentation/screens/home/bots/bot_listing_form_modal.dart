@@ -106,7 +106,7 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
       name: name,
       sourceUrl: source,
       description: description.isEmpty ? null : description,
-      iconUrl: widget.editing?.iconUrl,
+      iconPath: widget.editing?.iconPath,
       tags: DirectoryTags.withPending(_tags, _tagCtrl.text),
       // Omitted entirely when empty, so an author who filled nothing in gets
       // a null column rather than `{"commands":[]}` — which the browser would

@@ -1,6 +1,10 @@
 import 'dart:typed_data';
 
-/// In-memory cache of avatar bytes, keyed by storage path.
+/// In-memory cache of picture bytes, keyed by storage path.
+///
+/// Named for avatars, which are most of what goes through it, but the key is
+/// a storage path and nothing in here is avatar-specific — directory icons
+/// share it rather than standing up a second LRU with the same contents.
 ///
 /// Avatars are re-rendered constantly (every message header, every member row)
 /// so refetching per widget would hammer storage. Paths carry a random segment

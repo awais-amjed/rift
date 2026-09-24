@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../data/classes/public_bot.dart';
 import '../../../../../data/constants.dart';
 import '../../../../common/app_button.dart';
-import '../../../../common/squircle_avatar.dart';
+import '../../../../common/directory_icon.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import 'bot_command_list.dart';
@@ -57,10 +57,10 @@ class PublicBotTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 12,
         children: [
-          SquircleAvatar(
+          DirectoryIcon(
             name: bot.name,
             seed: bot.id,
-            imageUrl: bot.iconUrl,
+            iconPath: bot.iconPath,
             size: 40,
           ),
           Expanded(child: _details(context)),

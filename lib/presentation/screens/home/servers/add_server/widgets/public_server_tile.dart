@@ -4,7 +4,7 @@ import '../../../../../../data/classes/public_server.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
-import '../../../../../common/squircle_avatar.dart';
+import '../../../../../common/directory_icon.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -37,10 +37,10 @@ class PublicServerTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 12,
         children: [
-          SquircleAvatar(
+          DirectoryIcon(
             name: server.name,
             seed: server.serverId,
-            imageUrl: server.iconUrl,
+            iconPath: server.iconPath,
             size: 40,
           ),
           Expanded(child: _details(themeState)),

@@ -55,7 +55,7 @@ class ListingActions {
       // in the same Save that applied it.
       name: name,
       description: draft.description,
-      iconUrl: server.iconUrl,
+      iconSourceUrl: server.iconUrl,
       tags: draft.tags,
       memberCount: memberCount,
       isListed: draft.isListed,

@@ -21,7 +21,7 @@ class PublicServer {
   final String inviteCode;
   final String name;
   final String? description;
-  final String? iconUrl;
+  final String? iconPath;
   final List<String> tags;
 
   /// What the operator claimed when they last saved. Central cannot count the
@@ -44,7 +44,7 @@ class PublicServer {
     required this.inviteCode,
     required this.name,
     this.description,
-    this.iconUrl,
+    this.iconPath,
     this.tags = const [],
     this.memberCount = 0,
     this.isListed = true,
@@ -68,7 +68,7 @@ class PublicServer {
       inviteCode: json['invite_code'] as String,
       name: json['name'] as String,
       description: json['description'] as String?,
-      iconUrl: json['icon_url'] as String?,
+      iconPath: json['icon_path'] as String?,
       tags:
           (json['tags'] as List<dynamic>?)?.map((t) => t as String).toList() ??
           const [],
@@ -88,7 +88,7 @@ class PublicServer {
     'invite_code': inviteCode,
     'name': name,
     'description': description,
-    'icon_url': iconUrl,
+    'icon_path': iconPath,
     'tags': tags,
     'member_count': memberCount,
     'is_listed': isListed,
