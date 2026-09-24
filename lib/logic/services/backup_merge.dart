@@ -17,6 +17,25 @@
 /// rules because they answer different questions: a server is a fact (it
 /// exists or it does not) while an order is an opinion (the most recent one
 /// wins, and there is nothing to preserve from the older).
+///
+/// **A union cannot say "gone", and that is a real gap rather than an
+/// oversight.** Everything either side knows survives, which is exactly right
+/// for joining — a server joined on a phone must outlive the laptop's next
+/// upload — and leaves no way to express the opposite. A device that removed
+/// a server got it back from the cloud copy on the very next merge, and
+/// clicking it again only repeated the round.
+///
+/// The gap is closed outside this class, by the one caller that can close it
+/// honestly: a device that has *asked the server* and been told the
+/// membership is gone drops it from the merge result, and the upload that
+/// follows writes the shorter list back. The cloud is clean after one cycle,
+/// and another device holding a stale copy discovers the same fact the first
+/// time it looks. See `ServerCubit.noteServerGone`.
+///
+/// That is deliberately not a tombstone. A tombstone would have to survive in
+/// the manifest, and then rejoining a server you had left would need a rule
+/// for when a join outranks its own gravestone — a real design with a format
+/// change behind it. A fact every device can re-check needs neither.
 library;
 
 /// The servers half of a backup: the list, in rail order, and the clock that
@@ -187,6 +206,15 @@ class BackupMerge {
   /// `(supabaseUrl, id)`, never the URL alone — one Supabase project hosts as
   /// many servers as its operator wants. Null for an entry with no URL, which
   /// is not a server anybody can reach.
+  /// The key [union] and [ServerManifest] identify a server by, for a caller
+  /// that holds the pair rather than a manifest entry.
+  ///
+  /// Public because the one thing a union cannot express is a *removal*, and
+  /// the caller that learns of one has to be able to name it — see
+  /// `ServerCubit.noteServerGone`.
+  static String keyFor({required String supabaseUrl, required String id}) =>
+      '$supabaseUrl\u0000$id';
+
   static String? _key(Map<String, dynamic> entry) {
     final url = (entry['supabaseUrl'] as String?) ?? '';
     if (url.isEmpty) return null;

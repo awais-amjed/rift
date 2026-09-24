@@ -15,6 +15,9 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     Map<String, dynamic> serverDetails,
   ) {
     final newServer = Server.fromJoin(supabaseUrl, token, serverDetails);
+    // Joining again is the answer to having been removed, so the note that
+    // kept it out of the rail has to go with it.
+    _clearServerGone(supabaseUrl: supabaseUrl, id: newServer.id);
     final updated = [...state.servers, newServer];
     emit(state.copyWith(servers: updated, selectedServerId: newServer.id));
     _onServersChanged?.call();
@@ -59,6 +62,28 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     updated.insert(to, updated.removeAt(from));
     emit(state.copyWith(servers: updated, orderClock: state.orderClock + 1));
     _onServersChanged?.call();
+  }
+
+  /// Servers this session has been told it is no longer on.
+  ///
+  /// Keyed the way [BackupMerge] keys a manifest entry, because the whole
+  /// point is to be able to answer for one. Not persisted: it exists to stop
+  /// the cloud copy resurrecting a server *between* the removal and the
+  /// upload that follows it. After that upload the cloud no longer lists it,
+  /// so there is nothing left to remember.
+  final Set<String> _goneKeys = {};
+
+  void noteServerGone({required String supabaseUrl, required String id}) {
+    _goneKeys.add(BackupMerge.keyFor(supabaseUrl: supabaseUrl, id: id));
+  }
+
+  bool isServerGone({required String supabaseUrl, required String id}) =>
+      _goneKeys.contains(BackupMerge.keyFor(supabaseUrl: supabaseUrl, id: id));
+
+  /// Rejoining clears the note, or the merge would keep dropping a server the
+  /// user has just deliberately joined again.
+  void _clearServerGone({required String supabaseUrl, required String id}) {
+    _goneKeys.remove(BackupMerge.keyFor(supabaseUrl: supabaseUrl, id: id));
   }
 
   void removeServer(String serverId) {

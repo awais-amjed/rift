@@ -219,6 +219,34 @@ void main() {
       expect(merged.agreesOnOrderWith(theirs), isTrue);
     });
 
+    test('keeps a server the cloud still knows and this device dropped', () {
+      // The behaviour that made removal impossible, pinned deliberately: the
+      // union is the *right* rule for joining, so it must not quietly learn
+      // to forget. What closes the gap lives outside it — the caller that
+      // asked the server and was told the membership is gone drops the entry
+      // from the merge result. See ServerCubit.noteServerGone.
+      final mine = ServerManifest(servers: [server('a')]);
+      final theirs = ServerManifest(servers: [server('a'), server('b')]);
+      final merged = BackupMerge.union(mine: mine, theirs: theirs);
+      expect(idsOf(merged), ['a', 'b']);
+    });
+
+    test('names a server the same way whether or not it has an entry', () {
+      // The caller holds a (url, id) pair, not a manifest entry, so the two
+      // ways of keying one have to agree — otherwise a removal would be
+      // recorded under a name the merge never looks up.
+      final entry = server('a', url: 'https://one.example');
+      final merged = BackupMerge.union(
+        mine: ServerManifest(servers: [entry]),
+        theirs: ServerManifest.empty,
+      );
+      expect(idsOf(merged), ['a']);
+      expect(
+        BackupMerge.keyFor(supabaseUrl: 'https://one.example', id: 'a'),
+        'https://one.example\u0000a',
+      );
+    });
+
     test('merging with an empty cloud copy changes nothing', () {
       final mine = ServerManifest(
         servers: [server('a'), server('b')],

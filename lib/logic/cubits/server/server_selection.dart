@@ -32,6 +32,8 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
 
   /// Implemented by [ServerCubit]: drop a server from the rail.
   void removeServer(String serverId);
+  void noteServerGone({required String supabaseUrl, required String id});
+  bool isServerGone({required String supabaseUrl, required String id});
 
   // ──────────────────────────────────────────────────────────
   // Server selection
@@ -65,6 +67,9 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     // from under finds out. Without it the rail kept a chip that opened a
     // server with no channels, signed in as "Guest".
     if (result.error == ServerDb.serverGone) {
+      // Before the removal, because the removal is what schedules the backup
+      // that would otherwise bring it straight back.
+      noteServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
       removeServer(server.id);
       HelperMethods.showToast(
         title: 'No longer on ${server.name}',
@@ -164,6 +169,16 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
       final url = (meta['supabaseUrl'] as String?) ?? '';
       final id = meta['id'] as String?;
       if (url.isEmpty || id == null) continue;
+
+      // A union keeps everything either side knows, so the cloud's copy of a
+      // server this device has just been told it is no longer on would walk
+      // straight back into the rail — and the upload after this would write
+      // it back up, so clicking it again only repeated the round. Dropped
+      // here instead, which also shortens the list that gets uploaded.
+      if (isServerGone(supabaseUrl: url, id: id)) {
+        arrived = true;
+        continue;
+      }
 
       final known = state.serverById(id);
       if (known != null && known.supabaseUrl == url) {

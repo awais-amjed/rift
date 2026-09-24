@@ -5,6 +5,7 @@ part of 'server_cubit.dart';
 mixin _ServerApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
   void removeServer(String serverId);
+  void noteServerGone({required String supabaseUrl, required String id});
 
   /// The selected server's anon key — what a direct PostgREST call needs on top
   /// of a bearer token, for the calls that are about the current server.
@@ -198,6 +199,9 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     // nothing left here to refresh, and keeping the rail chip would leave a
     // server nobody can leave.
     if (!response.success && response.error == ServerDb.serverGone) {
+      // The same note the selection path takes: without it the auto-backup
+      // this removal triggers merges the cloud's copy back in.
+      noteServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
       removeServer(server.id);
       HelperMethods.showToast(
         title: 'No longer on ${server.name}',
