@@ -59,7 +59,7 @@ class _DangerZonePanelState extends State<DangerZonePanel> {
   Widget build(BuildContext context) {
     return ManagePanel(
       title: 'Danger zone',
-      subtitle: 'Ending it',
+      subtitle: 'Ending this server, for everybody',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,

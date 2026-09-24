@@ -81,7 +81,7 @@ class _BotManifestEditorState extends State<BotManifestEditor> {
       children: [
         AppTextField(
           controller: _dataUseCtrl,
-          label: 'What it does with what it is given',
+          label: 'Where messages to it go',
           hint: 'Messages sent to this bot are forwarded to an outside service',
           enabled: widget.enabled,
           maxLines: 2,

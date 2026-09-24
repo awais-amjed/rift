@@ -173,8 +173,8 @@ class _RolesPanelState extends State<RolesPanel> {
               const HintCard(
                 icon: Icons.visibility_outlined,
                 text:
-                    'You can see what every role does. Changing them is an '
-                    'administrator\'s.',
+                    'You can see what every role does. Changing them is up to '
+                    'an administrator.',
               ),
               const SizedBox(height: 12),
             ],

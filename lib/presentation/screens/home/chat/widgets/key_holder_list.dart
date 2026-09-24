@@ -89,7 +89,7 @@ class _KeyHolderListState extends State<KeyHolderList> {
         spacing: 8,
         children: [
           Text(
-            'WHO CAN HAND IT OVER',
+            'WHO CAN HAND OVER THE KEY',
             style: AppText.sectionLabel.copyWith(color: theme.textTertiary),
           ),
           if (!anyOnline)

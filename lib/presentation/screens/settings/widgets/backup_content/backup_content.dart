@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import 'auth_panel.dart';
 import 'change_password_panel.dart';
 import 'confirm_email_panel.dart';
@@ -57,6 +59,20 @@ class _BackupBody extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Says once what the two words on this page mean. Everything
+            // below talks about a vault and a backup as though they were
+            // already introduced, and nothing anywhere introduced them — so
+            // a reader could not tell whether they were one thing or two.
+            Text(
+              'Your vault is this device\'s copy of your identity: the keys '
+              'that open your messages, and the servers you are on. A backup '
+              'is an encrypted copy of that vault — in the cloud, or in a '
+              'file — so a new device can become this one.',
+              style: AppText.secondary.copyWith(
+                color: context.theme.textTertiary,
+              ),
+            ),
+            const SizedBox(height: 24),
             cloudPanel,
             // Only once there is a settled vault to change the password of —
             // not while the screen is still asking someone to sign in, resolve

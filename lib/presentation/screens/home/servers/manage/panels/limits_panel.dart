@@ -94,7 +94,7 @@ class _LimitsPanelState extends State<LimitsPanel> {
   Widget build(BuildContext context) {
     return ManagePanel(
       title: 'Limits',
-      subtitle: 'What this server is allowed to cost',
+      subtitle: 'How many members, how much storage, how big a call',
       footer: [
         AppButton(
           label: 'Save',
