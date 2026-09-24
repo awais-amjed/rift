@@ -53,6 +53,38 @@ void main() {
     });
   });
 
+  group('the default region\'s title', () {
+    // The row appends "(default)" so the one that cannot be removed says why.
+    // A server nobody has renamed calls that node "Default", and appending
+    // to it produced "Default (default)" — seen on the real settings page.
+    String title(LiveKitNode n) {
+      if (!n.isDefault) return n.label;
+      if (n.label.trim().toLowerCase() == 'default') return n.label;
+      return '${n.label} (default)';
+    }
+
+    test('does not repeat itself when the label already says it', () {
+      expect(
+        title(const LiveKitNode(id: 'n', label: 'Default', url: 'ws://h', isDefault: true)),
+        'Default',
+      );
+    });
+
+    test('marks a renamed default', () {
+      expect(
+        title(const LiveKitNode(id: 'n', label: 'Frankfurt', url: 'ws://h', isDefault: true)),
+        'Frankfurt (default)',
+      );
+    });
+
+    test('says nothing extra about an ordinary region', () {
+      expect(
+        title(const LiveKitNode(id: 'n', label: 'Singapore', url: 'ws://h')),
+        'Singapore',
+      );
+    });
+  });
+
   group('VoiceRegionProbe.httpUrlFor', () {
     test('swaps the WebSocket scheme for its HTTP one', () {
       expect(

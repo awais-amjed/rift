@@ -11,6 +11,10 @@ import '../../../../../theme/theme_context.dart';
 /// it is the server's own LiveKit URL under a label, and the field above this
 /// list is where its address is changed. Offering a button the server refuses
 /// would be worse than not offering one.
+///
+/// It is also marked as the default in words, but only when its label does
+/// not already say so: a server that has never been renamed calls it
+/// "Default", and "Default (default)" is what that produced.
 class VoiceRegionRow extends StatelessWidget {
   final LiveKitNode node;
   final bool enabled;
@@ -22,6 +26,13 @@ class VoiceRegionRow extends StatelessWidget {
     required this.enabled,
     required this.onRemove,
   });
+
+  /// The label, plus "(default)" when that is not what it already says.
+  String get _title {
+    if (!node.isDefault) return node.label;
+    if (node.label.trim().toLowerCase() == 'default') return node.label;
+    return '${node.label} (default)';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +51,7 @@ class VoiceRegionRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  node.isDefault ? '${node.label} (default)' : node.label,
+                  _title,
                   style: AppText.body.copyWith(color: theme.textPrimary),
                   overflow: TextOverflow.ellipsis,
                 ),
