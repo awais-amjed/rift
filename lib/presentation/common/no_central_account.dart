@@ -21,8 +21,9 @@ class NoCentralAccount extends StatelessWidget {
     return HintCard(
       icon: Icons.cloud_off_outlined,
       text:
-          '$need Sign in under Settings → Account. Nothing about this device '
-          'or its servers reaches central until you do.',
+          '$need Sign in under Settings → Account & backup. Nothing about '
+          'this device or its servers reaches the Rift central server until '
+          'you do.',
     );
   }
 }

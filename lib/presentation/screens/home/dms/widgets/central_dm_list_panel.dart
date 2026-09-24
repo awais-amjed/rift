@@ -96,8 +96,8 @@ class CentralDmListPanel extends StatelessWidget {
           child: HintCard(
             icon: Icons.cloud_off_outlined,
             text:
-                'Sign in to your Rift account (Settings → Cloud Backup) to '
-                'message people across servers.',
+                'Sign in to your Rift account (Settings → Account & backup) '
+                'to message people across servers.',
           ),
         ),
       );

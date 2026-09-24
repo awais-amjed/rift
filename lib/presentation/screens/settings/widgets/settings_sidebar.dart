@@ -70,24 +70,20 @@ class SettingsSidebar extends StatelessWidget {
         // The design's settings nav rows are the sidebar's rows — same
         // gradient, ring, padding and radius — so they use the same widget
         // rather than a fork that would drift.
-        _tab(SettingsTab.appearance, Icons.palette_outlined, 'Appearance'),
-        _tab(SettingsTab.general, Icons.tune_rounded, 'General'),
-        _tab(
-          SettingsTab.voiceAndAudio,
-          Icons.headset_outlined,
-          'Voice & audio',
-        ),
-        _tab(SettingsTab.backup, Icons.cloud_outlined, 'Cloud backup'),
+        _tab(SettingsTab.appearance, Icons.palette_outlined),
+        _tab(SettingsTab.general, Icons.tune_rounded),
+        _tab(SettingsTab.voiceAndAudio, Icons.headset_outlined),
+        _tab(SettingsTab.backup, Icons.cloud_outlined),
       ],
     );
   }
 
-  Widget _tab(SettingsTab tab, IconData icon, String label) {
+  Widget _tab(SettingsTab tab, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
       child: NavRow(
         icon: icon,
-        label: label,
+        label: tab.label,
         isSelected: activeTab == tab,
         onTap: () => onTabSelected(tab),
       ),

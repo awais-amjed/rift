@@ -52,13 +52,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// both are on screen and there is nothing to be in front of anything else.
   bool _detailOpen = false;
 
-  String get _tabTitle => switch (_activeTab) {
-    SettingsTab.appearance => 'Appearance',
-    SettingsTab.general => 'General',
-    SettingsTab.voiceAndAudio => 'Voice & audio',
-    SettingsTab.backup => 'Cloud backup',
-  };
-
   IconData get _tabIcon => switch (_activeTab) {
     SettingsTab.appearance => Icons.palette_outlined,
     SettingsTab.general => Icons.tune_rounded,
@@ -122,7 +115,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // No subtitle: the nav row already named the tab, and a
                 // sentence under the title said the same thing again.
                 Text(
-                  _tabTitle,
+                  _activeTab.label,
                   style: AppText.sectionTitle.copyWith(
                     color: themeState.textPrimary,
                   ),

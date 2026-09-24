@@ -98,7 +98,7 @@ void main() {
   testWidgets('the tabs still switch', (tester) async {
     final taps = await _pumpSidebar(tester);
 
-    await tester.tap(find.text('Cloud backup'));
+    await tester.tap(find.text(SettingsTab.backup.label));
     await tester.pump();
 
     expect(taps.tab, SettingsTab.backup);

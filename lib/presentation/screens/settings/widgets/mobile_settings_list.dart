@@ -128,14 +128,14 @@ class MobileSettingsList extends StatelessWidget {
                   children: [
                     SettingsLinkRow(
                       icon: Icons.palette_outlined,
-                      label: 'Appearance',
+                      label: SettingsTab.appearance.label,
                       value: palette,
                       onTap: () => onTabSelected(SettingsTab.appearance),
                     ),
                     Divider(height: 1, color: theme.borderPrimary),
                     SettingsLinkRow(
                       icon: Icons.tune_rounded,
-                      label: 'General',
+                      label: SettingsTab.general.label,
                       subtitle:
                           'Voice channels, link previews, sensitive content',
                       onTap: () => onTabSelected(SettingsTab.general),
@@ -143,16 +143,16 @@ class MobileSettingsList extends StatelessWidget {
                     Divider(height: 1, color: theme.borderPrimary),
                     SettingsLinkRow(
                       icon: Icons.graphic_eq_rounded,
-                      label: 'Voice & audio',
+                      label: SettingsTab.voiceAndAudio.label,
                       subtitle: 'Noise suppression, mic test, sounds',
                       onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
                     ),
                     Divider(height: 1, color: theme.borderPrimary),
                     SettingsLinkRow(
-                      icon: Icons.key_rounded,
-                      label: 'Backup & recovery key',
+                      icon: Icons.cloud_outlined,
+                      label: SettingsTab.backup.label,
                       subtitle:
-                          backup ?? 'Cloud backup, backup file, this device',
+                          backup ?? 'Sign in, cloud backup, recovery key',
                       onTap: () => onTabSelected(SettingsTab.backup),
                     ),
                   ],

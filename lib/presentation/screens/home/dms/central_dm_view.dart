@@ -44,7 +44,7 @@ class _RestingState extends StatelessWidget {
     final (title, message) = switch (status) {
       CentralDmStatus.signedOut => (
         'Central DMs need an account',
-        'Sign in under Settings → Cloud Backup to message people across '
+        'Sign in under Settings → Account & backup to message people across '
             'servers.',
       ),
       CentralDmStatus.needsHandle => (
