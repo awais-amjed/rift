@@ -117,7 +117,7 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
     try {
       final currentSeed = await _storage.getEncryptedSeed();
       if (currentSeed == null) {
-        return (success: false, error: 'Vault not initialised');
+        return (success: false, error: 'Vault not initialized');
       }
 
       final oldKey = await _crypto.deriveVaultKey(

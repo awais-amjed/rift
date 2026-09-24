@@ -60,7 +60,7 @@ class AppearanceContent extends StatelessWidget {
 
         const SizedBox(height: 28),
 
-        const SectionTitle(label: 'Colour palette'),
+        const SectionTitle(label: 'Color palette'),
         const SizedBox(height: 4),
         Text(
           'Changes the accent and surface tones across the whole app.',

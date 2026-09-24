@@ -316,7 +316,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     // Only BOT. A ban is a state with a consequence rather than an
     // attribute of the person, and it gets [ProfileBannedNotice] instead —
     // a pill beside this one read as a second kind of thing they are.
-    final tags = <Widget>[if (member.isBot) const LabelPill(label: 'BOT')];
+    final tags = <Widget>[if (member.isBot) const LabelPill(label: 'Bot')];
     if (tags.isEmpty) return const [];
     return [
       Padding(

@@ -108,7 +108,7 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
   @override
   Widget build(BuildContext context) {
     return AppModal(
-      title: 'Restore from File',
+      title: 'Restore from file',
       subtitle: 'Import a previously exported backup file.',
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

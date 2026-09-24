@@ -35,7 +35,7 @@ class RoleColourPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'COLOUR',
+          'COLOR',
           style: AppText.sectionLabel.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 8),

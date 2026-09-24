@@ -117,8 +117,8 @@ class ServerLimitsSection extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Both sweeps reach the direct messages on this server as well. '
-              'To give those their own numbers, right-click Server DMs in the '
-              'sidebar.',
+              'To give those their own numbers, open the Server DMs menu in '
+              'the sidebar and choose Settings.',
               style: AppText.secondary.copyWith(color: themeState.textTertiary),
             ),
           ],

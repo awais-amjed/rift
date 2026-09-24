@@ -28,7 +28,7 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
       final encryptedVault = await _storage.getEncryptedVault();
 
       if (encryptedSeed == null || encryptedVault == null) {
-        return (success: false, content: null, error: 'Vault not initialised');
+        return (success: false, content: null, error: 'Vault not initialized');
       }
 
       final masterSeedB64 = state.masterSeed;

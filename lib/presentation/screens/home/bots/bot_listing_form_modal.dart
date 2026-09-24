@@ -213,7 +213,7 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
           title: 'Show it in the bot browser',
           // Delisting keeps the row and its likes, which is the difference
           // between hiding a bot for a week and giving up its listing.
-          description: 'Off keeps the listing and its likes, hidden',
+          description: 'Off hides it, but keeps the listing and its likes',
           value: _isListed,
           onChanged: _saving ? null : (v) => setState(() => _isListed = v),
         ),

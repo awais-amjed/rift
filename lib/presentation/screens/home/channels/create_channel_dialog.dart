@@ -106,7 +106,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
       return;
     }
 
-    HelperMethods.showSuccess(message: 'Channel created!');
+    HelperMethods.showSuccess(message: 'Channel created');
     Navigator.of(context).pop();
   }
 

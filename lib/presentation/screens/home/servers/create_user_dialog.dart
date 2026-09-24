@@ -78,7 +78,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     final token = data['token'] as String;
     context.read<ServerCubit>().addServer(widget.supabaseUrl, token, data);
 
-    HelperMethods.showSuccess(message: 'Account created!');
+    HelperMethods.showSuccess(message: 'Account created');
     Navigator.of(context).pop(true);
   }
 

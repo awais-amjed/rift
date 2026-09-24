@@ -73,7 +73,7 @@ class _GuardedMessageTextState extends State<GuardedMessageText> {
               style: AppText.body.copyWith(color: themeState.textTertiary),
             ),
             Text(
-              canReveal ? '· Tap to show' : '· Hidden by your settings',
+              canReveal ? '· Press to show' : '· Hidden by your settings',
               style: AppText.secondary.copyWith(
                 color: themeState.textQuaternary,
               ),

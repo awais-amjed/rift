@@ -127,7 +127,7 @@ class MessageRowHeader extends StatelessWidget {
         if (onRetry != null) ...[
           const SizedBox(width: 6),
           Text(
-            'Retry',
+            'Try again',
             style: AppText.meta.copyWith(
               color: themeState.accentBright,
               fontWeight: FontWeight.w700,

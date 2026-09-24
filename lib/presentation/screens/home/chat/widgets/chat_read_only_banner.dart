@@ -63,7 +63,7 @@ class ChatReadOnlyBanner extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
                 child: Text(
-                  'Retry',
+                  'Try again',
                   style: AppText.meta.copyWith(
                     fontWeight: FontWeight.w600,
                     color: themeState.primary,

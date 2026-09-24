@@ -96,7 +96,7 @@ class _SensitiveImageCoverState extends State<SensitiveImageCover> {
                         ),
                         Text(
                           _canReveal
-                              ? 'Tap to show'
+                              ? 'Press to show'
                               : 'Hidden by your settings',
                           style: AppText.meta.copyWith(
                             color: MediaColors.onMediaSecondary,

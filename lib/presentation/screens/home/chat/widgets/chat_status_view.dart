@@ -94,7 +94,7 @@ class ChatStatusView extends StatelessWidget {
           if (showRetry) ...[
             const SizedBox(height: 16),
             AppButton(
-              label: 'Retry',
+              label: 'Try again',
               variant: AppButtonVariant.secondary,
               onPressed: () => context.read<ChannelChatCubit>().retry(),
             ),

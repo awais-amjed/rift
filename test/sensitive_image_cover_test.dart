@@ -19,7 +19,7 @@ void main() {
   testWidgets('blur mode: covered until tapped, then shown', (tester) async {
     await tester.pumpWidget(cover(SensitiveContentMode.blur));
     expect(find.text('Sensitive image'), findsOneWidget);
-    expect(find.text('Tap to show'), findsOneWidget);
+    expect(find.text('Press to show'), findsOneWidget);
 
     await tester.tap(find.text('Sensitive image'));
     await tester.pump();

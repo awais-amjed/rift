@@ -102,7 +102,7 @@ void main() {
       mine('pending-7', pending: true, failed: true),
     ], onRetry: asked.add);
 
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.text('Try again'));
     expect(asked, ['pending-7']);
   });
 
@@ -113,7 +113,7 @@ void main() {
     // itself, and is true whether or not anybody can act on it.
     await pump(tester, [mine('pending-0', pending: true, failed: true)]);
     expect(find.text('Not sent'), findsOneWidget);
-    expect(find.text('Retry'), findsNothing);
+    expect(find.text('Try again'), findsNothing);
   });
 
   testWidgets('it does not hide under the message before it', (tester) async {
@@ -128,6 +128,6 @@ void main() {
     expect(find.text('first'), findsOneWidget);
     expect(find.text('second'), findsOneWidget);
     expect(find.text('Not sent'), findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
   });
 }

@@ -67,7 +67,7 @@ mixin _VaultRecoveryMixin on Cubit<VaultState> {
     try {
       final seedBlob = await _storage.getEncryptedSeed();
       if (seedBlob == null) {
-        return (success: false, error: 'Vault not initialised', key: null);
+        return (success: false, error: 'Vault not initialized', key: null);
       }
 
       final key = await _crypto.deriveVaultKey(

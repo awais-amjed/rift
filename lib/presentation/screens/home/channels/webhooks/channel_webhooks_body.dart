@@ -140,7 +140,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
         Text(
           'A webhook lets an outside service — a build, an alert, a script — '
           'post here without an account. Those messages are not encrypted and '
-          'are labelled in the channel to say so.',
+          'are labeled in the channel to say so.',
           style: AppText.meta.copyWith(color: themeState.textSecondary),
         ),
         if (_error != null)

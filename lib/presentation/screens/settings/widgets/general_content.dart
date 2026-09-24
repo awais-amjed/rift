@@ -28,7 +28,7 @@ class GeneralContent extends StatelessWidget {
           title: 'Ask before switching voice channels',
           description:
               'Clicking another voice channel while you are in a call asks '
-              'first, so a stray click does not leave the call.',
+              'first, so a stray press does not leave the call.',
           value: context.select<AppCubit, bool>(
             (c) => c.state.askBeforeVoiceSwitch,
           ),
@@ -72,7 +72,7 @@ class GeneralContent extends StatelessWidget {
         Text(
           'Pictures and messages are checked on this device after they are '
           'decrypted — nothing leaves it. Blur covers what is flagged until '
-          'you tap; Hide keeps it covered.',
+          'you press it; Hide keeps it covered.',
           style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
         const SizedBox(height: 12),
