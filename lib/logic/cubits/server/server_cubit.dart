@@ -8,6 +8,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
+import '../../../data/classes/livekit_node.dart';
 import '../../../data/classes/member_page.dart';
 import '../../../data/classes/resolved_invite.dart';
 import '../../../data/classes/role.dart';
@@ -27,6 +28,7 @@ import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/server_db.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../data/repositories/soundboard_repository.dart';
+import '../../../data/repositories/voice_region_probe.dart';
 import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
 import '../../services/avatar_cache.dart';
@@ -93,6 +95,11 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerWebhooksApiMixin {
   @override
   final ServerRepository _repository = ServerRepository();
+
+  /// Which of a server's LiveKit nodes this device is nearest to. Held here
+  /// rather than made per call so the measurement is cached across joins.
+  @override
+  final VoiceRegionProbe _regionProbe = VoiceRegionProbe();
 
   /// E2E-encrypted attachment upload/download (self-hosted Storage REST).
   @override
@@ -404,6 +411,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     List<Channel>? channels,
     ServerLimits? limits,
     int? storageUsed,
+    List<LiveKitNode>? livekitNodes,
     bool clearUser = false,
   }) {
     final updated = state.servers.map((s) {
@@ -419,6 +427,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         channels: channels,
         limits: limits,
         storageUsed: storageUsed,
+        livekitNodes: livekitNodes,
         clearUser: clearUser,
       );
     }).toList();
@@ -450,6 +459,7 @@ class ServerCubit extends HydratedCubit<ServerState>
       channels: details.channels,
       limits: details.limits,
       storageUsed: details.storageUsed,
+      livekitNodes: details.livekitNodes,
     );
   }
 

@@ -21,11 +21,16 @@ mixin _VoiceApiMixin {
   /// share instead of the caller's own — a share is a second connection, and
   /// the two kinds have suffixes of their own so one member can run both at
   /// once without their connections kicking each other.
+  /// [preferredNodeId] is which LiveKit this device measured as nearest, and
+  /// it is a suggestion rather than an instruction — the server checks it is
+  /// one of its own nodes and ignores it entirely once the channel is pinned
+  /// or a call is already up, because a room cannot move once it exists.
   Future<APIResponse> getChannelToken(
     String supabaseUrl,
     String channelId, {
     bool screenShare = false,
     bool soundShare = false,
+    String? preferredNodeId,
     String? bearerToken,
   }) {
     return _post(supabaseUrl, 'get_channel_token', {
@@ -33,6 +38,7 @@ mixin _VoiceApiMixin {
       'screen_share': screenShare,
       'sound_share': soundShare,
       'device_id': DeviceId.current,
+      'preferred_node_id': preferredNodeId,
     }, bearerToken: bearerToken);
   }
 

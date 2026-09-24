@@ -1,4 +1,5 @@
 import 'channel.dart';
+import 'livekit_node.dart';
 import 'server_limits.dart';
 import 'server_user.dart';
 
@@ -29,6 +30,11 @@ class ServerDetails {
   final ServerLimits? limits;
   final int? storageUsed;
 
+  /// Every LiveKit this server may hold a call on, default first. Empty from
+  /// a server too old to have a node list, which is the same as "just the one
+  /// at [livekitUrl]".
+  final List<LiveKitNode>? livekitNodes;
+
   const ServerDetails({
     this.name,
     this.iconUrl,
@@ -38,6 +44,7 @@ class ServerDetails {
     this.channels,
     this.limits,
     this.storageUsed,
+    this.livekitNodes,
   });
 
   /// `max_attachment_bytes` is the marker for "this reply carries limits".
@@ -62,6 +69,9 @@ class ServerDetails {
           ? ServerLimits.fromJson(json)
           : null,
       storageUsed: (json['storage_used'] as num?)?.toInt(),
+      livekitNodes: (json['livekit_nodes'] as List<dynamic>?)
+          ?.map((n) => LiveKitNode.fromJson(n as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

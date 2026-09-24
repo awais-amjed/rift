@@ -40,6 +40,18 @@ class Channel {
   /// end it.
   final bool canManage;
 
+  /// Which LiveKit node a call here is pinned to, or null for automatic.
+  ///
+  /// The *preference*. [voiceNodeId] is where a call actually is, and the two
+  /// disagree whenever this was changed while somebody was in the room — a
+  /// room cannot move once it exists, so the pin takes effect on the next
+  /// call rather than this one.
+  final String? livekitNodeId;
+
+  /// Which node this channel's call is on right now, or null when nobody is
+  /// in it. Decided by whoever opened the call; see [LiveKitNode].
+  final String? voiceNodeId;
+
   const Channel({
     required this.id,
     required this.name,
@@ -48,6 +60,8 @@ class Channel {
     this.historyCap,
     this.isPrivate = false,
     this.canManage = false,
+    this.livekitNodeId,
+    this.voiceNodeId,
   });
 
   /// Whether this channel holds messages at all, and so whether the retention
@@ -65,6 +79,8 @@ class Channel {
       historyCap: (json['history_cap'] as num?)?.toInt(),
       isPrivate: json['is_private'] == true,
       canManage: json['can_manage'] == true,
+      livekitNodeId: json['livekit_node_id'] as String?,
+      voiceNodeId: json['voice_node_id'] as String?,
     );
   }
 
@@ -76,5 +92,7 @@ class Channel {
     'history_cap': historyCap,
     'is_private': isPrivate,
     'can_manage': canManage,
+    'livekit_node_id': livekitNodeId,
+    'voice_node_id': voiceNodeId,
   };
 }

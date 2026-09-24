@@ -1,4 +1,5 @@
 import 'channel.dart';
+import 'livekit_node.dart';
 import 'server_limits.dart';
 import 'server_user.dart';
 
@@ -29,6 +30,13 @@ class Server {
   /// somebody before they pick a file, which is all it is for.
   final int storageUsed;
 
+  /// Every LiveKit this server may hold a call on, default first.
+  ///
+  /// Empty from a server that has never answered with one, which reads the
+  /// same as "just [livekitUrl]" — the default node is that address under
+  /// another name, so a one-node server and an unaware one behave alike.
+  final List<LiveKitNode> livekitNodes;
+
   /// The Ed25519 key derivation version for this server (e.g. 'v1', 'v2').
   /// Incremented on key rotation.
   final String keyVersion;
@@ -56,6 +64,7 @@ class Server {
     this.keyVersion = 'v1',
     this.limits = ServerLimits.defaults,
     this.storageUsed = 0,
+    this.livekitNodes = const [],
     DateTime? tokenIssuedAt,
   }) : tokenIssuedAt = tokenIssuedAt ?? DateTime.now();
 
@@ -145,6 +154,11 @@ class Server {
               ?.map((c) => Channel.fromJson(c as Map<String, dynamic>))
               .toList() ??
           [],
+      livekitNodes:
+          (json['livekitNodes'] as List<dynamic>?)
+              ?.map((n) => LiveKitNode.fromJson(n as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -162,6 +176,7 @@ class Server {
     'storageUsed': storageUsed,
     'user': user?.toJson(),
     'channels': channels.map((c) => c.toJson()).toList(),
+    'livekitNodes': livekitNodes.map((n) => n.toJson()).toList(),
   };
 
   Server copyWith({
@@ -178,6 +193,7 @@ class Server {
     List<Channel>? channels,
     ServerLimits? limits,
     int? storageUsed,
+    List<LiveKitNode>? livekitNodes,
     bool clearUser = false,
   }) {
     return Server(
@@ -197,6 +213,7 @@ class Server {
       storageUsed: storageUsed ?? this.storageUsed,
       user: clearUser ? null : (user ?? this.user),
       channels: channels ?? this.channels,
+      livekitNodes: livekitNodes ?? this.livekitNodes,
     );
   }
 }
