@@ -1,14 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
-import '../../../../../logic/services/avatar_image.dart';
-import '../../../../../logic/services/mime_util.dart';
+import '../../../../../logic/services/pick_picture.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/user_avatar.dart';
@@ -50,45 +48,14 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
 
   Future<void> _pickAvatar() async {
     setState(() => _error = null);
-    try {
-      final file = await openFile(
-        acceptedTypeGroups: const [
-          XTypeGroup(
-            label: 'Images',
-            extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'],
-          ),
-        ],
-      );
-      if (file == null || !mounted) return;
-
-      final mime = (file.mimeType?.isNotEmpty ?? false)
-          ? file.mimeType!
-          : mimeFromName(file.name);
-      if (!AvatarImage.isSupportedMime(mime)) {
-        setState(() => _error = "That file isn't an image we can use.");
-        return;
-      }
-
-      final source = await file.readAsBytes();
-      if (!mounted) return;
-      if (!AvatarImage.isAcceptableSize(source.length)) {
-        setState(() => _error = 'That image is too large.');
-        return;
-      }
-
-      // Downscaled + re-encoded here, so what we upload is what everyone
-      // else has to download — see AvatarImage.
-      final prepared = await AvatarImage.prepare(source);
-      if (!mounted) return;
-      if (prepared == null) {
-        setState(() => _error = "Couldn't read that image.");
-        return;
-      }
-      setState(() => _pickedAvatar = prepared);
-    } catch (e) {
-      HelperMethods.printDebug('[Profile] avatar pick failed: $e');
-      if (mounted) setState(() => _error = "Couldn't open that file.");
-    }
+    final picked = await pickPicture(context: 'Profile');
+    if (!mounted) return;
+    // Cancelled: neither bytes nor a reason, and nothing to change.
+    if (picked.bytes == null && picked.error == null) return;
+    setState(() {
+      _error = picked.error;
+      if (picked.bytes != null) _pickedAvatar = picked.bytes;
+    });
   }
 
   Future<void> _save() async {

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -7,6 +9,7 @@ import '../../../../data/classes/public_bot.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/pick_picture.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
@@ -14,6 +17,7 @@ import '../../../common/hint_card.dart';
 import '../../../common/message_banner.dart';
 import '../../../common/tag_editor.dart';
 import '../../settings/widgets/setting_toggle_row.dart';
+import 'widgets/bot_icon_picker.dart';
 import 'widgets/bot_manifest_editor.dart';
 
 /// Over the widget budget and one job: it is a form, and every line of it is
@@ -60,8 +64,28 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
   late BotManifest _manifest = widget.editing?.manifest ?? BotManifest.empty;
   late bool _isListed = widget.editing?.isListed ?? true;
 
+  /// Bytes chosen in this session, not yet uploaded.
+  Uint8List? _pickedIcon;
+
+  /// Set when the icon was removed, which is distinct from "left alone": a
+  /// null `iconPath` on save has to mean both, so the flag says which.
+  bool _clearedIcon = false;
+
   bool _saving = false;
   String? _error;
+
+  Future<void> _pickIcon() async {
+    final picked = await pickPicture(context: 'Bot listing');
+    if (!mounted) return;
+    if (picked.bytes == null && picked.error == null) return;
+    setState(() {
+      _error = picked.error;
+      if (picked.bytes != null) {
+        _pickedIcon = picked.bytes;
+        _clearedIcon = false;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -101,12 +125,32 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
 
     final description = _descriptionCtrl.text.trim();
     final cubit = context.read<PublicBotsCubit>();
+
+    // The icon first, for the same reason the profile editor uploads an
+    // avatar before the name: the row names an object, and a listing saved
+    // ahead of its picture points at bytes that are not there yet. A failed
+    // upload stops the save rather than quietly listing without the icon the
+    // author just chose.
+    var iconPath = _clearedIcon ? null : widget.editing?.iconPath;
+    final pickedIcon = _pickedIcon;
+    if (pickedIcon != null) {
+      iconPath = await cubit.uploadIcon(pickedIcon);
+      if (!mounted) return;
+      if (iconPath == null) {
+        setState(() {
+          _saving = false;
+          _error = cubit.state.error ?? "Couldn't store that icon.";
+        });
+        return;
+      }
+    }
+
     final saved = await cubit.publish(
       id: widget.editing?.id,
       name: name,
       sourceUrl: source,
       description: description.isEmpty ? null : description,
-      iconPath: widget.editing?.iconPath,
+      iconPath: iconPath,
       tags: DirectoryTags.withPending(_tags, _tagCtrl.text),
       // Omitted entirely when empty, so an author who filled nothing in gets
       // a null column rather than `{"commands":[]}` — which the browser would
@@ -169,6 +213,20 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
           MessageBanner(message: _error!, kind: MessageBannerKind.error),
           const SizedBox(height: 16),
         ],
+        BotIconPicker(
+          picked: _pickedIcon,
+          iconPath: _clearedIcon ? null : widget.editing?.iconPath,
+          name: _nameCtrl.text.trim().isEmpty
+              ? (widget.editing?.name ?? 'Bot')
+              : _nameCtrl.text.trim(),
+          seed: widget.editing?.id,
+          onPick: _pickIcon,
+          onClear: () => setState(() {
+            _pickedIcon = null;
+            _clearedIcon = true;
+          }),
+        ),
+        const SizedBox(height: 16),
         AppTextField(
           controller: _nameCtrl,
           label: 'Name',

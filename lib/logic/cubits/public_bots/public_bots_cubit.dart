@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/public_bot.dart';
+import '../../../data/repositories/directory_icon_repository.dart';
 import '../../../data/repositories/public_bot_repository.dart';
 
 part 'public_bots_state.dart';
@@ -16,6 +18,8 @@ part 'public_bots_state.dart';
 /// directory does not is a like, which is the only way anybody changes a row
 /// that isn't theirs.
 class PublicBotsCubit extends Cubit<PublicBotsState> {
+  final DirectoryIconRepository _icons = DirectoryIconRepository();
+
   final PublicBotRepository _repo;
 
   /// Guards a slow browse landing after a newer one — typing in the search
@@ -205,6 +209,22 @@ class PublicBotsCubit extends Cubit<PublicBotsState> {
         clearError: true,
       ),
     );
+  }
+
+  /// Store a listing icon on central and answer the object path to save on
+  /// the row. Null when the upload failed.
+  ///
+  /// Uploaded before the listing rather than with it: the row names an object,
+  /// so a listing saved first would point at bytes that were not there yet.
+  /// The same reason the profile editor uploads an avatar before the name.
+  Future<String?> uploadIcon(Uint8List bytes) async {
+    final response = await _icons.upload(bytes);
+    if (isClosed) return null;
+    if (!response.success) {
+      emit(state.copyWith(error: response.error));
+      return null;
+    }
+    return response.data as String;
   }
 
   /// Create ([id] null) or edit one of the caller's own listings. Returns the
