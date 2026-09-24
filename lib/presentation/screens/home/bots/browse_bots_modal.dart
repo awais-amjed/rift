@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../data/classes/public_bot.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/open_link.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
@@ -68,11 +68,9 @@ class _BrowseBotsModalState extends State<BrowseBotsModal> {
   /// Open a listing's source. Outside the app on purpose — reading the code
   /// is the only check anybody gets, and it is not one Rift can do for them.
   Future<void> _openSource(PublicBot bot) async {
-    final uri = Uri.tryParse(bot.sourceUrl);
-    final opened =
-        uri != null &&
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened) HelperMethods.showError(error: 'Could not open that link.');
+    if (!await openExternalLink(bot.sourceUrl)) {
+      HelperMethods.showError(error: 'Could not open that link.');
+    }
   }
 
   @override

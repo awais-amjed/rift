@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/classes/link_preview.dart';
 import '../../../data/constants.dart';
+import '../../../logic/services/open_link.dart';
 import '../../theme/app_text.dart';
 import '../../theme/theme_context.dart';
 import 'attachments/attachment_loader.dart';
@@ -25,9 +25,7 @@ class LinkPreviewCard extends StatelessWidget {
   static const double thumbnailHeight = 160;
 
   Future<void> _open() async {
-    final uri = Uri.tryParse(preview.url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await openExternalLink(preview.url);
   }
 
   @override

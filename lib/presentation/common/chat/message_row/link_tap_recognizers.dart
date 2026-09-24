@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+import '../../../../logic/services/open_link.dart';
 
 /// The tap handlers behind a message's links, owned by the row.
 ///
@@ -26,8 +27,6 @@ class LinkTapRecognizers {
   void dispose() => reset();
 
   static Future<void> _open(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await openExternalLink(url);
   }
 }
