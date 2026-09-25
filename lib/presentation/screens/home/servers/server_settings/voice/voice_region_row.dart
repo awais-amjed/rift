@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/livekit_node.dart';
-import '../../../../../../data/constants.dart';
+import '../../../../../common/item_card.dart';
+import '../../../../../common/row_delete_button.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -46,12 +47,7 @@ class VoiceRegionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
-      decoration: BoxDecoration(
-        color: theme.bgTertiary,
-        borderRadius: BorderRadius.circular(K.radiusRow),
-      ),
+    return ItemCard(
       child: Row(
         children: [
           Expanded(
@@ -61,7 +57,7 @@ class VoiceRegionRow extends StatelessWidget {
               children: [
                 Text(
                   _title,
-                  style: AppText.body.copyWith(color: theme.textPrimary),
+                  style: AppText.row.copyWith(color: theme.textPrimary),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
@@ -83,12 +79,9 @@ class VoiceRegionRow extends StatelessWidget {
             color: theme.textTertiary,
           ),
           if (onRemove case final onRemove?)
-            IconButton(
-              onPressed: enabled ? onRemove : null,
-              mouseCursor: WidgetStateMouseCursor.clickable,
-              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            RowDeleteButton(
               tooltip: 'Remove region',
-              color: theme.textTertiary,
+              onPressed: enabled ? onRemove : null,
             ),
         ],
       ),

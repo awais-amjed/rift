@@ -148,14 +148,20 @@ class MemberRow extends StatelessWidget {
                         ),
                     ],
                   ),
-                  if (_expandable) ...[
-                    const SizedBox(width: 6),
-                    Icon(
-                      isExpanded ? Icons.expand_less : Icons.expand_more,
-                      size: 16,
-                      color: themeState.textQuaternary,
-                    ),
-                  ],
+                  // The slot stays when there is no chevron — your own row,
+                  // or one you may not manage — so badges end at one edge
+                  // down the list rather than jumping into the gap.
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 16,
+                    child: _expandable
+                        ? Icon(
+                            isExpanded ? Icons.expand_less : Icons.expand_more,
+                            size: 16,
+                            color: themeState.textQuaternary,
+                          )
+                        : null,
+                  ),
                 ],
               ),
             ),

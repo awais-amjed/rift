@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/webhook.dart';
-import '../../../../../../data/constants.dart';
+import '../../../../../common/item_card.dart';
+import '../../../../../common/row_delete_button.dart';
 import '../../../../../theme/app_text.dart';
-import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
 
 /// One existing webhook in the list: its name, when it last posted, and the
@@ -34,13 +34,7 @@ class WebhookRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-      decoration: BoxDecoration(
-        color: themeState.bgTertiary,
-        borderRadius: BorderRadius.circular(K.radiusRow),
-        border: Border.all(color: themeState.borderElevated),
-      ),
+    return ItemCard(
       child: Row(
         spacing: 10,
         children: [
@@ -61,16 +55,7 @@ class WebhookRow extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            onPressed: onDelete,
-            tooltip: 'Revoke',
-            iconSize: 16,
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(
-              Icons.delete_outline_rounded,
-              color: CustomColors.error,
-            ),
-          ),
+          RowDeleteButton(tooltip: 'Revoke', onPressed: onDelete),
         ],
       ),
     );

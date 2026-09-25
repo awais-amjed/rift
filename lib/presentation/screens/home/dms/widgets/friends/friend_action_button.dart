@@ -23,7 +23,7 @@ class FriendActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     final color = action.isDangerous
-        ? CustomColors.error
+        ? themeState.statusInk(CustomColors.error)
         : themeState.textSecondary;
 
     return Tooltip(
