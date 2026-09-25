@@ -47,6 +47,12 @@ class ServerEvent {
   static const String messageChanged = 'message_changed';
   static const String reaction = 'reaction';
 
+  /// A message was pinned or unpinned (`set_pinned`). Carries the id.
+  static const String pin = 'pin';
+
+  /// A poll's count moved (`vote_poll`). Carries the id, never the voter.
+  static const String poll = 'poll';
+
   // From the database, on the server topic.
   static const String channels = 'channels';
   static const String members = 'members';
@@ -60,6 +66,7 @@ class ServerEvent {
   static const String dm = 'dm';
   static const String dmChanged = 'dm_changed';
   static const String dmReaction = 'dm_reaction';
+  static const String dmPin = 'dm_pin';
   static const String prefs = 'prefs';
 
   // From clients.

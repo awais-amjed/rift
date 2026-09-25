@@ -16,6 +16,7 @@ import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
+import '../../../common/chat/pins/pinned_messages_dialog.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
 import '../../../theme/app_text.dart';
@@ -40,6 +41,28 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     with
         ChatScrollLoadMore<ServerDmChatView>,
         ChatReplyDraft<ServerDmChatView> {
+  /// Where the pinned list sends the reader — see `ChatMessageList.jumpRequests`.
+  final ValueNotifier<String?> _jumpRequests = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _jumpRequests.dispose();
+    super.dispose();
+  }
+
+  /// Either of the two may pin in a DM, so unpinning is always offered.
+  void _showPins(BuildContext context) {
+    final cubit = context.read<DmCubit>();
+    unawaited(
+      showPinnedMessages(
+        context,
+        load: cubit.loadPins,
+        onJump: (message) => _jumpRequests.value = message.id,
+        onUnpin: (message) => cubit.setPinned(message, pinned: false),
+      ),
+    );
+  }
+
   @override
   void loadMoreHistory() => context.read<DmCubit>().loadMoreHistory();
 
@@ -94,6 +117,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           onVerify: state.openPeerId == null
               ? null
               : () => unawaited(_verify(context, state)),
+          onShowPins: state.openPeerId == null
+              ? null
+              : () => _showPins(context),
           onClose: () => context.read<DmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),
@@ -145,13 +171,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
   /// A server DM's attachments go into the server's own bucket, so the
   /// permission that governs the channels governs these too.
   bool _canAttach() =>
-      context
-          .read<ServerCubit>()
-          .state
-          .selectedServer
-          ?.user
-          ?.permissions
-          .can(ServerPermission.attachFiles) ??
+      context.read<ServerCubit>().state.selectedServer?.user?.permissions.can(
+        ServerPermission.attachFiles,
+      ) ??
       false;
 
   /// The operator's per-file attachment cap for this server.
@@ -221,6 +243,13 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           onEdit: context.read<DmCubit>().editMessage,
           onDelete: context.read<DmCubit>().deleteMessage,
           onRetry: context.read<DmCubit>().retrySend,
+          onTogglePin: (message) => unawaited(
+            context.read<DmCubit>().setPinned(
+              message,
+              pinned: !message.isPinned,
+            ),
+          ),
+          jumpRequests: _jumpRequests,
           mentionable: _mentionable(state),
         );
       case DmChatStatus.loading:

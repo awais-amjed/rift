@@ -91,6 +91,7 @@ mixin _DmDecryptMixin on Cubit<DmState> {
         isMine: isMine,
         editedAt: DateTime.tryParse('${row['edited_at']}'),
         reactions: ReactionOps.fromRow(row),
+        pinnedAt: PinOps.pinnedAtOf(row),
       );
     } catch (e) {
       HelperMethods.printDebug('[DM] dropped message ${row['id']}: $e');

@@ -4,6 +4,7 @@ import 'forwarded_message.dart';
 import 'link_preview.dart';
 import 'message_reaction.dart';
 import 'panel_block.dart';
+import 'poll.dart';
 
 /// Over the helper budget and one job: the message model; its fields each carry
 /// a comment on what they mean.
@@ -117,9 +118,14 @@ class ChatMessage {
   /// at the top of a group, so a reply tucked under an ordinary message would
   /// lose the line saying what it answers. Two replies to the *same* message
   /// still group, which is right — the quote above them covers both.
+  ///
+  /// [isPinned] is in it for the same reason again: the pin is drawn in the
+  /// header, so a pinned message tucked under the one before it would be
+  /// pinned with nothing to say so.
   String get groupKey => origin.isMember
-      ? '$authorId:$isEncrypted:$isEphemeral:$sendFailed:${replyToId ?? ''}'
-      : '${origin.name}:$authorName';
+      ? '$authorId:$isEncrypted:$isEphemeral:$sendFailed:'
+            '${replyToId ?? ''}:$isPinned'
+      : '${origin.name}:$authorName:$isPinned';
 
   /// When the author last edited this message, or null if never edited.
   /// Drives the "(edited)" marker.
@@ -166,6 +172,16 @@ class ChatMessage {
   /// Dropping those was what made a channel look empty when it was full.
   final bool isLocked;
 
+  /// A poll: the sealed question and options under the server's rules, or null
+  /// for every message that is not one. See [Poll.combine].
+  final Poll? poll;
+
+  /// When this message was pinned, or null if it is not. Server-visible, like
+  /// a reaction: the server knows *that* it is pinned, never what it says.
+  final DateTime? pinnedAt;
+
+  bool get isPinned => pinnedAt != null;
+
   const ChatMessage({
     required this.id,
     required this.authorId,
@@ -188,14 +204,19 @@ class ChatMessage {
     this.isEphemeral = false,
     this.replyToId,
     this.forwarded,
+    this.poll,
+    this.pinnedAt,
   });
 
+  /// [clearPinned] unpins; a null [pinnedAt] leaves the pin as it is.
   ChatMessage copyWith({
     List<MessageReaction>? reactions,
     String? text,
     DateTime? editedAt,
     String? sentAsId,
     bool? sendFailed,
+    DateTime? pinnedAt,
+    bool clearPinned = false,
   }) => ChatMessage(
     id: id,
     authorId: authorId,
@@ -218,5 +239,7 @@ class ChatMessage {
     isEphemeral: isEphemeral,
     replyToId: replyToId,
     forwarded: forwarded,
+    poll: poll,
+    pinnedAt: clearPinned ? null : pinnedAt ?? this.pinnedAt,
   );
 }

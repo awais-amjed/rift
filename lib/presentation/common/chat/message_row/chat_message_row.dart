@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../data/classes/chat_message.dart';
+import '../../../../data/classes/poll.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
@@ -20,6 +21,7 @@ import '../attachments/attachment_loader.dart';
 import '../attachments/message_attachments.dart';
 import '../link_preview_card.dart';
 import '../panel/panel_view.dart';
+import '../polls/message_poll_card.dart';
 import '../reactions/message_reactions_bar.dart';
 import '../reactions/reaction_picker.dart';
 import 'guarded_message_text.dart';
@@ -124,6 +126,19 @@ class ChatMessageRow extends StatefulWidget {
   /// arrived incoming message). Continuation of existing rows never animates.
   final bool animateIn;
 
+  /// Pin or unpin this message. Null where the reader may not pin here.
+  final void Function(ChatMessage message)? onTogglePin;
+
+  /// How this message's poll stands, when it is one.
+  final PollTally? pollTally;
+
+  /// Tap an option on this message's poll. Null where polls cannot be voted
+  /// in from here.
+  final void Function(String messageId, int option)? onVote;
+
+  /// End this message's poll early — offered to its author only.
+  final void Function(String messageId)? onClosePoll;
+
   const ChatMessageRow({
     super.key,
     required this.message,
@@ -146,6 +161,10 @@ class ChatMessageRow extends StatefulWidget {
     this.mentionable = const {},
     this.mentionNames = const {},
     this.animateIn = false,
+    this.onTogglePin,
+    this.pollTally,
+    this.onVote,
+    this.onClosePoll,
   });
 
   @override
@@ -189,7 +208,8 @@ class _ChatMessageRowState extends State<ChatMessageRow>
           _canForward ||
           _canCopy ||
           _canEdit ||
-          _canDelete);
+          _canDelete ||
+          _canPin);
 
   @override
   void _startEditing() => setState(() => _editing = true);
@@ -370,6 +390,19 @@ class _ChatMessageRowState extends State<ChatMessageRow>
                 ? null
                 : (action, value) =>
                       widget.onPanelAction!(message.id, action, value),
+          )
+        // A poll likewise: its words are the question and the answers.
+        else if (message.poll case final poll?)
+          MessagePollCard(
+            poll: poll,
+            tally: widget.pollTally,
+            isMine: message.isMine,
+            onVote: widget.onVote == null || message.isPending
+                ? null
+                : (option) => widget.onVote!(message.id, option),
+            onClose: widget.onClosePoll == null || !message.isMine
+                ? null
+                : _confirmClosePoll,
           )
         else if (_editing)
           MessageEditField(

@@ -49,6 +49,7 @@ Future<MessageSheetChoice?> showMessageActionSheet({
   required bool canDelete,
   bool canReply = false,
   bool canForward = false,
+  bool canPin = false,
 }) {
   final theme = context.theme;
   final themeCubit = context.read<ThemeCubit>();
@@ -118,6 +119,15 @@ Future<MessageSheetChoice?> showMessageActionSheet({
                       label: 'Copy text',
                       onTap: () =>
                           pick(const MenuActionChoice(MessageMenuAction.copy)),
+                    ),
+                  if (canPin)
+                    ContextMenuItem(
+                      icon: message.isPinned
+                          ? Icons.push_pin_rounded
+                          : Icons.push_pin_outlined,
+                      label: message.isPinned ? 'Unpin message' : 'Pin message',
+                      onTap: () =>
+                          pick(const MenuActionChoice(MessageMenuAction.pin)),
                     ),
                   if (canEdit)
                     ContextMenuItem(

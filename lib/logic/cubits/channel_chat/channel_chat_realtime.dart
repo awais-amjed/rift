@@ -14,7 +14,9 @@ mixin _ChannelChatRealtimeMixin
     on
         Cubit<ChannelChatState>,
         _ChannelChatHistoryMixin,
-        _ChannelChatReactionsMixin {
+        _ChannelChatReactionsMixin,
+        _ChannelChatPinsMixin,
+        _ChannelChatPollsMixin {
   /// Re-open the channel — how a member waiting for a key retries once someone
   /// who can heal them comes online.
   Future<void> retry();
@@ -75,6 +77,12 @@ mixin _ChannelChatRealtimeMixin
         })
         ..onBroadcast(ServerEvent.reaction, (message) {
           if (here(message)) _onReactionDoorbell(message);
+        })
+        ..onBroadcast(ServerEvent.pin, (message) {
+          if (here(message)) _onPinDoorbell(message);
+        })
+        ..onBroadcast(ServerEvent.poll, (message) {
+          if (here(message)) _onPollDoorbell(message);
         });
       _rtFeeds.add(feed);
     }

@@ -28,7 +28,11 @@ import 'header_members_button.dart';
 class ChatHeader extends StatelessWidget {
   static const double height = K.paneHeaderHeight;
 
-  const ChatHeader({super.key});
+  /// Open the channel's pinned messages. Null hides the button — before the
+  /// channel has opened there is nothing to list.
+  final VoidCallback? onShowPins;
+
+  const ChatHeader({super.key, this.onShowPins});
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +142,12 @@ class ChatHeader extends StatelessWidget {
           // — a third control for the same flag only made it ambiguous which
           // one you were meant to reach for. On a phone there is no edge tab,
           // so this is the only one.
+          if (onShowPins case final show?)
+            ChatHeaderButton(
+              icon: Icons.push_pin_outlined,
+              tooltip: 'Pinned messages',
+              onTap: show,
+            ),
           const HeaderMembersButton(),
           // On a phone back is the way out, so a close beside it would be a
           // second button for the same thing. The channel's menu takes the

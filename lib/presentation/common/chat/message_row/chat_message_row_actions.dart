@@ -34,6 +34,8 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       widget.onForward != null && ForwardPayload.canForward(message);
   bool get _canEdit =>
       widget.onEdit != null && MessagePermissions.canEdit(message);
+  bool get _canPin =>
+      widget.onTogglePin != null && MessagePermissions.canPin(message);
   bool get _canDelete =>
       widget.onDelete != null &&
       MessagePermissions.canDelete(message, isModerator: widget.isModerator);
@@ -42,6 +44,8 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       widget.onToggleReaction?.call(message.id, emoji);
 
   void _reply() => widget.onReply?.call(message);
+
+  void _togglePin() => widget.onTogglePin?.call(message);
 
   void _forward() => widget.onForward?.call(message);
 
@@ -85,6 +89,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       canReact: _canReact,
       canReply: _canReply,
       canForward: _canForward,
+      canPin: _canPin,
       canEdit: _canEdit,
       canDelete: _canDelete,
     );
@@ -100,6 +105,8 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
         _pickReaction(context);
       case MessageMenuAction.copy:
         await _copy();
+      case MessageMenuAction.pin:
+        _togglePin();
       case MessageMenuAction.edit:
         _startEditing();
       case MessageMenuAction.delete:
@@ -116,6 +123,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       canReact: _canReact,
       canReply: _canReply,
       canForward: _canForward,
+      canPin: _canPin,
       canEdit: _canEdit,
       canDelete: _canDelete,
     );
@@ -132,6 +140,8 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
         if (mounted && emoji != null) _toggle(emoji);
       case MenuActionChoice(action: MessageMenuAction.copy):
         await _copy();
+      case MenuActionChoice(action: MessageMenuAction.pin):
+        _togglePin();
       case MenuActionChoice(action: MessageMenuAction.edit):
         _startEditing();
       case MenuActionChoice(action: MessageMenuAction.delete):
@@ -152,6 +162,18 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
     );
     if (!confirmed) return;
     widget.onDelete?.call(message.id);
+  }
+
+  /// Ending a poll early cannot be taken back, and it ends it for everyone.
+  Future<void> _confirmClosePoll() async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'End this poll?',
+      message: 'Voting stops now for everyone, and the results are final.',
+      confirmLabel: 'End poll',
+      icon: Icons.poll_outlined,
+    );
+    if (confirmed) widget.onClosePoll?.call(message.id);
   }
 
   Future<void> _copy() async {

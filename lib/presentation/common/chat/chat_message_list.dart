@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/classes/chat_message.dart';
+import '../../../data/classes/poll.dart';
 import '../../../logic/helper_methods.dart';
 import '../../../logic/services/quote_lookup.dart';
 import '../../theme/app_text.dart';
@@ -116,6 +117,22 @@ class ChatMessageList extends StatefulWidget {
   /// the screen arguing with itself.
   final String emptyMessage;
 
+  /// Pin or unpin a message. Null where the reader may not pin here.
+  final void Function(ChatMessage message)? onTogglePin;
+
+  /// How each loaded poll stands, by message id. Empty where there are none.
+  final Map<String, PollTally> pollTallies;
+
+  /// Tap an option on a poll. Null where polls cannot be voted in.
+  final void Function(String messageId, int option)? onVote;
+
+  /// End a poll early (its author only).
+  final void Function(String messageId)? onClosePoll;
+
+  /// A message somebody asked to be taken to from outside the list — the
+  /// pinned list, today. The list goes there and sets this back to null.
+  final ValueNotifier<String?>? jumpRequests;
+
   const ChatMessageList({
     super.key,
     this.emptyMessage = 'No messages yet — say hi!',
@@ -138,6 +155,11 @@ class ChatMessageList extends StatefulWidget {
     this.canReact = true,
     this.mentionable = const {},
     this.mentionNames = const {},
+    this.onTogglePin,
+    this.pollTallies = const {},
+    this.onVote,
+    this.onClosePoll,
+    this.jumpRequests,
   });
 
   @override
@@ -217,6 +239,7 @@ class _ChatMessageListState extends State<ChatMessageList>
   void initState() {
     super.initState();
     _animating = _computeAnimating();
+    widget.jumpRequests?.addListener(_onJumpRequest);
   }
 
   @override
@@ -225,6 +248,27 @@ class _ChatMessageListState extends State<ChatMessageList>
     if (!identical(old.messages, widget.messages)) {
       _animating = _computeAnimating();
     }
+    if (old.jumpRequests != widget.jumpRequests) {
+      old.jumpRequests?.removeListener(_onJumpRequest);
+      widget.jumpRequests?.addListener(_onJumpRequest);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.jumpRequests?.removeListener(_onJumpRequest);
+    super.dispose();
+  }
+
+  /// Somebody outside the list asked to go to a message. Taken and cleared
+  /// in one step, so the same request is never served twice.
+  void _onJumpRequest() {
+    final requests = widget.jumpRequests;
+    final messageId = requests?.value;
+    if (requests == null || messageId == null) return;
+    requests.value = null;
+    final loaded = widget.messages.any((m) => m.id == messageId);
+    unawaited(_goToOriginal(messageId, loaded: loaded));
   }
 
   /// Messages that have just turned up, but only once the list has been
@@ -353,6 +397,10 @@ class _ChatMessageListState extends State<ChatMessageList>
             mentionable: widget.mentionable,
             mentionNames: widget.mentionNames,
             animateIn: _animating.contains(msg.id),
+            onTogglePin: widget.onTogglePin,
+            pollTally: widget.pollTallies[msg.id],
+            onVote: widget.onVote,
+            onClosePoll: widget.onClosePoll,
           ),
         );
       },

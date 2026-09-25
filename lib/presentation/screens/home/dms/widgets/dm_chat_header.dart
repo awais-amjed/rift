@@ -39,6 +39,9 @@ class DmChatHeader extends StatelessWidget {
   /// press. Null while there is nobody to compare keys with.
   final VoidCallback? onVerify;
 
+  /// Open the conversation's pinned messages; null hides the button.
+  final VoidCallback? onShowPins;
+
   const DmChatHeader({
     super.key,
     required this.title,
@@ -48,6 +51,7 @@ class DmChatHeader extends StatelessWidget {
     this.peerId,
     this.onOpenProfile,
     this.onVerify,
+    this.onShowPins,
   });
 
   /// The peer's picture and name, opening their profile where there is one.
@@ -141,6 +145,12 @@ class DmChatHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onShowPins case final show?)
+                ChatHeaderButton(
+                  icon: Icons.push_pin_outlined,
+                  tooltip: 'Pinned messages',
+                  onTap: show,
+                ),
               // On a phone back is the way out, so a close beside it would
               // be a second button for the same thing — the rule the
               // channel header already follows. Nothing takes the slot: a

@@ -22,6 +22,8 @@ import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
+import '../../../common/chat/pins/pinned_messages_dialog.dart';
+import '../../../common/chat/polls/create_poll_dialog.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
 import '../../../theme/theme_context.dart';
@@ -47,6 +49,16 @@ class ChannelChatView extends StatefulWidget {
 
 class _ChannelChatViewState extends State<ChannelChatView>
     with ChatScrollLoadMore<ChannelChatView>, ChatReplyDraft<ChannelChatView> {
+  /// Where the pinned list sends the reader: set to a message id, and the
+  /// message list goes there.
+  final ValueNotifier<String?> _jumpRequests = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _jumpRequests.dispose();
+    super.dispose();
+  }
+
   @override
   void loadMoreHistory() => context.read<ChannelChatCubit>().loadMoreHistory();
 
@@ -65,7 +77,11 @@ class _ChannelChatViewState extends State<ChannelChatView>
           style: TextStyle(color: themeState.textSecondary),
           child: Column(
             children: [
-              const ChatHeader(),
+              ChatHeader(
+                onShowPins: chatState.channelId == null
+                    ? null
+                    : () => _showPins(context),
+              ),
               Expanded(child: _buildBody(context, chatState)),
               // A phone's way back into the call, just above whatever
               // holds the composer's slot. Nothing on a desktop.
@@ -99,6 +115,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                   maxAttachmentBytes: _maxAttachmentBytes(context),
                   remainingStorageBytes: _remainingStorage(context),
                   bots: chatState.bots,
+                  onCreatePoll: () => _createPoll(context),
                   onMentionSearch: (query) =>
                       _searchMentionable(context, query),
                   selfUserId: context
@@ -160,6 +177,32 @@ class _ChannelChatViewState extends State<ChannelChatView>
   /// The server id goes along only so the attachment bytes can be fetched
   /// from the bucket they are in. It is not written into the message —
   /// naming this channel would tell readers elsewhere that it exists.
+  void _showPins(BuildContext context) {
+    final cubit = context.read<ChannelChatCubit>();
+    final canPin = _canPin(context, cubit.state.channelId);
+    unawaited(
+      showPinnedMessages(
+        context,
+        load: cubit.loadPins,
+        onJump: (message) => _jumpRequests.value = message.id,
+        onUnpin: canPin
+            ? (message) => cubit.setPinned(message, pinned: false)
+            : null,
+      ),
+    );
+  }
+
+  void _createPoll(BuildContext context) {
+    final cubit = context.read<ChannelChatCubit>();
+    unawaited(
+      showCreatePollDialog(
+        context,
+        onPost: (body, multiple, duration) =>
+            cubit.sendPoll(body, multiple: multiple, duration: duration),
+      ),
+    );
+  }
+
   void _forward(
     BuildContext context,
     ChatMessage message,
@@ -247,6 +290,16 @@ class _ChannelChatViewState extends State<ChannelChatView>
   bool _canAttach(BuildContext context) =>
       _myPermissions(context)?.can(ServerPermission.attachFiles) ?? false;
 
+  /// The server's rule (`app.can_pin_in`), asked here only to decide whether
+  /// to offer it: the bit, or managing this channel if it is a private one.
+  bool _canPin(BuildContext context, String? channelId) {
+    if (_myPermissions(context)?.can(ServerPermission.pinMessages) ?? false) {
+      return true;
+    }
+    final channel = _channel(context, channelId);
+    return channel != null && channel.isPrivate && channel.canManage;
+  }
+
   Widget _buildBody(BuildContext context, ChannelChatState chatState) {
     switch (chatState.status) {
       // Read-only renders the same list. What it can open, it opens; what it
@@ -283,6 +336,22 @@ class _ChannelChatViewState extends State<ChannelChatView>
           // never ambiguous between the room and a person.
           mentionable: {Mentions.everyone, ...chatState.mentionNames.keys},
           mentionNames: chatState.mentionNames,
+          onTogglePin: _canPin(context, chatState.channelId)
+              ? (message) => unawaited(
+                  context.read<ChannelChatCubit>().setPinned(
+                    message,
+                    pinned: !message.isPinned,
+                  ),
+                )
+              : null,
+          pollTallies: chatState.pollTallies,
+          // Voting needs no key, but a read-only seat is one that cannot send,
+          // and a vote is the one thing here that is sent.
+          onVote: chatState.status == ChannelChatStatus.ready
+              ? context.read<ChannelChatCubit>().vote
+              : null,
+          onClosePoll: context.read<ChannelChatCubit>().closePoll,
+          jumpRequests: _jumpRequests,
         );
       case ChannelChatStatus.loading:
       // Drawn the same as loading, and that is the whole point: a key being

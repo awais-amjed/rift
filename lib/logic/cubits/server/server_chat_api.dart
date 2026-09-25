@@ -47,6 +47,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     List<String> mentions = const [],
     bool mentionsAll = false,
     String? toBot,
+    Map<String, dynamic>? poll,
     String? serverId,
   }) {
     final target = _chatTarget(serverId);
@@ -63,6 +64,7 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
         mentions: mentions,
         mentionsAll: mentionsAll,
         toBot: toBot,
+        poll: poll,
         bearerToken: token,
       ),
     );

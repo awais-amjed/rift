@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'composer_add_button.dart';
 import 'composer_icon_button.dart';
 import 'composer_send_button.dart';
 import 'composer_text_field.dart';
@@ -29,6 +30,10 @@ class ComposerInputRow extends StatelessWidget {
   /// Passed straight to [ComposerTextField] — see its doc.
   final bool Function()? onAcceptSuggestion;
   final VoidCallback onPickFiles;
+
+  /// Start a poll, offered from the "+" beside attaching. Null where there
+  /// are no polls.
+  final VoidCallback? onCreatePoll;
   final VoidCallback onStartRecording;
   final VoidCallback onEmojiInserted;
 
@@ -45,6 +50,7 @@ class ComposerInputRow extends StatelessWidget {
     required this.onSubmit,
     this.onAcceptSuggestion,
     required this.onPickFiles,
+    this.onCreatePoll,
     required this.onStartRecording,
     required this.onEmojiInserted,
   });
@@ -59,13 +65,11 @@ class ComposerInputRow extends StatelessWidget {
       children: [
         // A plus rather than a paperclip: it opens the one "add something"
         // affordance on the bar, and it is the only control left of the text.
-        ComposerIconButton(
-          icon: Icons.add_rounded,
-          tooltip: canAttach
-              ? 'Attach files'
-              : 'Your role cannot attach files here',
-
-          onPressed: (enabled && canAttach) ? onPickFiles : null,
+        ComposerAddButton(
+          enabled: enabled,
+          canAttach: canAttach,
+          onPickFiles: onPickFiles,
+          onCreatePoll: onCreatePoll,
         ),
         Expanded(
           child: ComposerTextField(

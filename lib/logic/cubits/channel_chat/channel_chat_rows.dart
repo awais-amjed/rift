@@ -36,6 +36,10 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
   /// looked up again on every scroll for as long as the message is on screen.
   MentionNameCache get _mentionCache;
 
+  /// Implemented by [_ChannelChatPollsMixin]; public for the reason in
+  /// CODE_STYLE §5.
+  Future<void> refreshTalliesFor(List<ChatMessage> messages);
+
   Future<List<ChatMessage>> _decryptRows(
     String channelId,
     List<Map<String, dynamic>> rows,
@@ -112,6 +116,8 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
             isMine: row['sender_id'] == localUserId,
             editedAt: DateTime.tryParse('${row['edited_at']}'),
             reactions: ReactionOps.fromRow(row),
+            poll: PollOps.fromRow(row, body.poll),
+            pinnedAt: PinOps.pinnedAtOf(row),
           ),
         );
       } catch (e) {
@@ -122,6 +128,9 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
     // [_resolveMentionNames]. Not awaited: a message must render now, and a
     // mention nobody has resolved yet draws as the text somebody typed.
     unawaited(_resolveMentionNames(result));
+    // And how the polls among them stand, the same way: a poll draws with no
+    // counts for the moment it takes, rather than holding up the page.
+    unawaited(refreshTalliesFor(result));
     return result;
   }
 
@@ -142,6 +151,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
         isMine: row['sender_id'] == localUserId,
         editedAt: DateTime.tryParse('${row['edited_at']}'),
         isLocked: true,
+        pinnedAt: PinOps.pinnedAtOf(row),
       );
 
   /// An unencrypted row, or null if it should not be shown.
@@ -188,6 +198,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
         reactions: ReactionOps.fromRow(row),
         origin: MessageOrigin.fromRow(row),
         isEncrypted: false,
+        pinnedAt: PinOps.pinnedAtOf(row),
       );
     }
 
@@ -226,6 +237,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       // on this row: an interface drawn from an envelope nobody could verify
       // is an interface anybody could have sent.
       panel: Panel.tryParse(row['blocks']),
+      pinnedAt: PinOps.pinnedAtOf(row),
     );
   }
 

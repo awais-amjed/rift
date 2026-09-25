@@ -16,6 +16,7 @@ import 'attachment_repository.dart';
 part 'central_dm_repository_attachments.dart';
 part 'central_dm_repository_directory.dart';
 part 'central_dm_repository_friends.dart';
+part 'central_dm_repository_pins.dart';
 part 'central_dm_repository_prefs.dart';
 part 'central_dm_repository_push.dart';
 part 'central_dm_repository_read_state.dart';
@@ -50,6 +51,7 @@ class CentralDmRepository
         _CentralDmPushMixin,
         _CentralDmDirectoryMixin,
         _CentralDmFriendsMixin,
+        _CentralDmPinsMixin,
         _CentralDmPrefsMixin,
         _CentralDmReadStateMixin {
   @override
@@ -190,7 +192,7 @@ class CentralDmRepository
       final myId = _client.auth.currentUser!.id;
       var query = _client
           .from('dm_messages')
-          .select()
+          .select('*, ${_CentralDmPinsMixin.pinEmbed}')
           .or(
             'and(sender_id.eq.$myId,recipient_id.eq.$peerId),'
             'and(sender_id.eq.$peerId,recipient_id.eq.$myId)',
@@ -206,7 +208,7 @@ class CentralDmRepository
         limit: limit,
       );
       return APIResponse.success({
-        'messages': page.rows,
+        'messages': page.rows.map(_CentralDmPinsMixin.liftPin).toList(),
         'has_more': page.hasMore,
       });
     } catch (e) {
@@ -258,8 +260,8 @@ class CentralDmRepository
   /// Hear what the central database says to us alone, on our own private
   /// topic (central migration 021): [onInsert] for a DM that arrived,
   /// [onUpdate] for one its sender edited or deleted, [onPrefsChanged] for a
-  /// notification level set on another device, and [onGraphChanged] for a
-  /// friendship or a block.
+  /// notification level set on another device, [onGraphChanged] for a
+  /// friendship or a block, and [onPinChanged] for a pin either side moved.
   ///
   /// Both DM callbacks carry the peer, so the caller can re-read that one
   /// conversation instead of the whole list.
@@ -274,6 +276,7 @@ class CentralDmRepository
     required void Function(String messageId, String senderId) onUpdate,
     required void Function() onPrefsChanged,
     required void Function() onGraphChanged,
+    required void Function(String peerId, String messageId) onPinChanged,
   }) {
     final myId = _client.auth.currentUser!.id;
     final channel =
@@ -301,6 +304,17 @@ class CentralDmRepository
               }
             },
           )
+          // A pin names the pair, sorted; the peer is whichever is not us.
+          ..onBroadcast(
+            event: 'dm_pin',
+            callback: (message) {
+              final low = BroadcastPayload.stringOf(message, 'user_low');
+              final high = BroadcastPayload.stringOf(message, 'user_high');
+              final id = BroadcastPayload.stringOf(message, 'message_id');
+              final peer = low == myId ? high : low;
+              if (peer != null && id != null) onPinChanged(peer, id);
+            },
+          )
           ..onBroadcast(event: 'prefs', callback: (_) => onPrefsChanged())
           ..onBroadcast(event: 'graph', callback: (_) => onGraphChanged())
           ..subscribe();
@@ -313,10 +327,12 @@ class CentralDmRepository
     try {
       final row = await _client
           .from('dm_messages')
-          .select()
+          .select('*, ${_CentralDmPinsMixin.pinEmbed}')
           .eq('id', messageId)
           .maybeSingle();
-      return APIResponse.success({'message': row});
+      return APIResponse.success({
+        'message': row == null ? null : _CentralDmPinsMixin.liftPin(row),
+      });
     } catch (e) {
       return APIResponse.error(e);
     }

@@ -68,6 +68,17 @@ class MessageRowHeader extends StatelessWidget {
               // instead of jittering with the digits.
               style: AppText.meta.copyWith(color: themeState.textTertiary),
             ),
+          if (message.isPinned) ...[
+            const SizedBox(width: 6),
+            Tooltip(
+              message: 'Pinned',
+              child: Icon(
+                Icons.push_pin_rounded,
+                size: K.iconTiny,
+                color: themeState.textTertiary,
+              ),
+            ),
+          ],
         ],
       ),
     );

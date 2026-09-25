@@ -19,6 +19,7 @@ import '../../services/chat_message_ops.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/new_message_notifier.dart';
 import '../../services/outbox.dart';
+import '../../services/pin_ops.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/server_realtime.dart';
@@ -30,6 +31,7 @@ part 'dm_conversations.dart';
 part 'dm_decrypt.dart';
 part 'dm_edit.dart';
 part 'dm_history.dart';
+part 'dm_pins.dart';
 part 'dm_reactions.dart';
 part 'dm_send.dart';
 part 'dm_state.dart';
@@ -49,7 +51,8 @@ class DmCubit extends Cubit<DmState>
         _DmHistoryMixin,
         _DmSendMixin,
         _DmEditMixin,
-        _DmReactionsMixin {
+        _DmReactionsMixin,
+        _DmPinsMixin {
   @override
   final ServerCubit _serverCubit;
   final VaultCubit _vaultCubit;
@@ -186,6 +189,7 @@ class DmCubit extends Cubit<DmState>
       ?..onBroadcast(ServerEvent.dm, (_) => _onDoorbell())
       ..onBroadcast(ServerEvent.dmChanged, _onChangeDoorbell)
       ..onBroadcast(ServerEvent.dmReaction, _onReactionDoorbell)
+      ..onBroadcast(ServerEvent.dmPin, _onPinDoorbell)
       ..onBroadcast(ServerEvent.typing, _onTyping);
   }
 

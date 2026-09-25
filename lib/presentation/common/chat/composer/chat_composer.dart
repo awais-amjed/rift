@@ -129,6 +129,10 @@ class ChatComposer extends StatefulWidget {
   /// sentence before the upload rather than an HTTP 500 after it.
   final int? remainingStorageBytes;
 
+  /// Start a poll. Null where there are none — DMs have two readers, and a
+  /// poll of two is a question.
+  final VoidCallback? onCreatePoll;
+
   const ChatComposer({
     super.key,
     required this.onSend,
@@ -139,6 +143,7 @@ class ChatComposer extends StatefulWidget {
     this.canAttach = true,
     this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
     this.remainingStorageBytes,
+    this.onCreatePoll,
     this.bots = const [],
     this.onMentionSearch,
     this.selfUserId,
@@ -380,6 +385,7 @@ class _ChatComposerState extends State<ChatComposer>
               onSubmit: _send,
               onAcceptSuggestion: _acceptSuggestion,
               onPickFiles: _pickFiles,
+              onCreatePoll: widget.onCreatePoll,
               onStartRecording: _startRecording,
               onEmojiInserted: () => setState(() {}),
             ),

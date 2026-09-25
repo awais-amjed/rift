@@ -12,7 +12,8 @@ part of 'central_dm_cubit.dart';
 /// [claimHandle] lives here rather than beside the directory calls because a
 /// handle is not a profile field on this tier: it is the last of the four, and
 /// claiming one is what turns `needsHandle` into `ready`.
-mixin _CentralDmReadyMixin on Cubit<CentralDmState>, _CentralDmUnreadMixin {
+mixin _CentralDmReadyMixin
+    on Cubit<CentralDmState>, _CentralDmUnreadMixin, _CentralDmPinsMixin {
   @override
   CentralDmRepository get _repo;
   VaultCubit get _vaultCubit;
@@ -196,6 +197,7 @@ mixin _CentralDmReadyMixin on Cubit<CentralDmState>, _CentralDmUnreadMixin {
       onUpdate: _onMessageUpdated,
       onPrefsChanged: () => unawaited(refreshConversations()),
       onGraphChanged: _onGraphChanged,
+      onPinChanged: _onPinChanged,
     );
     emit(state.copyWith(status: CentralDmStatus.ready, myHandle: handle));
     // Before the conversations: the graph is what decides whether each of them

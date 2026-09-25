@@ -214,6 +214,16 @@ enum ServerPermission {
     'Use soundboard',
     'Play a clip into a call. Everyone hearing it can turn it down or off '
         'for themselves, which is a setting on their device and not a grant.',
+  ),
+
+  // ── Pins ────────────────────────────────────────────────
+  pinMessages(
+    26,
+    PermissionGroup.text,
+    'Pin messages',
+    'Pin and unpin messages in a channel, for everyone in it. In a private '
+        'channel its own managers can pin too. Anybody can pin in their own '
+        'DMs.',
   );
 
   final int bit;

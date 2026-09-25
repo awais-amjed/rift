@@ -16,6 +16,7 @@ import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
+import '../../../common/chat/pins/pinned_messages_dialog.dart';
 import '../../../common/loading_block.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -43,6 +44,28 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     with
         ChatScrollLoadMore<CentralDmChatView>,
         ChatReplyDraft<CentralDmChatView> {
+  /// Where the pinned list sends the reader — see `ChatMessageList.jumpRequests`.
+  final ValueNotifier<String?> _jumpRequests = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _jumpRequests.dispose();
+    super.dispose();
+  }
+
+  /// Either of the two may pin in a DM, so unpinning is always offered.
+  void _showPins(BuildContext context) {
+    final cubit = context.read<CentralDmCubit>();
+    unawaited(
+      showPinnedMessages(
+        context,
+        load: cubit.loadPins,
+        onJump: (message) => _jumpRequests.value = message.id,
+        onUnpin: (message) => cubit.setPinned(message, pinned: false),
+      ),
+    );
+  }
+
   @override
   void loadMoreHistory() => context.read<CentralDmCubit>().loadMoreHistory();
 
@@ -75,6 +98,9 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           onVerify: state.openPeerId == null
               ? null
               : () => unawaited(_verify(context, state)),
+          onShowPins: state.openPeerId == null
+              ? null
+              : () => _showPins(context),
           onClose: () => context.read<CentralDmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),
@@ -236,6 +262,13 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           onEdit: context.read<CentralDmCubit>().editMessage,
           onDelete: context.read<CentralDmCubit>().deleteMessage,
           onRetry: context.read<CentralDmCubit>().retrySend,
+          onTogglePin: (message) => unawaited(
+            context.read<CentralDmCubit>().setPinned(
+              message,
+              pinned: !message.isPinned,
+            ),
+          ),
+          jumpRequests: _jumpRequests,
           // The only two people who will ever read this. Naming anyone else
           // would light up a mention that cannot reach them.
           mentionable: {

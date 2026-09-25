@@ -115,6 +115,14 @@ class ChannelChatState {
   /// [ChannelChatStatus.error].
   final ChatFailure? failure;
 
+  /// How each loaded poll stands, by message id. Counts only.
+  ///
+  /// Beside the messages rather than on them: a tally is asked for after the
+  /// rows are decrypted and can land before or after they are emitted, and a
+  /// message re-read by a doorbell is rebuilt from its row. Keyed here, the
+  /// answer survives both.
+  final Map<String, PollTally> pollTallies;
+
   const ChannelChatState({
     this.status = ChannelChatStatus.closed,
     this.channelId,
@@ -127,6 +135,7 @@ class ChannelChatState {
     this.bots = const [],
     this.mentionNames = const {},
     this.failure,
+    this.pollTallies = const {},
   });
 
   ChannelChatState copyWith({
@@ -142,6 +151,7 @@ class ChannelChatState {
     Map<String, String>? mentionNames,
     ChatFailure? failure,
     bool clearFailure = false,
+    Map<String, PollTally>? pollTallies,
   }) {
     return ChannelChatState(
       status: status ?? this.status,
@@ -158,6 +168,7 @@ class ChannelChatState {
       bots: bots ?? this.bots,
       mentionNames: mentionNames ?? this.mentionNames,
       failure: clearFailure ? null : (failure ?? this.failure),
+      pollTallies: pollTallies ?? this.pollTallies,
     );
   }
 }

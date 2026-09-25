@@ -7,7 +7,7 @@ import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 
 /// What a message context-menu entry asked for.
-enum MessageMenuAction { react, reply, forward, copy, edit, delete }
+enum MessageMenuAction { react, reply, forward, copy, pin, edit, delete }
 
 /// Right-click — and long-press — menu for one message. Entries are filtered
 /// by what the caller says is allowed, so a menu never offers an action the
@@ -33,6 +33,7 @@ Future<MessageMenuAction?> showMessageContextMenu({
   required bool canDelete,
   bool canReply = false,
   bool canForward = false,
+  bool canPin = false,
 }) async {
   final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
   if (overlay == null) return null;
@@ -42,6 +43,7 @@ Future<MessageMenuAction?> showMessageContextMenu({
       !canReply &&
       !canForward &&
       !canCopy &&
+      !canPin &&
       !canEdit &&
       !canDelete) {
     return null;
@@ -89,6 +91,13 @@ Future<MessageMenuAction?> showMessageContextMenu({
           MessageMenuAction.copy,
           Icons.copy_rounded,
           'Copy text',
+          themeState.textSecondary,
+        ),
+      if (canPin)
+        _item(
+          MessageMenuAction.pin,
+          message.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+          message.isPinned ? 'Unpin message' : 'Pin message',
           themeState.textSecondary,
         ),
       if (canEdit)

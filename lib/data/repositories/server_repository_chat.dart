@@ -89,6 +89,7 @@ mixin _ChatApiMixin {
     List<String> mentions = const [],
     bool mentionsAll = false,
     String? toBot,
+    Map<String, dynamic>? poll,
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
@@ -104,8 +105,12 @@ mixin _ChatApiMixin {
             // shapes: plaintext addressed to nobody, and a sealed body
             // addressed to a bot that could never open it (`005_bots.sql`).
             'to_bot': ?toBot,
+            // A poll's rules, which the server enforces; its words are in the
+            // envelope. `check_poll` rewrites `closes_at` into one spelling,
+            // so the row that comes back is the one to read it from.
+            'poll': ?poll,
           })
-          .select('id, created_at, channel_id, sender_id')
+          .select('id, created_at, channel_id, sender_id, poll')
           .single();
     });
   }

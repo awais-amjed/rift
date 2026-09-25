@@ -4,6 +4,7 @@ import 'attachment.dart';
 import 'chat_message.dart';
 import 'forwarded_message.dart';
 import 'link_preview.dart';
+import 'poll.dart';
 
 /// The structured content of a chat message — what actually gets sealed into a
 /// [MessageEnvelope] as the encrypted plaintext (ARCHITECTURE.md §4).
@@ -49,6 +50,11 @@ class MessageBody {
   /// Everything in it is the forwarder's claim — see [ForwardedMessage].
   final ForwardedMessage? forwarded;
 
+  /// A poll's question and options, or null. Its rules — how many may be
+  /// picked, when it closes — are on the row in the clear, because the server
+  /// enforces them; see [PollRules].
+  final PollBody? poll;
+
   const MessageBody({
     this.version = currentVersion,
     this.text = '',
@@ -56,6 +62,7 @@ class MessageBody {
     this.preview,
     this.replyToId,
     this.forwarded,
+    this.poll,
   });
 
   /// [existing]'s body with its words replaced by [text].
@@ -69,12 +76,19 @@ class MessageBody {
     preview: existing.preview,
     replyToId: existing.replyToId,
     forwarded: existing.forwarded,
+    poll: switch (existing.poll) {
+      final poll? => PollBody(question: poll.question, options: poll.options),
+      null => null,
+    },
   );
 
   /// A forward with no words of its own is not empty — the thing being sent
   /// is what it carries.
   bool get isEmpty =>
-      text.trim().isEmpty && attachments.isEmpty && forwarded == null;
+      text.trim().isEmpty &&
+      attachments.isEmpty &&
+      forwarded == null &&
+      poll == null;
 
   /// Serialize to the string that gets encrypted + signed. A pure text message
   /// with no attachments still encodes as the tagged object (senders are always
@@ -88,6 +102,7 @@ class MessageBody {
     if (preview != null) 'prev': preview!.toJson(),
     if (replyToId != null) 're': replyToId,
     if (forwarded != null) 'fwd': forwarded!.toJson(),
+    if (poll != null) 'poll': poll!.toJson(),
   });
 
   /// Parse a decrypted plaintext into a body. Anything that isn't our tagged
@@ -117,6 +132,7 @@ class MessageBody {
               : null,
           replyToId: re is String && re.isNotEmpty ? re : null,
           forwarded: ForwardedMessage.fromJson(decoded['fwd']),
+          poll: PollBody.fromJson(decoded['poll']),
         );
       }
     } catch (_) {

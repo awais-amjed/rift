@@ -31,6 +31,7 @@ import '../../services/conversation_splice.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/new_message_notifier.dart';
 import '../../services/outbox.dart';
+import '../../services/pin_ops.dart';
 import '../../services/push_service.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/sound_service.dart';
@@ -43,6 +44,7 @@ part 'central_dm_decrypt.dart';
 part 'central_dm_edit.dart';
 part 'central_dm_friends.dart';
 part 'central_dm_history.dart';
+part 'central_dm_pins.dart';
 part 'central_dm_ready.dart';
 part 'central_dm_send.dart';
 part 'central_dm_state.dart';
@@ -63,6 +65,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
         _CentralDmHistoryMixin,
         _CentralDmSendMixin,
         _CentralDmEditMixin,
+        _CentralDmPinsMixin,
         _CentralDmUnreadMixin,
         // Last, because it is `on` the unread mixin: readiness is the thing
         // that puts all the others to work, so everything it calls has to be

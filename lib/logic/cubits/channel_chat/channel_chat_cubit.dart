@@ -11,6 +11,7 @@ import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/panel_block.dart';
 import '../../../data/classes/pending_attachment.dart';
+import '../../../data/classes/poll.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/enums/message_origin.dart';
@@ -30,6 +31,8 @@ import '../../services/mention_name_cache.dart';
 import '../../services/mentions.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
+import '../../services/pin_ops.dart';
+import '../../services/poll_ops.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/server_realtime.dart';
@@ -42,6 +45,8 @@ part 'channel_chat_edit.dart';
 part 'channel_chat_history.dart';
 part 'channel_chat_notify.dart';
 part 'channel_chat_panels.dart';
+part 'channel_chat_pins.dart';
+part 'channel_chat_polls.dart';
 part 'channel_chat_reactions.dart';
 part 'channel_chat_ready.dart';
 part 'channel_chat_realtime.dart';
@@ -71,6 +76,8 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         _ChannelChatPanelsMixin,
         _ChannelChatEditMixin,
         _ChannelChatReactionsMixin,
+        _ChannelChatPinsMixin,
+        _ChannelChatPollsMixin,
         _ChannelChatRealtimeMixin,
         _ChatSweepMixin,
         _ChatReadyMixin,

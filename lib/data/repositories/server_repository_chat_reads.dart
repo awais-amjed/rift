@@ -23,23 +23,30 @@ mixin _ChatReadApiMixin {
       'id, created_at, channel_id, sender_id, ciphertext, nonce, signature, '
       'key_version, edited_at, webhook_id, origin_name, is_system, to_bot, '
       'blocks, is_interaction, '
-      'reply_to, ephemeral_for, '
+      'reply_to, ephemeral_for, poll, '
       'sender:users!messages_sender_id_fkey(display_name, public_key, avatar_path), '
-      'message_reactions(user_id, emoji)';
+      'message_reactions(user_id, emoji), '
+      'message_pins(pinned_at)';
 
   static const _dmColumns =
       'id, created_at, sender_id, recipient_id, ciphertext, nonce, signature, '
       'key_version, edited_at, '
       'sender:users!dm_messages_sender_id_fkey(display_name, public_key, avatar_path), '
-      'dm_message_reactions(user_id, emoji)';
+      'dm_message_reactions(user_id, emoji), '
+      'dm_message_pins(pinned_at)';
 
-  /// Lifts the embedded sender onto the row and tallies the embedded reaction
-  /// rows into counts, which is the shape the chat cubits decrypt from.
+  /// Lifts the embedded sender onto the row, tallies the embedded reaction
+  /// rows into counts, and lifts the pin (a one-to-one embed: an object or
+  /// null) to `pinned_at` — the shape the chat cubits decrypt from.
   static Map<String, dynamic> _flatten(
     Map<String, dynamic> row, {
     required String? userId,
     required String reactionsKey,
   }) {
+    final pinsKey = reactionsKey == 'dm_message_reactions'
+        ? 'dm_message_pins'
+        : 'message_pins';
+    final pin = row[pinsKey];
     final sender = row['sender'] as Map<String, dynamic>?;
     final reactions = (row[reactionsKey] as List? ?? const [])
         .cast<Map<String, dynamic>>();
@@ -52,7 +59,9 @@ mixin _ChatReadApiMixin {
     return {
       ...row
         ..remove('sender')
-        ..remove(reactionsKey),
+        ..remove(reactionsKey)
+        ..remove(pinsKey),
+      'pinned_at': pin is Map ? pin['pinned_at'] : null,
       'sender_name': originName ?? sender?['display_name'] ?? 'Unknown',
       'sender_public_key': sender?['public_key'],
       'sender_avatar_path': sender?['avatar_path'],
