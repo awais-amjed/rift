@@ -3,12 +3,14 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/pick_picture.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../common/app_text_field.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -28,6 +30,8 @@ class ProfileEditModal extends StatefulWidget {
 }
 
 class _ProfileEditModalState extends State<ProfileEditModal> {
+  static const double _avatarSize = 84;
+
   late final TextEditingController _nameController;
   Uint8List? _pickedAvatar;
   bool _saving = false;
@@ -121,22 +125,12 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
         children: [
           Center(child: _avatarPicker(themeState, user?.avatarPath, user?.id)),
           const SizedBox(height: 18),
-          Text(
-            'Display name',
-            style: AppText.secondaryStrong.copyWith(
-              color: themeState.textTertiary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          TextField(
+          AppTextField(
             controller: _nameController,
+            label: 'Display name',
+            hint: 'Your name on this server',
             enabled: !_saving,
             maxLength: 32,
-            style: AppText.input.copyWith(color: themeState.textPrimary),
-            decoration: const InputDecoration(
-              hintText: 'Your name on this server',
-              counterText: '',
-            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -172,12 +166,17 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
         Stack(
           clipBehavior: Clip.none,
           children: [
-            ClipOval(
+            // The avatar's own squircle, not a circle: this is a preview of
+            // how everybody else will see it, and nowhere else draws it round.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(
+                _avatarSize * K.avatarRadiusRatio,
+              ),
               child: picked != null
                   ? Image.memory(
                       picked,
-                      width: 84,
-                      height: 84,
+                      width: _avatarSize,
+                      height: _avatarSize,
                       fit: BoxFit.cover,
                     )
                   : UserAvatar(
@@ -186,7 +185,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
                       // By id: seeded by the name, the colour changed with
                       // every letter typed into the field below.
                       seed: userId,
-                      size: 84,
+                      size: _avatarSize,
                     ),
             ),
             Positioned(
