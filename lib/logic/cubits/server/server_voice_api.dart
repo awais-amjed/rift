@@ -29,7 +29,7 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
         ? null
         : await _regionProbe.nearest(server.id, server.livekitNodes);
 
-    return _callWithAutoRefresh(
+    final response = await _callWithAutoRefresh(
       (token) => _repository.getChannelToken(
         state.selectedServer!.supabaseUrl,
         channelId,
@@ -39,6 +39,24 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
         bearerToken: token,
       ),
     );
+
+    // A refusal throws away the measurement, and that is the whole reason
+    // this is not a plain `return`.
+    //
+    // The cache holds for half an hour, which is fine while every region is
+    // up and wrong the moment one is not: a region that died after being
+    // measured goes on being offered as the nearest, the server takes the
+    // suggestion, and the join fails again — for as long as the cache lasts.
+    // Found by killing a region under a live call: both clients dropped, and
+    // Try again kept failing on the dead region while a fresh request naming
+    // no preference reached the live one immediately.
+    //
+    // Re-measuring costs one request per region and a node that is down
+    // cannot answer it, so the next attempt cannot suggest it.
+    if (!response.success && server != null) {
+      _regionProbe.invalidate(server.id);
+    }
+    return response;
   }
 
   /// Moves the call in [channelId] to [nodeId] (channel manager or admin).
