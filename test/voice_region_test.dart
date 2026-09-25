@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/channel.dart';
 import 'package:rift/data/classes/livekit_node.dart';
+import 'package:rift/data/classes/region_load.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/data/repositories/voice_region_probe.dart';
 import 'package:rift/logic/services/voice_signal.dart';
@@ -159,6 +160,52 @@ void main() {
         ),
         isFalse,
       );
+    });
+  });
+
+  group('RegionLoad', () {
+    test('reads what voice_roster sends, and survives a partial row', () {
+      final full = RegionLoad.fromJson({
+        'id': 'n1',
+        'label': 'Default',
+        'calls': 1,
+        'people': 4,
+        'publishers': 4,
+        'streams': 12,
+        'reachable': true,
+      });
+      expect(full.streams, 12);
+      expect(full.isIdle, isFalse);
+
+      final sparse = RegionLoad.fromJson({'id': 'n2'});
+      expect(sparse.people, 0);
+      expect(sparse.isIdle, isTrue);
+      // Absent means reachable: a region that failed says so explicitly, and
+      // reading silence as "down" would mark a healthy one.
+      expect(sparse.reachable, isTrue);
+    });
+
+    test('says what is happening in the shortest true form', () {
+      expect(const RegionLoad(nodeId: 'n', label: 'L').summary, 'idle');
+      expect(
+        const RegionLoad(nodeId: 'n', label: 'L', people: 1, calls: 1).summary,
+        '1 person',
+      );
+      expect(
+        const RegionLoad(nodeId: 'n', label: 'L', people: 5, calls: 2).summary,
+        '5 people in 2 calls',
+      );
+      expect(
+        const RegionLoad(nodeId: 'n', label: 'L', reachable: false).summary,
+        'not answering',
+      );
+    });
+
+    test('an unreachable region is not idle', () {
+      // They look alike in a head count and are opposite in meaning: one has
+      // nobody on it, the other could not be asked.
+      const down = RegionLoad(nodeId: 'n', label: 'L', reachable: false);
+      expect(down.isIdle, isFalse);
     });
   });
 

@@ -14,10 +14,21 @@ class ServerState {
   /// beat a stale order sitting in the cloud.
   final int orderClock;
 
+  /// How busy each of the selected server's voice regions is, keyed by node
+  /// id, as `voice_roster` last reported it.
+  ///
+  /// Transient — a reading seconds old, never persisted, empty until the
+  /// first poll answers. It informs two things: what a channel manager sees
+  /// beside each region when choosing one, and which region an automatic
+  /// choice avoids.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final Map<String, RegionLoad> regionLoad;
+
   const ServerState({
     this.servers = const [],
     this.selectedServerId,
     this.orderClock = 0,
+    this.regionLoad = const {},
   });
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -65,6 +76,7 @@ class ServerState {
     String? selectedServerId,
     bool clearSelectedServerId = false,
     int? orderClock,
+    Map<String, RegionLoad>? regionLoad,
   }) {
     return ServerState(
       servers: servers ?? this.servers,
@@ -72,6 +84,7 @@ class ServerState {
           ? null
           : (selectedServerId ?? this.selectedServerId),
       orderClock: orderClock ?? this.orderClock,
+      regionLoad: regionLoad ?? this.regionLoad,
     );
   }
 

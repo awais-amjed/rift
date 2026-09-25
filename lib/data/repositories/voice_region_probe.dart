@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../classes/livekit_node.dart';
+import '../classes/region_load.dart';
 
 /// Measures which of a server's LiveKit nodes is nearest, by asking each one.
 ///
@@ -28,6 +29,17 @@ class VoiceRegionProbe {
   /// something the user is waiting on.
   static const _ttl = Duration(minutes: 30);
 
+  /// How much further away a region may be and still count as "comparably
+  /// close", for the purpose of preferring a quieter one.
+  ///
+  /// The load rule is deliberately *relative*: among regions this close to
+  /// each other, take the one carrying less. An absolute ceiling would be a
+  /// guess — stream count does not capture a screen share, which at 10 Mbps
+  /// per watcher is most of the cost when there is one — so nothing here
+  /// pretends to know when a region is "full". It only breaks a tie that
+  /// latency alone would decide by a margin nobody can hear.
+  static const _comparable = Duration(milliseconds: 40);
+
   final http.Client _client;
 
   VoiceRegionProbe({http.Client? client}) : _client = client ?? http.Client();
@@ -39,7 +51,13 @@ class VoiceRegionProbe {
   /// Cached per server for [_ttl]. The cache also keys on the node list
   /// itself, so adding or removing a node re-measures rather than keeping an
   /// answer about a set that no longer exists.
-  Future<String?> nearest(String serverId, List<LiveKitNode> nodes) async {
+  /// [load] is how busy each region was at the last roster poll, keyed by
+  /// node id. Absent or empty, this is latency alone.
+  Future<String?> nearest(
+    String serverId,
+    List<LiveKitNode> nodes, {
+    Map<String, RegionLoad> load = const {},
+  }) async {
     if (nodes.length < 2) {
       // One node is not a choice, and none is not a question. Either way the
       // server's own default is the answer, and measuring would be a round
@@ -59,7 +77,9 @@ class VoiceRegionProbe {
     final answered = results.where((r) => r != null).cast<_Result>().toList()
       ..sort((a, b) => a.micros.compareTo(b.micros));
 
-    final winner = answered.isEmpty ? null : answered.first.nodeId;
+    final winner = answered.isEmpty
+        ? null
+        : _quietestOf(answered, load).nodeId;
     _cache[serverId] = _Measurement(
       fingerprint: fingerprint,
       nodeId: winner,
@@ -70,6 +90,33 @@ class VoiceRegionProbe {
 
   /// Forget what was measured for [serverId], so the next ask re-measures.
   void invalidate(String serverId) => _cache.remove(serverId);
+
+  /// The least busy of the regions that are comparably close to the nearest.
+  ///
+  /// [answered] is already sorted by latency, so the first is the fastest and
+  /// the window runs from there. With no load figures this is exactly the
+  /// fastest one, which is what it was before load existed.
+  static _Result _quietestOf(
+    List<_Result> answered,
+    Map<String, RegionLoad> load,
+  ) {
+    final fastest = answered.first;
+    if (load.isEmpty) return fastest;
+
+    final cutoff = fastest.micros + _comparable.inMicroseconds;
+    var best = fastest;
+    var bestStreams = load[fastest.nodeId]?.streams ?? 0;
+
+    for (final candidate in answered.skip(1)) {
+      if (candidate.micros > cutoff) break;
+      final streams = load[candidate.nodeId]?.streams ?? 0;
+      if (streams < bestStreams) {
+        best = candidate;
+        bestStreams = streams;
+      }
+    }
+    return best;
+  }
 
   /// One node's round trip, or null when it did not answer.
   ///

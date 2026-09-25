@@ -27,7 +27,11 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
     final server = state.selectedServer;
     final preferred = server == null
         ? null
-        : await _regionProbe.nearest(server.id, server.livekitNodes);
+        : await _regionProbe.nearest(
+            server.id,
+            server.livekitNodes,
+            load: state.regionLoad,
+          );
 
     final response = await _callWithAutoRefresh(
       (token) => _repository.getChannelToken(
@@ -104,7 +108,37 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
 
   /// Who is in which voice channel on the selected server, straight from
   /// LiveKit: `{roster: {userId: channelId}}`.
-  Future<APIResponse> voiceRoster() => _callWithAutoRefresh(
+  /// The roster, and how busy each region is while we are asking.
+  ///
+  /// The load rides along because this call already fans out across every
+  /// region — it is the one request that has to touch them all — so learning
+  /// it costs nothing, and it is polled often enough to be current when a
+  /// manager opens the picker.
+  Future<APIResponse> voiceRoster() async {
+    final response = await _voiceRosterRequest();
+    final server = state.selectedServer;
+    if (!response.success || server == null) return response;
+
+    final data = response.data;
+    if (data is! Map) return response;
+    final regions = data['regions'];
+    if (regions is! List) return response;
+
+    emit(
+      state.copyWith(
+        regionLoad: {
+          for (final row in regions)
+            if (row is Map<String, dynamic>)
+              if (RegionLoad.fromJson(row) case final load
+                  when load.nodeId.isNotEmpty)
+                load.nodeId: load,
+        },
+      ),
+    );
+    return response;
+  }
+
+  Future<APIResponse> _voiceRosterRequest() => _callWithAutoRefresh(
     (token) => _repository.voiceRoster(
       state.selectedServer!.supabaseUrl,
       bearerToken: token,

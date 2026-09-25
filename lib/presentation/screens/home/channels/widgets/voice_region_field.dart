@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/livekit_node.dart';
+import '../../../../../data/classes/region_load.dart';
 import '../../../../../data/constants.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 
 /// Which LiveKit a voice channel's calls are held on.
@@ -27,6 +29,13 @@ class VoiceRegionField extends StatelessWidget {
   /// Every node this server may hold a call on, default first.
   final List<LiveKitNode> nodes;
 
+  /// How busy each is, keyed by node id — empty until the first roster poll.
+  ///
+  /// Shown beside each region because the question a manager has when they
+  /// open this is usually "the calls here are bad, where else could they
+  /// go", and a list of names alone cannot answer it.
+  final Map<String, RegionLoad> load;
+
   /// The channel's pin, or null for automatic.
   final String? selectedNodeId;
 
@@ -44,6 +53,7 @@ class VoiceRegionField extends StatelessWidget {
     required this.selectedNodeId,
     required this.liveNodeId,
     required this.onChanged,
+    this.load = const {},
     this.enabled = true,
   });
 
@@ -129,7 +139,7 @@ class VoiceRegionField extends StatelessWidget {
             for (final node in nodes)
               DropdownMenuItem<String?>(
                 value: node.id,
-                child: Text(node.label, overflow: TextOverflow.ellipsis),
+                child: _RegionLine(node: node, load: load[node.id]),
               ),
           ],
           onChanged: enabled ? onChanged : null,
@@ -139,6 +149,45 @@ class VoiceRegionField extends StatelessWidget {
           _helper(),
           style: AppText.secondary.copyWith(color: theme.textQuaternary),
         ),
+      ],
+    );
+  }
+}
+
+/// A region's name with what it is carrying, for one row of the picker.
+///
+/// The load is a whisper rather than a badge: it is context for a decision,
+/// not a warning, and a row that shouted would make every region look like a
+/// problem. A region that is *not answering* is the exception — that one is
+/// worth seeing.
+class _RegionLine extends StatelessWidget {
+  final LiveKitNode node;
+  final RegionLoad? load;
+
+  const _RegionLine({required this.node, this.load});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final summary = load?.summary;
+
+    return Row(
+      children: [
+        Flexible(
+          child: Text(node.label, overflow: TextOverflow.ellipsis),
+        ),
+        if (summary != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            summary,
+            style: AppText.secondary.copyWith(
+              color: load!.reachable
+                  ? theme.textQuaternary
+                  : CustomColors.warning,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ],
     );
   }

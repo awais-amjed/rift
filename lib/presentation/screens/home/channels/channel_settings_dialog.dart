@@ -222,6 +222,10 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
                   context.read<ServerCubit>().state.selectedServer
                       ?.livekitNodes ??
                   const [],
+              // Watched rather than read once: the dialog can be open while
+              // a roster poll lands, and a picker showing a region as idle
+              // while a call fills it is worse than showing nothing.
+              load: context.watch<ServerCubit>().state.regionLoad,
               selectedNodeId: _nodeId,
               liveNodeId: widget.channel.voiceNodeId,
               enabled: !_isLoading,
