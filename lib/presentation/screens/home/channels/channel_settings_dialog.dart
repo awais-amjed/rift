@@ -64,11 +64,19 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
   bool get _capChanged => _cap != widget.channel.historyCap;
   bool get _nodeChanged => _nodeId != widget.channel.livekitNodeId;
 
-  /// Whether there is a call running somewhere other than where it is now
-  /// being sent. Null [voiceNodeId] is "nobody is in it", which is the common
-  /// case and needs no move at all.
+  /// Whether to ask the server to move a call that may be running.
+  ///
+  /// **Asked rather than decided here.** This used to test
+  /// `channel.voiceNodeId`, which is only refreshed by `get_server_details`
+  /// — and nothing refreshes it when a *call starts*, so the field is null
+  /// exactly when a call has just begun, which is when somebody is most
+  /// likely to move it. The pin saved and two people stayed where they were.
+  ///
+  /// The server is the only party that knows, and it answers `no_call`
+  /// harmlessly when there is nothing up, so the honest thing is to always
+  /// ask when a region was explicitly chosen.
   bool get _shouldMoveLiveCall =>
-      widget.channel.voiceNodeId != null &&
+      widget.channel.voiceNodeId == null ||
       widget.channel.voiceNodeId != _nodeId;
 
   bool get _canSubmit =>
@@ -132,6 +140,10 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
     // room cannot migrate, so moving one means everybody in it reconnecting,
     // and that only happens because somebody asked for it. Saving a different
     // region while a call is running *is* asking.
+    //
+    // Asked on every explicit region change, because only the server knows
+    // whether a call is up: see [_shouldMoveLiveCall]. With nothing running
+    // this costs one request that answers `no_call`.
     if (_nodeChanged && _nodeId != null && _shouldMoveLiveCall) {
       final moved = await context.read<ServerCubit>().moveCall(
         channelId: widget.channel.id,
