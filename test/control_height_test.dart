@@ -9,9 +9,14 @@ import 'package:rift/presentation/common/segmented_control.dart';
 
 import 'helpers/memory_storage.dart';
 
-Future<void> _pump(WidgetTester tester, Widget child) async {
+Future<void> _pump(
+  WidgetTester tester,
+  Widget child, {
+  VisualDensity? density,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
+      theme: ThemeData(visualDensity: density),
       home: Scaffold(
         body: BlocProvider(
           create: (_) => ThemeCubit(),
@@ -35,6 +40,55 @@ void main() {
     await _pump(tester, AppTextField(controller: controller, hint: 'Name'));
 
     expect(tester.getSize(find.byType(TextField)).height, K.fieldHeight);
+  });
+
+  // The outline Material paints, not the slot the field takes: the two came
+  // apart once, and a test of the slot passed while every form showed a 34px
+  // box beside a 44px button.
+  Size outline(WidgetTester tester) => tester.getSize(
+    find
+        .descendant(
+          of: find.byType(InputDecorator),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is CustomPaint &&
+                w.foregroundPainter.runtimeType.toString() ==
+                    '_InputBorderPainter',
+          ),
+        )
+        .first,
+  );
+
+  testWidgets('its outline is the field height too', (tester) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await _pump(tester, AppTextField(controller: controller, hint: 'Name'));
+
+    expect(outline(tester).height, K.fieldHeight);
+  });
+
+  testWidgets('and stays it at a desktop\'s compact density', (tester) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await _pump(
+      tester,
+      AppTextField(controller: controller, hint: 'Name'),
+      density: VisualDensity.compact,
+    );
+
+    expect(outline(tester).height, K.fieldHeight);
+  });
+
+  testWidgets('a counter goes under the outline, not into it', (tester) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await _pump(
+      tester,
+      AppTextField(controller: controller, hint: 'GitHub', maxLength: 80),
+      density: VisualDensity.compact,
+    );
+
+    expect(outline(tester).height, K.fieldHeight);
   });
 
   testWidgets('a prose field still grows past it', (tester) async {

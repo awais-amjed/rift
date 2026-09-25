@@ -79,6 +79,9 @@ class AppTextField extends StatefulWidget {
 }
 
 class _AppTextFieldState extends State<AppTextField> {
+  /// The size the line box and the padding are worked out from.
+  static final double _fontSize = AppText.input.fontSize!;
+
   /// Kept whether or not it is used, so a caller that starts passing its own
   /// node — or stops — doesn't leave this field wired to a dead one.
   final FocusNode _own = FocusNode();
@@ -138,7 +141,17 @@ class _AppTextFieldState extends State<AppTextField> {
           autofocus: widget.autofocus,
           maxLines: widget.obscureText ? 1 : widget.maxLines,
           maxLength: widget.maxLength,
-          style: AppText.input.copyWith(color: themeState.textPrimary),
+          style: AppText.input.copyWith(
+            height: K.fieldLineHeight,
+            color: themeState.textPrimary,
+          ),
+          // Pin the line box, as the composer does: a taller glyph (an emoji)
+          // would otherwise stretch the line and the field with it.
+          strutStyle: StrutStyle(
+            fontSize: _fontSize,
+            height: K.fieldLineHeight,
+            forceStrutHeight: true,
+          ),
           decoration: InputDecoration(
             hintText: widget.hint,
             suffixIcon: widget.obscureText && widget.canReveal
@@ -172,16 +185,25 @@ class _AppTextFieldState extends State<AppTextField> {
               borderRadius: BorderRadius.circular(K.radiusRow),
               borderSide: BorderSide(color: borderColor.withValues(alpha: 0.5)),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
             // The shared control height, so a field and the button beside it
-            // are one size. A floor rather than a fixed height: a prose box
-            // still grows with its lines. Dense, or Material floors it at its
-            // own 48 first and the token never gets a say.
+            // are one size: one pinned line plus this padding comes to exactly
+            // [K.fieldHeight], and a prose box still grows with its lines.
+            //
+            // Padding rather than a `minHeight` constraint, which is what this
+            // used to be. Material applies that to the field's *slot*, not to
+            // the outline it paints, so the field took 44px and drew a 34px
+            // box at the top of it — ten pixels shorter than the button beside
+            // it, with a strip of nothing underneath.
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: (K.fieldHeight - _fontSize * K.fieldLineHeight) / 2,
+            ),
+            // Dense, or Material floors the box at its own 48 first.
             isDense: true,
-            constraints: const BoxConstraints(minHeight: K.fieldHeight),
+            // And standard, for the reason [AppButton] gives: on a desktop the
+            // adaptive default is compact, which takes another 8px off the box
+            // and nothing else around it.
+            visualDensity: VisualDensity.standard,
             // Material's counter is a second line of text under the field, in
             // the wrong colour and at the wrong weight. Keep the count — it is
             // the point of setting a limit — and dress it like every other

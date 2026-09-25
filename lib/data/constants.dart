@@ -35,6 +35,14 @@ class K {
   /// Text fields, dropdowns and segmented options.
   static const double fieldHeight = controlHeight;
 
+  /// A text field's line box, as a multiple of its font size. Pinned rather
+  /// than left to the font, because the field's padding is worked out from it:
+  /// with the font's own metrics the box came out a different height on every
+  /// face, and a different one again in tests, which draw with a stand-in.
+  /// A whole 20px at the 14px input size: a fractional line box is rounded up
+  /// when the text is laid out, and the field came out 44.4.
+  static const double fieldLineHeight = 20 / 14;
+
   /// Square icon buttons.
   static const double iconButtonSize = 40;
 
