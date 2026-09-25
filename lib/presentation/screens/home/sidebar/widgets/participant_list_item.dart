@@ -55,14 +55,15 @@ class ParticipantListItem extends StatelessWidget {
     // A tint rather than an ink well: clicking a person does nothing —
     // their profile and everything else is in the menu — and a well with
     // no tap would not light up at all.
+    //
+    // Speaking is the ring's alone. The row used to take a tint and the name
+    // a heavier, brighter weight as well, so a busy call was a column of
+    // rows flashing on and off — and the weight change reflowed the name
+    // with every breath.
     Widget content = Material(
       // Transparent at rest, not null: a null Material paints the canvas
       // colour, which drew a dark strip inside the channel's card.
-      color: isSpeaking
-          ? themeState.primary.withValues(alpha: 0.08)
-          : hovered
-          ? hoverColor
-          : Colors.transparent,
+      color: hovered ? hoverColor : Colors.transparent,
       borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(
         padding: metrics.padding,
@@ -87,12 +88,8 @@ class ParticipantListItem extends StatelessWidget {
               child: Text(
                 participant.isLocal ? '$name (You)' : name,
                 style: RosterRowMetrics.of(context).nameStyle.copyWith(
-                  fontWeight: isSpeaking ? FontWeight.w600 : FontWeight.w500,
-                  color: isSpeaking
-                      ? themeState.channelActiveText
-                      : isMuted
-                      ? textQuaternary
-                      : textSecondary,
+                  fontWeight: FontWeight.w500,
+                  color: isMuted ? textQuaternary : textSecondary,
                   decoration: isMuted ? TextDecoration.lineThrough : null,
                   overflow: TextOverflow.ellipsis,
                 ),
