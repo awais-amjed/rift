@@ -71,7 +71,7 @@ class _LimitsPanelState extends State<LimitsPanel> {
     });
 
     // Only the limits: `update_server` leaves out what it isn't sent, so this
-    // cannot disturb the name or the LiveKit credentials that Overview owns.
+    // cannot disturb the name or the LiveKit key that other pages own.
     final result = await context.read<ServerCubit>().updateServerDetails(
       limits: parsed.limits,
       serverId: widget.server.id,

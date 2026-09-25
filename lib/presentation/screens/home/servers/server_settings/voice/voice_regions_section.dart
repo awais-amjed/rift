@@ -117,8 +117,8 @@ class _VoiceRegionsSectionState extends State<VoiceRegionsSection> {
           const HintCard(
             icon: Icons.swap_horiz_rounded,
             text:
-                'Open this server in the rail to change its regions. The '
-                'credentials below save from here either way.',
+                'Open this server in the rail to change its regions or '
+                'their keys.',
           ),
         ],
         const SizedBox(height: 14),

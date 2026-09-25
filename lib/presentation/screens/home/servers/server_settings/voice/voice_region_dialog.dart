@@ -20,12 +20,13 @@ import '../../../../../theme/theme_context.dart';
 /// focus. Here the pair is typed, checked and sent once, and Cancel means
 /// nothing happened.
 ///
-/// **The default region's address is the server's own LiveKit URL**, so that
-/// one field is sent through `update_server` and a trigger carries it into
-/// the node — see [ServerCubit.updateDefaultVoiceRegion]. It used to be
-/// read-only here, with a line telling the reader to go and find the LiveKit
-/// URL field on another page; the field is gone now, and this is where that
-/// address is changed.
+/// **The default region is the server's own LiveKit**, so its address and
+/// key are sent through `update_server` — the URL column and `server_secrets`
+/// — and a trigger carries the address into the node; see
+/// [ServerCubit.updateDefaultVoiceRegion]. Both used to be elsewhere: the
+/// address read-only here with a pointer to another page, and the key in a
+/// Credentials section under the list. Every region is keyed the same way
+/// now, so there is one place to look for any of them.
 ///
 /// **A region signs with its own key pair, and that is not optional.** A
 /// shared key sits on every box, so the cheapest VPS in the list would hold
@@ -36,9 +37,7 @@ import '../../../../../theme/theme_context.dart';
 ///
 /// The key is write-only — nothing here can read what is stored — so on an
 /// existing region the fields come up blank and blank means "leave it alone".
-/// Filling them is a rotation, one box at a time. The default region has no
-/// fields at all: it *is* the server's LiveKit, so its pair is the server's,
-/// set under Credentials on the page behind this one.
+/// Filling them is a rotation, one box at a time.
 class VoiceRegionDialog extends StatefulWidget {
   /// The region being changed, or null to add one.
   final LiveKitNode? node;
@@ -122,6 +121,15 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
       );
     }
 
+    final apiKey = _apiKeyCtrl.text.trim();
+    final secret = _secretCtrl.text.trim();
+    if ((apiKey.isEmpty) != (secret.isEmpty)) {
+      return (
+        success: false,
+        error: 'A region needs both an API key and a secret.',
+      );
+    }
+
     if (label != node.label) {
       final renamed = await cubit.updateVoiceRegion(
         nodeId: node.id,
@@ -129,38 +137,24 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
       );
       if (!renamed.success) return renamed;
     }
-    if (url != node.url) {
-      // The address, by whichever route owns it — the default's lives on the
-      // server row, every other region's on its own.
-      final moved = node.isDefault
-          ? await cubit.updateDefaultVoiceRegion(url: url)
-          : await cubit.updateVoiceRegion(nodeId: node.id, url: url);
-      if (!moved.success) return moved;
-    }
-    return _writeCredentials(cubit, node);
-  }
-
-  /// The key half, which is a different table through a different door.
-  ///
-  /// Two outcomes and one of them is silence: the fields cannot show what is
-  /// stored, so leaving them empty means "leave it alone". Filling them is a
-  /// rotation. There is no third outcome — a region cannot give its key up,
-  /// because it would then be running on the server's.
-  Future<({bool success, String? error})> _writeCredentials(
-    ServerCubit cubit,
-    LiveKitNode node,
-  ) async {
-    if (node.isDefault) return (success: true, error: null);
-
-    final apiKey = _apiKeyCtrl.text.trim();
-    final secret = _secretCtrl.text.trim();
-    if (apiKey.isEmpty && secret.isEmpty) return (success: true, error: null);
-    if (apiKey.isEmpty || secret.isEmpty) {
-      return (
-        success: false,
-        error: 'A region needs both an API key and a secret.',
+    // The default's address and key live on the server row, so they go
+    // together in one call; every other region's are its own two.
+    if (node.isDefault) {
+      return cubit.updateDefaultVoiceRegion(
+        url: url != node.url ? url : null,
+        apiKey: apiKey.isEmpty ? null : apiKey,
+        secret: secret.isEmpty ? null : secret,
       );
     }
+    if (url != node.url) {
+      final moved = await cubit.updateVoiceRegion(nodeId: node.id, url: url);
+      if (!moved.success) return moved;
+    }
+    // The fields cannot show what is stored, so both empty means "leave it
+    // alone" and both filled is a rotation. There is no third outcome — a
+    // region cannot give its key up, because it would then be running on the
+    // server's.
+    if (apiKey.isEmpty) return (success: true, error: null);
     return cubit.setVoiceRegionCredentials(
       nodeId: node.id,
       apiKey: apiKey,
@@ -236,40 +230,39 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
                 : 'The address people connect to for calls held here.',
             style: AppText.label.copyWith(color: theme.textTertiary),
           ),
-          if (!isDefault) ...[
-            const SizedBox(height: 16),
-            Text(
-              _isEdit
-                  ? 'This region signs with its own LiveKit key. Type a new '
-                        'pair to rotate it, or leave these blank to keep the '
-                        'one it has.'
-                  : 'Give this region its own API key and secret, set in its '
-                        'livekit.yaml and used nowhere else. A key shared with '
-                        'your other regions would let a break-in on this box '
-                        'mint tokens for calls in all of them.',
-              style: AppText.label.copyWith(color: theme.textTertiary),
-            ),
-            const SizedBox(height: 14),
-            AppTextField(
-              controller: _apiKeyCtrl,
-              label: 'LiveKit API key',
-              hint: _isEdit ? 'Leave blank to keep current' : 'APIxxxxxxxx',
-              enabled: !_isLoading,
-              obscureText: true,
-              onChanged: (_) => setState(() => _error = null),
-            ),
-            const SizedBox(height: 16),
-            AppTextField(
-              controller: _secretCtrl,
-              label: 'LiveKit secret key',
-              hint: _isEdit
-                  ? 'Leave blank to keep current'
-                  : 'The secret from its livekit.yaml',
-              enabled: !_isLoading,
-              obscureText: true,
-              onChanged: (_) => setState(() => _error = null),
-            ),
-          ],
+          const SizedBox(height: 16),
+          Text(
+            _isEdit
+                ? 'This region signs with '
+                      '${isDefault ? 'the server\'s own' : 'its own'} '
+                      'LiveKit key. Type a new pair to rotate it, or leave '
+                      'these blank to keep the one it has.'
+                : 'Give this region its own API key and secret, set in its '
+                      'livekit.yaml and used nowhere else. A key shared with '
+                      'your other regions would let a break-in on this box '
+                      'mint tokens for calls in all of them.',
+            style: AppText.label.copyWith(color: theme.textTertiary),
+          ),
+          const SizedBox(height: 14),
+          AppTextField(
+            controller: _apiKeyCtrl,
+            label: 'LiveKit API key',
+            hint: _isEdit ? 'Leave blank to keep current' : 'APIxxxxxxxx',
+            enabled: !_isLoading,
+            obscureText: true,
+            onChanged: (_) => setState(() => _error = null),
+          ),
+          const SizedBox(height: 16),
+          AppTextField(
+            controller: _secretCtrl,
+            label: 'LiveKit secret key',
+            hint: _isEdit
+                ? 'Leave blank to keep current'
+                : 'The secret from its livekit.yaml',
+            enabled: !_isLoading,
+            obscureText: true,
+            onChanged: (_) => setState(() => _error = null),
+          ),
         ],
       ),
       actions: [

@@ -92,26 +92,36 @@ mixin _ServerVoiceRegionsApiMixin on Cubit<ServerState> {
     failure: 'Failed to change the region\'s credentials',
   );
 
-  /// The default region's address, which is the *server's* LiveKit URL.
+  /// The default region's address and key, which are the *server's* LiveKit
+  /// URL and key pair.
   ///
   /// Written through `update_server` rather than through the node, because
-  /// `servers.livekit_url` is where that address lives and a trigger carries
-  /// it into the default node. Writing the node instead would leave the two
-  /// disagreeing, and the column is what an older client still reads.
+  /// `servers.livekit_url` and `server_secrets` are where they live, and a
+  /// trigger carries the address into the default node. Writing the node
+  /// instead would leave the two disagreeing, and the column is what an older
+  /// client still reads. Each is sent only if given, and `update_server`
+  /// leaves alone what it isn't sent.
   ///
-  /// Ends like the three above it — the probe's measurement thrown away, the
-  /// server re-read — because the default node's row has just changed
-  /// underneath us and the copy held here still names the old box.
+  /// Ends like the calls above it — the probe's measurement thrown away, the
+  /// server re-read — because the default node's row may just have changed
+  /// underneath us and the copy held here would still name the old box.
   Future<({bool success, String? error})> updateDefaultVoiceRegion({
-    required String url,
+    String? url,
+    String? apiKey,
+    String? secret,
   }) async {
     final server = state.selectedServer;
     if (server == null) {
       return (success: false, error: 'No server selected');
     }
+    if (url == null && apiKey == null && secret == null) {
+      return (success: true, error: null);
+    }
 
     final result = await updateServerDetails(
       livekitUrl: url,
+      livekitApiKey: apiKey,
+      livekitSecretKey: secret,
       serverId: server.id,
     );
     if (!result.success) return result;
@@ -141,9 +151,7 @@ mixin _ServerVoiceRegionsApiMixin on Cubit<ServerState> {
       return (success: false, error: 'No server selected');
     }
 
-    final response = await _callWithAutoRefresh(
-      (token) => call(server, token),
-    );
+    final response = await _callWithAutoRefresh((token) => call(server, token));
     if (!response.success) {
       return (success: false, error: response.error ?? failure);
     }
