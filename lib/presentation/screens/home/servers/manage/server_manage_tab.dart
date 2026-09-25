@@ -4,6 +4,7 @@ import '../../../../../data/enums/server_permission.dart';
 /// The pages of the manage-server dialog, in nav order.
 enum ServerManageTab {
   overview,
+  voice,
   limits,
   roles,
   members,
@@ -21,6 +22,7 @@ enum ServerManageTab {
 extension ServerManageTabLabel on ServerManageTab {
   String get label => switch (this) {
     ServerManageTab.overview => 'Overview',
+    ServerManageTab.voice => 'Voice',
     ServerManageTab.limits => 'Limits',
     ServerManageTab.roles => 'Roles',
     ServerManageTab.members => 'Members',
@@ -46,6 +48,7 @@ class ServerManageTabs {
     final p = permissions ?? const UserPermissions();
     return [
       if (p.isServerAdmin) ServerManageTab.overview,
+      if (p.isServerAdmin) ServerManageTab.voice,
       if (p.isServerAdmin) ServerManageTab.limits,
       if (p.isServerAdmin) ServerManageTab.roles,
       if (p.isServerAdmin || p.isChannelManager) ServerManageTab.members,

@@ -5,20 +5,26 @@ import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../../settings/widgets/section_title.dart';
 
-/// The identity + LiveKit half of the server settings dialog.
+/// Where this server's voice lives: the default region's address, and the one
+/// credential pair every region signs with.
+///
+/// Split out of the old connection section when voice got a page of its own.
+/// The server's *name* stayed on Overview — it is what the server is called,
+/// not part of how a call is placed — and these three came here, above the
+/// region list, because that list is the same fields repeated: the URL below
+/// is a second box to hold calls on, and it uses the key and secret typed
+/// here.
 ///
 /// The API key and secret are write-only — never fetched to the client — so
 /// their fields start blank and are only sent when filled.
-class ServerConnectionSection extends StatelessWidget {
-  final TextEditingController nameCtrl;
+class ServerLiveKitSection extends StatelessWidget {
   final TextEditingController livekitUrlCtrl;
   final TextEditingController apiKeyCtrl;
   final TextEditingController secretCtrl;
   final bool enabled;
 
-  const ServerConnectionSection({
+  const ServerLiveKitSection({
     super.key,
-    required this.nameCtrl,
     required this.livekitUrlCtrl,
     required this.apiKeyCtrl,
     required this.secretCtrl,
@@ -32,15 +38,14 @@ class ServerConnectionSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SectionTitle(label: 'Server'),
-        const SizedBox(height: 14),
-        AppTextField(
-          controller: nameCtrl,
-          label: 'Server name',
-          hint: 'My server',
-          enabled: enabled,
+        const SectionTitle(label: 'LiveKit'),
+        const SizedBox(height: 6),
+        Text(
+          'The LiveKit this server holds calls on, and the credentials it '
+          'signs call tokens with. This address is the first region below.',
+          style: AppText.secondary.copyWith(color: themeState.textQuaternary),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         AppTextField(
           controller: livekitUrlCtrl,
           label: 'LiveKit URL',

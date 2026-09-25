@@ -14,11 +14,13 @@ import '../../server_settings/server_settings_save.dart';
 import '../../server_settings/widgets/server_settings_form.dart';
 import '../widgets/manage_panel.dart';
 
-/// Over the widget budget and one job: a form: name, LiveKit connection and
-/// directory listing.
+/// Over the widget budget and one job: a form: name, directory listing and
+/// push.
 ///
-/// The overview page of the manage-server dialog: display name, the LiveKit
-/// connection, and whether the server is in the central directory.
+/// The overview page of the manage-server dialog: display name, whether the
+/// server is in the central directory, and whether it may wake its members'
+/// phones. The LiveKit connection used to be here too and is the Voice page's
+/// now — see [VoicePanel].
 ///
 /// Takes the server rather than reading the selection, because the dialog
 /// opens from the rail's menu for any server — including one you are not
@@ -42,9 +44,6 @@ class OverviewPanel extends StatefulWidget {
 
 class _OverviewPanelState extends State<OverviewPanel> {
   late final TextEditingController _nameCtrl;
-  late final TextEditingController _livekitUrlCtrl;
-  final _apiKeyCtrl = TextEditingController();
-  final _secretCtrl = TextEditingController();
   final _listing = ListingDraft();
 
   /// How many members this server has, for the disclosure the listing makes.
@@ -66,7 +65,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
     super.initState();
     final server = widget.server;
     _nameCtrl = TextEditingController(text: server.name);
-    _livekitUrlCtrl = TextEditingController(text: server.livekitUrl ?? '');
     _loadListing();
     _loadMemberCount();
     _loadPushStatus();
@@ -75,9 +73,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _livekitUrlCtrl.dispose();
-    _apiKeyCtrl.dispose();
-    _secretCtrl.dispose();
     _listing.dispose();
     super.dispose();
   }
@@ -162,9 +157,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
     final error = await ServerSettingsSave.run(
       server: widget.server,
       name: name,
-      livekitUrl: _livekitUrlCtrl.text.trim(),
-      apiKey: _apiKeyCtrl.text.trim(),
-      secret: _secretCtrl.text.trim(),
       draft: _listing,
       serverCubit: context.read<ServerCubit>(),
       publicServers: context.read<PublicServersCubit>(),
@@ -183,11 +175,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
       return;
     }
 
-    // The page stays up: the secret fields are cleared because the server has
-    // them now and a form that kept showing a secret is a form that pastes it
-    // again on the next Save.
-    _apiKeyCtrl.clear();
-    _secretCtrl.clear();
     setState(() => _isLoading = false);
     HelperMethods.showSuccess(message: 'Server settings updated');
   }
@@ -222,9 +209,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
       ],
       child: ServerSettingsForm(
         nameCtrl: _nameCtrl,
-        livekitUrlCtrl: _livekitUrlCtrl,
-        apiKeyCtrl: _apiKeyCtrl,
-        secretCtrl: _secretCtrl,
         listing: _listing,
         memberCount: _memberCount,
         error: _error,

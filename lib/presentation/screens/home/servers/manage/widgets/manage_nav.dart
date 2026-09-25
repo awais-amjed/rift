@@ -57,6 +57,7 @@ class ManageNav extends StatelessWidget {
 
   static IconData _icon(ServerManageTab tab) => switch (tab) {
     ServerManageTab.overview => Icons.tune_rounded,
+    ServerManageTab.voice => Icons.record_voice_over_outlined,
     ServerManageTab.limits => Icons.speed_rounded,
     ServerManageTab.roles => Icons.shield_outlined,
     ServerManageTab.members => Icons.group_outlined,

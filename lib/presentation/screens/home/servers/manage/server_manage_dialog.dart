@@ -20,6 +20,7 @@ import 'panels/members_panel.dart';
 import 'panels/overview_panel.dart';
 import 'panels/roles_panel.dart';
 import 'panels/soundboard_panel.dart';
+import 'panels/voice_panel.dart';
 import 'panels/webhooks_panel.dart';
 import 'server_manage_tab.dart';
 import 'widgets/manage_nav.dart';
@@ -157,6 +158,7 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
 
   Widget _page(ServerManageTab tab, Server server) => switch (tab) {
     ServerManageTab.overview => OverviewPanel(server: server),
+    ServerManageTab.voice => VoicePanel(server: server),
     ServerManageTab.limits => LimitsPanel(server: server),
     ServerManageTab.roles => const RolesPanel(),
     ServerManageTab.members => MembersPanel(server: server),

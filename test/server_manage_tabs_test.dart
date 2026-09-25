@@ -13,6 +13,7 @@ void main() {
       const admin = UserPermissions(isServerAdmin: true);
       expect(ServerManageTabs.visible(admin), [
         ServerManageTab.overview,
+        ServerManageTab.voice,
         ServerManageTab.limits,
         ServerManageTab.roles,
         ServerManageTab.members,

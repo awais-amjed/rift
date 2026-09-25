@@ -5,14 +5,13 @@ import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dar
 import '../../../../../common/message_banner.dart';
 import '../../../../../common/modal_columns.dart';
 import '../listing_draft.dart';
-import 'server_connection_section.dart';
 import 'server_discovery_section.dart';
+import 'server_identity_section.dart';
 import 'server_push_section.dart';
-import 'server_voice_regions_section.dart';
 
-/// The two groups of server settings that say what a server *is*: what it
-/// connects to, and who can find it. What it is allowed to grow into is the
-/// Limits page's.
+/// The two groups of server settings that say what a server *is*: what it is
+/// called, and who can find it. What it is allowed to grow into is the Limits
+/// page's, and where its calls are held is the Voice page's.
 ///
 /// Columns rather than one long page because a settings form is a handful of
 /// independent groups, not a list — stacked they run past the bottom of the
@@ -20,9 +19,6 @@ import 'server_voice_regions_section.dart';
 /// still stacks them if the window is genuinely narrow.
 class ServerSettingsForm extends StatelessWidget {
   final TextEditingController nameCtrl;
-  final TextEditingController livekitUrlCtrl;
-  final TextEditingController apiKeyCtrl;
-  final TextEditingController secretCtrl;
   final ListingDraft listing;
 
   /// This server's member count for the discovery disclosure, or null while the
@@ -51,9 +47,6 @@ class ServerSettingsForm extends StatelessWidget {
   const ServerSettingsForm({
     super.key,
     required this.nameCtrl,
-    required this.livekitUrlCtrl,
-    required this.apiKeyCtrl,
-    required this.secretCtrl,
     required this.listing,
     required this.memberCount,
     required this.error,
@@ -79,25 +72,10 @@ class ServerSettingsForm extends StatelessWidget {
         ],
         ModalColumns(
           children: [
-            // Connection and regions share a column because the second is
-            // the first repeated: the LiveKit URL above is this server's
-            // default region, and the list below is the rest of them.
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ServerConnectionSection(
-                  nameCtrl: nameCtrl,
-                  livekitUrlCtrl: livekitUrlCtrl,
-                  apiKeyCtrl: apiKeyCtrl,
-                  secretCtrl: secretCtrl,
-
-                  enabled: enabled,
-                ),
-                const SizedBox(height: 22),
-                ServerVoiceRegionsSection(enabled: enabled),
-              ],
-            ),
+            // One field in its own column, because the column beside it is
+            // the pair of settings that reach central and the rule between
+            // them is the honest division: this one is the server's own.
+            ServerIdentitySection(nameCtrl: nameCtrl, enabled: enabled),
             // Discovery and notifications share a column because they are the
             // same kind of setting — the two things this server asks central
             // for, and the two an operator can withdraw.

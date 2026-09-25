@@ -15,15 +15,13 @@ import 'listing_draft.dart';
 class ServerSettingsSave {
   /// Returns null when everything landed, or the sentence to show when it didn't.
   ///
-  /// The operator limits are not here: they are the Limits page's, and it
-  /// saves them on their own — `update_server` leaves out what it isn't sent,
-  /// so the two pages cannot tread on each other.
+  /// Neither the operator limits nor the LiveKit connection are here: they are
+  /// the Limits and Voice pages', and each saves its own — `update_server`
+  /// leaves out what it isn't sent, so the three pages cannot tread on each
+  /// other.
   static Future<String?> run({
     required Server server,
     required String name,
-    required String livekitUrl,
-    required String apiKey,
-    required String secret,
     required ListingDraft draft,
     required ServerCubit serverCubit,
     required PublicServersCubit publicServers,
@@ -31,9 +29,6 @@ class ServerSettingsSave {
   }) async {
     final result = await serverCubit.updateServerDetails(
       name: name,
-      livekitUrl: livekitUrl.isEmpty ? null : livekitUrl,
-      livekitApiKey: apiKey.isEmpty ? null : apiKey,
-      livekitSecretKey: secret.isEmpty ? null : secret,
       // Named, because this dialog is not always about the selected server.
       serverId: server.id,
     );
