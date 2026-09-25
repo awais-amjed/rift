@@ -28,9 +28,28 @@ class PanelView extends StatelessWidget {
 
   const PanelView({super.key, required this.panel, this.onAction});
 
+  /// Only words: nothing to press, fill in or read off a bar.
+  bool get _wordsOnly => panel.blocks.every(
+    (b) => b.type == PanelBlockType.heading || b.type == PanelBlockType.text,
+  );
+
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    // A reply that is only words is drawn as words. In a frame, "Stopped" was
+    // a bordered box the height of a button with nothing to press in it. The
+    // message's own badge already says a bot wrote it; the frame is for a
+    // panel with controls, where it keeps them from passing for the app's.
+    if (_wordsOnly) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [for (final block in panel.blocks) _block(context, block)],
+        ),
+      );
+    }
     // Bounded, and no wider than its content. A panel used to take the whole
     // chat column whatever it held, so a bot answering "Stopped" got a
     // bordered card three quarters of the screen wide around one word, which
