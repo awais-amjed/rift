@@ -58,6 +58,10 @@ class QuietDangerButton extends StatelessWidget {
         onTap: onTap,
         child: Container(
           height: height,
+          // AppButton's own side padding, so one standing at its natural
+          // width has room round its label. Stretched in a grid, as it mostly
+          // is, the label is centred and this changes nothing.
+          padding: const EdgeInsets.symmetric(horizontal: 18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(K.radiusRow),
             border: Border.all(

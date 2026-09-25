@@ -6,7 +6,9 @@ import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/confirm_dialog.dart';
-import '../../../../common/setting_row.dart';
+import '../../../../common/quiet_danger_button.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 
 /// What can be done to *this device*, at the end of the Cloud backup tab:
@@ -64,34 +66,72 @@ class ThisDeviceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Each action under its own words, on the left, like every other section
+    // on this page. As setting rows the two buttons sat at the far right of a
+    // column whose other buttons all start at its left edge.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SectionTitle(label: 'This device'),
         const SizedBox(height: 14),
         if (signedIn) ...[
-          SettingRow(
+          _Action(
             title: 'Sign out of this device',
             description:
                 'Removes the vault and server list here. Your cloud backup '
                 'stays, and signing back in restores them.',
-            control: AppButton(
+            button: AppButton(
               label: 'Sign out',
               variant: AppButtonVariant.secondary,
               onPressed: () => _signOutOfDevice(context),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
         ],
-        SettingRow(
+        _Action(
           title: 'Reset vault',
           description: 'Wipes your keys and servers from this device.',
-          control: AppButton(
+          // Quiet, as `QuietDangerButton` says a destructive option on a page
+          // of options should be. The solid red belongs to the confirmation
+          // this opens, which is the one button that actually wipes.
+          button: QuietDangerButton(
+            icon: Icons.delete_forever_outlined,
             label: 'Reset vault',
-            variant: AppButtonVariant.danger,
-            onPressed: onResetVault,
+            onTap: onResetVault,
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _Action extends StatelessWidget {
+  final String title;
+  final String description;
+  final Widget button;
+
+  const _Action({
+    required this.title,
+    required this.description,
+    required this.button,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: AppText.row.copyWith(color: theme.textPrimary)),
+        const SizedBox(height: 3),
+        Text(
+          description,
+          style: AppText.secondary.copyWith(color: theme.textTertiary),
+        ),
+        const SizedBox(height: 12),
+        // Its own width, not the column's: a QuietDangerButton fills
+        // whatever it is given.
+        IntrinsicWidth(child: button),
       ],
     );
   }
