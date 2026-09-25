@@ -49,7 +49,9 @@ class QuotaMeter extends StatelessWidget {
     // Bar and text on one line: the meter is a footnote under the composer,
     // and stacking it made a limit you're nowhere near look like a warning.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 7, 4, 0),
+      // The gap to the composer above is the meter's own, so it goes when
+      // the meter does.
+      padding: const EdgeInsets.fromLTRB(4, 13, 4, 0),
       child: Row(
         spacing: 8,
         children: [

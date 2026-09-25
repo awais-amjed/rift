@@ -90,6 +90,10 @@ class ChatComposer extends StatefulWidget {
   final VoidCallback? onTyping;
   final String hintText;
   final bool enabled;
+
+  /// Drawn flush under the bar. It carries its own top spacing, so a footer
+  /// that has nothing to show — the quota meter, most of the time — takes no
+  /// room and leaves the composer where a channel's sits.
   final Widget? footer;
 
   /// The message being answered, or null for an ordinary send. Drawn as a
@@ -317,10 +321,9 @@ class _ChatComposerState extends State<ChatComposer>
             onSelected: (_, name) => _pickCommand(name),
           ),
         _buildBar(themeState),
-        if (widget.footer != null) ...[
-          const SizedBox(height: 6),
-          widget.footer!,
-        ],
+        // No gap of its own: a footer with nothing to say draws nothing, and
+        // a fixed 6px here kept the composer lifted over an empty meter.
+        ?widget.footer,
       ],
     );
   }
