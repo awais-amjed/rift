@@ -33,15 +33,20 @@ mixin _ServerVoiceRegionsApiMixin on Cubit<ServerState> {
     String? serverId,
   });
 
+  /// Adds a region, with the LiveKit key pair it signs with — both required,
+  /// because a region without one would fall back to the server's key.
   Future<({bool success, String? error})> addVoiceRegion({
     required String label,
     required String url,
+    required String apiKey,
+    required String secret,
   }) => _changeVoiceRegion(
     (server, token) => _repository.addVoiceRegion(
       server.supabaseUrl,
-      serverId: server.id,
       label: label,
       url: url,
+      apiKey: apiKey,
+      secret: secret,
       anonKey: _anonKey,
       bearerToken: token,
     ),
@@ -64,17 +69,17 @@ mixin _ServerVoiceRegionsApiMixin on Cubit<ServerState> {
     failure: 'Failed to change the region',
   );
 
-  /// Give a region its own LiveKit key pair, or take it back with both null.
+  /// Replaces the key pair a region signs with — a rotation, one box at a
+  /// time.
   ///
-  /// Its own call rather than part of [addVoiceRegion] or
-  /// [updateVoiceRegion], because it writes a different table through a
-  /// different door: the node row is an ordinary table write under a policy,
-  /// and the key is an RPC that checks the caller because the table it writes
-  /// has no policy at all.
+  /// Its own call rather than part of [updateVoiceRegion], because it writes a
+  /// different table through a different door: the node row is an ordinary
+  /// table write under a policy, and the key is an RPC that checks the caller
+  /// because the table it writes has no policy at all.
   Future<({bool success, String? error})> setVoiceRegionCredentials({
     required String nodeId,
-    String? apiKey,
-    String? secret,
+    required String apiKey,
+    required String secret,
   }) => _changeVoiceRegion(
     (server, token) => _repository.setVoiceRegionCredentials(
       server.supabaseUrl,

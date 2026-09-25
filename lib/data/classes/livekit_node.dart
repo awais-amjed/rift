@@ -5,6 +5,11 @@
 /// The label is theirs to write: only they know whether the box in Frankfurt
 /// is "Europe" or "Main".
 ///
+/// **Every added node signs with its own LiveKit key pair**, which is not
+/// here and never reaches a client: it lives in `livekit_node_secrets`, a
+/// table with no policy and no grant. The default node is the exception and
+/// barely one — it *is* the server's LiveKit, so its pair is the server's.
+///
 /// **A call lives on exactly one node.** LiveKit's open-source server binds a
 /// room to a single node and cross-node media is a Cloud feature, so this is
 /// never "each person connects to their nearest". It is one decision, made
@@ -23,21 +28,11 @@ class LiveKitNode {
   /// nobody can delete.
   final bool isDefault;
 
-  /// Whether this node signs with its own LiveKit key pair rather than the
-  /// server's.
-  ///
-  /// The fact, never the key: the pair lives in `livekit_node_secrets`, which
-  /// no client may read. A region without one uses the server's, which is
-  /// what the default always does — it *is* the server's LiveKit, so it is
-  /// refused a key of its own.
-  final bool hasOwnKey;
-
   const LiveKitNode({
     required this.id,
     required this.label,
     required this.url,
     this.isDefault = false,
-    this.hasOwnKey = false,
   });
 
   factory LiveKitNode.fromJson(Map<String, dynamic> json) => LiveKitNode(
@@ -45,7 +40,6 @@ class LiveKitNode {
     label: json['label'] as String? ?? '',
     url: json['url'] as String? ?? '',
     isDefault: json['is_default'] == true,
-    hasOwnKey: json['has_own_key'] == true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -53,7 +47,6 @@ class LiveKitNode {
     'label': label,
     'url': url,
     'is_default': isDefault,
-    'has_own_key': hasOwnKey,
   };
 
   @override
@@ -62,9 +55,8 @@ class LiveKitNode {
       other.id == id &&
       other.label == label &&
       other.url == url &&
-      other.isDefault == isDefault &&
-      other.hasOwnKey == hasOwnKey;
+      other.isDefault == isDefault;
 
   @override
-  int get hashCode => Object.hash(id, label, url, isDefault, hasOwnKey);
+  int get hashCode => Object.hash(id, label, url, isDefault);
 }

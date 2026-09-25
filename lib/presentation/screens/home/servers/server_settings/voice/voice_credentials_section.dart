@@ -5,12 +5,16 @@ import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../../settings/widgets/section_title.dart';
 
-/// The one API key and secret every region signs call tokens with.
+/// The API key and secret the *first* region signs call tokens with.
+///
+/// Only that one: every region added afterwards carries its own pair, typed
+/// when it is added, because a key shared across boxes means a break-in on
+/// the cheapest of them mints tokens for calls on all of them. This pair is
+/// the server's own LiveKit's, which is what the first region is.
 ///
 /// Under the region list rather than over it, which is where the LiveKit
 /// fields started. A reader opening Voice wants to see where calls are held;
-/// the credential is how the server talks to those boxes, which is a detail
-/// about all of them and belongs after the list it applies to.
+/// the credential is a detail about one of them.
 ///
 /// The key and secret are write-only — never fetched to the client — so their
 /// fields start blank and are only sent when filled. That is also why this is
@@ -38,8 +42,9 @@ class VoiceCredentialsSection extends StatelessWidget {
         const SectionTitle(label: 'Credentials'),
         const SizedBox(height: 6),
         Text(
-          'What this server signs call tokens with. Every region above uses '
-          'the same pair, so they are set once here.',
+          'What the first region signs call tokens with — the server\'s own '
+          'LiveKit. Every other region has a key of its own, typed when it is '
+          'added.',
           style: AppText.secondary.copyWith(color: themeState.textQuaternary),
         ),
         const SizedBox(height: 14),

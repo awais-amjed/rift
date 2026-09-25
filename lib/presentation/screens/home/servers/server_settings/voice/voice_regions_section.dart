@@ -108,7 +108,8 @@ class _VoiceRegionsSectionState extends State<VoiceRegionsSection> {
           'The LiveKit servers this one holds calls on, so a call can be held '
           'near the people in it. A call runs on one region — whichever it '
           'was started in — so this chooses where, not how many. The first is '
-          'the server\'s own LiveKit and cannot be removed.',
+          'the server\'s own LiveKit and cannot be removed; each of the rest '
+          'signs with its own key, so a break-in on one box reaches no other.',
           style: AppText.secondary.copyWith(color: theme.textQuaternary),
         ),
         if (!_isSelected) ...[

@@ -210,9 +210,11 @@ void main() {
   });
 
   group('a region row', () {
-    // The flag, never the key: `livekit_node_secrets` is unreadable from any
-    // client, so all a node row can carry is whether there is one.
-    test('carries whether the region signs with its own key', () {
+    // The key itself never reaches a client — `livekit_node_secrets` has no
+    // policy and no grant — and now neither does a flag about it: every added
+    // region has one, so there is nothing to say. A row is a place and an
+    // address, and the default is the only one that is anything else.
+    test('is a place and an address, and carries no key', () {
       final node = LiveKitNode.fromJson(const {
         'id': 'n1',
         'label': 'Singapore',
@@ -220,19 +222,10 @@ void main() {
         'is_default': false,
         'has_own_key': true,
       });
-      expect(node.hasOwnKey, isTrue);
-      expect(LiveKitNode.fromJson(node.toJson()).hasOwnKey, isTrue);
-    });
-
-    // A server that predates per-region keys says nothing, and nothing means
-    // the server's pair — which is what every region used to use.
-    test('a row that does not say is on the server\'s key', () {
-      final node = LiveKitNode.fromJson(const {
-        'id': 'n1',
-        'label': 'Singapore',
-        'url': 'ws://sg:7880',
-      });
-      expect(node.hasOwnKey, isFalse);
+      expect(node.label, 'Singapore');
+      expect(node.isDefault, isFalse);
+      expect(node.toJson().containsKey('has_own_key'), isFalse);
+      expect(LiveKitNode.fromJson(node.toJson()), node);
     });
   });
 
