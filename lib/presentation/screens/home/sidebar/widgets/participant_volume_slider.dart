@@ -35,10 +35,6 @@ class ParticipantVolumeSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return VolumeSlider(
-      // Flutter pads the track by the overlay's radius on each side, which
-      // leaves it well short of whatever it is lined up with. The thumb's
-      // own radius is all it needs: at either end, its edge meets theirs.
-      padding: const EdgeInsets.symmetric(horizontal: 6),
       value: isMuted ? 0 : volume,
       onChanged: isMuted
           ? null

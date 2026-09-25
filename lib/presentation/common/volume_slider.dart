@@ -13,9 +13,14 @@ class VolumeSlider extends StatelessWidget {
   final ValueChanged<double>? onChanged;
   final ValueChanged<double>? onChangeEnd;
 
-  /// Flutter's own padding, when null. A slider lined up under something
-  /// else passes its thumb's radius, so the track meets that thing's edges.
+  /// The thumb's radius on each side, when null, so the track runs edge to
+  /// edge with the label and the percentage beside it and the thumb's rim
+  /// meets them at either end. Flutter's own default pads by the hover ring's
+  /// radius instead, which left every slider in settings starting 12px in
+  /// from its label.
   final EdgeInsetsGeometry? padding;
+
+  static const double _thumbRadius = 6;
 
   const VolumeSlider({
     super.key,
@@ -31,14 +36,17 @@ class VolumeSlider extends StatelessWidget {
     return SliderTheme(
       data: SliderTheme.of(context).copyWith(
         trackHeight: 3,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+        thumbShape: const RoundSliderThumbShape(
+          enabledThumbRadius: _thumbRadius,
+        ),
         overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
         activeTrackColor: theme.primary,
         inactiveTrackColor: theme.bgActive,
         thumbColor: theme.primary,
       ),
       child: Slider(
-        padding: padding,
+        padding:
+            padding ?? const EdgeInsets.symmetric(horizontal: _thumbRadius),
         value: value,
         onChanged: onChanged,
         onChangeEnd: onChangeEnd,
