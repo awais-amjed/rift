@@ -209,6 +209,33 @@ void main() {
     });
   });
 
+  group('a region row', () {
+    // The flag, never the key: `livekit_node_secrets` is unreadable from any
+    // client, so all a node row can carry is whether there is one.
+    test('carries whether the region signs with its own key', () {
+      final node = LiveKitNode.fromJson(const {
+        'id': 'n1',
+        'label': 'Singapore',
+        'url': 'ws://sg:7880',
+        'is_default': false,
+        'has_own_key': true,
+      });
+      expect(node.hasOwnKey, isTrue);
+      expect(LiveKitNode.fromJson(node.toJson()).hasOwnKey, isTrue);
+    });
+
+    // A server that predates per-region keys says nothing, and nothing means
+    // the server's pair — which is what every region used to use.
+    test('a row that does not say is on the server\'s key', () {
+      final node = LiveKitNode.fromJson(const {
+        'id': 'n1',
+        'label': 'Singapore',
+        'url': 'ws://sg:7880',
+      });
+      expect(node.hasOwnKey, isFalse);
+    });
+  });
+
   group('a region address', () {
     // The same shape `livekit_nodes.url` insists on in the self-host schema:
     // `^wss?://[^ ]+$`. Refused here so a typo is a sentence rather than a

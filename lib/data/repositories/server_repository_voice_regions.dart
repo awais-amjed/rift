@@ -3,14 +3,13 @@ part of 'server_repository.dart';
 /// The LiveKit nodes a server may hold calls on.
 ///
 /// Table calls, unlike everything in [_VoiceApiMixin] next door: a node is an
-/// address and a label, and neither is a secret. The API key and secret are
-/// the server's, shared by every node it has — a LiveKit key is a line in
-/// each box's own `livekit.yaml`, written by the operator who is adding the
-/// node here, so matching them is a setup step rather than something this has
-/// to carry.
+/// address and a label, and neither is a secret. Who may write is
+/// `livekit_nodes_write_admins` and the matching update and delete policies;
+/// these ask for no permission of their own.
 ///
-/// Who may write is `livekit_nodes_write_admins` and the matching update and
-/// delete policies; this asks for no permission of its own.
+/// [setVoiceRegionCredentials] is the exception and is an RPC, because a
+/// region's own key pair lives in a table with no policy and no grant. It
+/// checks the caller itself — see the function in migration 003.
 mixin _VoiceRegionsMixin {
   ServerDb get _db;
 
@@ -29,7 +28,7 @@ mixin _VoiceRegionsMixin {
           .client(supabaseUrl, anonKey, bearerToken)
           .from('livekit_nodes')
           .insert({'server_id': serverId, 'label': label, 'url': url})
-          .select('id, label, url, is_default');
+          .select('id, label, url, is_default, has_own_key');
       return (rows as List).first;
     });
   }
@@ -52,13 +51,42 @@ mixin _VoiceRegionsMixin {
           .from('livekit_nodes')
           .update(patch)
           .eq('id', nodeId)
-          .select('id, label, url, is_default');
+          .select('id, label, url, is_default, has_own_key');
       if ((rows as List).isEmpty) {
         throw const PostgrestException(
           message: 'Region not found, or not yours to change',
         );
       }
       return rows.first;
+    });
+  }
+
+  /// Give a region its own LiveKit key pair, or take it back.
+  ///
+  /// Both null clears the row, which puts the region on the server's pair —
+  /// the same state as a region that never had one. Nothing comes back: the
+  /// key is write-only from here, and the flag saying a region has one rides
+  /// on the node row with everything else.
+  Future<APIResponse> setVoiceRegionCredentials(
+    String supabaseUrl,
+    String nodeId, {
+    String? apiKey,
+    String? secret,
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      await _db
+          .client(supabaseUrl, anonKey, bearerToken)
+          .rpc(
+            'set_voice_region_credentials',
+            params: {
+              'p_node': nodeId,
+              'p_api_key': apiKey,
+              'p_secret': secret,
+            },
+          );
+      return null;
     });
   }
 

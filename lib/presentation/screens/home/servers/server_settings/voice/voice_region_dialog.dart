@@ -7,6 +7,7 @@ import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/app_text_field.dart';
+import '../../../../../common/checkbox_row.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -26,6 +27,15 @@ import '../../../../../theme/theme_context.dart';
 /// read-only here, with a line telling the reader to go and find the LiveKit
 /// URL field on another page; the field is gone now, and this is where that
 /// address is changed.
+///
+/// **A region may sign with its own key pair**, and the box that offers it is
+/// the point of the whole feature: a shared key sits on every box, so the
+/// cheapest VPS in the list holds the key that mints tokens for the room on
+/// every other one. Left off, the region uses the server's pair, which is
+/// what a single-LiveKit server has always done and what the default region
+/// always does — it is refused a key of its own, so the box is not drawn for
+/// it. The key is write-only: this can say a region *has* one, never what it
+/// is, so the fields come up blank on a region that already does.
 class VoiceRegionDialog extends StatefulWidget {
   /// The region being changed, or null to add one.
   final LiveKitNode? node;
@@ -53,6 +63,13 @@ class VoiceRegionDialog extends StatefulWidget {
 class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _urlCtrl;
+  final _apiKeyCtrl = TextEditingController();
+  final _secretCtrl = TextEditingController();
+
+  /// Whether this region should sign with a key of its own. Starts true for a
+  /// region that already has one, so that saving without touching anything
+  /// leaves it alone rather than taking its key away.
+  late bool _ownKey;
 
   bool _isLoading = false;
   String? _error;
@@ -68,12 +85,15 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
     super.initState();
     _nameCtrl = TextEditingController(text: _node?.label ?? '');
     _urlCtrl = TextEditingController(text: _node?.url ?? '');
+    _ownKey = _node?.hasOwnKey ?? false;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _urlCtrl.dispose();
+    _apiKeyCtrl.dispose();
+    _secretCtrl.dispose();
     super.dispose();
   }
 
@@ -84,7 +104,21 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
     final label = _nameCtrl.text.trim();
     final url = _urlCtrl.text.trim();
     final node = _node;
-    if (node == null) return cubit.addVoiceRegion(label: label, url: url);
+
+    if (node == null) {
+      final added = await cubit.addVoiceRegion(label: label, url: url);
+      if (!added.success) return added;
+      // The row it just made, found by the label that made it: labels are
+      // unique per server, and the add has already re-read the server, so
+      // this is the node and not a guess. A key is a second write to a second
+      // table — if it fails, the region is there on the server's pair and the
+      // message says so, which is a state the edit dialog can finish.
+      final made = cubit.state.selectedServer?.livekitNodes
+          .where((n) => n.label == label)
+          .firstOrNull;
+      if (made == null) return added;
+      return _writeCredentials(cubit, made);
+    }
 
     if (label != node.label) {
       final renamed = await cubit.updateVoiceRegion(
@@ -93,13 +127,57 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
       );
       if (!renamed.success) return renamed;
     }
-    if (url == node.url) return (success: true, error: null);
+    if (url != node.url) {
+      // The address, by whichever route owns it — the default's lives on the
+      // server row, every other region's on its own.
+      final moved = node.isDefault
+          ? await cubit.updateDefaultVoiceRegion(url: url)
+          : await cubit.updateVoiceRegion(nodeId: node.id, url: url);
+      if (!moved.success) return moved;
+    }
+    return _writeCredentials(cubit, node);
+  }
 
-    // The address, by whichever route owns it — the default's lives on the
-    // server row, every other region's on its own.
-    return node.isDefault
-        ? cubit.updateDefaultVoiceRegion(url: url)
-        : cubit.updateVoiceRegion(nodeId: node.id, url: url);
+  /// The key half, which is a different table through a different door.
+  ///
+  /// Three outcomes and one of them is silence: typing nothing into the two
+  /// fields of a region that already has a key means "leave it alone", since
+  /// the fields cannot show what is stored and so cannot be a true copy of
+  /// it. Turning the box off is the only way to take a key back.
+  Future<({bool success, String? error})> _writeCredentials(
+    ServerCubit cubit,
+    LiveKitNode node,
+  ) async {
+    if (node.isDefault) return (success: true, error: null);
+
+    if (!_ownKey) {
+      if (!node.hasOwnKey) return (success: true, error: null);
+      return cubit.setVoiceRegionCredentials(nodeId: node.id);
+    }
+
+    final apiKey = _apiKeyCtrl.text.trim();
+    final secret = _secretCtrl.text.trim();
+    if (apiKey.isEmpty && secret.isEmpty) {
+      return node.hasOwnKey
+          ? (success: true, error: null)
+          : (
+              success: false,
+              error:
+                  'Type this region\'s API key and secret, or untick the box '
+                  'to use the server\'s.',
+            );
+    }
+    if (apiKey.isEmpty || secret.isEmpty) {
+      return (
+        success: false,
+        error: 'A region needs both an API key and a secret, or neither.',
+      );
+    }
+    return cubit.setVoiceRegionCredentials(
+      nodeId: node.id,
+      apiKey: apiKey,
+      secret: secret,
+    );
   }
 
   Future<void> _submit() async {
@@ -167,10 +245,57 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
             isDefault
                 ? 'This is the server\'s own LiveKit address — changing it '
                       'moves every call that isn\'t pinned elsewhere.'
-                : 'Give it the same API key and secret as the server\'s own '
-                      'LiveKit — every region signs with the one pair.',
+                : 'The address people connect to for calls held here.',
             style: AppText.label.copyWith(color: theme.textTertiary),
           ),
+          if (!isDefault) ...[
+            const SizedBox(height: 16),
+            CheckboxRow(
+              label: 'This region has its own LiveKit key',
+              value: _ownKey,
+              onChanged: _isLoading
+                  ? (_) {}
+                  : (v) => setState(() {
+                      _ownKey = v;
+                      _error = null;
+                    }),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _ownKey
+                  ? 'Its key never leaves this box, so whoever runs it cannot '
+                        'mint tokens for calls in your other regions. Set the '
+                        'same pair in its livekit.yaml.'
+                  : 'It signs with the server\'s own key, the same one the '
+                        'first region uses. Simpler to set up, and a break-in '
+                        'on this box reaches every region.',
+              style: AppText.label.copyWith(color: theme.textTertiary),
+            ),
+            if (_ownKey) ...[
+              const SizedBox(height: 14),
+              AppTextField(
+                controller: _apiKeyCtrl,
+                label: 'LiveKit API key',
+                hint: _node?.hasOwnKey == true
+                    ? 'Leave blank to keep current'
+                    : 'APIxxxxxxxx',
+                enabled: !_isLoading,
+                obscureText: true,
+                onChanged: (_) => setState(() => _error = null),
+              ),
+              const SizedBox(height: 16),
+              AppTextField(
+                controller: _secretCtrl,
+                label: 'LiveKit secret key',
+                hint: _node?.hasOwnKey == true
+                    ? 'Leave blank to keep current'
+                    : 'The secret from its livekit.yaml',
+                enabled: !_isLoading,
+                obscureText: true,
+                onChanged: (_) => setState(() => _error = null),
+              ),
+            ],
+          ],
         ],
       ),
       actions: [

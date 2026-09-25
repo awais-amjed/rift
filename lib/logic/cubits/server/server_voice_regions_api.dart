@@ -64,6 +64,29 @@ mixin _ServerVoiceRegionsApiMixin on Cubit<ServerState> {
     failure: 'Failed to change the region',
   );
 
+  /// Give a region its own LiveKit key pair, or take it back with both null.
+  ///
+  /// Its own call rather than part of [addVoiceRegion] or
+  /// [updateVoiceRegion], because it writes a different table through a
+  /// different door: the node row is an ordinary table write under a policy,
+  /// and the key is an RPC that checks the caller because the table it writes
+  /// has no policy at all.
+  Future<({bool success, String? error})> setVoiceRegionCredentials({
+    required String nodeId,
+    String? apiKey,
+    String? secret,
+  }) => _changeVoiceRegion(
+    (server, token) => _repository.setVoiceRegionCredentials(
+      server.supabaseUrl,
+      nodeId,
+      apiKey: apiKey,
+      secret: secret,
+      anonKey: _anonKey,
+      bearerToken: token,
+    ),
+    failure: 'Failed to change the region\'s credentials',
+  );
+
   /// The default region's address, which is the *server's* LiveKit URL.
   ///
   /// Written through `update_server` rather than through the node, because

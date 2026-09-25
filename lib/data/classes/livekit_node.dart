@@ -23,11 +23,21 @@ class LiveKitNode {
   /// nobody can delete.
   final bool isDefault;
 
+  /// Whether this node signs with its own LiveKit key pair rather than the
+  /// server's.
+  ///
+  /// The fact, never the key: the pair lives in `livekit_node_secrets`, which
+  /// no client may read. A region without one uses the server's, which is
+  /// what the default always does — it *is* the server's LiveKit, so it is
+  /// refused a key of its own.
+  final bool hasOwnKey;
+
   const LiveKitNode({
     required this.id,
     required this.label,
     required this.url,
     this.isDefault = false,
+    this.hasOwnKey = false,
   });
 
   factory LiveKitNode.fromJson(Map<String, dynamic> json) => LiveKitNode(
@@ -35,6 +45,7 @@ class LiveKitNode {
     label: json['label'] as String? ?? '',
     url: json['url'] as String? ?? '',
     isDefault: json['is_default'] == true,
+    hasOwnKey: json['has_own_key'] == true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +53,7 @@ class LiveKitNode {
     'label': label,
     'url': url,
     'is_default': isDefault,
+    'has_own_key': hasOwnKey,
   };
 
   @override
@@ -50,8 +62,9 @@ class LiveKitNode {
       other.id == id &&
       other.label == label &&
       other.url == url &&
-      other.isDefault == isDefault;
+      other.isDefault == isDefault &&
+      other.hasOwnKey == hasOwnKey;
 
   @override
-  int get hashCode => Object.hash(id, label, url, isDefault);
+  int get hashCode => Object.hash(id, label, url, isDefault, hasOwnKey);
 }

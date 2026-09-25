@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/livekit_node.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../common/label_pill.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -12,6 +13,12 @@ import '../../../../../theme/theme_context.dart';
 /// pair of values, one to confirm the removal — because a region is
 /// infrastructure a whole server's calls land on, and neither changing its
 /// address nor deleting it should be one stray click on a row in a list.
+///
+/// **The pill says whose key it signs with**, and only when that is its own:
+/// a region on the server's pair is the ordinary case and needs no mark, while
+/// one with a key of its own is a thing an operator set up on purpose and
+/// will want to see from the list. It is the fact and never the key, which
+/// nothing here can read.
 ///
 /// **The default has no remove button**, because it cannot be removed: it is
 /// the server's own LiveKit, and offering a button the server refuses would
@@ -59,10 +66,21 @@ class VoiceRegionRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  _title,
-                  style: AppText.body.copyWith(color: theme.textPrimary),
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _title,
+                        style: AppText.body.copyWith(color: theme.textPrimary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (node.hasOwnKey) ...[
+                      const SizedBox(width: 6),
+                      const LabelPill(label: 'Own key'),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
