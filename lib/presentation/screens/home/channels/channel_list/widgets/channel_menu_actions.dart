@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -118,6 +120,24 @@ Future<void> openChannelUp(BuildContext context, Channel channel) async {
 }
 
 void openChannelSettings(BuildContext context, Channel channel) {
+  // Ask how busy each region is before the dialog draws, because the picker
+  // inside it is the only thing that shows this and nothing else keeps it
+  // fresh: the roster is fetched when presence reconnects, not on a timer, so
+  // what the cubit holds can be minutes old. A picker calling a region idle
+  // while a call fills it is worse than one that says nothing.
+  //
+  // Here rather than in the dialog's `initState`, where it did not run at
+  // all: the action is what knows a manager is about to look, and this way
+  // the request is in flight while the dialog is still being built.
+  //
+  // Only for a voice channel on a server with somewhere to choose between —
+  // anywhere else it is a request that would change no pixel.
+  final serverCubit = context.read<ServerCubit>();
+  if (!channel.hasMessages &&
+      (serverCubit.state.selectedServer?.livekitNodes.length ?? 0) > 1) {
+    unawaited(serverCubit.voiceRoster());
+  }
+
   showDialogFromMenu(
     context: context,
     build: (ctx) => BlocProvider.value(

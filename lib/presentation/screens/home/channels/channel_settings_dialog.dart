@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -56,25 +54,6 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
 
   bool _isLoading = false;
   String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    // Ask how busy each region is, now, because this is the only place that
-    // shows it and nothing else keeps it fresh: the roster is fetched when
-    // presence reconnects, not on a timer, so what the cubit is holding can
-    // be minutes old — and a picker that says a region is idle while a call
-    // fills it is worse than one that says nothing at all.
-    //
-    // Only for a voice channel with somewhere to choose between. Everywhere
-    // else this would be a request that changes no pixel.
-    if (!widget.channel.hasMessages) {
-      final cubit = context.read<ServerCubit>();
-      if ((cubit.state.selectedServer?.livekitNodes.length ?? 0) > 1) {
-        unawaited(cubit.voiceRoster());
-      }
-    }
-  }
 
   String get _name => _nameCtrl.text.trim();
   int? get _retention => LimitInput.parse(_retentionCtrl.text);
