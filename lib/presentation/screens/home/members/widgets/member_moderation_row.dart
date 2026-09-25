@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/constants.dart';
+import '../../../../common/app_button_height.dart';
 import '../../../../common/quiet_danger_button.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/theme_context.dart';
 
 /// The mute / deafen / ban half of a member's management panel.
@@ -36,65 +39,71 @@ class MemberModerationRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    // An admin is nobody's moderation target — `moderate_user` raises
+    // `cannot_moderate_admin` for all three of these, whoever asks, the owner
+    // included. Offered anyway, muting one took a confirm dialog and a round
+    // trip to say so.
+    if (member.permissions.isServerAdmin) return const SizedBox.shrink();
+    if (!canModerate && !canBan) return const SizedBox.shrink();
+
+    // Label-width and compact on a desktop: three small actions inside a
+    // member's row, stretched to 44 px halves, were the loudest thing in the
+    // dialog. A phone keeps the shared height, which is a thumb's.
+    final height = context.layoutMode.isCompact
+        ? K.controlHeight
+        : K.compactControlHeight;
+
     return Column(
       children: [
-        // An admin is nobody's moderation target — `moderate_user` raises
-        // `cannot_moderate_admin` for all three of these, whoever asks,
-        // the owner included. Offered anyway, muting one took a confirm
-        // dialog and a round trip to say so. Ban already knew; mute and
-        // deafen did not.
-        if (canModerate && !member.permissions.isServerAdmin) ...[
-          if (dividerAbove) Divider(height: 1, color: themeState.borderPrimary),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: QuietDangerButton(
-                    icon: member.isMuted ? Icons.mic : Icons.mic_off,
-                    label: member.isMuted ? 'Unmute' : 'Server mute',
-                    isDangerous: !member.isMuted,
-
-                    onTap: isBusy
-                        ? null
-                        : () => onModerate(muted: !member.isMuted),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: QuietDangerButton(
-                    icon: member.isDeafened ? Icons.headset : Icons.headset_off,
-                    label: member.isDeafened ? 'Undeafen' : 'Server deafen',
-                    isDangerous: !member.isDeafened,
-
-                    onTap: isBusy
-                        ? null
-                        : () => onModerate(deafened: !member.isDeafened),
-                  ),
-                ),
-              ],
+        if (dividerAbove) Divider(height: 1, color: themeState.borderPrimary),
+        Padding(
+          padding: const EdgeInsets.all(10),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: AppButtonHeight(
+              height: height,
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  if (canModerate) ...[
+                    QuietDangerButton(
+                      icon: member.isMuted ? Icons.mic : Icons.mic_off,
+                      label: member.isMuted ? 'Unmute' : 'Server mute',
+                      isDangerous: !member.isMuted,
+                      onTap: isBusy
+                          ? null
+                          : () => onModerate(muted: !member.isMuted),
+                    ),
+                    QuietDangerButton(
+                      icon: member.isDeafened
+                          ? Icons.headset
+                          : Icons.headset_off,
+                      label: member.isDeafened ? 'Undeafen' : 'Server deafen',
+                      isDangerous: !member.isDeafened,
+                      onTap: isBusy
+                          ? null
+                          : () => onModerate(deafened: !member.isDeafened),
+                    ),
+                  ],
+                  // Admin-only, matching `moderate_user`'s own
+                  // `app.is_admin()` — removing another admin's standing is
+                  // a permission change, and the roles dialog is where that
+                  // happens.
+                  if (canBan)
+                    QuietDangerButton(
+                      icon: member.isBanned
+                          ? Icons.lock_open_rounded
+                          : Icons.gavel_rounded,
+                      label: member.isBanned ? 'Lift ban' : 'Ban from server',
+                      isDangerous: !member.isBanned,
+                      onTap: isBusy ? null : onToggleBan,
+                    ),
+                ],
+              ),
             ),
           ),
-        ],
-        // Admin-only, matching `moderate_user`'s own `app.is_admin()`,
-        // and never against another admin, which it also refuses —
-        // removing that standing is a permission change, and the roles
-        // dialog is where that happens.
-        if (canBan && !member.permissions.isServerAdmin) ...[
-          Divider(height: 1, color: themeState.borderPrimary),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: QuietDangerButton(
-              icon: member.isBanned
-                  ? Icons.lock_open_rounded
-                  : Icons.gavel_rounded,
-              label: member.isBanned ? 'Lift ban' : 'Ban from server',
-              isDangerous: !member.isBanned,
-
-              onTap: isBusy ? null : onToggleBan,
-            ),
-          ),
-        ],
+        ),
       ],
     );
   }
