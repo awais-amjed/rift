@@ -11,8 +11,6 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
-import '../../../common/icon_tile.dart';
-import '../../../theme/theme_context.dart';
 import 'invite_summary.dart';
 import 'widgets/invite_form.dart';
 import 'widgets/invite_options.dart';
@@ -96,7 +94,6 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
     final inviteLink = _inviteToken == null
         ? null
         : InviteLink.build(widget.server.supabaseUrl, _inviteToken!);
@@ -107,10 +104,6 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
         expiryIndex: _expiryIndex,
         usesIndex: _usesIndex,
         role: selectedRole,
-      ),
-      titleIcon: IconTile.title(
-        icon: Icons.person_add_outlined,
-        color: themeState.primary,
       ),
       content: InviteForm(
         expiryIndex: _expiryIndex,

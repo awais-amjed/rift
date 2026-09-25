@@ -113,8 +113,11 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    final serverName = context.read<ServerCubit>().state.selectedServer?.name;
     return AppModal(
       title: 'Create channel',
+      // Which server it lands in, as the other dialogs that act on one say.
+      subtitle: serverName == null ? null : 'In $serverName',
       error: _error,
       content: Column(
         mainAxisSize: MainAxisSize.min,
