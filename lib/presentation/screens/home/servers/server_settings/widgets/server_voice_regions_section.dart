@@ -92,7 +92,8 @@ class _ServerVoiceRegionsSectionState extends State<ServerVoiceRegionsSection> {
         Text(
           'Extra LiveKit servers, so a call can be held near the people in '
           'it. A call runs on one region — whichever it was started in — so '
-          'this chooses where, not how many.',
+          'this chooses where, not how many. Names are yours: click one to '
+          'change it, including the first.',
           style: AppText.secondary.copyWith(color: theme.textQuaternary),
         ),
         const SizedBox(height: 14),
@@ -102,6 +103,12 @@ class _ServerVoiceRegionsSectionState extends State<ServerVoiceRegionsSection> {
             enabled: widget.enabled && !_busy,
             onRemove: () => _run(
               () => context.read<ServerCubit>().deleteVoiceRegion(node.id),
+            ),
+            onRename: (label) => _run(
+              () => context.read<ServerCubit>().updateVoiceRegion(
+                nodeId: node.id,
+                label: label,
+              ),
             ),
           ),
           const SizedBox(height: 8),
