@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/host_platform.dart';
-import '../../../theme/theme_context.dart';
 import 'audio_device_section.dart';
 import 'mic_test/mic_test_section.dart';
+import 'section_divider.dart';
 import 'section_title.dart';
 import 'setting_toggle_row.dart';
 import 'voice_audio/audio_processing_section.dart';
@@ -43,20 +43,20 @@ class VoiceAudioContent extends StatelessWidget {
           children: [
             if (_canPickDevices) ...[
               const AudioDeviceSection(),
-              _divider(context),
+              const SectionDivider(),
             ],
             AudioProcessingSection(appState: appState),
             const SizedBox(height: 20),
             const MicTestSection(),
-            _divider(context),
+            const SectionDivider(),
             SoundboardSection(appState: appState),
-            _divider(context),
+            const SectionDivider(),
             SoundsSection(appState: appState),
             // The divider belongs to what follows, not to what precedes
             // it: on anything but Windows there is nothing after this and
             // the rule was hanging under the last control.
             if (HostPlatform.ducksOtherApps) ...[
-              _divider(context),
+              const SectionDivider(),
               const SectionTitle(label: 'Audio ducking'),
               const SizedBox(height: 12),
               SettingToggleRow(
@@ -69,7 +69,7 @@ class VoiceAudioContent extends StatelessWidget {
               ),
             ],
             if (HostPlatform.hasPushToTalk) ...[
-              _divider(context),
+              const SectionDivider(),
               PushToTalkSection(appState: appState),
             ],
           ],
@@ -77,12 +77,4 @@ class VoiceAudioContent extends StatelessWidget {
       },
     );
   }
-
-  Widget _divider(BuildContext context) => Column(
-    children: [
-      const SizedBox(height: 24),
-      Divider(color: context.theme.borderPrimary),
-      const SizedBox(height: 16),
-    ],
-  );
 }

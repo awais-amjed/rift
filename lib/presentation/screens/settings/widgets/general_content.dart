@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../common/segmented_control.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import 'section_divider.dart';
 import 'section_title.dart';
 import 'setting_toggle_row.dart';
 
@@ -35,7 +37,7 @@ class GeneralContent extends StatelessWidget {
           onChanged: context.read<AppCubit>().setAskBeforeVoiceSwitch,
         ),
 
-        const SizedBox(height: 28),
+        const SectionDivider(),
 
         const SectionTitle(label: 'Link previews'),
         const SizedBox(height: 12),
@@ -51,7 +53,7 @@ class GeneralContent extends StatelessWidget {
           onChanged: (v) => context.read<AppCubit>().setLinkPreviewsEnabled(v),
         ),
 
-        const SizedBox(height: 28),
+        const SectionDivider(),
 
         const SectionTitle(label: 'Streams'),
         const SizedBox(height: 12),
@@ -65,7 +67,7 @@ class GeneralContent extends StatelessWidget {
           onChanged: (v) => context.read<AppCubit>().setShowStreamStats(v),
         ),
 
-        const SizedBox(height: 28),
+        const SectionDivider(),
 
         const SectionTitle(label: 'Sensitive content'),
         const SizedBox(height: 4),
@@ -80,7 +82,7 @@ class GeneralContent extends StatelessWidget {
         // settings pane read as a lost control, but a fixed 360 is wider than
         // a small phone's whole content column and overflowed it.
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
+          constraints: const BoxConstraints(maxWidth: K.settingsChoiceWidth),
           child: SegmentedControl<SensitiveContentMode>(
             value: context.select<AppCubit, SensitiveContentMode>(
               (c) => c.state.sensitiveContentMode,

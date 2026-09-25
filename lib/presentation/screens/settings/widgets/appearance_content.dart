@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/segmented_control.dart';
 import '../../../theme/app_palette.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import 'appearance/palette_card.dart';
+import 'section_divider.dart';
 import 'section_title.dart';
 
 /// Settings' Appearance tab: light or dark, and the palette.
@@ -34,7 +36,7 @@ class AppearanceContent extends StatelessWidget {
         // brightness is being drawn, which is never System and would leave the
         // third segment permanently unselected.
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 380),
+          constraints: const BoxConstraints(maxWidth: K.settingsChoiceWidth),
           child: SegmentedControl<ThemeMode>(
             value: context.watch<ThemeCubit>().state.themeMode,
             onChanged: context.read<ThemeCubit>().setTheme,
@@ -58,7 +60,7 @@ class AppearanceContent extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 28),
+        const SectionDivider(),
 
         const SectionTitle(label: 'Color palette'),
         const SizedBox(height: 4),

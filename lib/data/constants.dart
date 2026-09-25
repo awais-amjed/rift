@@ -84,6 +84,13 @@ class K {
   /// rather than one running off the screen.
   static const double manageDialogHeightFraction = 0.88;
 
+  /// The most a settings page's segmented choice may spread to — Theme,
+  /// Sensitive content. A ceiling rather than a width: three segments across a
+  /// desktop pane read as a lost control, but a fixed width overflowed a small
+  /// phone. The two pages had 380 and 360, so the same control came out two
+  /// sizes.
+  static const double settingsChoiceWidth = 360;
+
   /// The column an onboarding step's form keeps to, so every step's fields
   /// line up with the one before it however wide the window is.
   static const double onboardingFormWidth = 360;

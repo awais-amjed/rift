@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import '../section_divider.dart';
 import 'auth_panel.dart';
 import 'change_password_panel.dart';
 import 'confirm_email_panel.dart';
@@ -80,14 +81,14 @@ class _BackupBody extends StatelessWidget {
             if (!state.cloudBackupConflict &&
                 !state.needsVaultPassword &&
                 !state.needsEmailConfirmation) ...[
-              const SizedBox(height: 28),
+              const SectionDivider(),
               ChangePasswordPanel(state: state),
-              const SizedBox(height: 28),
+              const SectionDivider(),
               const RecoveryKeyPanel(),
             ],
-            const SizedBox(height: 28),
+            const SectionDivider(),
             const FileBackupPanel(),
-            const SizedBox(height: 28),
+            const SectionDivider(),
             ThisDeviceSection(
               signedIn: state.isSignedIn,
               onResetVault: onResetVault,
