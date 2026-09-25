@@ -92,8 +92,8 @@ class _ServerVoiceRegionsSectionState extends State<ServerVoiceRegionsSection> {
         Text(
           'Extra LiveKit servers, so a call can be held near the people in '
           'it. A call runs on one region — whichever it was started in — so '
-          'this chooses where, not how many. Names are yours: click one to '
-          'change it, including the first.',
+          'this chooses where, not how many. Click a name or an address to '
+          'change it — the first region\'s address is the LiveKit URL above.',
           style: AppText.secondary.copyWith(color: theme.textQuaternary),
         ),
         const SizedBox(height: 14),
@@ -110,6 +110,15 @@ class _ServerVoiceRegionsSectionState extends State<ServerVoiceRegionsSection> {
                 label: label,
               ),
             ),
+            onRetarget: (url) => _run(
+              () => context.read<ServerCubit>().updateVoiceRegion(
+                nodeId: node.id,
+                url: url,
+              ),
+            ),
+            // Refused before it was sent, so there is nothing to await —
+            // just the sentence, in the same place a server error lands.
+            onInvalid: (message) => setState(() => _error = message),
           ),
           const SizedBox(height: 8),
         ],

@@ -1,39 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../../../data/classes/livekit_node.dart';
 import '../../../../../../data/constants.dart';
-import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
+import 'inline_edit_text.dart';
 
-/// One LiveKit node in the server settings list.
+/// One LiveKit node in the server settings list, with both of its fields
+/// editable in place — see [InlineEditText].
 ///
-/// **The name is editable, including the default's — especially the
-/// default's.** The label is what a channel manager picks from and what a
-/// member is shown, so it should be a place; and the one node every server is
-/// guaranteed to have is created called "Default", which is the one name that
-/// is never a place. It is also the node most likely to need renaming, being
-/// whatever box the server already runs on.
+/// **The name is editable, the default's most of all.** The label is what a
+/// channel manager picks from and what a member is shown, so it should be a
+/// place; and the one node every server is guaranteed to have is created
+/// called "Default", which is the one name that is never a place. It is also
+/// the likeliest to need renaming, being whatever box the server already runs
+/// on.
 ///
-/// The default shows no *remove* control, because it cannot be removed — it
-/// is the server's own LiveKit URL under a label, and the field above this
-/// list is where its address is changed. Offering a button the server refuses
-/// would be worse than not offering one. That left the default row with no
-/// controls at all until renaming arrived.
+/// **The address is editable for every region but the default**, and that
+/// asymmetry is the honest one. The default node *is* `servers.livekit_url` —
+/// the LiveKit URL field higher up this same dialog edits that column, and a
+/// trigger carries it here. Two controls for one value, one applying on Save
+/// and the other immediately, would be a race with a confusing winner. So the
+/// default's address stays text and says where to change it; every other
+/// region owns its own, and a box that moves is a click rather than a delete
+/// and a re-add.
 ///
-/// It is marked as the default in words, but only when its label does not
-/// already say so: an unrenamed one is called "Default", and
-/// "Default (default)" is what that produced.
-class VoiceRegionRow extends StatefulWidget {
+/// The default also has no *remove* control, because it cannot be removed.
+/// Offering a button the server refuses would be worse than not offering one.
+class VoiceRegionRow extends StatelessWidget {
   final LiveKitNode node;
   final bool enabled;
   final VoidCallback onRemove;
 
-  /// Called with the new label, already trimmed and known to differ from the
-  /// current one. Not called for an empty name — a region with no name is a
-  /// row nobody can choose from a dropdown.
+  /// Called with the new label, trimmed and known to differ.
   final ValueChanged<String> onRename;
+
+  /// Called with the new address, trimmed, known to differ and known to look
+  /// like a WebSocket URL.
+  final ValueChanged<String> onRetarget;
+
+  /// Told when an edit was refused before it was sent, so the section can say
+  /// why rather than letting a constraint answer for it.
+  final ValueChanged<String> onInvalid;
 
   const VoiceRegionRow({
     super.key,
@@ -41,73 +49,30 @@ class VoiceRegionRow extends StatefulWidget {
     required this.enabled,
     required this.onRemove,
     required this.onRename,
+    required this.onRetarget,
+    required this.onInvalid,
   });
 
-  @override
-  State<VoiceRegionRow> createState() => _VoiceRegionRowState();
-}
-
-class _VoiceRegionRowState extends State<VoiceRegionRow> {
-  final _controller = TextEditingController();
-  final _focus = FocusNode();
-  bool _editing = false;
-
-  /// Guards the commit, because leaving the field can happen twice — once
-  /// from the keyboard and again from the focus change it causes.
-  bool _committing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(() {
-      if (!_focus.hasFocus && _editing) _commit();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  /// The label, plus "(default)" when that is not what it already says.
+  /// The label, plus "(default)" when that is not what it already says: an
+  /// unrenamed one is called "Default", and "Default (default)" is what that
+  /// produced.
   String get _title {
-    final label = widget.node.label;
-    if (!widget.node.isDefault) return label;
-    if (label.trim().toLowerCase() == 'default') return label;
-    return '$label (default)';
+    if (!node.isDefault) return node.label;
+    if (node.label.trim().toLowerCase() == 'default') return node.label;
+    return '${node.label} (default)';
   }
 
-  void _startEditing() {
-    if (!widget.enabled) return;
-    setState(() {
-      _editing = true;
-      _controller.text = widget.node.label;
-      _controller.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _controller.text.length,
-      );
-    });
-    _focus.requestFocus();
-  }
-
-  void _cancel() {
-    // Clearing `_editing` is itself the guard: removing the field drops
-    // focus, and the listener only commits while still editing — so the edit
-    // being abandoned cannot be saved on the way out.
-    setState(() => _editing = false);
-  }
-
-  void _commit() {
-    if (_committing) return;
-    _committing = true;
-    final name = _controller.text.trim();
-    setState(() => _editing = false);
-    if (name.isNotEmpty && name != widget.node.label) {
-      widget.onRename(name);
+  /// The address a client connects to, or the sentence saying why it is not.
+  ///
+  /// Checked here so a typo is a sentence rather than a database constraint —
+  /// `livekit_nodes.url` insists on the same shape, and being told by the
+  /// server would be both slower and worse worded. Public so the agreement
+  /// between the two can be tested.
+  static String? checkUrl(String value) {
+    if (!RegExp(r'^wss?://[^ ]+$').hasMatch(value)) {
+      return 'A region address starts with ws:// or wss:// and has no spaces.';
     }
-    _committing = false;
+    return null;
   }
 
   @override
@@ -126,80 +91,53 @@ class _VoiceRegionRowState extends State<VoiceRegionRow> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_editing) _field(theme) else _name(theme),
-                const SizedBox(height: 2),
-                Text(
-                  widget.node.url,
-                  style: AppText.secondary.copyWith(color: theme.textQuaternary),
-                  overflow: TextOverflow.ellipsis,
+                InlineEditText(
+                  display: _title,
+                  value: node.label,
+                  style: AppText.body.copyWith(color: theme.textPrimary),
+                  hint: 'Region name',
+                  maxLength: 40,
+                  enabled: enabled,
+                  onCommit: onRename,
                 ),
+                const SizedBox(height: 2),
+                if (node.isDefault)
+                  Tooltip(
+                    message: 'Change this in the LiveKit URL field above',
+                    child: Text(
+                      node.url,
+                      style: AppText.secondary.copyWith(
+                        color: theme.textQuaternary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )
+                else
+                  InlineEditText(
+                    display: node.url,
+                    value: node.url,
+                    style: AppText.secondary.copyWith(
+                      color: theme.textQuaternary,
+                    ),
+                    hint: 'wss://example.com',
+                    validate: checkUrl,
+                    enabled: enabled,
+                    onCommit: onRetarget,
+                    onInvalid: onInvalid,
+                  ),
               ],
             ),
           ),
-          if (!_editing) ...[
+          if (!node.isDefault)
             IconButton(
-              onPressed: widget.enabled ? _startEditing : null,
+              onPressed: enabled ? onRemove : null,
               mouseCursor: WidgetStateMouseCursor.clickable,
-              icon: const Icon(Icons.edit_outlined, size: 16),
-              tooltip: 'Rename region',
+              icon: const Icon(Icons.close, size: 18),
+              tooltip: 'Remove region',
               color: theme.textTertiary,
             ),
-            if (!widget.node.isDefault)
-              IconButton(
-                onPressed: widget.enabled ? widget.onRemove : null,
-                mouseCursor: WidgetStateMouseCursor.clickable,
-                icon: const Icon(Icons.close, size: 18),
-                tooltip: 'Remove region',
-                color: theme.textTertiary,
-              ),
-          ],
         ],
       ),
     );
   }
-
-  /// The name as a target, not a strip of text: the whole width answers the
-  /// pointer, so renaming does not depend on hitting the word itself.
-  Widget _name(ThemeState theme) => MouseRegion(
-    cursor: widget.enabled
-        ? SystemMouseCursors.click
-        : SystemMouseCursors.basic,
-    child: GestureDetector(
-      onTap: _startEditing,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: double.infinity,
-        child: Text(
-          _title,
-          style: AppText.body.copyWith(color: theme.textPrimary),
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    ),
-  );
-
-  /// Escape abandons the edit. Wired here rather than left to the field,
-  /// because a bare [TextField] does nothing with it and the comment below
-  /// would otherwise be describing a key that goes nowhere.
-  Widget _field(ThemeState theme) => CallbackShortcuts(
-    bindings: {
-      const SingleActivator(LogicalKeyboardKey.escape): _cancel,
-    },
-    child: TextField(
-      controller: _controller,
-      focusNode: _focus,
-      style: AppText.body.copyWith(color: theme.textPrimary),
-      cursorColor: theme.textPrimary,
-      // Enter commits, Escape abandons — the two answers a one-field edit has.
-      onSubmitted: (_) => _commit(),
-      inputFormatters: [LengthLimitingTextInputFormatter(40)],
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.zero,
-        border: InputBorder.none,
-        hintText: 'Region name',
-        hintStyle: AppText.body.copyWith(color: theme.textQuaternary),
-      ),
-    ),
-  );
 }
