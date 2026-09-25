@@ -14,6 +14,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
 
   /// Implemented by the cubit and its other mixins.
   AppCubit get _appCubit;
+  TokenCubit get _tokenCubit;
   ScreenshareCubit? get _screenshareCubit;
   SoundShareCubit? get _soundShareCubit;
   SoundboardCubit? get _soundboardCubit;
@@ -29,6 +30,8 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   Future<void> disconnect() async {
     if (_disconnecting) return;
     _disconnecting = true;
+    // Read before anything clears it; the token is dropped at the end.
+    final leaving = state.currentChannelId;
     try {
       if (_screenshareCubit?.state.isSharing == true) {
         await _screenshareCubit?.stopScreenShare();
@@ -64,9 +67,29 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
       _clearE2EE();
       _keyring?.clear();
       emit(state.copyWith(clearRoom: true));
+      forgetChannelToken(leaving);
     } finally {
       _disconnecting = false;
     }
+  }
+
+  /// Drops the cached token for a channel this device has just left.
+  ///
+  /// **A cached token names a node, and nothing tells the client when that
+  /// stops being where the call is.** The token is reusable for 55 minutes;
+  /// the row saying where the call lives is released as soon as the room is
+  /// empty. Rejoin in between and the client goes straight to the node its
+  /// token names, without asking — so nothing records where it went, and the
+  /// next person to join is sent wherever the channel's pin or their own
+  /// measurement says. Two people, one channel, two rooms of the same name on
+  /// two boxes, each alone.
+  ///
+  /// So the token is dropped whenever its call ends here. It costs one edge
+  /// call per join, which is what a first join costs anyway, and it makes the
+  /// mint the only thing that decides where a call is — which is the rule the
+  /// claim exists to enforce.
+  void forgetChannelToken(String? channelId) {
+    if (channelId != null) _tokenCubit.invalidateToken(channelId);
   }
 
   Future<void> _cleanupRoom() async {

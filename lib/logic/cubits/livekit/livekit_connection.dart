@@ -33,6 +33,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// another channel is a leave followed by a join.
   Future<void> disconnect();
   Future<void> _cleanupRoom();
+  void forgetChannelToken(String? channelId);
   bool _shouldTransmitMic({bool? micEnabled});
   AudioCaptureOptions _buildAudioCaptureOptions();
 
@@ -72,6 +73,10 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     final hadRoom = state.room != null;
     final wasConnecting =
         state.connectionState == LiveKitConnectionState.connecting;
+    // The channel this switch is leaving, read before the emit below renames
+    // it. Its token names a node and is dropped for the same reason leaving
+    // drops one — see [forgetChannelToken].
+    final leaving = state.currentChannelId;
 
     // Emit 'connecting' before cleanup so the RoomDisconnectedEvent fired during
     // _cleanupRoom is not misread as an unexpected disconnect and doesn't clear
@@ -85,6 +90,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     );
 
     if (hadRoom || wasConnecting) await _cleanupRoom();
+    if (leaving != channelId) forgetChannelToken(leaving);
 
     emit(state.copyWith(clearRoom: true));
 
