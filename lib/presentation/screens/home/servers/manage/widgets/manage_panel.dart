@@ -1,8 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/button_footer.dart';
 import '../../../../../common/hint_card.dart';
+import '../../../../../common/message_banner.dart';
+import '../../../../../common/modal_columns.dart';
 import '../../../../../common/more_below_fade.dart';
 import '../../../../../common/scrolled_under_rule.dart';
 import '../../../../../theme/app_text.dart';
@@ -31,6 +35,19 @@ class ManagePanel extends StatelessWidget {
 
   final List<Widget> footer;
 
+  /// A failure to show above the page, where it cannot shift the page's own
+  /// layout — see [fill].
+  final String? error;
+
+  /// Hand [child] at least the height the page has left, rather than letting
+  /// it stop where its text does.
+  ///
+  /// For a page of [ModalColumns], whose rule runs the height of its columns:
+  /// on a short form it used to end halfway down an empty page. The error sits
+  /// in its own slot for the same reason — inside the child it would be a
+  /// column above the columns, and the height would reach it, not them.
+  final bool fill;
+
   const ManagePanel({
     super.key,
     required this.title,
@@ -38,6 +55,8 @@ class ManagePanel extends StatelessWidget {
     this.child,
     this.body,
     this.footer = const [],
+    this.error,
+    this.fill = false,
   }) : assert((child == null) != (body == null));
 
   /// The page's own title, which travels with whichever half needs it.
@@ -95,6 +114,25 @@ class ManagePanel extends StatelessWidget {
       );
     }
 
+    final content = readOnly
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 16,
+            children: [
+              const HintCard(
+                icon: Icons.visibility_outlined,
+                text:
+                    'View only on a phone. This page is easy to '
+                    'get wrong on a small screen, so changing it '
+                    'needs Rift on a computer.',
+              ),
+              // Inside the scroll view, so the page still scrolls
+              // while nothing on it can be pressed.
+              AbsorbPointer(child: ExcludeFocus(child: child!)),
+            ],
+          )
+        : child!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -105,41 +143,56 @@ class ManagePanel extends StatelessWidget {
           // the panel rather than the middle of it.
           child: MoreBelowFade(
             color: themeState.bgSecondary,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (!headingAbove) _heading(themeState, scrollsAway: true),
-                  Padding(
-                    // The heading supplied the top gap; without it the content
-                    // would start flush against the header above.
+            child: CustomScrollView(
+              slivers: [
+                if (!headingAbove)
+                  SliverToBoxAdapter(
+                    child: _heading(themeState, scrollsAway: true),
+                  ),
+                if (error case final error?)
+                  SliverPadding(
                     padding: EdgeInsets.fromLTRB(
                       24,
                       headingAbove ? 14 : 0,
                       24,
                       18,
                     ),
-                    child: readOnly
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            spacing: 16,
-                            children: [
-                              const HintCard(
-                                icon: Icons.visibility_outlined,
-                                text:
-                                    'View only on a phone. This page is easy to '
-                                    'get wrong on a small screen, so changing it '
-                                    'needs Rift on a computer.',
-                              ),
-                              // Inside the scroll view, so the page still scrolls
-                              // while nothing on it can be pressed.
-                              AbsorbPointer(child: ExcludeFocus(child: child!)),
-                            ],
-                          )
-                        : child,
+                    sliver: SliverToBoxAdapter(
+                      child: MessageBanner(
+                        message: error,
+                        kind: MessageBannerKind.error,
+                      ),
+                    ),
                   ),
-                ],
-              ),
+                // Measured as a sliver because what is left depends on the
+                // heading and the error above, which only layout knows.
+                SliverLayoutBuilder(
+                  builder: (context, constraints) => SliverToBoxAdapter(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: fill
+                            ? math.max(
+                                0,
+                                constraints.viewportMainAxisExtent -
+                                    constraints.precedingScrollExtent,
+                              )
+                            : 0,
+                      ),
+                      child: Padding(
+                        // The heading supplied the top gap; without it the
+                        // content would start flush against the header above.
+                        padding: EdgeInsets.fromLTRB(
+                          24,
+                          headingAbove && error == null ? 14 : 0,
+                          24,
+                          18,
+                        ),
+                        child: content,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

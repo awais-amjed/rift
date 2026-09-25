@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../common/message_banner.dart';
 import '../../../../../common/modal_columns.dart';
 import '../listing_draft.dart';
 import 'server_discovery_section.dart';
@@ -27,7 +26,6 @@ class ServerSettingsForm extends StatelessWidget {
   /// about that one.
   final int? memberCount;
 
-  final String? error;
   final bool enabled;
 
   /// The dialog owns the draft, so every discovery edit has to tell it to
@@ -49,7 +47,6 @@ class ServerSettingsForm extends StatelessWidget {
     required this.nameCtrl,
     required this.listing,
     required this.memberCount,
-    required this.error,
     required this.enabled,
     required this.onChanged,
     required this.onRemoveListing,
@@ -62,45 +59,36 @@ class ServerSettingsForm extends StatelessWidget {
     final signedIn = context.select<SupabaseBackupCubit, bool>(
       (c) => c.state.isSignedIn,
     );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+    // The failure is the page's to show, above this: see ManagePanel.fill.
+    return ModalColumns(
       children: [
-        if (error != null) ...[
-          MessageBanner(message: error!, kind: MessageBannerKind.error),
-          const SizedBox(height: 18),
-        ],
-        ModalColumns(
+        // One field in its own column, because the column beside it is
+        // the pair of settings that reach central and the rule between
+        // them is the honest division: this one is the server's own.
+        ServerIdentitySection(nameCtrl: nameCtrl, enabled: enabled),
+        // Discovery and notifications share a column because they are the
+        // same kind of setting — the two things this server asks central
+        // for, and the two an operator can withdraw.
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // One field in its own column, because the column beside it is
-            // the pair of settings that reach central and the rule between
-            // them is the honest division: this one is the server's own.
-            ServerIdentitySection(nameCtrl: nameCtrl, enabled: enabled),
-            // Discovery and notifications share a column because they are the
-            // same kind of setting — the two things this server asks central
-            // for, and the two an operator can withdraw.
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ServerDiscoverySection(
-                  draft: listing,
-                  signedIn: signedIn,
-                  memberCount: memberCount,
-                  onChanged: onChanged,
-                  onRemove: onRemoveListing,
+            ServerDiscoverySection(
+              draft: listing,
+              signedIn: signedIn,
+              memberCount: memberCount,
+              onChanged: onChanged,
+              onRemove: onRemoveListing,
 
-                  enabled: enabled,
-                ),
-                const SizedBox(height: 22),
-                ServerPushSection(
-                  enabled: pushEnabled,
-                  signedIn: signedIn,
-                  onChanged: onPushChanged,
+              enabled: enabled,
+            ),
+            const SizedBox(height: 22),
+            ServerPushSection(
+              enabled: pushEnabled,
+              signedIn: signedIn,
+              onChanged: onPushChanged,
 
-                  interactive: enabled,
-                ),
-              ],
+              interactive: enabled,
             ),
           ],
         ),

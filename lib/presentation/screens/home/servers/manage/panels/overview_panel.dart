@@ -200,6 +200,8 @@ class _OverviewPanelState extends State<OverviewPanel> {
     return ManagePanel(
       title: 'Overview',
       subtitle: 'What this server is, and who can find it',
+      error: _error,
+      fill: true,
       footer: [
         AppButton(
           label: 'Save',
@@ -211,7 +213,6 @@ class _OverviewPanelState extends State<OverviewPanel> {
         nameCtrl: _nameCtrl,
         listing: _listing,
         memberCount: _memberCount,
-        error: _error,
         enabled: !_isLoading,
         onChanged: () => setState(() {}),
         onRemoveListing: _removeListing,

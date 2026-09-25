@@ -6,7 +6,6 @@ import '../../../../../../data/classes/server_limits.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
-import '../../../../../common/message_banner.dart';
 import '../../server_settings/server_limits_controllers.dart';
 import '../../server_settings/widgets/server_limits_section.dart';
 import '../widgets/manage_panel.dart';
@@ -95,6 +94,8 @@ class _LimitsPanelState extends State<LimitsPanel> {
     return ManagePanel(
       title: 'Limits',
       subtitle: 'How many members, how much storage, how big a call',
+      error: _error,
+      fill: true,
       footer: [
         AppButton(
           label: 'Save',
@@ -102,20 +103,10 @@ class _LimitsPanelState extends State<LimitsPanel> {
           onPressed: _isLoading ? null : _submit,
         ),
       ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_error case final error?) ...[
-            MessageBanner(message: error, kind: MessageBannerKind.error),
-            const SizedBox(height: 18),
-          ],
-          ServerLimitsSection(
-            controllers: _limits,
-            enabled: !_isLoading,
-            storageUsed: widget.server.storageUsed,
-          ),
-        ],
+      child: ServerLimitsSection(
+        controllers: _limits,
+        enabled: !_isLoading,
+        storageUsed: widget.server.storageUsed,
       ),
     );
   }

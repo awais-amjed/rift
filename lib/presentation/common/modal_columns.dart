@@ -50,7 +50,8 @@ class ModalColumns extends StatelessWidget {
   }
 
   /// [IntrinsicHeight] so the rule runs the full height of the taller column
-  /// rather than stopping where the shorter one ends.
+  /// rather than stopping where the shorter one ends — or further, to the
+  /// minimum height it was given, which is how a page runs it to its foot.
   Widget _sideBySide(Color rule) {
     return IntrinsicHeight(
       child: Row(
