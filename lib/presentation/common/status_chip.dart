@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/constants.dart';
 import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 
 /// A small tinted pill stating a fact about the surface you're on —
 /// "Encrypted", "Central".
@@ -74,7 +75,7 @@ class StatusChip extends StatelessWidget {
     final press = onTap;
     // Inside the tooltip, not around it: the ink has to be clipped to the
     // pill, and the hand cursor belongs to the thing that answers the click.
-    Widget chip = _chip();
+    Widget chip = _chip(context);
     if (press != null) {
       chip = Material(
         color: Colors.transparent,
@@ -93,7 +94,10 @@ class StatusChip extends StatelessWidget {
     return message == null ? chip : Tooltip(message: message, child: chip);
   }
 
-  Widget _chip() {
+  Widget _chip(BuildContext context) {
+    // The wash keeps the status colour; the words and the glyph take its
+    // ink, which is darker on a light theme so an 11px label still reads.
+    final ink = context.theme.statusInk(color);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
@@ -105,7 +109,7 @@ class StatusChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         spacing: 5,
         children: [
-          Icon(icon, size: 11, color: color),
+          Icon(icon, size: 11, color: ink),
           // Flexible: a chip states a fact about the surface it sits on, and
           // that surface can be narrow. Better a clipped word than a pill with
           // a striped bar out of its side.
@@ -115,7 +119,7 @@ class StatusChip extends StatelessWidget {
               maxLines: 1,
               softWrap: false,
               overflow: TextOverflow.ellipsis,
-              style: AppText.chip.copyWith(color: color),
+              style: AppText.chip.copyWith(color: ink),
             ),
           ),
         ],

@@ -114,15 +114,17 @@ class MessageRowHeader extends StatelessWidget {
     final label = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
+        Icon(
           Icons.error_outline_rounded,
           size: 11,
-          color: CustomColors.warning,
+          color: themeState.statusInk(CustomColors.warning),
         ),
         const SizedBox(width: 4),
         Text(
           'Not sent',
-          style: AppText.meta.copyWith(color: CustomColors.warning),
+          style: AppText.meta.copyWith(
+            color: themeState.statusInk(CustomColors.warning),
+          ),
         ),
         if (onRetry != null) ...[
           const SizedBox(width: 6),

@@ -4,6 +4,7 @@ import '../../../../../../../../data/constants.dart';
 import '../../../../../../../theme/app_shadows.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/custom_colors.dart';
+import '../../../../../../../theme/theme_context.dart';
 
 /// The pulsing LIVE tag on a voice channel you're connected to.
 ///
@@ -66,7 +67,7 @@ class _LiveBadgeState extends State<LiveBadge>
             'LIVE',
             style: AppText.sectionLabel.copyWith(
               letterSpacing: 0.6,
-              color: CustomColors.success,
+              color: context.theme.statusInk(CustomColors.success),
             ),
           ),
         ],

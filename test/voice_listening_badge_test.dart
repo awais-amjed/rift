@@ -37,8 +37,12 @@ class _MemoryStorage implements Storage {
 void main() {
   setUpAll(() => HydratedBloc.storage = _MemoryStorage());
 
+  // The badge reads the theme for its ink, as [NavRow] does for its fill.
   Widget wrap(Widget child) => MaterialApp(
-    home: Scaffold(body: Center(child: child)),
+    home: BlocProvider(
+      create: (_) => ThemeCubit(),
+      child: Scaffold(body: Center(child: child)),
+    ),
   );
 
   testWidgets('no listener draws nothing at all', (tester) async {

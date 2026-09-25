@@ -42,10 +42,10 @@ class WebhookSecretCard extends StatelessWidget {
           Row(
             spacing: 6,
             children: [
-              const Icon(
+              Icon(
                 Icons.warning_amber_rounded,
                 size: 15,
-                color: CustomColors.warning,
+                color: context.theme.statusInk(CustomColors.warning),
               ),
               Expanded(
                 child: Text(

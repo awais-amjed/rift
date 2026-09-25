@@ -40,10 +40,10 @@ class SignedInPanel extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.cloud_done_rounded,
                 size: 16,
-                color: CustomColors.success,
+                color: context.theme.statusInk(CustomColors.success),
               ),
               const SizedBox(width: 8),
               // Only who you are. Signing out is an action against this

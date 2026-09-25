@@ -58,7 +58,7 @@ class QuotaMeter extends StatelessWidget {
             exhausted
                 ? 'Daily limit reached'
                 : '$remaining of $quota messages left today',
-            style: AppText.label.copyWith(color: color),
+            style: AppText.label.copyWith(color: themeState.statusInk(color)),
           ),
           Flexible(
             child: Text(

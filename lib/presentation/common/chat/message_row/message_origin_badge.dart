@@ -67,6 +67,9 @@ class MessageOriginBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The wash is the status colour; the words take its ink, which a light
+    // theme darkens — amber on its own wash was all but invisible there.
+    final ink = context.theme.statusInk(_color(context));
     return Tooltip(
       // Look and delay both come from `tooltipTheme` in AppTheme, so this
       // matches every other tooltip in the app rather than setting its own.
@@ -81,11 +84,8 @@ class MessageOriginBadge extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: 3,
           children: [
-            Icon(Icons.lock_open_rounded, size: 10, color: _color(context)),
-            Text(
-              _label,
-              style: AppText.roleChip.copyWith(color: _color(context)),
-            ),
+            Icon(Icons.lock_open_rounded, size: 10, color: ink),
+            Text(_label, style: AppText.roleChip.copyWith(color: ink)),
           ],
         ),
       ),

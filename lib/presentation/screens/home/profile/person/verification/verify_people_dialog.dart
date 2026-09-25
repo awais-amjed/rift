@@ -173,8 +173,13 @@ class _PersonRow extends StatelessWidget {
                     style: AppText.row.copyWith(color: theme.textPrimary),
                   ),
                 ),
-                Icon(icon, size: 14, color: colour),
-                Text(line, style: AppText.secondary.copyWith(color: colour)),
+                Icon(icon, size: 14, color: theme.statusInk(colour)),
+                Text(
+                  line,
+                  style: AppText.secondary.copyWith(
+                    color: theme.statusInk(colour),
+                  ),
+                ),
               ],
             ),
           ),

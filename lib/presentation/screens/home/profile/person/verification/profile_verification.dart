@@ -114,7 +114,7 @@ class _ProfileVerificationState extends State<ProfileVerification> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 16, color: colour),
+              Icon(icon, size: 16, color: theme.statusInk(colour)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

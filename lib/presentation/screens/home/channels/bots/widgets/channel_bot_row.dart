@@ -58,7 +58,9 @@ class ChannelBotRow extends StatelessWidget {
               size: 17,
               // Amber while it is listening, matching the header chip and the
               // unencrypted badge: the same fact wearing a different hat.
-              color: granted ? CustomColors.warning : themeState.textTertiary,
+              color: granted
+                  ? themeState.statusInk(CustomColors.warning)
+                  : themeState.textTertiary,
             ),
             const SizedBox(width: 10),
             Expanded(

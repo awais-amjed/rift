@@ -59,10 +59,10 @@ class ChatPhoneTitle extends StatelessWidget {
             spacing: 4,
             children: [
               if (!private)
-                const Icon(
+                Icon(
                   Icons.lock_outline,
                   size: 11,
-                  color: CustomColors.success,
+                  color: context.theme.statusInk(CustomColors.success),
                 ),
               Flexible(
                 child: Text(

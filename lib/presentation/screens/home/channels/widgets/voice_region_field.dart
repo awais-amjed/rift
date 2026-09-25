@@ -173,9 +173,7 @@ class _RegionLine extends StatelessWidget {
 
     return Row(
       children: [
-        Flexible(
-          child: Text(node.label, overflow: TextOverflow.ellipsis),
-        ),
+        Flexible(child: Text(node.label, overflow: TextOverflow.ellipsis)),
         if (summary != null) ...[
           const SizedBox(width: 8),
           Text(
@@ -183,7 +181,7 @@ class _RegionLine extends StatelessWidget {
             style: AppText.secondary.copyWith(
               color: load!.reachable
                   ? theme.textQuaternary
-                  : CustomColors.warning,
+                  : theme.statusInk(CustomColors.warning),
             ),
             overflow: TextOverflow.ellipsis,
           ),

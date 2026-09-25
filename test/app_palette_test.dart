@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/theme/app_palette.dart';
+import 'package:rift/presentation/theme/custom_colors.dart';
 
 /// The redesign's whole structure is a surface *ladder*: the canvas is the
 /// darkest thing on screen, panels sit on it, insets sit in them, and elevated
@@ -64,6 +66,40 @@ void main() {
           }
         }
       });
+    }
+  });
+
+  group('status ink', () {
+    // A status label — "Not encrypted", "Encrypted", "LIVE", a red menu row —
+    // is 10–13px text on its own colour washed over a panel. The shared status
+    // colours were picked on dark surfaces, and on a light one amber came to
+    // 1.55:1; the ink is what a widget draws the *words* in, so it is what has
+    // to clear AA.
+    const statuses = {
+      'success': CustomColors.success,
+      'warning': CustomColors.warning,
+      'error': CustomColors.error,
+    };
+    for (final palette in AppPalette.all) {
+      for (final mode in [ThemeMode.dark, ThemeMode.light]) {
+        final state = ThemeState(themeMode: mode, paletteId: palette.id);
+        for (final MapEntry(key: name, value: status) in statuses.entries) {
+          test('${palette.name} ${mode.name}: $name reads on its wash', () {
+            final ink = state.statusInk(status);
+            for (final surface in [state.bgContent, state.bgElevated]) {
+              final wash = Color.alphaBlend(
+                status.withValues(alpha: 0.14),
+                surface,
+              );
+              expect(
+                _contrast(ink, wash),
+                greaterThanOrEqualTo(4.5),
+                reason: '$name ink on its wash over $surface',
+              );
+            }
+          });
+        }
+      }
     }
   });
 

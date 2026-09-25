@@ -36,7 +36,9 @@ class QuietDangerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    final color = isDangerous ? CustomColors.error : themeState.textSecondary;
+    final color = isDangerous
+        ? themeState.statusInk(CustomColors.error)
+        : themeState.textSecondary;
 
     // Follows an enclosing [AppButtonHeight] for the same reason [AppButton]
     // does: in a phone sheet the primary above this grows to a thumb's

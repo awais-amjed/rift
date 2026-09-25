@@ -80,10 +80,10 @@ class ServerHeader extends StatelessWidget {
         Row(
           spacing: 5,
           children: [
-            const Icon(
+            Icon(
               Icons.lock_outline,
               size: 11,
-              color: CustomColors.success,
+              color: themeState.statusInk(CustomColors.success),
             ),
             Flexible(
               // One word, because the sidebar is a fixed width and the

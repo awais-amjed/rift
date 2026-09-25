@@ -193,7 +193,9 @@ class _StatRow extends StatelessWidget {
         Text(
           value,
           style: AppText.secondaryStrong.copyWith(
-            color: isWarning ? CustomColors.warning : themeState.textPrimary,
+            color: isWarning
+                ? themeState.statusInk(CustomColors.warning)
+                : themeState.textPrimary,
           ),
         ),
       ],

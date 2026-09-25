@@ -160,12 +160,18 @@ class _FeaturePillRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         spacing: 6,
         children: [
-          Icon(icon, size: 13, color: color ?? theme.accentBright),
+          Icon(
+            icon,
+            size: 13,
+            color: color == null ? theme.accentBright : theme.statusInk(color),
+          ),
           Text(
             label,
             style: AppText.secondary.copyWith(
               fontWeight: FontWeight.w500,
-              color: color ?? theme.textSecondary,
+              color: color == null
+                  ? theme.textSecondary
+                  : theme.statusInk(color),
             ),
           ),
         ],

@@ -132,10 +132,10 @@ class _BarState extends State<_Bar> {
             child: Row(
               spacing: 10,
               children: [
-                const Icon(
+                Icon(
                   Icons.graphic_eq_rounded,
                   size: 18,
-                  color: CustomColors.success,
+                  color: context.theme.statusInk(CustomColors.success),
                 ),
                 Expanded(
                   child: Column(

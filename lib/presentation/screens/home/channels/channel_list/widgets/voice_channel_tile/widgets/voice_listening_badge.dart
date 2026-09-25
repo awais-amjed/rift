@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../../../../data/constants.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/custom_colors.dart';
+import '../../../../../../../theme/theme_context.dart';
 
 /// Says a bot can hear this call.
 ///
@@ -50,10 +51,10 @@ class VoiceListeningBadge extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: 4,
           children: [
-            const Icon(
+            Icon(
               Icons.hearing_rounded,
               size: 11,
-              color: CustomColors.warning,
+              color: context.theme.statusInk(CustomColors.warning),
             ),
             Text(
               // The count, not the name: a sidebar row is already carrying a
@@ -62,7 +63,7 @@ class VoiceListeningBadge extends StatelessWidget {
               listeners.length == 1 ? 'HEARD' : '${listeners.length} HEARING',
               style: AppText.sectionLabel.copyWith(
                 letterSpacing: 0.6,
-                color: CustomColors.warning,
+                color: context.theme.statusInk(CustomColors.warning),
               ),
             ),
           ],

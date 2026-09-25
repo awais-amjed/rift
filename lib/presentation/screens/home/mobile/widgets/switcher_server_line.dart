@@ -24,7 +24,11 @@ class SwitcherServerLine extends StatelessWidget {
     return Row(
       spacing: 5,
       children: [
-        const Icon(Icons.lock_outline, size: 11, color: CustomColors.success),
+        Icon(
+          Icons.lock_outline,
+          size: 11,
+          color: context.theme.statusInk(CustomColors.success),
+        ),
         Text(
           '$online online',
           style: AppText.label.copyWith(color: theme.textTertiary),

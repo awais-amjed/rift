@@ -116,6 +116,21 @@ class ThemeState extends ThemeExtension<ThemeState> {
   /// step is the stage's own colour and a tile would vanish into it.
   Color get callTileBg => isDarkTheme ? bgSecondary : bgTertiary;
 
+  // Status
+  /// [status] — one of [CustomColors]' status colours — as text or a small
+  /// icon on this theme. The status itself is shared across palettes and
+  /// modes; how dark its *ink* has to be to read is not. Anything else comes
+  /// back unchanged, so a caller can pass whatever colour it was handed.
+  Color statusInk(Color status) {
+    if (isDarkTheme) {
+      return status == CustomColors.error ? CustomColors.errorInkDark : status;
+    }
+    if (status == CustomColors.success) return CustomColors.successInkLight;
+    if (status == CustomColors.warning) return CustomColors.warningInkLight;
+    if (status == CustomColors.error) return CustomColors.errorInkLight;
+    return status;
+  }
+
   factory ThemeState.fromJson(Map<String, dynamic> json) =>
       _$ThemeStateFromJson(json);
 

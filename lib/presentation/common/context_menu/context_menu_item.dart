@@ -32,7 +32,9 @@ class ContextMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    final color = isDangerous ? CustomColors.error : themeState.textSecondary;
+    final color = isDangerous
+        ? themeState.statusInk(CustomColors.error)
+        : themeState.textSecondary;
     final radius = BorderRadius.circular(K.radiusRow);
     // A thumb's row in a sheet: past the 44px floor by padding, with the
     // label at row size rather than a pointer menu's quieter one.
