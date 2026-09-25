@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../responsive/shell_scope.dart';
 import '../context_menu_region.dart';
@@ -17,6 +18,15 @@ class ContextMenuOverlay {
   /// Told when this menu closes, if something above its opener was watching.
   VoidCallback? _onClosed;
 
+  /// Whatever had the keyboard before the menu took it — usually the composer
+  /// — so closing the menu hands it straight back.
+  FocusNode? _previousFocus;
+
+  /// The menu's own, asked for outright when it opens. `autofocus` is not
+  /// enough: it only takes focus when nothing else in the scope holds it, and
+  /// a menu opened over a focused composer is exactly when something does.
+  FocusNode? _focus;
+
   bool get isOpen => _entry != null;
 
   void show(BuildContext context, Widget menu, Offset globalPosition) {
@@ -29,33 +39,63 @@ class ContextMenuOverlay {
       return;
     }
 
+    _previousFocus = FocusManager.instance.primaryFocus;
+    final focus = _focus = FocusNode(debugLabel: 'context menu');
     _entry = OverlayEntry(
-      builder: (_) => Stack(
-        children: [
-          // Full-screen barrier to dismiss on tap
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: dismiss,
-              onSecondaryTap: dismiss,
+      // Focused, so Escape closes it the way it closes a dialog. The menu is
+      // an overlay entry rather than a route, so nothing else would: the key
+      // went to whatever was focused underneath and the menu stayed open.
+      // A submenu closes with it — it is disposed along with this entry.
+      builder: (_) => Focus(
+        focusNode: focus,
+        onKeyEvent: (_, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            dismiss();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Stack(
+          children: [
+            // Full-screen barrier to dismiss on tap
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: dismiss,
+                onSecondaryTap: dismiss,
+              ),
             ),
-          ),
-          _PositionedMenu(
-            position: globalPosition,
-            child: ContextMenuScope(dismiss: dismiss, child: menu),
-          ),
-        ],
+            _PositionedMenu(
+              position: globalPosition,
+              child: ContextMenuScope(dismiss: dismiss, child: menu),
+            ),
+          ],
+        ),
       ),
     );
     Overlay.of(context).insert(_entry!);
+    focus.requestFocus();
     final watcher = ContextMenuWatcher.maybeOf(context);
     watcher?.onOpened();
     _onClosed = watcher?.onClosed;
   }
 
   void dismiss() {
+    final wasOpen = _entry != null;
     _entry?.remove();
     _entry = null;
+    final focus = _focus;
+    _focus = null;
+    // After the entry's last frame, which still holds the node.
+    if (focus != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => focus.dispose());
+    }
+    final previous = _previousFocus;
+    _previousFocus = null;
+    if (wasOpen && previous != null && previous.context != null) {
+      previous.requestFocus();
+    }
     _onClosed?.call();
     _onClosed = null;
   }

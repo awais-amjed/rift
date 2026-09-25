@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/presentation/common/context_menu_region.dart';
 
@@ -83,6 +84,20 @@ void main() {
     // Far from the menu — this lands on the layout box that fills the overlay,
     // which must not swallow it.
     await tester.tapAt(const Offset(20, 560));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(menuKey), findsNothing);
+  });
+
+  // An overlay entry isn't a route, so nothing closed it on Escape: the key
+  // went to whatever was focused underneath and the menu stayed open.
+  testWidgets('Escape closes it', (tester) async {
+    await pump(tester, Alignment.topCenter);
+    await tester.longPressAt(tester.getCenter(find.byKey(anchorKey)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(menuKey), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
     expect(find.byKey(menuKey), findsNothing);
