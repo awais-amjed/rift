@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../theme/theme_context.dart';
@@ -91,7 +92,7 @@ class _Grip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Icon(
           Icons.drag_indicator_rounded,
-          size: 20,
+          size: K.iconLarge,
           color: context.theme.textTertiary,
         ),
       ),

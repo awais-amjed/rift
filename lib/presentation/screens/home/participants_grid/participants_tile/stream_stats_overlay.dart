@@ -116,7 +116,7 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
           onPressed: _togglePinned,
           icon: Icon(
             _pinned ? Icons.push_pin : Icons.push_pin_outlined,
-            size: 12,
+            size: K.iconTiny,
             color: _pinned
                 ? MediaColors.onMediaSecondary
                 : MediaColors.onMediaQuaternary,

@@ -132,7 +132,7 @@ class _ToolbarButton extends StatelessWidget {
           height: K.iconButtonSmall,
           child: Icon(
             icon,
-            size: 15,
+            size: K.iconRow,
             color: isDangerous ? CustomColors.error : themeState.textSecondary,
           ),
         ),

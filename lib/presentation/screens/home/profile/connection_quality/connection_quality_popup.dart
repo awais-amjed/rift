@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/livekit_node.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
@@ -74,7 +75,7 @@ class ConnectionQualityPopup extends StatelessWidget {
                       measured
                           ? ConnectionQualityStyle.icon(stats.quality)
                           : Icons.person_outline,
-                      size: 13,
+                      size: K.iconInline,
                       color: measured
                           ? ConnectionQualityStyle.color(
                               stats.quality,

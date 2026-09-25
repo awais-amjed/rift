@@ -61,7 +61,7 @@ class NavRow extends StatelessWidget {
     if (!context.layoutMode.isCompact || !pushes) return trailing;
     final chevron = Icon(
       Icons.chevron_right_rounded,
-      size: 18,
+      size: K.iconButton,
       color: context.theme.textQuaternary,
     );
     if (trailing == null) return chevron;
@@ -122,7 +122,7 @@ class NavRow extends StatelessWidget {
                   duration: AppMotion.state,
                   curve: AppMotion.settle,
                   builder: (context, color, _) {
-                    final glyph = Icon(icon, size: 16, color: color);
+                    final glyph = Icon(icon, size: K.iconRow, color: color);
                     if (iconBadge == null) return glyph;
                     return SizedBox(
                       width: 16,

@@ -94,7 +94,7 @@ class _Swatch extends StatelessWidget {
         child: hex == null
             ? Icon(
                 Icons.close_rounded,
-                size: 13,
+                size: K.iconInline,
                 color: themeState.textTertiary,
               )
             : null,

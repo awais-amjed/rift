@@ -234,7 +234,7 @@ class _RevealButton extends StatelessWidget {
       padding: EdgeInsets.zero,
       icon: Icon(
         revealed ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-        size: 18,
+        size: K.iconButton,
         color: themeState.textTertiary,
       ),
     );

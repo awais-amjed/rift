@@ -180,7 +180,11 @@ class _SoundboardActivityChipState extends State<SoundboardActivityChip> {
   List<Widget> _receiptRow(BuildContext context, String name) {
     final theme = context.theme;
     return [
-      Icon(Icons.volume_off_rounded, size: 16, color: theme.textTertiary),
+      Icon(
+        Icons.volume_off_rounded,
+        size: K.iconRow,
+        color: theme.textTertiary,
+      ),
       const SizedBox(width: 9),
       Flexible(
         child: Text(

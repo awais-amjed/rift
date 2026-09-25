@@ -109,7 +109,7 @@ class StatusChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         spacing: 5,
         children: [
-          Icon(icon, size: 11, color: ink),
+          Icon(icon, size: K.iconTiny, color: ink),
           // Flexible: a chip states a fact about the surface it sits on, and
           // that surface can be narrow. Better a clipped word than a pill with
           // a striped bar out of its side.

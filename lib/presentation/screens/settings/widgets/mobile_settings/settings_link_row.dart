@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
@@ -41,7 +42,7 @@ class SettingsLinkRow extends StatelessWidget {
             child: Row(
               spacing: 12,
               children: [
-                Icon(icon, size: 20, color: theme.accentBright),
+                Icon(icon, size: K.iconLarge, color: theme.accentBright),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +71,7 @@ class SettingsLinkRow extends StatelessWidget {
                   ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  size: 20,
+                  size: K.iconLarge,
                   color: theme.textQuaternary,
                 ),
               ],

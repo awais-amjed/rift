@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../data/constants.dart';
 import '../../theme/theme_context.dart';
 import '../context_menu_region.dart';
 import 'context_menu_item.dart';
@@ -125,7 +126,7 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
     final themeState = context.theme;
     final chevron = Icon(
       Icons.chevron_right_rounded,
-      size: 16,
+      size: K.iconRow,
       color: themeState.textQuaternary,
     );
     // No room beside a sheet, so the submenu takes the sheet's place and

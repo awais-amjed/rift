@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../data/constants.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 
@@ -27,7 +28,7 @@ class MessageLockedBody extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         spacing: 6,
         children: [
-          Icon(Icons.lock_outline_rounded, size: 13, color: color),
+          Icon(Icons.lock_outline_rounded, size: K.iconInline, color: color),
           Flexible(
             child: Text(
               'Encrypted — you do not have the key for this yet',

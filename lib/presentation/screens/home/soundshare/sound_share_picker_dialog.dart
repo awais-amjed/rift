@@ -111,7 +111,11 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
             color: theme.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(K.radiusRow),
           ),
-          child: Icon(Icons.music_note_rounded, size: 18, color: theme.primary),
+          child: Icon(
+            Icons.music_note_rounded,
+            size: K.iconButton,
+            color: theme.primary,
+          ),
         ),
         Expanded(
           child: Text(
@@ -122,7 +126,11 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
         IconButton(
           onPressed: _loading ? null : _load,
           tooltip: 'Refresh',
-          icon: Icon(Icons.refresh, size: 18, color: theme.textQuaternary),
+          icon: Icon(
+            Icons.refresh,
+            size: K.iconButton,
+            color: theme.textQuaternary,
+          ),
         ),
       ],
     );

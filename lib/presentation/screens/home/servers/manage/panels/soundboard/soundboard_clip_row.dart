@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../data/classes/soundboard_sound.dart';
+import '../../../../../../../data/constants.dart';
 import '../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../../../../logic/services/byte_format.dart';
@@ -192,13 +193,13 @@ class _SoundboardClipRowState extends State<SoundboardClipRow> {
         else ...[
           IconButton(
             tooltip: 'Play it here',
-            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+            icon: const Icon(Icons.play_arrow_rounded, size: K.iconLarge),
             color: theme.textSecondary,
             onPressed: () => context.read<SoundboardCubit>().preview(sound),
           ),
           IconButton(
             tooltip: 'Rename',
-            icon: const Icon(Icons.edit_outlined, size: 18),
+            icon: const Icon(Icons.edit_outlined, size: K.iconButton),
             color: theme.textTertiary,
             onPressed: _startEditing,
           ),

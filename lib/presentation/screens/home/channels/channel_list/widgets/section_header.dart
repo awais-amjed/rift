@@ -70,7 +70,7 @@ class _AddButton extends StatelessWidget {
           padding: const EdgeInsets.all(2),
           child: Icon(
             Icons.add_rounded,
-            size: 14,
+            size: K.iconInline,
             color: themeState.textQuaternary,
           ),
         ),

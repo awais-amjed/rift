@@ -43,7 +43,7 @@ class ChatReadOnlyBanner extends StatelessWidget {
           children: [
             Icon(
               Icons.lock_outline_rounded,
-              size: 15,
+              size: K.iconRow,
               color: themeState.textTertiary,
             ),
             Expanded(

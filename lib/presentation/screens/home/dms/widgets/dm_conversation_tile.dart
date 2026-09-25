@@ -186,7 +186,7 @@ class DmConversationTile extends StatelessWidget {
                     else if (level.isMuted)
                       Icon(
                         Icons.notifications_off_outlined,
-                        size: 14,
+                        size: K.iconInline,
                         color: themeState.textTertiary,
                       ),
                   ],
@@ -196,7 +196,7 @@ class DmConversationTile extends StatelessWidget {
               else if (level.isMuted)
                 Icon(
                   Icons.notifications_off_outlined,
-                  size: 14,
+                  size: K.iconInline,
                   color: themeState.textTertiary,
                 ),
             ],

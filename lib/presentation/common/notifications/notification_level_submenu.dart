@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/constants.dart';
 import '../../../data/enums/notification_level.dart';
 import '../context_menu/context_menu_item.dart';
 import '../context_menu/context_menu_panel.dart';
@@ -46,7 +47,7 @@ class NotificationLevelSubmenu extends StatelessWidget {
               // things you could pick, and one of them happening to be current
               // should not look like the one being hovered.
               trailing: level == current
-                  ? const Icon(Icons.check_rounded, size: 15)
+                  ? const Icon(Icons.check_rounded, size: K.iconRow)
                   : null,
               onTap: () => onSelected(level),
             ),

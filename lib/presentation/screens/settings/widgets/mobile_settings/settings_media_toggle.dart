@@ -48,7 +48,7 @@ class SettingsMediaToggle extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             spacing: 9,
             children: [
-              Icon(icon, size: 20, color: ink),
+              Icon(icon, size: K.iconLarge, color: ink),
               Text(label, style: AppText.row.copyWith(color: ink)),
             ],
           ),

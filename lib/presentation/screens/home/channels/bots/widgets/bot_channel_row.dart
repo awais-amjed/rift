@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/channel.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
@@ -28,7 +29,7 @@ class BotChannelRow extends StatelessWidget {
             channel.channelType == ChannelType.voice
                 ? Icons.volume_up_rounded
                 : Icons.tag_rounded,
-            size: 15,
+            size: K.iconRow,
             color: themeState.textTertiary,
           ),
           Expanded(
@@ -38,7 +39,11 @@ class BotChannelRow extends StatelessWidget {
             ),
           ),
           if (channel.isPrivate)
-            Icon(Icons.lock_rounded, size: 13, color: themeState.textTertiary),
+            Icon(
+              Icons.lock_rounded,
+              size: K.iconInline,
+              color: themeState.textTertiary,
+            ),
         ],
       ),
     );

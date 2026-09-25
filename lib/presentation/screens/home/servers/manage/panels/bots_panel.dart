@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_member.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
@@ -79,7 +80,7 @@ class _BotsPanelState extends State<BotsPanel> {
       footer: [
         AppButton(
           label: 'Browse bots',
-          icon: const Icon(Icons.travel_explore_rounded, size: 16),
+          icon: const Icon(Icons.travel_explore_rounded, size: K.iconRow),
           onPressed: _browse,
         ),
       ],

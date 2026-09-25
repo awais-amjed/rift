@@ -60,7 +60,7 @@ class _RecoveryKeyCardState extends State<RecoveryKeyCard> {
           onPressed: _copy,
           icon: Icon(
             _copied ? Icons.check_rounded : Icons.copy_rounded,
-            size: 15,
+            size: K.iconRow,
             color: _copied ? theme.accentBright : theme.textTertiary,
           ),
           label: Text(

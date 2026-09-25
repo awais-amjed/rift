@@ -21,7 +21,11 @@ class SettingsDialogHeader extends StatelessWidget {
             color: themeState.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(K.radiusRow),
           ),
-          child: Icon(Icons.monitor, size: 18, color: themeState.primary),
+          child: Icon(
+            Icons.monitor,
+            size: K.iconButton,
+            color: themeState.primary,
+          ),
         ),
         const SizedBox(width: 10),
         Text(
@@ -31,7 +35,11 @@ class SettingsDialogHeader extends StatelessWidget {
         const Spacer(),
         IconButton(
           onPressed: onClose,
-          icon: Icon(Icons.close, size: 18, color: themeState.textQuaternary),
+          icon: Icon(
+            Icons.close,
+            size: K.iconButton,
+            color: themeState.textQuaternary,
+          ),
           style: IconButton.styleFrom(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(K.radiusRow),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/classes/message_reaction.dart';
+import '../../../../data/constants.dart';
 import '../../../theme/theme_context.dart';
 import 'reaction_chip.dart';
 
@@ -113,7 +114,7 @@ class _AddReactionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Icon(
             Icons.add_reaction_outlined,
-            size: 14,
+            size: K.iconInline,
             color: themeState.textTertiary,
           ),
         ),

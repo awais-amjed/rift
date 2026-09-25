@@ -157,7 +157,7 @@ class MemberRow extends StatelessWidget {
                     child: _expandable
                         ? Icon(
                             isExpanded ? Icons.expand_less : Icons.expand_more,
-                            size: 16,
+                            size: K.iconRow,
                             color: themeState.textQuaternary,
                           )
                         : null,

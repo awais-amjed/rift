@@ -60,7 +60,7 @@ class _WindowButtonState extends State<WindowButton> {
             ),
             child: Icon(
               widget.icon,
-              size: 15,
+              size: K.iconRow,
               color: _hovered && widget.isClose
                   ? CustomColors.onError
                   : context.theme.textTertiary,

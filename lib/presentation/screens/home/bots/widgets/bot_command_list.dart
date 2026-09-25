@@ -50,7 +50,7 @@ class BotCommandList extends StatelessWidget {
             children: [
               Icon(
                 Icons.privacy_tip_outlined,
-                size: 14,
+                size: K.iconInline,
                 color: theme.textTertiary,
               ),
               Expanded(

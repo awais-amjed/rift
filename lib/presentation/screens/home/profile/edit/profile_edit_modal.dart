@@ -202,7 +202,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
                     padding: const EdgeInsets.all(6),
                     child: Icon(
                       Icons.photo_camera_rounded,
-                      size: 15,
+                      size: K.iconRow,
                       color: themeState.onPrimary,
                     ),
                   ),

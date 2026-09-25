@@ -153,7 +153,11 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
       child: Row(
         spacing: 10,
         children: [
-          Icon(Icons.search_rounded, size: 18, color: themeState.textTertiary),
+          Icon(
+            Icons.search_rounded,
+            size: K.iconButton,
+            color: themeState.textTertiary,
+          ),
           Expanded(
             child: Focus(
               onKeyEvent: _onKey,

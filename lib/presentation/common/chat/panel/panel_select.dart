@@ -90,7 +90,7 @@ class _PanelSelectState extends State<PanelSelect> {
                 ),
                 Icon(
                   Icons.expand_more_rounded,
-                  size: 15,
+                  size: K.iconRow,
                   color: themeState.textTertiary,
                 ),
               ],

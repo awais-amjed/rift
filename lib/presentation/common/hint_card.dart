@@ -40,7 +40,7 @@ class HintCard extends StatelessWidget {
             spacing: 9,
             children: [
               if (icon != null)
-                Icon(icon, size: 15, color: themeState.textQuaternary),
+                Icon(icon, size: K.iconRow, color: themeState.textQuaternary),
               Expanded(
                 child: Text(
                   text,

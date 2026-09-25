@@ -272,7 +272,10 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
           AppButton(
             label: 'Message',
             expanded: true,
-            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+            icon: const Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: K.iconRow,
+            ),
             onPressed: member.chatPublicKey == null
                 ? null
                 : () => _message(member),
@@ -287,7 +290,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
         AppButton(
           label: 'Message',
           expanded: true,
-          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+          icon: const Icon(Icons.chat_bubble_outline_rounded, size: K.iconRow),
           // A DM has to be sealed to a key they have published. Without one
           // there is nothing to seal to, so the button says why rather than
           // failing on the press.

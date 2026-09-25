@@ -76,7 +76,7 @@ class ChatHeader extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.tag_rounded,
-                    size: 18,
+                    size: K.iconButton,
                     color: themeState.accentBright,
                   ),
                   Flexible(

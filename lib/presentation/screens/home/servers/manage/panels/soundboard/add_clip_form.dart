@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../../../../data/constants.dart';
 import '../../../../../../../data/repositories/soundboard_repository.dart';
 import '../../../../../../../logic/services/byte_format.dart';
 import '../../../../../../../logic/services/mime_util.dart';
@@ -169,7 +170,7 @@ class _AddClipFormState extends State<AddClipForm> {
             AppButton(
               label: picked == null ? 'Choose a file' : 'Choose another',
               variant: AppButtonVariant.secondary,
-              icon: const Icon(Icons.audiotrack_rounded, size: 17),
+              icon: const Icon(Icons.audiotrack_rounded, size: K.iconButton),
               onPressed: _busy ? null : _pick,
             ),
             const SizedBox(width: 10),

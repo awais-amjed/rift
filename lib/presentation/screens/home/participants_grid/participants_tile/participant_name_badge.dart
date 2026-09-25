@@ -49,7 +49,7 @@ class ParticipantNameBadge extends StatelessWidget {
             spacing: 6,
             children: [
               if (icon != null)
-                Icon(icon, size: 13, color: themeState.accentBright),
+                Icon(icon, size: K.iconInline, color: themeState.accentBright),
               // Shortened rather than spilling: the row under a screen
               // share is narrower than a long name, and the badge ran
               // out of its tile and was cut mid-letter.
@@ -64,7 +64,7 @@ class ParticipantNameBadge extends StatelessWidget {
               if (!isScreenshare && (!isMicEnabled || isMuted))
                 const Icon(
                   Icons.mic_off_rounded,
-                  size: 13,
+                  size: K.iconInline,
                   color: CustomColors.error,
                 ),
             ],

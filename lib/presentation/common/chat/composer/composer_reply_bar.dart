@@ -47,7 +47,11 @@ class ComposerReplyBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.reply_rounded, size: 14, color: theme.textTertiary),
+            Icon(
+              Icons.reply_rounded,
+              size: K.iconInline,
+              color: theme.textTertiary,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text.rich(
@@ -81,7 +85,7 @@ class ComposerReplyBar extends StatelessWidget {
               _PingToggle(on: ping, onChanged: onTogglePing!),
             IconButton(
               onPressed: onCancel,
-              icon: const Icon(Icons.close_rounded, size: 15),
+              icon: const Icon(Icons.close_rounded, size: K.iconRow),
               color: theme.textTertiary,
               tooltip: 'Cancel reply',
               visualDensity: VisualDensity.compact,

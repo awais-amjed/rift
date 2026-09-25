@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/bot_manifest.dart';
+import '../../../../../data/constants.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/field_label.dart';
@@ -122,7 +123,7 @@ class _BotManifestEditorState extends State<BotManifestEditor> {
             child: AppButton(
               label: _commands.isEmpty ? 'Add a command' : 'Add another',
               variant: AppButtonVariant.secondary,
-              icon: const Icon(Icons.add_rounded, size: 16),
+              icon: const Icon(Icons.add_rounded, size: K.iconRow),
               onPressed: widget.enabled
                   ? () =>
                         setState(() => _commands.add(BotCommandFields.empty()))

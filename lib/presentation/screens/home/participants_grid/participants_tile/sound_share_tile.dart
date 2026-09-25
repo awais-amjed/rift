@@ -140,7 +140,7 @@ class SoundShareTile extends StatelessWidget {
                       muted
                           ? Icons.volume_off_rounded
                           : Icons.volume_up_rounded,
-                      size: 18,
+                      size: K.iconButton,
                     ),
                     color: muted ? theme.textQuaternary : theme.textSecondary,
                   ),

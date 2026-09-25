@@ -2,6 +2,7 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_motion.dart';
@@ -189,7 +190,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
         children: [
           Icon(
             Icons.search_rounded,
-            size: 15,
+            size: K.iconRow,
             color: themeState.textQuaternary,
           ),
           Expanded(

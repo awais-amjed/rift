@@ -25,7 +25,7 @@ class SwitcherHomeMark extends StatelessWidget {
       ),
       child: Icon(
         isHome ? Icons.forum_rounded : Icons.add_rounded,
-        size: 18,
+        size: K.iconButton,
         color: isHome ? theme.onPrimary : theme.textSecondary,
       ),
     );

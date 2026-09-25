@@ -60,7 +60,7 @@ class ControlButton extends StatelessWidget {
           child: SizedBox(
             width: 46,
             height: 46,
-            child: Icon(icon, size: 21, color: iconColor),
+            child: Icon(icon, size: K.iconLarge, color: iconColor),
           ),
         ),
       ),

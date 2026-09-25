@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/quiet_danger_button.dart';
 import '../../../dms/widgets/friends/friend_row_action.dart';
@@ -35,7 +36,7 @@ class ProfileActionButton extends StatelessWidget {
       label: action.tooltip,
       variant: AppButtonVariant.secondary,
       expanded: true,
-      icon: Icon(action.icon, size: 15),
+      icon: Icon(action.icon, size: K.iconRow),
       onPressed: action.onTap,
     );
   }

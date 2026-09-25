@@ -2,6 +2,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/constants.dart';
 import '../../logic/cubits/vault/vault_cubit.dart';
 import '../../logic/helper_methods.dart';
 import '../theme/app_text.dart';
@@ -117,7 +118,7 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
           AppButton(
             label: _file == null ? 'Choose backup file…' : _file!.name,
             variant: AppButtonVariant.secondary,
-            icon: const Icon(Icons.file_open_rounded, size: 18),
+            icon: const Icon(Icons.file_open_rounded, size: K.iconButton),
             onPressed: _isProcessing ? null : _pickFile,
           ),
           const SizedBox(height: 16),

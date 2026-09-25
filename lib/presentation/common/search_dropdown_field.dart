@@ -218,7 +218,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
         children: [
           Icon(
             Icons.search_rounded,
-            size: 15,
+            size: K.iconRow,
             color: themeState.textQuaternary,
           ),
           Expanded(
@@ -249,7 +249,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
                 onTap: _dismiss,
                 child: Icon(
                   Icons.close_rounded,
-                  size: 14,
+                  size: K.iconInline,
                   color: themeState.textQuaternary,
                 ),
               ),

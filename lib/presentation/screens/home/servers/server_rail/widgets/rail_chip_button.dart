@@ -86,7 +86,7 @@ class _RailChipButtonState extends State<RailChipButton> {
                 ),
                 child: Icon(
                   widget.icon,
-                  size: 19,
+                  size: K.iconLarge,
                   color: widget.isSelected
                       ? themeState.accentBright
                       : themeState.textTertiary,

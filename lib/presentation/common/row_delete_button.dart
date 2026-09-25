@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/constants.dart';
 import '../theme/custom_colors.dart';
 import '../theme/theme_context.dart';
 
@@ -27,7 +28,7 @@ class RowDeleteButton extends StatelessWidget {
     return IconButton(
       tooltip: tooltip,
       mouseCursor: WidgetStateMouseCursor.clickable,
-      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+      icon: const Icon(Icons.delete_outline_rounded, size: K.iconButton),
       hoverColor: CustomColors.error.withValues(alpha: 0.10),
       style: ButtonStyle(
         foregroundColor: WidgetStateProperty.resolveWith(

@@ -66,7 +66,7 @@ class CopyableField extends StatelessWidget {
             variant: AppButtonVariant.secondary,
             icon: Icon(
               copied ? Icons.check_rounded : Icons.copy_rounded,
-              size: 14,
+              size: K.iconInline,
               color: theme.textSecondary,
             ),
             onPressed: value == null ? null : onCopy,

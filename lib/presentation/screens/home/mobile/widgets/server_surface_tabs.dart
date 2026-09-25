@@ -92,7 +92,7 @@ class _Tab extends StatelessWidget {
       children: [
         Icon(
           icon,
-          size: 16,
+          size: K.iconRow,
           color: selected ? theme.accentBright : theme.textTertiary,
         ),
         Flexible(

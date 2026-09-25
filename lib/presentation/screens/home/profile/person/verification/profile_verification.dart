@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../theme/app_text.dart';
@@ -114,7 +115,7 @@ class _ProfileVerificationState extends State<ProfileVerification> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 16, color: theme.statusInk(colour)),
+              Icon(icon, size: K.iconRow, color: theme.statusInk(colour)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -133,7 +134,7 @@ class _ProfileVerificationState extends State<ProfileVerification> {
                 : 'Verify',
             variant: AppButtonVariant.secondary,
             expanded: true,
-            icon: const Icon(Icons.qr_code_2_rounded, size: 15),
+            icon: const Icon(Icons.qr_code_2_rounded, size: K.iconRow),
             onPressed: () => _open(code),
           ),
         ],

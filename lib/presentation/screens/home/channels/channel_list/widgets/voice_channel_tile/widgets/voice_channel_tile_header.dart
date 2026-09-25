@@ -64,7 +64,7 @@ class VoiceChannelTileHeader extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.volume_up_rounded,
-                      size: 16,
+                      size: K.iconRow,
                       color: isSelected
                           ? themeState.accentBright
                           : themeState.textTertiary,

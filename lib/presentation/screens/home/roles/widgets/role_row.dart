@@ -91,7 +91,7 @@ class RoleRow extends StatelessWidget {
             if (role.isOwner)
               Icon(
                 Icons.workspace_premium_outlined,
-                size: 14,
+                size: K.iconInline,
                 color: themeState.accentBright,
               ),
             // Says which rows are out of reach before they are tapped, rather
@@ -99,7 +99,7 @@ class RoleRow extends StatelessWidget {
             if (locked)
               Icon(
                 Icons.lock_rounded,
-                size: 13,
+                size: K.iconInline,
                 color: themeState.textTertiary,
               ),
             Text(
@@ -132,7 +132,7 @@ class _Move extends StatelessWidget {
       borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(
         padding: const EdgeInsets.all(2),
-        child: Icon(icon, size: 16, color: themeState.textTertiary),
+        child: Icon(icon, size: K.iconRow, color: themeState.textTertiary),
       ),
     );
   }

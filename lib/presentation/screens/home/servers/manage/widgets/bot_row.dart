@@ -51,7 +51,7 @@ class BotRow extends StatelessWidget {
               const LabelPill(label: 'Banned', color: CustomColors.error),
             Icon(
               Icons.chevron_right_rounded,
-              size: 16,
+              size: K.iconRow,
               color: themeState.textTertiary,
             ),
           ],

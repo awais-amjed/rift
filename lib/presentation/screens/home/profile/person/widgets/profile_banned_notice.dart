@@ -32,7 +32,11 @@ class ProfileBannedNotice extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 10,
         children: [
-          const Icon(Icons.gavel_rounded, size: 16, color: CustomColors.error),
+          const Icon(
+            Icons.gavel_rounded,
+            size: K.iconRow,
+            color: CustomColors.error,
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

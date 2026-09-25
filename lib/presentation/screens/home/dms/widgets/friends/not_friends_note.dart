@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
@@ -47,7 +48,7 @@ class NotFriendsNote extends StatelessWidget {
         children: [
           Icon(
             isBlocked ? Icons.block_rounded : Icons.person_off_outlined,
-            size: 15,
+            size: K.iconRow,
             color: themeState.textQuaternary,
           ),
           Expanded(

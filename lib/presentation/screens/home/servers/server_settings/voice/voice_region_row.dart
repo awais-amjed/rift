@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/livekit_node.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../common/item_card.dart';
 import '../../../../../common/row_delete_button.dart';
 import '../../../../../theme/app_text.dart';
@@ -74,7 +75,7 @@ class VoiceRegionRow extends StatelessWidget {
           IconButton(
             onPressed: enabled ? onEdit : null,
             mouseCursor: WidgetStateMouseCursor.clickable,
-            icon: const Icon(Icons.edit_outlined, size: 18),
+            icon: const Icon(Icons.edit_outlined, size: K.iconButton),
             tooltip: 'Edit region',
             color: theme.textTertiary,
           ),

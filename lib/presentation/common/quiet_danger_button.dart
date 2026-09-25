@@ -73,7 +73,7 @@ class QuietDangerButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 14, color: color),
+              Icon(icon, size: K.iconInline, color: color),
               const SizedBox(width: 6),
               Text(
                 label,

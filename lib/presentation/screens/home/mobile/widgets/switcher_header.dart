@@ -121,7 +121,7 @@ class SwitcherHeader extends StatelessWidget {
                                 ),
                                 Icon(
                                   Icons.expand_more_rounded,
-                                  size: 19,
+                                  size: K.iconLarge,
                                   color: theme.textTertiary,
                                 ),
                               ],
@@ -153,7 +153,7 @@ class SwitcherHeader extends StatelessWidget {
               onPressed: () => openQuickSwitcher(context),
               icon: Icon(
                 Icons.search_rounded,
-                size: 21,
+                size: K.iconLarge,
                 color: theme.textSecondary,
               ),
             ),

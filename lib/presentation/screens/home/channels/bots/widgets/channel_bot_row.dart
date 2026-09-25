@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/server_member.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../common/app_switch.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
@@ -55,7 +56,7 @@ class ChannelBotRow extends StatelessWidget {
           children: [
             Icon(
               granted ? Icons.hearing_rounded : Icons.smart_toy_outlined,
-              size: 17,
+              size: K.iconButton,
               // Amber while it is listening, matching the header chip and the
               // unencrypted badge: the same fact wearing a different hat.
               color: granted

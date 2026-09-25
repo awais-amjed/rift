@@ -24,7 +24,7 @@ class AppModalHeaderButton extends StatelessWidget {
     return IconButton(
       onPressed: onPressed,
       tooltip: tooltip,
-      icon: Icon(icon, color: themeState.textTertiary, size: 18),
+      icon: Icon(icon, color: themeState.textTertiary, size: K.iconButton),
       constraints: const BoxConstraints.tightFor(
         width: AppModalHeader.buttonSize,
         height: AppModalHeader.buttonSize,

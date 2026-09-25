@@ -151,7 +151,7 @@ class _TagChip extends StatelessWidget {
                 padding: const EdgeInsets.all(2),
                 child: Icon(
                   Icons.close_rounded,
-                  size: 13,
+                  size: K.iconInline,
                   color: themeState.primary,
                 ),
               ),

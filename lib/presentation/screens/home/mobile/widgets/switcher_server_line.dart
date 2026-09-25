@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
@@ -26,7 +27,7 @@ class SwitcherServerLine extends StatelessWidget {
       children: [
         Icon(
           Icons.lock_outline,
-          size: 11,
+          size: K.iconTiny,
           color: context.theme.statusInk(CustomColors.success),
         ),
         Text(

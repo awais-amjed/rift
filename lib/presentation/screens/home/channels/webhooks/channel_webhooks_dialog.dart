@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/channel.dart';
+import '../../../../../data/constants.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../theme/theme_context.dart';
@@ -21,7 +22,7 @@ class ChannelWebhooksDialog extends StatelessWidget {
       maxHeight: 560,
       titleIcon: Icon(
         Icons.webhook_rounded,
-        size: 18,
+        size: K.iconButton,
         color: themeState.primary,
       ),
       content: ChannelWebhooksBody(channel: channel),

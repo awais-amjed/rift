@@ -92,7 +92,7 @@ class ComposerLinkPreview extends StatelessWidget {
                   padding: const EdgeInsets.all(4),
                   child: Icon(
                     Icons.close_rounded,
-                    size: 16,
+                    size: K.iconRow,
                     color: themeState.textTertiary,
                   ),
                 ),

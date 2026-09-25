@@ -64,7 +64,7 @@ class AudioSourceRow extends StatelessWidget {
             children: [
               Icon(
                 Icons.graphic_eq_rounded,
-                size: 18,
+                size: K.iconButton,
                 color: selected ? theme.primary : theme.textTertiary,
               ),
               Expanded(
@@ -91,7 +91,11 @@ class AudioSourceRow extends StatelessWidget {
                 ),
               ),
               if (selected)
-                Icon(Icons.check_circle, size: 18, color: theme.primary),
+                Icon(
+                  Icons.check_circle,
+                  size: K.iconButton,
+                  color: theme.primary,
+                ),
             ],
           ),
         ),

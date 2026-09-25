@@ -166,7 +166,10 @@ class _CentralProfileDialogState extends State<CentralProfileDialog> {
             child: AppButton(
               label: 'Message',
               expanded: true,
-              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+              icon: const Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: K.iconRow,
+              ),
               onPressed: current.chatPublicKey == null
                   ? null
                   : () {

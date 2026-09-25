@@ -35,7 +35,7 @@ class ForwardTargetRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             children: [
-              Icon(_icon, size: 15, color: theme.textTertiary),
+              Icon(_icon, size: K.iconRow, color: theme.textTertiary),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -63,7 +63,7 @@ class ForwardTargetRow extends StatelessWidget {
               const SizedBox(width: 8),
               Icon(
                 selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                size: 18,
+                size: K.iconButton,
                 color: selected ? theme.primary : theme.borderElevated,
               ),
             ],

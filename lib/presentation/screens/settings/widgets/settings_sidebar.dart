@@ -123,7 +123,7 @@ class _BackButton extends StatelessWidget {
             height: K.compactControlHeight,
             child: Icon(
               Icons.arrow_back_rounded,
-              size: 17,
+              size: K.iconButton,
               color: themeState.textSecondary,
             ),
           ),

@@ -51,6 +51,26 @@ class K {
   /// dialog's close, a voice note's play, the settings back arrow.
   static const double compactControlHeight = 32;
 
+  // ── Icon sizes ────────────────────────────────────────────
+  // Five steps. An icon sits beside text or inside a control, and its size
+  // follows which: the app had twelve sizes, so neighbouring rows carried
+  // glyphs a pixel or two apart. Big decorative icons — an empty state's —
+  // stay local constants.
+  /// Beside 11px text: a chip's padlock, a meta line's mark.
+  static const double iconTiny = 12;
+
+  /// Beside 12–13px text.
+  static const double iconInline = 14;
+
+  /// A list row's leading icon, and a menu row's.
+  static const double iconRow = 16;
+
+  /// Inside a button.
+  static const double iconButton = 18;
+
+  /// The composer's and the call bar's controls.
+  static const double iconLarge = 20;
+
   /// A bare icon button in a strip of them — the dock, the message hover
   /// toolbar, the reply bar's close, the soundboard's mute.
   static const double iconButtonSmall = 28;

@@ -49,7 +49,7 @@ class JumpField extends StatelessWidget {
               children: [
                 Icon(
                   Icons.search_rounded,
-                  size: 16,
+                  size: K.iconRow,
                   color: themeState.textTertiary,
                 ),
                 Expanded(
@@ -59,9 +59,7 @@ class JumpField extends StatelessWidget {
                     // people too, and typing a name found nothing. Keep it
                     // short: the sidebar is a fixed width and the Ctrl K chip
                     // takes a bite out of it.
-                    HostPlatform.isMobile
-                        ? 'Jump to…'
-                        : 'Jump to a channel…',
+                    HostPlatform.isMobile ? 'Jump to…' : 'Jump to a channel…',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     // Tertiary, not quaternary: quaternary is placeholder

@@ -71,7 +71,7 @@ class _CallIdlePillState extends State<CallIdlePill> {
                 children: [
                   const Icon(
                     Icons.graphic_eq_rounded,
-                    size: 15,
+                    size: K.iconRow,
                     color: CustomColors.success,
                   ),
                   Text(
@@ -83,7 +83,7 @@ class _CallIdlePillState extends State<CallIdlePill> {
                   Container(width: 1, height: 14, color: theme.borderElevated),
                   Icon(
                     micOn ? Icons.mic_none_rounded : Icons.mic_off_rounded,
-                    size: 15,
+                    size: K.iconRow,
                     color: micOn ? theme.textTertiary : CustomColors.error,
                   ),
                   Text(

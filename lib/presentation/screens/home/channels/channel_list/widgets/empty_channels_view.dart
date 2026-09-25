@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
@@ -46,7 +47,7 @@ class EmptyChannelsView extends StatelessWidget {
               const SizedBox(height: 14),
               AppButton(
                 label: 'Create channel',
-                icon: const Icon(Icons.add_rounded, size: 16),
+                icon: const Icon(Icons.add_rounded, size: K.iconRow),
                 onPressed: onCreate,
               ),
             ],

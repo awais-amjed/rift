@@ -63,7 +63,7 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
           child: Center(
             child: Icon(
               Icons.arrow_upward_rounded,
-              size: 18,
+              size: K.iconButton,
               color: enabled ? themeState.onPrimary : themeState.textQuaternary,
             ),
           ),

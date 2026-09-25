@@ -53,7 +53,7 @@ class VoiceListeningBadge extends StatelessWidget {
           children: [
             Icon(
               Icons.hearing_rounded,
-              size: 11,
+              size: K.iconTiny,
               color: context.theme.statusInk(CustomColors.warning),
             ),
             Text(

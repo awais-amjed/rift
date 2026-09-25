@@ -65,7 +65,7 @@ class ChatHeaderButton extends StatelessWidget {
                     ),
                   )
                 : null,
-            child: Icon(icon, size: 17, color: iconColor),
+            child: Icon(icon, size: K.iconButton, color: iconColor),
           ),
         ),
       ),

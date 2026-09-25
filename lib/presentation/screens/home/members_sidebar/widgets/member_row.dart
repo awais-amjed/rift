@@ -156,14 +156,18 @@ class MemberRow extends StatelessWidget {
     }
     if (member.isMuted) {
       badges.add(
-        const Icon(Icons.mic_off_rounded, size: 13, color: CustomColors.error),
+        const Icon(
+          Icons.mic_off_rounded,
+          size: K.iconInline,
+          color: CustomColors.error,
+        ),
       );
     }
     if (locallyMuted) {
       badges.add(
         const Icon(
           Icons.volume_off_rounded,
-          size: 13,
+          size: K.iconInline,
           color: CustomColors.error,
         ),
       );

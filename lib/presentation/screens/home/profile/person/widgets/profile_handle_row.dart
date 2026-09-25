@@ -73,7 +73,7 @@ class _ProfileHandleRowState extends State<ProfileHandleRow> {
                 child: Icon(
                   _copied ? Icons.check_rounded : Icons.copy_rounded,
                   key: ValueKey(_copied),
-                  size: 16,
+                  size: K.iconRow,
                   color: theme.accentBright,
                 ),
               ),

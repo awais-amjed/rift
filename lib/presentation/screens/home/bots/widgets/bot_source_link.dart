@@ -40,7 +40,7 @@ class BotSourceLink extends StatelessWidget {
               Text(host, style: style),
               Icon(
                 Icons.open_in_new_rounded,
-                size: 11,
+                size: K.iconTiny,
                 color: theme.accentBright,
               ),
             ],

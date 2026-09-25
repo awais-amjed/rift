@@ -92,7 +92,11 @@ class _ForwardedLabel extends StatelessWidget {
     final theme = context.theme;
     return Row(
       children: [
-        Icon(Icons.forward_rounded, size: 13, color: theme.textTertiary),
+        Icon(
+          Icons.forward_rounded,
+          size: K.iconInline,
+          color: theme.textTertiary,
+        ),
         const SizedBox(width: 6),
         Text(
           'Forwarded',

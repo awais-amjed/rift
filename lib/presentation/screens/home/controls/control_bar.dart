@@ -335,7 +335,7 @@ class _ControlBarContent extends StatelessWidget {
                         children: [
                           const Icon(
                             Icons.call_end,
-                            size: 19,
+                            size: K.iconLarge,
                             color: CustomColors.onError,
                           ),
                           // The word goes on a phone. The pill is a

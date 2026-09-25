@@ -92,7 +92,7 @@ class SoundClipButton extends StatelessWidget {
                 if (compact && justPressed)
                   Icon(
                     Icons.graphic_eq_rounded,
-                    size: 17,
+                    size: K.iconButton,
                     color: theme.accentBright,
                   ),
               ],

@@ -40,7 +40,7 @@ class SwitcherAddRow extends StatelessWidget {
                 ),
                 child: Icon(
                   Icons.add_rounded,
-                  size: 20,
+                  size: K.iconLarge,
                   color: theme.accentBright,
                 ),
               ),

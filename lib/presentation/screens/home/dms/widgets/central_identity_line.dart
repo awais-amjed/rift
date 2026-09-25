@@ -34,7 +34,7 @@ class CentralIdentityLine extends StatelessWidget {
     final line = Row(
       spacing: 5,
       children: [
-        Icon(Icons.public, size: 11, color: themeState.accentBright),
+        Icon(Icons.public, size: K.iconTiny, color: themeState.accentBright),
         if (handle != null)
           Flexible(
             child: Text(
@@ -56,7 +56,11 @@ class CentralIdentityLine extends StatelessWidget {
           ),
         ),
         if (handle != null)
-          Icon(Icons.edit_outlined, size: 11, color: themeState.textQuaternary),
+          Icon(
+            Icons.edit_outlined,
+            size: K.iconTiny,
+            color: themeState.textQuaternary,
+          ),
       ],
     );
 

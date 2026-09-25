@@ -43,7 +43,7 @@ class DangerRow extends StatelessWidget {
       child: Row(
         spacing: 12,
         children: [
-          Icon(icon, size: 18, color: CustomColors.error),
+          Icon(icon, size: K.iconButton, color: CustomColors.error),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

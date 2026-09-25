@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/text_safety.dart';
@@ -65,7 +66,7 @@ class _GuardedMessageTextState extends State<GuardedMessageText> {
           children: [
             Icon(
               Icons.visibility_off_outlined,
-              size: 15,
+              size: K.iconRow,
               color: themeState.textTertiary,
             ),
             Text(

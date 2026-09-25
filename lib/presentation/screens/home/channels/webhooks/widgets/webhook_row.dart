@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/classes/webhook.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../common/item_card.dart';
 import '../../../../../common/row_delete_button.dart';
 import '../../../../../theme/app_text.dart';
@@ -38,7 +39,11 @@ class WebhookRow extends StatelessWidget {
       child: Row(
         spacing: 10,
         children: [
-          Icon(Icons.webhook_rounded, size: 16, color: themeState.textTertiary),
+          Icon(
+            Icons.webhook_rounded,
+            size: K.iconRow,
+            color: themeState.textTertiary,
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
@@ -56,7 +57,7 @@ class ServerDmsContextMenu extends StatelessWidget {
       subheading: 'This server',
       leading: Icon(
         Icons.forum_outlined,
-        size: 16,
+        size: K.iconRow,
         color: context.theme.textTertiary,
       ),
       children: [

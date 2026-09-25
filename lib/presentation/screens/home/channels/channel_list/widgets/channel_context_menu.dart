@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/channel.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../../data/enums/notification_level.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
@@ -98,7 +99,7 @@ class ChannelContextMenu extends StatelessWidget {
       subheading: channel.name,
       leading: Icon(
         isVoice ? Icons.volume_up_rounded : Icons.tag_rounded,
-        size: 16,
+        size: K.iconRow,
         color: context.theme.textTertiary,
       ),
       children: [

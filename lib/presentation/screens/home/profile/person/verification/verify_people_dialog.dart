@@ -65,7 +65,7 @@ class VerifyPeopleDialog extends StatelessWidget {
     return AppModal(
       title: 'Encryption',
       subtitle: subtitle,
-      titleIcon: const Icon(Icons.lock_outline, size: 20),
+      titleIcon: const Icon(Icons.lock_outline, size: K.iconLarge),
       maxWidth: K.dialogWidth,
       sheetOnPhone: true,
       content: Column(
@@ -173,7 +173,7 @@ class _PersonRow extends StatelessWidget {
                     style: AppText.row.copyWith(color: theme.textPrimary),
                   ),
                 ),
-                Icon(icon, size: 14, color: theme.statusInk(colour)),
+                Icon(icon, size: K.iconInline, color: theme.statusInk(colour)),
                 Text(
                   line,
                   style: AppText.secondary.copyWith(

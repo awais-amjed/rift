@@ -42,7 +42,7 @@ class SignedInPanel extends StatelessWidget {
             children: [
               Icon(
                 Icons.cloud_done_rounded,
-                size: 16,
+                size: K.iconRow,
                 color: context.theme.statusInk(CustomColors.success),
               ),
               const SizedBox(width: 8),
@@ -80,7 +80,7 @@ class SignedInPanel extends StatelessWidget {
             AppButton(
               label: 'Save',
               isLoading: isProcessing,
-              icon: const Icon(Icons.cloud_upload_rounded, size: 15),
+              icon: const Icon(Icons.cloud_upload_rounded, size: K.iconRow),
               onPressed: isProcessing ? null : cubit.saveBackupToCloud,
             ),
             // Named for where it restores from. The page carries a second

@@ -42,7 +42,7 @@ class FriendActionButton extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: Icon(action.icon, size: 15, color: color),
+            child: Icon(action.icon, size: K.iconRow, color: color),
           ),
         ),
       ),

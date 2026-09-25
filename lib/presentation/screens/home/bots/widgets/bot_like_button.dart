@@ -72,7 +72,7 @@ class BotLikeButton extends StatelessWidget {
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
                   key: ValueKey(liked),
-                  size: 15,
+                  size: K.iconRow,
                   color: colour,
                 ),
               ),

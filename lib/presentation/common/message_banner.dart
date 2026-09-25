@@ -48,7 +48,7 @@ class MessageBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 10,
         children: [
-          Icon(icon, size: 16, color: themeState.statusInk(color)),
+          Icon(icon, size: K.iconRow, color: themeState.statusInk(color)),
           Expanded(
             child: Text(
               message,

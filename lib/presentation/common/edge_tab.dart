@@ -80,7 +80,7 @@ class _EdgeTabState extends State<EdgeTab> {
             // Points the way the panel will arrive from.
             child: Icon(
               isLeft ? Icons.chevron_right_rounded : Icons.chevron_left_rounded,
-              size: 16,
+              size: K.iconRow,
               color: _hovered
                   ? themeState.textPrimary
                   : themeState.textTertiary,

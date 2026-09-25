@@ -163,7 +163,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
               : Icon(
                   _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                   color: theme.onPrimary,
-                  size: 17,
+                  size: K.iconButton,
                 ),
         ),
       ),

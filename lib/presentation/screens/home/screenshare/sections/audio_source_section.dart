@@ -57,7 +57,7 @@ class AudioSourceSection extends StatelessWidget {
               children: [
                 Icon(
                   Icons.info_outline,
-                  size: 16,
+                  size: K.iconRow,
                   color: themeState.textTertiary,
                 ),
                 const SizedBox(width: 8),

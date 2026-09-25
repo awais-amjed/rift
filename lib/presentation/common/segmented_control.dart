@@ -54,7 +54,7 @@ class SegmentedControl<T> extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   spacing: 7,
                   children: [
-                    if (option.icon != null) Icon(option.icon, size: 15),
+                    if (option.icon != null) Icon(option.icon, size: K.iconRow),
                     // Flexible, so a long label on a narrow phone ellipsises
                     // instead of pushing the segment wider than its half.
                     Flexible(

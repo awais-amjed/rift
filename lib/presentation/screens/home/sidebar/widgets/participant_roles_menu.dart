@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/role.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
@@ -152,9 +153,17 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
       width: 16,
       height: 16,
       child: outranked
-          ? Icon(Icons.lock_rounded, size: 13, color: themeState.textQuaternary)
+          ? Icon(
+              Icons.lock_rounded,
+              size: K.iconInline,
+              color: themeState.textQuaternary,
+            )
           : isHeld
-          ? Icon(Icons.check_rounded, size: 16, color: themeState.accentBright)
+          ? Icon(
+              Icons.check_rounded,
+              size: K.iconRow,
+              color: themeState.accentBright,
+            )
           : null,
     );
   }

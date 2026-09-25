@@ -152,7 +152,7 @@ class _ConnectionQualityIndicatorState
                           measured
                               ? ConnectionQualityStyle.icon(stats.quality)
                               : Icons.person_outline,
-                          size: 11,
+                          size: K.iconTiny,
                           color: measured ? color : themeState.textQuaternary,
                         ),
                         const SizedBox(width: 5),

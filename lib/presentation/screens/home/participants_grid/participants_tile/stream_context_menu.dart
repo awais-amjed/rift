@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../data/participant_identity.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../theme/theme_context.dart';
@@ -33,7 +34,7 @@ class StreamContextMenu extends StatelessWidget {
       subheading: ownerName,
       leading: Icon(
         Icons.screen_share_outlined,
-        size: 18,
+        size: K.iconButton,
         color: theme.accentBright,
       ),
       children: [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/squircle_avatar.dart';
@@ -82,7 +83,7 @@ class ServerHeader extends StatelessWidget {
           children: [
             Icon(
               Icons.lock_outline,
-              size: 11,
+              size: K.iconTiny,
               color: themeState.statusInk(CustomColors.success),
             ),
             Flexible(
@@ -112,7 +113,7 @@ class ServerHeader extends StatelessWidget {
       onPressed: onOpenSettings,
       icon: Icon(
         Icons.settings_outlined,
-        size: 17,
+        size: K.iconButton,
         color: themeState.textTertiary,
       ),
     );
@@ -137,7 +138,7 @@ class ServerHeader extends StatelessWidget {
       onPressed: ShellScope.of(context).toggleSidebar,
       icon: Icon(
         peek ? Icons.push_pin_outlined : Icons.chevron_left_rounded,
-        size: 18,
+        size: K.iconButton,
         color: themeState.textTertiary,
       ),
     );

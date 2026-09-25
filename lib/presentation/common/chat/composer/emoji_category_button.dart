@@ -23,7 +23,7 @@ class EmojiCategoryButton extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(2),
-        child: Icon(icon, size: 16, color: themeState.textQuaternary),
+        child: Icon(icon, size: K.iconRow, color: themeState.textQuaternary),
       ),
     );
   }

@@ -35,7 +35,7 @@ class WelcomeStep extends StatelessWidget {
             label: 'Continue with an account',
             onPressed: onContinueWithAccount,
             expanded: true,
-            icon: const Icon(Icons.arrow_forward, size: 17),
+            icon: const Icon(Icons.arrow_forward, size: K.iconButton),
           ),
           const SizedBox(height: 10),
           AppButton(
@@ -45,7 +45,7 @@ class WelcomeStep extends StatelessWidget {
             expanded: true,
             icon: Icon(
               Icons.shield_outlined,
-              size: 16,
+              size: K.iconRow,
               color: theme.textSecondary,
             ),
           ),
@@ -162,7 +162,7 @@ class _FeaturePillRow extends StatelessWidget {
         children: [
           Icon(
             icon,
-            size: 13,
+            size: K.iconInline,
             color: color == null ? theme.accentBright : theme.statusInk(color),
           ),
           Text(

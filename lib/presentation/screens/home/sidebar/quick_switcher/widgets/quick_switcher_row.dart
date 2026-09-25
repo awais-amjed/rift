@@ -43,7 +43,7 @@ class QuickSwitcherRow extends StatelessWidget {
             children: [
               Icon(
                 isVoice ? Icons.volume_up_rounded : Icons.tag_rounded,
-                size: 16,
+                size: K.iconRow,
                 color: isHighlighted
                     ? themeState.accentBright
                     : themeState.textQuaternary,

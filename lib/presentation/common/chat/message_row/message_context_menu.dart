@@ -120,7 +120,7 @@ PopupMenuItem<MessageMenuAction> _item(
     height: 38,
     child: Row(
       children: [
-        Icon(icon, size: 16, color: color),
+        Icon(icon, size: K.iconRow, color: color),
         const SizedBox(width: 10),
         Text(label, style: AppText.rowQuiet.copyWith(color: color)),
       ],

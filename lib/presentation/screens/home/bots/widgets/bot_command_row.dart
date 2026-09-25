@@ -118,7 +118,7 @@ class BotCommandRow extends StatelessWidget {
               ),
               IconButton(
                 onPressed: enabled ? onRemove : null,
-                icon: const Icon(Icons.close_rounded, size: 16),
+                icon: const Icon(Icons.close_rounded, size: K.iconRow),
                 color: theme.textTertiary,
                 tooltip: 'Remove',
               ),

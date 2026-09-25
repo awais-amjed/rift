@@ -46,7 +46,7 @@ class SafetyCodeDialog extends StatelessWidget {
     return AppModal(
       title: 'Safety code',
       subtitle: 'With $personName',
-      titleIcon: const Icon(Icons.verified_user_outlined, size: 20),
+      titleIcon: const Icon(Icons.verified_user_outlined, size: K.iconLarge),
       maxWidth: K.dialogWidth,
       sheetOnPhone: true,
       content: Column(
@@ -151,7 +151,7 @@ class _Banner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: color),
+          Icon(icon, size: K.iconRow, color: color),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

@@ -37,7 +37,7 @@ class DeviceDropdown<T> extends StatelessWidget {
       child: Row(
         spacing: 8,
         children: [
-          Icon(icon, size: 16, color: themeState.textTertiary),
+          Icon(icon, size: K.iconRow, color: themeState.textTertiary),
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<T>(
@@ -48,7 +48,7 @@ class DeviceDropdown<T> extends StatelessWidget {
                 borderRadius: BorderRadius.circular(K.radiusCard),
                 icon: Icon(
                   Icons.expand_more_rounded,
-                  size: 17,
+                  size: K.iconButton,
                   color: themeState.textQuaternary,
                 ),
                 style: AppText.rowQuiet.copyWith(color: themeState.textPrimary),

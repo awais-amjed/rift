@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/channel.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../../data/enums/home_surface.dart';
 import '../../../../../../data/enums/notification_level.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
@@ -61,7 +62,7 @@ class TextChannelTile extends StatelessWidget {
                 : level.isMuted
                 ? Icon(
                     Icons.notifications_off_outlined,
-                    size: 13,
+                    size: K.iconInline,
                     color: context.theme.textTertiary,
                   )
                 : null,

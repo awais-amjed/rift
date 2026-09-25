@@ -61,7 +61,7 @@ class _MaskedEmailTextState extends State<MaskedEmailText> {
                 _shown
                     ? Icons.visibility_off_outlined
                     : Icons.visibility_outlined,
-                size: 15,
+                size: K.iconRow,
                 color: themeState.textTertiary,
               ),
             ),

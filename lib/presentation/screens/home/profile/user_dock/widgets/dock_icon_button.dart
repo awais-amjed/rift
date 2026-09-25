@@ -46,7 +46,7 @@ class DockIconButton extends StatelessWidget {
             height: K.iconButtonSmall,
             child: Icon(
               icon,
-              size: 15,
+              size: K.iconRow,
               color: isError ? CustomColors.error : themeState.textSecondary,
             ),
           ),

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
@@ -95,7 +96,7 @@ class _FileBackupPanelState extends State<FileBackupPanel> {
             AppButton(
               label: 'Export',
               isLoading: _isExporting,
-              icon: const Icon(Icons.save_alt_rounded, size: 15),
+              icon: const Icon(Icons.save_alt_rounded, size: K.iconRow),
               onPressed: _isExporting ? null : _exportToFile,
             ),
             AppButton(

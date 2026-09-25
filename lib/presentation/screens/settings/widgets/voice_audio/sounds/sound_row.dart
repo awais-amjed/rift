@@ -59,7 +59,7 @@ class SoundRow extends StatelessWidget {
                   : () => SoundService.instance.preview(sound, setting.volume),
               icon: Icon(
                 Icons.play_arrow_rounded,
-                size: 18,
+                size: K.iconButton,
                 color: muted ? theme.textQuaternary : theme.textTertiary,
               ),
               style: IconButton.styleFrom(

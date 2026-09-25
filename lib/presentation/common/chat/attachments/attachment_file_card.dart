@@ -117,7 +117,11 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
 
   Widget _trailing(ThemeState theme) {
     if (!_busy) {
-      return Icon(Icons.download_rounded, size: 18, color: theme.textTertiary);
+      return Icon(
+        Icons.download_rounded,
+        size: K.iconButton,
+        color: theme.textTertiary,
+      );
     }
     return LoadingDots(color: theme.primary, dotSize: 4);
   }

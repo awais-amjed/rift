@@ -72,7 +72,7 @@ class AppToast extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(_icon, size: 18, color: accent),
+            Icon(_icon, size: K.iconButton, color: accent),
             const SizedBox(width: 10),
             Flexible(
               child: Column(
@@ -117,7 +117,11 @@ class _CloseButton extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(4),
-          child: Icon(Icons.close_rounded, size: 16, color: theme.textTertiary),
+          child: Icon(
+            Icons.close_rounded,
+            size: K.iconRow,
+            color: theme.textTertiary,
+          ),
         ),
       ),
     );

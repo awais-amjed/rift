@@ -57,7 +57,7 @@ class ComposerStagedChip extends StatelessWidget {
             attachment.kind == AttachmentKind.audio
                 ? Icons.audiotrack_rounded
                 : Icons.description_outlined,
-            size: 20,
+            size: K.iconLarge,
             color: themeState.textTertiary,
           ),
           Expanded(
@@ -93,7 +93,11 @@ class ComposerStagedChip extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: themeState.borderElevated),
           ),
-          child: Icon(Icons.close, size: 12, color: themeState.textSecondary),
+          child: Icon(
+            Icons.close,
+            size: K.iconTiny,
+            color: themeState.textSecondary,
+          ),
         ),
       ),
     );

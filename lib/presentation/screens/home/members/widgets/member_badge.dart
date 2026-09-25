@@ -27,7 +27,7 @@ class MemberBadge extends StatelessWidget {
           color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(K.radiusRow),
         ),
-        child: Icon(icon, size: 13, color: color),
+        child: Icon(icon, size: K.iconInline, color: color),
       ),
     );
   }

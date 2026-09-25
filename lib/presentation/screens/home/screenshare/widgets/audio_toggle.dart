@@ -42,7 +42,7 @@ class AudioToggle extends StatelessWidget {
             children: [
               Icon(
                 shareAudio ? Icons.volume_up : Icons.volume_off,
-                size: 17,
+                size: K.iconButton,
                 color: shareAudio
                     ? themeState.primary
                     : themeState.textQuaternary,

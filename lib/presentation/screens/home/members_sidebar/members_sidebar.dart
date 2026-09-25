@@ -272,7 +272,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
             visualDensity: VisualDensity.compact,
             icon: Icon(
               Icons.chevron_right_rounded,
-              size: 18,
+              size: K.iconButton,
               color: themeState.textQuaternary,
             ),
             onPressed: ShellScope.of(context).toggleMembers,

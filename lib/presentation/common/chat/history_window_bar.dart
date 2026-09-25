@@ -65,7 +65,7 @@ class HistoryWindowBar extends StatelessWidget {
                   const SizedBox(width: 4),
                   Icon(
                     Icons.arrow_downward_rounded,
-                    size: 13,
+                    size: K.iconInline,
                     color: theme.primary,
                   ),
                 ],

@@ -83,7 +83,7 @@ class EmptyState extends StatelessWidget {
                       dotSize: 6,
                     ),
                   )
-                : Icon(icon, size: 21, color: themeState.accentBright),
+                : Icon(icon, size: K.iconLarge, color: themeState.accentBright),
           ),
           const SizedBox(height: 14),
           Text(

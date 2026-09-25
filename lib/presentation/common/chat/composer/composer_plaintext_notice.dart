@@ -42,7 +42,7 @@ class ComposerPlaintextNotice extends StatelessWidget {
         children: [
           Icon(
             Icons.lock_open_rounded,
-            size: 14,
+            size: K.iconInline,
             color: context.theme.statusInk(CustomColors.warning),
           ),
           Expanded(

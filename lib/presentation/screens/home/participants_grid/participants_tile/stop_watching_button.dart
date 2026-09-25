@@ -26,7 +26,7 @@ class StopWatchingButton extends StatelessWidget {
             children: [
               const Icon(
                 Icons.stop_circle,
-                size: 18,
+                size: K.iconButton,
                 color: MediaColors.onMedia,
               ),
               const SizedBox(width: 6),

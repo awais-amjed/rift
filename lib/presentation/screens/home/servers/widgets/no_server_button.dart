@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
@@ -35,7 +36,7 @@ class NoServerButton extends StatelessWidget {
                 ),
                 child: Icon(
                   Icons.dns_outlined,
-                  size: 16,
+                  size: K.iconRow,
                   color: themeState.textQuaternary,
                 ),
               ),

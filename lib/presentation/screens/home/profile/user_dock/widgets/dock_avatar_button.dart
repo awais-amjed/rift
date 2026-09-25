@@ -99,7 +99,7 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
       child: Center(
         child: Icon(
           Icons.edit_rounded,
-          size: 14,
+          size: K.iconInline,
           color: themeState.textPrimary,
         ),
       ),

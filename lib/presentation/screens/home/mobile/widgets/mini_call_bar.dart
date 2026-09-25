@@ -134,7 +134,7 @@ class _BarState extends State<_Bar> {
               children: [
                 Icon(
                   Icons.graphic_eq_rounded,
-                  size: 18,
+                  size: K.iconButton,
                   color: context.theme.statusInk(CustomColors.success),
                 ),
                 Expanded(
@@ -169,7 +169,7 @@ class _BarState extends State<_Bar> {
                         context.read<LiveKitCubit>().toggleMicrophone(),
                     icon: Icon(
                       widget.micOn ? Icons.mic_none_rounded : Icons.mic_off,
-                      size: 21,
+                      size: K.iconLarge,
                       color: widget.micOn
                           ? theme.textSecondary
                           : CustomColors.error,
@@ -189,7 +189,7 @@ class _BarState extends State<_Bar> {
                         message: 'Leave call',
                         child: Icon(
                           Icons.call_end,
-                          size: 20,
+                          size: K.iconLarge,
                           color: CustomColors.onError,
                         ),
                       ),

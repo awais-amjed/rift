@@ -34,13 +34,14 @@ class SwitcherHomeRow extends StatelessWidget {
             SwitcherRow.leadingSize * K.avatarRadiusRatio,
           ),
         ),
-        child: Icon(Icons.forum_rounded, size: 19, color: theme.onPrimary),
+        child: Icon(
+          Icons.forum_rounded,
+          size: K.iconLarge,
+          color: theme.onPrimary,
+        ),
       ),
       title: 'Home',
-      subtitle: Text(
-        'Your Rift DMs',
-        style: SwitcherRow.subtitleStyle(theme),
-      ),
+      subtitle: Text('Your Rift DMs', style: SwitcherRow.subtitleStyle(theme)),
       trailing: unread > 0 ? UnreadBadge(count: unread) : null,
       onTap: onTap,
     );

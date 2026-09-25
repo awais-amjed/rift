@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server_member.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/confirm_dialog.dart';
@@ -126,7 +127,7 @@ class ProfileModeration extends StatelessWidget {
                     label: 'Edit roles',
                     variant: AppButtonVariant.secondary,
                     expanded: true,
-                    icon: const Icon(Icons.shield_outlined, size: 15),
+                    icon: const Icon(Icons.shield_outlined, size: K.iconRow),
                     onPressed: () => _openRoles(context),
                   ),
                 ),

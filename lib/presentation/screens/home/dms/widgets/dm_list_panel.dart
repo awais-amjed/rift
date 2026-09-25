@@ -126,7 +126,7 @@ class DmListPanel extends StatelessWidget {
             ),
             // Outlined, like every other glyph in the app: Material ships
             // edit_square filled only, which read as a solid block here.
-            icon: const Icon(Icons.edit_outlined, size: 19),
+            icon: const Icon(Icons.edit_outlined, size: K.iconLarge),
             label: Text(
               'New',
               style: AppText.row.copyWith(

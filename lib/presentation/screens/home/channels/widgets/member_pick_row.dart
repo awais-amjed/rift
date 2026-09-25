@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/constants.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -51,7 +52,7 @@ class MemberPickRow extends StatelessWidget {
               checked
                   ? Icons.check_circle_rounded
                   : Icons.radio_button_unchecked,
-              size: 18,
+              size: K.iconButton,
               color: checked
                   ? themeState.accentBright
                   : themeState.textTertiary,

@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/media_colors.dart';
@@ -85,7 +86,7 @@ class _SensitiveImageCoverState extends State<SensitiveImageCover> {
                       children: [
                         const Icon(
                           Icons.visibility_off_outlined,
-                          size: 20,
+                          size: K.iconLarge,
                           color: MediaColors.onMedia,
                         ),
                         Text(

@@ -120,7 +120,7 @@ class _ModeCard extends StatelessWidget {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                size: 18,
+                size: K.iconButton,
                 color: themeState.textQuaternary,
               ),
             ],

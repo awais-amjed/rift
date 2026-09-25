@@ -174,7 +174,7 @@ class _PanelRow extends StatelessWidget {
             child: Row(
               spacing: 9,
               children: [
-                Icon(icon, size: 16, color: themeState.textTertiary),
+                Icon(icon, size: K.iconRow, color: themeState.textTertiary),
                 Expanded(
                   child: Text(
                     label,
@@ -185,7 +185,7 @@ class _PanelRow extends StatelessWidget {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  size: 16,
+                  size: K.iconRow,
                   color: themeState.textTertiary,
                 ),
               ],

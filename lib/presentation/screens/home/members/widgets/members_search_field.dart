@@ -89,7 +89,11 @@ class _MembersSearchFieldState extends State<MembersSearchField> {
       child: Row(
         spacing: 8,
         children: [
-          Icon(Icons.search_rounded, size: 15, color: theme.textQuaternary),
+          Icon(
+            Icons.search_rounded,
+            size: K.iconRow,
+            color: theme.textQuaternary,
+          ),
           Expanded(
             child: TextField(
               controller: _controller,
@@ -122,7 +126,7 @@ class _MembersSearchFieldState extends State<MembersSearchField> {
                 },
                 child: Icon(
                   Icons.close_rounded,
-                  size: 14,
+                  size: K.iconInline,
                   color: theme.textQuaternary,
                 ),
               ),

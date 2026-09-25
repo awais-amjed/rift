@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/context_menu_region.dart';
@@ -50,7 +51,7 @@ class SwitcherServerRow extends StatelessWidget {
     final Widget? trailing = selected
         ? Icon(
             Icons.check_circle_outline_rounded,
-            size: 20,
+            size: K.iconLarge,
             color: theme.accentBright,
           )
         : unread > 0
@@ -58,7 +59,7 @@ class SwitcherServerRow extends StatelessWidget {
         : muted
         ? Icon(
             Icons.notifications_off_outlined,
-            size: 16,
+            size: K.iconRow,
             color: theme.textTertiary,
           )
         : null;

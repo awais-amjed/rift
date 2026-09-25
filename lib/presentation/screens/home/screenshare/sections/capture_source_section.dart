@@ -49,7 +49,7 @@ class CaptureSourceSection extends StatelessWidget {
             IconButton(
               tooltip: 'Refresh $label list',
               onPressed: isLoading ? null : onRefresh,
-              icon: const Icon(Icons.refresh, size: 18),
+              icon: const Icon(Icons.refresh, size: K.iconButton),
             ),
           ],
         ),

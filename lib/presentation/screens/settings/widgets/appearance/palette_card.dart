@@ -64,7 +64,7 @@ class PaletteCard extends StatelessWidget {
                 if (isSelected)
                   Icon(
                     Icons.check_circle_rounded,
-                    size: 16,
+                    size: K.iconRow,
                     color: themeState.accentBright,
                   ),
               ],

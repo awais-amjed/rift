@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/channel.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../theme/app_text.dart';
@@ -51,7 +52,11 @@ class ChatPhoneTitle extends StatelessWidget {
               ),
             ),
             if (private)
-              Icon(Icons.lock_outline, size: 13, color: theme.textTertiary),
+              Icon(
+                Icons.lock_outline,
+                size: K.iconInline,
+                color: theme.textTertiary,
+              ),
           ],
         ),
         if (detail.isNotEmpty)
@@ -61,7 +66,7 @@ class ChatPhoneTitle extends StatelessWidget {
               if (!private)
                 Icon(
                   Icons.lock_outline,
-                  size: 11,
+                  size: K.iconTiny,
                   color: context.theme.statusInk(CustomColors.success),
                 ),
               Flexible(

@@ -44,7 +44,7 @@ class WebhookSecretCard extends StatelessWidget {
             children: [
               Icon(
                 Icons.warning_amber_rounded,
-                size: 15,
+                size: K.iconRow,
                 color: context.theme.statusInk(CustomColors.warning),
               ),
               Expanded(
@@ -88,7 +88,7 @@ class WebhookSecretCard extends StatelessWidget {
               onPressed: onCopy,
               icon: Icon(
                 copied ? Icons.check_rounded : Icons.copy_rounded,
-                size: 14,
+                size: K.iconInline,
                 color: themeState.textSecondary,
               ),
             ),

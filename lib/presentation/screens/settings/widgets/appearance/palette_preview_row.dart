@@ -33,7 +33,7 @@ class PalettePreviewRow extends StatelessWidget {
         children: [
           Icon(
             Icons.tag,
-            size: 11,
+            size: K.iconTiny,
             color: selected ? colors.accentBright : colors.textQuaternary,
           ),
           Expanded(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../../data/participant_identity.dart';
 import '../../../../../logic/services/sound_share_label.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
@@ -48,7 +49,7 @@ class SoundShareContextMenu extends StatelessWidget {
       subheading: soundShareLabel(owner: ownerName, app: app, isOwn: isOwn),
       leading: Icon(
         Icons.graphic_eq_rounded,
-        size: 18,
+        size: K.iconButton,
         color: theme.accentBright,
       ),
       children: [

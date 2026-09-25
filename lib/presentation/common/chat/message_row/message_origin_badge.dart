@@ -84,7 +84,7 @@ class MessageOriginBadge extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: 3,
           children: [
-            Icon(Icons.lock_open_rounded, size: 10, color: ink),
+            Icon(Icons.lock_open_rounded, size: K.iconTiny, color: ink),
             Text(_label, style: AppText.roleChip.copyWith(color: ink)),
           ],
         ),

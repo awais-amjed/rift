@@ -115,7 +115,7 @@ class _ContextStripState extends State<ContextStrip> {
                           children: [
                             Icon(
                               Icons.volume_up_rounded,
-                              size: 16,
+                              size: K.iconRow,
                               color: themeState.accentBright,
                             ),
                             const SizedBox(width: 7),
