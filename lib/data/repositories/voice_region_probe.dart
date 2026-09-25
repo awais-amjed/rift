@@ -33,11 +33,11 @@ class VoiceRegionProbe {
   /// close", for the purpose of preferring a quieter one.
   ///
   /// The load rule is deliberately *relative*: among regions this close to
-  /// each other, take the one carrying less. An absolute ceiling would be a
-  /// guess — stream count does not capture a screen share, which at 10 Mbps
-  /// per watcher is most of the cost when there is one — so nothing here
-  /// pretends to know when a region is "full". It only breaks a tie that
-  /// latency alone would decide by a margin nobody can hear.
+  /// each other, take the one at a lower level. Nothing here refuses a region
+  /// for being busy — the level is coarse, and a screen share at 10 Mbps per
+  /// watcher is most of the cost when there is one, which no stream count
+  /// sees — so it only breaks a tie that latency alone would decide by a
+  /// margin nobody can hear.
   static const _comparable = Duration(milliseconds: 40);
 
   final http.Client _client;
@@ -77,9 +77,7 @@ class VoiceRegionProbe {
     final answered = results.where((r) => r != null).cast<_Result>().toList()
       ..sort((a, b) => a.micros.compareTo(b.micros));
 
-    final winner = answered.isEmpty
-        ? null
-        : _quietestOf(answered, load).nodeId;
+    final winner = answered.isEmpty ? null : _quietestOf(answered, load).nodeId;
     _cache[serverId] = _Measurement(
       fingerprint: fingerprint,
       nodeId: winner,
@@ -105,18 +103,22 @@ class VoiceRegionProbe {
 
     final cutoff = fastest.micros + _comparable.inMicroseconds;
     var best = fastest;
-    var bestStreams = load[fastest.nodeId]?.streams ?? 0;
+    var bestLevel = _levelOf(load[fastest.nodeId]);
 
     for (final candidate in answered.skip(1)) {
       if (candidate.micros > cutoff) break;
-      final streams = load[candidate.nodeId]?.streams ?? 0;
-      if (streams < bestStreams) {
+      final level = _levelOf(load[candidate.nodeId]);
+      if (level < bestLevel) {
         best = candidate;
-        bestStreams = streams;
+        bestLevel = level;
       }
     }
     return best;
   }
+
+  /// A region's level as a rank, quietest lowest. One with no reading counts
+  /// as low: absent load is no reason to pass over the nearest region.
+  static int _levelOf(RegionLoad? load) => load?.level?.index ?? 0;
 
   /// One node's round trip, or null when it did not answer.
   ///

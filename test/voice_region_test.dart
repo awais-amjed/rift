@@ -5,6 +5,7 @@ import 'package:rift/data/classes/channel.dart';
 import 'package:rift/data/classes/livekit_node.dart';
 import 'package:rift/data/classes/region_load.dart';
 import 'package:rift/data/enums/channel_type.dart';
+import 'package:rift/data/enums/region_load_level.dart';
 import 'package:rift/data/repositories/voice_region_probe.dart';
 import 'package:rift/logic/services/voice_signal.dart';
 import 'package:rift/presentation/screens/home/servers/server_settings/voice/voice_region_dialog.dart';
@@ -70,14 +71,28 @@ void main() {
 
     test('does not repeat itself when the label already says it', () {
       expect(
-        title(const LiveKitNode(id: 'n', label: 'Default', url: 'ws://h', isDefault: true)),
+        title(
+          const LiveKitNode(
+            id: 'n',
+            label: 'Default',
+            url: 'ws://h',
+            isDefault: true,
+          ),
+        ),
         'Default',
       );
     });
 
     test('marks a renamed default', () {
       expect(
-        title(const LiveKitNode(id: 'n', label: 'Frankfurt', url: 'ws://h', isDefault: true)),
+        title(
+          const LiveKitNode(
+            id: 'n',
+            label: 'Frankfurt',
+            url: 'ws://h',
+            isDefault: true,
+          ),
+        ),
         'Frankfurt (default)',
       );
     });
@@ -91,7 +106,8 @@ void main() {
   });
 
   group('the rejoin signal', () {
-    List<int> packet(Map<String, Object?> body) => utf8.encode(jsonEncode(body));
+    List<int> packet(Map<String, Object?> body) =>
+        utf8.encode(jsonEncode(body));
 
     test('is obeyed when the server sent it', () {
       expect(
@@ -164,36 +180,46 @@ void main() {
   });
 
   group('RegionLoad', () {
-    test('reads what voice_roster sends, and survives a partial row', () {
-      final full = RegionLoad.fromJson({
+    test('reads the level voice_roster sends, and survives a partial row', () {
+      final busy = RegionLoad.fromJson({
         'id': 'n1',
         'label': 'Default',
-        'calls': 1,
-        'people': 4,
-        'publishers': 4,
-        'streams': 12,
+        'load': 'high',
         'reachable': true,
       });
-      expect(full.streams, 12);
-      expect(full.isIdle, isFalse);
+      expect(busy.level, RegionLoadLevel.high);
 
       final sparse = RegionLoad.fromJson({'id': 'n2'});
-      expect(sparse.people, 0);
-      expect(sparse.isIdle, isTrue);
+      expect(sparse.level, isNull);
       // Absent means reachable: a region that failed says so explicitly, and
       // reading silence as "down" would mark a healthy one.
       expect(sparse.reachable, isTrue);
     });
 
-    test('says what is happening in the shortest true form', () {
-      expect(const RegionLoad(nodeId: 'n', label: 'L').summary, 'idle');
+    test('an older server\'s counts are not read as a level', () {
+      // Counts over rooms this member cannot see are what the level replaced;
+      // a stale server still sending them gets no line rather than a guess.
+      final old = RegionLoad.fromJson({'id': 'n', 'people': 4, 'streams': 12});
+      expect(old.level, isNull);
+      expect(old.summary, isNull);
+    });
+
+    test('says the level, or that the region is not answering', () {
       expect(
-        const RegionLoad(nodeId: 'n', label: 'L', people: 1, calls: 1).summary,
-        '1 person',
+        const RegionLoad(
+          nodeId: 'n',
+          label: 'L',
+          level: RegionLoadLevel.low,
+        ).summary,
+        'low load',
       );
       expect(
-        const RegionLoad(nodeId: 'n', label: 'L', people: 5, calls: 2).summary,
-        '5 people in 2 calls',
+        const RegionLoad(
+          nodeId: 'n',
+          label: 'L',
+          level: RegionLoadLevel.high,
+        ).summary,
+        'high load',
       );
       expect(
         const RegionLoad(nodeId: 'n', label: 'L', reachable: false).summary,
@@ -201,11 +227,13 @@ void main() {
       );
     });
 
-    test('an unreachable region is not idle', () {
-      // They look alike in a head count and are opposite in meaning: one has
-      // nobody on it, the other could not be asked.
-      const down = RegionLoad(nodeId: 'n', label: 'L', reachable: false);
-      expect(down.isIdle, isFalse);
+    test('levels rank quietest first', () {
+      expect(RegionLoadLevel.values, [
+        RegionLoadLevel.low,
+        RegionLoadLevel.medium,
+        RegionLoadLevel.high,
+      ]);
+      expect(RegionLoadLevel.tryParse('idle'), isNull);
     });
   });
 
