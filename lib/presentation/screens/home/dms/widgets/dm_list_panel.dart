@@ -98,8 +98,10 @@ class DmListPanel extends StatelessWidget {
       children: [
         DmListHeader(title: title, subtitle: subtitle),
         if (search != null && !(compact && this.onNew != null))
+          // The same 12 above as at the sides: the header ends in a hairline,
+          // and 2 left the field sitting on it.
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
             child: search!,
           ),
         Expanded(child: _buildList(themeState, compact)),
