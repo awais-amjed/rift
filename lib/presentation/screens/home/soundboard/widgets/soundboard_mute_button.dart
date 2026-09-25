@@ -37,8 +37,8 @@ class SoundboardMuteButton extends StatelessWidget {
         borderRadius: radius,
         onTap: onTap,
         child: Container(
-          height: 30,
-          constraints: const BoxConstraints(minWidth: 30),
+          height: K.iconButtonSmall,
+          constraints: const BoxConstraints(minWidth: K.iconButtonSmall),
           padding: EdgeInsets.symmetric(horizontal: label == null ? 0 : 11),
           decoration: BoxDecoration(
             borderRadius: radius,

@@ -46,6 +46,15 @@ class K {
   /// Square icon buttons.
   static const double iconButtonSize = 40;
 
+  /// A control inside something else rather than one standing on a page: a
+  /// bot's buttons in a message, the compact Watch on a small tile, a
+  /// dialog's close, a voice note's play, the settings back arrow.
+  static const double compactControlHeight = 32;
+
+  /// A bare icon button in a strip of them — the dock, the message hover
+  /// toolbar, the reply bar's close, the soundboard's mute.
+  static const double iconButtonSmall = 28;
+
   // ── Dialog widths ─────────────────────────────────────────
   /// A form dialog whose fields run in one column.
   static const double dialogWidth = 480;

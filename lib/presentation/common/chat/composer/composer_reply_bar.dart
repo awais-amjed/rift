@@ -86,7 +86,10 @@ class ComposerReplyBar extends StatelessWidget {
               tooltip: 'Cancel reply',
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              constraints: const BoxConstraints(
+                minWidth: K.iconButtonSmall,
+                minHeight: K.iconButtonSmall,
+              ),
             ),
           ],
         ),

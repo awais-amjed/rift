@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/panel_block.dart';
+import 'package:rift/data/constants.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/chat/panel/panel_view.dart';
 import 'package:rift/presentation/theme/app_theme.dart';
@@ -144,6 +145,32 @@ void main() {
       );
       await tester.tap(find.text('Skip'));
       expect(got, 'skip');
+    });
+
+    // A poll's Yes and No once each took the whole card's width: the button
+    // was given a height by a Container with an alignment, which grows to
+    // every pixel a Wrap offers it.
+    testWidgets('a button is its label\'s width and the compact height', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        parse([
+          {
+            'type': 'actions',
+            'items': [
+              {'label': 'Yes', 'action': 'yes'},
+              {'label': 'No', 'action': 'no'},
+            ],
+          },
+        ])!,
+        onAction: (_, _) {},
+      );
+      final button = tester.getSize(
+        find.ancestor(of: find.text('Yes'), matching: find.byType(InkWell)),
+      );
+      expect(button.height, K.compactControlHeight);
+      expect(button.width, lessThan(80));
     });
 
     testWidgets('draws a panel nobody can press, rather than hiding it', (

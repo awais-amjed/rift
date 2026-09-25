@@ -119,8 +119,8 @@ class _BackButton extends StatelessWidget {
           hoverColor: themeState.bgActive,
           onTap: onTap,
           child: SizedBox(
-            width: 32,
-            height: 32,
+            width: K.compactControlHeight,
+            height: K.compactControlHeight,
             child: Icon(
               Icons.arrow_back_rounded,
               size: 17,

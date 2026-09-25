@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/constants.dart';
 import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
 import 'app_modal_header_button.dart';
@@ -29,7 +30,7 @@ class AppModalHeader extends StatelessWidget {
   });
 
   /// The close button, and the header actions beside it.
-  static const double buttonSize = 32;
+  static const double buttonSize = K.compactControlHeight;
 
   @override
   Widget build(BuildContext context) {

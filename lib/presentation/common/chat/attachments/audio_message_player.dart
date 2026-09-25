@@ -147,8 +147,8 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer> {
       child: MouseRegion(
         cursor: _loading ? SystemMouseCursors.basic : SystemMouseCursors.click,
         child: Container(
-          width: 32,
-          height: 32,
+          width: K.compactControlHeight,
+          height: K.compactControlHeight,
           decoration: BoxDecoration(
             gradient: theme.actionGradient,
             shape: BoxShape.circle,

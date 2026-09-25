@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/constants.dart';
 import '../../../../common/app_button.dart';
 
 /// Starts watching a screen share: the app's primary button, over the tile.
@@ -25,7 +26,7 @@ class WatchStreamButton extends StatelessWidget {
         final compact = constraints.maxHeight < _compactHeight;
         final button = AppButton(
           label: compact ? 'Watch' : 'Watch stream',
-          height: compact ? 32 : null,
+          height: compact ? K.compactControlHeight : null,
           icon: const Icon(Icons.play_arrow_rounded, size: 17),
           onPressed: onTap,
         );

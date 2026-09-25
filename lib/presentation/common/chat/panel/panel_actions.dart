@@ -81,13 +81,22 @@ class _Button extends StatelessWidget {
           mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: onTap,
           borderRadius: BorderRadius.circular(K.radiusRow),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-            child: Text(
-              action.label,
-              style: AppText.secondary.copyWith(
-                color: _foreground(context),
-                fontWeight: FontWeight.w600,
+          // A fixed height and the label's own width. A Container with an
+          // alignment grows to every pixel it is offered, which in a Wrap is
+          // the whole card.
+          child: SizedBox(
+            height: K.compactControlHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 11),
+              child: Center(
+                widthFactor: 1,
+                child: Text(
+                  action.label,
+                  style: AppText.secondary.copyWith(
+                    color: _foreground(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ),

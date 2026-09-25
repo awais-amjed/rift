@@ -42,8 +42,8 @@ class DockIconButton extends StatelessWidget {
           hoverColor: themeState.bgActive,
           onTap: onTap,
           child: SizedBox(
-            width: 28,
-            height: 28,
+            width: K.iconButtonSmall,
+            height: K.iconButtonSmall,
             child: Icon(
               icon,
               size: 15,
