@@ -87,8 +87,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildHeader(ThemeState themeState, {required bool showBack}) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(showBack ? 12 : 24, 18, 24, 16),
+    // The pane header's height, as the chat, voice and members headers are.
+    // It was 70: a 36px tile with padding round it, the one header in the
+    // app that was taller than the rest.
+    return Container(
+      height: K.paneHeaderHeight,
+      padding: EdgeInsets.symmetric(horizontal: showBack ? 12 : 24),
       child: Row(
         spacing: 12,
         children: [
@@ -104,13 +108,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           IconTile(
             icon: _tabIcon,
             color: themeState.accentBright,
-            size: 36,
+            size: 28,
             radius: K.radiusRow,
-            iconSize: 19,
+            iconSize: 16,
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              // Centred on the tile. The header has a fixed height now, and a
+              // column fills it unless told otherwise, which put the title
+              // at the top of the bar.
+              mainAxisSize: MainAxisSize.min,
               children: [
                 // No subtitle: the nav row already named the tab, and a
                 // sentence under the title said the same thing again.
