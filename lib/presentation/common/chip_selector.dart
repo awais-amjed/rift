@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../data/constants.dart';
-import '../../../../common/selectable_surface.dart';
-import '../../../../theme/app_text.dart';
+import '../../data/constants.dart';
+import '../theme/app_text.dart';
+import 'selectable_surface.dart';
 
 /// A row of tappable pills where exactly one is selected at a time — invite
 /// expiry, max uses.
