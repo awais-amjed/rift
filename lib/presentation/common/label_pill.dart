@@ -9,6 +9,11 @@ import '../theme/theme_context.dart';
 ///
 /// Uncoloured pills use the neutral fill; a coloured one washes its colour
 /// behind the word at 16% and writes the word in it.
+///
+/// Always uppercase, whoever passes the word. Role chips uppercased
+/// themselves and the rest did not, so one member row read "Bot" beside
+/// "OWNER · ADMIN", and a profile listed roles in a case the sidebar never
+/// showed them in.
 class LabelPill extends StatelessWidget {
   final String label;
   final Color? color;
@@ -27,7 +32,7 @@ class LabelPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(K.radiusPill),
       ),
       child: Text(
-        label,
+        label.toUpperCase(),
         style: AppText.roleChip.copyWith(
           color: colour ?? themeState.textTertiary,
         ),
