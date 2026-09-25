@@ -90,11 +90,17 @@ class UserDock extends StatelessWidget {
             if (inVoice)
               const ConnectionQualityIndicator()
             else if (username != null)
-              Text(
-                '@$username',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.meta.copyWith(color: themeState.textTertiary),
+              // The quality line pads itself 1px top and bottom for its hover
+              // box; this line matches it, or the dock grew by 2px the moment
+              // a call connected.
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 1),
+                child: Text(
+                  '@$username',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.meta.copyWith(color: themeState.textTertiary),
+                ),
               ),
           ],
         );
