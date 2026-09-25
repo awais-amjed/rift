@@ -5,27 +5,24 @@ import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../../settings/widgets/section_title.dart';
 
-/// Where this server's voice lives: the default region's address, and the one
-/// credential pair every region signs with.
+/// The one API key and secret every region signs call tokens with.
 ///
-/// Split out of the old connection section when voice got a page of its own.
-/// The server's *name* stayed on Overview — it is what the server is called,
-/// not part of how a call is placed — and these three came here, above the
-/// region list, because that list is the same fields repeated: the URL below
-/// is a second box to hold calls on, and it uses the key and secret typed
-/// here.
+/// Under the region list rather than over it, which is where the LiveKit
+/// fields started. A reader opening Voice wants to see where calls are held;
+/// the credential is how the server talks to those boxes, which is a detail
+/// about all of them and belongs after the list it applies to.
 ///
-/// The API key and secret are write-only — never fetched to the client — so
-/// their fields start blank and are only sent when filled.
-class ServerLiveKitSection extends StatelessWidget {
-  final TextEditingController livekitUrlCtrl;
+/// The key and secret are write-only — never fetched to the client — so their
+/// fields start blank and are only sent when filled. That is also why this is
+/// the only part of the page with a Save: there is nothing here to act on
+/// immediately, only two secrets that are typed together and sent together.
+class VoiceCredentialsSection extends StatelessWidget {
   final TextEditingController apiKeyCtrl;
   final TextEditingController secretCtrl;
   final bool enabled;
 
-  const ServerLiveKitSection({
+  const VoiceCredentialsSection({
     super.key,
-    required this.livekitUrlCtrl,
     required this.apiKeyCtrl,
     required this.secretCtrl,
     this.enabled = true,
@@ -38,21 +35,14 @@ class ServerLiveKitSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SectionTitle(label: 'LiveKit'),
+        const SectionTitle(label: 'Credentials'),
         const SizedBox(height: 6),
         Text(
-          'The LiveKit this server holds calls on, and the credentials it '
-          'signs call tokens with. This address is the first region below.',
+          'What this server signs call tokens with. Every region above uses '
+          'the same pair, so they are set once here.',
           style: AppText.secondary.copyWith(color: themeState.textQuaternary),
         ),
         const SizedBox(height: 14),
-        AppTextField(
-          controller: livekitUrlCtrl,
-          label: 'LiveKit URL',
-          hint: 'wss://livekit.example.com',
-          enabled: enabled,
-        ),
-        const SizedBox(height: 16),
         AppTextField(
           controller: apiKeyCtrl,
           label: 'LiveKit API key',
@@ -70,8 +60,8 @@ class ServerLiveKitSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'The API key and secret are stored only on the server and never '
-          'sent back — leave them blank to keep the current values.',
+          'Stored only on the server and never sent back — leave them blank '
+          'to keep the current values.',
           style: AppText.label.copyWith(color: themeState.textTertiary),
         ),
       ],

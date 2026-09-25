@@ -6,8 +6,8 @@ import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/message_banner.dart';
-import '../../server_settings/widgets/server_livekit_section.dart';
-import '../../server_settings/widgets/server_voice_regions_section.dart';
+import '../../server_settings/voice/voice_credentials_section.dart';
+import '../../server_settings/voice/voice_regions_section.dart';
 import '../widgets/manage_panel.dart';
 
 /// Where this server's calls are held: the LiveKit it signs tokens for, and
@@ -19,11 +19,12 @@ import '../widgets/manage_panel.dart';
 /// its own load figures, and Overview became a page about voice infrastructure
 /// with the server's name at the top of it.
 ///
-/// The two halves save differently and are stacked rather than columned for
-/// that reason. The fields above are the server row and wait for Save; the
-/// list below is rows of its own and acts immediately — so the list has to
-/// read as *under* the fields it borrows the key and secret from, not beside
-/// them.
+/// The regions come first and the credential after, because the list is what
+/// the page is about and the key and secret are a detail true of all of it.
+/// They also behave differently: a region is a row that is added, changed or
+/// removed through a dialog and acts the moment that dialog is confirmed,
+/// while the credential is two write-only fields on the server row — which is
+/// why Save at the foot says what it saves.
 ///
 /// Takes the server rather than reading the selection, because the dialog
 /// opens from the rail's menu for any server, including one you are not
@@ -39,7 +40,6 @@ class VoicePanel extends StatefulWidget {
 }
 
 class _VoicePanelState extends State<VoicePanel> {
-  late final TextEditingController _livekitUrlCtrl;
   final _apiKeyCtrl = TextEditingController();
   final _secretCtrl = TextEditingController();
 
@@ -47,16 +47,7 @@ class _VoicePanelState extends State<VoicePanel> {
   String? _error;
 
   @override
-  void initState() {
-    super.initState();
-    _livekitUrlCtrl = TextEditingController(
-      text: widget.server.livekitUrl ?? '',
-    );
-  }
-
-  @override
   void dispose() {
-    _livekitUrlCtrl.dispose();
     _apiKeyCtrl.dispose();
     _secretCtrl.dispose();
     super.dispose();
@@ -68,14 +59,12 @@ class _VoicePanelState extends State<VoicePanel> {
       _error = null;
     });
 
-    final url = _livekitUrlCtrl.text.trim();
     final apiKey = _apiKeyCtrl.text.trim();
     final secret = _secretCtrl.text.trim();
     // Only what was filled in is sent: `update_server` leaves out what it
-    // isn't given, so a blank secret keeps the stored one and a blank URL
-    // doesn't unset the address.
+    // isn't given, so a blank field keeps the stored secret rather than
+    // clearing it.
     final result = await context.read<ServerCubit>().updateServerDetails(
-      livekitUrl: url.isEmpty ? null : url,
       livekitApiKey: apiKey.isEmpty ? null : apiKey,
       livekitSecretKey: secret.isEmpty ? null : secret,
       serverId: widget.server.id,
@@ -96,7 +85,7 @@ class _VoicePanelState extends State<VoicePanel> {
     _apiKeyCtrl.clear();
     _secretCtrl.clear();
     setState(() => _isLoading = false);
-    HelperMethods.showSuccess(message: 'Voice settings updated');
+    HelperMethods.showSuccess(message: 'LiveKit credentials updated');
   }
 
   @override
@@ -106,7 +95,7 @@ class _VoicePanelState extends State<VoicePanel> {
       subtitle: 'Where this server holds calls',
       footer: [
         AppButton(
-          label: 'Save',
+          label: 'Save credentials',
           isLoading: _isLoading,
           onPressed: _isLoading ? null : _submit,
         ),
@@ -119,15 +108,14 @@ class _VoicePanelState extends State<VoicePanel> {
             MessageBanner(message: error, kind: MessageBannerKind.error),
             const SizedBox(height: 18),
           ],
-          ServerLiveKitSection(
-            livekitUrlCtrl: _livekitUrlCtrl,
-            apiKeyCtrl: _apiKeyCtrl,
-            secretCtrl: _secretCtrl,
+          VoiceRegionsSection(
+            serverId: widget.server.id,
             enabled: !_isLoading,
           ),
           const SizedBox(height: 26),
-          ServerVoiceRegionsSection(
-            serverId: widget.server.id,
+          VoiceCredentialsSection(
+            apiKeyCtrl: _apiKeyCtrl,
+            secretCtrl: _secretCtrl,
             enabled: !_isLoading,
           ),
         ],

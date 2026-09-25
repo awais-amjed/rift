@@ -7,7 +7,7 @@ import 'package:rift/data/classes/region_load.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/data/repositories/voice_region_probe.dart';
 import 'package:rift/logic/services/voice_signal.dart';
-import 'package:rift/presentation/screens/home/servers/server_settings/widgets/voice_region_row.dart';
+import 'package:rift/presentation/screens/home/servers/server_settings/voice/voice_region_dialog.dart';
 
 void main() {
   group('LiveKitNode', () {
@@ -214,15 +214,15 @@ void main() {
     // `^wss?://[^ ]+$`. Refused here so a typo is a sentence rather than a
     // constraint violation coming back from the server.
     test('accepts the two WebSocket schemes', () {
-      expect(VoiceRegionRow.checkUrl('wss://sg.example.com'), isNull);
-      expect(VoiceRegionRow.checkUrl('ws://192.168.1.6:7890'), isNull);
+      expect(VoiceRegionDialog.checkUrl('wss://sg.example.com'), isNull);
+      expect(VoiceRegionDialog.checkUrl('ws://192.168.1.6:7890'), isNull);
     });
 
     test('refuses http, a bare host, and anything with a space', () {
-      expect(VoiceRegionRow.checkUrl('https://sg.example.com'), isNotNull);
-      expect(VoiceRegionRow.checkUrl('sg.example.com'), isNotNull);
-      expect(VoiceRegionRow.checkUrl('wss://sg example.com'), isNotNull);
-      expect(VoiceRegionRow.checkUrl(''), isNotNull);
+      expect(VoiceRegionDialog.checkUrl('https://sg.example.com'), isNotNull);
+      expect(VoiceRegionDialog.checkUrl('sg.example.com'), isNotNull);
+      expect(VoiceRegionDialog.checkUrl('wss://sg example.com'), isNotNull);
+      expect(VoiceRegionDialog.checkUrl(''), isNotNull);
     });
   });
 

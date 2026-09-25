@@ -19,8 +19,19 @@ mixin _ServerVoiceRegionsApiMixin on Cubit<ServerState> {
     Future<APIResponse> Function(String token) call,
   );
 
-  /// Implemented by [_ServerApiMixin].
+  /// Both implemented by [_ServerApiMixin]. The update is repeated whole
+  /// rather than narrowed to the one field sent below: a declaration with
+  /// fewer named parameters is not something the real one can override.
   Future<({bool success, String? error})> refreshServerDetails();
+  Future<({bool success, String? error})> updateServerDetails({
+    String? name,
+    String? iconUrl,
+    String? livekitUrl,
+    String? livekitApiKey,
+    String? livekitSecretKey,
+    ServerLimits? limits,
+    String? serverId,
+  });
 
   Future<({bool success, String? error})> addVoiceRegion({
     required String label,
@@ -52,6 +63,35 @@ mixin _ServerVoiceRegionsApiMixin on Cubit<ServerState> {
     ),
     failure: 'Failed to change the region',
   );
+
+  /// The default region's address, which is the *server's* LiveKit URL.
+  ///
+  /// Written through `update_server` rather than through the node, because
+  /// `servers.livekit_url` is where that address lives and a trigger carries
+  /// it into the default node. Writing the node instead would leave the two
+  /// disagreeing, and the column is what an older client still reads.
+  ///
+  /// Ends like the three above it — the probe's measurement thrown away, the
+  /// server re-read — because the default node's row has just changed
+  /// underneath us and the copy held here still names the old box.
+  Future<({bool success, String? error})> updateDefaultVoiceRegion({
+    required String url,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, error: 'No server selected');
+    }
+
+    final result = await updateServerDetails(
+      livekitUrl: url,
+      serverId: server.id,
+    );
+    if (!result.success) return result;
+
+    _regionProbe.invalidate(server.id);
+    await refreshServerDetails();
+    return (success: true, error: null);
+  }
 
   Future<({bool success, String? error})> deleteVoiceRegion(String nodeId) =>
       _changeVoiceRegion(
