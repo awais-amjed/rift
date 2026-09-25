@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/livekit_node.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
-import '../../../../../common/app_button.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../theme/app_text.dart';
@@ -131,15 +130,6 @@ class _VoiceRegionsSectionState extends State<VoiceRegionsSection> {
           ),
           const SizedBox(height: 8),
         ],
-        const SizedBox(height: 4),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: AppButton(
-            label: 'Add region',
-            variant: AppButtonVariant.secondary,
-            onPressed: changeable ? () => showVoiceRegionDialog(context) : null,
-          ),
-        ),
       ],
     );
   }
