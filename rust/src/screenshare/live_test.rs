@@ -50,7 +50,11 @@ impl Server {
         }
     }
 
-    fn token(&self, room: &str, identity: &str) -> String {
+    /// [subscribe] is false for the sharer, as `get_channel_token` mints a
+    /// share: the share connection only publishes, and one that could
+    /// subscribe was a way to sit in a call as nothing but a "screen share"
+    /// that no roster lists.
+    fn token(&self, room: &str, identity: &str, subscribe: bool) -> String {
         AccessToken::with_api_key(&self.key, &self.secret)
             .with_identity(identity)
             .with_name(identity)
@@ -58,7 +62,7 @@ impl Server {
                 room_join: true,
                 room: room.to_string(),
                 can_publish: true,
-                can_subscribe: true,
+                can_subscribe: subscribe,
                 ..Default::default()
             })
             .to_jwt()
@@ -73,7 +77,7 @@ fn shared_key() -> Vec<u8> {
 fn config(server: &Server, room: &str) -> ScreenShareConfig {
     ScreenShareConfig {
         livekit_url: server.url.clone(),
-        livekit_token: server.token(room, "sharer"),
+        livekit_token: server.token(room, "sharer", false),
         resolution: 720,
         fps: 15,
         bitrate: 2,
@@ -100,7 +104,7 @@ async fn viewer(
         encryption_type: EncryptionType::Gcm,
         key_provider,
     });
-    Room::connect(&server.url, &server.token(room, "viewer"), options)
+    Room::connect(&server.url, &server.token(room, "viewer", true), options)
         .await
         .expect("viewer connects")
 }
