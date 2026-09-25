@@ -5,6 +5,7 @@ import '../../../../data/constants.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
+import 'panel_select.dart';
 
 /// The pressable half of a panel: a row of buttons, or a menu.
 ///
@@ -46,46 +47,10 @@ class PanelActions extends StatelessWidget {
     );
   }
 
-  /// A menu, drawn as Rift's own dropdown. The bot names the action once; each
-  /// option carries the value that comes back with it.
   Widget _select(BuildContext context) {
-    final themeState = context.theme;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
-      child: PopupMenuButton<PanelAction>(
-        enabled: onAction != null,
-        onSelected: (option) =>
-            onAction!(block.action!, option.value ?? option.label),
-        itemBuilder: (context) => [
-          for (final option in block.actions)
-            PopupMenuItem(value: option, child: Text(option.label)),
-        ],
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: themeState.bgHover,
-            borderRadius: BorderRadius.circular(K.radiusRow),
-            border: Border.all(color: themeState.borderPrimary),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 6,
-            children: [
-              Text(
-                block.text ?? 'Choose…',
-                style: AppText.secondary.copyWith(
-                  color: themeState.textSecondary,
-                ),
-              ),
-              Icon(
-                Icons.expand_more_rounded,
-                size: 15,
-                color: themeState.textTertiary,
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: PanelSelect(block: block, onAction: onAction),
     );
   }
 }

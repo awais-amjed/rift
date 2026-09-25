@@ -12,7 +12,9 @@ import 'context_menu_sheet.dart';
 /// in a list of otherwise identical rows, colour alone on a 14px label is too
 /// easy to miss on the way to clicking it.
 class ContextMenuItem extends StatelessWidget {
-  final IconData icon;
+  /// Null for a row that is only a choice among words — a bot's menu
+  /// options — where an icon per row would be made up.
+  final IconData? icon;
   final String label;
   final bool isDangerous;
   final VoidCallback onTap;
@@ -22,7 +24,7 @@ class ContextMenuItem extends StatelessWidget {
 
   const ContextMenuItem({
     super.key,
-    required this.icon,
+    this.icon,
     required this.label,
     required this.onTap,
     this.isDangerous = false,
@@ -60,7 +62,8 @@ class ContextMenuItem extends StatelessWidget {
           child: Row(
             spacing: inSheet ? 14 : 10,
             children: [
-              Icon(icon, size: inSheet ? 19 : 15, color: color),
+              if (icon != null)
+                Icon(icon, size: inSheet ? 19 : 15, color: color),
               Expanded(
                 child: Text(
                   label,
