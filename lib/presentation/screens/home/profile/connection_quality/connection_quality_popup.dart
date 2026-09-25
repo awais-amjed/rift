@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/livekit_node.dart';
+import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
 import '../../../../common/popover_surface.dart';
 import '../../../../theme/app_text.dart';
@@ -10,9 +13,35 @@ import 'connection_quality_style.dart';
 import 'ping_graph.dart';
 
 /// Popup panel shown above the connection quality indicator.
-/// Shows ping, average ping, packet loss, and a 5-minute ping history graph.
+///
+/// Ping, average ping, packet loss, a 5-minute ping history graph — and which
+/// **region** the call is on, when the server has more than one. Without it a
+/// number is a number: a ping of 240 ms means something quite different
+/// depending on whether you are in the region next door or the one across an
+/// ocean, and until now nothing in Rift said which.
+///
+/// Matched by address rather than by name, because the address is what the
+/// token carried. An operator renaming a region mid-call then shows the new
+/// name against the same connection, which is right — it is the same box.
 class ConnectionQualityPopup extends StatelessWidget {
   const ConnectionQualityPopup({super.key});
+
+  /// The name of the region this call is on, or null when the server has
+  /// only one — where naming it would be answering a question nobody has.
+  String? _region(BuildContext context) {
+    final url = context.read<LiveKitCubit>().state.connectedLivekitUrl;
+    if (url == null) return null;
+
+    final nodes =
+        context.read<ServerCubit>().state.selectedServer?.livekitNodes ??
+        const <LiveKitNode>[];
+    if (nodes.length < 2) return null;
+
+    for (final node in nodes) {
+      if (node.url == url) return node.label;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +137,10 @@ class ConnectionQualityPopup extends StatelessWidget {
                       value: '${stats.packetLossPercent!.toStringAsFixed(1)}%',
                       isWarning: stats.packetLossPercent! > 5,
                     ),
+                  ],
+                  if (_region(context) case final region?) ...[
+                    const SizedBox(height: 6),
+                    _StatRow(label: 'Region', value: region, isWarning: false),
                   ],
                 ],
 

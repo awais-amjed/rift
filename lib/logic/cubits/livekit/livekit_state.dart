@@ -41,6 +41,13 @@ class LiveKitState {
   /// each happened to be built. Null whenever the state is anything else.
   final DateTime? connectedAt;
 
+  /// Which LiveKit this call is actually on, as the mint named it.
+  ///
+  /// The address rather than the region's name, because the address is what
+  /// the token carried and the name is something a client looks up — and an
+  /// operator may rename a region while somebody is in a call on it.
+  final String? connectedLivekitUrl;
+
   const LiveKitState({
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
@@ -56,6 +63,7 @@ class LiveKitState {
     this.isServerMuted = false,
     this.isServerDeafened = false,
     this.connectedAt,
+    this.connectedLivekitUrl,
   });
 
   /// Whether the microphone is live: the user wants it on, hasn't deafened
@@ -107,6 +115,7 @@ class LiveKitState {
     bool? isServerMuted,
     bool? isServerDeafened,
     DateTime? connectedAt,
+    String? connectedLivekitUrl,
     bool clearRoom = false,
     bool clearChannelId = false,
     bool clearFailure = false,
@@ -133,6 +142,11 @@ class LiveKitState {
       // places a call can end, so no path out of a call can leave a stale one.
       connectedAt: nextConnection == LiveKitConnectionState.connected
           ? (connectedAt ?? this.connectedAt)
+          : null,
+      // Tied to the connection for the same reason: an address kept after a
+      // call ended would name a region the next one may not be on.
+      connectedLivekitUrl: nextConnection == LiveKitConnectionState.connected
+          ? (connectedLivekitUrl ?? this.connectedLivekitUrl)
           : null,
     );
   }

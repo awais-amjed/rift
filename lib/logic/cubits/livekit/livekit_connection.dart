@@ -230,6 +230,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
           connectionState: LiveKitConnectionState.connected,
           room: room,
           connectedAt: DateTime.now(),
+          connectedLivekitUrl: livekitUrl,
           isMicEnabled: useMicEnabled,
           isCameraEnabled: useCameraEnabled,
         ),
