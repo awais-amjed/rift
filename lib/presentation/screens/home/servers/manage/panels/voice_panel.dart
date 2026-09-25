@@ -108,10 +108,7 @@ class _VoicePanelState extends State<VoicePanel> {
             MessageBanner(message: error, kind: MessageBannerKind.error),
             const SizedBox(height: 18),
           ],
-          VoiceRegionsSection(
-            serverId: widget.server.id,
-            enabled: !_isLoading,
-          ),
+          VoiceRegionsSection(serverId: widget.server.id, enabled: !_isLoading),
           const SizedBox(height: 26),
           VoiceCredentialsSection(
             apiKeyCtrl: _apiKeyCtrl,

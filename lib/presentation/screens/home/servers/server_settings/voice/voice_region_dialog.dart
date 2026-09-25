@@ -69,7 +69,6 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
   final _apiKeyCtrl = TextEditingController();
   final _secretCtrl = TextEditingController();
 
-
   bool _isLoading = false;
   String? _error;
 
@@ -294,10 +293,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
 /// The dialog is a route of its own, so it is outside the manage dialog's
 /// providers and has to be handed the cubit rather than reading it from a
 /// tree it is no longer in.
-Future<void> showVoiceRegionDialog(
-  BuildContext context, {
-  LiveKitNode? node,
-}) {
+Future<void> showVoiceRegionDialog(BuildContext context, {LiveKitNode? node}) {
   final cubit = context.read<ServerCubit>();
   return showCustomDialog(
     context: context,
