@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
 import '../../../data/classes/server.dart';
+import '../../services/call_start_times.dart';
 import '../../services/presence_ration.dart';
 import '../../services/server_realtime.dart';
 import '../../services/voice_broadcast.dart';
@@ -61,6 +62,13 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   Map<String, String> _names = const {};
   Set<String> _online = const {};
 
+  /// When each occupied channel's call began — see [CallStartTimes].
+  CallStartTimes _starts = const CallStartTimes();
+
+  /// The channel our own call is in, so a join or a leave re-times the
+  /// sidebar without redrawing it on every LiveKit tick.
+  String? _ownChannel;
+
   /// Bumped by everything that tears the channels down and builds them again,
   /// so a connect that was overtaken while awaiting the teardown gives up.
   int _connectEpoch = 0;
@@ -76,7 +84,10 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
        _livekitCubit = livekitCubit,
        super(const ChannelPresenceState()) {
     _serverSub = serverCubit.stream.listen(_onServerChanged);
-    _lkSub = livekitCubit.stream.listen((_) => _announceLocation());
+    _lkSub = livekitCubit.stream.listen((_) {
+      _announceLocation();
+      _onOwnChannel();
+    });
     // Bootstrap with current state
     _onServerChanged(serverCubit.state);
   }
@@ -176,6 +187,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     if (!isClosed && !keepState) {
       _names = const {};
       _online = const {};
+      _starts = const CallStartTimes();
       emit(const ChannelPresenceState());
     }
   }
@@ -205,6 +217,17 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     if (!response.success) return null;
     final data = response.data;
     if (data is! Map) return null;
+    // When the calls already running began. Kept aside until presence shows
+    // each channel occupied; see [CallStartTimes].
+    if (data['started'] case final Map started) {
+      _starts = _starts.withServer({
+        for (final entry in started.entries)
+          if (entry.key is String && entry.value is num)
+            entry.key as String: DateTime.fromMillisecondsSinceEpoch(
+              (entry.value as num).toInt(),
+            ),
+      }, DateTime.now());
+    }
     final roster = data['roster'];
     if (roster is! Map) return null;
     return {
@@ -254,9 +277,34 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     _healTracking(_online);
   }
 
+  /// Our own call started, ended or moved: that changes which channels are
+  /// occupied, and presence leaves us out of its own count.
+  void _onOwnChannel() {
+    final lk = _livekitCubit.state;
+    final own = lk.connectionState == LiveKitConnectionState.connected
+        ? lk.currentChannelId
+        : null;
+    if (own == _ownChannel) return;
+    _ownChannel = own;
+    _emit();
+  }
+
   /// Joins the two transports into the one picture the UI reads.
   void _emit() {
     if (isClosed) return;
+    // Mid-rebuild there are no locations to read, and treating that as every
+    // channel emptying would restart every timer.
+    if (_voice != null) {
+      final occupied = {
+        for (final entry in VoiceLocations.rosters(
+          locations: _voice!.locations,
+          online: _online,
+        ).entries)
+          if (entry.value.isNotEmpty) entry.key,
+        ?_ownChannel,
+      };
+      _starts = _starts.update(occupied, DateTime.now());
+    }
     final byChannel = VoiceLocations.rosters(
       locations: _voice?.locations ?? const {},
       online: _online,
@@ -275,7 +323,11 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     }
 
     emit(
-      ChannelPresenceState(channelPresence: rosters, onlineUserIds: _online),
+      ChannelPresenceState(
+        channelPresence: rosters,
+        onlineUserIds: _online,
+        callStartedAt: _starts.started,
+      ),
     );
   }
 

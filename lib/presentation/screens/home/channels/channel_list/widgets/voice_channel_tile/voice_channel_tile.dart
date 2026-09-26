@@ -191,6 +191,10 @@ class VoiceChannelTile extends StatelessWidget {
             child: HoverBuilder(
               builder: (context, hovered) => VoiceChannelTileHeader(
                 channel: channel,
+                startedAt: context
+                    .watch<ChannelPresenceCubit>()
+                    .state
+                    .callStartedAt[channel.id],
                 gear: ChannelSettingsGear.beside(
                   context,
                   null,

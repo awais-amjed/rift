@@ -21,9 +21,14 @@ class ChannelPresenceState {
   /// online/offline split.
   final Set<String> onlineUserIds;
 
+  /// channelId → when the call there began, for every occupied channel —
+  /// our own included, unlike [channelPresence].
+  final Map<String, DateTime> callStartedAt;
+
   const ChannelPresenceState({
     this.channelPresence = const {},
     this.onlineUserIds = const {},
+    this.callStartedAt = const {},
   });
 
   List<PresenceUser> usersIn(String channelId) =>

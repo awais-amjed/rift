@@ -5,12 +5,12 @@ import '../../../../../../../../data/constants.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/theme_context.dart';
 import '../../channel_lock_badge.dart';
-import 'live_badge.dart';
+import 'call_timer.dart';
 import 'roster_row_metrics.dart';
 import 'voice_listening_badge.dart';
 
 /// The clickable row at the top of an occupied voice channel's card: the
-/// channel's name, its lock, whether a bot can hear it, and the LIVE tag.
+/// channel's name, its lock, whether a bot can hear it, and how long its call has run.
 ///
 /// Its own widget because the card around it is a container and a roster, and
 /// this is the only part of it you can press — keeping them apart is what stops
@@ -29,6 +29,9 @@ class VoiceChannelTileHeader extends StatelessWidget {
   /// viewer runs.
   final Widget? gear;
 
+  /// When the call here began, or null with nobody in it.
+  final DateTime? startedAt;
+
   const VoiceChannelTileHeader({
     super.key,
     required this.channel,
@@ -36,6 +39,7 @@ class VoiceChannelTileHeader extends StatelessWidget {
     required this.listeners,
     this.onTap,
     this.gear,
+    this.startedAt,
   });
 
   @override
@@ -95,11 +99,11 @@ class VoiceChannelTileHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              // Before LIVE, not after: whether you can be heard by a bot is
-              // the thing to read before deciding to speak, and LIVE is about
-              // the call you already joined.
+              // Before the timer, not after: whether you can be heard by a bot
+              // is the thing to read before deciding to speak.
               VoiceListeningBadge(listeners: listeners),
-              if (isSelected) const LiveBadge(),
+              if (startedAt case final startedAt?)
+                CallTimer(startedAt: startedAt, isYours: isSelected),
               ?gear,
             ],
           ),
