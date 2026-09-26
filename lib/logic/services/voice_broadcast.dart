@@ -46,6 +46,18 @@ class VoiceBroadcast {
   int _epoch = 0;
   bool _disposed = false;
 
+  /// The one second look at the roster — see [recheckAfter].
+  Timer? _recheck;
+
+  /// How long after joining to ask LiveKit again.
+  ///
+  /// A killed app stays in LiveKit's room until its departure timeout, about
+  /// twenty seconds, and a roster read inside that window lists a session
+  /// that is already dead. Nothing that session says afterwards can correct
+  /// it — it says nothing — so a client that joined in that window drew the
+  /// ghost until its next reconnect. One more read, after the window, does.
+  static const recheckAfter = Duration(seconds: 30);
+
   /// [initial] carries the last known map through a reconnect, so the channel
   /// list doesn't blink empty while the replacement snapshot is in flight.
   VoiceBroadcast({
@@ -70,6 +82,9 @@ class VoiceBroadcast {
         // "nowhere" per start is what clears that ghost.
         if (_hasAnnounced) _send();
         unawaited(_snapshot());
+        _recheck ??= Timer(recheckAfter, () {
+          if (!_disposed) unawaited(_snapshot());
+        });
       },
     )?..onBroadcast(VoiceLocations.event, _onDelta);
   }
@@ -129,6 +144,7 @@ class VoiceBroadcast {
 
   Future<void> dispose() async {
     _disposed = true;
+    _recheck?.cancel();
     final topic = _topic;
     _topic = null;
     await topic?.release();
