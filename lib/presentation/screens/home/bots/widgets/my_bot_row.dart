@@ -77,7 +77,9 @@ class MyBotRow extends StatelessWidget {
         AppButton(
           label: 'Withdraw',
           variant: AppButtonVariant.danger,
-          onPressed: busy ? null : onRemove,
+          // A hidden listing stays: deleting and publishing again would
+          // bring back what a moderator took down.
+          onPressed: busy || bot.isHidden ? null : onRemove,
         ),
       ],
     );

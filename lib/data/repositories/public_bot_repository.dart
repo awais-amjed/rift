@@ -173,7 +173,18 @@ class PublicBotRepository {
   /// the likes go with it.
   Future<APIResponse> remove(String botId) async {
     try {
-      await _client.from(_table).delete().eq('id', botId);
+      // A listing a moderator hid cannot go (central 007), and a delete the
+      // policy refuses is an empty result rather than an error.
+      final gone = await _client
+          .from(_table)
+          .delete()
+          .eq('id', botId)
+          .select('id');
+      if (gone.isEmpty) {
+        return APIResponse.error(
+          'Rift moderators hid this listing, so it cannot be removed.',
+        );
+      }
       return APIResponse.success(null);
     } catch (e) {
       return APIResponse.error(e);

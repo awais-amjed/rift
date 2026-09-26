@@ -6,7 +6,8 @@ import '../../../common/message_banner.dart';
 ///
 /// Its owner is the only person besides a moderator who can still see the
 /// listing, so this is the one place they find out it left the directory —
-/// and why, in the moderator's words.
+/// and why, in the moderator's words. Nor can it be removed: a listing
+/// published again after it would carry no moderator's mark.
 class ListingHiddenNotice extends StatelessWidget {
   final String? reason;
 
@@ -19,7 +20,8 @@ class ListingHiddenNotice extends StatelessWidget {
       kind: MessageBannerKind.caution,
       message:
           'Rift moderators hid this listing from the directory'
-          '${why.isEmpty ? '.' : ': $why'} Editing it does not bring it back.',
+          '${why.isEmpty ? '.' : ': $why'} Editing it does not bring it back, '
+          'and it cannot be removed while it is hidden.',
     );
   }
 }

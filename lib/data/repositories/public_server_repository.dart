@@ -211,7 +211,18 @@ class PublicServerRepository {
   /// Withdraw a listing entirely. Delisting keeps the row; this doesn't.
   Future<APIResponse> remove(String listingId) async {
     try {
-      await _client.from(_table).delete().eq('id', listingId);
+      // A listing a moderator hid cannot go (central 007), and a delete the
+      // policy refuses is an empty result rather than an error.
+      final gone = await _client
+          .from(_table)
+          .delete()
+          .eq('id', listingId)
+          .select('id');
+      if (gone.isEmpty) {
+        return APIResponse.error(
+          'Rift moderators hid this listing, so it cannot be removed.',
+        );
+      }
       return APIResponse.success(null);
     } catch (e) {
       return APIResponse.error(e);

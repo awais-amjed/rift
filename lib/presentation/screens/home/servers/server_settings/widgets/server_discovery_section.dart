@@ -143,7 +143,10 @@ class ServerDiscoverySection extends StatelessWidget {
                 AppButton(
                   label: 'Remove listing',
                   variant: AppButtonVariant.danger,
-                  onPressed: enabled ? onRemove : null,
+                  // See ListingHiddenNotice: a hidden listing stays put.
+                  onPressed: enabled && !draft.listing!.isHidden
+                      ? onRemove
+                      : null,
                 ),
               ],
             ),
