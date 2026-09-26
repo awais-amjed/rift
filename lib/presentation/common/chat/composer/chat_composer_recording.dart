@@ -58,23 +58,23 @@ mixin _ComposerRecordingMixin
     _recordTimer?.cancel();
     final durationMs = _elapsed.inMilliseconds;
     try {
-      final bytes = await _recorder.stop();
+      final note = await _recorder.stop();
       if (!mounted) return;
       // A long enough recording outgrows the cap the same way a picked file
       // does, and finding that out at upload time would lose the take.
-      if (bytes != null &&
-          !_accepts(name: 'That recording', bytes: bytes.length)) {
+      if (note != null &&
+          !_accepts(name: 'That recording', bytes: note.bytes.length)) {
         setState(() => _isRecording = false);
         return;
       }
       setState(() {
         _isRecording = false;
-        if (bytes != null) {
+        if (note != null) {
           _staged.add(
             PendingAttachment(
-              bytes: bytes,
-              name: 'Voice message.m4a',
-              mime: 'audio/mp4',
+              bytes: note.bytes,
+              name: note.name,
+              mime: note.mime,
               kind: AttachmentKind.audio,
               durationMs: durationMs,
             ),
