@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/classes/channel.dart';
-import '../../../../data/classes/server_limits.dart';
-import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../logic/services/limit_input.dart';
-import '../../../common/app_button.dart';
-import '../../../common/app_modal.dart';
-import '../../../common/app_text_field.dart';
-import '../../../common/limit_field.dart';
-import 'widgets/voice_region_field.dart';
+import '../../../../../../data/classes/channel.dart';
+import '../../../../../../data/classes/server_limits.dart';
+import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/helper_methods.dart';
+import '../../../../../../logic/services/limit_input.dart';
+import '../../../../../common/app_button.dart';
+import '../../../../../common/app_text_field.dart';
+import '../../../../../common/limit_field.dart';
+import '../../../servers/manage/widgets/manage_panel.dart';
+import '../../widgets/voice_region_field.dart';
 
-/// Per-channel settings for a channel manager: the name, how much history
-/// this channel keeps, and — for a voice channel — which LiveKit its calls
-/// are held on.
+/// The first page of a channel's settings: the name, how much history this
+/// channel keeps, and — for a voice channel — which region its calls are
+/// held in.
+///
+/// [channel] is the live row, so once a save lands and the server's details
+/// are read back, the change checks compare against what was just written and
+/// Save greys out again. Anything decided *about* the save is taken before it
+/// is sent, because that refresh can arrive while it is still in flight.
 ///
 /// The two halves are exclusive, because each is wired to nothing on the
 /// other kind. A voice channel holds no messages, so a retention setting
@@ -23,16 +29,16 @@ import 'widgets/voice_region_field.dart';
 /// Both retention boxes are three-valued and the helper line under each is what
 /// makes that legible: blank inherits the server's number, 0 opts this channel
 /// out of it, and a number sets its own. See `002_limits.sql`.
-class ChannelSettingsDialog extends StatefulWidget {
+class ChannelOverviewPanel extends StatefulWidget {
   final Channel channel;
 
-  const ChannelSettingsDialog({super.key, required this.channel});
+  const ChannelOverviewPanel({super.key, required this.channel});
 
   @override
-  State<ChannelSettingsDialog> createState() => _ChannelSettingsDialogState();
+  State<ChannelOverviewPanel> createState() => _ChannelOverviewPanelState();
 }
 
-class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
+class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
   late final TextEditingController _nameCtrl = TextEditingController(
     text: widget.channel.name,
   );
@@ -116,6 +122,9 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
 
     final retention = _retention;
     final cap = _cap;
+    final nodeChanged = _nodeChanged;
+    final moveLiveCall = _shouldMoveLiveCall;
+    final nodeId = _nodeId;
     final result = await context.read<ServerCubit>().updateChannel(
       channelId: widget.channel.id,
       name: _nameChanged ? _name : null,
@@ -123,8 +132,8 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
       clearRetentionDays: _retentionChanged && retention == null,
       historyCap: _capChanged ? cap : null,
       clearHistoryCap: _capChanged && cap == null,
-      livekitNodeId: _nodeChanged ? _nodeId : null,
-      clearLivekitNodeId: _nodeChanged && _nodeId == null,
+      livekitNodeId: nodeChanged ? nodeId : null,
+      clearLivekitNodeId: nodeChanged && nodeId == null,
     );
     if (!mounted) return;
 
@@ -144,10 +153,10 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
     // Asked on every explicit region change, because only the server knows
     // whether a call is up: see [_shouldMoveLiveCall]. With nothing running
     // this costs one request that answers `no_call`.
-    if (_nodeChanged && _nodeId != null && _shouldMoveLiveCall) {
+    if (nodeChanged && nodeId != null && moveLiveCall) {
       final moved = await context.read<ServerCubit>().moveCall(
         channelId: widget.channel.id,
-        nodeId: _nodeId!,
+        nodeId: nodeId,
       );
       if (!mounted) return;
       if (!moved.success) {
@@ -163,16 +172,26 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
       }
     }
 
-    Navigator.of(context).pop();
+    setState(() => _isLoading = false);
+    HelperMethods.showSuccess(message: 'Channel saved');
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppModal(
-      title: 'Channel settings',
-      subtitle: '#${widget.channel.name}',
+    return ManagePanel(
+      title: 'Overview',
+      subtitle: widget.channel.hasMessages
+          ? 'Name and message history'
+          : 'Name and where calls are held',
       error: _error,
-      content: Column(
+      footer: [
+        AppButton(
+          label: _isLoading ? 'Saving...' : 'Save',
+          isLoading: _isLoading,
+          onPressed: _canSubmit && !_isLoading ? _submit : null,
+        ),
+      ],
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -181,7 +200,6 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
             label: 'Channel name',
             hint: 'general',
             enabled: !_isLoading,
-            autofocus: true,
             onChanged: (_) => setState(() => _error = null),
             onEditingComplete: _submit,
           ),
@@ -219,7 +237,10 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
             const SizedBox(height: 16),
             VoiceRegionField(
               nodes:
-                  context.read<ServerCubit>().state.selectedServer
+                  context
+                      .read<ServerCubit>()
+                      .state
+                      .selectedServer
                       ?.livekitNodes ??
                   const [],
               // Watched rather than read once: the dialog can be open while
@@ -237,18 +258,6 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
           ],
         ],
       ),
-      actions: [
-        AppButton(
-          label: 'Cancel',
-          variant: AppButtonVariant.secondary,
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-        ),
-        AppButton(
-          label: _isLoading ? 'Saving...' : 'Save',
-          isLoading: _isLoading,
-          onPressed: _canSubmit && !_isLoading ? _submit : null,
-        ),
-      ],
     );
   }
 }

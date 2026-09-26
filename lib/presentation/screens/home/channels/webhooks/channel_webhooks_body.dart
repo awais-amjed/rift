@@ -20,7 +20,7 @@ import 'widgets/webhook_secret_card.dart';
 /// encrypted, and they are badged in the channel to match.
 ///
 /// The body only — it is the same list whether it opens from a channel's menu
-/// ([ChannelWebhooksDialog]) or on the webhooks page of the manage-server
+/// (the Webhooks page of its settings) or on the webhooks page of the manage-server
 /// dialog, which puts a channel picker above it.
 class ChannelWebhooksBody extends StatefulWidget {
   final Channel channel;

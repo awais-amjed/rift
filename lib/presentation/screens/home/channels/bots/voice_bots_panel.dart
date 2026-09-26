@@ -3,20 +3,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
-import '../../../../common/app_button.dart';
-import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/loading_block.dart';
+import '../../servers/manage/widgets/manage_panel.dart';
 import 'widgets/channel_bot_row.dart';
 
 /// Which bots can hear this call.
 ///
-/// The sibling of [ChannelBotsDialog], and the differences are the point. That
+/// The sibling of [ChannelBotsPanel], and the differences are the point. That
 /// one hands over a channel *key*, which is arithmetic — revoking rotates
 /// forward and cannot unread what has been read — so it warns on the way in and
 /// says the damage is permanent.
@@ -30,16 +28,16 @@ import 'widgets/channel_bot_row.dart';
 ///
 /// Nothing here is needed to *play* audio. A music bot publishes, which was
 /// never the half that had to be allowed.
-class VoiceBotsDialog extends StatefulWidget {
+class VoiceBotsPanel extends StatefulWidget {
   final Channel channel;
 
-  const VoiceBotsDialog({super.key, required this.channel});
+  const VoiceBotsPanel({super.key, required this.channel});
 
   @override
-  State<VoiceBotsDialog> createState() => _VoiceBotsDialogState();
+  State<VoiceBotsPanel> createState() => _VoiceBotsPanelState();
 }
 
-class _VoiceBotsDialogState extends State<VoiceBotsDialog> {
+class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
   List<ServerMember> _bots = const [];
   Set<String> _granted = {};
   bool _isLoading = true;
@@ -124,12 +122,11 @@ class _VoiceBotsDialogState extends State<VoiceBotsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AppModal(
-      title: 'Bots hearing this',
-      subtitle: widget.channel.name,
-      maxWidth: K.dialogWidth,
+    return ManagePanel(
+      title: 'Bots',
+      subtitle: 'Bots that can hear calls here',
       error: _error,
-      content: Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -175,13 +172,6 @@ class _VoiceBotsDialogState extends State<VoiceBotsDialog> {
           ],
         ],
       ),
-      actions: [
-        AppButton(
-          label: 'Done',
-          variant: AppButtonVariant.secondary,
-          onPressed: _busyId != null ? null : () => Navigator.of(context).pop(),
-        ),
-      ],
     );
   }
 }

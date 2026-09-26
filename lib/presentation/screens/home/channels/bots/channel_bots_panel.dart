@@ -5,15 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../common/app_button.dart';
-import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/loading_block.dart';
+import '../../servers/manage/widgets/manage_panel.dart';
 import 'widgets/channel_bot_row.dart';
 
 /// Which bots hold the key to this channel.
@@ -27,16 +25,16 @@ import 'widgets/channel_bot_row.dart';
 /// So the confirm says that in as many words, and it is shown on the way *in*
 /// rather than after. The header chip and the system message the grant leaves
 /// behind are for everybody else in the room; this is for the person deciding.
-class ChannelBotsDialog extends StatefulWidget {
+class ChannelBotsPanel extends StatefulWidget {
   final Channel channel;
 
-  const ChannelBotsDialog({super.key, required this.channel});
+  const ChannelBotsPanel({super.key, required this.channel});
 
   @override
-  State<ChannelBotsDialog> createState() => _ChannelBotsDialogState();
+  State<ChannelBotsPanel> createState() => _ChannelBotsPanelState();
 }
 
-class _ChannelBotsDialogState extends State<ChannelBotsDialog> {
+class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
   List<ServerMember> _bots = const [];
   Set<String> _granted = {};
   bool _isLoading = true;
@@ -122,12 +120,11 @@ class _ChannelBotsDialogState extends State<ChannelBotsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AppModal(
-      title: 'Bots reading this',
-      subtitle: '#${widget.channel.name}',
-      maxWidth: K.dialogWidth,
+    return ManagePanel(
+      title: 'Bots',
+      subtitle: 'Bots that can read this channel',
       error: _error,
-      content: Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -162,13 +159,6 @@ class _ChannelBotsDialogState extends State<ChannelBotsDialog> {
           ],
         ],
       ),
-      actions: [
-        AppButton(
-          label: 'Done',
-          variant: AppButtonVariant.secondary,
-          onPressed: _busyId != null ? null : () => Navigator.of(context).pop(),
-        ),
-      ],
     );
   }
 }

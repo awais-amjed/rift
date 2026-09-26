@@ -113,6 +113,14 @@ class K {
   /// rather than one running off the screen.
   static const double manageDialogHeightFraction = 0.88;
 
+  /// A channel's settings: the manage dialog's shape, smaller, because every
+  /// page in it is one column — a form, a member list, a row of bots.
+  static const double channelSettingsWidth = 880;
+
+  /// Fixed like [manageDialogHeight], so switching pages doesn't move the
+  /// nav; the window caps it by [manageDialogHeightFraction].
+  static const double channelSettingsHeight = 660;
+
   /// The most a settings page's segmented choice may spread to — Theme,
   /// Sensitive content. A ceiling rather than a width: three segments across a
   /// desktop pane read as a lost control, but a fixed width overflowed a small

@@ -114,11 +114,12 @@ class VoiceRegionField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Styled as [AppTextField]'s label, since it sits under one.
         Text(
-          'Region',
-          style: AppText.label.copyWith(color: theme.textSecondary),
+          'REGION',
+          style: AppText.sectionLabel.copyWith(color: theme.textTertiary),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 7),
         DropdownButtonFormField<String?>(
           initialValue: selectedNodeId,
           isExpanded: true,

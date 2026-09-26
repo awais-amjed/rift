@@ -136,7 +136,7 @@ void main() {
 
     await open(tester);
     expect(find.text('Notifications'), findsOneWidget);
-    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Channel settings'), findsOneWidget);
     expect(find.text('Delete channel'), findsOneWidget);
   });
 
@@ -146,7 +146,7 @@ void main() {
 
     await open(tester);
     expect(find.text('Notifications'), findsOneWidget);
-    expect(find.text('Settings'), findsNothing);
+    expect(find.text('Channel settings'), findsNothing);
     expect(find.text('Delete channel'), findsNothing);
   });
 

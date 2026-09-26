@@ -25,12 +25,17 @@ class VoiceChannelTileHeader extends StatelessWidget {
 
   final VoidCallback? onTap;
 
+  /// The settings gear, while the pointer is over the header of a channel the
+  /// viewer runs.
+  final Widget? gear;
+
   const VoiceChannelTileHeader({
     super.key,
     required this.channel,
     required this.isSelected,
     required this.listeners,
     this.onTap,
+    this.gear,
   });
 
   @override
@@ -95,6 +100,7 @@ class VoiceChannelTileHeader extends StatelessWidget {
               // the call you already joined.
               VoiceListeningBadge(listeners: listeners),
               if (isSelected) const LiveBadge(),
+              ?gear,
             ],
           ),
         ),

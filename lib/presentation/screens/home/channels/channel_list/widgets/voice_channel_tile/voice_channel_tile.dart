@@ -8,10 +8,12 @@ import '../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
+import '../../../../../../common/hover_builder.dart';
 import '../../../../../../common/nav_row.dart';
 import '../../../../../../theme/theme_context.dart';
 import '../channel_context_menu.dart';
 import '../channel_lock_badge.dart';
+import '../channel_settings_gear.dart';
 import 'widgets/channel_drop_target.dart';
 import 'widgets/channel_roster.dart';
 import 'widgets/voice_channel_tile_header.dart';
@@ -96,24 +98,31 @@ class VoiceChannelTile extends StatelessWidget {
                 builder: (context, isTargeted) => ChannelContextMenu.wrap(
                   context: context,
                   channel: channel,
-                  child: NavRow(
-                    pushes: true,
-                    icon: Icons.volume_up_rounded,
-                    // An empty voice channel is a plain row, not the card
-                    // below, so the lock has to be put on twice. Missing
-                    // here is the case you would never notice by reading:
-                    // an empty channel is exactly the one nobody is in.
-                    iconBadge: channel.isPrivate
-                        ? const ChannelLockBadge()
-                        : null,
-                    label: channel.name,
-                    trailing: VoiceListeningBadge(
-                      listeners: context.watch<VoiceListenersCubit>().listening(
-                        channel.id,
+                  child: HoverBuilder(
+                    builder: (context, hovered) => NavRow(
+                      pushes: true,
+                      icon: Icons.volume_up_rounded,
+                      // An empty voice channel is a plain row, not the card
+                      // below, so the lock has to be put on twice. Missing
+                      // here is the case you would never notice by reading:
+                      // an empty channel is exactly the one nobody is in.
+                      iconBadge: channel.isPrivate
+                          ? const ChannelLockBadge()
+                          : null,
+                      label: channel.name,
+                      trailing: ChannelSettingsGear.beside(
+                        context,
+                        VoiceListeningBadge(
+                          listeners: context
+                              .watch<VoiceListenersCubit>()
+                              .listening(channel.id),
+                        ),
+                        channel: channel,
+                        hovered: hovered,
                       ),
+                      onTap: onTap,
+                      isSelected: isTargeted,
                     ),
-                    onTap: onTap,
-                    isSelected: isTargeted,
                   ),
                 ),
               );
@@ -177,14 +186,22 @@ class VoiceChannelTile extends StatelessWidget {
           ChannelContextMenu.wrap(
             context: context,
             channel: channel,
-            child: VoiceChannelTileHeader(
-              channel: channel,
+            child: HoverBuilder(
+              builder: (context, hovered) => VoiceChannelTileHeader(
+                channel: channel,
+                gear: ChannelSettingsGear.beside(
+                  context,
+                  null,
+                  channel: channel,
+                  hovered: hovered,
+                ),
 
-              isSelected: isSelected,
-              listeners: context.watch<VoiceListenersCubit>().listening(
-                channel.id,
+                isSelected: isSelected,
+                listeners: context.watch<VoiceListenersCubit>().listening(
+                  channel.id,
+                ),
+                onTap: onTap,
               ),
-              onTap: onTap,
             ),
           ),
           if (participants.isNotEmpty ||

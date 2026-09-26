@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_text_field.dart';
 
-/// The "name it and make it" line at the top of [ChannelWebhooksDialog].
+/// The "name it and make it" line at the top of a channel's webhook list.
 ///
 /// A webhook is created from one field because one field is all it takes: the
 /// channel comes from where the dialog was opened and the secret is the
