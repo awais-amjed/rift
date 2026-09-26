@@ -7,6 +7,7 @@ import '../../../theme/theme_context.dart';
 import '../../context_menu/context_menu_item.dart';
 import '../../context_menu/context_menu_overlay.dart';
 import '../../context_menu/context_menu_panel.dart';
+import '../../context_menu_region.dart';
 
 /// A bot's `select` block: a chip that opens a menu of its options.
 ///
@@ -46,12 +47,17 @@ class _PanelSelectState extends State<PanelSelect> {
       ContextMenuPanel(
         children: [
           for (final option in block.actions)
-            ContextMenuItem(
-              label: option.label,
-              onTap: () {
-                _menu.dismiss();
-                onAction(block.action!, option.value ?? option.label);
-              },
+            // Closed through the row's own scope too: on a phone the menu is
+            // a sheet, which the overlay never held.
+            Builder(
+              builder: (row) => ContextMenuItem(
+                label: option.label,
+                onTap: () {
+                  ContextMenuScope.of(row)?.call();
+                  _menu.dismiss();
+                  onAction(block.action!, option.value ?? option.label);
+                },
+              ),
             ),
         ],
       ),

@@ -6,6 +6,7 @@ import '../theme/theme_context.dart';
 import 'context_menu/context_menu_item.dart';
 import 'context_menu/context_menu_overlay.dart';
 import 'context_menu/context_menu_panel.dart';
+import 'context_menu_region.dart';
 
 /// One choice in an [AppDropdown].
 class AppDropdownOption<T> {
@@ -88,7 +89,10 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
     _menu.show(context, _buildMenu(box.size.width), below);
   }
 
-  void _pick(T value) {
+  /// [menuContext] is the picked row's: the menu closes through the scope it
+  /// was opened in, which on a phone is a sheet the overlay never held.
+  void _pick(BuildContext menuContext, T value) {
+    ContextMenuScope.of(menuContext)?.call();
     _menu.dismiss();
     if (value != widget.value) widget.onChanged?.call(value);
   }
@@ -108,24 +112,26 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 for (final option in widget.options)
-                  ContextMenuItem(
-                    label: option.label,
-                    onTap: () => _pick(option.value),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: 8,
-                      children: [
-                        ?option.trailing,
-                        // The current choice says so, as a check on the
-                        // right rather than a tint that reads as hover.
-                        Icon(
-                          Icons.check_rounded,
-                          size: K.iconRow,
-                          color: option.value == widget.value
-                              ? themeState.accentBright
-                              : Colors.transparent,
-                        ),
-                      ],
+                  Builder(
+                    builder: (row) => ContextMenuItem(
+                      label: option.label,
+                      onTap: () => _pick(row, option.value),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        spacing: 8,
+                        children: [
+                          ?option.trailing,
+                          // The current choice says so, as a check on the
+                          // right rather than a tint that reads as hover.
+                          Icon(
+                            Icons.check_rounded,
+                            size: K.iconRow,
+                            color: option.value == widget.value
+                                ? themeState.accentBright
+                                : Colors.transparent,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
               ],

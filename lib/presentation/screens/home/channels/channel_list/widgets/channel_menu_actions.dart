@@ -164,6 +164,11 @@ void openChannelSettings(
   if (!channel.hasMessages &&
       (serverCubit.state.selectedServer?.livekitNodes.length ?? 0) > 1) {
     unawaited(serverCubit.voiceRoster());
+    // And where a call here is running right now. That comes with the
+    // server's details, which nothing refreshes when a call starts — so
+    // without this the picker said "always held in this region" over a call
+    // running somewhere else, and never warned that saving would move it.
+    unawaited(serverCubit.refreshServerDetails());
   }
 
   // The bots pages refresh the markers other surfaces show — the header's
