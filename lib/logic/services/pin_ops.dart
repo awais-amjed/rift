@@ -46,6 +46,9 @@ class PinOps {
     if (error.contains('cannot_pin')) {
       return 'You don’t have permission to pin messages here.';
     }
+    if (error.contains('not_friends')) {
+      return 'You can only change pins in a chat with a friend.';
+    }
     return null;
   }
 }

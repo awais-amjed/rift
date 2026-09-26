@@ -262,12 +262,16 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           onEdit: context.read<CentralDmCubit>().editMessage,
           onDelete: context.read<CentralDmCubit>().deleteMessage,
           onRetry: context.read<CentralDmCubit>().retrySend,
-          onTogglePin: (message) => unawaited(
-            context.read<CentralDmCubit>().setPinned(
-              message,
-              pinned: !message.isPinned,
-            ),
-          ),
+          // Pins change what the other person sees, so they take the same
+          // friendship sending does, and central refuses them without it.
+          onTogglePin: state.canSendToOpen
+              ? (message) => unawaited(
+                  context.read<CentralDmCubit>().setPinned(
+                    message,
+                    pinned: !message.isPinned,
+                  ),
+                )
+              : null,
           jumpRequests: _jumpRequests,
           // The only two people who will ever read this. Naming anyone else
           // would light up a mention that cannot reach them.

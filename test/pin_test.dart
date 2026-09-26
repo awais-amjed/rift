@@ -60,6 +60,7 @@ void main() {
   test('the cap refusal is said in words', () {
     expect(PinOps.errorFor('P0001: pin_limit'), contains('${PinOps.maxPins}'));
     expect(PinOps.errorFor('P0001: cannot_pin'), contains('permission'));
+    expect(PinOps.errorFor('P0001: not_friends'), contains('friend'));
     expect(PinOps.errorFor('timeout'), isNull);
   });
 }
