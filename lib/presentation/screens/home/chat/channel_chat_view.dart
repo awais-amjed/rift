@@ -22,7 +22,7 @@ import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
-import '../../../common/chat/pins/pinned_messages_dialog.dart';
+import '../../../common/chat/pins/show_pinned_messages.dart';
 import '../../../common/chat/polls/create_poll_dialog.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
@@ -86,7 +86,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
               ChatHeader(
                 onShowPins: chatState.channelId == null
                     ? null
-                    : () => _showPins(context),
+                    : (anchor) => _showPins(context, anchor),
               ),
               Expanded(child: _buildBody(context, chatState)),
               // A phone's way back into the call, just above whatever
@@ -185,14 +185,15 @@ class _ChannelChatViewState extends State<ChannelChatView>
   /// The server id goes along only so the attachment bytes can be fetched
   /// from the bucket they are in. It is not written into the message —
   /// naming this channel would tell readers elsewhere that it exists.
-  void _showPins(BuildContext context) {
+  void _showPins(BuildContext context, BuildContext anchor) {
     final cubit = context.read<ChannelChatCubit>();
     final canPin = _canPin(context, cubit.state.channelId);
     unawaited(
       showPinnedMessages(
-        context,
+        anchor,
         load: cubit.loadPins,
         onJump: (message) => _jumpRequests.value = message.id,
+        displayNames: cubit.state.mentionNames,
         onUnpin: canPin
             ? (message) => cubit.setPinned(message, pinned: false)
             : null,

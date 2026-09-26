@@ -16,7 +16,7 @@ import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
-import '../../../common/chat/pins/pinned_messages_dialog.dart';
+import '../../../common/chat/pins/show_pinned_messages.dart';
 import '../../../common/loading_block.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -54,11 +54,11 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
   }
 
   /// Either of the two may pin in a DM, so unpinning is always offered.
-  void _showPins(BuildContext context) {
+  void _showPins(BuildContext context, BuildContext anchor) {
     final cubit = context.read<CentralDmCubit>();
     unawaited(
       showPinnedMessages(
-        context,
+        anchor,
         load: cubit.loadPins,
         onJump: (message) => _jumpRequests.value = message.id,
         onUnpin: (message) => cubit.setPinned(message, pinned: false),
@@ -100,7 +100,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
               : () => unawaited(_verify(context, state)),
           onShowPins: state.openPeerId == null
               ? null
-              : () => _showPins(context),
+              : (anchor) => _showPins(context, anchor),
           onClose: () => context.read<CentralDmCubit>().closeConversation(),
         ),
         Expanded(child: _buildBody(state, themeState)),

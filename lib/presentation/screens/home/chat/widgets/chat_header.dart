@@ -30,7 +30,7 @@ class ChatHeader extends StatelessWidget {
 
   /// Open the channel's pinned messages. Null hides the button — before the
   /// channel has opened there is nothing to list.
-  final VoidCallback? onShowPins;
+  final void Function(BuildContext anchor)? onShowPins;
 
   const ChatHeader({super.key, this.onShowPins});
 
@@ -143,10 +143,13 @@ class ChatHeader extends StatelessWidget {
           // one you were meant to reach for. On a phone there is no edge tab,
           // so this is the only one.
           if (onShowPins case final show?)
-            ChatHeaderButton(
-              icon: Icons.push_pin_outlined,
-              tooltip: 'Pinned messages',
-              onTap: show,
+            // A Builder, so the list can hang from this button's own box.
+            Builder(
+              builder: (button) => ChatHeaderButton(
+                icon: Icons.push_pin_outlined,
+                tooltip: 'Pinned messages',
+                onTap: () => show(button),
+              ),
             ),
           const HeaderMembersButton(),
           // On a phone back is the way out, so a close beside it would be a

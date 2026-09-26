@@ -24,4 +24,17 @@ void main() {
       'Dec 31, 2025',
     );
   });
+
+  test('a single message keeps its clock time for two days, then a date', () {
+    expect(
+      formatMessageMoment(DateTime(2026, 9, 16, 9, 24), now),
+      'Today at 09:24',
+    );
+    expect(
+      formatMessageMoment(DateTime(2026, 9, 15, 23, 5), now),
+      'Yesterday at 23:05',
+    );
+    expect(formatMessageMoment(DateTime(2026, 9, 14, 8), now), 'Sep 14');
+    expect(formatMessageMoment(DateTime(2025, 12, 31, 8), now), 'Dec 31, 2025');
+  });
 }

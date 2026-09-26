@@ -2,18 +2,27 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/chat_message.dart';
 import '../../../../data/constants.dart';
+import '../../../../logic/services/conversation_time.dart';
+import '../../../responsive/shell_scope.dart';
+import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../../hover_builder.dart';
+import '../message_row/message_origin_badge.dart';
 import '../message_row/message_row_avatar.dart';
+import 'pinned_message_preview.dart';
+import 'pinned_tile_action.dart';
 
-/// One pinned message in the pinned list: who said it, when, and enough of
-/// what they said to recognise it. Pressing it goes to the message.
+/// One pinned message in the pinned list, laid out like the message it is —
+/// avatar, name, when, and what it says — so it reads as the conversation
+/// rather than as a list of cards about it. Pressing it goes to the message.
 ///
-/// A summary rather than the full row. The list is for finding a message,
-/// and the full row — attachments loading, reactions, a poll to vote in — is
-/// one press away in the conversation itself.
+/// Jump and Unpin show on hover, the way a message's own toolbar does. On a
+/// phone there is no hover: Unpin stays, and Jump is the row itself. An unencrypted message carries its
+/// badge here as it does in the conversation (AGENTS.md, Presentation).
 class PinnedMessageTile extends StatelessWidget {
   final ChatMessage message;
+  final Map<String, String> displayNames;
   final VoidCallback? onJump;
 
   /// Take the pin down. Null where the reader may not.
@@ -22,146 +31,117 @@ class PinnedMessageTile extends StatelessWidget {
   const PinnedMessageTile({
     super.key,
     required this.message,
+    this.displayNames = const {},
     this.onJump,
     this.onUnpin,
   });
 
-  /// What the message is, in a line or a few: its words, or what it carries
-  /// when it has none.
-  static ({IconData? icon, String text}) summaryOf(ChatMessage message) {
-    if (message.isLocked) {
-      return (icon: Icons.lock_outline_rounded, text: 'Locked message');
-    }
-    if (message.poll case final poll?) {
-      return (icon: Icons.poll_outlined, text: poll.question);
-    }
-    if (message.text.trim().isNotEmpty) return (icon: null, text: message.text);
-    if (message.forwarded case final forwarded?
-        when forwarded.text.trim().isNotEmpty) {
-      return (icon: Icons.shortcut_rounded, text: forwarded.text);
-    }
-    final files = message.attachments.length;
-    if (files > 0) {
-      return (
-        icon: Icons.attach_file_rounded,
-        text: files == 1 ? '1 attachment' : '$files attachments',
-      );
-    }
-    return (icon: null, text: 'Message');
-  }
-
-  static String _dateLabel(DateTime at) {
-    final local = at.toLocal();
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${local.day} ${months[local.month - 1]} ${local.year}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    final summary = summaryOf(message);
-    return Material(
-      color: themeState.bgTertiary,
-      borderRadius: BorderRadius.circular(K.radiusRow),
-      child: InkWell(
-        mouseCursor: WidgetStateMouseCursor.clickable,
-        borderRadius: BorderRadius.circular(K.radiusRow),
-        onTap: onJump,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(K.radiusRow),
-            border: Border.all(color: themeState.borderPrimary),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 10,
-            children: [
-              SizedBox(
-                width: K.messageGutter,
-                child: MessageRowAvatar(
-                  authorName: message.authorName,
-                  authorId: message.authorId,
-                  avatarPath: message.authorAvatarPath,
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 2,
-                  children: [
-                    Row(
-                      spacing: 8,
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            message.authorName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.row.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: themeState.textPrimary,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          _dateLabel(message.sentAt),
-                          style: AppText.meta.copyWith(
-                            color: themeState.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      spacing: 6,
-                      children: [
-                        if (summary.icon case final icon?)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Icon(
-                              icon,
-                              size: K.iconInline,
-                              color: themeState.textTertiary,
-                            ),
-                          ),
-                        Expanded(
-                          child: Text(
-                            summary.text,
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.body.copyWith(
-                              color: themeState.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (onUnpin != null)
-                IconButton(
-                  tooltip: 'Unpin',
-                  iconSize: K.iconRow,
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints.tightFor(
-                    width: K.iconButtonSmall,
-                    height: K.iconButtonSmall,
+    final touch = context.layoutMode.isCompact;
+    final radius = BorderRadius.circular(K.radiusRow);
+    return HoverBuilder(
+      builder: (context, hovered) => Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          borderRadius: radius,
+          hoverColor: themeState.bgHover,
+          onTap: onJump,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 12,
+              children: [
+                SizedBox(
+                  width: K.messageGutter,
+                  child: MessageRowAvatar(
+                    authorName: message.authorName,
+                    authorId: message.authorId,
+                    avatarPath: message.authorAvatarPath,
                   ),
-                  padding: EdgeInsets.zero,
-                  color: themeState.textTertiary,
-                  onPressed: onUnpin,
-                  icon: const Icon(Icons.close_rounded),
                 ),
-            ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 4,
+                    children: [
+                      _header(context, touch: touch, hovered: hovered),
+                      PinnedMessagePreview(
+                        message: message,
+                        displayNames: displayNames,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _header(
+    BuildContext context, {
+    required bool touch,
+    required bool hovered,
+  }) {
+    final themeState = context.theme;
+    // On a phone the row itself is the way to the message, so a Jump on every
+    // row would be one more button saying what tapping already does.
+    final actions = [
+      if (onJump != null && !touch)
+        PinnedTileAction(label: 'Jump', onPressed: onJump),
+      if (onUnpin != null) PinnedTileAction(label: 'Unpin', onPressed: onUnpin),
+    ];
+    final show = touch || hovered;
+    return SizedBox(
+      // The buttons are taller than the name; fixing the line's height keeps
+      // the text from jumping when they appear under the pointer.
+      height: 22,
+      child: Row(
+        spacing: 8,
+        children: [
+          // Everything but the buttons shares one Expanded, so the buttons sit
+          // on the right edge of every row rather than wherever a name ends.
+          Expanded(
+            child: Row(
+              spacing: 8,
+              children: [
+                Flexible(
+                  child: Text(
+                    message.authorName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.strong.copyWith(
+                      color: themeState.textPrimary,
+                    ),
+                  ),
+                ),
+                // The conversation badges a message the server could read,
+                // always, and so does every other place that shows one.
+                if (MessageOriginBadge.isNeededFor(message))
+                  MessageOriginBadge(message: message),
+                Text(
+                  formatMessageMoment(message.sentAt, DateTime.now()),
+                  style: AppText.meta.copyWith(color: themeState.textTertiary),
+                ),
+              ],
+            ),
+          ),
+          if (actions.isNotEmpty)
+            AnimatedOpacity(
+              opacity: show ? 1 : 0,
+              duration: AppMotion.react,
+              child: IgnorePointer(
+                ignoring: !show,
+                child: Row(spacing: 6, children: actions),
+              ),
+            ),
+        ],
       ),
     );
   }

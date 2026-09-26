@@ -40,7 +40,7 @@ class DmChatHeader extends StatelessWidget {
   final VoidCallback? onVerify;
 
   /// Open the conversation's pinned messages; null hides the button.
-  final VoidCallback? onShowPins;
+  final void Function(BuildContext anchor)? onShowPins;
 
   const DmChatHeader({
     super.key,
@@ -146,10 +146,13 @@ class DmChatHeader extends StatelessWidget {
                 ),
               ),
               if (onShowPins case final show?)
-                ChatHeaderButton(
-                  icon: Icons.push_pin_outlined,
-                  tooltip: 'Pinned messages',
-                  onTap: show,
+                // A Builder, so the list can hang from this button's own box.
+                Builder(
+                  builder: (button) => ChatHeaderButton(
+                    icon: Icons.push_pin_outlined,
+                    tooltip: 'Pinned messages',
+                    onTap: () => show(button),
+                  ),
                 ),
               // On a phone back is the way out, so a close beside it would
               // be a second button for the same thing — the rule the

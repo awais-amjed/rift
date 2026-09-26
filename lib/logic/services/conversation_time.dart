@@ -16,3 +16,21 @@ String formatConversationTime(DateTime sentAt, DateTime now) {
   if (local.year == now.year) return DateFormat('MMM d').format(local);
   return DateFormat('MMM d, y').format(local);
 }
+
+/// When one message was sent, as a list of single messages says it — the
+/// pinned list, where each row stands alone rather than under a day divider.
+///
+/// Today and yesterday keep the clock time, because that is what tells two
+/// pins from the same day apart. Anything older is the date, with a year only
+/// once it is a different one.
+String formatMessageMoment(DateTime sentAt, DateTime now) {
+  final local = sentAt.toLocal();
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(local.year, local.month, local.day);
+  final days = today.difference(day).inDays;
+  final clock = DateFormat('HH:mm').format(local);
+  if (days <= 0) return 'Today at $clock';
+  if (days == 1) return 'Yesterday at $clock';
+  if (local.year == now.year) return DateFormat('MMM d').format(local);
+  return DateFormat('MMM d, y').format(local);
+}
