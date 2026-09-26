@@ -281,6 +281,7 @@ flutter analyze                      # must be clean
 flutter run -d <device>              # run
 dart run inno_bundle:build --release # Windows installer
 flutter build linux --release        # Linux build
+scripts/build_web.sh                 # web build, with the call-encryption worker
 ```
 
 ## Testing
