@@ -33,7 +33,6 @@ class VoiceBroadcast {
   RealtimeLease? _topic;
   Map<String, String> _locations;
   bool _subscribed = false;
-  bool _everSubscribed = false;
 
   /// Where we last told everyone we are. Held separately from the map because
   /// broadcast doesn't echo to the sender, so our own entry never arrives — and
@@ -65,10 +64,11 @@ class VoiceBroadcast {
         _subscribed = true;
         // Everyone else kept our last delta while we were away, but it may be
         // stale — and if we joined a channel with the topic down, they never
-        // heard it at all. On the very first join there is nothing of ours to
-        // correct, so announcing "nowhere" would be a message saying nothing.
-        if (_hasAnnounced && (_announced != null || _everSubscribed)) _send();
-        _everSubscribed = true;
+        // heard it at all. That holds on the very first join too: an app that
+        // was killed mid-call never said it left, and everyone else still
+        // draws it in that call once its new session comes online. One
+        // "nowhere" per start is what clears that ghost.
+        if (_hasAnnounced) _send();
         unawaited(_snapshot());
       },
     )?..onBroadcast(VoiceLocations.event, _onDelta);
