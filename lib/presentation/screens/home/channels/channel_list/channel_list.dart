@@ -82,7 +82,9 @@ class ChannelList extends StatelessWidget {
       return Expanded(
         child: EmptyChannelsView(
           // A server's first channel is one people can talk in.
-          onCreate: canCreate ? () => openCreateChannel(ChannelType.text) : null,
+          onCreate: canCreate
+              ? () => openCreateChannel(ChannelType.text)
+              : null,
         ),
       );
     }
@@ -97,7 +99,7 @@ class ChannelList extends StatelessWidget {
           onAdd: canCreate ? () => openCreateChannel(ChannelType.text) : null,
         ),
         for (final ch in textChannels)
-          () => TextChannelTile(key: ValueKey(ch.id), channel: ch),
+          () => _spaced(TextChannelTile(key: ValueKey(ch.id), channel: ch)),
       ],
       if (voiceChannels.isNotEmpty) ...[
         () => SectionHeader(
@@ -106,11 +108,13 @@ class ChannelList extends StatelessWidget {
           onAdd: canCreate ? () => openCreateChannel(ChannelType.voice) : null,
         ),
         for (final ch in voiceChannels)
-          () => VoiceChannelTile(
-            key: ValueKey(ch.id),
-            channel: ch,
-            isSelected: selectedChannelId == ch.id,
-            onTap: () => _openVoice(context, ch),
+          () => _spaced(
+            VoiceChannelTile(
+              key: ValueKey(ch.id),
+              channel: ch,
+              isSelected: selectedChannelId == ch.id,
+              onTap: () => _openVoice(context, ch),
+            ),
           ),
       ],
     ];
@@ -123,6 +127,20 @@ class ChannelList extends StatelessWidget {
       ),
     );
   }
+
+  /// Half the gap between two channel rows, above and below each.
+  ///
+  /// The list's, not the rows': a voice channel is a plain row until someone
+  /// joins and a card after, and a gap the card carried itself would move the
+  /// channel's name the moment it turned into one. Here both shapes get the
+  /// same, so two cards side by side don't touch, and neither do two lit
+  /// text rows.
+  static const double _rowGap = 2;
+
+  static Widget _spaced(Widget row) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: _rowGap),
+    child: row,
+  );
 
   Future<void> _openVoice(BuildContext context, Channel ch) async {
     // On a phone the call is a page: tapping the one you are already in takes
