@@ -151,7 +151,10 @@ class ChatHeader extends StatelessWidget {
                 onTap: () => show(button),
               ),
             ),
-          const HeaderMembersButton(),
+          // Left out, not drawn empty, where it has nothing to show: the row's
+          // spacing goes round an empty box too, which put a double gap
+          // between the pin and close buttons.
+          if (compact) const HeaderMembersButton(),
           // On a phone back is the way out, so a close beside it would be a
           // second button for the same thing. The channel's menu takes the
           // slot instead: there is no sidebar row there to long-press.
