@@ -16,7 +16,7 @@ class ServerSettingsSave {
   /// Returns null when everything landed, or the sentence to show when it didn't.
   ///
   /// Neither the operator limits nor the LiveKit connection are here: they are
-  /// the Limits and Voice pages', and each saves its own — `update_server`
+  /// the Limits and Regions pages', and each saves its own — `update_server`
   /// leaves out what it isn't sent, so the three pages cannot tread on each
   /// other.
   static Future<String?> run({

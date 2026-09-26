@@ -8,11 +8,10 @@ import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
-import '../../../../settings/widgets/section_title.dart';
 import 'voice_region_dialog.dart';
 import 'voice_region_row.dart';
 
-/// The LiveKit nodes this server may hold calls on — the top of the Voice
+/// The LiveKit nodes this server may hold calls on — the top of the Regions
 /// page, and the first region in the list is the server's own LiveKit.
 ///
 /// Every change acts immediately rather than on a Save, because each one is a
@@ -33,7 +32,7 @@ import 'voice_region_row.dart';
 /// which is what puts the new row and every channel's pin back in step — so
 /// pointing this at another server would edit the wrong one and then refresh
 /// neither. Said in a note rather than by hiding the page: an operator opening
-/// Voice from the rail's menu is owed the reason it is flat.
+/// Regions from the rail's menu is owed the reason it is flat.
 class VoiceRegionsSection extends StatefulWidget {
   final String serverId;
   final bool enabled;
@@ -101,8 +100,6 @@ class _VoiceRegionsSectionState extends State<VoiceRegionsSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SectionTitle(label: 'Regions'),
-        const SizedBox(height: 6),
         Text(
           'Add a region for each place you run a LiveKit server, so calls '
           'can be held near the people in them. A whole call runs in one '

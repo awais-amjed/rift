@@ -22,7 +22,7 @@ enum ServerManageTab {
 extension ServerManageTabLabel on ServerManageTab {
   String get label => switch (this) {
     ServerManageTab.overview => 'Overview',
-    ServerManageTab.voice => 'Voice',
+    ServerManageTab.voice => 'Regions',
     ServerManageTab.limits => 'Limits',
     ServerManageTab.roles => 'Roles',
     ServerManageTab.members => 'Members',

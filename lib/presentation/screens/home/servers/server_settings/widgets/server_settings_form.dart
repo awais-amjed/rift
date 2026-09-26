@@ -10,7 +10,7 @@ import 'server_push_section.dart';
 
 /// The two groups of server settings that say what a server *is*: what it is
 /// called, and who can find it. What it is allowed to grow into is the Limits
-/// page's, and where its calls are held is the Voice page's.
+/// page's, and where its calls are held is the Regions page's.
 ///
 /// Columns rather than one long page because a settings form is a handful of
 /// independent groups, not a list — stacked they run past the bottom of the

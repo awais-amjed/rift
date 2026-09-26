@@ -7,7 +7,7 @@ import '../../../../settings/widgets/section_title.dart';
 ///
 /// One field, and that is the point: this used to carry the LiveKit URL, API
 /// key and secret as well, which made the first thing on Overview a form about
-/// voice infrastructure. Those moved to the Voice page — see
+/// voice infrastructure. Those moved to the Regions page — see
 /// `ServerLiveKitSection` — leaving Overview to say what the server is and who
 /// can find it.
 class ServerIdentitySection extends StatelessWidget {

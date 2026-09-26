@@ -38,7 +38,7 @@ class VoicePanel extends StatelessWidget {
       (c) => c.state.selectedServer?.id == server.id,
     );
     return ManagePanel(
-      title: 'Voice',
+      title: 'Regions',
       subtitle: 'Where this server holds calls',
       // In the footer, where Roles keeps New role and Bots keeps Browse bots:
       // the page's one way to add something, found where the others are.

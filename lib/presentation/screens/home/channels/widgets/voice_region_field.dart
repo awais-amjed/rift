@@ -115,7 +115,7 @@ class VoiceRegionField extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Voice region',
+          'Region',
           style: AppText.label.copyWith(color: theme.textSecondary),
         ),
         const SizedBox(height: 6),

@@ -19,7 +19,7 @@ import '../widgets/manage_panel.dart';
 ///
 /// The overview page of the manage-server dialog: display name, whether the
 /// server is in the central directory, and whether it may wake its members'
-/// phones. The LiveKit connection used to be here too and is the Voice page's
+/// phones. The LiveKit connection used to be here too and is the Regions page's
 /// now — see [VoicePanel].
 ///
 /// Takes the server rather than reading the selection, because the dialog
