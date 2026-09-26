@@ -115,7 +115,9 @@ class _ChannelChatViewState extends State<ChannelChatView>
                   maxAttachmentBytes: _maxAttachmentBytes(context),
                   remainingStorageBytes: _remainingStorage(context),
                   bots: chatState.bots,
-                  onCreatePoll: () => _createPoll(context),
+                  onCreatePoll: _canCreatePoll(context)
+                      ? () => _createPoll(context)
+                      : null,
                   onMentionSearch: (query) =>
                       _searchMentionable(context, query),
                   selfUserId: context
@@ -273,12 +275,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
         (permissions?.isServerAdmin ?? false);
   }
 
-  UserPermissions? _myPermissions(BuildContext context) => context
-      .read<ServerCubit>()
-      .state
-      .selectedServer
-      ?.user
-      ?.permissions;
+  UserPermissions? _myPermissions(BuildContext context) =>
+      context.read<ServerCubit>().state.selectedServer?.user?.permissions;
 
   /// Asked here rather than inside the list, because the answer is the
   /// server's and a DM surface has no roles to ask about. The database
@@ -289,6 +287,9 @@ class _ChannelChatViewState extends State<ChannelChatView>
 
   bool _canAttach(BuildContext context) =>
       _myPermissions(context)?.can(ServerPermission.attachFiles) ?? false;
+
+  bool _canCreatePoll(BuildContext context) =>
+      _myPermissions(context)?.can(ServerPermission.createPolls) ?? false;
 
   /// The server's rule (`app.can_pin_in`), asked here only to decide whether
   /// to offer it: the bit, or managing this channel if it is a private one.

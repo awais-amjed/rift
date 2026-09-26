@@ -224,6 +224,15 @@ enum ServerPermission {
     'Pin and unpin messages in a channel, for everyone in it. In a private '
         'channel its own managers can pin too. Anybody can pin in their own '
         'DMs.',
+  ),
+
+  // ── Polls ───────────────────────────────────────────────
+  createPolls(
+    27,
+    PermissionGroup.text,
+    'Create polls',
+    'Post a poll in a channel. Everyone has it by default. Voting needs only '
+        'being able to see the channel.',
   );
 
   final int bit;
