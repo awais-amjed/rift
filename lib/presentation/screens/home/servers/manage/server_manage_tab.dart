@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../../../../../data/classes/user_permissions.dart';
 import '../../../../../data/enums/server_permission.dart';
 
@@ -30,6 +32,18 @@ extension ServerManageTabLabel on ServerManageTab {
     ServerManageTab.webhooks => 'Webhooks',
     ServerManageTab.soundboard => 'Soundboard',
     ServerManageTab.danger => 'Danger zone',
+  };
+
+  IconData get icon => switch (this) {
+    ServerManageTab.overview => Icons.tune_rounded,
+    ServerManageTab.voice => Icons.public_rounded,
+    ServerManageTab.limits => Icons.speed_rounded,
+    ServerManageTab.roles => Icons.shield_outlined,
+    ServerManageTab.members => Icons.group_outlined,
+    ServerManageTab.bots => Icons.smart_toy_outlined,
+    ServerManageTab.webhooks => Icons.webhook_rounded,
+    ServerManageTab.soundboard => Icons.graphic_eq_rounded,
+    ServerManageTab.danger => Icons.warning_amber_rounded,
   };
 }
 

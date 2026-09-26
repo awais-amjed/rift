@@ -87,10 +87,12 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ManageNav(
+          ManageNav<ServerManageTab>(
             tabs: tabs,
             active: active,
             onSelected: (tab) => setState(() => _active = tab),
+            labelOf: (tab) => tab.label,
+            iconOf: (tab) => tab.icon,
           ),
           VerticalDivider(width: 1, color: themeState.borderPrimary),
           Expanded(child: _page(active, server)),
@@ -118,11 +120,13 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
         subtitle: server.name,
         pageOnPhone: true,
         body: SingleChildScrollView(
-          child: ManageNav(
+          child: ManageNav<ServerManageTab>(
             tabs: tabs,
             active: null,
             expand: true,
             onSelected: (tab) => setState(() => _active = tab),
+            labelOf: (tab) => tab.label,
+            iconOf: (tab) => tab.icon,
           ),
         ),
       );

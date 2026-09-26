@@ -2,16 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../../../../../common/nav_row.dart';
 import '../../../../../theme/theme_context.dart';
-import '../server_manage_tab.dart';
 
-/// The dialog's left-hand nav: one row per page the viewer may see.
+/// A page-per-concern dialog's left-hand nav: one row per page the viewer may
+/// see.
 ///
 /// The settings screen's rows, so a page picker reads the same wherever it
-/// is. Only the rows are here; which of them exist is [ServerManageTabs].
-class ManageNav extends StatelessWidget {
-  final List<ServerManageTab> tabs;
-  final ServerManageTab? active;
-  final ValueChanged<ServerManageTab> onSelected;
+/// is. Generic over the page enum because two dialogs share it — Manage
+/// server and a channel's settings. Only the rows are here; which of them
+/// exist is the caller's.
+class ManageNav<T> extends StatelessWidget {
+  final List<T> tabs;
+  final T? active;
+  final ValueChanged<T> onSelected;
+  final String Function(T tab) labelOf;
+  final IconData Function(T tab) iconOf;
 
   /// The whole width, as a phone's list of pages rather than a column beside
   /// one.
@@ -22,6 +26,8 @@ class ManageNav extends StatelessWidget {
     required this.tabs,
     required this.active,
     required this.onSelected,
+    required this.labelOf,
+    required this.iconOf,
     this.expand = false,
   });
 
@@ -41,8 +47,8 @@ class ManageNav extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 1),
               child: NavRow(
-                icon: _icon(tab),
-                label: tab.label,
+                icon: iconOf(tab),
+                label: labelOf(tab),
                 // Nothing is selected in a phone's list — it is the way in,
                 // and the page opened is on its own screen.
                 isSelected: !expand && tab == active,
@@ -54,16 +60,4 @@ class ManageNav extends StatelessWidget {
       ),
     );
   }
-
-  static IconData _icon(ServerManageTab tab) => switch (tab) {
-    ServerManageTab.overview => Icons.tune_rounded,
-    ServerManageTab.voice => Icons.record_voice_over_outlined,
-    ServerManageTab.limits => Icons.speed_rounded,
-    ServerManageTab.roles => Icons.shield_outlined,
-    ServerManageTab.members => Icons.group_outlined,
-    ServerManageTab.bots => Icons.smart_toy_outlined,
-    ServerManageTab.webhooks => Icons.webhook_rounded,
-    ServerManageTab.soundboard => Icons.graphic_eq_rounded,
-    ServerManageTab.danger => Icons.warning_amber_rounded,
-  };
 }
