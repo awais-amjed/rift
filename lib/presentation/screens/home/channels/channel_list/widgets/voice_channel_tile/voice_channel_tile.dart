@@ -74,8 +74,16 @@ class VoiceChannelTile extends StatelessWidget {
                         participant,
                   ]
                 : const <ParticipantInfo>[];
+            // In your own call LiveKit is the source, but it names the others
+            // a moment after you connect. Until it does, presence still says
+            // they are here — and dropping them for that moment folded
+            // everyone out of the card and back in as you joined.
             final presenceUsers = isSelected
-                ? const <PresenceUser>[]
+                ? [
+                    for (final user in presenceState.usersIn(channel.id))
+                      if (!participants.any((p) => p.userId == user.userId))
+                        user,
+                  ]
                 : presenceState.usersIn(channel.id);
             // Bots called into this channel, arrived or not. A summon that
             // nothing answered is the case this is for: it makes the
