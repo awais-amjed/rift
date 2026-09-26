@@ -23,8 +23,11 @@ class _ChannelDeletePanelState extends State<ChannelDeletePanel> {
   bool _isBusy = false;
 
   Future<void> _delete() async {
-    setState(() => _isBusy = true);
-    final deleted = await deleteChannel(context, widget.channel);
+    final deleted = await deleteChannel(
+      context,
+      widget.channel,
+      onConfirmed: () => setState(() => _isBusy = true),
+    );
     if (!mounted) return;
     // Gone: the dialog notices the channel leaving the server and closes.
     if (!deleted) setState(() => _isBusy = false);

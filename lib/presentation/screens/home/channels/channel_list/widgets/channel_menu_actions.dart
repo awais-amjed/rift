@@ -112,7 +112,14 @@ Future<bool> openChannelUp(BuildContext context, Channel channel) async {
 }
 
 /// Asks, then deletes. True when the channel is gone.
-Future<bool> deleteChannel(BuildContext context, Channel channel) async {
+///
+/// [onConfirmed] runs between the two, for a button that should look busy
+/// only once there is something to wait for — not behind the question.
+Future<bool> deleteChannel(
+  BuildContext context,
+  Channel channel, {
+  VoidCallback? onConfirmed,
+}) async {
   final serverCubit = context.read<ServerCubit>();
   final isVoice = channel.channelType == ChannelType.voice;
 
@@ -129,6 +136,7 @@ Future<bool> deleteChannel(BuildContext context, Channel channel) async {
     isDestructive: true,
   );
   if (!confirmed) return false;
+  onConfirmed?.call();
 
   final result = await serverCubit.deleteChannel(channel.id);
   if (!result.success) {
