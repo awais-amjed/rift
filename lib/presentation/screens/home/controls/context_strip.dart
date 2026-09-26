@@ -14,6 +14,8 @@ import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
+import '../pane_toggles/show_members_button.dart';
+import '../pane_toggles/show_sidebar_button.dart';
 import '../profile/person/verification/show_channel_encryption.dart';
 import 'phone_context_strip.dart';
 
@@ -105,6 +107,10 @@ class _ContextStripState extends State<ContextStrip> {
                   ),
                   child: Row(
                     children: [
+                      if (ShowSidebarButton.shows(context)) ...[
+                        const ShowSidebarButton(),
+                        const SizedBox(width: 10),
+                      ],
                       // One flexible group, so the timer sits hard against
                       // the right edge. A `Flexible` name beside a
                       // `Spacer` splits the free space with it, leaving
@@ -158,6 +164,10 @@ class _ContextStripState extends State<ContextStrip> {
                       ),
                       const SizedBox(width: 12),
                       elapsed,
+                      if (ShowMembersButton.shows(context)) ...[
+                        const SizedBox(width: 10),
+                        const ShowMembersButton(),
+                      ],
                     ],
                   ),
                 );

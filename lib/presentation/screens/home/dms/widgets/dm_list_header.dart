@@ -4,6 +4,7 @@ import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../../chat/widgets/chat_header.dart';
+import '../../pane_toggles/show_sidebar_button.dart';
 
 /// The bar above a DM conversation list: what the list is, and what it belongs
 /// to.
@@ -34,6 +35,10 @@ class DmListHeader extends StatelessWidget {
       // control too many.
       child: Row(
         children: [
+          if (ShowSidebarButton.shows(context)) ...[
+            const ShowSidebarButton(),
+            const SizedBox(width: 8),
+          ],
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

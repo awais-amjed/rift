@@ -13,7 +13,7 @@ import '../../data/enums/layout_mode.dart';
 /// itself open would cover the app on launch, and because narrowing the window
 /// for a moment must not overwrite a preference chosen for a wide one.
 ///
-/// So the edge tabs, the header buttons and the channel list all call
+/// So the header's show buttons and the channel list all call
 /// [toggleSidebar] / [toggleMembers] / [dismissOverlays] and let the shell
 /// decide which of the two it means.
 class ShellScope extends InheritedWidget {
@@ -24,7 +24,7 @@ class ShellScope extends InheritedWidget {
   final bool membersOpen;
 
   /// An idle, focused stream with both panes hidden: the workspace drops its
-  /// gutter, the content panel its corners, and the edge tabs step out, so
+  /// gutter, the content panel its corners, and the show buttons step out, so
   /// the stream runs to the window's edge. Any pointer movement ends it.
   final bool immersive;
 

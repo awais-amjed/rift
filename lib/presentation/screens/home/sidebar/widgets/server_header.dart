@@ -120,8 +120,8 @@ class ServerHeader extends StatelessWidget {
   }
 
   /// Hides the sidebar. Only ever points one way now — there is no pinned and
-  /// unpinned any more, just shown and hidden, and [SidebarTab] is what brings
-  /// it back. A button that changed into a pin depending on a mode you couldn't
+  /// unpinned any more, just shown and hidden, and `ShowSidebarButton` in the
+  /// pane's header is what brings it back. A button that changed into a pin depending on a mode you couldn't
   /// see was describing a distinction that no longer exists.
   ///
   /// Through the shell rather than straight to [AppCubit]: overlaid, this is

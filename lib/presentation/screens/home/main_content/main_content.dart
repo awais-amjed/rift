@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/constants.dart';
 import '../../../../data/enums/home_surface.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
@@ -14,7 +13,6 @@ import '../chat/channel_chat_view.dart';
 import '../dms/central_dm_view.dart';
 import '../dms/server_dm_view.dart';
 import '../members_sidebar/members_sidebar.dart';
-import '../members_sidebar/widgets/members_sidebar_tab.dart';
 import '../participants_grid/participants_grid.dart';
 import 'widgets/banned_notice.dart';
 
@@ -105,22 +103,6 @@ class MainContent extends StatelessWidget {
                 // goes away when the list does.
                 if (membersDocked) MembersSidebar(open: shell.membersOpen),
               ],
-            ),
-            // Sits over the content's right edge, mirroring the left
-            // sidebar's tab. Above the Row so it isn't clipped by the panel
-            // that just slid out from under it.
-            //
-            // Near the top, but below the chat's header rather than beside
-            // it. Flush at the top it landed on the chat panel's rounded
-            // corner, nineteen pixels from the channel's close button: two
-            // small controls with different jobs, touching. Halfway down was
-            // clear of both but read as lost in the middle of the window.
-            const Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: EdgeInsets.only(top: K.edgeTabTop),
-                child: MembersSidebarTab(),
-              ),
             ),
           ],
         );

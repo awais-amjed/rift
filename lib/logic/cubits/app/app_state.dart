@@ -5,8 +5,9 @@ part of 'app_cubit.dart';
 @JsonSerializable(explicitToJson: true)
 class AppState {
   // ── Persisted ──────────────────────────────────────────────
-  /// Whether the left sidebar is shown. Hidden it takes no width at all and an
-  /// [EdgeTab] brings it back — the same as the member list on the other side.
+  /// Whether the left sidebar is shown. Hidden it takes no width at all and a
+  /// button at the start of the pane's header brings it back — the member
+  /// list has the same at the other end.
   /// It used to be `isPinned`, when hiding it meant swapping the panel for an
   /// overlay that slid out on hover.
   final bool sidebarOpen;

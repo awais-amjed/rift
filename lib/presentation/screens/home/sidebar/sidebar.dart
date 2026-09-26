@@ -15,7 +15,8 @@ import 'widgets/sidebar_resize_handle.dart';
 /// widget that has been removed from the tree can't animate away — hiding used
 /// to be a hard cut for exactly that reason. Once the close has finished the
 /// contents are dropped, so a hidden sidebar isn't an invisible copy of itself
-/// rebuilding for nobody. [SidebarTab] is what brings it back.
+/// rebuilding for nobody. `ShowSidebarButton`, in the pane's header, is what
+/// brings it back.
 ///
 /// The width is held locally while the pointer is down and only written to
 /// [AppCubit] when the drag ends. Emitting per frame would be a persisted write

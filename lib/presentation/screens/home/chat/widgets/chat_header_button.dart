@@ -18,12 +18,16 @@ class ChatHeaderButton extends StatelessWidget {
   final bool isPrimary;
   final VoidCallback onTap;
 
+  /// Flip [icon] left to right — for a glyph whose picture has a side.
+  final bool mirror;
+
   const ChatHeaderButton({
     super.key,
     required this.icon,
     required this.tooltip,
     required this.onTap,
     this.isPrimary = false,
+    this.mirror = false,
   });
 
   @override
@@ -65,7 +69,10 @@ class ChatHeaderButton extends StatelessWidget {
                     ),
                   )
                 : null,
-            child: Icon(icon, size: K.iconButton, color: iconColor),
+            child: Transform.flip(
+              flipX: mirror,
+              child: Icon(icon, size: K.iconButton, color: iconColor),
+            ),
           ),
         ),
       ),

@@ -12,12 +12,13 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/channel_context_menu.dart';
+import '../../pane_toggles/show_members_button.dart';
+import '../../pane_toggles/show_sidebar_button.dart';
 import '../../profile/person/verification/show_channel_encryption.dart';
 import 'channel_listeners_chip.dart';
 import 'chat_header_button.dart';
 import 'chat_phone_title.dart';
 import 'header_back_button.dart';
-import 'header_members_button.dart';
 
 /// The chat panel's top bar: which channel you're in, that it's encrypted, and
 /// the controls that change what the panel shows.
@@ -59,7 +60,8 @@ class ChatHeader extends StatelessWidget {
       child: Row(
         spacing: 10,
         children: [
-          const HeaderBackButton(),
+          if (HeaderBackButton.shows(context)) const HeaderBackButton(),
+          if (ShowSidebarButton.shows(context)) const ShowSidebarButton(),
           // The identity is one flexible group, so the controls sit hard
           // against the panel edge. A `Flexible` title beside a `Spacer`
           // splits the free space with it instead: the title takes only what
@@ -138,10 +140,6 @@ class ChatHeader extends StatelessWidget {
               ),
             ),
           ),
-          // No members toggle here at the sizes where the list has an edge tab
-          // — a third control for the same flag only made it ambiguous which
-          // one you were meant to reach for. On a phone there is no edge tab,
-          // so this is the only one.
           if (onShowPins case final show?)
             // A Builder, so the list can hang from this button's own box.
             Builder(
@@ -151,10 +149,7 @@ class ChatHeader extends StatelessWidget {
                 onTap: () => show(button),
               ),
             ),
-          // Left out, not drawn empty, where it has nothing to show: the row's
-          // spacing goes round an empty box too, which put a double gap
-          // between the pin and close buttons.
-          if (compact) const HeaderMembersButton(),
+          if (ShowMembersButton.shows(context)) const ShowMembersButton(),
           // On a phone back is the way out, so a close beside it would be a
           // second button for the same thing. The channel's menu takes the
           // slot instead: there is no sidebar row there to long-press.

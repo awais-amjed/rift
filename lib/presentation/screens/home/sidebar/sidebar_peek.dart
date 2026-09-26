@@ -29,7 +29,7 @@ import 'widgets/sidebar_peek_scope.dart';
 /// - **It opened on any touch of the edge.** Only the middle of the edge
 ///   counts now ([K.sidebarPeekZoneStart]–[K.sidebarPeekZoneEnd]), and only
 ///   once the pointer has rested there for [K.sidebarPeekDwell] — the corners
-///   are where the pointer goes on its way to the rail and the edge tab.
+///   are where the pointer goes on its way to the rail and the title bar.
 /// - **It vanished from under its own menus.** A context menu is an overlay
 ///   above the whole app, so reaching for one looked like leaving. It now
 ///   stays while a menu opened from it ([ContextMenuWatcher]) or a dialog is

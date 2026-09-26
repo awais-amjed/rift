@@ -5,6 +5,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/services/connection_failure.dart';
+import '../pane_toggles/pane_corner_toggles.dart';
 import 'widgets/connecting_view.dart';
 import 'widgets/error_view.dart';
 import 'widgets/no_channel_view.dart';
@@ -26,7 +27,7 @@ class ParticipantsGrid extends StatelessWidget {
           previous.selectedChannelId != current.selectedChannelId,
       builder: (context, appState) {
         if (appState.selectedChannelId == null) {
-          return const NoChannelView.nothingSelected();
+          return _headerless(const NoChannelView.nothingSelected());
         }
 
         return BlocBuilder<LiveKitCubit, LiveKitState>(
@@ -40,43 +41,49 @@ class ParticipantsGrid extends StatelessWidget {
             final server = context.read<ServerCubit>().state.selectedServer;
 
             if (server?.user == null) {
-              return const ErrorView(
-                failure: ConnectionFailure(
-                  title: 'No account on this server',
-                  message:
-                      'Create a user account on this server before joining a '
-                      'voice channel.',
-                  canRetry: false,
+              return _headerless(
+                const ErrorView(
+                  failure: ConnectionFailure(
+                    title: 'No account on this server',
+                    message:
+                        'Create a user account on this server before joining a '
+                        'voice channel.',
+                    canRetry: false,
+                  ),
                 ),
               );
             }
 
             if (server?.livekitUrl == null) {
-              return const ErrorView(failure: ConnectionFailure.noLiveKitUrl());
+              return _headerless(
+                const ErrorView(failure: ConnectionFailure.noLiveKitUrl()),
+              );
             }
 
             switch (livekitState.connectionState) {
               case LiveKitConnectionState.disconnected:
-                return const NoChannelView.notInCall();
+                return _headerless(const NoChannelView.notInCall());
               case LiveKitConnectionState.connecting:
-                return const ConnectingView();
+                return _headerless(const ConnectingView());
               case LiveKitConnectionState.error:
                 final failure =
                     livekitState.failure ?? const ConnectionFailure.unknown();
-                return ErrorView(
-                  failure: failure,
-                  // Leaving is always offered; retrying only where it could
-                  // change the outcome. A misconfigured server would fail the
-                  // same way forever, and a button that cannot work is worse
-                  // than no button.
-                  onRetry: failure.canRetry
-                      ? () => context.read<LiveKitCubit>().retryConnection()
-                      : null,
-                  onLeave: () => context.read<LiveKitCubit>().disconnect(),
+                return _headerless(
+                  ErrorView(
+                    failure: failure,
+                    // Leaving is always offered; retrying only where it could
+                    // change the outcome. A misconfigured server would fail the
+                    // same way forever, and a button that cannot work is worse
+                    // than no button.
+                    onRetry: failure.canRetry
+                        ? () => context.read<LiveKitCubit>().retryConnection()
+                        : null,
+                    onLeave: () => context.read<LiveKitCubit>().disconnect(),
+                  ),
                 );
               case LiveKitConnectionState.connected:
                 if (livekitState.room == null) {
-                  return const ConnectingView();
+                  return _headerless(const ConnectingView());
                 }
                 return RoomView(room: livekitState.room!);
             }
@@ -85,4 +92,9 @@ class ParticipantsGrid extends StatelessWidget {
       },
     );
   }
+
+  /// Every state but the call itself, which has a header of its own to put
+  /// the show buttons in.
+  static Widget _headerless(Widget view) =>
+      Stack(fit: StackFit.expand, children: [view, const PaneCornerToggles()]);
 }

@@ -27,11 +27,6 @@ class K {
   /// the content under it by the difference.
   static const double paneHeaderHeight = 52;
 
-  /// How far down a hidden panel's edge tab hangs: past the pane header and
-  /// a gap, so it is near the top without landing on the header's controls
-  /// or the panel's rounded corner.
-  static const double edgeTabTop = paneHeaderHeight + 12;
-
   // ── Controls ──────────────────────────────────────────────
   /// A button. The same as [touchTargetMin], so the app has one control
   /// height rather than a mouse one and a finger one.
@@ -239,7 +234,7 @@ class K {
 
   /// How far down the left edge the peek's hot zone starts and ends, as a
   /// fraction of the window's height. The middle only: the corners are where
-  /// the pointer goes on its way to the rail, the title bar and the edge tab.
+  /// the pointer goes on its way to the rail and the title bar.
   static const double sidebarPeekZoneStart = 0.3;
   static const double sidebarPeekZoneEnd = 0.7;
 
@@ -277,7 +272,8 @@ class K {
   /// Right-hand member list. Narrower than the left sidebar — it holds one
   /// short name per row, not channel trees. Hidden it takes no width at all;
   /// it used to leave a 42px strip behind for its reopen button, which is a lot
-  /// of window to keep for one icon. An [EdgeTab] brings it back instead.
+  /// of window to keep for one icon. `ShowMembersButton`, in the pane's header,
+  /// brings it back instead.
   static const double membersSidebarWidth = 232;
 
   /// How far the member list may be dragged. The floor keeps a name and its

@@ -26,7 +26,6 @@ import 'servers/add_server/add_server_dialog.dart';
 import 'sidebar/sidebar.dart';
 import 'sidebar/sidebar_peek.dart';
 import 'sidebar/widgets/sidebar_header.dart';
-import 'sidebar/widgets/sidebar_tab.dart';
 
 /// Over the widget budget and one job: the home screen, on a phone and on a
 /// desktop. Most of it is the desktop row of panes and the overlays that open
@@ -297,16 +296,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               floating: true,
                             ),
                           ),
-                        // The edge tab is the way back to a hidden sidebar.
-                        // Just under the header, mirroring the member list's
-                        // — see `main_content.dart` for where it sits.
-                        const Align(
-                          alignment: Alignment.topLeft,
-                          child: Padding(
-                            padding: EdgeInsets.only(top: K.edgeTabTop),
-                            child: SidebarTab(),
-                          ),
-                        ),
                       ],
                     ),
                   ),
