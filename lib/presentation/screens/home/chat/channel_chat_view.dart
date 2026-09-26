@@ -69,6 +69,12 @@ class _ChannelChatViewState extends State<ChannelChatView>
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    // Watched rather than read: a role edited while the channel is open
+    // changes what the composer and the message menus offer, and nothing
+    // else here rebuilds for it.
+    context.select<ServerCubit, int?>(
+      (cubit) => cubit.state.selectedServer?.user?.permissions.bits,
+    );
     return BlocBuilder<ChannelChatCubit, ChannelChatState>(
       builder: (context, chatState) {
         // No background of its own: the content panel it sits in owns
