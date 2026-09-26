@@ -225,6 +225,35 @@ class _ControlBarContent extends StatelessWidget {
 
     final radius = BorderRadius.circular(K.radiusCard);
 
+    // The width the call has, not the window's: a desktop window can be wide
+    // while the stage beside the sidebar is narrow, and the pill is a row of
+    // fixed controls with no flex. So the word on Leave goes first, and if
+    // even the bare pill does not fit it shrinks rather than overflowing.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: K.callBarSideMargin),
+      child: LayoutBuilder(
+        builder: (context, constraints) => FittedBox(
+          fit: BoxFit.scaleDown,
+          child: _pill(
+            context,
+            bgColor,
+            radius,
+            compact: compact,
+            showLabel: !compact && constraints.maxWidth >= K.callBarLabelWidth,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pill(
+    BuildContext context,
+    Color bgColor,
+    BorderRadius radius, {
+    required bool compact,
+    required bool showLabel,
+  }) {
+    final themeState = context.theme;
     // Glass, not a slab: the pill floats over live video, so it blurs
     // what's behind it rather than hiding it. The shadow sits outside the
     // clip — inside, the clip would eat it.
@@ -338,12 +367,11 @@ class _ControlBarContent extends StatelessWidget {
                             size: K.iconLarge,
                             color: CustomColors.onError,
                           ),
-                          // The word goes on a phone. The pill is a
-                          // min-width row of five fixed controls and no
-                          // flex, so anything it cannot fit it overflows
-                          // — and the red circle-with-a-handset is not a
-                          // symbol anyone needs the caption for.
-                          if (!compact)
+                          // The word goes when the call is narrow — on a
+                          // phone, or beside a wide sidebar. The red
+                          // circle-with-a-handset is not a symbol anyone
+                          // needs the caption for.
+                          if (showLabel)
                             Text(
                               'Leave',
                               style: AppText.row.copyWith(

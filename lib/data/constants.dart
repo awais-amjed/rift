@@ -287,6 +287,15 @@ class K {
   /// How far above the stage's bottom edge the floating call controls sit.
   static const double callBarOffset = 28;
 
+  /// Kept between the call's control pill and the stage's sides.
+  static const double callBarSideMargin = 12;
+
+  /// The stage width the control pill needs to spell out "Leave": its six
+  /// 46px controls, their gaps, the divider and the labelled button come to
+  /// about 450, plus [callBarSideMargin] each side. Narrower, the button is
+  /// its icon alone.
+  static const double callBarLabelWidth = 480;
+
   /// Where the floating call controls' top edge is, measured up from the
   /// stage's bottom: the offset plus 46px buttons in 8px of padding. What the
   /// stage keeps clear, so the controls do not sit on somebody's tile.
