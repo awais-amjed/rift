@@ -31,7 +31,7 @@ class RosterRowMetrics {
 
   static const _desktop = RosterRowMetrics._(
     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-    avatarSize: 22,
+    avatarSize: 24,
     headerVerticalPadding: 5,
     nameStyle: AppText.secondary,
     iconSize: 11,

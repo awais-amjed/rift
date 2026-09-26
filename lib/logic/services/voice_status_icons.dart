@@ -23,9 +23,6 @@ enum VoiceStatusIcon {
 
   /// *You* have muted them, for yourself only.
   mutedForYou,
-
-  /// Nothing is wrong and they can be heard.
-  micOn,
 }
 
 /// The icons for one row, left to right.
@@ -37,6 +34,10 @@ enum VoiceStatusIcon {
 ///
 /// At most one of each kind: whose doing it is (a moderator's or their own)
 /// picks *which* icon, never how many.
+///
+/// Somebody who can be heard gets no icon at all. A grey microphone on every
+/// row used to say so, and a call's worth of them was a column of the same
+/// mark that made the one red one harder to spot.
 List<VoiceStatusIcon> voiceStatusIcons(
   ParticipantInfo participant, {
 
@@ -61,8 +62,6 @@ List<VoiceStatusIcon> voiceStatusIcons(
     icons.add(VoiceStatusIcon.mutedByModerator);
   } else if (deafened || !participant.isMicrophoneEnabled) {
     icons.add(VoiceStatusIcon.muted);
-  } else {
-    icons.add(VoiceStatusIcon.micOn);
   }
   return icons;
 }

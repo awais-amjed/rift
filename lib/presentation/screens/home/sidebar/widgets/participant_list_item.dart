@@ -73,6 +73,9 @@ class ParticipantListItem extends StatelessWidget {
             // pulsing ring the voice tiles use, at roster scale.
             SpeakingRing(
               isSpeaking: isSpeaking,
+              // A tight halo: at the tile's bloom it spread across the whole
+              // row and the avatar read as framed rather than lit.
+              bloom: 0.35,
               borderRadius: BorderRadius.circular(
                 metrics.avatarSize * K.avatarRadiusRatio,
               ),
@@ -84,14 +87,29 @@ class ParticipantListItem extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             // Name
+            // Muted for you is dimmed, not struck through: the red icon at
+            // the end already says why, and a line through somebody's name
+            // read as their having been removed.
             Expanded(
-              child: Text(
-                participant.isLocal ? '$name (You)' : name,
+              child: Text.rich(
+                TextSpan(
+                  text: name,
+                  children: [
+                    if (participant.isLocal)
+                      TextSpan(
+                        text: ' (you)',
+                        style: TextStyle(
+                          color: textQuaternary,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                  ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: RosterRowMetrics.of(context).nameStyle.copyWith(
                   fontWeight: FontWeight.w500,
                   color: isMuted ? textQuaternary : textSecondary,
-                  decoration: isMuted ? TextDecoration.lineThrough : null,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),

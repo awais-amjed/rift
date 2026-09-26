@@ -27,8 +27,8 @@ List<VoiceStatusIcon> icons(
 }) => voiceStatusIcons(participant, mutedForYou: mutedForYou);
 
 void main() {
-  test('somebody with nothing wrong shows a plain microphone', () {
-    expect(icons(person()), [VoiceStatusIcon.micOn]);
+  test('somebody who can be heard shows nothing', () {
+    expect(icons(person()), isEmpty);
   });
 
   test('a muted microphone is shown as one', () {
@@ -73,7 +73,6 @@ void main() {
     expect(icons(person(screen: true, sound: true)), [
       VoiceStatusIcon.sharingScreen,
       VoiceStatusIcon.sharingSound,
-      VoiceStatusIcon.micOn,
     ]);
     expect(icons(person(screen: true, micOn: false)), [
       VoiceStatusIcon.sharingScreen,

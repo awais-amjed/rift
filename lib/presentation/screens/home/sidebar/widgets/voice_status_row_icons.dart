@@ -45,7 +45,6 @@ class VoiceStatusRowIcons extends StatelessWidget {
               color: switch (icon) {
                 VoiceStatusIcon.sharingScreen ||
                 VoiceStatusIcon.sharingSound => theme.accentBright,
-                VoiceStatusIcon.micOn => theme.textQuaternary,
                 VoiceStatusIcon.mutedForYou => CustomColors.error.withValues(
                   alpha: 0.7,
                 ),
@@ -71,7 +70,6 @@ class VoiceStatusRowIcons extends StatelessWidget {
     // Not a crossed microphone: they have not muted themselves, you have
     // turned them off — the same distinction the volume slider makes.
     VoiceStatusIcon.mutedForYou => Icons.volume_off,
-    VoiceStatusIcon.micOn => Icons.mic,
   };
 
   String _tooltip(VoiceStatusIcon icon) => switch (icon) {
@@ -82,6 +80,5 @@ class VoiceStatusRowIcons extends StatelessWidget {
     VoiceStatusIcon.muted => 'Muted',
     VoiceStatusIcon.mutedByModerator => 'Muted by a moderator',
     VoiceStatusIcon.mutedForYou => 'Muted for you',
-    VoiceStatusIcon.micOn => 'Unmuted',
   };
 }
