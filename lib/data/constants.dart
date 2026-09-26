@@ -27,6 +27,11 @@ class K {
   /// the content under it by the difference.
   static const double paneHeaderHeight = 52;
 
+  /// How far down a hidden panel's edge tab hangs: past the pane header and
+  /// a gap, so it is near the top without landing on the header's controls
+  /// or the panel's rounded corner.
+  static const double edgeTabTop = paneHeaderHeight + 12;
+
   // ── Controls ──────────────────────────────────────────────
   /// A button. The same as [touchTargetMin], so the app has one control
   /// height rather than a mouse one and a finger one.

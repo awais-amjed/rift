@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../data/enums/home_surface.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
@@ -109,14 +110,17 @@ class MainContent extends StatelessWidget {
             // sidebar's tab. Above the Row so it isn't clipped by the panel
             // that just slid out from under it.
             //
-            // Halfway down rather than at the top. At the top it landed on
-            // the chat panel's rounded corner — three borders stacked in one
-            // place — nineteen pixels from the channel's close button: two
-            // small controls with different jobs, touching. Halfway is clear
-            // of both, and is where a handle for pulling a panel out belongs.
+            // Near the top, but below the chat's header rather than beside
+            // it. Flush at the top it landed on the chat panel's rounded
+            // corner, nineteen pixels from the channel's close button: two
+            // small controls with different jobs, touching. Halfway down was
+            // clear of both but read as lost in the middle of the window.
             const Align(
-              alignment: Alignment.centerRight,
-              child: MembersSidebarTab(),
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: EdgeInsets.only(top: K.edgeTabTop),
+                child: MembersSidebarTab(),
+              ),
             ),
           ],
         );
