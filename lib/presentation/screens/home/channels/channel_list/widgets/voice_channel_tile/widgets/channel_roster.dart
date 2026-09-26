@@ -54,7 +54,8 @@ class ChannelRoster extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 2,
+      // Touching, as the sidebar's rows do: a row is [RosterRowMetrics.rowHeight]
+      // and so is the step to the next one.
       children: [
         for (final participant in participants)
           _draggable(

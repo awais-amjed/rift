@@ -76,7 +76,10 @@ class AppShadows {
     double t = 0,
 
     /// Scales the halo without touching the ring — a 22px avatar and a 16:9
-    /// tile want the same hard edge but very different glows.
+    /// tile want the same hard edge but very different glows. Zero leaves the
+    /// ring alone: a blur rounds the corners far more than the thing it
+    /// surrounds, and around a small squircle the halo read as a different,
+    /// rounder shape.
     double bloom = 1,
   }) {
     // `t` runs 0..1 over the pulse, widening the ring as the bloom softens.
@@ -85,13 +88,14 @@ class AppShadows {
         color: accent.withValues(alpha: 0.9 - 0.25 * t),
         spreadRadius: 2 + 0.5 * t,
       ),
-      BoxShadow(
-        // Wider glows are spread over more area, so they need less alpha to
-        // read at the same strength.
-        color: accent.withValues(alpha: (0.35 - 0.1 * t) / bloom),
-        blurRadius: (12 + 10 * t) * bloom,
-        spreadRadius: (2 + 2 * t) * bloom,
-      ),
+      if (bloom > 0)
+        BoxShadow(
+          // Wider glows are spread over more area, so they need less alpha to
+          // read at the same strength.
+          color: accent.withValues(alpha: (0.35 - 0.1 * t) / bloom),
+          blurRadius: (12 + 10 * t) * bloom,
+          spreadRadius: (2 + 2 * t) * bloom,
+        ),
     ];
   }
 }

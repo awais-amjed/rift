@@ -73,9 +73,10 @@ class ParticipantListItem extends StatelessWidget {
             // pulsing ring the voice tiles use, at roster scale.
             SpeakingRing(
               isSpeaking: isSpeaking,
-              // A tight halo: at the tile's bloom it spread across the whole
-              // row and the avatar read as framed rather than lit.
-              bloom: 0.35,
+              // The hard ring only. Any blur rounds the corners past the
+              // avatar's own, so the glow read as a rounder shape than the
+              // picture it was drawn round.
+              bloom: 0,
               borderRadius: BorderRadius.circular(
                 metrics.avatarSize * K.avatarRadiusRatio,
               ),

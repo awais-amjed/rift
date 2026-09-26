@@ -155,12 +155,10 @@ class VoiceChannelTile extends StatelessWidget {
     List<SummonedBot> summoned = const [],
     bool isTargeted = false,
   }) {
+    // No margin and no padding above the header: the card's top edge is the
+    // top of the plain row it replaces, so joining a call grows the channel
+    // downward — people appear under it — and its name stays where it was.
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      // Thin, because the rows inside carry their own padding: the header's
-      // hover has to reach almost to the card's edge to read as the row you
-      // press, as a sidebar row's does, rather than a box hugging its text.
-      padding: const EdgeInsets.all(4),
       // The channel you are *in* takes the accent, the same way a selected
       // row does; a channel that merely has people in it stays neutral. Both
       // are cards, so the difference says which call is yours. A drag hovering
@@ -178,7 +176,6 @@ class VoiceChannelTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: 2,
         children: [
           // Only the header carries the channel menu: the participant rows
           // below have their own, and nesting the two would make which one you
@@ -207,12 +204,17 @@ class VoiceChannelTile extends StatelessWidget {
           if (participants.isNotEmpty ||
               presenceUsers.isNotEmpty ||
               summoned.isNotEmpty)
-            ChannelRoster(
-              channelId: channel.id,
-              participants: participants,
-              presenceUsers: presenceUsers,
-              summoned: summoned,
-              settings: appState.participantSettings,
+            // Inset, so each person's hover reads as a row inside the card, as
+            // a sidebar row's does inside the list.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+              child: ChannelRoster(
+                channelId: channel.id,
+                participants: participants,
+                presenceUsers: presenceUsers,
+                summoned: summoned,
+                settings: appState.participantSettings,
+              ),
             ),
         ],
       ),

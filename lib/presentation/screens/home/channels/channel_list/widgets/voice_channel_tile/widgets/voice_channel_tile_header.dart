@@ -49,14 +49,19 @@ class VoiceChannelTileHeader extends StatelessWidget {
       type: MaterialType.transparency,
       child: InkWell(
         mouseCursor: WidgetStateMouseCursor.clickable,
-        borderRadius: BorderRadius.circular(K.radiusRow),
+        // The card's own top corners, less its border: the header is the
+        // card's first row, flush under its edge, so it lights up the way a
+        // title bar would rather than as a pill floating inside it.
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(K.radiusCard - 1),
+        ),
         onTap: onTap,
-        child: Padding(
-          // The people rows' horizontal padding, so the speaker icon lines
-          // up with the avatars under it and the two hovers are one width.
-          padding: EdgeInsets.symmetric(
-            horizontal: RosterRowMetrics.of(context).padding.left,
-            vertical: RosterRowMetrics.of(context).headerVerticalPadding,
+        child: Container(
+          // One row high less the card's top border, so the channel's name
+          // sits exactly where it did as a plain row before anyone joined.
+          height: RosterRowMetrics.of(context).rowHeight - 1,
+          padding: const EdgeInsets.symmetric(
+            horizontal: RosterRowMetrics.headerInset - 1,
           ),
           child: Row(
             spacing: 9,
