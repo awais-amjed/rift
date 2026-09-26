@@ -8,6 +8,7 @@ import '../../../../../../../../logic/cubits/server_members/server_members_cubit
 import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/hover_builder.dart';
 import '../../../../../../../common/member_avatar.dart';
+import '../../../../../../../theme/app_motion.dart';
 import '../../../../../../../theme/custom_colors.dart';
 import '../../../../../../../theme/theme_context.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
@@ -56,9 +57,13 @@ class PresenceMemberRow extends StatelessWidget {
 
     // A tint, not an ink well: clicking a person does nothing — their profile
     // is in the menu — and the tint is what says the row has one.
-    return DecoratedBox(
+    return AnimatedContainer(
+      duration: AppMotion.react,
+      curve: AppMotion.settle,
       decoration: BoxDecoration(
-        color: hovered ? themeState.bgHover : null,
+        color: hovered
+            ? themeState.bgHover
+            : themeState.bgHover.withValues(alpha: 0),
         borderRadius: BorderRadius.circular(K.radiusRow),
       ),
       child: Padding(

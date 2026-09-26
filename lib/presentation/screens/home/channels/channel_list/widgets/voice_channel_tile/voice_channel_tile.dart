@@ -9,26 +9,25 @@ import '../../../../../../../logic/cubits/channel_presence/channel_presence_cubi
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../../common/hover_builder.dart';
-import '../../../../../../common/nav_row.dart';
+import '../../../../../../theme/app_motion.dart';
 import '../../../../../../theme/theme_context.dart';
 import '../channel_context_menu.dart';
-import '../channel_lock_badge.dart';
 import '../channel_settings_gear.dart';
 import 'widgets/channel_drop_target.dart';
 import 'widgets/channel_roster.dart';
 import 'widgets/roster_row_metrics.dart';
 import 'widgets/voice_channel_tile_header.dart';
-import 'widgets/voice_listening_badge.dart';
 
 /// Over the widget budget and one job: a voice channel, as a row or as a card
 /// of the people in it.
 ///
 /// A voice channel in the sidebar — Discord-style, showing who is in it.
 ///
-/// Empty channels are ordinary rows. The moment anyone is inside, the row
-/// becomes a card: a bordered box holding the channel and its people. That
+/// Empty channels look like ordinary rows. The moment anyone is inside, the
+/// row becomes a card: a bordered box holding the channel and its people. That
 /// promotion is the point — a call in progress is the most important thing in
-/// the sidebar, and it should look different in kind, not just in colour.
+/// the sidebar, and it should look different in kind, not just in colour. It
+/// is one widget in both states, so the promotion can be animated.
 class VoiceChannelTile extends StatelessWidget {
   final Channel channel;
   final bool isSelected;
@@ -92,60 +91,29 @@ class VoiceChannelTile extends StatelessWidget {
                 summoned.isNotEmpty;
 
             // An empty channel is the most likely place to drop someone,
-            // so it catches a drag as readily as an occupied one.
-            if (!isOccupied) {
-              return ChannelDropTarget(
-                channelId: channel.id,
-                builder: (context, isTargeted) => ChannelContextMenu.wrap(
-                  context: context,
-                  channel: channel,
-                  // The card's inset above and below, kept while it is only
-                  // a row, so the name is where the card will put it.
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: RosterRowMetrics.cardInset,
-                    ),
-                    child: HoverBuilder(
-                      builder: (context, hovered) => NavRow(
-                        pushes: true,
-                        icon: Icons.volume_up_rounded,
-                        // An empty voice channel is a plain row, not the card
-                        // below, so the lock has to be put on twice. Missing
-                        // here is the case you would never notice by reading:
-                        // an empty channel is exactly the one nobody is in.
-                        iconBadge: channel.isPrivate
-                            ? const ChannelLockBadge()
-                            : null,
-                        label: channel.name,
-                        trailing: ChannelSettingsGear.beside(
-                          context,
-                          VoiceListeningBadge(
-                            listeners: context
-                                .watch<VoiceListenersCubit>()
-                                .listening(channel.id),
-                          ),
-                          channel: channel,
-                          hovered: hovered,
-                        ),
-                        onTap: onTap,
-                        isSelected: isTargeted,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }
-
+            // so it catches a drag as readily as an occupied one — and a
+            // drag over it raises the card, accent border and all, to say
+            // where the drop would land.
             return ChannelDropTarget(
               channelId: channel.id,
-              builder: (context, isTargeted) => _buildCard(
-                context,
-                themeState,
-                appState,
-                participants: participants,
-                presenceUsers: presenceUsers,
-                summoned: summoned,
-                isTargeted: isTargeted,
+              builder: (context, isTargeted) => TweenAnimationBuilder<double>(
+                // No `begin`: the first build starts where it is, so a list
+                // opening onto calls in progress doesn't animate them all in.
+                tween: Tween(end: isOccupied || isTargeted ? 1 : 0),
+                // Your own join answers your click; anyone else's is an
+                // arrival you didn't cause, and gets the longer, legible one.
+                duration: isSelected ? AppMotion.state : AppMotion.enter,
+                curve: AppMotion.settle,
+                builder: (context, t, _) => _buildCard(
+                  context,
+                  themeState,
+                  appState,
+                  t: t,
+                  participants: participants,
+                  presenceUsers: presenceUsers,
+                  summoned: summoned,
+                  isTargeted: isTargeted,
+                ),
               ),
             );
           },
@@ -154,35 +122,48 @@ class VoiceChannelTile extends StatelessWidget {
     );
   }
 
+  /// The channel as a card, [t] of the way to being one: 0 is the plain row
+  /// an empty channel is, 1 the card a call makes it.
+  ///
+  /// One shape at every [t] rather than a row swapped for a card, so a call
+  /// starting fades the card in around a name that stays put — the border is
+  /// always there, just transparent, and the side padding the card grows is
+  /// taken back out of the header's, so the glyph never moves sideways.
   Widget _buildCard(
     BuildContext context,
     ThemeState themeState,
     AppState appState, {
+    required double t,
     required List<ParticipantInfo> participants,
     required List<PresenceUser> presenceUsers,
     List<SummonedBot> summoned = const [],
     bool isTargeted = false,
   }) {
-    // Padded on every side, so each row — the header and every person —
-    // lights up as a rounded row of its own, clear of the card's corners.
-    // Full-width bands used to be cut by them: rounded on top when you
-    // hovered the header and at the bottom on the last person. The empty row
-    // keeps the same space above and below, so the name does not move.
+    final side = RosterRowMetrics.cardPadding * t;
+    // The channel you are *in* takes the accent, the same way a selected
+    // row does; a channel that merely has people in it stays neutral. Both
+    // are cards, so the difference says which call is yours. A drag hovering
+    // over it borrows the accent border — where this drop would land.
+    final fill = isSelected ? themeState.channelActiveBg : themeState.bgHover;
+    final edge = isTargeted
+        ? themeState.accentBright
+        : (isSelected
+              ? themeState.channelActiveBorder
+              : themeState.borderElevated);
+
+    // Padded above and below at every [t], so each row — the header and
+    // every person — lights up as a rounded row clear of the card's corners,
+    // and the name sits where the card will put it.
     return Container(
-      padding: const EdgeInsets.all(RosterRowMetrics.cardPadding),
-      // The channel you are *in* takes the accent, the same way a selected
-      // row does; a channel that merely has people in it stays neutral. Both
-      // are cards, so the difference says which call is yours. A drag hovering
-      // over it borrows the accent border — where this drop would land.
+      padding: EdgeInsets.symmetric(
+        vertical: RosterRowMetrics.cardPadding,
+        horizontal: side,
+      ),
       decoration: BoxDecoration(
-        color: isSelected ? themeState.channelActiveBg : themeState.bgHover,
+        color: Color.lerp(fill.withValues(alpha: 0), fill, t),
         borderRadius: BorderRadius.circular(K.radiusCard),
         border: Border.all(
-          color: isTargeted
-              ? themeState.accentBright
-              : (isSelected
-                    ? themeState.channelActiveBorder
-                    : themeState.borderElevated),
+          color: Color.lerp(edge.withValues(alpha: 0), edge, t)!,
         ),
       ),
       child: Column(
@@ -197,6 +178,8 @@ class VoiceChannelTile extends StatelessWidget {
             child: HoverBuilder(
               builder: (context, hovered) => VoiceChannelTileHeader(
                 channel: channel,
+                card: t,
+                horizontalPadding: RosterRowMetrics.headerInset - 1 - side,
                 startedAt: context
                     .watch<ChannelPresenceCubit>()
                     .state
@@ -207,7 +190,6 @@ class VoiceChannelTile extends StatelessWidget {
                   channel: channel,
                   hovered: hovered,
                 ),
-
                 isSelected: isSelected,
                 listeners: context.watch<VoiceListenersCubit>().listening(
                   channel.id,
@@ -216,16 +198,15 @@ class VoiceChannelTile extends StatelessWidget {
               ),
             ),
           ),
-          if (participants.isNotEmpty ||
-              presenceUsers.isNotEmpty ||
-              summoned.isNotEmpty)
-            ChannelRoster(
-              channelId: channel.id,
-              participants: participants,
-              presenceUsers: presenceUsers,
-              summoned: summoned,
-              settings: appState.participantSettings,
-            ),
+          // Always there, empty or not, so the first person into an empty
+          // channel animates in like everyone after them.
+          ChannelRoster(
+            channelId: channel.id,
+            participants: participants,
+            presenceUsers: presenceUsers,
+            summoned: summoned,
+            settings: appState.participantSettings,
+          ),
         ],
       ),
     );

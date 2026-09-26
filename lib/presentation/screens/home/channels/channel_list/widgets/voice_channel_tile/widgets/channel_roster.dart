@@ -8,6 +8,7 @@ import '../../../../../../../../logic/cubits/channel_presence/channel_presence_c
 import '../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
+import '../../../../../../../common/animated_keyed_column.dart';
 import '../../../../../sidebar/widgets/draggable_member.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
 import '../../../../../sidebar/widgets/participant_list_item.dart';
@@ -45,20 +46,27 @@ class ChannelRoster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Nobody here: the same column, empty, so it is already standing when
+    // the first person arrives and they open into place like everyone after.
+    if (participants.isEmpty && presenceUsers.isEmpty && summoned.isEmpty) {
+      return const AnimatedKeyedColumn(children: []);
+    }
     final canMoveOthers = context.select<ServerCubit, bool>((cubit) {
       final permissions = cubit.state.myPermissions;
       return (permissions?.isServerAdmin ?? false) ||
           (permissions?.isChannelManager ?? false);
     });
     final roster = context.watch<ServerMembersCubit>().state;
+    final keys = _RowKeys();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      // Touching, as the sidebar's rows do: a row is [RosterRowMetrics.rowHeight]
-      // and so is the step to the next one.
+    // Rows touch, as the sidebar's do: a row is [RosterRowMetrics.rowHeight]
+    // and so is the step to the next one. Keyed by person, so someone moving
+    // from a presence row to a live one as you join isn't an arrival.
+    return AnimatedKeyedColumn(
       children: [
         for (final participant in participants)
           _draggable(
+            key: keys.forPerson(participant.userId, participant.identity),
             userId: participant.userId,
             name: roster.nameFor(participant.userId, participant.name),
             isLocal: participant.isLocal,
@@ -75,6 +83,7 @@ class ChannelRoster extends StatelessWidget {
           ),
         for (final user in presenceUsers)
           _draggable(
+            key: keys.forPerson(user.userId, user.userId),
             userId: user.userId,
             name: roster.nameFor(user.userId, user.displayName),
             enabled: canMoveOthers,
@@ -90,7 +99,12 @@ class ChannelRoster extends StatelessWidget {
         // connection to move.
         for (final bot in summoned)
           if (!_present(bot.id))
-            SummonedBotRow(botId: bot.id, name: bot.name, channelId: channelId),
+            SummonedBotRow(
+              key: keys.forPerson(bot.id, 'summoned:${bot.id}'),
+              botId: bot.id,
+              name: bot.name,
+              channelId: channelId,
+            ),
       ],
     );
   }
@@ -102,12 +116,14 @@ class ChannelRoster extends StatelessWidget {
       presenceUsers.any((u) => u.userId == botId);
 
   Widget _draggable({
+    required Key key,
     required String userId,
     required String name,
     required bool enabled,
     bool isLocal = false,
     required Widget child,
   }) => DraggableMember(
+    key: key,
     enabled: enabled,
     member: VoiceDrag(
       userId: userId,
@@ -117,4 +133,14 @@ class ChannelRoster extends StatelessWidget {
     ),
     child: child,
   );
+}
+
+/// A key per row, by person — and by connection for anyone connected twice,
+/// since two devices in one call are two rows and a key may only be used
+/// once.
+class _RowKeys {
+  final _used = <String>{};
+
+  Key forPerson(String userId, String fallback) =>
+      ValueKey(_used.add(userId) ? userId : fallback);
 }

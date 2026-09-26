@@ -9,6 +9,7 @@ import '../../../../common/context_menu_region.dart';
 import '../../../../common/hover_builder.dart';
 import '../../../../common/member_avatar.dart';
 import '../../../../common/speaking_ring.dart';
+import '../../../../theme/app_motion.dart';
 import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_row_metrics.dart';
 import 'voice_status_row_icons.dart';
@@ -60,11 +61,14 @@ class ParticipantListItem extends StatelessWidget {
     // a heavier, brighter weight as well, so a busy call was a column of
     // rows flashing on and off — and the weight change reflowed the name
     // with every breath.
-    Widget content = Material(
-      // Transparent at rest, not null: a null Material paints the canvas
-      // colour, which drew a dark strip inside the channel's card.
-      color: hovered ? hoverColor : Colors.transparent,
-      borderRadius: BorderRadius.circular(K.radiusRow),
+    // Eased like every other row's hover, rather than switched.
+    Widget content = AnimatedContainer(
+      duration: AppMotion.react,
+      curve: AppMotion.settle,
+      decoration: BoxDecoration(
+        color: hovered ? hoverColor : hoverColor.withValues(alpha: 0),
+        borderRadius: BorderRadius.circular(K.radiusRow),
+      ),
       child: Padding(
         padding: metrics.padding,
         child: Row(

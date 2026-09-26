@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../../../../../data/classes/channel.dart';
 import '../../../../../../../../data/constants.dart';
+import '../../../../../../../responsive/shell_scope.dart';
+import '../../../../../../../theme/app_motion.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/theme_context.dart';
 import '../../channel_lock_badge.dart';
@@ -9,8 +11,12 @@ import 'call_timer.dart';
 import 'roster_row_metrics.dart';
 import 'voice_listening_badge.dart';
 
-/// The clickable row at the top of an occupied voice channel's card: the
-/// channel's name, its lock, whether a bot can hear it, and how long its call has run.
+/// The clickable row at the top of a voice channel: the channel's name, its
+/// lock, whether a bot can hear it, and how long its call has run.
+///
+/// The same row whether the channel is empty or holding a call — [card] says
+/// how far it is into being the card's header, and the name's weight and the
+/// glyph's colour follow it, from a plain sidebar row's to the card's.
 ///
 /// Its own widget because the card around it is a container and a roster, and
 /// this is the only part of it you can press — keeping them apart is what stops
@@ -32,6 +38,13 @@ class VoiceChannelTileHeader extends StatelessWidget {
   /// When the call here began, or null with nobody in it.
   final DateTime? startedAt;
 
+  /// 0 for an empty channel's plain row, 1 for an occupied card's header.
+  final double card;
+
+  /// Whatever puts the glyph where a sidebar row's is, given how much of the
+  /// card's own padding is already to its left.
+  final double horizontalPadding;
+
   const VoiceChannelTileHeader({
     super.key,
     required this.channel,
@@ -40,6 +53,8 @@ class VoiceChannelTileHeader extends StatelessWidget {
     this.onTap,
     this.gear,
     this.startedAt,
+    this.card = 1,
+    required this.horizontalPadding,
   });
 
   @override
@@ -59,10 +74,7 @@ class VoiceChannelTileHeader extends StatelessWidget {
         child: Container(
           // One row high, like the plain row an empty channel is drawn as.
           height: RosterRowMetrics.of(context).rowHeight,
-          padding: const EdgeInsets.symmetric(
-            horizontal:
-                RosterRowMetrics.headerInset - RosterRowMetrics.cardInset,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           child: Row(
             spacing: 9,
             children: [
@@ -77,7 +89,11 @@ class VoiceChannelTileHeader extends StatelessWidget {
                       size: K.iconRow,
                       color: isSelected
                           ? themeState.accentBright
-                          : themeState.textTertiary,
+                          : Color.lerp(
+                              themeState.textQuaternary,
+                              themeState.textTertiary,
+                              card,
+                            ),
                     ),
                     if (channel.isPrivate)
                       const Positioned(
@@ -93,19 +109,40 @@ class VoiceChannelTileHeader extends StatelessWidget {
                   channel.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.row.copyWith(
-                    color: isSelected
-                        ? themeState.channelActiveText
-                        : themeState.textSecondary,
-                  ),
+                  // A plain row's weight when empty, the card's when not.
+                  style: TextStyle.lerp(AppText.rowQuiet, AppText.row, card)!
+                      .copyWith(
+                        color: isSelected
+                            ? themeState.channelActiveText
+                            : themeState.textSecondary,
+                      ),
                 ),
               ),
               // Before the timer, not after: whether you can be heard by a bot
               // is the thing to read before deciding to speak.
               VoiceListeningBadge(listeners: listeners),
-              if (startedAt case final startedAt?)
-                CallTimer(startedAt: startedAt, isYours: isSelected),
+              // Fades in and out with the call rather than blinking.
+              AnimatedSwitcher(
+                duration: AppMotion.enter,
+                switchInCurve: AppMotion.settle,
+                child: switch (startedAt) {
+                  final startedAt? => CallTimer(
+                    key: const ValueKey('timer'),
+                    startedAt: startedAt,
+                    isYours: isSelected,
+                  ),
+                  null => const SizedBox.shrink(),
+                },
+              ),
               ?gear,
+              // A phone's empty voice row still says a tap opens a page, as
+              // every other row there does.
+              if (card == 0 && context.layoutMode.isCompact)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: K.iconButton,
+                  color: themeState.textQuaternary,
+                ),
             ],
           ),
         ),

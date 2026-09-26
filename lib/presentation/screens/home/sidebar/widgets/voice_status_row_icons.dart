@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/participant_info.dart';
 import '../../../../../logic/services/voice_status_icons.dart';
+import '../../../../theme/app_motion.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_row_metrics.dart';
@@ -28,34 +29,46 @@ class VoiceStatusRowIcons extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final size = RosterRowMetrics.of(context).iconSize;
+    final icons = voiceStatusIcons(participant, mutedForYou: mutedForYou);
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      spacing: 4,
-      children: [
-        for (final icon in voiceStatusIcons(
-          participant,
-          mutedForYou: mutedForYou,
-        ))
-          Tooltip(
-            message: _tooltip(icon),
-            child: Icon(
-              _icon(icon),
-              size: size,
-              color: switch (icon) {
-                VoiceStatusIcon.sharingScreen ||
-                VoiceStatusIcon.sharingSound => theme.accentBright,
-                VoiceStatusIcon.mutedForYou => CustomColors.error.withValues(
-                  alpha: 0.7,
-                ),
-                VoiceStatusIcon.deafenedByModerator ||
-                VoiceStatusIcon.mutedByModerator =>
-                  CustomColors.error.withValues(alpha: 0.85),
-                _ => CustomColors.error,
-              },
+    // Somebody muting is something that happened to the row, not a redraw:
+    // the marks pop in and shrink away rather than blinking. Keyed on the
+    // whole set, so only a change animates.
+    return AnimatedSwitcher(
+      duration: AppMotion.state,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: CurvedAnimation(parent: animation, curve: AppMotion.pop),
+          child: child,
+        ),
+      ),
+      child: Row(
+        key: ValueKey(icons.join(',')),
+        mainAxisSize: MainAxisSize.min,
+        spacing: 4,
+        children: [
+          for (final icon in icons)
+            Tooltip(
+              message: _tooltip(icon),
+              child: Icon(
+                _icon(icon),
+                size: size,
+                color: switch (icon) {
+                  VoiceStatusIcon.sharingScreen ||
+                  VoiceStatusIcon.sharingSound => theme.accentBright,
+                  VoiceStatusIcon.mutedForYou => CustomColors.error.withValues(
+                    alpha: 0.7,
+                  ),
+                  VoiceStatusIcon.deafenedByModerator ||
+                  VoiceStatusIcon.mutedByModerator =>
+                    CustomColors.error.withValues(alpha: 0.85),
+                  _ => CustomColors.error,
+                },
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
