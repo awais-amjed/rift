@@ -127,6 +127,9 @@ def page_ws(port, match="localhost"):
 
 
 def click(ws, x, y):
+    # Arrive first, as a real pointer does. A press with no hover before it
+    # can land on a control that is still fading in, and do nothing.
+    move(ws, x, y)
     for kind in ("mousePressed", "mouseReleased"):
         ws.call(
             "Input.dispatchMouseEvent",
