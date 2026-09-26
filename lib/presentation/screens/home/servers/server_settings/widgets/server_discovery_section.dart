@@ -10,7 +10,7 @@ import '../../../../../common/tag_editor.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../../settings/widgets/section_title.dart';
-import '../../../directory_moderation/listing_hidden_notice.dart';
+import '../../../directory_reports/listing_hidden_notice.dart';
 import '../listing_draft.dart';
 
 /// The discovery third of the server settings dialog: whether this server is

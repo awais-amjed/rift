@@ -19,6 +19,10 @@ class PublicBotRepository {
 
   String? get _uid => _client.auth.currentUser?.id;
 
+  /// The signed-in central account, so a listing's own publisher is not
+  /// offered a Report button on it.
+  String? get currentUserId => _uid;
+
   /// Browse the directory. [query] matches the name or the description,
   /// [tag] narrows to listings carrying it, [offset] pages.
   ///

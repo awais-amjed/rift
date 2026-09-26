@@ -3,14 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/public_server.dart';
 import '../../../../../../data/constants.dart';
-import '../../../../../../data/enums/listing_kind.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/directory_icon.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
-import '../../../directory_moderation/listing_menu_button.dart';
+import '../../../directory_reports/report_listing_button.dart';
 
 /// One server in the browser.
 ///
@@ -61,13 +60,14 @@ class PublicServerTile extends StatelessWidget {
                 ),
               ),
             ),
-          ListingMenuButton(
-            kind: ListingKind.server,
-            listingId: server.id,
-            name: server.name,
-            ownerId: server.ownerId,
-            onHidden: () => context.read<PublicServersCubit>().browse(),
-          ),
+          if (server.ownerId !=
+              context.read<PublicServersCubit>().currentUserId)
+            ReportListingButton(
+              name: server.name,
+              onReport: (reason, details) => context
+                  .read<PublicServersCubit>()
+                  .report(server.id, reason, details),
+            ),
         ],
       ),
     );

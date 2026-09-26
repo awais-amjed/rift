@@ -3,8 +3,12 @@ import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/classes/api_response.dart';
 import '../../../data/classes/public_bot.dart';
+import '../../../data/enums/listing_kind.dart';
+import '../../../data/enums/report_reason.dart';
 import '../../../data/repositories/directory_icon_repository.dart';
+import '../../../data/repositories/listing_report_repository.dart';
 import '../../../data/repositories/public_bot_repository.dart';
 
 part 'public_bots_state.dart';
@@ -21,6 +25,7 @@ class PublicBotsCubit extends Cubit<PublicBotsState> {
   final DirectoryIconRepository _icons = DirectoryIconRepository();
 
   final PublicBotRepository _repo;
+  final ListingReportRepository _reports;
 
   /// Guards a slow browse landing after a newer one — typing in the search
   /// field fires a request per pause, and they can arrive out of order.
@@ -29,9 +34,28 @@ class PublicBotsCubit extends Cubit<PublicBotsState> {
   /// Debounce for the search field, cancelled on every keystroke.
   Timer? _debounce;
 
-  PublicBotsCubit({PublicBotRepository? repo})
+  PublicBotsCubit({PublicBotRepository? repo, ListingReportRepository? reports})
     : _repo = repo ?? PublicBotRepository(),
+      _reports = reports ?? ListingReportRepository(),
       super(const PublicBotsState());
+
+  /// The signed-in central account — a listing's own publisher gets no
+  /// Report button on it.
+  String? get currentUserId => _repo.currentUserId;
+
+  /// Report one of the listings on screen to Rift's moderators. Handed back
+  /// rather than emitted: the dialog that asked is the one place that says
+  /// whether it worked, and nothing in the list changes.
+  Future<APIResponse> report(
+    String listingId,
+    ReportReason reason,
+    String? details,
+  ) => _reports.report(
+    kind: ListingKind.bot,
+    listingId: listingId,
+    reason: reason,
+    details: details,
+  );
 
   // ── Browsing ──────────────────────────────────────────────
 

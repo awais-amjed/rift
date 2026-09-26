@@ -6,7 +6,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/directory_icon.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
-import '../../directory_moderation/listing_hidden_notice.dart';
+import '../../directory_reports/listing_hidden_notice.dart';
 
 /// One of your own listings, in [MyBotsModal].
 ///

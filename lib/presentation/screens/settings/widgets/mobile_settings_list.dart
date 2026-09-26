@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../logic/cubits/moderation/moderation_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
@@ -152,20 +151,10 @@ class MobileSettingsList extends StatelessWidget {
                     SettingsLinkRow(
                       icon: Icons.cloud_outlined,
                       label: SettingsTab.backup.label,
-                      subtitle: backup ?? 'Sign in, cloud backup, recovery key',
+                      subtitle:
+                          backup ?? 'Sign in, cloud backup, recovery key',
                       onTap: () => onTabSelected(SettingsTab.backup),
                     ),
-                    if (context.select<ModerationCubit, bool>(
-                      (c) => c.state.isModerator,
-                    )) ...[
-                      Divider(height: 1, color: theme.borderPrimary),
-                      SettingsLinkRow(
-                        icon: Icons.shield_outlined,
-                        label: SettingsTab.moderation.label,
-                        subtitle: 'Reports of directory listings',
-                        onTap: () => onTabSelected(SettingsTab.moderation),
-                      ),
-                    ],
                   ],
                 ),
               ),
