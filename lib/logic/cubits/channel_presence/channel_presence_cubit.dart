@@ -295,10 +295,14 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     // Mid-rebuild there are no locations to read, and treating that as every
     // channel emptying would restart every timer.
     if (_voice != null) {
+      // Our own place comes from our own call, never from the locations: a
+      // roster can seed us somewhere a previous session of ours died, and
+      // our own "nowhere" goes to everyone else, not back to us.
       final occupied = {
         for (final entry in VoiceLocations.rosters(
           locations: _voice!.locations,
           online: _online,
+          excluding: _serverCubit.state.selectedServer?.user?.id,
         ).entries)
           if (entry.value.isNotEmpty) entry.key,
         ?_ownChannel,
