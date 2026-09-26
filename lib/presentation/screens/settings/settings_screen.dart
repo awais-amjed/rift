@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
+import '../../../logic/cubits/moderation/moderation_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
+import '../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../logic/services/host_platform.dart';
@@ -20,6 +22,7 @@ import 'widgets/appearance_content.dart';
 import 'widgets/backup_content/backup_content.dart';
 import 'widgets/general_content.dart';
 import 'widgets/mobile_settings_list.dart';
+import 'widgets/moderation/moderation_content.dart';
 import 'widgets/settings_sidebar.dart';
 import 'widgets/settings_tab.dart';
 import 'widgets/voice_audio_content.dart';
@@ -57,7 +60,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     SettingsTab.general => Icons.tune_rounded,
     SettingsTab.voiceAndAudio => Icons.headset_outlined,
     SettingsTab.backup => Icons.cloud_outlined,
+    SettingsTab.moderation => Icons.shield_outlined,
   };
+
+  @override
+  void initState() {
+    super.initState();
+    // Whether to list Moderation. Asked here rather than at launch, so an
+    // account that never opens settings never asks central at all.
+    context.read<ModerationCubit>().checkRole();
+  }
 
   /// Wipes the vault and server list from this device and returns to
   /// onboarding. Irreversible without a cloud or file backup.
@@ -146,120 +158,145 @@ class _SettingsScreenState extends State<SettingsScreen> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) setState(() => _detailOpen = false);
       },
-      child: Scaffold(
-        body: BlocBuilder<AppCubit, AppState>(
-          buildWhen: (prev, curr) =>
-              prev.titleBarVisible != curr.titleBarVisible,
-          builder: (context, appState) {
-            final compact = context.layoutMode.isCompact;
-            final topOffset = !HostPlatform.drawsOwnWindowChrome
-                ? 0.0
-                : (appState.titleBarVisible ? K.titleBarHeight : 0.0);
-            final gutter = context.layoutMode.panelGutter;
-            return CanvasBackdrop(
-              child: Padding(
-                // No gutter on a phone: the panel is the screen there and
-                // holds its own content clear of the cutouts. See
-                // `LayoutMode.panelsAreIslands`.
-                padding: EdgeInsets.fromLTRB(
-                  gutter,
-                  topOffset == 0 ? gutter : topOffset,
-                  gutter,
-                  gutter,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // ── Left nav panel ───────────────────────────
-                    // Full width on a phone, where it is the list half of a
-                    // list-and-detail pair rather than a column beside one.
-                    if (!compact || !_detailOpen)
-                      _NavPanel(
-                        expand: compact,
-                        child: compact
-                            ? SafeArea(
-                                bottom: false,
-                                child: MobileSettingsList(
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<SupabaseBackupCubit, SupabaseBackupState>(
+            listenWhen: (prev, curr) => prev.isSignedIn != curr.isSignedIn,
+            listener: (context, _) =>
+                context.read<ModerationCubit>().checkRole(),
+          ),
+          BlocListener<ModerationCubit, ModerationState>(
+            listenWhen: (prev, curr) => prev.isModerator && !curr.isModerator,
+            listener: (context, _) {
+              if (_activeTab == SettingsTab.moderation) {
+                setState(() => _activeTab = SettingsTab.appearance);
+              }
+            },
+          ),
+        ],
+        child: Scaffold(
+          body: BlocBuilder<AppCubit, AppState>(
+            buildWhen: (prev, curr) =>
+                prev.titleBarVisible != curr.titleBarVisible,
+            builder: (context, appState) {
+              final compact = context.layoutMode.isCompact;
+              final topOffset = !HostPlatform.drawsOwnWindowChrome
+                  ? 0.0
+                  : (appState.titleBarVisible ? K.titleBarHeight : 0.0);
+              final gutter = context.layoutMode.panelGutter;
+              return CanvasBackdrop(
+                child: Padding(
+                  // No gutter on a phone: the panel is the screen there and
+                  // holds its own content clear of the cutouts. See
+                  // `LayoutMode.panelsAreIslands`.
+                  padding: EdgeInsets.fromLTRB(
+                    gutter,
+                    topOffset == 0 ? gutter : topOffset,
+                    gutter,
+                    gutter,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ── Left nav panel ───────────────────────────
+                      // Full width on a phone, where it is the list half of a
+                      // list-and-detail pair rather than a column beside one.
+                      if (!compact || !_detailOpen)
+                        _NavPanel(
+                          expand: compact,
+                          child: compact
+                              ? SafeArea(
+                                  bottom: false,
+                                  child: MobileSettingsList(
+                                    onTabSelected: (tab) =>
+                                        _selectTab(tab, compact: true),
+                                    onBack: () => context.pop(),
+                                  ),
+                                )
+                              : SettingsSidebar(
+                                  showModeration: context
+                                      .select<ModerationCubit, bool>(
+                                        (c) => c.state.isModerator,
+                                      ),
+                                  activeTab: _activeTab,
                                   onTabSelected: (tab) =>
-                                      _selectTab(tab, compact: true),
+                                      _selectTab(tab, compact: compact),
                                   onBack: () => context.pop(),
                                 ),
-                              )
-                            : SettingsSidebar(
-                                activeTab: _activeTab,
-                                onTabSelected: (tab) =>
-                                    _selectTab(tab, compact: compact),
-                                onBack: () => context.pop(),
-                              ),
-                      ),
-                    if (!compact) SizedBox(width: gutter),
-                    // ── Right content panel ──────────────────────
-                    if (!compact || _detailOpen)
-                      Expanded(
-                        child: AppPanel(
-                          color: themeState.bgContent,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SafeArea(
-                                bottom: false,
-                                child: _buildHeader(
-                                  themeState,
-                                  showBack: compact && _detailOpen,
+                        ),
+                      if (!compact) SizedBox(width: gutter),
+                      // ── Right content panel ──────────────────────
+                      if (!compact || _detailOpen)
+                        Expanded(
+                          child: AppPanel(
+                            color: themeState.bgContent,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SafeArea(
+                                  bottom: false,
+                                  child: _buildHeader(
+                                    themeState,
+                                    showBack: compact && _detailOpen,
+                                  ),
                                 ),
-                              ),
-                              Divider(
-                                height: 1,
-                                color: themeState.borderPrimary,
-                              ),
-                              Expanded(
-                                // Full width, so the scrollbar sits at
-                                // the panel's edge. The column above is
-                                // start-aligned, which let the scroll
-                                // view shrink to its content — a tab
-                                // held to a reading measure put the bar
-                                // halfway across the panel.
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: SingleChildScrollView(
-                                    padding: EdgeInsets.all(compact ? 16 : 24),
-                                    // Loosened again inside, or the
-                                    // full width arrives tight and a
-                                    // tab's reading measure is ignored.
-                                    // [K.settingsMeasure] is that measure,
-                                    // applied here so a pane cannot opt out
-                                    // of it — three of the four used to.
-                                    child: Align(
-                                      alignment: Alignment.topLeft,
-                                      child: ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                          maxWidth: K.settingsMeasure,
-                                        ),
-                                        child: switch (_activeTab) {
-                                          SettingsTab.appearance =>
-                                            const AppearanceContent(),
-                                          SettingsTab.general =>
-                                            const GeneralContent(),
-                                          SettingsTab.voiceAndAudio =>
-                                            const VoiceAudioContent(),
-                                          SettingsTab.backup => BackupContent(
-                                            onResetVault: _resetVault,
+                                Divider(
+                                  height: 1,
+                                  color: themeState.borderPrimary,
+                                ),
+                                Expanded(
+                                  // Full width, so the scrollbar sits at
+                                  // the panel's edge. The column above is
+                                  // start-aligned, which let the scroll
+                                  // view shrink to its content — a tab
+                                  // held to a reading measure put the bar
+                                  // halfway across the panel.
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: SingleChildScrollView(
+                                      padding: EdgeInsets.all(
+                                        compact ? 16 : 24,
+                                      ),
+                                      // Loosened again inside, or the
+                                      // full width arrives tight and a
+                                      // tab's reading measure is ignored.
+                                      // [K.settingsMeasure] is that measure,
+                                      // applied here so a pane cannot opt out
+                                      // of it — three of the four used to.
+                                      child: Align(
+                                        alignment: Alignment.topLeft,
+                                        child: ConstrainedBox(
+                                          constraints: const BoxConstraints(
+                                            maxWidth: K.settingsMeasure,
                                           ),
-                                        },
+                                          child: switch (_activeTab) {
+                                            SettingsTab.appearance =>
+                                              const AppearanceContent(),
+                                            SettingsTab.general =>
+                                              const GeneralContent(),
+                                            SettingsTab.voiceAndAudio =>
+                                              const VoiceAudioContent(),
+                                            SettingsTab.backup => BackupContent(
+                                              onResetVault: _resetVault,
+                                            ),
+                                            SettingsTab.moderation =>
+                                              const ModerationContent(),
+                                          },
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

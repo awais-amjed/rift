@@ -1,5 +1,8 @@
 /// The settings screen's tabs, in the order the sidebar lists them.
-enum SettingsTab { appearance, general, voiceAndAudio, backup }
+///
+/// [moderation] is listed only for accounts central names as directory
+/// moderators.
+enum SettingsTab { appearance, general, voiceAndAudio, backup, moderation }
 
 /// What each tab is called.
 ///
@@ -15,5 +18,6 @@ extension SettingsTabLabel on SettingsTab {
     SettingsTab.general => 'General',
     SettingsTab.voiceAndAudio => 'Voice & audio',
     SettingsTab.backup => 'Account & backup',
+    SettingsTab.moderation => 'Moderation',
   };
 }

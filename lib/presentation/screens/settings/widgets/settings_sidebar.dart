@@ -12,11 +12,15 @@ class SettingsSidebar extends StatelessWidget {
   final ValueChanged<SettingsTab> onTabSelected;
   final VoidCallback onBack;
 
+  /// Whether to list Moderation — only for directory moderators.
+  final bool showModeration;
+
   const SettingsSidebar({
     super.key,
     required this.activeTab,
     required this.onTabSelected,
     required this.onBack,
+    this.showModeration = false,
   });
 
   @override
@@ -74,6 +78,7 @@ class SettingsSidebar extends StatelessWidget {
         _tab(SettingsTab.general, Icons.tune_rounded),
         _tab(SettingsTab.voiceAndAudio, Icons.headset_outlined),
         _tab(SettingsTab.backup, Icons.cloud_outlined),
+        if (showModeration) _tab(SettingsTab.moderation, Icons.shield_outlined),
       ],
     );
   }
