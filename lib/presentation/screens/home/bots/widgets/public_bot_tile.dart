@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/public_bot.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../data/enums/listing_kind.dart';
+import '../../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/directory_icon.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import '../../directory_moderation/listing_menu_button.dart';
 import 'bot_command_list.dart';
 import 'bot_like_button.dart';
 import 'bot_source_link.dart';
@@ -89,6 +93,13 @@ class PublicBotTile extends StatelessWidget {
                 onTap: onLike,
               ),
             ],
+          ),
+          ListingMenuButton(
+            kind: ListingKind.bot,
+            listingId: bot.id,
+            name: bot.name,
+            ownerId: bot.ownerId,
+            onHidden: () => context.read<PublicBotsCubit>().browse(),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/public_bot.dart';
 import '../../../../data/constants.dart';
+import '../../../../logic/cubits/moderation/moderation_cubit.dart';
 import '../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../logic/helper_methods.dart';
@@ -56,6 +57,8 @@ class _BrowseBotsModalState extends State<BrowseBotsModal> {
     super.initState();
     if (context.read<SupabaseBackupCubit>().state.isSignedIn) {
       context.read<PublicBotsCubit>().browse();
+      // Whether each listing's menu offers Hide as well as Report.
+      context.read<ModerationCubit>().checkRole();
     }
   }
 
