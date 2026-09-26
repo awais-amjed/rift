@@ -64,6 +64,7 @@ class ParticipantListItem extends StatelessWidget {
       // Transparent at rest, not null: a null Material paints the canvas
       // colour, which drew a dark strip inside the channel's card.
       color: hovered ? hoverColor : Colors.transparent,
+      borderRadius: BorderRadius.circular(K.radiusRow),
       child: Padding(
         padding: metrics.padding,
         child: Row(

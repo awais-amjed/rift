@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../../data/classes/participant_setting.dart';
+import '../../../../../../../../data/constants.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../common/context_menu_region.dart';
@@ -56,7 +57,10 @@ class PresenceMemberRow extends StatelessWidget {
     // A tint, not an ink well: clicking a person does nothing — their profile
     // is in the menu — and the tint is what says the row has one.
     return DecoratedBox(
-      decoration: BoxDecoration(color: hovered ? themeState.bgHover : null),
+      decoration: BoxDecoration(
+        color: hovered ? themeState.bgHover : null,
+        borderRadius: BorderRadius.circular(K.radiusRow),
+      ),
       child: Padding(
         padding: RosterRowMetrics.of(context).padding,
         child: Row(

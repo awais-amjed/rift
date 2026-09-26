@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../../../../../data/constants.dart';
 import '../../../../../../../responsive/shell_scope.dart';
 import '../../../../../../../theme/app_text.dart';
 
@@ -19,8 +20,8 @@ import '../../../../../../../theme/app_text.dart';
 /// of it.
 class RosterRowMetrics {
   /// Around a person: their avatar plus this is [rowHeight]. Across, it is
-  /// [headerInset] less the card's border, so avatars line up under the
-  /// channel's glyph.
+  /// [headerInset] less [cardInset], so avatars line up under the channel's
+  /// glyph.
   final EdgeInsets padding;
   final double avatarSize;
 
@@ -31,6 +32,17 @@ class RosterRowMetrics {
   /// Where a `NavRow` puts its icon, so the channel's glyph does not move
   /// sideways when the plain row becomes a card.
   static const double headerInset = 9;
+
+  /// Between the card's border and the rows inside it. With the 1px border
+  /// that is 4, which is [K.radiusCard] less [K.radiusRow]: a row's rounded
+  /// highlight then runs parallel to the card's corner instead of being cut
+  /// by it.
+  static const double cardPadding = 3;
+
+  /// The card's border plus [cardPadding], on every side. An empty voice
+  /// channel keeps the same space above and below its plain row, so a call
+  /// starting adds people under the name and moves nothing.
+  static const double cardInset = cardPadding + 1;
 
   /// A person's name, before any colour or weight the row adds.
   final TextStyle nameStyle;
@@ -47,7 +59,7 @@ class RosterRowMetrics {
   });
 
   static const _desktop = RosterRowMetrics._(
-    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+    padding: EdgeInsets.symmetric(horizontal: 5, vertical: 5),
     avatarSize: 24,
     rowHeight: 34,
     nameStyle: AppText.secondary,
@@ -55,7 +67,7 @@ class RosterRowMetrics {
   );
 
   static const _phone = RosterRowMetrics._(
-    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+    padding: EdgeInsets.symmetric(horizontal: 5, vertical: 10),
     avatarSize: 26,
     rowHeight: 46,
     nameStyle: AppText.rowQuiet,

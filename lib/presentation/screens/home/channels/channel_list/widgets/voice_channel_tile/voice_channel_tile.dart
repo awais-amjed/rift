@@ -16,6 +16,7 @@ import '../channel_lock_badge.dart';
 import '../channel_settings_gear.dart';
 import 'widgets/channel_drop_target.dart';
 import 'widgets/channel_roster.dart';
+import 'widgets/roster_row_metrics.dart';
 import 'widgets/voice_channel_tile_header.dart';
 import 'widgets/voice_listening_badge.dart';
 
@@ -98,30 +99,37 @@ class VoiceChannelTile extends StatelessWidget {
                 builder: (context, isTargeted) => ChannelContextMenu.wrap(
                   context: context,
                   channel: channel,
-                  child: HoverBuilder(
-                    builder: (context, hovered) => NavRow(
-                      pushes: true,
-                      icon: Icons.volume_up_rounded,
-                      // An empty voice channel is a plain row, not the card
-                      // below, so the lock has to be put on twice. Missing
-                      // here is the case you would never notice by reading:
-                      // an empty channel is exactly the one nobody is in.
-                      iconBadge: channel.isPrivate
-                          ? const ChannelLockBadge()
-                          : null,
-                      label: channel.name,
-                      trailing: ChannelSettingsGear.beside(
-                        context,
-                        VoiceListeningBadge(
-                          listeners: context
-                              .watch<VoiceListenersCubit>()
-                              .listening(channel.id),
+                  // The card's inset above and below, kept while it is only
+                  // a row, so the name is where the card will put it.
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: RosterRowMetrics.cardInset,
+                    ),
+                    child: HoverBuilder(
+                      builder: (context, hovered) => NavRow(
+                        pushes: true,
+                        icon: Icons.volume_up_rounded,
+                        // An empty voice channel is a plain row, not the card
+                        // below, so the lock has to be put on twice. Missing
+                        // here is the case you would never notice by reading:
+                        // an empty channel is exactly the one nobody is in.
+                        iconBadge: channel.isPrivate
+                            ? const ChannelLockBadge()
+                            : null,
+                        label: channel.name,
+                        trailing: ChannelSettingsGear.beside(
+                          context,
+                          VoiceListeningBadge(
+                            listeners: context
+                                .watch<VoiceListenersCubit>()
+                                .listening(channel.id),
+                          ),
+                          channel: channel,
+                          hovered: hovered,
                         ),
-                        channel: channel,
-                        hovered: hovered,
+                        onTap: onTap,
+                        isSelected: isTargeted,
                       ),
-                      onTap: onTap,
-                      isSelected: isTargeted,
                     ),
                   ),
                 ),
@@ -155,15 +163,13 @@ class VoiceChannelTile extends StatelessWidget {
     List<SummonedBot> summoned = const [],
     bool isTargeted = false,
   }) {
-    // No margin and no padding above the header: the card's top edge is the
-    // top of the plain row it replaces, so joining a call grows the channel
-    // downward — people appear under it — and its name stays where it was.
-    //
-    // Every row in it lights up edge to edge, the header and the people
-    // alike, and the card clips them to its own corners. People used to be
-    // inset pills under a full-width header: two hover shapes in one card.
+    // Padded on every side, so each row — the header and every person —
+    // lights up as a rounded row of its own, clear of the card's corners.
+    // Full-width bands used to be cut by them: rounded on top when you
+    // hovered the header and at the bottom on the last person. The empty row
+    // keeps the same space above and below, so the name does not move.
     return Container(
-      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.all(RosterRowMetrics.cardPadding),
       // The channel you are *in* takes the accent, the same way a selected
       // row does; a channel that merely has people in it stays neutral. Both
       // are cards, so the difference says which call is yours. A drag hovering
