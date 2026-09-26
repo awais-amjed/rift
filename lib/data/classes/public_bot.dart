@@ -53,6 +53,11 @@ class PublicBot {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Set when a Rift moderator took the listing out of the directory, and
+  /// read only by its owner — see `PublicServer.hiddenAt`.
+  final DateTime? hiddenAt;
+  final String? hiddenReason;
+
   /// The column's `length(description) <= 300`.
   static const maxDescription = 300;
 
@@ -73,7 +78,11 @@ class PublicBot {
     this.likedByMe = false,
     required this.createdAt,
     required this.updatedAt,
+    this.hiddenAt,
+    this.hiddenReason,
   });
+
+  bool get isHidden => hiddenAt != null;
 
   /// The host of [sourceUrl] — "github.com", "gitlab.com" — which is the part
   /// of the provenance a row has space for.
@@ -111,6 +120,10 @@ class PublicBot {
       updatedAt:
           DateTime.tryParse(json['updated_at'] as String? ?? '')?.toLocal() ??
           DateTime.now(),
+      hiddenAt: DateTime.tryParse(
+        json['hidden_at'] as String? ?? '',
+      )?.toLocal(),
+      hiddenReason: json['hidden_reason'] as String?,
     );
   }
 
@@ -127,6 +140,8 @@ class PublicBot {
     'like_count': likeCount,
     'created_at': createdAt.toUtc().toIso8601String(),
     'updated_at': updatedAt.toUtc().toIso8601String(),
+    'hidden_at': hiddenAt?.toUtc().toIso8601String(),
+    'hidden_reason': hiddenReason,
   };
 
   /// Only the heart moves, so only the heart is here: a listing's own fields
@@ -145,6 +160,8 @@ class PublicBot {
     likedByMe: likedByMe ?? this.likedByMe,
     createdAt: createdAt,
     updatedAt: updatedAt,
+    hiddenAt: hiddenAt,
+    hiddenReason: hiddenReason,
   );
 }
 

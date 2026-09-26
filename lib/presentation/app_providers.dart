@@ -7,6 +7,7 @@ import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
 import '../logic/cubits/livekit/livekit_cubit.dart';
+import '../logic/cubits/moderation/moderation_cubit.dart';
 import '../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../logic/cubits/screenshare/screenshare_cubit.dart';
@@ -142,6 +143,9 @@ class AppProviders extends StatelessWidget {
         // when a dialog asks for it, so an account that never browses or
         // publishes never contacts central for this at all.
         BlocProvider(create: (_) => PublicServersCubit()),
+        // Lazy for the same reason: whether this account moderates the
+        // directory is asked when settings or the directory opens.
+        BlocProvider(create: (_) => ModerationCubit()),
       ],
       child: child,
     );

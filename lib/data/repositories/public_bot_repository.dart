@@ -37,7 +37,11 @@ class PublicBotRepository {
     int offset = 0,
   }) async {
     try {
-      var request = _client.from(_table).select().eq('is_listed', true);
+      var request = _client
+          .from(_table)
+          .select()
+          .eq('is_listed', true)
+          .isFilter('hidden_at', null);
 
       final trimmed = query?.trim() ?? '';
       if (trimmed.isNotEmpty) {
@@ -237,6 +241,9 @@ class PublicBotRepository {
   static const _messages = {
     'owner_has_no_profile':
         'Claim a handle on your Rift account before listing a bot.',
+    'publisher_banned':
+        'Rift moderators have stopped this account listing bots in the '
+        'directory.',
     'listing_cap_reached':
         'You have listed as many bots as one account may. Remove one first.',
     'listing_not_yours':

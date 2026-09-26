@@ -32,6 +32,12 @@ class PublicServer {
   final bool isListed;
   final DateTime updatedAt;
 
+  /// Set when a Rift moderator took the listing out of the directory. Only
+  /// its owner (and moderators) ever read a hidden row, so this is how the
+  /// publish dialog can say what happened and why.
+  final DateTime? hiddenAt;
+  final String? hiddenReason;
+
   /// The column's `length(description) <= 300`, mirrored so a field can stop
   /// at 300 rather than a save discovering the limit.
   static const maxDescription = 300;
@@ -49,7 +55,11 @@ class PublicServer {
     this.memberCount = 0,
     this.isListed = true,
     required this.updatedAt,
+    this.hiddenAt,
+    this.hiddenReason,
   });
+
+  bool get isHidden => hiddenAt != null;
 
   /// The same string an admin would paste from the invite dialog, so the join
   /// path from a listing is the join path from a link.
@@ -77,6 +87,10 @@ class PublicServer {
       updatedAt:
           DateTime.tryParse(json['updated_at'] as String? ?? '')?.toLocal() ??
           DateTime.now(),
+      hiddenAt: DateTime.tryParse(
+        json['hidden_at'] as String? ?? '',
+      )?.toLocal(),
+      hiddenReason: json['hidden_reason'] as String?,
     );
   }
 
@@ -93,5 +107,7 @@ class PublicServer {
     'member_count': memberCount,
     'is_listed': isListed,
     'updated_at': updatedAt.toUtc().toIso8601String(),
+    'hidden_at': hiddenAt?.toUtc().toIso8601String(),
+    'hidden_reason': hiddenReason,
   };
 }

@@ -29,7 +29,8 @@ class PublicServerRepository {
   /// `is_listed` is filtered here as well as in the policy, which reads as
   /// redundant and isn't: the policy also lets you see **your own** delisted
   /// rows, and a browser that showed those would be showing you a server
-  /// nobody else can find.
+  /// nobody else can find. `hidden_at` the same: the policy shows a hidden
+  /// listing to its owner, and to a moderator, and to nobody browsing.
   Future<APIResponse> browse({
     String? query,
     String? tag,
@@ -37,7 +38,11 @@ class PublicServerRepository {
     int offset = 0,
   }) async {
     try {
-      var request = _client.from(_table).select().eq('is_listed', true);
+      var request = _client
+          .from(_table)
+          .select()
+          .eq('is_listed', true)
+          .isFilter('hidden_at', null);
 
       final trimmed = query?.trim() ?? '';
       if (trimmed.isNotEmpty) {
@@ -81,6 +86,7 @@ class PublicServerRepository {
           .eq('supabase_url', supabaseUrl)
           .eq('server_id', serverId)
           .eq('is_listed', true)
+          .isFilter('hidden_at', null)
           .maybeSingle();
       return APIResponse.success(row != null);
     } catch (e) {
@@ -229,6 +235,9 @@ class PublicServerRepository {
     'listing_owned_by_another_account':
         'This server is already listed by another account. Ask whoever '
         'published it to update or remove the listing.',
+    'publisher_banned':
+        'Rift moderators have stopped this account listing servers in the '
+        'directory.',
     'listing_cap_reached':
         'You have listed as many servers as one account may. Remove one first.',
     // The three the proof round trip can produce. Each is actionable, and
