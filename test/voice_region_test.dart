@@ -204,14 +204,14 @@ void main() {
       expect(old.summary, isNull);
     });
 
-    test('says the level, or that the region is not answering', () {
+    test('says the level, or that the region is offline', () {
       expect(
         const RegionLoad(
           nodeId: 'n',
           label: 'L',
           level: RegionLoadLevel.low,
         ).summary,
-        'low load',
+        'quiet',
       );
       expect(
         const RegionLoad(
@@ -219,11 +219,11 @@ void main() {
           label: 'L',
           level: RegionLoadLevel.high,
         ).summary,
-        'high load',
+        'very busy',
       );
       expect(
         const RegionLoad(nodeId: 'n', label: 'L', reachable: false).summary,
-        'not answering',
+        'offline',
       );
     });
 

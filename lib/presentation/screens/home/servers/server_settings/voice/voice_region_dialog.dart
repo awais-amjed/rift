@@ -53,7 +53,7 @@ class VoiceRegionDialog extends StatefulWidget {
   /// between the two can be tested.
   static String? checkUrl(String value) {
     if (!RegExp(r'^wss?://[^ ]+$').hasMatch(value)) {
-      return 'A region address starts with ws:// or wss:// and has no spaces.';
+      return 'A LiveKit URL starts with ws:// or wss:// and has no spaces.';
     }
     return null;
   }
@@ -126,7 +126,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
     if ((apiKey.isEmpty) != (secret.isEmpty)) {
       return (
         success: false,
-        error: 'A region needs both an API key and a secret.',
+        error: 'A region needs both an API key and an API secret.',
       );
     }
 
@@ -225,22 +225,20 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
           const SizedBox(height: 8),
           Text(
             isDefault
-                ? 'This is the server\'s own LiveKit address — changing it '
-                      'moves every call that isn\'t pinned elsewhere.'
+                ? 'The server\'s own LiveKit. Every call in this region '
+                      'connects here, so changing it affects all of them.'
                 : 'The address people connect to for calls held here.',
             style: AppText.label.copyWith(color: theme.textTertiary),
           ),
           const SizedBox(height: 16),
           Text(
             _isEdit
-                ? 'This region signs with '
-                      '${isDefault ? 'the server\'s own' : 'its own'} '
-                      'LiveKit key. Type a new pair to rotate it, or leave '
-                      'these blank to keep the one it has.'
-                : 'Give this region its own API key and secret, set in its '
-                      'livekit.yaml and used nowhere else. A key shared with '
-                      'your other regions would let a break-in on this box '
-                      'mint tokens for calls in all of them.',
+                ? 'Leave both blank to keep the current key, or enter a '
+                      'new pair to replace it.'
+                : 'Use a key pair made just for this region — the one in '
+                      'its livekit.yaml. If regions shared one, anyone who '
+                      'broke into one server could get into calls in all of '
+                      'them.',
             style: AppText.label.copyWith(color: theme.textTertiary),
           ),
           const SizedBox(height: 14),
@@ -255,7 +253,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
           const SizedBox(height: 16),
           AppTextField(
             controller: _secretCtrl,
-            label: 'LiveKit secret key',
+            label: 'LiveKit API secret',
             hint: _isEdit
                 ? 'Leave blank to keep current'
                 : 'The secret from its livekit.yaml',

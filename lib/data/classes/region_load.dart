@@ -37,9 +37,9 @@ class RegionLoad {
     reachable: json['reachable'] != false,
   );
 
-  /// One line for a picker: how busy it is, or that it is not answering.
+  /// One line for a picker: how busy it is, or that it is offline.
   String? get summary {
-    if (!reachable) return 'not answering';
+    if (!reachable) return 'offline';
     return level?.label;
   }
 }

@@ -24,5 +24,9 @@ enum RegionLoadLevel {
   String toJson() => name;
 
   /// How a picker row says it.
-  String get label => '$name load';
+  String get label => switch (this) {
+    low => 'quiet',
+    medium => 'busy',
+    high => 'very busy',
+  };
 }

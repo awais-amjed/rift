@@ -101,8 +101,8 @@ class VoiceRegionField extends StatelessWidget {
     if (nodes.length <= 1) {
       return 'This server has one voice region.';
     }
-    return 'The region is chosen when someone starts a call, from whoever '
-        'starts it. Everyone who joins goes there.';
+    return 'Rift picks the region closest to whoever starts the call. '
+        'Everyone who joins connects there.';
   }
 
   @override
@@ -158,7 +158,7 @@ class VoiceRegionField extends StatelessWidget {
 ///
 /// The load is a whisper rather than a badge: it is context for a decision,
 /// not a warning, and a row that shouted would make every region look like a
-/// problem. A region that is *not answering* is the exception — that one is
+/// problem. A region that is *offline* is the exception — that one is
 /// worth seeing.
 class _RegionLine extends StatelessWidget {
   final LiveKitNode node;

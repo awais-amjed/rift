@@ -66,7 +66,7 @@ class _VoiceRegionsSectionState extends State<VoiceRegionsSection> {
       context: context,
       title: 'Remove region',
       message:
-          '${node.label} will no longer hold calls. Any channel pinned to it '
+          '${node.label} will no longer hold calls. Any channel set to it '
           'goes back to picking a region automatically, and a call already '
           'running there stays up until everyone leaves.',
       confirmLabel: 'Remove region',
@@ -104,20 +104,17 @@ class _VoiceRegionsSectionState extends State<VoiceRegionsSection> {
         const SectionTitle(label: 'Regions'),
         const SizedBox(height: 6),
         Text(
-          'The LiveKit servers this one holds calls on, so a call can be held '
-          'near the people in it. A call runs on one region — whichever it '
-          'was started in — so this chooses where, not how many. The first is '
-          'the server\'s own LiveKit and cannot be removed; each of the rest '
-          'signs with its own key, so a break-in on one box reaches no other.',
+          'Add a region for each place you run a LiveKit server, so calls '
+          'can be held near the people in them. A whole call runs in one '
+          'region, and everyone who joins connects there. The default region '
+          'can\'t be removed.',
           style: AppText.secondary.copyWith(color: theme.textQuaternary),
         ),
         if (!_isSelected) ...[
           const SizedBox(height: 12),
           const HintCard(
             icon: Icons.swap_horiz_rounded,
-            text:
-                'Open this server in the rail to change its regions or '
-                'their keys.',
+            text: 'Switch to this server to change its regions.',
           ),
         ],
         const SizedBox(height: 14),
