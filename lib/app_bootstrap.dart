@@ -14,7 +14,7 @@ import 'logic/services/push_service.dart';
 import 'logic/services/sound_service.dart';
 import 'logic/services/storage_namespace.dart';
 import 'logic/services/text_safety.dart';
-import 'logic/services/tray_service.dart';
+import 'logic/services/tray_service/tray_service.dart';
 import 'logic/services/window_focus_service.dart';
 import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'src/rust/frb_generated.dart';
