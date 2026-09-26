@@ -5,10 +5,10 @@ import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../common/app_dropdown.dart';
 import '../../../../../common/field_label.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../theme/theme_context.dart';
-import '../../../../settings/widgets/device_dropdown.dart';
 import '../../../channels/webhooks/channel_webhooks_body.dart';
 import '../widgets/manage_panel.dart';
 
@@ -76,12 +76,12 @@ class _WebhooksPanelState extends State<WebhooksPanel> {
                   textColor: themeState.textTertiary,
                 ),
                 const SizedBox(height: 6),
-                DeviceDropdown<String>(
+                AppDropdown<String>(
                   icon: Icons.tag_rounded,
                   value: channel.id,
-                  items: [
+                  options: [
                     for (final c in channels)
-                      DropdownMenuItem(value: c.id, child: Text('#${c.name}')),
+                      AppDropdownOption(value: c.id, label: '#${c.name}'),
                   ],
                   onChanged: (id) => setState(() => _channelId = id),
                 ),

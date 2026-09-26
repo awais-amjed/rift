@@ -188,7 +188,8 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
   `InkWell` that forgets.
 - **Shared UI to reuse before hand-rolling:** `AppPanel` (a floating panel), `CanvasBackdrop`
   (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` / `UserAvatar`,
-  `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`. Avatar gradients come
+  `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`,
+  `AppDropdown` (a choice from a list — never Material's `DropdownButton`). Avatar gradients come
   from `IdentityGradients` and are deliberately *not* palette-derived, so a person looks the
   same to everyone in a channel whatever theme each is running.
 - Layout constants (widths, heights, paddings, radii reused across files) go in `K`

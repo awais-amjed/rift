@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../logic/services/audio_devices.dart';
+import '../../../common/app_dropdown.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
-import 'device_dropdown.dart';
 import 'section_title.dart';
 
 /// One labelled dropdown of audio devices — input or output.
@@ -37,10 +37,11 @@ class AudioDevicePicker extends StatelessWidget {
 
   /// The id to show, or null for the system-default entry.
   ///
-  /// A saved id counts only while that device is still present: [DeviceDropdown]
-  /// wraps a [DropdownButton], which asserts when handed a value that is not
-  /// among its items, so a stale id from another machine was a crash rather
-  /// than a fallback.
+  /// A saved id counts only while that device is still present. The picker
+  /// used to be Material's dropdown, which asserts when handed a value that
+  /// is not among its items, so a stale id from another machine was a crash
+  /// rather than a fallback; a missing device still falls back here rather
+  /// than showing an id nobody can pick.
   ///
   /// With nothing saved this shows the system default rather than naming a
   /// device. It used to fall back to the first entry in the list, which
@@ -66,18 +67,17 @@ class AudioDevicePicker extends StatelessWidget {
             style: AppText.secondary.copyWith(color: themeState.textTertiary),
           )
         else
-          DeviceDropdown<String>(
+          AppDropdown<String?>(
             icon: icon,
             value: _displayId,
-
-            items: [
+            options: [
               // Naming no device is a real choice, and the one to land on
               // first. Windows already has an answer, and these lists can be
               // full of virtual endpoints whose names say nothing about where
               // the sound ends up.
-              const DropdownMenuItem<String>(
+              const AppDropdownOption<String?>(
                 value: null,
-                child: Text('System default', overflow: TextOverflow.ellipsis),
+                label: 'System default',
               ),
               // Devices WebRTC cannot open stay on the list and say so, rather
               // than disappearing: they are real devices the user can see in
@@ -86,15 +86,12 @@ class AudioDevicePicker extends StatelessWidget {
                 final unusable = AudioDevices.unusableFormat(
                   formats[device.deviceId],
                 );
-                return DropdownMenuItem<String>(
+                return AppDropdownOption<String?>(
                   value: device.deviceId,
-                  child: Text(
-                    unusable == null
-                        ? AudioDevices.labelOf(device)
-                        : '${AudioDevices.labelOf(device)}  ·  $unusable, '
-                              'unsupported',
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  label: unusable == null
+                      ? AudioDevices.labelOf(device)
+                      : '${AudioDevices.labelOf(device)}  ·  $unusable, '
+                            'unsupported',
                 );
               }),
             ],

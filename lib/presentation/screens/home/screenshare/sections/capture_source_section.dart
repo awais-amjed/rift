@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
+import '../../../../common/app_dropdown.dart';
 import '../widgets/source_thumbnail_grid.dart';
 
 /// Section for selecting the capture source (screen or window).
@@ -100,46 +101,14 @@ class _SourceDropdown extends StatelessWidget {
         .where((s) => s.index == selectedIndex)
         .firstOrNull;
 
-    return DropdownButtonFormField<int>(
-      key: ValueKey(
-        '${captureFullScreen}_${selectedSource?.index}_${sources.length}',
-      ),
-      initialValue: selectedSource?.index,
-      isExpanded: true,
-      decoration: InputDecoration(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(K.radiusRow),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-      ),
-      items: sources
-          .map(
-            (s) => DropdownMenuItem<int>(
-              value: s.index,
-              child: Text(
-                _displayLabel(s, label),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          )
-          .toList(),
-      selectedItemBuilder: (context) => sources
-          .map(
-            (s) => Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _displayLabel(s, label),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          )
-          .toList(),
+    return AppDropdown<int?>(
+      value: selectedSource?.index,
+      hint: 'Choose a ${label.toLowerCase()}',
+      options: [
+        for (final s in sources)
+          AppDropdownOption(value: s.index, label: _displayLabel(s, label)),
+      ],
       onChanged: (value) {
-        if (value == null) return;
         final source = sources.where((s) => s.index == value).firstOrNull;
         if (source != null) onChanged(source);
       },

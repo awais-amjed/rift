@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/livekit_node.dart';
 import '../../../../../data/classes/region_load.dart';
-import '../../../../../data/constants.dart';
+import '../../../../common/app_dropdown.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
@@ -120,27 +120,15 @@ class VoiceRegionField extends StatelessWidget {
           style: AppText.sectionLabel.copyWith(color: theme.textTertiary),
         ),
         const SizedBox(height: 7),
-        DropdownButtonFormField<String?>(
-          initialValue: selectedNodeId,
-          isExpanded: true,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(K.radiusRow),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-          ),
-          items: [
-            DropdownMenuItem<String?>(
-              value: null,
-              child: Text(_automaticLabel, overflow: TextOverflow.ellipsis),
-            ),
+        AppDropdown<String?>(
+          value: selectedNodeId,
+          options: [
+            AppDropdownOption(value: null, label: _automaticLabel),
             for (final node in nodes)
-              DropdownMenuItem<String?>(
+              AppDropdownOption(
                 value: node.id,
-                child: _RegionLine(node: node, load: load[node.id]),
+                label: node.label,
+                trailing: _LoadNote(load: load[node.id]),
               ),
           ],
           onChanged: enabled ? onChanged : null,
@@ -155,39 +143,30 @@ class VoiceRegionField extends StatelessWidget {
   }
 }
 
-/// A region's name with what it is carrying, for one row of the picker.
+/// How busy a region is, beside its name in the picker.
 ///
-/// The load is a whisper rather than a badge: it is context for a decision,
-/// not a warning, and a row that shouted would make every region look like a
-/// problem. A region that is *offline* is the exception — that one is
-/// worth seeing.
-class _RegionLine extends StatelessWidget {
-  final LiveKitNode node;
+/// A whisper rather than a badge: it is context for a decision, not a
+/// warning, and a row that shouted would make every region look like a
+/// problem. A region that is *offline* is the exception — that one is worth
+/// seeing.
+class _LoadNote extends StatelessWidget {
   final RegionLoad? load;
 
-  const _RegionLine({required this.node, this.load});
+  const _LoadNote({this.load});
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
+    final load = this.load;
     final summary = load?.summary;
-
-    return Row(
-      children: [
-        Flexible(child: Text(node.label, overflow: TextOverflow.ellipsis)),
-        if (summary != null) ...[
-          const SizedBox(width: 8),
-          Text(
-            summary,
-            style: AppText.secondary.copyWith(
-              color: load!.reachable
-                  ? theme.textQuaternary
-                  : theme.statusInk(CustomColors.warning),
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ],
+    if (load == null || summary == null) return const SizedBox.shrink();
+    final theme = context.theme;
+    return Text(
+      summary,
+      style: AppText.secondary.copyWith(
+        color: load.reachable
+            ? theme.textQuaternary
+            : theme.statusInk(CustomColors.warning),
+      ),
     );
   }
 }

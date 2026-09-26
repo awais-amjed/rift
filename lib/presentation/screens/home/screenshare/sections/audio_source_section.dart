@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
+import '../../../../common/app_dropdown.dart';
 import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -74,48 +75,16 @@ class AudioSourceSection extends StatelessWidget {
             ),
           )
         else
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(K.radiusRow),
-              border: Border.all(color: themeState.borderPrimary),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<AudioSource>(
-                value: selectedAudioSource,
-                isExpanded: true,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                icon: Icon(
-                  Icons.arrow_drop_down,
-                  color: themeState.textSecondary,
-                ),
-                dropdownColor: themeState.bgElevated,
-                borderRadius: BorderRadius.circular(K.radiusRow),
-                hint: Text(
-                  'Select audio source',
-                  style: AppText.rowQuiet.copyWith(
-                    color: themeState.textTertiary,
-                  ),
-                ),
-                items: audioSources!.map((source) {
-                  return DropdownMenuItem<AudioSource>(
-                    value: source,
-                    child: Text(
-                      _buildLabel(source),
-                      style: AppText.rowQuiet.copyWith(
-                        color: themeState.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (source) {
-                  if (source != null) {
-                    onChanged(source);
-                  }
-                },
-              ),
-            ),
+          AppDropdown<AudioSource?>(
+            value: selectedAudioSource,
+            hint: 'Select audio source',
+            options: [
+              for (final source in audioSources!)
+                AppDropdownOption(value: source, label: _buildLabel(source)),
+            ],
+            onChanged: (source) {
+              if (source != null) onChanged(source);
+            },
           ),
       ],
     );
