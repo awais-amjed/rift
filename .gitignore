@@ -95,3 +95,6 @@ tool/*
 rift_crypto/.dart_tool/
 rift_crypto/pubspec.lock
 bot_sdk_ts/node_modules/
+
+# Compiled by scripts/build_web.sh from the resolved livekit_client.
+/web/e2ee.worker.dart.js*
