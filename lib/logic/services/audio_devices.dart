@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../src/rust/api/audio_endpoints.dart';
@@ -62,14 +63,16 @@ class AudioDevices {
   /// Windows' own account of each render endpoint, keyed by device id.
   ///
   /// Empty off Windows and when the probe fails, which callers must read as
-  /// "nothing known" rather than "nothing supported".
+  /// "nothing known" rather than "nothing supported". Never asked on the web,
+  /// which has no Rust library to ask: the call throws there, and took the
+  /// whole device list down with it.
   static Future<Map<String, AudioEndpoint>> outputEndpointFormats() async =>
-      _byDeviceId(await listOutputEndpoints());
+      kIsWeb ? const {} : _byDeviceId(await listOutputEndpoints());
 
   /// Windows' own account of each capture endpoint. See
   /// [outputEndpointFormats].
   static Future<Map<String, AudioEndpoint>> inputEndpointFormats() async =>
-      _byDeviceId(await listInputEndpoints());
+      kIsWeb ? const {} : _byDeviceId(await listInputEndpoints());
 
   static Map<String, AudioEndpoint> _byDeviceId(List<AudioEndpoint> endpoints) {
     return {for (final endpoint in endpoints) endpoint.deviceId: endpoint};
