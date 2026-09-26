@@ -30,17 +30,29 @@ Future<T?> showCustomDialog<T>({
   return showDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
-    builder: (ctx) => CallbackShortcuts(
-      bindings: {
-        // maybePop, so a dialog that has put a [PopScope] in the way gets to
-        // answer. A plain pop closes the whole dialog out from under a page
-        // whose Escape should have been one step back.
-        const SingleActivator(LogicalKeyboardKey.escape): () =>
-            Navigator.of(ctx).maybePop(),
-      },
-      child: Focus(autofocus: true, child: _Entrance(child: dialog)),
+    // A scope of its own that answers Escape, rather than a shortcut on a
+    // node inside the route. When the focused control goes away — a Save
+    // button disabling itself once the save lands — focus falls back to the
+    // nearest scope, and a handler below that scope never heard the key
+    // again: the dialog stopped closing on Escape after the first save.
+    builder: (ctx) => FocusScope(
+      autofocus: true,
+      onKeyEvent: (_, event) => closeOnEscape(ctx, event),
+      child: _Entrance(child: dialog),
     ),
   );
+}
+
+/// Escape pops the route [context] is in — with maybePop, so a dialog that
+/// has put a [PopScope] in the way gets to answer: a plain pop closes the
+/// whole dialog out from under a page whose Escape should have been one step
+/// back.
+KeyEventResult closeOnEscape(BuildContext context, KeyEvent event) {
+  if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape) {
+    return KeyEventResult.ignored;
+  }
+  Navigator.of(context).maybePop();
+  return KeyEventResult.handled;
 }
 
 /// The last few percent of a dialog's arrival.
@@ -98,8 +110,5 @@ Future<T?> showDialogFromMenu<T>({
   final dialog = build(context);
   final navigator = Navigator.of(context);
   dismiss?.call();
-  return showCustomDialog<T>(
-    context: navigator.context,
-    build: (_) => dialog,
-  );
+  return showCustomDialog<T>(context: navigator.context, build: (_) => dialog);
 }

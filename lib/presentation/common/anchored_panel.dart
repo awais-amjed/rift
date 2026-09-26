@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../theme/app_motion.dart';
+import 'show_custom_dialog.dart';
 
 /// Open [child] as a panel hanging from [anchor] — under it, its right edge
 /// on the anchor's right edge — the way a header button's list drops down.
@@ -36,17 +36,14 @@ Future<T?> showAnchoredPanel<T>({
     barrierLabel: 'Close',
     barrierColor: Colors.transparent,
     transitionDuration: AppMotion.state,
-    pageBuilder: (context, _, _) => CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): () =>
-            Navigator.of(context).maybePop(),
-      },
-      child: Focus(
-        autofocus: true,
-        child: CustomSingleChildLayout(
-          delegate: _BelowAnchor(anchor: rect, width: width),
-          child: child,
-        ),
+    // A scope that answers Escape itself — see [showCustomDialog] for why a
+    // shortcut inside the route stops hearing it once an Unpin disables.
+    pageBuilder: (context, _, _) => FocusScope(
+      autofocus: true,
+      onKeyEvent: (_, event) => closeOnEscape(context, event),
+      child: CustomSingleChildLayout(
+        delegate: _BelowAnchor(anchor: rect, width: width),
+        child: child,
       ),
     ),
     transitionBuilder: (context, animation, _, child) {
