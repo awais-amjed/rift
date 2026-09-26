@@ -13,7 +13,20 @@ import 'show_sidebar_button.dart';
 /// [Stack] child laid over the pane; nothing at all on a phone, whose pages
 /// have their own headers.
 class PaneCornerToggles extends StatelessWidget {
-  const PaneCornerToggles({super.key});
+  /// Whether this pane sits beside a member list at all. Home and a server
+  /// that banned you have none, and a button for it would open nothing.
+  final bool members;
+
+  const PaneCornerToggles({super.key, this.members = true});
+
+  /// [view] with the corner buttons laid over it.
+  static Widget over(Widget view, {bool members = true}) => Stack(
+    fit: StackFit.expand,
+    children: [
+      view,
+      PaneCornerToggles(members: members),
+    ],
+  );
 
   /// Where a header's buttons sit: centred in its height, at its padding.
   static const double _top = (K.paneHeaderHeight - 32) / 2;
@@ -25,7 +38,7 @@ class PaneCornerToggles extends StatelessWidget {
       children: [
         if (ShowSidebarButton.shows(context))
           const Positioned(top: _top, left: 18, child: ShowSidebarButton()),
-        if (ShowMembersButton.shows(context))
+        if (members && ShowMembersButton.shows(context))
           const Positioned(top: _top, right: 10, child: ShowMembersButton()),
       ],
     );

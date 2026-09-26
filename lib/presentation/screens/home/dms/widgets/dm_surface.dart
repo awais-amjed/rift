@@ -60,16 +60,18 @@ class DmSurface extends StatelessWidget {
         if (constraints.maxWidth < listWidth + minConversationWidth) {
           return conversation ?? list;
         }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ColoredBox(
-              color: themeState.bgSecondary,
-              child: SizedBox(width: listWidth, child: list),
-            ),
-            Container(width: 1, color: themeState.borderPrimary),
-            Expanded(child: conversation ?? _buildEmpty(themeState)),
-          ],
+        return DmListBeside(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ColoredBox(
+                color: themeState.bgSecondary,
+                child: SizedBox(width: listWidth, child: list),
+              ),
+              Container(width: 1, color: themeState.borderPrimary),
+              Expanded(child: conversation ?? _buildEmpty(themeState)),
+            ],
+          ),
         );
       },
     );
@@ -96,4 +98,20 @@ class DmSurface extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Set over a conversation that has its list beside it.
+///
+/// The list's header carries the button that brings a hidden sidebar back.
+/// A conversation alone — on Home, where the list is the sidebar itself, or
+/// in a window too narrow for both — has to carry it in its own header, or a
+/// hidden sidebar has no way back from there.
+class DmListBeside extends InheritedWidget {
+  const DmListBeside({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<DmListBeside>() != null;
+
+  @override
+  bool updateShouldNotify(DmListBeside old) => false;
 }

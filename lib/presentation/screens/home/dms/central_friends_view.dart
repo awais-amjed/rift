@@ -7,6 +7,7 @@ import '../../../../data/classes/friend_buckets.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../pane_toggles/show_sidebar_button.dart';
 import 'widgets/friends/add_friend_field.dart';
 import 'widgets/friends/friends_list.dart';
 import 'widgets/friends/friends_tab_bar.dart';
@@ -67,9 +68,21 @@ class _CentralFriendsViewState extends State<CentralFriendsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Friends',
-            style: AppText.sectionTitle.copyWith(color: themeState.textPrimary),
+          Row(
+            children: [
+              // Home's conversation list is the sidebar, so with it hidden
+              // this is the way back to your conversations.
+              if (ShowSidebarButton.shows(context)) ...[
+                const ShowSidebarButton(),
+                const SizedBox(width: 10),
+              ],
+              Text(
+                'Friends',
+                style: AppText.sectionTitle.copyWith(
+                  color: themeState.textPrimary,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           const AddFriendField(),

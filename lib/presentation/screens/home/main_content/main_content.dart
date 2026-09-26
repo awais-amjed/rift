@@ -13,6 +13,7 @@ import '../chat/channel_chat_view.dart';
 import '../dms/central_dm_view.dart';
 import '../dms/server_dm_view.dart';
 import '../members_sidebar/members_sidebar.dart';
+import '../pane_toggles/pane_corner_toggles.dart';
 import '../participants_grid/participants_grid.dart';
 import 'widgets/banned_notice.dart';
 
@@ -63,7 +64,12 @@ class MainContent extends StatelessWidget {
           return (server?.user?.isBanned ?? false) ? server!.name : null;
         });
         if (bannedFrom != null && appState.surface != HomeSurface.centralDms) {
-          return _ContentPanel(child: BannedNotice(serverName: bannedFrom));
+          return _ContentPanel(
+            child: PaneCornerToggles.over(
+              BannedNotice(serverName: bannedFrom),
+              members: false,
+            ),
+          );
         }
 
         // Neither DM surface is channel-scoped, so the server member list

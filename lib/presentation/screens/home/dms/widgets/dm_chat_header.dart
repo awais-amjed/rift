@@ -11,6 +11,8 @@ import '../../../../theme/theme_context.dart';
 import '../../chat/widgets/chat_header.dart';
 import '../../chat/widgets/chat_header_button.dart';
 import '../../chat/widgets/header_back_button.dart';
+import '../../pane_toggles/show_sidebar_button.dart';
+import 'dm_surface.dart';
 
 /// Header of an open DM conversation.
 ///
@@ -105,6 +107,8 @@ class DmChatHeader extends StatelessWidget {
             spacing: 10,
             children: [
               if (HeaderBackButton.shows(context)) const HeaderBackButton(),
+              if (ShowSidebarButton.shows(context) && !DmListBeside.of(context))
+                const ShowSidebarButton(),
               // The identity is one flexible group, so the close button sits
               // hard against the panel edge. A `Flexible` title beside a
               // `Spacer` splits the free space with it instead: the title

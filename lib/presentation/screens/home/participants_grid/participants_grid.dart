@@ -95,6 +95,5 @@ class ParticipantsGrid extends StatelessWidget {
 
   /// Every state but the call itself, which has a header of its own to put
   /// the show buttons in.
-  static Widget _headerless(Widget view) =>
-      Stack(fit: StackFit.expand, children: [view, const PaneCornerToggles()]);
+  static Widget _headerless(Widget view) => PaneCornerToggles.over(view);
 }

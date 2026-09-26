@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../pane_toggles/pane_corner_toggles.dart';
 import 'central_dm_chat_view.dart';
 import 'central_friends_view.dart';
 
@@ -28,7 +29,12 @@ class CentralDmView extends StatelessWidget {
     if (state.status == CentralDmStatus.ready) {
       return const CentralFriendsView();
     }
-    return _RestingState(status: state.status);
+    // No header here, and on Home the sidebar is where the conversation
+    // list lives — so hidden, this corner is the only way back to it.
+    return PaneCornerToggles.over(
+      _RestingState(status: state.status),
+      members: false,
+    );
   }
 }
 
