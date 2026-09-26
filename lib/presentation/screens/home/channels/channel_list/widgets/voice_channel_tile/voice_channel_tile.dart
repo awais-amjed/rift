@@ -158,7 +158,12 @@ class VoiceChannelTile extends StatelessWidget {
     // No margin and no padding above the header: the card's top edge is the
     // top of the plain row it replaces, so joining a call grows the channel
     // downward — people appear under it — and its name stays where it was.
+    //
+    // Every row in it lights up edge to edge, the header and the people
+    // alike, and the card clips them to its own corners. People used to be
+    // inset pills under a full-width header: two hover shapes in one card.
     return Container(
+      clipBehavior: Clip.antiAlias,
       // The channel you are *in* takes the accent, the same way a selected
       // row does; a channel that merely has people in it stays neutral. Both
       // are cards, so the difference says which call is yours. A drag hovering
@@ -204,17 +209,12 @@ class VoiceChannelTile extends StatelessWidget {
           if (participants.isNotEmpty ||
               presenceUsers.isNotEmpty ||
               summoned.isNotEmpty)
-            // Inset, so each person's hover reads as a row inside the card, as
-            // a sidebar row's does inside the list.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
-              child: ChannelRoster(
-                channelId: channel.id,
-                participants: participants,
-                presenceUsers: presenceUsers,
-                summoned: summoned,
-                settings: appState.participantSettings,
-              ),
+            ChannelRoster(
+              channelId: channel.id,
+              participants: participants,
+              presenceUsers: presenceUsers,
+              summoned: summoned,
+              settings: appState.participantSettings,
             ),
         ],
       ),

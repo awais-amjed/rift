@@ -18,7 +18,9 @@ import '../../../../../../../theme/app_text.dart';
 /// 20px line — and a person's padding is what puts their avatar in the middle
 /// of it.
 class RosterRowMetrics {
-  /// Around a person: their avatar plus this is [rowHeight].
+  /// Around a person: their avatar plus this is [rowHeight]. Across, it is
+  /// [headerInset] less the card's border, so avatars line up under the
+  /// channel's glyph.
   final EdgeInsets padding;
   final double avatarSize;
 
@@ -45,7 +47,7 @@ class RosterRowMetrics {
   });
 
   static const _desktop = RosterRowMetrics._(
-    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 5),
     avatarSize: 24,
     rowHeight: 34,
     nameStyle: AppText.secondary,
@@ -53,7 +55,7 @@ class RosterRowMetrics {
   );
 
   static const _phone = RosterRowMetrics._(
-    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
     avatarSize: 26,
     rowHeight: 46,
     nameStyle: AppText.rowQuiet,

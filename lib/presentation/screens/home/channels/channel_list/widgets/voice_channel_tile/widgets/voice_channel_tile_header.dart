@@ -49,12 +49,7 @@ class VoiceChannelTileHeader extends StatelessWidget {
       type: MaterialType.transparency,
       child: InkWell(
         mouseCursor: WidgetStateMouseCursor.clickable,
-        // The card's own top corners, less its border: the header is the
-        // card's first row, flush under its edge, so it lights up the way a
-        // title bar would rather than as a pill floating inside it.
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(K.radiusCard - 1),
-        ),
+        // Edge to edge, like the people under it; the card clips the corners.
         onTap: onTap,
         child: Container(
           // One row high less the card's top border, so the channel's name
