@@ -13,13 +13,17 @@ import '../../mobile/mobile_shell_scope.dart';
 class HeaderBackButton extends StatelessWidget {
   const HeaderBackButton({super.key});
 
+  /// Whether there is anywhere to go back to. A spaced header row asks this
+  /// and leaves the button out rather than laying out an empty one: the
+  /// row's spacing goes round an empty box too, which set a desktop chat's
+  /// title ten pixels further in than the call strip's.
+  static bool shows(BuildContext context) =>
+      MobileShellScope.maybeOf(context) != null &&
+      Navigator.of(context).canPop();
+
   @override
   Widget build(BuildContext context) {
-    if (MobileShellScope.maybeOf(context) == null) {
-      return const SizedBox.shrink();
-    }
-    final navigator = Navigator.of(context);
-    if (!navigator.canPop()) return const SizedBox.shrink();
-    return BackChevronButton(onPressed: navigator.maybePop);
+    if (!shows(context)) return const SizedBox.shrink();
+    return BackChevronButton(onPressed: Navigator.of(context).maybePop);
   }
 }
