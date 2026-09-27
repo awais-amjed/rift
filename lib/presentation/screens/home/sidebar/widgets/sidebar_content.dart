@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../calls/dm_call_sidebar_bar.dart';
 import '../../dms/widgets/central_dm_list_panel.dart';
 import '../../profile/user_dock/user_dock.dart';
 import '../../servers/server_rail/server_rail.dart';
@@ -38,6 +39,8 @@ class SidebarContent extends StatelessWidget {
                         ? const CentralDmListPanel()
                         : const ServerNavColumn(),
                   ),
+                  // A DM call you have walked away from, kept a click away.
+                  const DmCallSidebarBar(),
                   const UserDock(),
                 ],
               );

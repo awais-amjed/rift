@@ -41,6 +41,22 @@ enum AppSound {
     description: 'Someone starting or stopping watching a stream you are in.',
     startAsset: 'audio/watch_started.mp3',
     endAsset: 'audio/watch_stopped.mp3',
+  ),
+
+  /// Rising E5–A5 pairs, the brightest thing Rift plays: a call is the one
+  /// sound that has to be heard from across the room. Loops until answered.
+  ringtone(
+    label: 'Incoming calls',
+    description: 'Somebody calling you in a direct message.',
+    startAsset: 'audio/ring_incoming.mp3',
+  ),
+
+  /// One low, soft chord and a long rest — heard only by the caller, so it
+  /// only has to say the line is ringing, not demand anything.
+  ringback(
+    label: 'Calling someone',
+    description: 'Your own call, while it rings at the other end.',
+    startAsset: 'audio/ring_outgoing.mp3',
   );
 
   final String label;

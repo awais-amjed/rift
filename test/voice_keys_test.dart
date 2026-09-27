@@ -121,4 +121,55 @@ void main() {
       expect(VoiceKeys.keyIndex(0), 0);
     });
   });
+
+  group('the key a DM call is encrypted with', () {
+    final dmKey = Uint8List.fromList(List.generate(32, (i) => 200 - i));
+    const callId = '0f0f0f0f-1111-4222-8333-444444444444';
+
+    test('is derived, never the DM key itself', () async {
+      // The DM key seals the pair's messages; the one on the wire in a call
+      // must be something else.
+      final key = await VoiceKeys.forDmCall(
+        crypto: crypto,
+        dmKey: dmKey,
+        callId: callId,
+      );
+      expect(key, isNot(equals(dmKey)));
+      expect(key.length, 32);
+    });
+
+    test('is the same at both ends and different for every call', () async {
+      final a = await VoiceKeys.forDmCall(
+        crypto: crypto,
+        dmKey: dmKey,
+        callId: callId,
+      );
+      final again = await VoiceKeys.forDmCall(
+        crypto: crypto,
+        dmKey: Uint8List.fromList(dmKey),
+        callId: callId,
+      );
+      final other = await VoiceKeys.forDmCall(
+        crypto: crypto,
+        dmKey: dmKey,
+        callId: '0f0f0f0f-1111-4222-8333-555555555555',
+      );
+      expect(again, equals(a));
+      expect(other, isNot(equals(a)));
+    });
+
+    test('cannot collide with a bot key from the same bytes', () async {
+      final asBot = await VoiceKeys.forBot(
+        crypto: crypto,
+        channelKey: dmKey,
+        botId: callId,
+      );
+      final asCall = await VoiceKeys.forDmCall(
+        crypto: crypto,
+        dmKey: dmKey,
+        callId: callId,
+      );
+      expect(asCall, isNot(equals(asBot)));
+    });
+  });
 }

@@ -27,7 +27,9 @@ class VoiceConnectionListener extends StatelessWidget {
         final server = context.read<ServerCubit>().state.selectedServer;
 
         if (appState.selectedChannelId == null) {
-          livekitCubit.disconnect();
+          // A DM call clears the channel as it starts, because a device is in
+          // one call at a time — that is a switch, not somebody leaving.
+          if (livekitCubit.state.dmCall == null) livekitCubit.disconnect();
           return;
         }
 

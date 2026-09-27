@@ -113,7 +113,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
   /// per-person settings are not theirs to apply to themselves.
   Future<void> press(SoundboardSound sound) async {
     final room = _livekitCubit?.state.room;
-    if (room == null || _livekitCubit?.state.currentChannelId == null) return;
+    if (room == null || !(_livekitCubit?.state.inCall ?? false)) return;
     if (!canPlay) return;
 
     // The same gate as a listener's, keyed on ourselves: a held-down button

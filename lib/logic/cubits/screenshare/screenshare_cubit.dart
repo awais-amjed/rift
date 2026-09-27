@@ -85,9 +85,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
           return;
         }
 
-        final channelId = _livekitCubit.state.currentChannelId;
+        final channelId = _livekitCubit.state.callKey;
         if (channelId == null) {
-          _fail('Not connected to a channel');
+          _fail('Not in a call');
           return;
         }
 
@@ -128,18 +128,17 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         return;
       }
 
-      final channelId = _livekitCubit?.state.currentChannelId;
-      if (channelId == null) {
-        _fail('Not connected to a channel');
+      final livekit = _livekitCubit;
+      final channelId = livekit?.state.callKey;
+      if (livekit == null || channelId == null) {
+        _fail('Not in a call');
         return;
       }
 
-      // On desktop, delegate to the Rust LiveKit implementation.
-      // Get a screenshare-specific token via ServerCubit.
-      final response = await _serverCubit.getChannelToken(
-        channelId,
-        screenShare: true,
-      );
+      // On desktop, delegate to the Rust LiveKit implementation, with a
+      // screenshare-specific token from whichever mint the call came from —
+      // a channel's, or a DM call's.
+      final response = await livekit.shareToken(screenShare: true);
 
       if (!response.success) {
         _fail(response.error ?? 'Failed to get channel token');

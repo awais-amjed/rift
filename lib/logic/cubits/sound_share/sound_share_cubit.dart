@@ -58,9 +58,10 @@ class SoundShareCubit extends Cubit<SoundShareState> {
     try {
       final server = _serverCubit.state.selectedServer;
 
-      final channelId = _livekitCubit?.state.currentChannelId;
-      if (channelId == null) {
-        return _fail('Not connected to a channel');
+      final livekit = _livekitCubit;
+      final channelId = livekit?.state.callKey;
+      if (livekit == null || channelId == null) {
+        return _fail('Not in a call');
       }
 
       // The call's key, for the second connection this is about to open into
@@ -77,10 +78,7 @@ class SoundShareCubit extends Cubit<SoundShareState> {
 
       // Its own identity, so this connection can sit alongside the caller's
       // own — and alongside their screen share, if they have one up.
-      final response = await _serverCubit.getChannelToken(
-        channelId,
-        soundShare: true,
-      );
+      final response = await livekit.shareToken(soundShare: true);
       if (!response.success) {
         return _fail(response.error ?? 'Failed to get channel token');
       }

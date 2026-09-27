@@ -29,6 +29,12 @@ class HostPlatform {
   /// the cases where something more than padding changes.
   static bool get isMobile => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
+  /// A native desktop build: Windows, Linux or macOS. Where the app is a
+  /// window that stays running, so it tells the user things itself rather
+  /// than being woken by a push to do it.
+  static bool get isDesktop =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
   /// Whether a screen share can carry the computer's audio.
   ///
   /// Windows has WASAPI loopback and Linux has PulseAudio monitors; both are

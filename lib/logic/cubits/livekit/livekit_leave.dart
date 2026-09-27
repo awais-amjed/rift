@@ -55,6 +55,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
         state.copyWith(
           connectionState: LiveKitConnectionState.disconnected,
           clearChannelId: true,
+          clearDmCall: true,
           clearFailure: true,
           participants: [],
         ),

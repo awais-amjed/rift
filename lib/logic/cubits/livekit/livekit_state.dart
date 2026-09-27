@@ -10,6 +10,11 @@ class LiveKitState {
   final LiveKitConnectionState connectionState;
   final Room? room;
   final String? currentChannelId;
+
+  /// The DM call this device is in, when the call is one. Never set together
+  /// with [currentChannelId]: a call is in a channel or between two people.
+  final DmCallPlace? dmCall;
+
   final ConnectionFailure? failure;
   final List<Participant> participants;
 
@@ -52,6 +57,7 @@ class LiveKitState {
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
     this.currentChannelId,
+    this.dmCall,
     this.failure,
     this.participants = const [],
     this.isMicEnabled = true,
@@ -65,6 +71,14 @@ class LiveKitState {
     this.connectedAt,
     this.connectedLivekitUrl,
   });
+
+  /// In a call of either kind, connected or on the way.
+  bool get inCall => currentChannelId != null || dmCall != null;
+
+  /// One name for the call this device is in, whichever kind: the channel's
+  /// id, or `dm:<callId>`. What a share records as the call it belongs to.
+  String? get callKey =>
+      currentChannelId ?? (dmCall == null ? null : 'dm:${dmCall!.callId}');
 
   /// Whether the microphone is live: the user wants it on, hasn't deafened
   /// themselves, and no moderator has taken it away.
@@ -104,6 +118,7 @@ class LiveKitState {
     LiveKitConnectionState? connectionState,
     Room? room,
     String? currentChannelId,
+    DmCallPlace? dmCall,
     ConnectionFailure? failure,
     List<Participant>? participants,
     bool? isMicEnabled,
@@ -118,6 +133,7 @@ class LiveKitState {
     String? connectedLivekitUrl,
     bool clearRoom = false,
     bool clearChannelId = false,
+    bool clearDmCall = false,
     bool clearFailure = false,
   }) {
     final nextConnection = connectionState ?? this.connectionState;
@@ -127,6 +143,7 @@ class LiveKitState {
       currentChannelId: clearChannelId
           ? null
           : (currentChannelId ?? this.currentChannelId),
+      dmCall: clearDmCall ? null : (dmCall ?? this.dmCall),
       failure: clearFailure ? null : (failure ?? this.failure),
       participants: participants ?? this.participants,
       isMicEnabled: isMicEnabled ?? this.isMicEnabled,

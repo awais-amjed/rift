@@ -13,6 +13,10 @@ class CustomColors {
   /// Text and icons on an [error] fill — a danger button, Leave, hang up.
   static const Color onError = Color(0xFFFFFFFF);
 
+  /// Icons on a [success] fill — answering a call. Dark rather than white:
+  /// white on Emerald-500 is under 2.5:1, and the glyph is the whole label.
+  static const Color onSuccess = Color(0xFF052E16); // Green-950
+
   /// Online/speaking presence indicator.
   static const Color userStatusOnline = Color(0xFF22C55E);
 

@@ -306,6 +306,25 @@ class K {
   /// the call's length and the mic, in a 40px capsule.
   static const double callPillClearance = callBarOffset + 40;
 
+  // ── DM calls ──────────────────────────────────────────────
+
+  /// Answer and hang up: round and bigger than any other control, because
+  /// they are pressed in a hurry. Above [touchTargetMin] on every platform.
+  static const double callActionSize = 56;
+  static const double iconCallAction = 26;
+
+  /// The picture of whoever is calling, or being called.
+  static const double callAvatar = 88;
+  static const double incomingCallAvatar = 44;
+
+  /// The card a call rings on, floating over the top of the window.
+  static const double incomingCallWidth = 360;
+
+  /// How much of a DM conversation's height its call takes on a desktop:
+  /// enough for two tiles side by side, leaving the messages readable.
+  static const double dmCallStageShare = 0.46;
+  static const double dmCallStageMin = 240;
+
   /// Settings' nav panel. Narrower than the home sidebar — it holds three
   /// labels, not a channel tree.
   static const double settingsNavWidth = 264;

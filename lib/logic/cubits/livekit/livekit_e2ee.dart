@@ -135,6 +135,18 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     return E2EEOptions(keyProvider: provider);
   }
 
+  /// Build the options for a call whose key is already known — a DM call's,
+  /// derived from the pair's DM key ([VoiceKeys.forDmCall]). Nothing to load
+  /// and nothing that rotates: the key lives exactly as long as the call.
+  Future<E2EEOptions> _prepareFixedKey(Uint8List key) async {
+    _callChannelKey = key;
+    _callKeyIndex = VoiceKeys.dmCallKeyIndex;
+    _callListeningBots = const {};
+    final provider = await BaseKeyProvider.create(sharedKey: false);
+    _keyProvider = provider;
+    return E2EEOptions(keyProvider: provider);
+  }
+
   /// How long to wait for another member's client to seal us in.
   ///
   /// The budget the text path allows for the same exchange — a ring, a sweep on

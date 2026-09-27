@@ -7,6 +7,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
+import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/services/mobile_page_stack.dart';
 import '../../../responsive/shell_scope.dart';
 import 'members_sheet.dart';
@@ -114,9 +115,23 @@ class _MobileShellState extends State<MobileShell> {
       listeners: [
         BlocListener<AppCubit, AppState>(
           listenWhen: (a, b) => a.selectedChannelId != b.selectedChannelId,
-          listener: (_, state) => state.selectedChannelId != null
-              ? _open(MobilePage.call)
-              : _closedElsewhere(MobilePage.call),
+          listener: (context, state) {
+            if (state.selectedChannelId != null) return _open(MobilePage.call);
+            // A DM call clears the channel as it starts: the page stays, it
+            // just has a different call on it.
+            if (context.read<LiveKitCubit>().state.dmCall != null) return;
+            _closedElsewhere(MobilePage.call);
+          },
+        ),
+        // A DM call has no channel to select, so its page follows the call.
+        BlocListener<LiveKitCubit, LiveKitState>(
+          listenWhen: (a, b) => a.dmCall?.callId != b.dmCall?.callId,
+          listener: (_, state) {
+            if (state.dmCall != null) return _open(MobilePage.call);
+            if (state.currentChannelId == null) {
+              _closedElsewhere(MobilePage.call);
+            }
+          },
         ),
         BlocListener<ChannelChatCubit, ChannelChatState>(
           listenWhen: (a, b) => a.channelId != b.channelId,

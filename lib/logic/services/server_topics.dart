@@ -75,6 +75,10 @@ class ServerEvent {
   /// Our blocks changed — on another of our devices, usually.
   static const String blocks = 'blocks';
 
+  /// A DM call we are either end of rang, was answered or ended — on each of
+  /// its two people's own topics. Empty: the client asks `my_dm_calls`.
+  static const String dmCalls = 'dm_calls';
+
   /// The reports list changed: one filed, or one closed by another reviewer.
   /// On a reviewer's own topic, or the server's when `@everyone` reviews.
   static const String reports = 'reports';

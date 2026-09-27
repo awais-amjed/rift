@@ -28,6 +28,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   Future<void> toggleMicrophone();
   Future<void> _refreshMicrophoneCapture();
 
+  /// Implemented by [_DmCallConnectMixin].
+  Future<void> rejoinDmCall();
+
   /// Both implemented by [_LiveKitLeaveMixin]. Joining needs them because a
   /// join that fails partway has to undo itself, and because being moved to
   /// another channel is a leave followed by a join.
@@ -85,6 +88,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       state.copyWith(
         connectionState: LiveKitConnectionState.connecting,
         currentChannelId: channelId,
+        clearDmCall: true,
         clearFailure: true,
       ),
     );
@@ -187,6 +191,48 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       return;
     }
 
+    final mintAgain = await _joinRoom(
+      livekitUrl: livekitUrl,
+      livekitToken: livekitToken,
+      e2ee: e2ee,
+      micEnabled: micEnabled,
+      cameraEnabled: cameraEnabled,
+      tokenWasCached: cached != null,
+      callName: _channelName(server.channels, channelId),
+      serverName: server.name,
+      // And from here on, a key rotated by somebody being removed has to
+      // reach this call rather than waiting for a rejoin.
+      onConnected: () => _watchKeyRotations(server, channelId),
+    );
+    if (mintAgain) {
+      _tokenCubit.invalidateToken(channelId);
+      await connectToChannel(
+        channelId: channelId,
+        micEnabled: micEnabled,
+        cameraEnabled: cameraEnabled,
+      );
+    }
+  }
+
+  /// The half of a join that is the same whatever the call is: a room, keyed
+  /// and connected, with the devices, the notification and the roster set up
+  /// behind it. A channel and a DM call differ only in how they got here —
+  /// which token, which address, which key.
+  ///
+  /// Answers whether the join should be tried once more with a freshly minted
+  /// token, which is only ever true for a cached token the server refused. Any
+  /// other failure has already been put in the state by the time this returns.
+  Future<bool> _joinRoom({
+    required String livekitUrl,
+    required String livekitToken,
+    required E2EEOptions e2ee,
+    required bool? micEnabled,
+    required bool? cameraEnabled,
+    required bool tokenWasCached,
+    required String callName,
+    required String? serverName,
+    void Function()? onConnected,
+  }) async {
     final room = Room(
       roomOptions: RoomOptions(
         adaptiveStream: true,
@@ -227,9 +273,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // publish after this one — unmuting, the camera, a track rebuilt when
       // the input device moved.
       await room.e2eeManager?.setKeyIndex(_callKeyIndex);
-      // And from here on, a key rotated by somebody being removed has to reach
-      // this call rather than waiting for a rejoin.
-      _watchKeyRotations(server, channelId);
+      onConnected?.call();
 
       emit(
         state.copyWith(
@@ -259,8 +303,8 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // do.
       unawaited(
         CallForegroundService.callStarted(
-          channelName: _channelName(server.channels, channelId),
-          serverName: server.name,
+          channelName: callName,
+          serverName: serverName,
           micEnabled: state.isMicEnabled,
           onToggleMute: toggleMicrophone,
           onLeave: disconnect,
@@ -272,6 +316,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       unawaited(_publishSelfState());
       _syncParticipants();
       _applyStoredSettings();
+      return false;
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] room.connect() threw: $e');
       // A cached token the server refuses is most often one minted before the
@@ -279,7 +324,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // in — so that case is tried once more before anyone sees an error. The
       // second attempt has no cached token to reach for, so it cannot loop.
       // See [VoiceRejoin].
-      final mintAgain = cached != null && VoiceRejoin.refusedCachedToken(e);
+      final mintAgain = tokenWasCached && VoiceRejoin.refusedCachedToken(e);
       if (!mintAgain) {
         emit(
           state.copyWith(
@@ -304,14 +349,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       } catch (e) {
         HelperMethods.printDebug('[LiveKit] teardown after a failed join: $e');
       }
-      if (mintAgain) {
-        _tokenCubit.invalidateToken(channelId);
-        await connectToChannel(
-          channelId: channelId,
-          micEnabled: micEnabled,
-          cameraEnabled: cameraEnabled,
-        );
-      }
+      return mintAgain;
     }
   }
 
@@ -336,6 +374,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// something else, which is worth it to make the button always mean
   /// something.
   Future<void> retryConnection() async {
+    if (state.dmCall != null) return rejoinDmCall();
     final channelId = state.currentChannelId;
     if (channelId == null) return;
     _tokenCubit.invalidateToken(channelId);

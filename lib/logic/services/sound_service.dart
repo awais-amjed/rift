@@ -99,6 +99,42 @@ class SoundService {
 
   AudioPlayer? _previewPlayer;
   AppSound? _previewing;
+
+  /// Plays [sound] over and over until [stopLoop] — a ringtone, which has no
+  /// natural end: it stops when somebody answers.
+  ///
+  /// One looping player at a time, since two rings at once is a device that
+  /// is ringing either way. Asking for the one already looping is a no-op,
+  /// so a state emitted every second does not restart the tone each time.
+  Future<void> loop(AppSound sound) async {
+    if (_looping == sound) return;
+    await stopLoop();
+    final setting = sound.settingIn(_settings());
+    if (setting.muted || setting.volume <= 0) return;
+    _looping = sound;
+    final player = _loopPlayer ??= AudioPlayer();
+    try {
+      await player.setReleaseMode(ReleaseMode.loop);
+      await player.setVolume(setting.volume * _ceiling);
+      await player.play(AssetSource(sound.startAsset));
+    } catch (e) {
+      HelperMethods.printDebug('SoundService: loop failed – $e');
+    }
+  }
+
+  /// Stops whatever [loop] started. Safe when nothing is looping.
+  Future<void> stopLoop() async {
+    if (_looping == null) return;
+    _looping = null;
+    try {
+      await _loopPlayer?.stop();
+    } catch (e) {
+      HelperMethods.printDebug('SoundService: stop loop failed – $e');
+    }
+  }
+
+  AudioPlayer? _loopPlayer;
+  AppSound? _looping;
   DateTime _lastPreviewStart = DateTime.fromMillisecondsSinceEpoch(0);
 
   // ──────────────────────────────────────────────────────────

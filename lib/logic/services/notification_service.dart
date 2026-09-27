@@ -146,10 +146,13 @@ class NotificationService {
   /// notification per conversation. The default keeps every call distinct,
   /// which is right for the in-app paths: they fire once per message, in a
   /// process that is alive to keep counting.
+  /// [chime] is false for something that makes its own sound — a call,
+  /// whose ringtone is already playing.
   Future<void> showMessage({
     required String title,
     required String body,
     int? id,
+    bool chime = true,
   }) async {
     if (!_ready) return;
     if (kIsWeb) {
@@ -170,7 +173,7 @@ class NotificationService {
     // mute in settings, and the system's is silenced so there are not two.
     // Android keeps the system's: its channel is where a phone's owner
     // already decides how a notification sounds.
-    if (!Platform.isAndroid) {
+    if (!Platform.isAndroid && chime) {
       unawaited(SoundService.instance.play(AppSound.message));
     }
     try {

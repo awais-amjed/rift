@@ -44,6 +44,10 @@ class DmChatHeader extends StatelessWidget {
   /// Open the conversation's pinned messages; null hides the button.
   final void Function(BuildContext anchor)? onShowPins;
 
+  /// Ring the other person; null hides the button — no call to make on this
+  /// tier, with this person, or while already in one with them.
+  final VoidCallback? onCall;
+
   const DmChatHeader({
     super.key,
     required this.title,
@@ -54,6 +58,7 @@ class DmChatHeader extends StatelessWidget {
     this.onOpenProfile,
     this.onVerify,
     this.onShowPins,
+    this.onCall,
   });
 
   /// The peer's picture and name, opening their profile where there is one.
@@ -149,6 +154,12 @@ class DmChatHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onCall case final call?)
+                ChatHeaderButton(
+                  icon: Icons.call_outlined,
+                  tooltip: 'Start a call',
+                  onTap: call,
+                ),
               if (onShowPins case final show?)
                 // A Builder, so the list can hang from this button's own box.
                 Builder(

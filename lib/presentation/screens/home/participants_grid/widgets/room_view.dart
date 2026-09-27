@@ -31,7 +31,11 @@ import 'waiting_view.dart';
 class RoomView extends StatefulWidget {
   final Room room;
 
-  const RoomView({super.key, required this.room});
+  /// Inside another pane — see [ParticipantsGrid.embedded]. The shell is
+  /// never asked to go full-bleed around it.
+  final bool embedded;
+
+  const RoomView({super.key, required this.room, this.embedded = false});
 
   @override
   State<RoomView> createState() => _RoomViewState();
@@ -105,8 +109,9 @@ class _RoomViewState extends State<RoomView> {
   /// Tells the shell whether a focused stream is sitting idle, which is when
   /// it may take the whole window. Only in focus: a grid of tiles has gaps of
   /// its own, and running it into the window edge gains nothing.
-  void _reportStage() =>
-      _appCubit.setStageChromeHidden(_focused && !_chromeVisible);
+  void _reportStage() => _appCubit.setStageChromeHidden(
+    !widget.embedded && _focused && !_chromeVisible,
+  );
 
   /// The strip, fading with the control pill. Floating over video it needs
   /// the panel's colour behind it, and that fades with it.
@@ -114,8 +119,11 @@ class _RoomViewState extends State<RoomView> {
     opacity: _chromeVisible ? 1.0 : 0.0,
     duration: AppMotion.enter,
     child: background == null
-        ? const ContextStrip()
-        : ColoredBox(color: background, child: const ContextStrip()),
+        ? ContextStrip(embedded: widget.embedded)
+        : ColoredBox(
+            color: background,
+            child: ContextStrip(embedded: widget.embedded),
+          ),
   );
 
   @override

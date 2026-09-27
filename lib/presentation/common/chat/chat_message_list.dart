@@ -5,12 +5,14 @@ import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/classes/chat_message.dart';
+import '../../../data/classes/dm_call.dart';
 import '../../../data/classes/poll.dart';
 import '../../../logic/helper_methods.dart';
 import '../../../logic/services/quote_lookup.dart';
 import '../../theme/app_text.dart';
 import '../../theme/theme_context.dart';
 import 'attachments/attachment_loader.dart';
+import 'call_log_row.dart';
 import 'date_divider.dart';
 import 'history_window_bar.dart';
 import 'message_jump.dart';
@@ -137,6 +139,12 @@ class ChatMessageList extends StatefulWidget {
   /// pinned list, today. The list goes there and sets this back to null.
   final ValueNotifier<String?>? jumpRequests;
 
+  /// Calls this conversation has had, woven in between the messages at the
+  /// time each rang. Only a server DM has any. Their words depend on who is
+  /// reading, so [myId] comes with them.
+  final List<DmCall> calls;
+  final String? myId;
+
   const ChatMessageList({
     super.key,
     this.emptyMessage = 'No messages yet — say hi!',
@@ -165,6 +173,8 @@ class ChatMessageList extends StatefulWidget {
     this.onVote,
     this.onClosePoll,
     this.jumpRequests,
+    this.calls = const [],
+    this.myId,
   });
 
   @override
@@ -198,24 +208,53 @@ class _ChatMessageListState extends State<ChatMessageList>
   }
 
   /// Build the flat render list: messages interleaved with day dividers, each
-  /// message tagged with whether it opens a group (shows avatar + header).
+  /// message tagged with whether it opens a group (shows avatar + header) —
+  /// and, in a DM, the conversation's calls at the moments they rang. A call
+  /// between two messages ends a group: what follows it is a new moment.
   List<_StreamItem> _buildItems() {
     final items = <_StreamItem>[];
-    for (var i = 0; i < widget.messages.length; i++) {
-      final cur = widget.messages[i];
-      final prev = i > 0 ? widget.messages[i - 1] : null;
-      final newDay =
-          prev == null ||
-          !_sameDay(prev.sentAt.toLocal(), cur.sentAt.toLocal());
-      if (newDay) items.add(_DateItem(_dayLabel(cur.sentAt.toLocal())));
+    final calls = [
+      for (final call in widget.calls)
+        if (widget.myId != null) call,
+    ]..sort((a, b) => a.startedAt.compareTo(b.startedAt));
+    var nextCall = 0;
+    DateTime? lastAt;
+    ChatMessage? prev;
+    var afterCall = false;
 
-      // When it's not a new day, prev is guaranteed non-null (newDay covers it).
+    /// A divider when [at] is on a different day from whatever came last.
+    bool dayOf(DateTime at) {
+      final newDay =
+          lastAt == null || !_sameDay(lastAt!.toLocal(), at.toLocal());
+      if (newDay) items.add(_DateItem(_dayLabel(at.toLocal())));
+      lastAt = at;
+      return newDay;
+    }
+
+    void callsUntil(DateTime? at) {
+      while (nextCall < calls.length &&
+          (at == null || calls[nextCall].startedAt.isBefore(at))) {
+        final call = calls[nextCall++];
+        dayOf(call.startedAt);
+        items.add(_CallItem(call));
+        afterCall = true;
+      }
+    }
+
+    for (final cur in widget.messages) {
+      callsUntil(cur.sentAt);
+      final newDay = dayOf(cur.sentAt);
       final showHeader =
           newDay ||
+          afterCall ||
+          prev == null ||
           prev.groupKey != cur.groupKey ||
           cur.sentAt.difference(prev.sentAt) > ChatMessageList.groupWindow;
       items.add(_MsgItem(cur, showHeader));
+      prev = cur;
+      afterCall = false;
     }
+    callsUntil(null);
     return items;
   }
 
@@ -312,7 +351,7 @@ class _ChatMessageListState extends State<ChatMessageList>
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    if (widget.messages.isEmpty) {
+    if (widget.messages.isEmpty && widget.calls.isEmpty) {
       return Center(
         child: Text(
           widget.emptyMessage,
@@ -353,6 +392,9 @@ class _ChatMessageListState extends State<ChatMessageList>
         final item = items[items.length - 1 - reversedIndex];
         if (item is _DateItem) {
           return DateDivider(label: item.label);
+        }
+        if (item is _CallItem) {
+          return CallLogRow(call: item.call, myId: widget.myId ?? '');
         }
         final msg = (item as _MsgItem).message;
         final origin = _originOf(msg, byId);
@@ -420,6 +462,11 @@ sealed class _StreamItem {}
 class _DateItem extends _StreamItem {
   final String label;
   _DateItem(this.label);
+}
+
+class _CallItem extends _StreamItem {
+  final DmCall call;
+  _CallItem(this.call);
 }
 
 class _MsgItem extends _StreamItem {

@@ -66,6 +66,13 @@ class ErrorCode {
   /// A bot asked for a voice token before any member had sealed it a media
   /// key. Clears by itself once a member has been in the channel.
   static const String keyNotReady = 'key_not_ready';
+
+  // ── DM calls ────────────────────────────────────────────────────────────────
+
+  /// A call's room was asked for when the call is over, is not the caller's,
+  /// or is not theirs to join yet — one code for all three.
+  static const String callNotFound = 'call_not_found';
+
   // ── Registration ─────────────────────────────────────────────────────────────
   static const String inviteInvalid = 'invite_invalid';
   static const String inviteExhausted = 'invite_exhausted';

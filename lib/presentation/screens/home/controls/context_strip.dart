@@ -23,7 +23,11 @@ import 'phone_context_strip.dart';
 /// count, and session timer. Keeps chrome to one row so the video area stays
 /// as large as possible.
 class ContextStrip extends StatefulWidget {
-  const ContextStrip({super.key});
+  /// Inside a DM conversation's pane, which has its own header and its own
+  /// ways to show the side panels — so this does not repeat them.
+  final bool embedded;
+
+  const ContextStrip({super.key, this.embedded = false});
 
   /// How tall the strip is; a phone's is taller for its back button.
   static double heightFor({required bool compact}) =>
@@ -69,6 +73,10 @@ class _ContextStripState extends State<ContextStrip> {
 
             return BlocBuilder<LiveKitCubit, LiveKitState>(
               builder: (context, lkState) {
+                // A DM call is named after the person, and says it is a
+                // call rather than counting who is in it: it is two people.
+                final dm = lkState.dmCall;
+                final callName = dm?.peerName ?? channelName ?? 'Voice';
                 // Count distinct users, not raw connections, so a user on
                 // multiple devices (or sharing a screen or a track)
                 // counts once.
@@ -92,7 +100,7 @@ class _ContextStripState extends State<ContextStrip> {
                 );
                 if (context.layoutMode.isCompact) {
                   return PhoneContextStrip(
-                    channelName: channelName ?? 'Voice',
+                    channelName: callName,
                     serverName: serverState.selectedServer?.name,
                     elapsed: elapsed,
                   );
@@ -107,7 +115,8 @@ class _ContextStripState extends State<ContextStrip> {
                   ),
                   child: Row(
                     children: [
-                      if (ShowSidebarButton.shows(context)) ...[
+                      if (!widget.embedded &&
+                          ShowSidebarButton.shows(context)) ...[
                         const ShowSidebarButton(),
                         const SizedBox(width: 10),
                       ],
@@ -120,14 +129,16 @@ class _ContextStripState extends State<ContextStrip> {
                         child: Row(
                           children: [
                             Icon(
-                              Icons.volume_up_rounded,
+                              dm == null
+                                  ? Icons.volume_up_rounded
+                                  : Icons.call_rounded,
                               size: K.iconRow,
                               color: themeState.accentBright,
                             ),
                             const SizedBox(width: 7),
                             Flexible(
                               child: Text(
-                                channelName ?? 'Voice',
+                                callName,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppText.panelTitle.copyWith(
                                   color: themeState.textPrimary,
@@ -136,7 +147,7 @@ class _ContextStripState extends State<ContextStrip> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              '·  $count in voice',
+                              dm == null ? '·  $count in voice' : '·  Call',
                               style: AppText.secondary.copyWith(
                                 color: themeState.textTertiary,
                               ),
@@ -155,7 +166,7 @@ class _ContextStripState extends State<ContextStrip> {
                         tooltip: StatusChip.encryptedVerifyTooltip,
                         onTap: () => showCallEncryption(
                           context,
-                          channelName: channelName ?? 'Voice',
+                          channelName: callName,
                           participants: context
                               .read<AppCubit>()
                               .state
@@ -164,7 +175,8 @@ class _ContextStripState extends State<ContextStrip> {
                       ),
                       const SizedBox(width: 12),
                       elapsed,
-                      if (ShowMembersButton.shows(context)) ...[
+                      if (!widget.embedded &&
+                          ShowMembersButton.shows(context)) ...[
                         const SizedBox(width: 10),
                         const ShowMembersButton(),
                       ],

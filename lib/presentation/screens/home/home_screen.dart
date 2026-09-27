@@ -18,6 +18,7 @@ import '../../common/canvas_backdrop.dart';
 import '../../common/overlay_scrim.dart';
 import '../../responsive/shell_scope.dart';
 import '../../theme/app_motion.dart';
+import 'calls/incoming_call_overlay.dart';
 import 'main_content/main_content.dart';
 import 'main_content/widgets/voice_connection_listener.dart';
 import 'members_sidebar/members_sidebar.dart';
@@ -189,11 +190,14 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
       child: Scaffold(
         body: VoiceConnectionListener(
-          // A phone is a different shell, not a squeezed desktop: the list is
-          // the screen and everything else is pushed over it.
-          child: context.layoutMode.isCompact
-              ? _QuickSwitcherShortcut(child: _buildPhone())
-              : _QuickSwitcherShortcut(child: _buildDesktop(context)),
+          // Over both shells: a call rings whatever is on screen.
+          child: IncomingCallOverlay(
+            // A phone is a different shell, not a squeezed desktop: the list
+            // is the screen and everything else is pushed over it.
+            child: context.layoutMode.isCompact
+                ? _QuickSwitcherShortcut(child: _buildPhone())
+                : _QuickSwitcherShortcut(child: _buildDesktop(context)),
+          ),
         ),
       ),
     );

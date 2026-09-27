@@ -19,6 +19,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
     bool? cameraEnabled,
   });
 
+  /// Implemented by [_DmCallConnectMixin], for the same reason.
+  Future<void> rejoinDmCall();
+
   void _applyStoredSettings();
   void _applyScreenshareQualitySettings(Participant participant);
 
@@ -230,12 +233,20 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
           unawaited(connectToChannel(channelId: channelId));
           return;
         }
+        // A DM call's room is the call's for as long as the row says so, and
+        // the call cubit hangs up when it stops; a connection that gave out is
+        // not the call ending.
+        if (state.dmCall != null && VoiceRejoin.rejoinsAfter(e.reason)) {
+          unawaited(rejoinDmCall());
+          return;
+        }
 
         _appCubit.setSelectedChannelId(null);
         emit(
           state.copyWith(
             connectionState: LiveKitConnectionState.disconnected,
             clearRoom: true,
+            clearDmCall: true,
             participants: [],
           ),
         );

@@ -56,6 +56,10 @@ class DmState {
   /// Who we have blocked on this server.
   final Set<String> blockedIds;
 
+  /// The open conversation's calls, over the stretch of history loaded —
+  /// drawn between its messages. Newest first, as `dm_call_log` answers.
+  final List<DmCall> calls;
+
   final String? error;
 
   const DmState({
@@ -74,6 +78,7 @@ class DmState {
     this.openLinkState = DmLinkState.open,
     this.openPeerPolicy,
     this.blockedIds = const {},
+    this.calls = const [],
     this.error,
   });
 
@@ -95,6 +100,7 @@ class DmState {
     DmPolicy? openPeerPolicy,
     bool clearOpenPeerPolicy = false,
     Set<String>? blockedIds,
+    List<DmCall>? calls,
     String? error,
     bool clearError = false,
     bool closeConversation = false,
@@ -129,6 +135,7 @@ class DmState {
           ? null
           : (openPeerPolicy ?? this.openPeerPolicy),
       blockedIds: blockedIds ?? this.blockedIds,
+      calls: closeConversation ? const [] : (calls ?? this.calls),
       error: clearError ? null : (error ?? this.error),
     );
   }

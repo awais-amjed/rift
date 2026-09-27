@@ -6,6 +6,7 @@ import '../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
+import '../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../logic/cubits/livekit/livekit_cubit.dart';
 import '../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../logic/cubits/public_servers/public_servers_cubit.dart';
@@ -108,6 +109,17 @@ class AppProviders extends StatelessWidget {
           ),
         ),
         BlocProvider(
+          // Not lazy: a call has to ring whatever is on screen, on every
+          // server, from the moment the app is up.
+          lazy: false,
+          create: (context) => DmCallCubit(
+            serverCubit: context.read<ServerCubit>(),
+            livekitCubit: context.read<LiveKitCubit>(),
+            vaultCubit: vaultCubit,
+            appCubit: appCubit,
+          ),
+        ),
+        BlocProvider(
           // Not lazy: the incoming-DM subscription and its unread badge must
           // run wherever you are in the app, not only once Home is opened.
           lazy: false,
@@ -118,14 +130,20 @@ class AppProviders extends StatelessWidget {
           // Not lazy: the per-server notifications subscription must run
           // whenever a server is selected, not only when a chat view reads it.
           lazy: false,
-          create: (context) => ServerNotificationsCubit(
-            serverCubit: context.read<ServerCubit>(),
-            chatCubit: context.read<ChannelChatCubit>(),
-            // Which conversation is open decides which DM rows count as read...
-            dmCubit: context.read<DmCubit>(),
-            // ...and the surface decides whether it's on screen at all.
-            appCubit: appCubit,
-          ),
+          create: (context) {
+            final notifications = ServerNotificationsCubit(
+              serverCubit: context.read<ServerCubit>(),
+              chatCubit: context.read<ChannelChatCubit>(),
+              // Which conversation is open decides which DM rows count as
+              // read...
+              dmCubit: context.read<DmCubit>(),
+              // ...and the surface decides whether it's on screen at all.
+              appCubit: appCubit,
+            );
+            // A person muted to nothing still shows up calling, quietly.
+            context.read<DmCallCubit>().injectNotifications(notifications);
+            return notifications;
+          },
         ),
         BlocProvider(
           // Not lazy: the Reports badge has to move when a report arrives,

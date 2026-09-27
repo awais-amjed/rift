@@ -6,7 +6,9 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
+import '../../../data/classes/dm_call_place.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/app_sound.dart';
@@ -46,6 +48,7 @@ import '../token/token_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'livekit_connection.dart';
+part 'livekit_dm_call.dart';
 part 'livekit_e2ee.dart';
 part 'livekit_leave.dart';
 part 'livekit_media_controls.dart';
@@ -64,6 +67,7 @@ part 'livekit_voice_activity.dart';
 class LiveKitCubit extends Cubit<LiveKitState>
     with
         _E2EEMixin,
+        _DmCallConnectMixin,
         _LiveKitConnectionMixin,
         _LiveKitLeaveMixin,
         _MediaControlsMixin,

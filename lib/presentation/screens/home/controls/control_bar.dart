@@ -153,7 +153,7 @@ class _ControlBarContent extends StatelessWidget {
       settings = dialogSettings;
     }
 
-    if (livekitCubit.state.currentChannelId == null) return;
+    if (!livekitCubit.state.inCall) return;
 
     await screenshareCubit.startScreenShare(settings: settings);
   }
@@ -174,7 +174,7 @@ class _ControlBarContent extends StatelessWidget {
       build: (_) => const SoundSharePickerDialog(),
     );
     if (source == null) return;
-    if (livekitCubit.state.currentChannelId == null) return;
+    if (!livekitCubit.state.inCall) return;
 
     await soundShareCubit.startSoundShare(source: source);
   }

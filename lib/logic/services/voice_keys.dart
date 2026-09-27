@@ -43,6 +43,33 @@ class VoiceKeys {
     required String botId,
   }) => crypto.hmacSha256(key: channelKey, message: '$botContext$botId');
 
+  /// The context a DM call's media key is derived under. Versioned and
+  /// domain-separated like [botContext]; the call id makes every call's key
+  /// its own, so a recording of one call is no help with the next.
+  static const String dmCallContext = 'dmcall:v1:';
+
+  /// The key both people in DM call [callId] encrypt their media with:
+  ///
+  /// ```
+  /// callKey = HMAC-SHA256(dmKey, "dmcall:v1:<callId>")
+  /// ```
+  ///
+  /// Derived from the pair's DM key, which only the two of them can compute,
+  /// rather than from anything the server holds — so unlike a channel call,
+  /// whose key every member has, not even whoever runs the server can listen.
+  /// And derived rather than used as-is, so the key that seals their messages
+  /// is never also the one on the wire in a call.
+  static Future<Uint8List> forDmCall({
+    required CryptoRepository crypto,
+    required Uint8List dmKey,
+    required String callId,
+  }) => crypto.hmacSha256(key: dmKey, message: '$dmCallContext$callId');
+
+  /// The ring slot a DM call's key sits in. A DM call has one key for its
+  /// whole life, so it is version 1's slot — the same place an unrotated
+  /// channel's key goes, and so the same index every cryptor starts on.
+  static int get dmCallKeyIndex => keyIndex(1);
+
   /// One bot, and the key it should be sealed in a given channel.
   ///
   /// [isChannelKey] records which of the two kinds it is, because the two are

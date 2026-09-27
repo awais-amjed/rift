@@ -7,6 +7,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
+import '../../../data/classes/dm_call.dart';
 import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
@@ -30,6 +31,7 @@ import '../../services/server_topics.dart';
 import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
+part 'dm_call_log.dart';
 part 'dm_conversations.dart';
 part 'dm_decrypt.dart';
 part 'dm_edit.dart';
@@ -57,7 +59,8 @@ class DmCubit extends Cubit<DmState>
         _DmEditMixin,
         _DmReactionsMixin,
         _DmPinsMixin,
-        _DmRequestsMixin {
+        _DmRequestsMixin,
+        _DmCallLogMixin {
   @override
   final ServerCubit _serverCubit;
   final VaultCubit _vaultCubit;
@@ -112,6 +115,12 @@ class DmCubit extends Cubit<DmState>
     _onServerChanged();
   }
 
+  @override
+  void onChange(Change<DmState> change) {
+    super.onChange(change);
+    _followCallLog(change.nextState);
+  }
+
   // ──────────────────────────────────────────────────────────
   // Server lifecycle
   // ──────────────────────────────────────────────────────────
@@ -131,6 +140,17 @@ class DmCubit extends Cubit<DmState>
     unawaited(refreshConversations());
     unawaited(refreshRequests());
     unawaited(refreshBlocks());
+  }
+
+  /// Resolves once this cubit has moved over to [serverId], after a server
+  /// switch. A conversation opened before then would be wiped by the switch
+  /// finishing behind it — which is what answering a call from another server
+  /// does, selecting that server and opening the caller at once.
+  Future<void> readyFor(String serverId) async {
+    if (_readyServerId == serverId) return;
+    await stream
+        .firstWhere((_) => _readyServerId == serverId)
+        .timeout(const Duration(seconds: 5), onTimeout: () => state);
   }
 
   Future<void> _reset() async {
@@ -199,6 +219,11 @@ class DmCubit extends Cubit<DmState>
       ..onBroadcast(ServerEvent.dmPin, _onPinDoorbell)
       ..onBroadcast(ServerEvent.dmRequests, (_) => _onRequestsDoorbell())
       ..onBroadcast(ServerEvent.blocks, (_) => _onBlocksDoorbell())
+      // A call rang, was answered or ended; the open conversation's log may
+      // be the one it belongs to.
+      ..onBroadcast(ServerEvent.dmCalls, (_) {
+        if (state.openPeerId != null) unawaited(refreshCallLog());
+      })
       ..onBroadcast(ServerEvent.typing, _onTyping);
   }
 
