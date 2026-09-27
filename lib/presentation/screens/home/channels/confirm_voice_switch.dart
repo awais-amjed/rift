@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/channel.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/confirm_dialog.dart';
 
@@ -17,6 +18,25 @@ import '../../../common/confirm_dialog.dart';
 /// and a moderator moving you is not yours to confirm.
 Future<bool> confirmVoiceSwitch(BuildContext context, Channel target) async {
   final appCubit = context.read<AppCubit>();
+  // A DM call selects no channel, so it is asked about by name: joining a
+  // channel hangs up on a person, who is told the call ended.
+  final dm = context.read<LiveKitCubit>().state.dmCall;
+  if (dm != null) {
+    if (!appCubit.state.askBeforeVoiceSwitch) return true;
+    final answer = await showConfirmDialogWithOptOut(
+      context: context,
+      title: 'Hang up on ${dm.peerName}?',
+      message:
+          'You will end your call with ${dm.peerName} and join '
+          '${target.name}.',
+      confirmLabel: 'Hang up and join',
+      icon: Icons.call_end_rounded,
+    );
+    if (answer.confirmed && answer.dontAskAgain) {
+      appCubit.setAskBeforeVoiceSwitch(false);
+    }
+    return answer.confirmed;
+  }
   final current = appCubit.state.selectedChannelId;
   if (current == null || current == target.id) return true;
   if (!appCubit.state.askBeforeVoiceSwitch) return true;

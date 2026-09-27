@@ -16,9 +16,11 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
   static const _heartbeat = Duration(minutes: 1);
 
   /// How long the other person may be missing from an answered call before
-  /// it is over. Long enough for a reconnect, which LiveKit rides out in a
-  /// few seconds; short enough that nobody sits in a dead call wondering.
-  static const _peerGrace = Duration(seconds: 30);
+  /// it is over. Counted from LiveKit taking them out of the room, which it
+  /// already only does after its own reconnect window — measured at about
+  /// twenty seconds for a killed client, so thirty more on top left somebody
+  /// sitting in a dead call for the best part of a minute.
+  static const _peerGrace = Duration(seconds: 15);
 
   Timer? _ringTimeout;
   Timer? _heartbeatTimer;

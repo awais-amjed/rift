@@ -61,6 +61,7 @@ class DmCallSidebarBar extends StatelessWidget {
         );
       },
       onLeave: () => unawaited(context.read<DmCallCubit>().hangUp()),
+      showHint: false,
     );
   }
 }

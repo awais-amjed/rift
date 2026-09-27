@@ -27,6 +27,10 @@ class CallReturnBar extends StatefulWidget {
   /// up, which also tells the other end.
   final VoidCallback onLeave;
 
+  /// Says how to get back after the time. Off in a desktop sidebar, where
+  /// the row is too narrow for it and a pointer shows it is pressable.
+  final bool showHint;
+
   const CallReturnBar({
     super.key,
     required this.channelName,
@@ -35,6 +39,7 @@ class CallReturnBar extends StatefulWidget {
     required this.micOn,
     required this.onOpen,
     required this.onLeave,
+    this.showHint = true,
   });
 
   @override
@@ -68,7 +73,9 @@ class _CallReturnBarState extends State<CallReturnBar> {
         ? 'Couldn\'t connect · tap to see why'
         : at == null
         ? 'Connecting…'
-        : '${formatCallDuration(DateTime.now().difference(at))} · tap to return';
+        : widget.showHint
+        ? '${formatCallDuration(DateTime.now().difference(at))} · tap to return'
+        : formatCallDuration(DateTime.now().difference(at));
     final radius = BorderRadius.circular(K.radiusCard);
 
     return Padding(
