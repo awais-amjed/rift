@@ -46,7 +46,7 @@ on Arch).
 ## A server to connect to
 
 The app joins servers through invite links. To get one, run a server with
-[`rift-self-host`](https://joinrift.app/docs/install/) — its console has a
+[`rift-self-host`](https://docs.joinrift.app/install/) — its console has a
 local-testing mode for trying Rift on one machine — and paste the invite it
 gives you into the app.
 
@@ -76,7 +76,7 @@ checked and how to drive each client.
 
 What a client may call on a server, and over which transport, is `API.md` in
 `rift-self-host`. Running a server is covered by the
-[self-hosting guide](https://joinrift.app/docs/).
+[self-hosting guide](https://docs.joinrift.app/).
 
 ## Layout
 
