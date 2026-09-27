@@ -206,8 +206,8 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// this client is currently able to name, which is bounded by the sidebar and
   /// the call rather than by how many people have ever joined. A join shows up
   /// through [peopleCount] and, once somebody scrolls to them, through the
-  /// pages — a name appearing in the middle of a list nobody has scrolled to is
-  /// not a thing anyone can see anyway.
+  /// pages — except when every page is already loaded, where there is nothing
+  /// left to scroll to, so the roster is read again from the top.
   Future<void> refresh() async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
@@ -217,10 +217,30 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     final bots = await _serverCubit.listBots();
     final counts = await _serverCubit.memberCounts();
     final roles = await _serverCubit.listRoles();
+
+    // The pages reach a joiner only when somebody scrolls to them, which is
+    // never when every page is already loaded: the count went up and the row
+    // did not appear. With the whole roster in hand and the count moved, read
+    // it again from the top — as far as it was — so a join, or a ban, lands.
+    var repaged = false;
+    if (!state.people.hasMore && counts.people != state.people.members.length) {
+      final reach = state.people.members.length;
+      _people.reset();
+      while (await _people.next() &&
+          _people.loaded.members.length < reach &&
+          _people.hasMore) {}
+      if (_stale(loadId, serverId)) return;
+      // A read that failed part way leaves what was on screen, not nothing.
+      repaged = _people.loaded.members.isNotEmpty || counts.people == 0;
+    }
+
     // Everybody we hold, paged or resolved by id: somebody known only from a
     // call or a message kept their old name and picture until they left.
     final refreshed = await _serverCubit.membersByIds(
-      {...state.people.members.map((m) => m.id), ...state.known.keys}.toList(),
+      {
+        ...(repaged ? _people.loaded : state.people).members.map((m) => m.id),
+        ...state.known.keys,
+      }.toList(),
     );
     if (_stale(loadId, serverId)) return;
 
@@ -233,13 +253,21 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
         // Order is the pages'; the rows are the fresh ones. Re-sorting here
         // would move somebody under the reader's finger the moment they were
         // renamed, and the cursor the next page resumes from is the old order.
-        people: MemberPage(
-          members: [
-            for (final member in state.people.members)
-              byId[member.id] ?? member,
-          ],
-          hasMore: state.people.hasMore,
-        ),
+        people: repaged
+            ? MemberPage(
+                members: [
+                  for (final member in _people.loaded.members)
+                    byId[member.id] ?? member,
+                ],
+                hasMore: _people.loaded.hasMore,
+              )
+            : MemberPage(
+                members: [
+                  for (final member in state.people.members)
+                    byId[member.id] ?? member,
+                ],
+                hasMore: state.people.hasMore,
+              ),
         known: {
           for (final entry in state.known.entries)
             entry.key: byId[entry.key] ?? entry.value,
