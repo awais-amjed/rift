@@ -47,7 +47,14 @@ mixin _DmEditMixin on Cubit<DmState> {
 
       if (!response.success) {
         HelperMethods.showError(
-          error: response.error ?? 'Failed to edit message',
+          error:
+              EditRefusal.describe(
+                response.errorCode,
+                timedOut: user.isTimedOut,
+                peerName: state.openPeerName ?? 'This person',
+              ) ??
+              response.error ??
+              'Failed to edit message',
         );
         return;
       }

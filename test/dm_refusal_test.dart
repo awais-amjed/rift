@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/enums/dm_link_state.dart';
 import 'package:rift/data/enums/dm_policy.dart';
 import 'package:rift/logic/services/dm_refusal.dart';
+import 'package:rift/logic/services/edit_refusal.dart';
+import 'package:rift/logic/services/pin_ops.dart';
 
 /// What a sender is told when the server turns a DM down.
 void main() {
@@ -31,6 +33,40 @@ void main() {
     test('anything else is left to the caller', () {
       expect(DmRefusal.describe('P0001', peerName: 'Sam'), isNull);
       expect(DmRefusal.describe(null, peerName: 'Sam'), isNull);
+    });
+  });
+
+  group('EditRefusal', () {
+    test('a refused channel edit is a time-out, the only cause there is', () {
+      expect(
+        EditRefusal.describe('42501', timedOut: false),
+        contains('timed out'),
+      );
+    });
+
+    test('a refused DM edit reads as a refused DM unless timed out', () {
+      expect(
+        EditRefusal.describe('42501', timedOut: false, peerName: 'Sam'),
+        DmRefusal.describe('dm_not_accepted', peerName: 'Sam'),
+      );
+      expect(
+        EditRefusal.describe('42501', timedOut: true, peerName: 'Sam'),
+        contains('timed out'),
+      );
+    });
+
+    test('anything else is left to the caller', () {
+      expect(EditRefusal.describe('P0001', timedOut: true), isNull);
+      expect(EditRefusal.describe(null, timedOut: true), isNull);
+    });
+  });
+
+  group('refused pins', () {
+    test('a time-out and a block each have words, and a block is not named', () {
+      expect(PinOps.errorFor('timed_out'), contains('timed out'));
+      final blocked = PinOps.errorFor('dm_not_accepted');
+      expect(blocked, isNotNull);
+      expect(blocked!.toLowerCase(), isNot(contains('block')));
     });
   });
 

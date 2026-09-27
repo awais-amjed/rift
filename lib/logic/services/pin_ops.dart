@@ -49,6 +49,13 @@ class PinOps {
     if (error.contains('not_friends')) {
       return 'You can only change pins in a chat with a friend.';
     }
+    if (error.contains('timed_out')) {
+      return 'You’re timed out, so you can’t change pins yet.';
+    }
+    // A block, worded as the DM gate words it: not as a block.
+    if (error.contains('dm_not_accepted')) {
+      return 'You can’t change pins in this conversation right now.';
+    }
     return null;
   }
 }

@@ -60,7 +60,10 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
 
       if (!response.success) {
         HelperMethods.showError(
-          error: response.error ?? 'Failed to edit message',
+          error:
+              EditRefusal.describe(response.errorCode, timedOut: true) ??
+              response.error ??
+              'Failed to edit message',
         );
         return;
       }

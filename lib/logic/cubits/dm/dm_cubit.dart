@@ -20,6 +20,7 @@ import '../../services/broadcast_payload.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/dm_refusal.dart';
+import '../../services/edit_refusal.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/new_message_notifier.dart';
 import '../../services/outbox.dart';
@@ -327,9 +328,13 @@ class DmCubit extends Cubit<DmState>
   void _onTyping(Map<String, dynamic> payload) {
     if (isClosed) return;
     final from = BroadcastPayload.stringOf(payload, 'from');
-    final name = BroadcastPayload.stringOf(payload, 'name');
     // Only surface typing for the conversation the user currently has open.
-    if (from == null || name == null || from != state.openPeerId) return;
+    if (from == null || from != state.openPeerId) return;
+    // The name this device already has for them, not the one in the event:
+    // any member may send on this topic, so a name read from it is whatever
+    // the sender chose to put there.
+    final name = state.openPeerName;
+    if (name == null) return;
 
     _typingTimer?.cancel();
     _typingTimer = Timer(_typingTimeout, () {
