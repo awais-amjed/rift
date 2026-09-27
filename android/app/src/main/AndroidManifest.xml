@@ -131,6 +131,12 @@
             android:stopWithTask="true"
             android:foregroundServiceType="microphone|camera|mediaProjection"/>
 
+        <!-- The Answer and Decline buttons on a call's notification. Without
+             it the buttons draw and do nothing. -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

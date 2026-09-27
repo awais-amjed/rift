@@ -56,6 +56,8 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     if (server == null || state.busy) return false;
     if (state.active != null) await hangUp();
 
+    // A phone woken by the push may be showing this call in the shade too.
+    unawaited(NotificationService.instance.cancelCall(incoming.call.id));
     emit(state.copyWith(busy: true));
     final response = await _serverCubit.answerDmCall(server, incoming.call.id);
     emit(
@@ -85,8 +87,54 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     return true;
   }
 
+  /// Answer [callId] on [serverId] from its notification: the app has just
+  /// been opened by the press, and knows the call only by its id. Asked for
+  /// first, because a ring can end in the moment it takes to open the app.
+  ///
+  /// Waits for the vault if it is still locked — a call's key is derived
+  /// from it, and a phone opened from its lock screen may not have it yet.
+  Future<bool> answerById(String serverId, String callId) async {
+    final server = _server(serverId);
+    if (server == null) return false;
+    if (_vault.state.masterSeed == null) {
+      await _vault.stream
+          .firstWhere((v) => v.masterSeed != null)
+          .timeout(const Duration(minutes: 1), onTimeout: () => _vault.state);
+    }
+    final response = await _serverCubit.myDmCalls(server, known: [callId]);
+    final call = DmCall.listFrom(
+      response.data,
+    ).where((c) => c.id == callId).firstOrNull;
+    if (call == null || !call.isRinging) {
+      unawaited(NotificationService.instance.cancelCall(callId));
+      HelperMethods.showError(error: 'That call has already ended.');
+      return false;
+    }
+    return answer(
+      IncomingDmCall(serverId: server.id, serverName: server.name, call: call),
+    );
+  }
+
+  /// Decline [callId] from its notification, with the app running.
+  Future<void> declineById(String serverId, String callId) async {
+    unawaited(NotificationService.instance.cancelCall(callId));
+    final server = _server(serverId);
+    if (server == null) return;
+    emit(
+      state.copyWith(
+        incoming: [
+          for (final entry in state.incoming)
+            if (entry.call.id != callId) entry,
+        ],
+      ),
+    );
+    _syncSounds();
+    await _serverCubit.endDmCall(server, callId);
+  }
+
   /// Refuse [incoming]. Recorded as declined, which the caller is told.
   Future<void> decline(IncomingDmCall incoming) async {
+    unawaited(NotificationService.instance.cancelCall(incoming.call.id));
     emit(
       state.copyWith(
         incoming: [

@@ -7,6 +7,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../data/enums/app_sound.dart';
 import '../helper_methods.dart';
 import 'browser_apis.dart';
+import 'notification_ids.dart';
+import 'push_wake/call_notification_actions.dart';
 import 'sound_service.dart';
 import 'window_focus_service.dart';
 
@@ -87,6 +89,8 @@ class NotificationService {
           macOS: macOS,
           android: android,
         ),
+        onDidReceiveNotificationResponse: _onResponse,
+        onDidReceiveBackgroundNotificationResponse: callActionInBackground,
       );
       // Ready before the permission is asked for, and the ask cannot unset it.
       // A refused or unavailable permission costs notifications; it must not
@@ -120,6 +124,112 @@ class NotificationService {
       HelperMethods.printDebug(
         'NotificationService: permission request skipped – $e',
       );
+    }
+  }
+
+  // ── Calls ─────────────────────────────────────────────────
+
+  static const answerAction = 'answer';
+  static const declineAction = 'decline';
+
+  /// Presses on a call's notification while the app is running: Answer,
+  /// Decline, or the notification itself. The app routes them to the call
+  /// cubit (`CallNotificationRouter`).
+  Stream<CallNotificationPress> get callPresses => _callPresses.stream;
+  final StreamController<CallNotificationPress> _callPresses =
+      StreamController.broadcast();
+
+  void _onResponse(NotificationResponse response) {
+    final press = CallNotificationPress.of(response);
+    if (press != null) _callPresses.add(press);
+  }
+
+  /// The press that launched the app from nothing, if it was on a call's
+  /// notification — answered once, because a launch happens once.
+  Future<CallNotificationPress?> takeLaunchPress() async {
+    if (_launchTaken || kIsWeb || !Platform.isAndroid) return null;
+    _launchTaken = true;
+    try {
+      final details = await _plugin.getNotificationAppLaunchDetails();
+      final response = details?.notificationResponse;
+      if (!(details?.didNotificationLaunchApp ?? false) || response == null) {
+        return null;
+      }
+      return CallNotificationPress.of(response);
+    } catch (e) {
+      HelperMethods.printDebug('NotificationService: launch details – $e');
+      return null;
+    }
+  }
+
+  bool _launchTaken = false;
+
+  /// Calls get a channel of their own, at the top of the scale: a person
+  /// waiting on the line is not a message that can sit in the shade, and a
+  /// phone owner may well want calls to ring and messages to stay quiet.
+  static const _callDetails = AndroidNotificationDetails(
+    'rift_calls',
+    'Calls',
+    channelDescription: 'Somebody calling you in a direct message.',
+    importance: Importance.max,
+    priority: Priority.max,
+    category: AndroidNotificationCategory.call,
+    audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
+    ongoing: true,
+    autoCancel: false,
+    // The server stops a ring at 45 seconds; a notification that outlived
+    // it would offer to answer a call that can no longer be answered.
+    timeoutAfter: 45000,
+    actions: [
+      AndroidNotificationAction(declineAction, 'Decline'),
+      AndroidNotificationAction(
+        answerAction,
+        'Answer',
+        showsUserInterface: true,
+      ),
+    ],
+  );
+
+  /// A DM call ringing this phone. Android only: this is what a push wake
+  /// posts, and a desktop rings in its own window.
+  Future<void> showIncomingCall({
+    required String serverId,
+    required String callId,
+    required String peerName,
+    required String serverName,
+  }) async {
+    if (!_ready || kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _plugin.show(
+        id: callNotificationId(callId),
+        title: '$peerName is calling',
+        body: 'Direct call · $serverName',
+        payload: CallNotificationPayload(serverId, callId).encode(),
+        notificationDetails: const NotificationDetails(android: _callDetails),
+      );
+    } catch (e) {
+      HelperMethods.printDebug('NotificationService: call failed – $e');
+    }
+  }
+
+  /// A ring nobody answered, in place of the ringing notification.
+  Future<void> showMissedCall({
+    required String callId,
+    required String peerName,
+    required String serverName,
+  }) => showMessage(
+    title: 'Missed call',
+    body: 'From $peerName · $serverName',
+    id: callNotificationId(callId),
+  );
+
+  /// Take a call's notification down: answered, declined, or over.
+  Future<void> cancelCall(String callId) async {
+    if (!_ready || kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _plugin.cancel(id: callNotificationId(callId));
+    } catch (e) {
+      HelperMethods.printDebug('NotificationService: cancel failed – $e');
     }
   }
 
@@ -194,4 +304,22 @@ class NotificationService {
       HelperMethods.printDebug('NotificationService: show failed – $e');
     }
   }
+}
+
+/// One press on a call's notification.
+class CallNotificationPress {
+  final CallNotificationPayload call;
+
+  /// `answer`, `decline`, or null for the notification itself.
+  final String? action;
+
+  const CallNotificationPress(this.call, this.action);
+
+  static CallNotificationPress? of(NotificationResponse response) {
+    final call = CallNotificationPayload.decode(response.payload);
+    return call == null ? null : CallNotificationPress(call, response.actionId);
+  }
+
+  bool get answers => action == NotificationService.answerAction;
+  bool get declines => action == NotificationService.declineAction;
 }

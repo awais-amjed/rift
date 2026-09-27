@@ -216,6 +216,15 @@ class DmCallCubit extends Cubit<DmCallState>
     for (final call in folded.missed) {
       _announceMissed(call, names[serverId]);
     }
+    // A ring that stopped any other way — answered on another device, or
+    // given up on at once — leaves nothing in the shade. A missed one is the
+    // push's to turn into "Missed call".
+    for (final gone in before) {
+      if (gone.serverId != serverId) continue;
+      if (incoming.any((e) => e.call.id == gone.call.id)) continue;
+      if (folded.missed.any((m) => m.id == gone.call.id)) continue;
+      unawaited(NotificationService.instance.cancelCall(gone.call.id));
+    }
     final active = folded.active;
     if (active != null) await _onActiveRow(active);
     _syncSounds();

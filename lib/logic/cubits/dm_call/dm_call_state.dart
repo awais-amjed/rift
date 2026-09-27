@@ -39,11 +39,7 @@ class DmCallState {
   /// would send a second one are held.
   final bool busy;
 
-  const DmCallState({
-    this.incoming = const [],
-    this.active,
-    this.busy = false,
-  });
+  const DmCallState({this.incoming = const [], this.active, this.busy = false});
 
   /// Our own call, still waiting for the other end to pick up.
   bool get isRingingOut => active?.call.isRinging ?? false;

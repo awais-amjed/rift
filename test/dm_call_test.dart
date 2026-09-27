@@ -4,6 +4,8 @@ import 'package:rift/data/enums/dm_call_outcome.dart';
 import 'package:rift/logic/services/call_log_label.dart';
 import 'package:rift/logic/services/call_refusal.dart';
 import 'package:rift/logic/services/dm_call_ledger.dart';
+import 'package:rift/logic/services/notification_ids.dart';
+import 'package:rift/logic/services/push_wake/wake_calls.dart';
 
 /// Calls between two members: the row as the app reads it, the bookkeeping
 /// that decides what rings, and the words a call leaves in its conversation.
@@ -257,6 +259,88 @@ void main() {
         peerName: 'Ben',
       )!;
       expect(sentence.toLowerCase(), isNot(contains('block')));
+    });
+  });
+
+  group('WakeCalls — a phone woken by a push', () {
+    test('a ring is posted once, however many pushes follow', () {
+      final shown = WakeCalls({});
+      final first = shown.apply(
+        serverId: 's1',
+        myId: me,
+        fetched: [call()],
+        now: t0.add(const Duration(seconds: 2)),
+      );
+      expect(first.single, isA<WakeCallRinging>());
+      final again = shown.apply(
+        serverId: 's1',
+        myId: me,
+        fetched: [call()],
+        now: t0.add(const Duration(seconds: 4)),
+      );
+      expect(again, isEmpty);
+      expect(shown.shownOn('s1'), ['c1']);
+    });
+
+    test('my own call ringing out is not put up', () {
+      final changes = WakeCalls({}).apply(
+        serverId: 's1',
+        myId: me,
+        fetched: [call(caller: me, callee: ben)],
+        now: t0,
+      );
+      expect(changes, isEmpty);
+    });
+
+    test('a missed ring becomes a missed call; an answered one goes', () {
+      final missed = WakeCalls({'c1': (serverId: 's1', peerName: 'Ben')});
+      final change = missed
+          .apply(
+            serverId: 's1',
+            myId: me,
+            fetched: [call(ended: t0, outcome: 'missed')],
+            now: t0,
+          )
+          .single;
+      expect(change, isA<WakeCallStopped>());
+      expect((change as WakeCallStopped).missed, isTrue);
+      expect(missed.shownOn('s1'), isEmpty);
+
+      final answered = WakeCalls({'c1': (serverId: 's1', peerName: 'Ben')});
+      final gone =
+          answered
+                  .apply(
+                    serverId: 's1',
+                    myId: me,
+                    fetched: [call(answered: t0)],
+                    now: t0,
+                  )
+                  .single
+              as WakeCallStopped;
+      expect(gone.missed, isFalse);
+    });
+
+    test('another server\'s rings are left alone', () {
+      final shown = WakeCalls({'x': (serverId: 's2', peerName: 'Sam')});
+      shown.apply(serverId: 's1', myId: me, fetched: const [], now: t0);
+      expect(shown.shownOn('s2'), ['x']);
+    });
+  });
+
+  group('the call notification', () {
+    test('carries which call on which server, and reads back', () {
+      const payload = CallNotificationPayload('s1', 'c1');
+      final back = CallNotificationPayload.decode(payload.encode())!;
+      expect(back.serverId, 's1');
+      expect(back.callId, 'c1');
+      expect(CallNotificationPayload.decode('something else'), isNull);
+      expect(CallNotificationPayload.decode(null), isNull);
+    });
+
+    test('has one id per call, the same on every run', () {
+      expect(callNotificationId('c1'), callNotificationId('c1'));
+      expect(callNotificationId('c1'), isNot(callNotificationId('c2')));
+      expect(callNotificationId('c1'), isNot(stableNotificationId('c1')));
     });
   });
 }

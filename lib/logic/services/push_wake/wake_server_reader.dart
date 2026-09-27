@@ -3,10 +3,12 @@ import 'dart:typed_data';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/api_response.dart';
+import '../../../data/classes/dm_call.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../chat_notice.dart';
 import '../mentions.dart';
+import 'wake_calls.dart';
 import 'wake_dm_scan.dart';
 import 'wake_envelope.dart';
 import 'wake_index.dart';
@@ -52,13 +54,38 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
   static const maxScopes = 5;
 
   /// What is new on [server] that this device has not been told about.
+  ///
+  /// With [calls], also which DM calls started or stopped ringing here since
+  /// the last wake — added to [callChanges]. A call is asked about first: it
+  /// is the one thing on the server that will not wait.
   Future<WakeHarvest> read(
     WakeServer server,
     Uint8List seed,
-    WakeMarks marks,
-  ) async {
+    WakeMarks marks, {
+    WakeCalls? calls,
+    List<WakeCallChange>? callChanges,
+  }) async {
     final token = await _signIn(server, seed);
     if (token == null) return failedHarvest;
+
+    if (calls != null && callChanges != null) {
+      final answer = await _repo.myDmCalls(
+        server.supabaseUrl,
+        anonKey: server.anonKey,
+        bearerToken: token,
+        known: calls.shownOn(server.id),
+      );
+      if (answer.success) {
+        callChanges.addAll(
+          calls.apply(
+            serverId: server.id,
+            myId: server.userId,
+            fetched: DmCall.listFrom(answer.data),
+            now: DateTime.now(),
+          ),
+        );
+      }
+    }
 
     final unread = await _repo.unreadCounts(
       server.supabaseUrl,
@@ -129,7 +156,11 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
   }
 
   /// A fresh SIWS session, signed with the key the seed derives for this
-  /// (host, server) pair.
+  /// (host, server) pair. Public for the one other thing a woken isolate does
+  /// on a server: declining a call from its notification.
+  Future<String?> signIn(WakeServer server, Uint8List seed) =>
+      _signIn(server, seed);
+
   Future<String?> _signIn(WakeServer server, Uint8List seed) async {
     try {
       final host = Uri.parse(server.supabaseUrl).host;

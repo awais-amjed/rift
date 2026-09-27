@@ -1,4 +1,5 @@
 import '../chat_notice.dart';
+import '../notification_ids.dart';
 
 /// One thing worth telling the user about, found by the push background
 /// isolate.
@@ -21,19 +22,11 @@ class WakeItem {
     required this.messageId,
   });
 
-  /// A stable id for the notification, derived from [scope].
-  ///
-  /// FNV-1a rather than [Object.hashCode], which Dart does not promise to keep
-  /// the same between runs — and every wake is a new run. An id that moved
-  /// would stack a second notification for a conversation instead of updating
-  /// the one already there.
-  int get notificationId {
-    var hash = 0x811c9dc5;
-    for (final unit in scope.codeUnits) {
-      hash = ((hash ^ unit) * 0x01000193) & 0x7fffffff;
-    }
-    return hash;
-  }
+  /// A stable id for the notification, derived from [scope] — see
+  /// [stableNotificationId]. An id that moved between wakes would stack a
+  /// second notification for a conversation instead of updating the one
+  /// already there.
+  int get notificationId => stableNotificationId(scope);
 }
 
 /// What one source had to say when the isolate asked it.

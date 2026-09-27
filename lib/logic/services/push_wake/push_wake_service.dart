@@ -4,6 +4,7 @@ import '../../../data/repositories/secure_storage_repository.dart';
 import '../../helper_methods.dart';
 import '../notification_service.dart';
 import '../storage_namespace.dart';
+import 'wake_calls.dart';
 import 'wake_central_reader.dart';
 import 'wake_index.dart';
 import 'wake_item.dart';
@@ -73,6 +74,8 @@ class PushWakeService {
 
       final marks = await WakeMarks.read();
       final index = await WakeIndex.read();
+      final calls = await WakeCalls.read();
+      final callChanges = <WakeCallChange>[];
 
       final harvests = <WakeHarvest>[
         await (central ?? WakeCentralReader()).read(
@@ -81,8 +84,22 @@ class PushWakeService {
           storageSuffix: suffix,
         ),
         for (final server in index.servers)
-          await (servers ?? WakeServerReader()).read(server, seed, marks),
+          await (servers ?? WakeServerReader()).read(
+            server,
+            seed,
+            marks,
+            calls: calls,
+            callChanges: callChanges,
+          ),
       ];
+
+      // Calls before messages: a person waiting on the line is the one thing
+      // here that stops being answerable in a few seconds.
+      final names = {for (final s in index.servers) s.id: s.name};
+      for (final change in callChanges) {
+        await _post(change, names[change.serverId] ?? 'Rift');
+      }
+      await calls.save();
 
       final items = [for (final harvest in harvests) ...harvest.items];
       if (items.isEmpty) {
@@ -110,6 +127,25 @@ class PushWakeService {
       return false;
     }
   }
+
+  static Future<void> _post(WakeCallChange change, String serverName) =>
+      switch (change) {
+        WakeCallRinging() => NotificationService.instance.showIncomingCall(
+          serverId: change.serverId,
+          callId: change.callId,
+          peerName: change.peerName,
+          serverName: serverName,
+        ),
+        WakeCallStopped(missed: true) =>
+          NotificationService.instance.showMissedCall(
+            callId: change.callId,
+            peerName: change.peerName,
+            serverName: serverName,
+          ),
+        WakeCallStopped() => NotificationService.instance.cancelCall(
+          change.callId,
+        ),
+      };
 
   static Future<void> _fallback() => NotificationService.instance.showMessage(
     title: fallbackTitle,
