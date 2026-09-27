@@ -22,6 +22,7 @@ import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
+import '../../../common/chat/time_out_builder.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
 import '../../../responsive/shell_scope.dart';
@@ -337,44 +338,59 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     switch (state.chatStatus) {
       case DmChatStatus.ready:
         syncReplyDraft(state.openPeerId, state.messages);
-        return ChatMessageList(
-          key: ValueKey(state.openPeerId),
-          messages: state.messages,
-          controller: scrollController,
-          attachmentLoader: context.read<DmCubit>().loadAttachment,
-          onToggleReaction: context.read<DmCubit>().toggleReaction,
-          onLookUpOriginal: context.read<DmCubit>().fetchQuoted,
-          onShowAround: context.read<DmCubit>().showAround,
-          viewingHistory: state.hasNewerHistory,
-          onReturnToPresent: context.read<DmCubit>().returnToPresent,
-          onOpenProfile: (userId, name) =>
-              unawaited(showMemberProfile(context, userId: userId, name: name)),
-          onReply: startReply,
-          onForward: (message) => unawaited(
-            showForwardDialog(
-              context,
-              message: message,
-              sourceServerId: context
-                  .read<ServerCubit>()
-                  .state
-                  .selectedServer
-                  ?.id,
-              currentPeerId: state.openPeerId,
-            ),
+        // A time-out stops editing, reacting, pinning and forwarding as well
+        // as sending, so none of them is offered while it lasts — nor Reply,
+        // which only leads to a composer the time-out has taken away. They
+        // come back by themselves when it runs out.
+        return TimeOutBuilder(
+          until: context.select<ServerCubit, DateTime?>(
+            (c) => c.state.selectedServer?.user?.timedOutUntil,
           ),
-          onEdit: context.read<DmCubit>().editMessage,
-          onDelete: context.read<DmCubit>().deleteMessage,
-          onRetry: context.read<DmCubit>().retrySend,
-          onTogglePin: (message) => unawaited(
-            context.read<DmCubit>().setPinned(
-              message,
-              pinned: !message.isPinned,
+          builder: (context, timedOut) => ChatMessageList(
+            key: ValueKey(state.openPeerId),
+            messages: state.messages,
+            controller: scrollController,
+            attachmentLoader: context.read<DmCubit>().loadAttachment,
+            onToggleReaction: context.read<DmCubit>().toggleReaction,
+            onLookUpOriginal: context.read<DmCubit>().fetchQuoted,
+            onShowAround: context.read<DmCubit>().showAround,
+            viewingHistory: state.hasNewerHistory,
+            onReturnToPresent: context.read<DmCubit>().returnToPresent,
+            onOpenProfile: (userId, name) => unawaited(
+              showMemberProfile(context, userId: userId, name: name),
             ),
+            onReply: timedOut ? null : startReply,
+            onForward: timedOut
+                ? null
+                : (message) => unawaited(
+                    showForwardDialog(
+                      context,
+                      message: message,
+                      sourceServerId: context
+                          .read<ServerCubit>()
+                          .state
+                          .selectedServer
+                          ?.id,
+                      currentPeerId: state.openPeerId,
+                    ),
+                  ),
+            onEdit: timedOut ? null : context.read<DmCubit>().editMessage,
+            onDelete: context.read<DmCubit>().deleteMessage,
+            onRetry: context.read<DmCubit>().retrySend,
+            canReact: !timedOut,
+            onTogglePin: timedOut
+                ? null
+                : (message) => unawaited(
+                    context.read<DmCubit>().setPinned(
+                      message,
+                      pinned: !message.isPinned,
+                    ),
+                  ),
+            jumpRequests: _jumpRequests,
+            mentionable: _mentionable(state),
+            calls: state.calls,
+            myId: context.read<ServerCubit>().state.selectedServer?.user?.id,
           ),
-          jumpRequests: _jumpRequests,
-          mentionable: _mentionable(state),
-          calls: state.calls,
-          myId: context.read<ServerCubit>().state.selectedServer?.user?.id,
         );
       case DmChatStatus.loading:
         return const LoadingBlock();

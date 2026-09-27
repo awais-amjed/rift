@@ -24,6 +24,7 @@ import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
 import '../../../common/chat/polls/create_poll_dialog.dart';
+import '../../../common/chat/time_out_builder.dart';
 import '../../../common/chat/time_out_gate.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
@@ -323,52 +324,66 @@ class _ChannelChatViewState extends State<ChannelChatView>
       case ChannelChatStatus.ready:
       case ChannelChatStatus.readOnly:
         syncReplyDraft(chatState.channelId, chatState.messages);
-        return ChatMessageList(
-          key: ValueKey(chatState.channelId),
-          messages: chatState.messages,
-          controller: scrollController,
-          attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
-          onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
-          onLookUpOriginal: context.read<ChannelChatCubit>().fetchQuoted,
-          onShowAround: context.read<ChannelChatCubit>().showAround,
-          viewingHistory: chatState.hasNewerHistory,
-          onReturnToPresent: context.read<ChannelChatCubit>().returnToPresent,
-          onOpenProfile: (userId, name) =>
-              unawaited(showMemberProfile(context, userId: userId, name: name)),
-          onReply: startReply,
-          onForward: (message) => _forward(context, message, chatState),
-          onEdit: context.read<ChannelChatCubit>().editMessage,
-          onDelete: context.read<ChannelChatCubit>().deleteMessage,
-          onRetry: context.read<ChannelChatCubit>().retrySend,
-          onPanelAction: context.read<ChannelChatCubit>().pressPanelAction,
-          // Channel managers and admins may remove anyone's message.
-          isModerator: _isModerator(context),
-          canReact: _canReact(context),
-          // Only the names these messages actually say, resolved against this
-          // channel — see [ChannelChatState.mentionNames]. `@all` is added
-          // here because it names everybody in the room and so lights up like
-          // a name that reached somebody; nobody can be called it, so it is
-          // never ambiguous between the room and a person.
-          mentionable: {Mentions.everyone, ...chatState.mentionNames.keys},
-          mentionNames: chatState.mentionNames,
-          onReport: (message) =>
-              unawaited(showReportMessageDialog(context, message)),
-          onTogglePin: _canPin(context, chatState.channelId)
-              ? (message) => unawaited(
-                  context.read<ChannelChatCubit>().setPinned(
-                    message,
-                    pinned: !message.isPinned,
-                  ),
-                )
-              : null,
-          pollTallies: chatState.pollTallies,
-          // Voting needs no key, but a read-only seat is one that cannot send,
-          // and a vote is the one thing here that is sent.
-          onVote: chatState.status == ChannelChatStatus.ready
-              ? context.read<ChannelChatCubit>().vote
-              : null,
-          onClosePoll: context.read<ChannelChatCubit>().closePoll,
-          jumpRequests: _jumpRequests,
+        // A time-out stops posting, editing, reacting and pinning
+        // (`app.timed_out` in the policies), so none of them is offered while
+        // it lasts — nor Reply, which only leads to the composer the banner
+        // has replaced. They come back by themselves when it runs out.
+        return TimeOutBuilder(
+          until: context.select<ServerCubit, DateTime?>(
+            (c) => c.state.selectedServer?.user?.timedOutUntil,
+          ),
+          builder: (context, timedOut) => ChatMessageList(
+            key: ValueKey(chatState.channelId),
+            messages: chatState.messages,
+            controller: scrollController,
+            attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
+            onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
+            onLookUpOriginal: context.read<ChannelChatCubit>().fetchQuoted,
+            onShowAround: context.read<ChannelChatCubit>().showAround,
+            viewingHistory: chatState.hasNewerHistory,
+            onReturnToPresent: context.read<ChannelChatCubit>().returnToPresent,
+            onOpenProfile: (userId, name) => unawaited(
+              showMemberProfile(context, userId: userId, name: name),
+            ),
+            onReply: timedOut ? null : startReply,
+            onForward: timedOut
+                ? null
+                : (message) => _forward(context, message, chatState),
+            onEdit: timedOut
+                ? null
+                : context.read<ChannelChatCubit>().editMessage,
+            onDelete: context.read<ChannelChatCubit>().deleteMessage,
+            onRetry: context.read<ChannelChatCubit>().retrySend,
+            onPanelAction: context.read<ChannelChatCubit>().pressPanelAction,
+            // Channel managers and admins may remove anyone's message.
+            isModerator: _isModerator(context),
+            canReact: !timedOut && _canReact(context),
+            // Only the names these messages actually say, resolved against this
+            // channel — see [ChannelChatState.mentionNames]. `@all` is added
+            // here because it names everybody in the room and so lights up like
+            // a name that reached somebody; nobody can be called it, so it is
+            // never ambiguous between the room and a person.
+            mentionable: {Mentions.everyone, ...chatState.mentionNames.keys},
+            mentionNames: chatState.mentionNames,
+            onReport: (message) =>
+                unawaited(showReportMessageDialog(context, message)),
+            onTogglePin: !timedOut && _canPin(context, chatState.channelId)
+                ? (message) => unawaited(
+                    context.read<ChannelChatCubit>().setPinned(
+                      message,
+                      pinned: !message.isPinned,
+                    ),
+                  )
+                : null,
+            pollTallies: chatState.pollTallies,
+            // Voting needs no key, but a read-only seat is one that cannot send,
+            // and a vote is the one thing here that is sent.
+            onVote: chatState.status == ChannelChatStatus.ready
+                ? context.read<ChannelChatCubit>().vote
+                : null,
+            onClosePoll: context.read<ChannelChatCubit>().closePoll,
+            jumpRequests: _jumpRequests,
+          ),
         );
       case ChannelChatStatus.loading:
       // Drawn the same as loading, and that is the whole point: a key being
