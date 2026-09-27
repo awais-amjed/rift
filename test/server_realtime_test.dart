@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:rift/data/classes/server.dart';
 import 'package:rift/logic/services/server_realtime.dart';
+import 'package:supabase/supabase.dart' show RealtimeSubscribeStatus;
 
 // A port nothing listens on: the socket is refused at once and closes at once,
 // where a host that doesn't resolve holds every disconnect for six seconds.
@@ -168,6 +169,78 @@ void main() {
     await h.publish([a.copyWith(token: 'jwt-2')]);
 
     expect(h.realtime.clientFor(a)!.headers['Authorization'], 'Bearer jwt-2');
+    await h.close();
+  });
+
+  // A launch whose stored token had expired joined its own topic with it, was
+  // refused, and heard nothing all session: the client never asks again, and
+  // a new token only reaches joins that succeeded.
+  test(
+    'a join refused under an old token is asked again with the new one',
+    () async {
+      final a = _server('a');
+      final h = _Harness([a]);
+      final heard = <String>[];
+      h.realtime.join(a, 'user:me')!.onBroadcast('dm', (_) => heard.add('dm'));
+      final refused = h.realtime.debugChannelOf('a', 'user:me');
+
+      h.realtime.debugReportStatus(
+        'a',
+        'user:me',
+        RealtimeSubscribeStatus.channelError,
+      );
+      expect(
+        h.realtime.debugChannelOf('a', 'user:me'),
+        same(refused),
+        reason: 'refused under the current token: asking again is pointless',
+      );
+
+      await h.publish([a.copyWith(token: 'jwt-2')]);
+      final rejoined = h.realtime.debugChannelOf('a', 'user:me');
+      expect(rejoined, isNot(same(refused)));
+      expect(h.realtime.topicCount('a'), 1);
+
+      // The same lease still hears the topic on its new channel.
+      rejoined!.trigger('broadcast', {'event': 'dm', 'payload': {}});
+      expect(heard, ['dm']);
+      await h.close();
+    },
+  );
+
+  test(
+    'a refusal that answers a token already replaced rejoins at once',
+    () async {
+      final a = _server('a');
+      final h = _Harness([a]);
+      h.realtime.join(a, 'user:me');
+      final first = h.realtime.debugChannelOf('a', 'user:me');
+
+      await h.publish([a.copyWith(token: 'jwt-2')]);
+      expect(h.realtime.debugChannelOf('a', 'user:me'), same(first));
+
+      h.realtime.debugReportStatus(
+        'a',
+        'user:me',
+        RealtimeSubscribeStatus.channelError,
+      );
+      expect(h.realtime.debugChannelOf('a', 'user:me'), isNot(same(first)));
+      await h.close();
+    },
+  );
+
+  test('a joined topic is left alone when the token rotates', () async {
+    final a = _server('a');
+    final h = _Harness([a]);
+    h.realtime.join(a, 'user:me');
+    h.realtime.debugReportStatus(
+      'a',
+      'user:me',
+      RealtimeSubscribeStatus.subscribed,
+    );
+    final joined = h.realtime.debugChannelOf('a', 'user:me');
+
+    await h.publish([a.copyWith(token: 'jwt-2')]);
+    expect(h.realtime.debugChannelOf('a', 'user:me'), same(joined));
     await h.close();
   });
 

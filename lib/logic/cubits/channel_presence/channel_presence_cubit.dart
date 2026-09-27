@@ -46,10 +46,12 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   StreamSubscription<LiveKitState>? _lkSub;
 
   /// The presence topic on the server's shared connection. [_channel] is its
-  /// join, for tracking and reading who is there.
+  /// join, for tracking and reading who is there — read through the lease
+  /// every time, because a join refused under an expired token is replaced
+  /// by a fresh channel once the token is renewed.
   RealtimeLease? _presenceTopic;
   @override
-  RealtimeChannel? _channel;
+  RealtimeChannel? get _channel => _presenceTopic?.channel;
   VoiceBroadcast? _voice;
   String? _currentServerId;
   String? _currentUserId;
@@ -131,7 +133,6 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       onStatus: _onPresenceStatus,
     );
     _presenceTopic = topic?..on('presence', (_) => _syncPresence());
-    _channel = topic?.channel;
 
     final userId = server.user?.id;
     if (userId != null) {
@@ -175,7 +176,6 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     final topic = _presenceTopic;
     final voice = _voice;
     _presenceTopic = null;
-    _channel = null;
     _voice = null;
     _currentServerId = null;
     _currentUserId = null;
