@@ -101,3 +101,7 @@ bot_sdk_ts/node_modules/
 
 # A literal "~" folder a tool once created here; never commit it
 /~/
+
+# Design handoffs kept beside the code, not in it
+/App icon design concepts-2/
+/Mobile app redesign request-handoff*/
