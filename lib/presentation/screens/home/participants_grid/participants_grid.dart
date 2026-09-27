@@ -79,14 +79,17 @@ class ParticipantsGrid extends StatelessWidget {
             // calling, rather than a room with only us in it.
             final dm = livekitState.dmCall;
             if (dm != null && ringingOut) {
-              return _headerless(DmRingingView(place: dm));
+              return _headerless(DmRingingView(place: dm), members: false);
             }
 
             switch (livekitState.connectionState) {
               case LiveKitConnectionState.disconnected:
-                return _headerless(const NoChannelView.notInCall());
+                return _headerless(
+                  const NoChannelView.notInCall(),
+                  members: dm == null,
+                );
               case LiveKitConnectionState.connecting:
-                return _headerless(const ConnectingView());
+                return _headerless(const ConnectingView(), members: dm == null);
               case LiveKitConnectionState.error:
                 final failure =
                     livekitState.failure ?? const ConnectionFailure.unknown();
@@ -104,15 +107,16 @@ class ParticipantsGrid extends StatelessWidget {
                         ? context.read<DmCallCubit>().hangUp()
                         : context.read<LiveKitCubit>().disconnect(),
                   ),
+                  members: dm == null,
                 );
               case LiveKitConnectionState.connected:
                 if (livekitState.room == null) {
-                  return _headerless(const ConnectingView());
+                  return _headerless(
+                    const ConnectingView(),
+                    members: dm == null,
+                  );
                 }
-                return RoomView(
-                  room: livekitState.room!,
-                  embedded: embedded,
-                );
+                return RoomView(room: livekitState.room!, embedded: embedded);
             }
           },
         );
@@ -122,6 +126,6 @@ class ParticipantsGrid extends StatelessWidget {
 
   /// Every state but the call itself, which has a header of its own to put
   /// the show buttons in. Embedded, the pane around it has them already.
-  Widget _headerless(Widget view) =>
-      embedded ? view : PaneCornerToggles.over(view);
+  Widget _headerless(Widget view, {bool members = true}) =>
+      embedded ? view : PaneCornerToggles.over(view, members: members);
 }

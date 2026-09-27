@@ -320,10 +320,21 @@ class K {
   /// The card a call rings on, floating over the top of the window.
   static const double incomingCallWidth = 360;
 
-  /// How much of a DM conversation's height its call takes on a desktop:
-  /// enough for two tiles side by side, leaving the messages readable.
+  /// How much of a DM conversation's height its call takes on a desktop
+  /// until the user drags it: enough for two tiles side by side, leaving the
+  /// messages readable.
   static const double dmCallStageShare = 0.46;
   static const double dmCallStageMin = 240;
+
+  /// What a dragged split always leaves the messages: a few lines and the
+  /// composer. Drag further and the answer is Expand, not a sliver of chat.
+  static const double dmCallChatMin = 200;
+
+  /// The grab strip between a DM call and its messages.
+  static const double dmCallHandleHeight = 10;
+
+  /// The messages beside an expanded DM call.
+  static const double dmCallSideChatWidth = 360;
 
   /// Settings' nav panel. Narrower than the home sidebar — it holds three
   /// labels, not a channel tree.

@@ -14,6 +14,7 @@ import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
+import '../calls/widgets/dm_call_layout_buttons.dart';
 import '../pane_toggles/show_members_button.dart';
 import '../pane_toggles/show_sidebar_button.dart';
 import '../profile/person/verification/show_channel_encryption.dart';
@@ -176,7 +177,13 @@ class _ContextStripState extends State<ContextStrip> {
                       ),
                       const SizedBox(width: 12),
                       elapsed,
+                      if (dm != null) ...[
+                        const SizedBox(width: 10),
+                        DmCallLayoutButtons(split: widget.embedded),
+                      ],
+                      // A DM surface has no member list to bring back.
                       if (!widget.embedded &&
+                          dm == null &&
                           ShowMembersButton.shows(context)) ...[
                         const SizedBox(width: 10),
                         const ShowMembersButton(),

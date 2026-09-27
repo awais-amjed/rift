@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/constants.dart';
+import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/layout_mode.dart';
 import '../../../data/invite_link.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
@@ -228,7 +229,8 @@ class _HomeScreenState extends State<HomeScreen> {
           prev.titleBarVisible != curr.titleBarVisible ||
           prev.sidebarOpen != curr.sidebarOpen ||
           prev.membersSidebarShown != curr.membersSidebarShown ||
-          prev.stageChromeHidden != curr.stageChromeHidden,
+          prev.stageChromeHidden != curr.stageChromeHidden ||
+          prev.surface != curr.surface,
       builder: (context, appState) {
         final mode = context.layoutMode;
         final titleBarVisible = appState.titleBarVisible;
@@ -239,8 +241,14 @@ class _HomeScreenState extends State<HomeScreen> {
         final membersOpen = mode.membersIsOverlay
             ? _membersOverlayOpen
             : appState.membersSidebarShown;
+        // The member list only stands in the way where it is drawn: a DM
+        // surface has none, so an expanded DM call can go full-bleed too.
+        final membersInView =
+            membersOpen && appState.surface == HomeSurface.server;
         final immersive =
-            appState.stageChromeHidden && !appState.sidebarOpen && !membersOpen;
+            appState.stageChromeHidden &&
+            !appState.sidebarOpen &&
+            !membersInView;
         // The gutter goes with the chrome; the title bar's band stays, since
         // that is the window's own and is hidden on its own switch.
         final gutter = immersive ? 0.0 : K.panelGutter;

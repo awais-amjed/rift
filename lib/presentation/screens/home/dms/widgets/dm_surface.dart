@@ -29,6 +29,10 @@ class DmSurface extends StatelessWidget {
   final String emptyMessage;
   final IconData emptyIcon;
 
+  /// The list folded away so the conversation has the whole surface — a DM
+  /// call someone expanded.
+  final bool listHidden;
+
   static const double listWidth = 280;
 
   /// The narrowest the open conversation may be beside the list. Below it the
@@ -42,6 +46,7 @@ class DmSurface extends StatelessWidget {
     required this.emptyMessage,
     this.conversation,
     this.emptyIcon = Icons.forum_outlined,
+    this.listHidden = false,
   });
 
   @override
@@ -60,6 +65,8 @@ class DmSurface extends StatelessWidget {
         if (constraints.maxWidth < listWidth + minConversationWidth) {
           return conversation ?? list;
         }
+        final open = conversation;
+        if (listHidden && open != null) return open;
         return DmListBeside(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,

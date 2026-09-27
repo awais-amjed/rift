@@ -59,6 +59,11 @@ class AppState {
 
   /// The member list's dragged width, stored raw for the same reason.
   final double membersSidebarWidth;
+
+  /// How much of a DM conversation's height its call takes, as the user last
+  /// dragged it. Stored raw and clamped on read (`DmCallStage`), like the
+  /// widths above.
+  final double dmCallStageShare;
   final String? outputDeviceId;
   final String? inputDeviceId;
 
@@ -128,6 +133,16 @@ class AppState {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool stageChromeHidden;
 
+  /// A DM call has been given the whole conversation pane: the conversation
+  /// list folds away and the messages move to a side panel. For one call
+  /// only — hanging up puts the split back.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool dmCallExpanded;
+
+  /// Whether an expanded DM call has its messages open beside it.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool dmCallChatOpen;
+
   /// The push-to-talk key as the desktop reports it ("Press F9"), while a
   /// desktop shortcut is bound — null otherwise. On Linux the desktop owns
   /// the key once it has asked the user, and re-binding with a different
@@ -176,12 +191,15 @@ class AppState {
     this.membersSidebarOpen = true,
     this.sidebarWidth = K.sidebarWidth,
     this.membersSidebarWidth = K.membersSidebarWidth,
+    this.dmCallStageShare = K.dmCallStageShare,
     this.isHovered = false,
     this.selectedChannelId,
     this.participants = const [],
     this.surface = HomeSurface.server,
     this.membersHiddenForFocus = false,
     this.stageChromeHidden = false,
+    this.dmCallExpanded = false,
+    this.dmCallChatOpen = true,
     this.desktopPushToTalkKey,
     this.desktopPushToTalkPending = false,
   });
@@ -222,6 +240,7 @@ class AppState {
     bool? membersSidebarOpen,
     double? sidebarWidth,
     double? membersSidebarWidth,
+    double? dmCallStageShare,
     bool? isHovered,
     String? selectedChannelId,
     bool clearSelectedChannelId = false,
@@ -229,6 +248,8 @@ class AppState {
     HomeSurface? surface,
     bool? membersHiddenForFocus,
     bool? stageChromeHidden,
+    bool? dmCallExpanded,
+    bool? dmCallChatOpen,
     String? desktopPushToTalkKey,
     bool clearDesktopPushToTalkKey = false,
     bool? desktopPushToTalkPending,
@@ -274,6 +295,7 @@ class AppState {
       membersSidebarOpen: membersSidebarOpen ?? this.membersSidebarOpen,
       sidebarWidth: sidebarWidth ?? this.sidebarWidth,
       membersSidebarWidth: membersSidebarWidth ?? this.membersSidebarWidth,
+      dmCallStageShare: dmCallStageShare ?? this.dmCallStageShare,
       isHovered: isHovered ?? this.isHovered,
       selectedChannelId: clearSelectedChannelId
           ? null
@@ -283,6 +305,8 @@ class AppState {
       membersHiddenForFocus:
           membersHiddenForFocus ?? this.membersHiddenForFocus,
       stageChromeHidden: stageChromeHidden ?? this.stageChromeHidden,
+      dmCallExpanded: dmCallExpanded ?? this.dmCallExpanded,
+      dmCallChatOpen: dmCallChatOpen ?? this.dmCallChatOpen,
       desktopPushToTalkKey: clearDesktopPushToTalkKey
           ? null
           : (desktopPushToTalkKey ?? this.desktopPushToTalkKey),

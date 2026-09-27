@@ -170,6 +170,26 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(membersHiddenForFocus: focused));
   }
 
+  /// Where the user left the line between a DM call and its messages.
+  void setDmCallStageShare(double share) {
+    if (!share.isFinite || share == state.dmCallStageShare) return;
+    emit(state.copyWith(dmCallStageShare: share));
+  }
+
+  /// Give a DM call the whole conversation pane, or put the split back.
+  /// [chatOpen] says whether its messages come along beside it — yes when
+  /// somebody asked for more room, no when a stream asked for it.
+  void setDmCallExpanded(bool expanded, {bool chatOpen = true}) {
+    if (expanded == state.dmCallExpanded &&
+        (!expanded || chatOpen == state.dmCallChatOpen)) {
+      return;
+    }
+    emit(state.copyWith(dmCallExpanded: expanded, dmCallChatOpen: chatOpen));
+  }
+
+  void toggleDmCallChat() =>
+      emit(state.copyWith(dmCallChatOpen: !state.dmCallChatOpen));
+
   /// A focused call's controls faded out, or came back.
   void setStageChromeHidden(bool hidden) {
     if (hidden == state.stageChromeHidden) return;

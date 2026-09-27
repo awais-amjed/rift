@@ -251,6 +251,8 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     final active = state.active;
     _joinedCallId = null;
     emit(state.copyWith(clearActive: true));
+    // An expanded call is expanded for that call; the next opens as a split.
+    _app.setDmCallExpanded(false);
     _syncSounds();
     _syncTimers();
     if (hangUpRoom &&

@@ -5,8 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
+import '../../../../data/constants.dart';
 import '../../../../data/enums/dm_link_state.dart';
 import '../../../../data/enums/server_permission.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
@@ -26,7 +28,10 @@ import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../calls/dm_call_stage.dart';
+import '../calls/widgets/dm_call_side_chat_header.dart';
+import '../chat/widgets/chat_header.dart';
 import '../mobile/widgets/mini_call_bar.dart';
+import '../participants_grid/participants_grid.dart';
 import '../profile/person/show_person_profile.dart';
 import '../profile/person/verification/show_verification.dart';
 import 'widgets/dm_chat_header.dart';
@@ -136,17 +141,71 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           dm.peerId == state.openPeerId;
     });
     final stage = callHere && !context.layoutMode.isCompact;
+    // Both asked on every build, so the lookups are registered the same way
+    // whether or not there is a call to lay out.
+    final wantsExpanded = context.select<AppCubit, bool>(
+      (c) => c.state.dmCallExpanded,
+    );
+    final expanded = stage && wantsExpanded;
+    final chatOpen = context.select<AppCubit, bool>(
+      (c) => c.state.dmCallChatOpen,
+    );
 
-    return LayoutBuilder(
-      builder: (context, constraints) => Column(
-        children: [
-          ..._top(context, state, callHere),
-          if (stage) DmCallStage(available: constraints.maxHeight),
-          ..._conversation(context, state, themeState),
-        ],
-      ),
+    return BlocListener<LiveKitCubit, LiveKitState>(
+      // Watching a stream is asking for room to watch it in: the call takes
+      // the pane, without the messages, and Collapse puts the split back.
+      listenWhen: (a, b) =>
+          b.subscribedScreenshares.length > a.subscribedScreenshares.length,
+      listener: (context, _) {
+        if (!stage || expanded) return;
+        context.read<AppCubit>().setDmCallExpanded(true, chatOpen: false);
+      },
+      child: expanded
+          ? _expanded(context, state, themeState, chatOpen)
+          : LayoutBuilder(
+              builder: (context, constraints) => Column(
+                children: [
+                  ..._top(context, state, callHere),
+                  if (stage)
+                    DmCallStage(
+                      available: constraints.maxHeight - ChatHeader.height,
+                    ),
+                  ..._conversation(context, state, themeState),
+                ],
+              ),
+            ),
     );
   }
+
+  /// The call given the whole pane. Its own strip carries the name and the
+  /// way back, so the conversation's header goes; the messages, when open,
+  /// are a panel beside it rather than under it.
+  Widget _expanded(
+    BuildContext context,
+    DmState state,
+    ThemeState themeState,
+    bool chatOpen,
+  ) => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const Expanded(child: ParticipantsGrid()),
+      if (chatOpen) ...[
+        Container(width: 1, color: themeState.borderPrimary),
+        SizedBox(
+          width: K.dmCallSideChatWidth,
+          child: Column(
+            children: [
+              DmCallSideChatHeader(
+                peerName: state.openPeerName ?? '',
+                onClose: context.read<AppCubit>().toggleDmCallChat,
+              ),
+              ..._conversation(context, state, themeState),
+            ],
+          ),
+        ),
+      ],
+    ],
+  );
 
   List<Widget> _top(BuildContext context, DmState state, bool callHere) => [
     DmChatHeader(

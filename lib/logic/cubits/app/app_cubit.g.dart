@@ -68,6 +68,8 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   membersSidebarWidth:
       (json['membersSidebarWidth'] as num?)?.toDouble() ??
       K.membersSidebarWidth,
+  dmCallStageShare:
+      (json['dmCallStageShare'] as num?)?.toDouble() ?? K.dmCallStageShare,
 );
 
 Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
@@ -96,6 +98,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'membersSidebarOpen': instance.membersSidebarOpen,
   'sidebarWidth': instance.sidebarWidth,
   'membersSidebarWidth': instance.membersSidebarWidth,
+  'dmCallStageShare': instance.dmCallStageShare,
   'outputDeviceId': instance.outputDeviceId,
   'inputDeviceId': instance.inputDeviceId,
   'noiseSuppression': instance.noiseSuppression,

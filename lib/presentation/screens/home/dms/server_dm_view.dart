@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
+import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/hint_card.dart';
@@ -43,6 +45,14 @@ class _ServerDmViewState extends State<ServerDmView> {
     // Watched, not read: a DM arriving on this server has to move the badges
     // while the list is on screen.
     final notifications = context.watch<ServerNotificationsCubit>().state;
+    // An expanded call on this conversation takes the list's room too.
+    final expanded = context.select<AppCubit, bool>(
+      (c) => c.state.dmCallExpanded,
+    );
+    final callPeer = context.select<LiveKitCubit, String?>((c) {
+      final dm = c.state.dmCall;
+      return dm != null && dm.serverId == server?.id ? dm.peerId : null;
+    });
 
     return DmSurface(
       emptyIcon: Icons.dns_outlined,
@@ -51,6 +61,8 @@ class _ServerDmViewState extends State<ServerDmView> {
           ? 'Join a server to message its members.'
           : 'Pick a conversation, or start one with a member.',
       conversation: state.openPeerId != null ? const ServerDmChatView() : null,
+      listHidden:
+          expanded && callPeer != null && callPeer == state.openPeerId,
       list: DmListPanel(
         title: 'Server DMs',
         subtitle: server?.name,
