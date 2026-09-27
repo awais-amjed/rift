@@ -286,7 +286,7 @@ Rift repository — the siblings have no AGENTS.md of their own, so this is the 
 | a byte format another implementation must match | `WIRE.md`, then regenerate with `tool/gen_wire_vectors.dart`, which writes the SDK's copy too |
 | what a bot may see, hear or say | `BOTS.md` |
 | a convention this code follows | this file, or `CODE_STYLE.md` |
-| something you verified by driving the real app | `MANUAL_TESTING.md` — what was checked, and what was not |
+| something you verified by driving the real app | its row in `TESTING.md` (and the local `MANUAL_TESTING.md` log) — what was checked, and what was not |
 | what a server operator runs or can rely on | `rift-self-host/README.md`, and the docs in `rift-website` |
 | the set of repositories | the repo table in every README that has one — they are copies |
 
@@ -359,9 +359,10 @@ the same path PostgREST takes, and runs in one transaction ending in `ROLLBACK`.
 Run the relevant one after touching a migration, and add a case whenever you add
 a policy, a grant or a `SECURITY DEFINER` function.
 
-**Live behaviour is recorded in `MANUAL_TESTING.md`.** Realtime delivery, cross-device
+**Live behaviour is recorded in `TESTING.md`.** Realtime delivery, cross-device
 key distribution, presence, LiveKit, the Android foreground service and per-width
 layout cannot be covered by either suite, so what has actually been driven through the
-real UI — and what has *not* — is logged there, along with how to drive the Linux and
-Android clients (`GDK_BACKEND=x11` + `xdotool`, and `adb`). Read it before assuming
-something is untested, and add to it whenever you verify something live.
+real UI — and what has *not* — is a status table there, along with how to drive the
+Linux, Android and web clients. Read it before assuming something is untested. When you
+verify something live, write the pass up in `MANUAL_TESTING.md` (the full dated log,
+gitignored and kept on this machine) and update its row in `TESTING.md`.

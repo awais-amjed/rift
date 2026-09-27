@@ -104,3 +104,6 @@ bot_sdk_ts/node_modules/
 
 # Icon design concepts kept beside the code, not in it
 /App icon design concepts-2/
+
+# The full dated log of live test passes; TESTING.md is the committed summary
+/MANUAL_TESTING.md
