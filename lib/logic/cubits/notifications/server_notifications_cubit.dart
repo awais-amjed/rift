@@ -41,8 +41,8 @@ part 'server_notifications_levels.dart';
 ///   decrypt the body for a preview.
 /// - **Read tracking** — opening a channel or a conversation, a message landing
 ///   in the open+focused one, or refocusing the window marks it read
-///   (`read_at`), clearing the badge and letting the retention job (migration
-///   008) prune the rows.
+///   (`read_at`), clearing the badge and letting the retention job prune
+///   the rows.
 /// - **Token freshness** — background servers' JWTs are refreshed before they
 ///   expire (via [ServerCubit.reAuthenticateServer]) so their subscriptions
 ///   don't lapse while another server is in focus.

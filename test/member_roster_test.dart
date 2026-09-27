@@ -139,7 +139,7 @@ void main() {
 
   group('the bot flag itself', () {
     test('survives copyWith and cannot be flipped by it', () {
-      // Pinned server-side by a trigger (`005_bots.sql`); copyWith exposing it
+      // Pinned server-side by a trigger (`users_pin_is_bot`); copyWith exposing it
       // would be the one place in the client a person becomes a program.
       final bot = member('1', 'MusicBot', isBot: true);
       expect(bot.copyWith(isBanned: true).isBot, isTrue);

@@ -39,7 +39,7 @@ class _RolesPanelState extends State<RolesPanel> {
 
   int get _myPermissions => context.read<ServerCubit>().state.myPermissionBits;
 
-  /// Administrators only (015). There used to be a bit for this; a ladder
+  /// Administrators only. There used to be a bit for this; a ladder
   /// anybody holding a bit could reshape was a ladder nobody had chosen.
   bool get _mayManage => _myPermissions.has(ServerPermission.administrator);
 
@@ -98,7 +98,7 @@ class _RolesPanelState extends State<RolesPanel> {
 
   /// Swap two adjacent roles' positions.
   ///
-  /// A swap rather than a renumber, which is why 024 spaced the ladder out: two
+  /// A swap rather than a renumber, which is why the ladder is spaced out: two
   /// roles sharing a rung cannot be ordered by swapping, and renumbering the
   /// band would need more room below the viewer than a dense ladder has.
   Future<void> _move(Role role, {required bool up}) async {

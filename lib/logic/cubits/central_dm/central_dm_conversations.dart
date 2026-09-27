@@ -14,7 +14,7 @@ part of 'central_dm_cubit.dart';
 /// cursor with which to ask for the next page, because the list was a
 /// by-product rather than a query.
 ///
-/// `dm_conversations(p_limit, p_before)` (central migration 013) answers all of
+/// `dm_conversations(p_limit, p_before)` answers all of
 /// it, which is what the self-hosted tier already did.
 mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
   CentralDmRepository get _repo;

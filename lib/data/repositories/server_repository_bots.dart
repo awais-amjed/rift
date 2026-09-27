@@ -1,7 +1,6 @@
 part of 'server_repository.dart';
 
-/// What a bot may read, and what it may hear (BOTS.md §6, `005_bots.sql` and `009_bot_voice.sql`,
-/// 030 and 031).
+/// What a bot may read, and what it may hear (BOTS.md §6).
 ///
 /// Split out of the webhook file next door, which is the opposite thing wearing
 /// the same shape: a webhook *writes* into a channel without being a member,
@@ -56,7 +55,7 @@ mixin _BotApiMixin {
   /// One RPC rather than a loop of per-channel calls, and not for speed: the
   /// grant is *standing*, so a channel created next week is covered too. A
   /// client looping over today's channels would produce a bot that silently
-  /// stops working in tomorrow's (`009_bot_voice.sql`).
+  /// stops working in tomorrow's (`bot_server_grants`).
   Future<APIResponse> setBotServerKey(
     String supabaseUrl, {
     required String anonKey,
@@ -110,8 +109,7 @@ mixin _BotApiMixin {
   /// starts at — one past the current, which is the whole of forward-only —
   /// and a revoke drops the sealed rows so the sweep sees a bot with no grant
   /// and rotates. Neither is a fact a client could work out, and
-  /// `bot_channel_keys` has no write grant at all so neither can be faked
-  /// (`005_bots.sql` and `009_bot_voice.sql`).
+  /// `bot_channel_keys` has no write grant at all so neither can be faked.
   Future<APIResponse> setBotChannelKey(
     String supabaseUrl, {
     required String anonKey,
@@ -135,7 +133,7 @@ mixin _BotApiMixin {
   /// everybody who ever speaks in that room pays for it, so this is readable by
   /// every member who can see the channel rather than by the person who
   /// granted it.
-  /// Bots summoned into voice channels, with the name to draw (`010_bot_permissions.sql`).
+  /// Bots summoned into voice channels, with the name to draw (`bot_voice_summons`).
   ///
   /// The sibling of [listVoiceListeners] and the same shape, but not the same
   /// meaning: a listener is a warning and a summon is furniture. It exists so a
@@ -184,7 +182,7 @@ mixin _BotApiMixin {
   /// Seal one bot the key it speaks with in one voice channel.
   ///
   /// A plain insert, not an RPC: the value is opaque to the server and every
-  /// rule about who may write one is in 032's policy — a member of the room,
+  /// rule about who may write one is in its write policy — a member of the room,
   /// never a bot, and `is_channel_key` only where a listening grant exists.
   /// A conflict means another member's client got there first, which is the
   /// same non-event it is when healing a member.
@@ -221,7 +219,7 @@ mixin _BotApiMixin {
   /// hour no matter what the table says — so revoking without the live push
   /// would leave it listening for up to an hour behind a light drawn as off.
   /// The function calls the RPC with the caller's JWT, so the permission rules
-  /// stay in the database (`009_bot_voice.sql`).
+  /// stay in the database.
   Future<APIResponse> setBotVoiceListen(
     String supabaseUrl, {
     required String anonKey,

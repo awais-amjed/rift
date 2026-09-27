@@ -1,5 +1,5 @@
 /// What to tell somebody whose call the server refused or could not answer,
-/// by the code it raised (`start_dm_call`, `answer_dm_call`, 003).
+/// by the code it raised (`start_dm_call`, `answer_dm_call`).
 ///
 /// Pure, like [DmRefusal], and for the same reason: `call_not_accepted` covers
 /// a block and must read like a setting, never like being blocked.

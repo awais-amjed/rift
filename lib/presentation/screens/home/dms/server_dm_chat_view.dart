@@ -305,7 +305,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
               ServerLimits.defaults)
           .maxAttachmentBytes;
 
-  /// What the whole server has room for (migration 029), or null when it has
+  /// What the whole server has room for, or null when it has
   /// no storage limit. Server DMs live in the same bucket as the channels,
   /// so they answer to the same ceiling.
   int? _remainingStorage() {

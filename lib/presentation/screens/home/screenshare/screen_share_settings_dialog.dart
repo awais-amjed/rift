@@ -29,7 +29,7 @@ import 'widgets/settings_dialog_header.dart';
 /// themselves live in [ScreenShareSettingsForm].
 class ScreenShareSettingsDialog extends StatefulWidget {
   /// What the server this call is on allows a share to use, or
-  /// [ServerLimits.unlimited] (migration 028). Passed in rather than read
+  /// [ServerLimits.unlimited]. Passed in rather than read
   /// from a cubit here: the caller is already holding the selected server,
   /// and a dialog is the wrong place to go looking for one.
   final int maxShareMbps;

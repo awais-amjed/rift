@@ -41,8 +41,8 @@ part 'server_repository_webhooks.dart';
 /// All I/O against a self-hosted server.
 ///
 /// Two transports, and which one a call uses is not arbitrary. Almost
-/// everything is a **direct PostgREST call** under the policies in migration
-/// 002 — reading messages, sending one, editing your own, member lists,
+/// everything is a **direct PostgREST call** under the row-level security
+/// policies — reading messages, sending one, editing your own, member lists,
 /// channels, invites, read cursors. What remains an **edge function** is only
 /// what genuinely can't be a table call:
 ///

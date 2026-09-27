@@ -235,13 +235,13 @@ void _botTests() {
 /// In a private channel, only the people who can open it — and that rule now
 /// lives in the query.
 ///
-/// `validate_message_mentions` (`007_channels.sql`) strips the rest: it keeps only
+/// `validate_message_mentions` strips the rest: it keeps only
 /// ids passing `app.channel_eligible`. That is silent, so a composer offering
 /// the whole server let somebody pick a name, watch it highlight, and never
 /// learn the ping was dropped.
 ///
 /// The client used to answer it with a filter over the roster it held. It no
-/// longer holds one (`011_directory.sql`), so every caller asks `search_members` or
+/// longer holds one, so every caller asks `search_members` or
 /// `members_by_usernames` **with the channel** and what comes back is already
 /// only people a message here reaches. The rule is tested where it is now
 /// enforced — `policies_test.sql` §18 and §23. What is left here is the part

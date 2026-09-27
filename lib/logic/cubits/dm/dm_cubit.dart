@@ -207,7 +207,7 @@ class DmCubit extends Cubit<DmState>
   // Realtime doorbells
   // ──────────────────────────────────────────────────────────
 
-  /// The database rings us itself (migration 017) — a DM arrives the same way
+  /// The database rings us itself — a DM arrives the same way
   /// whether a person or a bot sent it, and nobody has to remember to say so.
   /// What it carries is ids; the row is what's true, and we go and read it.
   void _setupRealtime(Server server) {

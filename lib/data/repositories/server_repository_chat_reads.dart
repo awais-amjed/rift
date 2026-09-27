@@ -3,8 +3,8 @@ part of 'server_repository.dart';
 /// Reading message envelopes off a self-hosted server: pages of history, and
 /// one row at a time when a doorbell says it changed.
 ///
-/// Every read here returns rows the caller may see under the policies in
-/// `001_core.sql` — the client does no filtering of its own beyond decrypting
+/// Every read here returns rows the caller may see under the row-level
+/// security policies — the client does no filtering of its own beyond decrypting
 /// and verifying what comes back.
 mixin _ChatReadApiMixin {
   ServerDb get _db;
@@ -51,7 +51,7 @@ mixin _ChatReadApiMixin {
     final reactions = (row[reactionsKey] as List? ?? const [])
         .cast<Map<String, dynamic>>();
     // A webhook's message has no sender row to embed — `origin_name` is the
-    // name, frozen on the message itself (`004_webhooks.sql`). Taking it here rather
+    // name, frozen on the message itself. Taking it here rather
     // than in each cubit keeps every reader on the same answer, and keeps the
     // 'Unknown' fallback for what it is actually for: a member whose row is
     // gone.

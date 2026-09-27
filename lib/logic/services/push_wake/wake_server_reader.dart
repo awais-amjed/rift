@@ -95,8 +95,8 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
     final counts = unread.data as Map<String, dynamic>?;
     if (!unread.success || counts == null) return failedHarvest;
 
-    // `unread_counts()` answers with the levels beside the counts (migration
-    // 012), so the isolate learns what may interrupt in the same round trip
+    // `unread_counts()` answers with the levels beside the counts,
+    // so the isolate learns what may interrupt in the same round trip
     // that tells it what is waiting — and cannot end up drawing on one and
     // deciding on the other.
     final prefs = counts['prefs'];

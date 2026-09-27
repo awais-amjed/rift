@@ -5,7 +5,7 @@ import 'package:rift/data/classes/paged.dart';
 import 'package:rift/data/enums/friendship_state.dart';
 
 /// The client half of the friends gate, now that the rows arrive a tab at a
-/// time (central migration 014).
+/// time.
 ///
 /// What used to live here — "which conversations are worth showing" — has gone
 /// to the database, where the filter is on the same side of the page boundary

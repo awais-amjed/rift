@@ -117,7 +117,7 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   final AttachmentRepository _attachments = AttachmentRepository();
 
-  /// Avatar upload/download — plaintext, unlike attachments (`005_bots.sql`).
+  /// Avatar upload/download — plaintext, unlike attachments.
   @override
   final AvatarRepository _avatars = AvatarRepository();
 

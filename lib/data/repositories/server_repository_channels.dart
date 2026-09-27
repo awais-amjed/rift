@@ -8,7 +8,7 @@ part of 'server_repository.dart';
 /// moment where a channel is private and everybody is still in it; the second
 /// leaves a rotation marker behind, because opening a room must not hand its
 /// private history to the next person who joins the server (ARCHITECTURE.md
-/// §4, `007_channels.sql`).
+/// §4).
 ///
 /// `is_private` has no column grant at all, which is what makes that second one
 /// the only way in rather than the polite way in.
@@ -30,7 +30,7 @@ mixin _ChannelApiMixin {
   /// RETURNING` applies the *select* policy to the row it hands back, and a
   /// private channel's select policy asks whether the caller is in it — which
   /// they are not until the after-insert trigger seats them, which has not run
-  /// yet. The insert succeeded and reading its own row did not (`007_channels.sql`).
+  /// yet. The insert succeeded and reading its own row did not (`channels_seed_owner`).
   ///
   /// Doing it in one statement also removes the mistake the two-call version
   /// was one forgotten id away from: `set_channel_members` replaces a

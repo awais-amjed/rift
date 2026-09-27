@@ -21,7 +21,7 @@ import 'member_pick_row.dart';
 /// and a checkbox that cannot be unticked is a worse way of saying so than not
 /// drawing one.
 ///
-/// **The search is the server's** (`011_directory.sql`). It used to be a local filter
+/// **The search is the server's** (`search_members`). It used to be a local filter
 /// over the whole roster, which is a filter over whoever happened to fit in the
 /// first thousand rows — on a big server, typing a name that was really there
 /// returned "No matches", and the fix was not a bigger fetch but asking the

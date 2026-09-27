@@ -12,7 +12,7 @@ enum PermissionGroup {
 /// Over the helper budget and one job: the permission bits, each with the
 /// comment that says what it lets someone do.
 ///
-/// One bit of `roles.permissions` (`006_roles.sql`).
+/// One bit of `roles.permissions` (`app.perm_bit`).
 ///
 /// The numbers are a wire contract, not an implementation detail: they are
 /// assigned once in `app.perm_bit` and never reused, and a retired permission
@@ -22,7 +22,7 @@ enum PermissionGroup {
 /// Two implementations of that list is two things that can disagree, and the
 /// disagreement is quiet — a client would simply draw the wrong buttons. The
 /// database is the one that decides, so the failure is cosmetic; it is still
-/// worth keeping the order here identical to the migration's.
+/// worth keeping the order here identical to `app.perm_bit`'s.
 ///
 /// The descriptions are the product. Somebody ticking a box in a permission
 /// matrix is deciding what another person can do to a room full of people, and
@@ -45,7 +45,7 @@ enum ServerPermission {
     'Rename the server, change its icon, and set how long messages are kept.',
   ),
 
-  /// Retired by `005_bots.sql`: roles are an administrator's to shape, and
+  /// Retired when bots arrived: roles are an administrator's to shape, and
   /// the bit opens nothing any more. Kept so the number stays taken and an
   /// old role carrying it still parses; hidden from the editor.
   manageRoles(
@@ -178,7 +178,7 @@ enum ServerPermission {
     'Drag somebody into another call, or disconnect them from one.',
   ),
 
-  // ── 020 ─────────────────────────────────────────────────
+  // ── Private channels ─────────────────────────────────────────────
   createPrivateChannel(
     21,
     PermissionGroup.server,
@@ -187,7 +187,7 @@ enum ServerPermission {
         'server admins, who hold no key to it either.',
   ),
 
-  // ── 036 ─────────────────────────────────────────────────
+  // ── Bots ────────────────────────────────────────────────────────
   addBots(
     22,
     PermissionGroup.server,

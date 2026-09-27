@@ -19,7 +19,7 @@ import '../../../../../theme/theme_context.dart';
 /// So there is no list. You type a handle you already know — because somebody
 /// told it to you, which is the only way handles travel — and the server
 /// answers by either sending the request or saying nobody is using it. The
-/// lookup and the request are the same call (central migration 012), so this
+/// lookup and the request are the same call, so this
 /// cannot be used to check whether a handle exists without also knocking.
 ///
 /// The button is not merely decoration over the same behaviour: it is what

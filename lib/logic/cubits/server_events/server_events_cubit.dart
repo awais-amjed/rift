@@ -32,7 +32,7 @@ class ServerEventsCubit extends Cubit<int> {
 
   /// The doorbell above is a courtesy — it only rings if the member who made
   /// the change remembered to ring it, and never for someone who was offline.
-  /// The database says `channels` itself whenever one moves (migration 017),
+  /// The database says `channels` itself whenever one moves,
   /// so this is the authoritative half: a rename or a deletion reaches
   /// everyone whatever the actor did.
   late final ServerTopicWatcher _channelsWatcher;

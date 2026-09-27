@@ -4,8 +4,8 @@ import '../../data/classes/server_member.dart';
 ///
 /// The ids are what gets saved; the rows are what gets drawn. Holding only the
 /// ids was fine while the whole roster sat in memory — a row could always be
-/// looked up in it. Now that the roster arrives a page at a time (migration
-/// 039) somebody already ticked may not be in the page on screen, and a picker
+/// looked up in it. Now that the roster arrives a page at a time,
+/// somebody already ticked may not be in the page on screen, and a picker
 /// that could not draw them would silently drop them from the list of people it
 /// is about to save.
 ///

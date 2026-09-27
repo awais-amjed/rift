@@ -169,8 +169,8 @@ void main() {
     });
 
     test('leaves out @all — it is a flag, not a person', () {
-      // Nobody may be called it (`users_username_not_reserved`, migration
-      // 012), so asking the server to resolve it is asking about a name that
+      // Nobody may be called it (`users_username_not_reserved`),
+      // so asking the server to resolve it is asking about a name that
       // cannot exist.
       expect(Mentions.namesIn('@all hands @ada'), ['ada']);
     });

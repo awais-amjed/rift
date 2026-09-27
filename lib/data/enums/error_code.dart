@@ -32,13 +32,13 @@ class ErrorCode {
   /// connection to tell, so there is nothing to move.
   static const String userNotInVoice = 'user_not_in_voice';
 
-  /// The call already holds `max_voice_participants` people (self-host 028).
+  /// The call already holds `max_voice_participants` people.
   /// Not a permission failure and not a fault: a seat may free up at any
   /// moment, so the client offers to try again.
   static const String voiceChannelFull = 'voice_channel_full';
 
   // ── Server ───────────────────────────────────────────────────────────────────
-  /// The server already holds `max_members` people (self-host 029). Returned
+  /// The server already holds `max_members` people. Returned
   /// by `register`, where it is the last refusal checked — everything above it
   /// is a fact about the caller, this is a fact about the server.
   static const String serverFull = 'server_full';
@@ -99,9 +99,8 @@ class ErrorCode {
   /// outside what Storage will accept.
   static const String limitInvalid = 'limit_invalid';
 
-  /// The sender is out of daily messages for this channel or for DMs. Raised by
-  /// the quota trigger in `002_limits.sql`, and by central's `send_dm` RPC — one
-  /// code for the same wall on either tier.
+  /// The sender is out of daily DMs. Raised by central's `send_dm` RPC; a
+  /// self-hosted server has no message quota.
   static const String quotaExceeded = 'quota_exceeded';
 
   // ── Client-side ───────────────────────────────────────────────────────────────

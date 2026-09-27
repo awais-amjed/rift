@@ -13,7 +13,7 @@ import '../../../../theme/theme_context.dart';
 /// Sending a summoned bot away.
 ///
 /// Only for a bot, and only from a call it is actually in — a summon is per
-/// channel (`010_bot_permissions.sql`), so "send away" needs to name one and the one it
+/// channel (`bot_voice_summons`), so "send away" needs to name one and the one it
 /// names is the room you are looking at.
 ///
 /// **Not behind `MANAGE_BOTS`.** Dismissing needs no more than being able to

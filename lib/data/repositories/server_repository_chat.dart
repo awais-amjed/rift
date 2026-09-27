@@ -77,7 +77,7 @@ mixin _ChatApiMixin {
   /// are the only part of a message that does. The server cannot open the
   /// envelope, so they are the only way it can tell a message that named
   /// somebody from one that did not — which is what a mentions-only channel
-  /// turns on (`003_push.sql`, which argues the trade at length). They are
+  /// turns on (the `messages.mentions` column comment argues the trade). They are
   /// validated there, not trusted: ids that aren't live members are dropped
   /// and the array is capped.
   Future<APIResponse> sendMessage(
@@ -103,7 +103,7 @@ mixin _ChatApiMixin {
             // Set only for a `/` command, and the reason the envelope above is
             // unsealed when it is. `messages_insert` refuses the two confusing
             // shapes: plaintext addressed to nobody, and a sealed body
-            // addressed to a bot that could never open it (`005_bots.sql`).
+            // addressed to a bot that could never open it.
             'to_bot': ?toBot,
             // A poll's rules, which the server enforces; its words are in the
             // envelope. `check_poll` rewrites `closes_at` into one spelling,
@@ -115,7 +115,7 @@ mixin _ChatApiMixin {
     });
   }
 
-  /// Press something on a bot's panel (`009_bot_voice.sql`).
+  /// Press something on a bot's panel.
   ///
   /// Not a message, and marked as one that isn't: `is_interaction` keeps the
   /// row out of every view except the presser's own and the bot's, wakes
@@ -286,7 +286,7 @@ mixin _ChatApiMixin {
   /// and the latest envelope, newest activity first.
   ///
   /// [before] is the newest message id of the last row already held — the
-  /// cursor `dm_conversations` pages backwards on (`011_directory.sql`). Null asks
+  /// cursor `dm_conversations` pages backwards on. Null asks
   /// for the top of the list. The reply is `{conversations, has_more}` as the
   /// RPC returns it; it used to be wrapped here because the RPC answered with a
   /// bare array and there was no second fact to carry.

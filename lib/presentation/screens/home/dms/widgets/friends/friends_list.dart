@@ -25,7 +25,7 @@ import 'friends_tab_bar.dart';
 /// a single list of both would put an action you must take next to one you
 /// can only wait on. They are two buckets on the wire for the same reason.
 ///
-/// **The rows arrive when the tab is opened** (central migration 014), and
+/// **The rows arrive when the tab is opened**, and
 /// page as it is scrolled. Nothing outside a tab reads its rows any more — the
 /// badge and the tab labels come from `friend_counts`, and a conversation's
 /// state rides on the conversation row — so there is nothing left that needed

@@ -9,7 +9,7 @@ import 'storage_rest.dart';
 ///
 /// Unlike [AttachmentRepository] these bytes are **not encrypted** — an avatar
 /// is shown to every member, so per-member wrapping of a picture everyone sees
-/// anyway buys nothing (`005_bots.sql`). The bucket is still private: reading
+/// anyway buys nothing. The bucket is still private: reading
 /// requires a member token, so avatars aren't exposed to the unauthenticated
 /// internet.
 ///

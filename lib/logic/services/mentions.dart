@@ -20,7 +20,7 @@ class Mentions {
   const Mentions._();
 
   /// The name that means everybody. Reserved: `users_username_not_reserved`
-  /// (`003_push.sql`) stops anyone being called this, so `@all` can
+  /// stops anyone being called this, so `@all` can
   /// never be ambiguous between a room and a person.
   static const everyone = 'all';
 
@@ -52,7 +52,7 @@ class Mentions {
   /// the *query's* now rather than this filter's: every caller asks
   /// `search_members` or `members_by_usernames` with the channel, so what comes
   /// back can already only be people a message here reaches. Doing it any other
-  /// way means being a second copy of `app.channel_eligible` (`011_directory.sql`).
+  /// way means being a second copy of `app.channel_eligible`.
   ///
   /// Both refusals have to reach every surface or they become a lie somewhere:
   /// an `@` menu that offers a name, a name that lights up as though it
@@ -64,7 +64,7 @@ class Mentions {
   ///
   /// `@all` is left out: it is a flag rather than a person, and asking the
   /// server to resolve it would be asking about a name nobody may hold
-  /// (`users_username_not_reserved`, `003_push.sql`).
+  /// (`users_username_not_reserved`).
   ///
   /// This is what makes mention resolution bounded. It used to be answered out
   /// of the whole roster held in memory; now the client asks the database about

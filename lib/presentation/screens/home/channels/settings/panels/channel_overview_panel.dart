@@ -28,7 +28,7 @@ import '../../widgets/voice_region_field.dart';
 ///
 /// Both retention boxes are three-valued and the helper line under each is what
 /// makes that legible: blank inherits the server's number, 0 opts this channel
-/// out of it, and a number sets its own. See `002_limits.sql`.
+/// out of it, and a number sets its own. See `app.enforce_retention`.
 class ChannelOverviewPanel extends StatefulWidget {
   final Channel channel;
 

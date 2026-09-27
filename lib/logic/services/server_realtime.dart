@@ -24,7 +24,7 @@ typedef RealtimeDispatch = void Function(String key, RealtimePayload payload);
 ///
 /// Every `SupabaseClient` opens a WebSocket of its own, and a server counts
 /// sockets, not people: its Realtime tenant admits a fixed number of them
-/// (the console's default is 1,000), so each client a feature built for
+/// (the console's default is 1), so each client a feature built for
 /// itself took one more place. Nine features each did, and a member looking
 /// at a server held eight sockets to it — a server was full at about a
 /// hundred and twenty-five people online.
@@ -34,7 +34,7 @@ typedef RealtimeDispatch = void Function(String key, RealtimePayload payload);
 /// of a topic therefore share its join, and each hears it through [RealtimeLease].
 ///
 /// Every topic is private: the server admits a join only if its rules
-/// (`app.can_use_topic`, migration 017) say this member may hear it. So the
+/// (`app.can_use_topic`) say this member may hear it. So the
 /// connection carries the member's JWT, followed as it rotates — a join on an
 /// expired token is refused, and one whose token ran out is closed.
 class ServerRealtime {

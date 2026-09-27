@@ -31,8 +31,8 @@ import '../widgets/manage_panel.dart';
 /// makes names that server, so the roster and the permission writes cannot drift
 /// onto a different one.
 ///
-/// **The roster is paged, and searching is the database's job** (migration
-/// 039). This page used to read every member in one call, which PostgREST cut
+/// **The roster is paged, and searching is the database's job**.
+/// This page used to read every member in one call, which PostgREST cut
 /// at 1000 rows — so on a large server the last members alphabetically could
 /// not be moderated at all, and the header confidently reported a membership of
 /// exactly a thousand. Now it walks pages as you scroll, counts with

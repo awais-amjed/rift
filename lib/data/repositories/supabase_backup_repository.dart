@@ -75,7 +75,7 @@ class SupabaseBackupRepository {
     }
   }
 
-  /// Whether nobody has [handle] yet (central migration 016). Answerable
+  /// Whether nobody has [handle] yet. Answerable
   /// before there is an account, which is the point: the refusal belongs on
   /// the sign-up form, not on the DM tab a day later.
   Future<APIResponse> isHandleAvailable(String handle) async {

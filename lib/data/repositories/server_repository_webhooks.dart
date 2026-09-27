@@ -1,6 +1,6 @@
 part of 'server_repository.dart';
 
-/// Webhook management on a self-hosted server (`004_webhooks.sql`, BOTS.md §7).
+/// Webhook management on a self-hosted server (BOTS.md §7).
 ///
 /// Reads and deletes are direct table calls under `webhooks_select` /
 /// `webhooks_delete`, both of which require `app.can_manage_channels()`.

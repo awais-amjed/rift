@@ -4,7 +4,7 @@ part of 'central_dm_repository.dart';
 /// answer, and who you have shut out.
 ///
 /// Every one of these is an RPC rather than a table write, and that is the
-/// design rather than a convenience (central migration 012). There is no
+/// design rather than a convenience. There is no
 /// INSERT, UPDATE or DELETE grant on `friendships` or `blocks` at all, because
 /// each change carries a rule with it — a request may not be accepted by the
 /// person who sent it, a block has to tear the friendship down with it — and a
@@ -26,7 +26,7 @@ mixin _CentralDmFriendsMixin {
     'sender_has_no_profile',
   ];
 
-  /// How many people are in each part of the graph (central migration 014).
+  /// How many people are in each part of the graph.
   ///
   /// Small enough to be eager, which is the whole reason the rows are not: this
   /// feeds the rail badge and the three tab labels, and those are on screen
@@ -132,7 +132,7 @@ mixin _CentralDmFriendsMixin {
   /// It resolves and asks in one statement, and that is the design rather than
   /// a shortcut. A `find_user(handle)` that merely answered with an id would be
   /// a cheap, silent, repeatable oracle over the whole membership — the
-  /// enumeration `003_push.sql` removed, minus the typing. Here the answer *is*
+  /// enumeration the directory policy removed, minus the typing. Here the answer *is*
   /// the request: every successful lookup lands in somebody's Pending list,
   /// under the caller's handle, where it can be declined or blocked.
   ///

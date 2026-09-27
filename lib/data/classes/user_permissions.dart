@@ -7,20 +7,19 @@ class UserPermissions {
   final bool isChannelManager;
   final bool canCreateTokens;
 
-  /// Whether this member holds the server's owner role (`004_webhooks.sql`) — a
+  /// Whether this member holds the server's owner role (`roles.is_owner`) — a
   /// fourth cached column beside the three above, kept by the same trigger.
   /// Not a permission bit: an owner is an administrator who can also end the
   /// server or hand it on, and those two are gated on this alone.
   final bool isOwner;
 
-  /// Everything this member holds, as `my_permissions()` returned it
-  /// (`007_channels.sql`).
+  /// Everything this member holds, as `my_permissions()` returned it.
   ///
   /// The three booleans above are a *cache* of three of these bits, kept by a
   /// trigger since 018. They stay because every policy and every older client
   /// reads them; anything that needs one of the other nineteen reads this.
   ///
-  /// Zero for a member whose server predates 021, which is why the booleans are
+  /// Zero for a member whose server predates the ladder, which is why the booleans are
   /// still the answer for the three questions they can answer.
   final int bits;
 

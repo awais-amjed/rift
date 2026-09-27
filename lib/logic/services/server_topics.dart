@@ -1,9 +1,9 @@
 /// The Realtime topics a self-hosted server speaks on, and what is said there.
 ///
-/// Every one is private (migration 017's `app.can_use_topic` decides who may
+/// Every one is private (`app.can_use_topic` decides who may
 /// join), and most of what is said comes from the database itself, not from
-/// another client — the names below are the other half of that migration's
-/// triggers, and have to match them exactly.
+/// another client — the names below are the other half of the database's
+/// announce triggers, and have to match them exactly.
 class ServerTopics {
   const ServerTopics._();
 
@@ -18,7 +18,7 @@ class ServerTopics {
   static String chat(String channelId) => 'chat:$channelId';
 
   /// What the database says about one **private** channel, for whoever can
-  /// see it (migration 027).
+  /// see it.
   ///
   /// An open channel's news goes to [server]; a private one cannot, because
   /// that topic is the whole membership. It used to be sent to each member's

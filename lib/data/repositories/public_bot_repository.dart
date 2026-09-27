@@ -173,7 +173,7 @@ class PublicBotRepository {
   /// the likes go with it.
   Future<APIResponse> remove(String botId) async {
     try {
-      // A listing a moderator hid cannot go (central 007), and a delete the
+      // A listing a moderator hid cannot go, and a delete the
       // policy refuses is an empty result rather than an error.
       final gone = await _client
           .from(_table)

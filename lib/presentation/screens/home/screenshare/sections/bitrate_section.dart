@@ -9,7 +9,7 @@ import '../widgets/settings_section.dart';
 /// Section for selecting video bitrate.
 ///
 /// [maxMbps] is what this server allows, or [ServerLimits.unlimited] when it
-/// allows anything (migration 028). A share goes out at full rate to every
+/// allows anything. A share goes out at full rate to every
 /// watcher with nothing downscaling in between, so an operator may well have
 /// set one — and the picker has to say so, because the alternative is
 /// offering 15 Mbps, accepting it, and publishing at 3 without a word.

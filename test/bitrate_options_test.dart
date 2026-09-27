@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/server_limits.dart';
 import 'package:rift/presentation/screens/home/screenshare/sections/bitrate_section.dart';
 
-/// The bitrate picker against a server that caps shares (migration 028).
+/// The bitrate picker against a server that caps shares.
 ///
 /// Pure: these are the two static rules the widget draws itself from, and the
 /// bug they exist to stop is silent — a picker lighting one number while the

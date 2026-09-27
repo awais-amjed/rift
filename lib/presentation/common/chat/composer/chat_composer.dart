@@ -60,7 +60,7 @@ class ChatComposer extends StatefulWidget {
   onSend;
 
   /// Who can be named, asked of the server for what has been typed after the
-  /// `@` (`011_directory.sql`).
+  /// `@` (`search_members`).
   ///
   /// Null turns the menu off, which is right where there is nobody to name —
   /// a DM has one other person and they are the conversation.
@@ -123,7 +123,7 @@ class ChatComposer extends StatefulWidget {
   /// is still the enforcement — this is the courtesy.
   final int maxAttachmentBytes;
 
-  /// What the server has room for in total (migration 029), or null when it
+  /// What the server has room for in total, or null when it
   /// has no storage limit. Advisory: a trigger on the storage table is what
   /// actually refuses, and this only exists so the refusal arrives as a
   /// sentence before the upload rather than an HTTP 500 after it.

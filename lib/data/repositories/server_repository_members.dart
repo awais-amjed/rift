@@ -1,6 +1,6 @@
 part of 'server_repository.dart';
 
-/// The member directory (`011_directory.sql`) — the roster a page at a time, and the
+/// The member directory (`member_directory`) — the roster a page at a time, and the
 /// lookups that replace holding all of it.
 ///
 /// Split from `_AuthApiMixin`, which used to hold the one call this file

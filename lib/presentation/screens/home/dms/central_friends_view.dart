@@ -42,7 +42,7 @@ class _CentralFriendsViewState extends State<CentralFriendsView> {
   }
 
   /// Ask for the rows behind a tab as it is shown. The counts are already in
-  /// hand — they arrive with the account (central migration 014) — so the tab
+  /// hand — they arrive with the account — so the tab
   /// bar is drawn correctly before any of this lands.
   void _open(FriendsTab tab) {
     final cubit = context.read<CentralDmCubit>();

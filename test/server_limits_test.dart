@@ -13,8 +13,8 @@ void main() {
     });
 
     test('the size cap defaults to the bucket ceiling that predated it', () {
-      // 25 MB — what the server's 005_storage.sql hardcoded
-      // before 007 made it a column.
+      // 25 MB — what the server's storage bucket hardcoded
+      // before it became a column.
       expect(ServerLimits.defaults.maxAttachmentBytes, 26214400);
     });
 
@@ -73,7 +73,7 @@ void main() {
     });
 
     test('a server still reporting the dropped quota columns ignores them', () {
-      // An earlier draft of 007 shipped daily quotas. A server that ran it and
+      // An earlier draft shipped daily quotas. A server that ran it and
       // hasn't been migrated forward must not confuse the client.
       final limits = ServerLimits.fromJson(const {
         'max_attachment_bytes': 1048576,
@@ -253,7 +253,7 @@ void main() {
     });
 
     test('a server too old to know about these parses without them', () {
-      // The columns arrived in 028; a client that has been updated will meet
+      // The columns are newer than the rest; a client that has been updated will meet
       // servers that have not, and the answer is "no limit" rather than a
       // crash or a zero that reads as "nothing may be shared".
       final limits = ServerLimits.fromJson(const {

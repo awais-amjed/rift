@@ -7,7 +7,7 @@
 ///
 /// It used to serve the server-details call too, along with a `uidOf` that
 /// read the caller's own JWT and a `stampManagedChannels` that went back to
-/// the database for the manage seat. `get_server_details()` (self-host 022)
+/// the database for the manage seat. `get_server_details()`
 /// builds that row in SQL now, so the member list is the only caller left.
 class ServerUserRow {
   const ServerUserRow._();

@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/logic/services/attachment_staging.dart';
 
-/// Picking a file against a server that is running out of disk (migration
-/// 029). The refusal that comes back from Storage is an HTTP 500 with a
+/// Picking a file against a server that is running out of disk.
+/// The refusal that comes back from Storage is an HTTP 500 with a
 /// Postgres error code in it, so this is what a person actually reads.
 void main() {
   String? reject({

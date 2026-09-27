@@ -222,7 +222,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
   /// arrive from somebody who is not a friend, so there is no stranger left to
   /// leave out — and an old message from somebody blocked afterwards, which
   /// should not get to ring a phone, is dropped by `dm_conversations` before
-  /// the list is built (central migration 014).
+  /// the list is built.
   @override
   void _notifyFromConversations(List<DmConversation> conversations) {
     _notifier.scan(conversations, titleFor: (c) => c.peerName);

@@ -11,7 +11,7 @@ import '../../../../theme/theme_context.dart';
 /// The search row at the top of Manage server › Members.
 ///
 /// It exists because the list below it is a page rather than the whole roster
-/// (`011_directory.sql`). Scrolling to somebody is fine at fifty members and useless
+/// (`member_directory`). Scrolling to somebody is fine at fifty members and useless
 /// at five thousand, so the way to reach a person is to name them — and the
 /// answer comes from the database, which is the only thing that has seen all of
 /// them.

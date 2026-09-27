@@ -216,8 +216,7 @@ class CentralDmRepository
     }
   }
 
-  /// One page of the caller's conversations, newest first (central migration
-  /// 013).
+  /// One page of the caller's conversations, newest first.
   ///
   /// Answers `{conversations, has_more}`, and each conversation carries
   /// everything its row draws: the peer and their published keys, the newest
@@ -258,7 +257,7 @@ class CentralDmRepository
   // ──────────────────────────────────────────────────────────
 
   /// Hear what the central database says to us alone, on our own private
-  /// topic (central migration 021): [onInsert] for a DM that arrived,
+  /// topic: [onInsert] for a DM that arrived,
   /// [onUpdate] for one its sender edited or deleted, [onPrefsChanged] for a
   /// notification level set on another device, [onGraphChanged] for a
   /// friendship or a block, and [onPinChanged] for a pin either side moved.

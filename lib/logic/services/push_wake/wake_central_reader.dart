@@ -76,7 +76,7 @@ class WakeCentralReader {
       final unread = _unreadDms(counts);
       if (unread.isEmpty) return emptyHarvest;
 
-      // Levels arrive with the counts (central migration 011), so a muted
+      // Levels arrive with the counts, so a muted
       // conversation is dropped here as well as at the ring trigger — a wake
       // caused by somebody else must not speak for it on the way past.
       final prefs = counts is Map ? counts['prefs'] : null;

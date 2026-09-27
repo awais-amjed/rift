@@ -24,7 +24,7 @@ class AttachmentStaging {
   ///
   /// The size cap is the server's; the count cap is Rift's. Both are phrased
   /// as complete sentences because they are shown verbatim.
-  /// [remainingBytes] is what the server has room for (migration 029), or
+  /// [remainingBytes] is what the server has room for, or
   /// null when it has no storage limit. [stagedBytes] is what this message is
   /// already carrying, which counts against it — five files that each fit and
   /// together do not is the case a per-file check alone would wave through.

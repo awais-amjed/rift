@@ -3,8 +3,8 @@ import '../../data/classes/role.dart';
 /// Where somebody stands on a server's role ladder, and what that lets them
 /// hand out.
 ///
-/// Every delegation rule since `001_core.sql` is decided on position — you may
-/// only touch a role strictly below your own — and, since 015, on being an
+/// Every delegation rule is decided on position — you may
+/// only touch a role strictly below your own — and on being an
 /// administrator at all. So this is the
 /// same two lines four different screens were each working out for themselves:
 /// the roles list, one member's roles, the participant menu and the invite
@@ -52,7 +52,7 @@ class RoleLadder {
   }
 
   /// Everything an administrator at [rank] may **edit or reorder**, most
-  /// senior first. Empty for anybody else (015): the editor is an
+  /// senior first. Empty for anybody else: the editor is an
   /// administrator's, whatever bits somebody holds.
   ///
   /// The baseline is excluded. It is not a rung on the ladder — it is what
@@ -71,9 +71,9 @@ class RoleLadder {
   /// Everything they may **hand out**, which is not the same list.
   ///
   /// Editing is strictly-below; assigning is at-or-below, so the only admin
-  /// on a server can make a second one. Both are an administrator's alone
-  /// since 015, and the owner role is on neither list — it outranks
-  /// everybody and moves only by transfer (013).
+  /// on a server can make a second one. Both are an administrator's alone,
+  /// and the owner role is on neither list — it outranks
+  /// everybody and moves only by transfer.
   static List<Role> assignable(
     List<Role> roles, {
     required bool isAdministrator,

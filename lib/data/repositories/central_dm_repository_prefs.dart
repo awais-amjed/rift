@@ -8,8 +8,8 @@ part of 'central_dm_repository.dart';
 /// stop trusting. RLS is own-row, so nobody learns that they have been muted.
 ///
 /// The same table, with the same `scope`/`scope_id` shape, is what a
-/// self-hosted server uses for its channels and DMs (`003_push.sql` there,
-/// 011 here).
+/// self-hosted server uses for its channels and DMs (`notification_prefs`
+/// on both).
 mixin _CentralDmPrefsMixin {
   SupabaseClient get _client;
 
@@ -18,7 +18,7 @@ mixin _CentralDmPrefsMixin {
   /// There is no read here any more. Reading every row of this table to draw
   /// the rows already on screen was a whole-table fetch of something that grows
   /// with the number of conversations, so the level rides on the conversation
-  /// row instead (central migration 013). A conversation nobody has an opinion
+  /// row instead. A conversation nobody has an opinion
   /// about carries a null level, which is what lets the default be changed
   /// later without rewriting anybody's table.
   ///

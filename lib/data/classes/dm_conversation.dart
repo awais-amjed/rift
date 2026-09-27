@@ -17,8 +17,7 @@ class DmConversation {
 
   final ChatMessage? lastMessage;
 
-  /// Where the caller stands with this person, resolved by the server
-  /// (central migration 014).
+  /// Where the caller stands with this person, resolved by the server.
   ///
   /// On the row because this is the only place it is asked, and because the
   /// alternative was holding the whole friends graph to answer it. Null on a

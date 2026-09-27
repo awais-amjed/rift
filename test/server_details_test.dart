@@ -3,8 +3,8 @@ import 'package:rift/data/classes/server_details.dart';
 import 'package:rift/data/classes/server_limits.dart';
 
 void main() {
-  // The full shape `get_server_details()` returns (self-host 022, extended by
-  // 028 and 029), trimmed to what the parser reads.
+  // The full shape `get_server_details()` returns, trimmed to
+  // what the parser reads.
   Map<String, dynamic> reply() => {
     'server_id': 'srv1',
     'name': 'Cartography Club',
@@ -69,7 +69,7 @@ void main() {
       expect(d.livekitUrl, isNull);
     });
 
-    // An older server has the 022 columns but not 028's or 029's. That reply
+    // An older server has the original columns but not the call and size limits. That reply
     // does carry limits, and the caps it does not mention are "no cap" —
     // which is the right answer for a server that cannot enforce them.
     test('a server too old for the newer caps reports them unlimited', () {

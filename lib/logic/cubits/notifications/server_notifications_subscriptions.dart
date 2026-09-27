@@ -55,7 +55,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
     }
   }
 
-  /// Hear new messages as the database announces them (migration 017): on the
+  /// Hear new messages as the database announces them: on the
   /// server's topic for open channels, and on our own for private channels,
   /// ephemeral replies, DMs and a notification level set on another device.
   ///
@@ -101,7 +101,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   }
 
   /// Hold one topic per private channel the caller can see, and let the rest
-  /// go (migration 027).
+  /// go.
   ///
   /// A private channel's messages cannot go to the server's topic — that is
   /// everybody — so before this the database announced them to each member

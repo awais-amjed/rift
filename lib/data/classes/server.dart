@@ -15,12 +15,12 @@ class Server {
   final ServerUser? user;
   final List<Channel> channels;
 
-  /// The operator limits this server reports (`002_limits.sql`). Never null — a
+  /// The operator limits this server reports (columns on `servers`). Never null — a
   /// server that has never had them set, or is too old to have the columns,
   /// reports [ServerLimits.defaults].
   final ServerLimits limits;
 
-  /// Bytes of attachments this server is currently holding (migration 029),
+  /// Bytes of attachments this server is currently holding,
   /// as of the last time its details were fetched.
   ///
   /// Not a limit but the thing [ServerLimits.maxStorageBytes] is judged

@@ -155,7 +155,7 @@ mixin _LevelsMixin on Cubit<NotificationsState> {
   ///
   /// The only thing here that can answer at all: the body is ciphertext and
   /// this subscription holds no channel key. `mentions` and `mentions_all` are
-  /// plaintext columns the sender wrote (`003_push.sql`), which is
+  /// plaintext columns the sender wrote, which is
   /// what lets a mentions-only channel be quiet for everything except the
   /// message that named you.
   ///

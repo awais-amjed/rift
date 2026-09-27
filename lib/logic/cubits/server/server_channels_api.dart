@@ -20,7 +20,7 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
   /// Create a new channel in the selected server.
   ///
   /// [memberIds] is only read when [isPrivate], and never has to include the
-  /// creator: `create_channel` seats them itself (`007_channels.sql`).
+  /// creator: `create_channel` seats them itself.
   Future<({bool success, String? error})> createChannel({
     required String name,
     required String channelType,
@@ -57,7 +57,7 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     }
 
     // Our own list, to include the channel we just made. Everybody else
-    // hears it from the database — `channels_announce` (migration 017) fires
+    // hears it from the database — `channels_announce` fires
     // on the row, so it reaches members who were offline when we rang and
     // members on a server nobody rang. The doorbell used to be sent here too
     // and only ever arrived as a second identical answer.

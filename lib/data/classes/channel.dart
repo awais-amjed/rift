@@ -35,7 +35,7 @@ class Channel {
   /// server-wide permission; the menu asks [ServerPermission] there.
   ///
   /// It is on the channel rather than looked up by the menu because the
-  /// server's delete policy has asked this seat since `002_limits.sql`, and a
+  /// server's delete policy asks about this seat, and a
   /// menu that did not know about it offered the creator of a room no way to
   /// end it.
   final bool canManage;

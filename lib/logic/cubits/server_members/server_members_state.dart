@@ -93,7 +93,7 @@ class ServerMembersState {
   }
 
   /// The most senior role [userId] holds — what a chip beside their name
-  /// says, colour or not. Null for somebody holding none, which since 016 is
+  /// says, colour or not. Null for somebody holding none, which is
   /// what most members are: the baseline is not a role anybody holds.
   Role? topRoleFor(String userId) => memberRoles[userId]?.firstOrNull;
 

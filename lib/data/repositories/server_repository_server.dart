@@ -5,9 +5,9 @@ part of 'server_repository.dart';
 /// `create_server` and `update_server` are edge functions because they write
 /// the LiveKit API secret into `server_secrets`, which has no grant and no
 /// policy. `getServerDetails` is not: it is one RPC under the policies
-/// (`get_server_details`, migration 022), because a client that fetched
+/// (`get_server_details`), because a client that fetched
 /// channels, members and limits separately would render three times on the
-/// way to being right — and, before 022, waited on five round trips to do it.
+/// way to being right — and, before `get_server_details`, waited on five round trips to do it.
 mixin _ServerApiMixin {
   ServerDb get _db;
 
@@ -41,7 +41,7 @@ mixin _ServerApiMixin {
 
   /// Everything the client needs to draw this server, in one question.
   ///
-  /// `get_server_details()` (migration 022). This used to be five or six
+  /// `get_server_details()`. This used to be five or six
   /// selects run one after another — our own row, that row again for
   /// `is_owner`, the server, the channels, sometimes `channel_members`, and
   /// `my_permissions()` — none of which could start until the one before it

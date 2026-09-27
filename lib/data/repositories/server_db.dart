@@ -8,7 +8,7 @@ import '../enums/error_code.dart';
 /// Authenticated PostgREST access to a self-hosted server's database.
 ///
 /// Most of what the client does is now an ordinary table call under the
-/// policies in `002_security.sql` rather than an edge function. That is only
+/// row-level security policies rather than an edge function. That is only
 /// safe because those policies exist: before them the anon key — which every
 /// member holds — could read and delete every message on a server, so "clients
 /// never touch tables" was a convention, not a boundary.
@@ -62,7 +62,7 @@ class ServerDb {
         );
       }
       // A RAISE EXCEPTION in a trigger or an RPC arrives as P0001 with the
-      // raised text as the message — so `quota_exceeded` from `002_limits.sql`'s
+      // raised text as the message — so `dm_not_accepted` from the DM gate's
       // trigger would otherwise reach callers as the code "P0001", which no
       // caller can act on. The migrations raise bare snake_case tokens by
       // convention (`quota_exceeded`, `not_a_member`, `not_authenticated`), so

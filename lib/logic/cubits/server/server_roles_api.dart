@@ -1,6 +1,6 @@
 part of 'server_cubit.dart';
 
-/// Roles for the selected server (`006_roles.sql`).
+/// Roles for the selected server.
 ///
 /// Nothing here touches [ServerState]. Roles are read when a dialog opens and
 /// thrown away when it closes — there is no badge and no live view that would

@@ -3,7 +3,7 @@ import '../../data/classes/dm_conversation.dart';
 /// Putting one freshly-read conversation back into a list already on screen.
 ///
 /// An incoming DM used to re-read the whole list; now it re-reads the one
-/// conversation it belongs to (central migration 021), and this is where that
+/// conversation it belongs to, and this is where that
 /// row goes. The list is newest-first by last message, so the row lands where
 /// its last message puts it: at the top for a new message, where it was for an
 /// edit.

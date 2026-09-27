@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/directory_tags.dart';
 
 /// `DirectoryTags` mirrors a CHECK constraint that both directory tables in
-/// central carry (`public_servers.tags` and `public_bots.tags`, migration
-/// 001). These pin the mirror to the constraint: if the column ever widens,
+/// central carry (`public_servers.tags` and `public_bots.tags`).
+/// These pin the mirror to the constraint: if the column ever widens,
 /// one of these fails and says so, rather than the client refusing a tag the
 /// database would have taken.
 void main() {

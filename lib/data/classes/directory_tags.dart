@@ -1,6 +1,6 @@
 /// The shape of a tag the directory will accept, mirrored from the CHECK that
-/// `public_servers.tags` and `public_bots.tags` both carry (central migration
-/// 001) so a malformed one is refused while it is still being typed rather
+/// `public_servers.tags` and `public_bots.tags` both carry, so a
+/// malformed one is refused while it is still being typed rather
 /// than by a database error on save.
 ///
 /// One vocabulary across the whole directory on purpose: a server and a bot

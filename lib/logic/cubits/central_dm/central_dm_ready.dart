@@ -102,7 +102,7 @@ mixin _CentralDmReadyMixin
     final profile = profileResponse.data as Map<String, dynamic>?;
     if (profile == null) {
       emit(state.copyWith(status: CentralDmStatus.needsHandle));
-      // Sign-up asked for one (016) and left it in the auth metadata, because
+      // Sign-up asked for one and left it in the auth metadata, because
       // the row needs keys only this session can derive. Claim it now; if it
       // was taken in the meantime the panel is already up, with the reason.
       final wanted = user.userMetadata?['handle'];

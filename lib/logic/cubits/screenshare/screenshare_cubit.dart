@@ -162,7 +162,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
 
       // And the operator's budget for a share, which rides along with the
       // token so a change takes effect on the next share rather than the
-      // next sync (migration 028). A share goes out at full rate to every
+      // next sync. A share goes out at full rate to every
       // watcher with nothing downscaling in between, so this is the only
       // thing standing between one person's quality setting and the
       // server's uplink.

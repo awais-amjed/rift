@@ -49,8 +49,8 @@ class CentralDmState {
   /// all: a conversation with somebody you are not friends with is a
   /// *request*, and it is drawn, counted and composed into differently.
   ///
-  /// The rows are not loaded until a tab asks for them (central migration
-  /// 014) — see [FriendBuckets].
+  /// The rows are not loaded until a tab asks for them — see
+  /// [FriendBuckets].
   final FriendBuckets friends;
 
   /// Which friends tab is on screen, so a change to the graph can refetch the
@@ -185,7 +185,7 @@ class CentralDmState {
 
   /// Where the caller stands with one person — see [FriendshipState].
   ///
-  /// The conversation row is the authoritative answer (central migration 014):
+  /// The conversation row is the authoritative answer:
   /// `dm_conversations` resolves it per peer, so the client no longer holds the
   /// whole graph to work it out. Whichever friends tab is open is the fallback,
   /// and it answers for somebody reached from the friends page before a message

@@ -13,8 +13,7 @@ mixin _ChannelKeysApiMixin {
   // Still edge functions. The key-distribution path enforces the "current + 1"
   // version race and computes healing sets across channels; moving it is a
   // careful job of its own, and getting it wrong silently breaks decryption for
-  // everyone rather than throwing. It runs on the service role and is unchanged
-  // by this migration.
+  // everyone rather than throwing. It runs on the service role.
 
   /// Fetch my sealed channel keys + current version + members missing
   /// current-version entries (the healing set).

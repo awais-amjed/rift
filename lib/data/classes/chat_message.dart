@@ -26,7 +26,7 @@ class ChatMessage {
   final String authorName;
 
   /// The author's avatar object name, or null for initials. Not E2E — avatars
-  /// are stored in the clear (`005_bots.sql`).
+  /// are stored in the clear.
   final String? authorAvatarPath;
 
   final String text;
@@ -137,7 +137,7 @@ class ChatMessage {
   /// person sent.
   final MessageOrigin origin;
 
-  /// A bot's panel, or null for every message that is not one (`009_bot_voice.sql`).
+  /// A bot's panel, or null for every message that is not one (`messages.blocks`).
   ///
   /// When it is set, it *replaces* the body rather than sitting beside it: a
   /// panel's text lives in its blocks, and rendering `text` as well would show
@@ -152,7 +152,7 @@ class ChatMessage {
   /// badge answers to this one; the attribution answers to [origin].
   final bool isEncrypted;
 
-  /// A bot's reply that only this reader can see (`005_bots.sql`).
+  /// A bot's reply that only this reader can see (`messages.ephemeral_for`).
   ///
   /// Enforced by `messages_select`, not by clients agreeing to hide it — so
   /// this flag is for *saying so*, not for keeping it. The row never reaches

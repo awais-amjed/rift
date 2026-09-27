@@ -25,14 +25,14 @@ import 'friends/friend_menu_item.dart';
 /// only people here are people you agreed to hear from, and requests live on
 /// the friends page where they can be answered.
 ///
-/// A blocked peer is left out by the *query* (central migration 014). Their
+/// A blocked peer is left out by the *query*. Their
 /// old messages are still rows on the server — blocking takes away reach, not
 /// history — so something has to leave them out, and it has to be on the same
 /// side of the page boundary as the paging: a filter applied after a page
 /// arrives shortens it, while `has_more` and the cursor were computed for the
 /// rows the filter then dropped.
 ///
-/// It **pages** (central migration 013). The list used to be derived on the
+/// It **pages**. The list used to be derived on the
 /// client from the last thousand envelopes, which meant an old conversation
 /// silently stopped existing rather than sitting further down — and there was
 /// nothing to scroll to, because there was no cursor into a list nobody was

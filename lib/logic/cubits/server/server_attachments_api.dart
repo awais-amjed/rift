@@ -20,7 +20,7 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
   /// See [ServerCubit._chatTarget].
   ({Server server, String anonKey})? _chatTarget(String? serverId);
 
-  /// Each server owns its own attachment bucket (`002_limits.sql`), named for its
+  /// Each server owns its own attachment bucket (`app.sync_server_bucket`), named for its
   /// id. One Supabase project can host several servers, and a shared bucket
   /// could carry only one `file_size_limit` between them — and let a member of
   /// one read another's objects. A bucket each makes both exact.

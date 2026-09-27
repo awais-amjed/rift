@@ -8,7 +8,7 @@ import '../../../../../../../theme/theme_context.dart';
 /// Says a bot can hear this call.
 ///
 /// The voice half of BOTS.md §6's fourth rule. A bot in a call is normally
-/// deaf — its token is minted without `canSubscribe` (`009_bot_voice.sql`) — so this
+/// deaf — its token is minted without `canSubscribe` — so this
 /// only ever appears where an admin has decided otherwise, and the people
 /// bearing that decision are not the ones who made it.
 ///

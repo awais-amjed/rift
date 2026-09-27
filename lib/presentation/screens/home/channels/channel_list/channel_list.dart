@@ -49,7 +49,7 @@ class ChannelList extends StatelessWidget {
     final banned = me?.isBanned ?? false;
 
     // Channel managers get the "+", and so does anybody who may make a private
-    // one — which on a default server is everybody (`007_channels.sql`). A private
+    // one — which on a default server is everybody. A private
     // channel is how a handful of people talk without asking permission, so
     // gating the button on `MANAGE_CHANNELS` would have meant asking.
     final permissions = me?.permissions;

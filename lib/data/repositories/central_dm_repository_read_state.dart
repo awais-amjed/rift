@@ -14,7 +14,7 @@ part of 'central_dm_repository.dart';
 /// Only written, never read. Reading every cursor to work out the unread counts
 /// was a whole-table fetch of something that grows with the number of
 /// conversations, and it answered a question `dm_conversations` now answers per
-/// row (central migration 013): the count, and the cursor a read writes back,
+/// row: the count, and the cursor a read writes back,
 /// from the same call so the second can never skip what the first counted.
 mixin _CentralDmReadStateMixin {
   SupabaseClient get _client;

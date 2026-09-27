@@ -9,7 +9,7 @@ class ServerUser {
   final UserPermissions permissions;
 
   /// Object name of the avatar inside the server's `avatars` bucket, or null
-  /// for no avatar (render initials). Not a URL — see `005_bots.sql`.
+  /// for no avatar (render initials). Not a URL: the bucket is private.
   final String? avatarPath;
 
   /// Whether this server has banned us.

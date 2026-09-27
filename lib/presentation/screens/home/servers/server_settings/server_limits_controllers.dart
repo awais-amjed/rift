@@ -18,13 +18,13 @@ class ServerLimitsControllers {
   final retentionDays = TextEditingController();
   final historyCap = TextEditingController();
 
-  /// What a call may cost (migration 028). Bandwidth rather than disk, which
+  /// What a call may cost. Bandwidth rather than disk, which
   /// is why the dialog shows them under their own heading — but they are read
   /// and validated with the rest, because [ServerLimits] travels whole.
   final voiceParticipants = TextEditingController();
   final shareMbps = TextEditingController();
 
-  /// How large the place may get (migration 029). [storageMb] is megabytes in
+  /// How large the place may get. [storageMb] is megabytes in
   /// the box and bytes on the wire, like [attachmentMb] — nobody sets a disk
   /// budget in bytes either.
   final maxMembers = TextEditingController();

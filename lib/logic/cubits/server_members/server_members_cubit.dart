@@ -18,11 +18,11 @@ part 'server_members_state.dart';
 /// Presence (who is *online*) has always been realtime; membership (who is
 /// *here at all*) was fetched once per server and cached until you switched
 /// away, so somebody who joined while you were looking never appeared. The
-/// database says `members` on the server's topic whenever a `users` row moves
-/// (migration 017), and [ServerTopicWatcher] turns that into a refresh — which
+/// database says `members` on the server's topic whenever a `users` row moves,
+///and [ServerTopicWatcher] turns that into a refresh — which
 /// covers renames, new avatars, permission changes and bans as well as joins.
 ///
-/// **What changed with `011_directory.sql`.** That refresh used to be three
+/// **What changed with the member directory.** That refresh used to be three
 /// full-table reads: every member, every role, every role assignment, on every
 /// `users` row event. Somebody else changing their nickname cost the whole
 /// roster, and the roster was silently cut at 1000 rows anyway. Now:

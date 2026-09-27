@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 /// Preparing a picked image for use as an avatar.
 ///
-/// Avatars are stored **unencrypted** (`005_bots.sql`) and are fetched by every
+/// Avatars are stored **unencrypted** and are fetched by every
 /// member who renders a message, so the cost of a large file is paid over and
 /// over. Everything here exists to keep that cost small and predictable:
 /// the source is downscaled and re-encoded before upload, so a 12 MB phone

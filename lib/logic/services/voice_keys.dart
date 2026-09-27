@@ -74,7 +74,7 @@ class VoiceKeys {
   ///
   /// [isChannelKey] records which of the two kinds it is, because the two are
   /// indistinguishable once wrapped and the database checks the claim against
-  /// the listening grant (`009_bot_voice.sql`).
+  /// the listening grant (`bot_voice_grants`).
   static Future<SealedBotKey> forOneBot({
     required CryptoRepository crypto,
     required Uint8List channelKey,

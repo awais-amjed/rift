@@ -2,7 +2,7 @@ import '../../data/classes/member_page.dart';
 
 /// Walks a paged roster and remembers what it has been given.
 ///
-/// The roster arrives a page at a time (`011_directory.sql`), and two surfaces read
+/// The roster arrives a page at a time (`member_directory`), and two surfaces read
 /// it that way — the members dialog and the member sidebar. What they share is
 /// not the rendering but the bookkeeping: where the next page resumes, whether
 /// one is already in flight, whether the end has been reached, and how to throw

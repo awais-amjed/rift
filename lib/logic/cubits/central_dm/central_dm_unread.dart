@@ -5,7 +5,7 @@ part of 'central_dm_cubit.dart';
 ///
 /// Derived rather than delivered — but derived *in the database*. The count is
 /// one cursor per conversation in `read_state` compared against that peer's
-/// messages, and `dm_conversations` (central migration 013) does the comparison
+/// messages, and `dm_conversations` does the comparison
 /// and hands back both the count and the cursor a read would write.
 ///
 /// It used to be done here, over the last thousand envelopes the conversation

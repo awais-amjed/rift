@@ -24,7 +24,7 @@ mixin _PushApiMixin {
   /// FCM rotates the token, so the common case is rewriting a row that is
   /// already there. `updated_at` is what makes that worth doing — a row nobody
   /// has refreshed in two months belongs to a device that has not opened Rift
-  /// in two months, and the nightly sweep in `003_push.sql` takes it away.
+  /// in two months, and the nightly sweep takes it away.
   ///
   /// Registered whether or not the server has push turned on. A token costs a
   /// row, and pre-registering is what lets an admin enable push and have it

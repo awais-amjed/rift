@@ -7,7 +7,7 @@ import 'paged.dart';
 ///
 /// It replaces `FriendDirectory`, which held all four lists at once because
 /// `friend_list()` returned all four at once — and that was right while three
-/// of them were read from outside their own tab. Central `005_bots.sql` took
+/// of them were read from outside their own tab. Central's `friend_bucket` took
 /// those jobs away: [counts] feeds the rail badge and the tab labels, and the
 /// per-conversation state rides on the conversation row. What is left is three
 /// lists that only their own tab reads, so a list is null until somebody looks

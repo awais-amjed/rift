@@ -48,7 +48,7 @@ void main() {
 
     test('grouping loses nothing but the retired bit', () {
       // `MANAGE_ROLES` keeps its number and its name so an old role still
-      // parses, and is the one bit the editor does not offer (015).
+      // parses, and is the one bit the editor does not offer.
       final grouped = [
         for (final group in PermissionGroup.values)
           ...ServerPermission.inGroup(group),
@@ -173,7 +173,7 @@ void main() {
       // on, or promotes another up to it.
       expect(RoleLadder.below(all, 300, isAdministrator: true), [mod, members]);
       expect(RoleLadder.below(all, 200, isAdministrator: true), [members]);
-      // And nobody else edits anything, whatever their rank (015).
+      // And nobody else edits anything, whatever their rank.
       expect(RoleLadder.below(all, 300, isAdministrator: false), isEmpty);
     });
 

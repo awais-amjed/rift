@@ -5,7 +5,7 @@
 /// widget without translation.
 ///
 /// There is deliberately no "they blocked me". A block is invisible from the
-/// side it lands on (central migration 012) — being told costs the blocker
+/// side it lands on — being told costs the blocker
 /// their peace and gains the blocked person a reason to make a second account
 /// — so from there it reads as [none] that happens to refuse.
 enum FriendshipState {

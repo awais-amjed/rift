@@ -241,7 +241,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
   /// people who can open it. Doing it any other way means being a second copy
   /// of `channel_eligible`, and the server strips a mention of an outsider on
   /// the way in anyway — so offering them was offering a ping that would not
-  /// happen (`010_bot_permissions.sql`).
+  /// happen.
   ///
   /// **People, not bots.** A bot is addressed with `/`, which has its own menu
   /// one key away; offering it here would teach the `@bot` habit and then
@@ -266,7 +266,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
               ServerLimits.defaults)
           .maxAttachmentBytes;
 
-  /// What the whole server has room for (migration 029), or null when it has
+  /// What the whole server has room for, or null when it has
   /// no storage limit.
   int? _remainingStorage(BuildContext context) {
     final server = context.read<ServerCubit>().state.selectedServer;

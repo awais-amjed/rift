@@ -3,7 +3,7 @@ import 'livekit_node.dart';
 import 'server_limits.dart';
 import 'server_user.dart';
 
-/// One `get_server_details()` reply (self-host migration 022), parsed once.
+/// One `get_server_details()` reply, parsed once.
 ///
 /// Three paths ask this question — a cold start's login, a background token
 /// refresh, and an explicit refresh — and each used to pick its own fields out

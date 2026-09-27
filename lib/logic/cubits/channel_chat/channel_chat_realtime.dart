@@ -3,7 +3,7 @@ part of 'channel_chat_cubit.dart';
 /// The open channel, live: who is typing, and the doorbells that say something
 /// changed.
 ///
-/// The doorbells come from the database (migrations 017 and 027), on the
+/// The doorbells come from the database, on the
 /// server's topic for an open channel and on the channel's own for a private
 /// one, so a message arrives whoever wrote it and however — a bot writing
 /// through the REST API included, which no client-rung doorbell ever covered.
@@ -49,7 +49,7 @@ mixin _ChannelChatRealtimeMixin
     final me = server.user?.id;
     bool here(RealtimePayload message) =>
         BroadcastPayload.stringOf(message, 'channel_id') == channelId;
-    // A private channel's news arrives on its own topic (migration 027), an
+    // A private channel's news arrives on its own topic, an
     // open one's on the server's. The caller's own topic is held either way,
     // because an ephemeral reply — a bot answering one person — is addressed
     // to them rather than to the channel.

@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import '../enums/server_permission.dart';
 
-/// A named set of permission bits on one server (`006_roles.sql`).
+/// A named set of permission bits on one server (`roles`).
 class Role {
   final String id;
   final String name;
@@ -23,7 +23,7 @@ class Role {
   /// out or taken away, only edited.
   final bool isEveryone;
 
-  /// The one role that is held by exactly one person (`004_webhooks.sql`).
+  /// The one role that is held by exactly one person (`roles.is_owner`).
   ///
   /// Nobody hands it out and nobody edits it: it goes to the first person who
   /// registers, and moves only through `transfer_ownership`. It outranks every

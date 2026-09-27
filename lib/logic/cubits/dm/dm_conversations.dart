@@ -11,8 +11,8 @@ part of 'dm_cubit.dart';
 /// Nothing was ever missing from it: a JSONB scalar is not subject to the
 /// 1000-row response cap, which is why it was built that way. It only grew,
 /// which is why it outlived the reads that could truncate and is being fixed
-/// last. `dm_conversations(p_limit, p_before)` (`011_directory.sql`) gives it the
-/// cursor central's list got in 013.
+/// last. `dm_conversations(p_limit, p_before)` gives it the
+/// cursor central's list already had.
 mixin _DmConversationsMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
 

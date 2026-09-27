@@ -73,7 +73,7 @@ class ConnectionFailure {
       canRetry = true;
 
   /// The call already holds as many people as the operator allows
-  /// (`max_voice_participants`, self-host 028).
+  /// (`max_voice_participants`).
   ///
   /// Its own case rather than [tokenRequest]'s, because that one reads "you
   /// may have lost access, or the server may be having trouble" — and neither
