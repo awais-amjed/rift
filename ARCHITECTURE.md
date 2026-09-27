@@ -7,7 +7,7 @@ into a deep dive on everything at once. The detail has better homes now:
 | For | Read |
 |---|---|
 | The exact formats a second implementation must match | `WIRE.md`, frozen by `test/wire_vectors.json` |
-| What a server stores, and who may read it | the migrations, written to be read in order |
+| What a server stores, and who may read it | the migrations in `rift-self-host` and `rift-central`, split by kind — tables, helpers, RPCs, triggers, realtime, storage, jobs, security |
 | What a client may call, and over which transport | `API.md` in `rift-self-host` |
 | What a bot may see, hear and say | `BOTS.md` |
 
@@ -21,9 +21,11 @@ built.
 |---|---|---|
 | Flutter app | UI on all platforms; all cryptography runs client-side (`CryptoRepository`) | `rift` |
 | Rust core (`rust/`) | Screen capture + audio pipeline, publishes to LiveKit via flutter_rust_bridge | `rift` |
-| Self-hosted server | One Supabase project (Postgres + Edge Functions) + one LiveKit server. Anyone can run one; holds users, channels, messages, and E2E keyring material | `rift-self-host` |
+| Self-hosted server | One Supabase project (Postgres + Edge Functions) + one or more LiveKit servers. Anyone can run one; holds users, channels, messages, and E2E keyring material | `rift-self-host` |
 | Central Supabase | Optional convenience service run by the project: account (email+password) + encrypted vault backups. Never required — privacy mode works without it | `rift-central` |
 | Bot SDK | TypeScript. A second implementation of the wire format, not a binding | `rift-bot-sdk` |
+| Directory moderation | A separate site with its own accounts for reviewing reports against central's public directory. Never part of the app | `rift-admin` |
+| On-device models | The image classifier each device runs on pictures it has decrypted, to decide whether to show them plainly — the server never sees a picture, so this is the only place one can be judged | `rift-models` |
 
 The schema and the endpoints for both servers are in their own repositories, so a
 migration named here is a file there. They are the source of truth; this document
@@ -75,8 +77,8 @@ Four properties are load-bearing:
 - **A client stores that address once and never asks again.** `supabaseUrl` is
   captured when the invite is resolved, and every HTTP address — the API,
   attachments, avatars — is built from it. The one address a client takes
-  *from* the server is `servers.livekit_url`, which is why voice is the only
-  thing a server can move without moving its members.
+  *from* the server are its LiveKit nodes (`livekit_nodes`, §5), which is why
+  voice is the only thing a server can move without moving its members.
 - **Argon2id runs off the UI thread**, and the seed lives in platform secure
   storage — never in HydratedBloc state.
 
@@ -159,7 +161,7 @@ share.
 | Storage       | central Supabase                       | a self-hosted server both users are members of |
 | Identity keys | X25519 derived for the central host    | X25519 derived for that server's host          |
 | Delivery      | GoTrue RLS + native Realtime           | Edge Functions + Realtime Broadcast            |
-| Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) — fixed, Rift's call | no message quota; a TTL and a history cap the admin sets, **off by default** |
+| Limits        | per-sender daily quota; 30-day TTL; per-conversation history cap (oldest trimmed first) — fixed, Rift's call | no message quota, but a cap on *new* conversations an hour (10 by default); a TTL and a history cap the admin sets, **off by default** |
 | Media         | allowed; counts against quota, per-file size cap | allowed; per-file size cap the admin sets, and blobs swept with their messages |
 | Unread badges | `read_state` cursors + `unread_counts()` | the same, for channels and DMs alike |
 
@@ -219,7 +221,7 @@ half-open state to offer. The full-screen wait survives for the one case where i
 honest answer: nothing came back at all, so there is no list to show and nothing to say but why.
 
 The locked row carries the author and the timestamp, which are columns the server already keeps in
-the clear (§6, *metadata is visible*). Showing them reveals nothing a member without the key could
+the clear (§4, *metadata is visible*). Showing them reveals nothing a member without the key could
 not read off the table directly, and without them the row says nothing about whose history this is.
 
 ### Attachments
@@ -240,8 +242,9 @@ the Storage API rather than any database role.
 
 ### Accepted limitations (document honestly, do not "fix")
 - **Metadata is visible** to the server admin and host: who, when, where, how much — and, since
-  August 2026, **who a message named** (`messages.mentions`). E2E covers content only. See
-  "Notification levels" above for why that column exists and what bounds it.
+  August 2026, **who a message named** (`messages.mentions`). E2E covers content only. That
+  column exists so the server can ring somebody whose channel is set to mentions-only without
+  reading the message; the operator learns who was addressed, not what was said.
 - **Reactions, pins and poll votes are visible** to the server: who reacted with what, which
   messages are pinned, and who picked which option *number* of a poll. The question and the
   options are sealed in the body; the rules the server enforces (how many options, one pick or
@@ -276,6 +279,45 @@ already knows. **What they may do** is the database's, because that is where
 permissions live. Muting somebody for yourself is local state; muting them for
 everybody is a row.
 
+### Regions — [Implemented September 2026]
+
+A server may run several LiveKits (`livekit_nodes`) so a call is held near the
+people in it. **A room lives on exactly one node** — the open-source server has
+no cross-node media — so this is never "each person connects to their nearest".
+It is one decision, made when the room opens: the live room if there is one, else
+the channel's pin, else the region the opener's client measured as fastest, else
+the default. Everyone after goes where the call already is. `servers.livekit_url`
+survives as the default node's mirror, so nothing written before regions changed.
+
+### 1:1 calls in server DMs — [Implemented September 2026]
+
+Two members who can already message each other can call. The room is the call
+(`dm-<callId>`, named apart from channels so it never shows up where rooms are read
+as channels), and it reuses everything a channel call has: controls, sharing,
+regions.
+
+**Its media key comes from the pair's DM key** — `HMAC-SHA256(dmKey,
+"dmcall:v1:<callId>")` — which the server never holds. So unlike a channel call,
+where the admin can hold the key like any member, **a DM call is private from the
+server's operator.** What the server does keep is the call record — who called
+whom, when, whether it was answered, how long — because that is what rings the
+other side and draws "Missed call" in the conversation. That is metadata, and
+visible like the rest.
+
+A call follows the DM rules exactly: only an open conversation (a request has to
+be accepted first), never across a block, not while timed out, not without
+`CONNECT`, and at most five unanswered calls to one person an hour. The client
+rings for 30 seconds; the server allows 45 so an answer given at the last moment
+still lands. Central (friends) DMs have no calls, because central has no LiveKit.
+
+### Soundboard — [Implemented September 2026]
+
+A press is a data message on the call's LiveKit channel, not audio and not a row.
+Every listener fetches the clip once, caches it and plays it locally — so the
+audience is exactly the call, and "turn their soundboard down" is a real control
+rather than a request. The cooldown and length cutoff are applied by the
+*listener*, because a limit the sender honours is one a modified client deletes.
+
 ---
 
 ## 6. Threat model summary
@@ -284,9 +326,43 @@ everybody is a row.
 |---|---|---|---|---|---|
 | Network observer | safe | safe | safe (TLS) | safe | safe (SRTP) |
 | Central server / its host | safe (E2E) | safe (E2E) | n/a | n/a | n/a |
-| Self-hosted server's hosting provider | safe | n/a | safe (E2E) | safe | SFU-accessible |
-| Self-hosted server admin | safe | n/a | readable (they're a member anyway) | **safe** | accessible |
+| Self-hosted server's hosting provider | safe | n/a | safe (E2E) | safe | safe (E2E) |
+| Self-hosted server admin | safe | n/a | readable (they're a member anyway) | **safe** | channel calls: accessible · DM calls: **safe** |
 | Device thief (no password) | Argon2id + secure storage | — | — | — | — |
+
+---
+
+## 7. Moderation — [Implemented September 2026]
+
+Two kinds, run by different people, and kept apart on purpose.
+
+**On a server, by its own moderators, in the app.** A member can report a message
+or a member. A message report copies the **sealed envelope** — ciphertext, nonce,
+key version, signature, author — never the text, so the database still holds no
+plaintext; a moderator's client opens it with the channel key it already holds and
+checks the signature. That makes a report unforgeable, and it survives the author
+deleting the message. The reporter is never named to the reported. Server DMs
+cannot be reported as messages, because their key belongs to the pair; the person
+can be, with a note.
+
+A report ends in one of: delete the message, a **time-out** (no posting, editing,
+reacting, pinning or starting calls, up to 28 days, and it ends by itself), a ban,
+or dismissal. Review and time-outs are permissions of their own (`REVIEW_REPORTS`,
+`MUTE_MEMBERS`), and nobody can ban an admin or someone who can ban.
+
+**DM spam** is the member's own call. Each member chooses, per server, who may
+start a conversation with them: everyone, *ask me first* (a first message waits as
+a request — no ring, no push, one message until accepted), or nobody new. Existing
+conversations are never affected. A block is silent: the blocked member can no
+longer message or call you, and a call already ringing between you ends. The
+server also caps how many *new* conversations one member may open an hour. These
+rules are enforced by the database, so a modified client cannot step round them;
+`API.md` lists what each refusal says.
+
+**Central's public directory is moderated elsewhere.** Reports against listed
+servers and bots are reviewed on a separate site with its own accounts and
+two-factor sign-in (`rift-admin`). Admin tools never ship in the app: a client
+anyone can download is the wrong place for a door only moderators should see.
 
 ---
 

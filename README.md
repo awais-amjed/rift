@@ -18,8 +18,10 @@ own repositories.
 |---|---|---|
 | **`rift`** | this: the client, `rust/`, `rift_crypto/` | — |
 | `rift-self-host` | a server's schema, endpoints and console | anyone |
-| `rift-central` | accounts, the directory, the push relay | us |
+| `rift-central` | accounts, the server and bot directories, the push relay | us |
 | `rift-bot-sdk` | the TypeScript bot SDK | third parties |
+| `rift-admin` | the directory moderation dashboard — its own site and accounts | us |
+| `rift-models` | the on-device image classifier and the tooling that builds it | — |
 | `rift-website` | joinrift.app and the self-hosting docs | us |
 
 Clone them as siblings. Two things cross the boundary and expect it:
@@ -52,7 +54,7 @@ describes the development stack; `rift-self-host` builds the packaged one.
 
 ```bash
 flutter analyze
-flutter test                 # 1,283 cases across 147 files
+flutter test                 # pure logic and crypto, a minute or so
 ./scripts/style_check.sh     # size budgets, lazy lists, literals, layering
 ```
 

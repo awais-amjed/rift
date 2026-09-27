@@ -1,13 +1,15 @@
 # BOTS.md — Bots, commands & webhooks
 
-Design reference for third-party integrations. **Everything in the §13 build order is
-implemented** — `005_bots.sql` for the bot itself, `009_bot_voice.sql` for panels, the
-grants and encrypted voice, plus both SDKs (§11). What is left is listed in §12 and in each SDK's
-README, and it is choices rather than a backlog: attachments, joining from an invite link, and an
-`image` block that points at this server's own bucket. Reading over realtime landed with
-`018_bots_are_told.sql` — a bot is told what it may hear on its own topic, and polls slowly behind
-that as a backstop.
+Design reference for third-party integrations. **Everything here is implemented** — the bot
+itself, panels, the grants and encrypted voice, plus the SDK (§10). What is left is in §11 and in
+the SDK's README, and it is choices rather than a backlog: attachments, joining from an invite
+link, and an `image` block that points at this server's own bucket. A bot reads over realtime — it
+is told what it may hear on its own topic, and polls slowly behind that as a backstop.
 Sections are marked as they land, the same way `ARCHITECTURE.md` marks its own.
+
+The schema lives in `rift-self-host/migrations`, split by kind — tables, helpers, RPCs, triggers,
+realtime, security — so a rule here is named by the table, policy or function that holds it rather
+than by a file.
 
 Read `ARCHITECTURE.md` §2 (auth) and §4 (chat encryption) first. This document assumes both, and
 where it departs from them it says so.
@@ -105,8 +107,8 @@ from the bot — and an AI bot forwarding to an outside service takes it there e
 ### Storage
 
 `key_version = 0` means "this body is not encrypted". The column already exists, every client
-already branches on it, and the `CHECK (key_version >= 1)` becomes `>= 0`. `005_bots.sql` does this,
-along with four CHECKs that keep the two message shapes from blurring — `005_bots.sql` defines them.
+already branches on it, and the `CHECK (key_version >= 1)` becomes `>= 0`. `messages` in `001_schema.sql` carries this,
+along with four CHECKs that keep the two message shapes from blurring.
 
 The `ciphertext` column then holds plain text, which makes its name a small lie. Worth a comment in
 the migration rather than a second column and a two-way `CHECK` — the alternative loosens
@@ -193,7 +195,7 @@ the bot and both work while the bot is asleep.
 
 ---
 
-## 5. Replies — [Implemented — channel and ephemeral in `005_bots.sql`, panels in `009_bot_voice.sql`]
+## 5. Replies — [Implemented]
 
 Three shapes, because bot output is three different things and Discord flattens them all into
 chat messages for want of anywhere else to put them.
@@ -259,7 +261,7 @@ the widgets, and the button-press row.
 
 ---
 
-## 6. Moderation bots — the one real exception — [Implemented — `005_bots.sql` and `010_bot_permissions.sql`]
+## 6. Moderation bots — the one real exception — [Implemented]
 
 A moderation bot has to read everything. There is no cryptographic middle ground: it either holds
 the channel key or it does not.
@@ -271,7 +273,7 @@ rotations that are what make it forward-only.
 
 Five rules make it safe enough to offer.
 
-### Bots are excluded from the healing sweep — [Implemented as a refusal, `005_bots.sql`]
+### Bots are excluded from the healing sweep — [Implemented as a refusal, `refuse_ineligible_keyring`]
 
 `get_channel_key` returns `members_missing` — members with a published chat key and no entry at the
 current version — and any member's client heals them. That is how people get keys without anyone
@@ -354,16 +356,16 @@ The server-wide grant is stored as intent, not as a snapshot:
 of them, drop the one. An exception list would also work, and would leave somebody a year later
 asking why one channel is not covered by a grant that says *whole server*.
 
-### Reading it — [`010_bot_permissions.sql`, and `ChannelReader` in the SDK]
+### Reading it — [the `messages_select` policy, and `ChannelReader` in the SDK]
 
 Everything above is about the **key**. None of it is what lets a bot read a message, and for a
 long time nothing did: `messages_select` restricted every bot to what it was addressed and what it
-wrote, since `005_bots.sql`, and the grant never touched that line. A fully granted bot, in a public
+wrote, from the day bots arrived, and the grant never touched that line. A fully granted bot, in a public
 channel, holding the channel key, got zero rows — while `grant_bot_channel_key` posted *"It can
 read every message sent here from now on"* into the channel. The grant machinery was complete and
 the feature did nothing.
 
-035 adds the clause, and makes the boundary the same number in both directions:
+The policy now has the clause, and makes the boundary the same number in both directions:
 
 ```sql
 AND (NOT app.is_bot()
@@ -398,7 +400,7 @@ anything over, and **stops rather than skips** at a version whose key has not be
 rotation is sealed by the next member to open the channel, so a cursor that jumped the gap would
 drop precisely the stretch a moderation bot was granted to see.
 
-### Summoning one into a call — [`010_bot_permissions.sql`]
+### Summoning one into a call — [`bot_voice_summons`]
 
 The thing people most want a bot for, and it did not work in a private voice channel at all. Two
 walls, both keyed on `channel_members`, which `set_channel_members` refuses to seat a bot into:
@@ -426,10 +428,10 @@ token, and does nothing to the connection the bot already holds, which is good f
 playing music. `set_bot_voice_summon` pushes `removeParticipant` for the one channel, the same
 shape and the same reason as `set_bot_voice_listen`'s push. Summoning pushes nothing: there is no
 connection yet, and what brings it in is the command message itself, which the database announces
-to the bot the moment it is written (018).
+to the bot the moment it is written.
 
-**A summon ends when its reason does** (`010_bot_permissions.sql`). Closing a channel drops its summons, the
-same as 031 does for listening grants — without it a bot called into a public call could still take
+**A summon ends when its reason does** (`channels_drop_bot_voice_summons`). Closing a channel drops its summons, the
+same as it does for listening grants — without it a bot called into a public call could still take
 a token after the channel was closed. And an hour of nobody answering one drops it too: a summon is
 a request to come and play *now*, and one left behind by a bot that was down would otherwise wait
 for the next member to seal it a key and then turn up in a conversation nobody invited it to. The
@@ -481,7 +483,7 @@ says *automod is metadata-only*; this is that decision arriving.
 
 ---
 
-## 6b. What a bot may hear in a call — [Implemented — `009_bot_voice.sql`]
+## 6b. What a bot may hear in a call — [Implemented]
 
 The rule at the top of this document was false in exactly one place, and it took
 building the SDK's voice support to notice.
@@ -583,7 +585,7 @@ reading a text channel, and *every call on this server, plus the ones made
 later* is not a thing anybody should be able to click once. Per channel is the
 only form.
 
-A channel made private drops its listeners, the same re-decision 030 makes for
+A channel made private drops its listeners, the same re-decision the server makes for
 text keys: whoever allowed this was looking at a room the whole server could walk
 into.
 
@@ -716,7 +718,7 @@ Documented honestly, not to be "fixed":
   that works on install. Deliberate, and the affordable version of it: a music
   bot needs nothing, so the strict default costs the common case nothing (§6b).
 - **A Dart bot cannot publish audio at all.** Not a policy — the only Dart
-  LiveKit client needs Flutter. Music bots are TypeScript here (§11).
+  LiveKit client needs Flutter. Music bots are TypeScript here (§10).
 - **Central has no bots.** Friend-gated, quota'd, 30-day TTL — that tier is first contact. Bots are
   a self-hosted feature, which matches the funnel/home split.
 - **The bots people actually use want the §6 grant.** The read-everything shape is most of the top

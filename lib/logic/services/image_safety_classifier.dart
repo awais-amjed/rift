@@ -9,7 +9,7 @@ import 'image_safety.dart';
 import 'image_safety_worker.dart';
 
 /// The on-device NSFW classifier: `image-safety-classifier-xs`, a 3.5M
-/// parameter SwiftFormer converted to LiteRT (see `~/dev/rift-models`).
+/// parameter SwiftFormer converted to LiteRT (see the `rift-models` repository).
 ///
 /// It runs on the bytes this device decrypted and nowhere else. Every message
 /// and attachment is end-to-end encrypted, so the server never sees a picture
