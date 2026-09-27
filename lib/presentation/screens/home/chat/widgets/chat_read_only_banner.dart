@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../theme/theme_context.dart';
+import '../../../../common/chat/composer_notice.dart';
 
 /// Sits under a channel this member can see but not fully read, in place of the
 /// composer.
@@ -28,51 +26,16 @@ class ChatReadOnlyBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-        decoration: BoxDecoration(
-          color: themeState.bgTertiary,
-          borderRadius: BorderRadius.circular(K.radiusCard),
-          border: Border.all(color: themeState.borderElevated),
-        ),
-        child: Row(
-          spacing: 10,
-          children: [
-            Icon(
-              Icons.lock_outline_rounded,
-              size: K.iconRow,
-              color: themeState.textTertiary,
-            ),
-            Expanded(
-              child: Text(
-                waitingForKey
-                    ? 'You can read and send here once the key arrives'
-                    : 'You cannot read or send here yet — another member needs '
-                          'to come online to grant you this channel’s key.',
-                style: AppText.meta.copyWith(color: themeState.textSecondary),
-              ),
-            ),
-            if (!waitingForKey)
-              TextButton(
-                onPressed: () => context.read<ChannelChatCubit>().retry(),
-                style: TextButton.styleFrom(
-                  foregroundColor: themeState.primary,
-                  visualDensity: VisualDensity.compact,
-                ),
-                child: Text(
-                  'Try again',
-                  style: AppText.meta.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: themeState.primary,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+    return ComposerNotice(
+      icon: Icons.lock_outline_rounded,
+      text: waitingForKey
+          ? 'You can read and send here once the key arrives'
+          : 'You cannot read or send here yet — another member needs '
+                'to come online to grant you this channel’s key.',
+      actionLabel: waitingForKey ? null : 'Try again',
+      onAction: waitingForKey
+          ? null
+          : () => context.read<ChannelChatCubit>().retry(),
     );
   }
 }

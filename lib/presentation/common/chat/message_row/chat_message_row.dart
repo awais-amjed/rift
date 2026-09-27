@@ -129,6 +129,10 @@ class ChatMessageRow extends StatefulWidget {
   /// Pin or unpin this message. Null where the reader may not pin here.
   final void Function(ChatMessage message)? onTogglePin;
 
+  /// Report this message to the server's moderators. Null where there is
+  /// nobody to report to — a DM, whose key no moderator holds.
+  final void Function(ChatMessage message)? onReport;
+
   /// How this message's poll stands, when it is one.
   final PollTally? pollTally;
 
@@ -162,6 +166,7 @@ class ChatMessageRow extends StatefulWidget {
     this.mentionNames = const {},
     this.animateIn = false,
     this.onTogglePin,
+    this.onReport,
     this.pollTally,
     this.onVote,
     this.onClosePoll,

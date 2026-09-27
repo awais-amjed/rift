@@ -23,6 +23,8 @@ void main() {
     'is_server_admin': true,
     'is_channel_manager': false,
     'can_create_tokens': true,
+    'dm_policy': 'requests',
+    'timed_out_until': '2026-09-27T12:00:00Z',
     // Whatever else the select happened to bring back.
     'created_at': 'yesterday',
     ...overrides,
@@ -43,6 +45,8 @@ void main() {
         'is_banned',
         'is_bot',
         'manifest',
+        'dm_policy',
+        'timed_out_until',
       ]) {
         expect(out.containsKey(key), isTrue, reason: '$key was dropped');
       }

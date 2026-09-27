@@ -7,6 +7,7 @@ import '../../../../../data/classes/server.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
+import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
@@ -28,6 +29,7 @@ import 'widgets/profile_facts.dart';
 import 'widgets/profile_local_audio.dart';
 import 'widgets/profile_moderation.dart';
 import 'widgets/profile_roles.dart';
+import 'widgets/profile_safety_actions.dart';
 import 'widgets/profile_section.dart';
 import 'widgets/profile_skeleton_bar.dart';
 
@@ -109,18 +111,52 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     }
   }
 
+  /// Time them out, or lift it with [Duration.zero].
+  Future<void> _timeOut(Duration duration) async {
+    final member = _member(context.read<ServerMembersCubit>().state);
+    if (member == null) return;
+    setState(() => _busy = true);
+    final response = await context.read<ServerCubit>().timeOutMember(
+      targetId: member.id,
+      duration: duration,
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (response.success) {
+        final until = DateTime.tryParse('${response.data}')?.toLocal();
+        _moderated = member.copyWith(
+          timedOutUntil: until,
+          clearTimedOut: until == null,
+        );
+      }
+    });
+    if (!response.success) {
+      HelperMethods.showError(
+        error: switch (response.errorCode) {
+          'cannot_moderate_peer' =>
+            'Someone who can time others out can\'t be timed out.',
+          'cannot_moderate_admin' => 'Admins can\'t be timed out.',
+          _ => response.error ?? 'Could not do that.',
+        },
+      );
+    }
+  }
+
   ServerMember? _member(ServerMembersState state) {
     final known = state.byId[widget.userId];
     final changed = _moderated;
     if (known == null) return changed;
-    // The optimistic copy only ever differs in the three moderation flags, so
-    // a fresher row wins on everything else.
+    // The optimistic copy only ever differs in the moderation state, so a
+    // fresher row wins on everything else.
     return changed == null
         ? known
         : known.copyWith(
             isMuted: changed.isMuted,
             isDeafened: changed.isDeafened,
             isBanned: changed.isBanned,
+            timedOutUntil: changed.timedOutUntil,
+            clearTimedOut: changed.timedOutUntil == null,
           );
   }
 
@@ -155,6 +191,8 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final permissions = serverState.myPermissions;
     final isAdmin = permissions?.isServerAdmin ?? false;
     final canModerate = isAdmin || (permissions?.isChannelManager ?? false);
+    final canTimeOut = permissions?.can(ServerPermission.muteMembers) ?? false;
+    final canBan = permissions?.can(ServerPermission.banMembers) ?? false;
     final isMe = server?.user?.id == widget.userId;
 
     final name = member?.displayName ?? widget.fallbackName;
@@ -195,8 +233,11 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
               isBusy: _busy,
               canModerate: canModerate,
               isAdmin: isAdmin,
+              canTimeOut: canTimeOut,
+              canBan: canBan,
               onModerate: ({muted, deafened, banned}) =>
                   _moderate(muted: muted, deafened: deafened, banned: banned),
+              onTimeOut: _timeOut,
             ),
         ],
       ),
@@ -308,6 +349,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
               ),
             ),
           ),
+        ProfileSafetyActions(member: member),
         ProfileLocalAudio(userId: widget.userId),
       ],
     );

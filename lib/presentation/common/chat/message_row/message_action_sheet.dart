@@ -50,6 +50,7 @@ Future<MessageSheetChoice?> showMessageActionSheet({
   bool canReply = false,
   bool canForward = false,
   bool canPin = false,
+  bool canReport = false,
 }) {
   final theme = context.theme;
   final themeCubit = context.read<ThemeCubit>();
@@ -135,6 +136,14 @@ Future<MessageSheetChoice?> showMessageActionSheet({
                       label: 'Edit message',
                       onTap: () =>
                           pick(const MenuActionChoice(MessageMenuAction.edit)),
+                    ),
+                  if (canReport)
+                    ContextMenuItem(
+                      icon: Icons.flag_outlined,
+                      label: 'Report message',
+                      onTap: () => pick(
+                        const MenuActionChoice(MessageMenuAction.report),
+                      ),
                     ),
                   if (canDelete)
                     ContextMenuItem(

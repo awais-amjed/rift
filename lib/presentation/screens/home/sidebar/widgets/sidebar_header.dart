@@ -4,12 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../servers/add_server/add_server_dialog.dart';
-import '../../servers/manage/server_manage_dialog.dart';
 import '../../servers/manage/server_manage_tab.dart';
+import '../../servers/manage/show_server_manage_dialog.dart';
 import '../../servers/widgets/no_server_button.dart';
 import '../quick_switcher/quick_switcher_dialog.dart';
 import 'jump_field.dart';
@@ -47,6 +48,9 @@ class SidebarHeader extends StatelessWidget {
               onOpenSettings: canManage
                   ? () => _openServerSettings(context, server)
                   : null,
+              openReports: context.select<ReportsCubit, int>(
+                (c) => c.state.openCount,
+              ),
             ),
             JumpField(onTap: () => openQuickSwitcher(context)),
           ],

@@ -69,6 +69,16 @@ class ServerEvent {
   static const String dmPin = 'dm_pin';
   static const String prefs = 'prefs';
 
+  /// Somebody new asked to DM us, or one of our devices answered a request.
+  static const String dmRequests = 'dm_requests';
+
+  /// Our blocks changed — on another of our devices, usually.
+  static const String blocks = 'blocks';
+
+  /// The reports list changed: one filed, or one closed by another reviewer.
+  /// On a reviewer's own topic, or the server's when `@everyone` reviews.
+  static const String reports = 'reports';
+
   // From clients.
   static const String typing = 'typing';
   static const String changed = 'changed';

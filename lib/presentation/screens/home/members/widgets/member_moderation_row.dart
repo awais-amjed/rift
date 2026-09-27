@@ -86,10 +86,9 @@ class MemberModerationRow extends StatelessWidget {
                           : () => onModerate(deafened: !member.isDeafened),
                     ),
                   ],
-                  // Admin-only, matching `moderate_user`'s own
-                  // `app.is_admin()` — removing another admin's standing is
-                  // a permission change, and the roles dialog is where that
-                  // happens.
+                  // `BAN_MEMBERS`, matching `moderate_user`'s own check.
+                  // Never against an admin (above), and the server also
+                  // refuses anybody who could ban back.
                   if (canBan)
                     QuietDangerButton(
                       icon: member.isBanned

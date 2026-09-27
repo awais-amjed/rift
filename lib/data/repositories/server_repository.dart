@@ -21,7 +21,9 @@ part 'server_repository_channel_keys.dart';
 part 'server_repository_channels.dart';
 part 'server_repository_chat.dart';
 part 'server_repository_chat_reads.dart';
+part 'server_repository_dm_requests.dart';
 part 'server_repository_members.dart';
+part 'server_repository_moderation.dart';
 part 'server_repository_ownership.dart';
 part 'server_repository_pins.dart';
 part 'server_repository_polls.dart';
@@ -62,7 +64,9 @@ class ServerRepository
         _ChatApiMixin,
         _ChannelKeysApiMixin,
         _ChatReadApiMixin,
+        _DmRequestsApiMixin,
         _MemberApiMixin,
+        _ModerationApiMixin,
         _PushApiMixin,
         _ReactionApiMixin,
         _RoleApiMixin,

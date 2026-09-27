@@ -39,6 +39,23 @@ class DmState {
   /// The open peer's display name while they're typing, else null.
   final String? typingPeerName;
 
+  /// First messages from people new to us, waiting for an answer — newest
+  /// first, and in [conversations] only once accepted.
+  final List<DmConversation> requests;
+
+  /// Where we stand with the open conversation's peer. [DmLinkState.open]
+  /// until the server has said otherwise, so an older server never locks
+  /// the composer.
+  final DmLinkState openLinkState;
+
+  /// The open peer's DM setting, known only while [openLinkState] is
+  /// [DmLinkState.none] — the one case where it decides what a first message
+  /// does.
+  final DmPolicy? openPeerPolicy;
+
+  /// Who we have blocked on this server.
+  final Set<String> blockedIds;
+
   final String? error;
 
   const DmState({
@@ -53,6 +70,10 @@ class DmState {
     this.isLoadingMore = false,
     this.hasNewerHistory = false,
     this.typingPeerName,
+    this.requests = const [],
+    this.openLinkState = DmLinkState.open,
+    this.openPeerPolicy,
+    this.blockedIds = const {},
     this.error,
   });
 
@@ -69,6 +90,11 @@ class DmState {
     bool? hasNewerHistory,
     String? typingPeerName,
     bool clearTyping = false,
+    List<DmConversation>? requests,
+    DmLinkState? openLinkState,
+    DmPolicy? openPeerPolicy,
+    bool clearOpenPeerPolicy = false,
+    Set<String>? blockedIds,
     String? error,
     bool clearError = false,
     bool closeConversation = false,
@@ -95,6 +121,14 @@ class DmState {
       typingPeerName: (closeConversation || clearTyping)
           ? null
           : (typingPeerName ?? this.typingPeerName),
+      requests: requests ?? this.requests,
+      openLinkState: closeConversation
+          ? DmLinkState.open
+          : (openLinkState ?? this.openLinkState),
+      openPeerPolicy: (closeConversation || clearOpenPeerPolicy)
+          ? null
+          : (openPeerPolicy ?? this.openPeerPolicy),
+      blockedIds: blockedIds ?? this.blockedIds,
       error: clearError ? null : (error ?? this.error),
     );
   }

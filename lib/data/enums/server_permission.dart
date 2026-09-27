@@ -78,7 +78,8 @@ enum ServerPermission {
     6,
     PermissionGroup.server,
     'Ban members',
-    'End somebody’s membership for good. Their messages stay.',
+    'End somebody’s membership until they are unbanned. Their messages stay. '
+        'Nobody can ban an admin, or someone else who can ban.',
   ),
   manageBots(
     7,
@@ -159,7 +160,8 @@ enum ServerPermission {
     18,
     PermissionGroup.voice,
     'Mute members',
-    'Server-mute somebody, which survives them rejoining.',
+    'Server-mute somebody in calls, which survives them rejoining, and '
+        'time them out of messages, DMs and reactions for a while.',
   ),
   deafenMembers(
     19,
@@ -233,6 +235,15 @@ enum ServerPermission {
     'Create polls',
     'Post a poll in a channel. Everyone has it by default. Voting needs only '
         'being able to see the channel.',
+  ),
+
+  // ── Reports ─────────────────────────────────────────────
+  reviewReports(
+    28,
+    PermissionGroup.server,
+    'Review reports',
+    'See what members report, and close each report once it is dealt '
+        'with. Nobody sees a report about themselves.',
   );
 
   final int bit;

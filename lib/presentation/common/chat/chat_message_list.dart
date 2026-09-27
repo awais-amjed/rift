@@ -120,6 +120,10 @@ class ChatMessageList extends StatefulWidget {
   /// Pin or unpin a message. Null where the reader may not pin here.
   final void Function(ChatMessage message)? onTogglePin;
 
+  /// Report a message to the server's moderators. Null where there are none
+  /// who could read it.
+  final void Function(ChatMessage message)? onReport;
+
   /// How each loaded poll stands, by message id. Empty where there are none.
   final Map<String, PollTally> pollTallies;
 
@@ -156,6 +160,7 @@ class ChatMessageList extends StatefulWidget {
     this.mentionable = const {},
     this.mentionNames = const {},
     this.onTogglePin,
+    this.onReport,
     this.pollTallies = const {},
     this.onVote,
     this.onClosePoll,
@@ -398,6 +403,7 @@ class _ChatMessageListState extends State<ChatMessageList>
             mentionNames: widget.mentionNames,
             animateIn: _animating.contains(msg.id),
             onTogglePin: widget.onTogglePin,
+            onReport: widget.onReport,
             pollTally: widget.pollTallies[msg.id],
             onVote: widget.onVote,
             onClosePoll: widget.onClosePoll,

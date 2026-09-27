@@ -36,6 +36,13 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       widget.onEdit != null && MessagePermissions.canEdit(message);
   bool get _canPin =>
       widget.onTogglePin != null && MessagePermissions.canPin(message);
+  /// Anything somebody else said that this reader could read. Not a message
+  /// still locked: reporting words you have not seen is a guess.
+  bool get _canReport =>
+      widget.onReport != null &&
+      !message.isMine &&
+      !message.isPending &&
+      !message.isLocked;
   bool get _canDelete =>
       widget.onDelete != null &&
       MessagePermissions.canDelete(message, isModerator: widget.isModerator);
@@ -91,6 +98,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       canForward: _canForward,
       canPin: _canPin,
       canEdit: _canEdit,
+      canReport: _canReport,
       canDelete: _canDelete,
     );
     if (!mounted || action == null) return;
@@ -109,6 +117,8 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
         _togglePin();
       case MessageMenuAction.edit:
         _startEditing();
+      case MessageMenuAction.report:
+        widget.onReport?.call(message);
       case MessageMenuAction.delete:
         await _confirmDelete();
     }
@@ -125,6 +135,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       canForward: _canForward,
       canPin: _canPin,
       canEdit: _canEdit,
+      canReport: _canReport,
       canDelete: _canDelete,
     );
     if (!mounted || choice == null) return;
@@ -144,6 +155,8 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
         _togglePin();
       case MenuActionChoice(action: MessageMenuAction.edit):
         _startEditing();
+      case MenuActionChoice(action: MessageMenuAction.report):
+        widget.onReport?.call(message);
       case MenuActionChoice(action: MessageMenuAction.delete):
         await _confirmDelete();
     }

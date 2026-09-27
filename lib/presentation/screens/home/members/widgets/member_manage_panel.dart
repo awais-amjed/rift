@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../theme/app_text.dart';
@@ -140,7 +141,13 @@ class MemberManagePanel extends StatelessWidget {
 
             isBusy: isBusy,
             canModerate: canModerate,
-            canBan: canManagePermissions,
+            // `BAN_MEMBERS`, which admins hold by implication and a server
+            // may also give a moderator role.
+            canBan:
+                context.read<ServerCubit>().state.myPermissions?.can(
+                  ServerPermission.banMembers,
+                ) ??
+                false,
             dividerAbove: canManagePermissions,
             onModerate: onModerate,
             onToggleBan: () => _toggleBan(context),

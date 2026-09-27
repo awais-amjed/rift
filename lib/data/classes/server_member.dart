@@ -1,3 +1,4 @@
+import '../enums/dm_policy.dart';
 import 'bot_manifest.dart';
 import 'user_permissions.dart';
 
@@ -39,6 +40,14 @@ class ServerMember {
   /// could be mistaken for — the profile says which server it means.
   final DateTime? joinedAt;
 
+  /// Who may start a DM with them — what the composer says before a first
+  /// message is typed.
+  final DmPolicy dmPolicy;
+
+  /// Until when they cannot post, DM or react, or null. Moderators are shown
+  /// it; the server enforces it.
+  final DateTime? timedOutUntil;
+
   const ServerMember({
     required this.id,
     required this.username,
@@ -52,7 +61,13 @@ class ServerMember {
     this.chatPublicKey,
     this.avatarPath,
     this.joinedAt,
+    this.dmPolicy = DmPolicy.everyone,
+    this.timedOutUntil,
   });
+
+  /// Timed out right now — a time in the past is a time-out that has ended.
+  bool get isTimedOut =>
+      timedOutUntil != null && timedOutUntil!.isAfter(DateTime.now());
 
   factory ServerMember.fromJson(Map<String, dynamic> json) {
     return ServerMember(
@@ -72,6 +87,10 @@ class ServerMember {
       chatPublicKey: json['chat_public_key'] as String?,
       avatarPath: json['avatar_path'] as String?,
       joinedAt: DateTime.tryParse(json['joined_at'] as String? ?? ''),
+      dmPolicy: DmPolicy.fromString(json['dm_policy'] as String?),
+      timedOutUntil: DateTime.tryParse(
+        json['timed_out_until'] as String? ?? '',
+      )?.toLocal(),
     );
   }
 
@@ -95,6 +114,8 @@ class ServerMember {
     bool? isMuted,
     bool? isDeafened,
     bool? isBanned,
+    DateTime? timedOutUntil,
+    bool clearTimedOut = false,
   }) {
     return ServerMember(
       id: id,
@@ -112,6 +133,10 @@ class ServerMember {
       chatPublicKey: chatPublicKey,
       avatarPath: avatarPath,
       joinedAt: joinedAt,
+      dmPolicy: dmPolicy,
+      timedOutUntil: clearTimedOut
+          ? null
+          : (timedOutUntil ?? this.timedOutUntil),
     );
   }
 }

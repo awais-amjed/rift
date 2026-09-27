@@ -112,6 +112,9 @@ mixin _ServerProfileApiMixin on Cubit<ServerState> {
           displayName: data['display_name'] as String? ?? user.displayName,
           permissions: user.permissions,
           avatarPath: data['avatar_path'] as String?,
+          isBanned: user.isBanned,
+          timedOutUntil: user.timedOutUntil,
+          dmPolicy: user.dmPolicy,
         ),
       );
       _replaceServer(updated);

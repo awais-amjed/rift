@@ -11,11 +11,14 @@ import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/enums/dm_link_state.dart';
+import '../../../data/enums/dm_policy.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/broadcast_payload.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/dm_refusal.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/new_message_notifier.dart';
 import '../../services/outbox.dart';
@@ -33,6 +36,7 @@ part 'dm_edit.dart';
 part 'dm_history.dart';
 part 'dm_pins.dart';
 part 'dm_reactions.dart';
+part 'dm_requests.dart';
 part 'dm_send.dart';
 part 'dm_state.dart';
 
@@ -52,7 +56,8 @@ class DmCubit extends Cubit<DmState>
         _DmSendMixin,
         _DmEditMixin,
         _DmReactionsMixin,
-        _DmPinsMixin {
+        _DmPinsMixin,
+        _DmRequestsMixin {
   @override
   final ServerCubit _serverCubit;
   final VaultCubit _vaultCubit;
@@ -124,6 +129,8 @@ class DmCubit extends Cubit<DmState>
     _readyServerId = server.id;
     _setupRealtime(server);
     unawaited(refreshConversations());
+    unawaited(refreshRequests());
+    unawaited(refreshBlocks());
   }
 
   Future<void> _reset() async {
@@ -190,6 +197,8 @@ class DmCubit extends Cubit<DmState>
       ..onBroadcast(ServerEvent.dmChanged, _onChangeDoorbell)
       ..onBroadcast(ServerEvent.dmReaction, _onReactionDoorbell)
       ..onBroadcast(ServerEvent.dmPin, _onPinDoorbell)
+      ..onBroadcast(ServerEvent.dmRequests, (_) => _onRequestsDoorbell())
+      ..onBroadcast(ServerEvent.blocks, (_) => _onBlocksDoorbell())
       ..onBroadcast(ServerEvent.typing, _onTyping);
   }
 
@@ -204,6 +213,7 @@ class DmCubit extends Cubit<DmState>
   void _joinPeerTopic(String peerId) {
     _leavePeerTopic();
     _typingPeerId = peerId;
+    unawaited(refreshOpenLinkState());
   }
 
   @override
@@ -241,7 +251,25 @@ class DmCubit extends Cubit<DmState>
     unawaited(refreshConversations());
     if (state.chatStatus == DmChatStatus.ready) {
       unawaited(_fetchAfterLatest());
+      // A reply to our request is its acceptance.
+      if (state.openLinkState != DmLinkState.open) {
+        unawaited(refreshOpenLinkState());
+      }
     }
+  }
+
+  /// A request arrived, or another of our devices answered one.
+  void _onRequestsDoorbell() {
+    if (isClosed) return;
+    unawaited(refreshRequests());
+    unawaited(refreshConversations());
+    if (state.openPeerId != null) unawaited(refreshOpenLinkState());
+  }
+
+  void _onBlocksDoorbell() {
+    if (isClosed) return;
+    unawaited(refreshBlocks());
+    unawaited(refreshRequests());
   }
 
   // ──────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../common/nav_row.dart';
+import '../../../../../common/unread_badge.dart';
 import '../../../../../theme/theme_context.dart';
 
 /// A page-per-concern dialog's left-hand nav: one row per page the viewer may
@@ -21,6 +22,10 @@ class ManageNav<T> extends StatelessWidget {
   /// one.
   final bool expand;
 
+  /// Something waiting on a page — open reports — or null for none. A page
+  /// answering 0 draws no badge.
+  final int Function(T tab)? countOf;
+
   const ManageNav({
     super.key,
     required this.tabs,
@@ -29,6 +34,7 @@ class ManageNav<T> extends StatelessWidget {
     required this.labelOf,
     required this.iconOf,
     this.expand = false,
+    this.countOf,
   });
 
   static const double width = 196;
@@ -49,6 +55,10 @@ class ManageNav<T> extends StatelessWidget {
               child: NavRow(
                 icon: iconOf(tab),
                 label: labelOf(tab),
+                isUnread: (countOf?.call(tab) ?? 0) > 0,
+                trailing: (countOf?.call(tab) ?? 0) > 0
+                    ? UnreadBadge(count: countOf!(tab))
+                    : null,
                 // Nothing is selected in a phone's list — it is the way in,
                 // and the page opened is on its own screen.
                 isSelected: !expand && tab == active,

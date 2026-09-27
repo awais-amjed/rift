@@ -21,7 +21,10 @@ import '../../../data/classes/server_user.dart';
 import '../../../data/classes/soundboard_sound.dart';
 import '../../../data/classes/user_permissions.dart';
 import '../../../data/classes/webhook.dart';
+import '../../../data/enums/dm_policy.dart';
 import '../../../data/enums/error_code.dart';
+import '../../../data/enums/member_report_reason.dart';
+import '../../../data/enums/report_outcome.dart';
 import '../../../data/invite_link.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/avatar_repository.dart';
@@ -54,6 +57,7 @@ part 'server_invites_api.dart';
 part 'server_cubit.g.dart';
 part 'server_member_lookup_api.dart';
 part 'server_members_api.dart';
+part 'server_moderation_api.dart';
 part 'server_ownership_api.dart';
 part 'server_pins_polls_api.dart';
 part 'server_private_channels_api.dart';
@@ -81,6 +85,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerApiMixin,
         _ServerMemberLookupApiMixin,
         _ServerMembersApiMixin,
+        _ServerModerationApiMixin,
         _ServerRolesApiMixin,
         _ServerOwnershipApiMixin,
         _ServerBotsApiMixin,

@@ -24,11 +24,13 @@ import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
 import '../../../common/chat/polls/create_poll_dialog.dart';
+import '../../../common/chat/time_out_gate.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
 import '../../../theme/theme_context.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../profile/person/show_person_profile.dart';
+import '../reports/show_report_dialog.dart';
 import 'widgets/chat_header.dart';
 import 'widgets/chat_read_only_banner.dart';
 import 'widgets/chat_status_view.dart';
@@ -106,32 +108,37 @@ class _ChannelChatViewState extends State<ChannelChatView>
               if (chatState.status == ChannelChatStatus.ready) ...[
                 TypingIndicator(names: chatState.typingUsers.values.toList()),
                 const MiniCallBar(),
-                ChatComposer(
-                  onSend: (text, attachments, preview) =>
-                      _send(context, text, attachments, preview),
-                  replyingTo: replyingTo,
-                  onCancelReply: cancelReply,
-                  // A channel is the one surface with somebody to ring
-                  // who is not already being written to.
-                  replyPings: replyPings,
-                  onToggleReplyPing: setReplyPing,
-                  onTyping: () =>
-                      context.read<ChannelChatCubit>().notifyTyping(),
-                  canAttach: _canAttach(context),
-                  maxAttachmentBytes: _maxAttachmentBytes(context),
-                  remainingStorageBytes: _remainingStorage(context),
-                  bots: chatState.bots,
-                  onCreatePoll: _canCreatePoll(context)
-                      ? () => _createPoll(context)
-                      : null,
-                  onMentionSearch: (query) =>
-                      _searchMentionable(context, query),
-                  selfUserId: context
-                      .read<ServerCubit>()
-                      .state
-                      .selectedServer
-                      ?.user
-                      ?.id,
+                TimeOutGate(
+                  until: context.select<ServerCubit, DateTime?>(
+                    (c) => c.state.selectedServer?.user?.timedOutUntil,
+                  ),
+                  child: ChatComposer(
+                    onSend: (text, attachments, preview) =>
+                        _send(context, text, attachments, preview),
+                    replyingTo: replyingTo,
+                    onCancelReply: cancelReply,
+                    // A channel is the one surface with somebody to ring
+                    // who is not already being written to.
+                    replyPings: replyPings,
+                    onToggleReplyPing: setReplyPing,
+                    onTyping: () =>
+                        context.read<ChannelChatCubit>().notifyTyping(),
+                    canAttach: _canAttach(context),
+                    maxAttachmentBytes: _maxAttachmentBytes(context),
+                    remainingStorageBytes: _remainingStorage(context),
+                    bots: chatState.bots,
+                    onCreatePoll: _canCreatePoll(context)
+                        ? () => _createPoll(context)
+                        : null,
+                    onMentionSearch: (query) =>
+                        _searchMentionable(context, query),
+                    selfUserId: context
+                        .read<ServerCubit>()
+                        .state
+                        .selectedServer
+                        ?.user
+                        ?.id,
+                  ),
                 ),
               ],
             ],
@@ -344,6 +351,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
           // never ambiguous between the room and a person.
           mentionable: {Mentions.everyone, ...chatState.mentionNames.keys},
           mentionNames: chatState.mentionNames,
+          onReport: (message) =>
+              unawaited(showReportMessageDialog(context, message)),
           onTogglePin: _canPin(context, chatState.channelId)
               ? (message) => unawaited(
                   context.read<ChannelChatCubit>().setPinned(

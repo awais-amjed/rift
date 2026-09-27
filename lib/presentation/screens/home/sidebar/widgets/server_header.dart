@@ -32,10 +32,15 @@ class ServerHeader extends StatelessWidget {
   /// Admin-only. Null hides the gear.
   final VoidCallback? onOpenSettings;
 
+  /// Reports waiting on this member, drawn on the settings button. 0 for
+  /// everybody who does not review them.
+  final int openReports;
+
   const ServerHeader({
     super.key,
     required this.server,
     this.onOpenSettings,
+    this.openReports = 0,
     this.showHideButton = true,
   });
 
@@ -106,15 +111,26 @@ class ServerHeader extends StatelessWidget {
     );
   }
 
+  /// With a dot of the open-report count for somebody who reviews them: a
+  /// report is only useful if it is seen, and nobody opens a settings dialog
+  /// on the off chance.
   Widget _buildSettingsButton(ThemeState themeState) {
     return IconButton(
-      tooltip: 'Server settings',
+      tooltip: openReports > 0
+          ? 'Server settings · $openReports open reports'
+          : 'Server settings',
       visualDensity: VisualDensity.compact,
       onPressed: onOpenSettings,
-      icon: Icon(
-        Icons.settings_outlined,
-        size: K.iconButton,
-        color: themeState.textTertiary,
+      icon: Badge(
+        isLabelVisible: openReports > 0,
+        backgroundColor: themeState.primary,
+        textColor: themeState.onPrimary,
+        label: Text('$openReports'),
+        child: Icon(
+          Icons.settings_outlined,
+          size: K.iconButton,
+          color: themeState.textTertiary,
+        ),
       ),
     );
   }

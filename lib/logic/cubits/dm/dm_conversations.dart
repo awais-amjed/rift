@@ -97,6 +97,17 @@ mixin _DmConversationsMixin on Cubit<DmState> {
     final rows = (data['conversations'] as List? ?? const [])
         .cast<Map<String, dynamic>>();
 
+    final conversations = await _conversationsFrom(rows);
+    if (conversations == null) return null;
+    return (conversations: conversations, hasMore: data['has_more'] == true);
+  }
+
+  /// Rows in the `dm_conversations` shape, previews decrypted. The requests
+  /// list comes in the same shape and goes through here too. Null when the
+  /// cubit closed partway.
+  Future<List<DmConversation>?> _conversationsFrom(
+    List<Map<String, dynamic>> rows,
+  ) async {
     final conversations = <DmConversation>[];
     for (final row in rows) {
       final peerId = row['peer_id'] as String;
@@ -126,7 +137,6 @@ mixin _DmConversationsMixin on Cubit<DmState> {
       );
     }
     if (isClosed) return null;
-
-    return (conversations: conversations, hasMore: data['has_more'] == true);
+    return conversations;
   }
 }

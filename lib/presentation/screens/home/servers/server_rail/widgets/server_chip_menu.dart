@@ -15,8 +15,8 @@ import '../../../../../common/notifications/notification_level_submenu.dart';
 import '../../../../../common/squircle_avatar.dart';
 import '../../../../../common/unread_badge.dart';
 import '../../../invites/invite_modal.dart';
-import '../../manage/server_manage_dialog.dart';
 import '../../manage/server_manage_tab.dart';
+import '../../manage/show_server_manage_dialog.dart';
 
 /// Right-click menu on a rail chip.
 ///

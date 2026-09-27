@@ -10,6 +10,7 @@ import '../../../common/hint_card.dart';
 import 'new_server_dm_modal.dart';
 import 'server_dm_chat_view.dart';
 import 'widgets/dm_list_panel.dart';
+import 'widgets/dm_requests_row.dart';
 import 'widgets/dm_surface.dart';
 import 'widgets/member_search_field.dart';
 
@@ -75,6 +76,7 @@ class _ServerDmViewState extends State<ServerDmView> {
                 },
               )
             : null,
+        leading: server == null ? null : const DmRequestsRow(),
         emptyState: _searchOpen
             ? null
             : HintCard(

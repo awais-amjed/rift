@@ -26,6 +26,8 @@ class ServerUserRow {
     'is_banned': u['is_banned'],
     'is_bot': u['is_bot'],
     'manifest': u['manifest'],
+    'dm_policy': u['dm_policy'],
+    'timed_out_until': u['timed_out_until'],
     'permissions': {
       'is_server_admin': u['is_server_admin'],
       'is_channel_manager': u['is_channel_manager'],

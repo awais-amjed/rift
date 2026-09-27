@@ -9,6 +9,7 @@ import '../logic/cubits/dm/dm_cubit.dart';
 import '../logic/cubits/livekit/livekit_cubit.dart';
 import '../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../logic/cubits/public_servers/public_servers_cubit.dart';
+import '../logic/cubits/reports/reports_cubit.dart';
 import '../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../logic/cubits/server/server_cubit.dart';
 import '../logic/cubits/server_events/server_events_cubit.dart';
@@ -124,6 +125,15 @@ class AppProviders extends StatelessWidget {
             dmCubit: context.read<DmCubit>(),
             // ...and the surface decides whether it's on screen at all.
             appCubit: appCubit,
+          ),
+        ),
+        BlocProvider(
+          // Not lazy: the Reports badge has to move when a report arrives,
+          // not when somebody first opens the page.
+          lazy: false,
+          create: (context) => ReportsCubit(
+            serverCubit: context.read<ServerCubit>(),
+            vaultCubit: vaultCubit,
           ),
         ),
         BlocProvider(

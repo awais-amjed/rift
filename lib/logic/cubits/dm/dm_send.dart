@@ -10,6 +10,7 @@ mixin _DmSendMixin on Cubit<DmState> {
 
   /// Implemented by the conversations mixin.
   Future<void> refreshConversations();
+  Future<void> refreshOpenLinkState();
 
   /// Sends that did not get out. On the class rather than here because the
   /// history mixin restores from it too (CODE_STYLE §5).
@@ -106,8 +107,16 @@ mixin _DmSendMixin on Cubit<DmState> {
           peerId: peerId,
           attachments: attachments,
           errorCode: response.errorCode,
-          error: response.error ?? 'Failed to send message',
+          error:
+              DmRefusal.describe(
+                response.errorCode,
+                peerName: state.openPeerName ?? 'They',
+              ) ??
+              response.error ??
+              'Failed to send message',
         );
+        // A refusal about the request says where things stand now.
+        unawaited(refreshOpenLinkState());
         return;
       }
 
@@ -132,6 +141,12 @@ mixin _DmSendMixin on Cubit<DmState> {
         ),
       );
       unawaited(refreshConversations());
+      // A first message may have become a request, and a reply to one is its
+      // acceptance. Anything later in an open conversation changes nothing.
+      if (state.openLinkState != DmLinkState.open ||
+          state.messages.length <= 1) {
+        unawaited(refreshOpenLinkState());
+      }
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[DM] attachment upload failed: $e');
       _failSend(

@@ -4,11 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
+import '../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../logic/cubits/soundboard/soundboard_cubit.dart';
-import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -18,6 +15,7 @@ import 'panels/danger_zone_panel.dart';
 import 'panels/limits_panel.dart';
 import 'panels/members_panel.dart';
 import 'panels/overview_panel.dart';
+import 'panels/reports_panel.dart';
 import 'panels/roles_panel.dart';
 import 'panels/soundboard_panel.dart';
 import 'panels/voice_panel.dart';
@@ -93,6 +91,7 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
             onSelected: (tab) => setState(() => _active = tab),
             labelOf: (tab) => tab.label,
             iconOf: (tab) => tab.icon,
+            countOf: _countOf,
           ),
           VerticalDivider(width: 1, color: themeState.borderPrimary),
           Expanded(child: _page(active, server)),
@@ -127,6 +126,7 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
             onSelected: (tab) => setState(() => _active = tab),
             labelOf: (tab) => tab.label,
             iconOf: (tab) => tab.icon,
+            countOf: _countOf,
           ),
         ),
       );
@@ -153,6 +153,10 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
           child: ManageHeadingAbove(
             child: open == ServerManageTab.members
                 ? page
+                // Reports are acted on from wherever a moderator is, which
+                // is often a phone — the same reason Members is live here.
+                : open == ServerManageTab.reports
+                ? page
                 : ManageReadOnly(child: page),
           ),
         ),
@@ -160,51 +164,22 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
     );
   }
 
+  /// Open reports, on the Reports row. Watched, so a report arriving while the
+  /// dialog is open moves the badge.
+  int _countOf(ServerManageTab tab) => tab == ServerManageTab.reports
+      ? context.watch<ReportsCubit>().state.openCount
+      : 0;
+
   Widget _page(ServerManageTab tab, Server server) => switch (tab) {
     ServerManageTab.overview => OverviewPanel(server: server),
     ServerManageTab.voice => VoicePanel(server: server),
     ServerManageTab.limits => LimitsPanel(server: server),
     ServerManageTab.roles => const RolesPanel(),
     ServerManageTab.members => MembersPanel(server: server),
+    ServerManageTab.reports => const ReportsPanel(),
     ServerManageTab.bots => BotsPanel(server: server),
     ServerManageTab.webhooks => WebhooksPanel(server: server),
     ServerManageTab.soundboard => const SoundboardPanel(),
     ServerManageTab.danger => DangerZonePanel(server: server),
   };
-}
-
-/// The dialog with everything its pages read, for whichever route opens it.
-///
-/// Several cubits rather than one because the pages reach several places:
-/// the server itself, the central listing, the account behind it, the
-/// soundboard's library, and the roster the soundboard page credits a clip
-/// to.
-Widget serverManageDialog(
-  BuildContext context, {
-  required Server server,
-  ServerManageTab? initial,
-}) {
-  return MultiBlocProvider(
-    providers: [
-      BlocProvider.value(value: context.read<ServerCubit>()),
-      BlocProvider.value(value: context.read<PublicServersCubit>()),
-      BlocProvider.value(value: context.read<SupabaseBackupCubit>()),
-      BlocProvider.value(value: context.read<SoundboardCubit>()),
-      BlocProvider.value(value: context.read<ServerMembersCubit>()),
-    ],
-    child: ServerManageDialog(server: server, initial: initial),
-  );
-}
-
-/// Open the dialog from anywhere with a plain context.
-Future<void> showServerManageDialog(
-  BuildContext context, {
-  required Server server,
-  ServerManageTab? initial,
-}) {
-  return showCustomDialog(
-    context: context,
-    barrierDismissible: true,
-    build: (_) => serverManageDialog(context, server: server, initial: initial),
-  );
 }

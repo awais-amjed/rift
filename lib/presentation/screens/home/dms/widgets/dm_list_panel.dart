@@ -49,6 +49,10 @@ class DmListPanel extends StatelessWidget {
   /// Shown in place of the list when there are no conversations.
   final Widget? emptyState;
 
+  /// Above the conversations, and above [emptyState] when there are none —
+  /// the way in to message requests on a server.
+  final Widget? leading;
+
   /// Unread messages from a peer, for the per-row badge. Null means the caller
   /// has no unread information — every row then shows none.
   final int Function(String peerId)? unreadFor;
@@ -79,6 +83,7 @@ class DmListPanel extends StatelessWidget {
     this.onLoadMore,
     this.search,
     this.emptyState,
+    this.leading,
     this.unreadFor,
     this.levelFor,
     this.onLevelChanged,
@@ -104,6 +109,7 @@ class DmListPanel extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
             child: search!,
           ),
+        ?leading,
         Expanded(child: _buildList(themeState, compact)),
       ],
     );

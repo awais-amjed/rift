@@ -1,3 +1,4 @@
+import '../enums/dm_policy.dart';
 import 'user_permissions.dart';
 
 /// Our own member row on one server: who we appear as there, and what we may do.
@@ -19,6 +20,13 @@ class ServerUser {
   /// something a client can tell apart from "nothing here yet".
   final bool isBanned;
 
+  /// Until when we cannot post, DM or react here, or null. From the server
+  /// on every refresh and never persisted, like [isBanned].
+  final DateTime? timedOutUntil;
+
+  /// Who may start a DM with us on this server.
+  final DmPolicy dmPolicy;
+
   const ServerUser({
     required this.id,
     required this.username,
@@ -26,12 +34,19 @@ class ServerUser {
     required this.permissions,
     this.avatarPath,
     this.isBanned = false,
+    this.timedOutUntil,
+    this.dmPolicy = DmPolicy.everyone,
   });
+
+  /// Timed out right now.
+  bool get isTimedOut =>
+      timedOutUntil != null && timedOutUntil!.isAfter(DateTime.now());
 
   ServerUser copyWith({
     String? displayName,
     String? avatarPath,
     bool? isBanned,
+    DmPolicy? dmPolicy,
   }) => ServerUser(
     id: id,
     username: username,
@@ -39,6 +54,8 @@ class ServerUser {
     permissions: permissions,
     avatarPath: avatarPath ?? this.avatarPath,
     isBanned: isBanned ?? this.isBanned,
+    timedOutUntil: timedOutUntil,
+    dmPolicy: dmPolicy ?? this.dmPolicy,
   );
 
   factory ServerUser.fromJson(Map<String, dynamic> json) {
@@ -55,6 +72,10 @@ class ServerUser {
       // Deliberately not persisted (see toJson): a ban read at launch has to
       // come from the server, not from what we believed last time.
       isBanned: json['is_banned'] as bool? ?? false,
+      timedOutUntil: DateTime.tryParse(
+        json['timed_out_until'] as String? ?? '',
+      )?.toLocal(),
+      dmPolicy: DmPolicy.fromString(json['dm_policy'] as String?),
     );
   }
 

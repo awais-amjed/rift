@@ -17,10 +17,18 @@ void main() {
         ServerManageTab.limits,
         ServerManageTab.roles,
         ServerManageTab.members,
+        ServerManageTab.reports,
         ServerManageTab.bots,
         ServerManageTab.webhooks,
         ServerManageTab.soundboard,
       ]);
+    });
+
+    test('reviewing reports alone opens the reports page and nothing else', () {
+      final reviewer = UserPermissions(
+        bits: ServerPermission.reviewReports.mask,
+      );
+      expect(ServerManageTabs.visible(reviewer), [ServerManageTab.reports]);
     });
 
     test('the owner gets the last page too, in nav order', () {
