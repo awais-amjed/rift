@@ -24,10 +24,15 @@ Future<void> showReportMessageDialog(
     build: (_) => ReportDialog(
       title: 'Report message',
       subtitle: 'From ${message.authorName}',
-      disclosure:
-          '${message.authorName} isn\'t told who reported it. Moderators '
-          'see your name and open the message with their own key — the '
-          'server never sees what it says.',
+      disclosure: message.isEncrypted
+          ? '${message.authorName} isn\'t told who reported it. Moderators '
+                'see your name and open the message with their own key — the '
+                'server never sees what it says.'
+          // A webhook's or a bot's words were never sealed, so the promise
+          // above would be false here.
+          : '${message.authorName} isn\'t told who reported it. Moderators '
+                'see your name. This message wasn\'t end-to-end encrypted, '
+                'so they read it as posted.',
       onSend: (reason, note) =>
           serverCubit.reportMessage(messageId: id, reason: reason, note: note),
     ),

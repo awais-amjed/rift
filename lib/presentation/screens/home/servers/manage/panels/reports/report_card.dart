@@ -39,25 +39,24 @@ class ReportCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 8,
         children: [
+          // The reason and the time on a line of their own, and who it is
+          // about under them: side by side, a phone left the sentence a
+          // word's width between the two.
           Row(
-            spacing: 8,
             children: [
               LabelPill(label: report.reason.label),
-              Expanded(
-                child: Text(
-                  report.message == null
-                      ? '$about, reported by $reporter'
-                      : 'Message from $about, reported by $reporter',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.row.copyWith(color: theme.textPrimary),
-                ),
-              ),
+              const Spacer(),
               Text(
                 formatMessageMoment(report.createdAt.toLocal(), now),
                 style: AppText.meta.copyWith(color: theme.textTertiary),
               ),
             ],
+          ),
+          Text(
+            report.message == null
+                ? '$about, reported by $reporter'
+                : 'Message from $about, reported by $reporter',
+            style: AppText.row.copyWith(color: theme.textPrimary),
           ),
           if (target != null && (target.isBanned || target.isTimedOut))
             Text(

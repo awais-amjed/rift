@@ -5,6 +5,7 @@ import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/notification_level.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
+import '../../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
@@ -115,6 +116,19 @@ class ServerChipMenu extends StatelessWidget {
           ContextMenuItem(
             icon: Icons.settings_outlined,
             label: 'Manage server',
+            // Open reports, for the server they belong to. On a phone this
+            // is the only place a moderator would see them waiting: there is
+            // no settings gear in the header to carry the count.
+            trailing: switch (context.select<ReportsCubit, int>(
+              (c) => c.state.openCount,
+            )) {
+              final n
+                  when n > 0 &&
+                      context.read<ServerCubit>().state.selectedServer?.id ==
+                          server.id =>
+                UnreadBadge(count: n),
+              _ => null,
+            },
             onTap: () => _manage(context, null),
           ),
         ContextMenuItem(

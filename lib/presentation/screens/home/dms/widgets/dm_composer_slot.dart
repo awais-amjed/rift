@@ -9,6 +9,8 @@ import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/chat/composer_notice.dart';
 import '../../../../common/chat/time_out_gate.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
 import 'dm_request_banner.dart';
 
 /// What sits under a server DM: the composer, or why there isn't one.
@@ -66,6 +68,25 @@ class DmComposerSlot extends StatelessWidget {
         text:
             '$name only takes messages from people they already talk to on '
             'this server.',
+      );
+    } else if (state.openLinkState == DmLinkState.none &&
+        state.openPeerPolicy == DmPolicy.requests) {
+      // Said before sending, not after: the first message is all they get
+      // until the other side answers, so it is worth knowing while writing it.
+      slot = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
+            child: Text(
+              '$name asks first. Your first message goes as a request, and '
+              'you can send more once they accept.',
+              style: AppText.meta.copyWith(color: context.theme.textTertiary),
+            ),
+          ),
+          composer,
+        ],
       );
     } else if (state.openLinkState.isRequestToMe) {
       slot = Column(

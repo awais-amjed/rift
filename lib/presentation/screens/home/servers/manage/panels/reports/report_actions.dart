@@ -61,7 +61,7 @@ class _ReportActionsState extends State<ReportActions> {
       title: 'Delete this message?',
       message:
           'It is removed for everyone, with its attachments. The report '
-          'keeps its sealed copy.',
+          'keeps its copy.',
       confirmLabel: 'Delete',
       icon: Icons.delete_outline_rounded,
       isDestructive: true,
@@ -104,7 +104,11 @@ class _ReportActionsState extends State<ReportActions> {
       spacing: 8,
       runSpacing: 8,
       children: [
-        if (report.message != null && can(ServerPermission.manageMessages))
+        // Not in a channel the reviewer cannot see: the delete would reach
+        // nothing, and the report would stay open saying so.
+        if (report.message != null &&
+            report.channelName != null &&
+            can(ServerPermission.manageMessages))
           AppButton(
             label: 'Delete message',
             variant: AppButtonVariant.secondary,
