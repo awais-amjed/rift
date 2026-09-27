@@ -30,7 +30,11 @@ class ServerLimitsControllers {
   final maxMembers = TextEditingController();
   final storageMb = TextEditingController();
 
-  /// The DM overrides as last seeded. This dialog doesn't show them — they are
+  /// How many people one member may start a DM with in an hour. The one box
+  /// here that is on by default, which is why it sits under its own heading.
+  final dmOpenings = TextEditingController();
+
+  /// The DM settings as last seeded. This dialog doesn't show them — they are
   /// set by right-clicking Server DMs — but [ServerLimits] travels whole, so
   /// saving here would send them as null and quietly undo them. Carried rather
   /// than displayed.
@@ -48,6 +52,7 @@ class ServerLimitsControllers {
     storageMb.text = limits.maxStorageBytes == ServerLimits.unlimited
         ? ''
         : LimitInput.megabytesOf(limits.maxStorageBytes);
+    dmOpenings.text = LimitInput.textOf(limits.dmOpeningsPerHour);
     _dmRetentionDays = limits.dmRetentionDays;
     _dmHistoryCap = limits.dmHistoryCap;
   }
@@ -60,6 +65,7 @@ class ServerLimitsControllers {
     shareMbps.dispose();
     maxMembers.dispose();
     storageMb.dispose();
+    dmOpenings.dispose();
   }
 
   /// The limits as typed, or the sentence explaining why they aren't valid.
@@ -111,6 +117,7 @@ class ServerLimitsControllers {
       'call size': voiceParticipants,
       'screen share limit': shareMbps,
       'member limit': maxMembers,
+      'new conversation limit': dmOpenings,
     };
     final read = <String, int>{};
     for (final entry in counts.entries) {
@@ -135,6 +142,7 @@ class ServerLimitsControllers {
         maxShareMbps: read['screen share limit']!,
         maxMembers: read['member limit']!,
         maxStorageBytes: storageBytes,
+        dmOpeningsPerHour: read['new conversation limit']!,
       ),
       error: null,
     );

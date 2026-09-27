@@ -107,6 +107,19 @@ class ServerLimits {
   /// deserves a sentence. Same division of labour as [allowsAttachment].
   final int maxStorageBytes;
 
+  /// How many people one member may start a DM with in an hour. [unlimited]
+  /// is no cap.
+  ///
+  /// The one limit here about what members do to each other rather than what
+  /// the server costs, and the one that is **not** off by default: a server
+  /// with nothing set stops a newcomer messaging the whole member list at
+  /// [defaultDmOpeningsPerHour]. Only a first message to somebody counts, and
+  /// admins are exempt. The database's DM gate enforces it.
+  final int dmOpeningsPerHour;
+
+  /// What the column starts at (`servers.dm_openings_per_hour`).
+  static const int defaultDmOpeningsPerHour = 10;
+
   const ServerLimits({
     this.maxAttachmentBytes = defaultMaxAttachmentBytes,
     this.messageRetentionDays = unlimited,
@@ -117,6 +130,7 @@ class ServerLimits {
     this.maxShareMbps = unlimited,
     this.maxMembers = unlimited,
     this.maxStorageBytes = unlimited,
+    this.dmOpeningsPerHour = defaultDmOpeningsPerHour,
   });
 
   /// True when [bytes] more will fit, given [used] already held.
@@ -198,6 +212,7 @@ class ServerLimits {
       maxShareMbps: read('max_share_mbps', unlimited),
       maxMembers: read('max_members', unlimited),
       maxStorageBytes: read('max_storage_bytes', unlimited),
+      dmOpeningsPerHour: read('dm_openings_per_hour', defaultDmOpeningsPerHour),
     );
   }
 
@@ -214,6 +229,7 @@ class ServerLimits {
     'max_share_mbps': maxShareMbps,
     'max_members': maxMembers,
     'max_storage_bytes': maxStorageBytes,
+    'dm_openings_per_hour': dmOpeningsPerHour,
   };
 
   @override
@@ -227,7 +243,8 @@ class ServerLimits {
       other.maxVoiceParticipants == maxVoiceParticipants &&
       other.maxShareMbps == maxShareMbps &&
       other.maxMembers == maxMembers &&
-      other.maxStorageBytes == maxStorageBytes;
+      other.maxStorageBytes == maxStorageBytes &&
+      other.dmOpeningsPerHour == dmOpeningsPerHour;
 
   @override
   int get hashCode => Object.hash(
@@ -240,5 +257,6 @@ class ServerLimits {
     maxShareMbps,
     maxMembers,
     maxStorageBytes,
+    dmOpeningsPerHour,
   );
 }

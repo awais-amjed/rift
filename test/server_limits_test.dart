@@ -27,6 +27,29 @@ void main() {
     });
   });
 
+  group('the DM opening limit', () {
+    test('is on by default, unlike every other limit', () {
+      expect(
+        ServerLimits.defaults.dmOpeningsPerHour,
+        ServerLimits.defaultDmOpeningsPerHour,
+      );
+      expect(ServerLimits.defaultDmOpeningsPerHour, greaterThan(0));
+    });
+
+    test('a server that does not send it reads the default, not "off"', () {
+      expect(
+        ServerLimits.fromJson(const {}).dmOpeningsPerHour,
+        ServerLimits.defaultDmOpeningsPerHour,
+      );
+    });
+
+    test('round-trips, and 0 stays 0', () {
+      const limits = ServerLimits(dmOpeningsPerHour: 0);
+      expect(ServerLimits.fromJson(limits.toJson()), limits);
+      expect(limits.toJson()['dm_openings_per_hour'], 0);
+    });
+  });
+
   group('ServerLimits.fromJson', () {
     test('reads the flat snake_case shape both sources use', () {
       final limits = ServerLimits.fromJson(const {

@@ -81,8 +81,10 @@ class _ServerDmSettingsDialogState extends State<ServerDmSettingsDialog> {
     });
 
     // Everything else carried through unchanged: `ServerLimits` travels whole,
-    // so building a fresh one from the two typed boxes would send the server's
-    // own numbers as defaults and quietly reset them.
+    // so building a fresh one from the typed boxes would send the defaults for
+    // the rest and quietly reset them. Every field is named for that reason —
+    // this once left out the call, member and storage limits, and saving DM
+    // settings put all three back to unlimited.
     final result = await context.read<ServerCubit>().updateServerDetails(
       limits: ServerLimits(
         maxAttachmentBytes: _initial.maxAttachmentBytes,
@@ -90,6 +92,11 @@ class _ServerDmSettingsDialogState extends State<ServerDmSettingsDialog> {
         messageHistoryCap: _initial.messageHistoryCap,
         dmRetentionDays: _retention,
         dmHistoryCap: _cap,
+        maxVoiceParticipants: _initial.maxVoiceParticipants,
+        maxShareMbps: _initial.maxShareMbps,
+        maxMembers: _initial.maxMembers,
+        maxStorageBytes: _initial.maxStorageBytes,
+        dmOpeningsPerHour: _initial.dmOpeningsPerHour,
       ),
     );
     if (!mounted) return;

@@ -158,6 +158,28 @@ class ServerLimitsSection extends StatelessWidget {
                   'person at 10 Mbps costs 10 Mbps for each of them.',
               enabled: enabled,
             ),
+            const SizedBox(height: 24),
+            // Its own heading because it is the one limit that is on out of
+            // the box, and the text above both groups says nothing is.
+            const SectionTitle(label: 'Direct messages'),
+            const SizedBox(height: 4),
+            Text(
+              "On by default, so a newcomer can't message the whole member "
+              'list. Leave it empty for no limit.',
+              style: AppText.secondary.copyWith(color: themeState.textTertiary),
+            ),
+            const SizedBox(height: 14),
+            LimitField(
+              controller: controllers.dmOpenings,
+              label: 'New conversations per member',
+              unit: 'per hour',
+              hint: 'No limit',
+              helper:
+                  'How many people one member can start a DM with in an '
+                  'hour. Replies and existing conversations never count, and '
+                  'admins aren\'t limited.',
+              enabled: enabled,
+            ),
           ],
         ),
       ],
