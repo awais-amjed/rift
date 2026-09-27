@@ -102,6 +102,7 @@ class _ContextStripState extends State<ContextStrip> {
                   return PhoneContextStrip(
                     channelName: callName,
                     serverName: serverState.selectedServer?.name,
+                    isDirectCall: dm != null,
                     elapsed: elapsed,
                   );
                 }

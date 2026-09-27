@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../../../../logic/services/notification_service.dart';
+import 'open_call_conversation.dart';
 
 /// Takes presses on a call's notification to the call cubit: the one that
 /// launched the app, and any made while it runs.
@@ -46,7 +47,11 @@ class _CallNotificationRouterState extends State<CallNotificationRouter> {
     final calls = context.read<DmCallCubit>();
     final call = press.call;
     if (press.answers) {
-      unawaited(calls.answerById(call.serverId, call.callId));
+      unawaited(
+        calls.answerById(call.serverId, call.callId).then((joined) {
+          if (joined) clearPopupsForCall();
+        }),
+      );
     } else if (press.declines) {
       unawaited(calls.declineById(call.serverId, call.callId));
     } else {

@@ -20,6 +20,7 @@ import 'presentation/app_providers.dart';
 import 'presentation/common/app_toast.dart';
 import 'presentation/common/title_bar_overlay.dart';
 import 'presentation/routing/app_routes.dart';
+import 'presentation/screens/home/calls/incoming_call_overlay.dart';
 import 'presentation/screens/pip/pip_overlay.dart';
 import 'presentation/theme/app_theme.dart';
 
@@ -138,7 +139,13 @@ class _MyAppState extends State<MyApp>
                       itemWidth: AppToast.maxWidth,
                       marginBuilder: _toastMargin,
                     ),
-                    child: PipOverlay(child: TitleBarOverlay(child: child!)),
+                    // Around the navigator, so a ringing call is above
+                    // every page, dialog and sheet — see IncomingCallOverlay.
+                    child: PipOverlay(
+                      child: TitleBarOverlay(
+                        child: IncomingCallOverlay(child: child!),
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -22,11 +22,16 @@ class PhoneContextStrip extends StatelessWidget {
   final String? serverName;
   final Widget elapsed;
 
+  /// A call with one person rather than in a channel: named by a phone
+  /// rather than a speaker, as the desktop strip does.
+  final bool isDirectCall;
+
   const PhoneContextStrip({
     super.key,
     required this.channelName,
     required this.serverName,
     required this.elapsed,
+    this.isDirectCall = false,
   });
 
   @override
@@ -65,7 +70,9 @@ class PhoneContextStrip extends StatelessWidget {
                   spacing: 6,
                   children: [
                     Icon(
-                      Icons.volume_up_rounded,
+                      isDirectCall
+                          ? Icons.call_rounded
+                          : Icons.volume_up_rounded,
                       size: K.iconRow,
                       color: theme.accentBright,
                     ),

@@ -7,6 +7,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../routing/app_routes.dart';
 
 /// Put the conversation [call] belongs to on screen, on its own server —
 /// which is where a desktop shows the call, above the messages.
@@ -40,4 +41,17 @@ Future<void> openCallConversation(
     peerChatKey: call.peerChatPublicKey,
   );
   app.setSurface(HomeSurface.serverDms);
+}
+
+/// Close every dialog, sheet and menu open over the app, so a call just
+/// answered is what is on screen.
+///
+/// Found on a phone: answering from the ringing card while the server
+/// switcher was open put the call page *under* the sheet, and the person
+/// was in a call they could not see. Only popups go — a page somebody
+/// navigated to is left where it is.
+void clearPopupsForCall() {
+  AppRoutes.navigatorKey.currentState?.popUntil(
+    (route) => route is! PopupRoute,
+  );
 }
