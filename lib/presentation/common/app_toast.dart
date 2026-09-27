@@ -27,12 +27,17 @@ class AppToast extends StatelessWidget {
   /// Dismiss, from the item this was built for.
   final VoidCallback onClose;
 
+  /// Set when clicking the card should do something (and dismiss it). Null
+  /// leaves the card inert apart from its close button.
+  final VoidCallback? onTap;
+
   const AppToast({
     super.key,
     required this.title,
     required this.description,
     required this.type,
     required this.onClose,
+    this.onTap,
   });
 
   /// The status colour for [type]. Info has no status colour of its own —
@@ -67,43 +72,65 @@ class AppToast extends StatelessWidget {
       alignment: AlignmentDirectional.centerEnd,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: maxWidth),
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.bgElevated,
-            borderRadius: BorderRadius.circular(K.radiusCard),
-            border: Border.all(color: theme.borderElevated),
-            boxShadow: AppShadows.popover,
-          ),
-          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(_icon, size: K.iconButton, color: accent),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: AppText.strong.copyWith(color: theme.textPrimary),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      description,
-                      style: AppText.row.copyWith(color: theme.textSecondary),
-                    ),
-                  ],
+        child: _Clickable(
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.bgElevated,
+              borderRadius: BorderRadius.circular(K.radiusCard),
+              border: Border.all(color: theme.borderElevated),
+              boxShadow: AppShadows.popover,
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(_icon, size: K.iconButton, color: accent),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: AppText.strong.copyWith(
+                          color: theme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        description,
+                        style: AppText.row.copyWith(color: theme.textSecondary),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              _CloseButton(onTap: onClose),
-            ],
+                const SizedBox(width: 8),
+                _CloseButton(onTap: onClose),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _Clickable extends StatelessWidget {
+  final VoidCallback? onTap;
+  final Widget child;
+
+  const _Clickable({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final onTap = this.onTap;
+    if (onTap == null) return child;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: onTap, child: child),
     );
   }
 }

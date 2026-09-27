@@ -6,9 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:toastification/toastification.dart';
 
-import '../presentation/common/app_mark.dart';
 import '../presentation/common/app_toast.dart';
-
 import '../presentation/routing/app_routes.dart';
 
 /// The app's one way to log, show a toast or an error, and navigate, so none of
@@ -64,6 +62,7 @@ class HelperMethods {
     ToastificationType type = ToastificationType.info,
     bool autoClose = true,
     Duration autoCloseDuration = const Duration(seconds: 3),
+    VoidCallback? onTap,
   }) {
     toastification.showCustom(
       autoCloseDuration: autoClose ? autoCloseDuration : null,
@@ -72,6 +71,12 @@ class HelperMethods {
         description: description,
         type: type,
         onClose: () => toastification.dismiss(item),
+        onTap: onTap == null
+            ? null
+            : () {
+                toastification.dismiss(item);
+                onTap();
+              },
       ),
     );
   }
@@ -111,20 +116,14 @@ class HelperMethods {
     bool autoClose = true,
     VoidCallback? onTap,
   }) {
-    toastification.show(
-      title: Text(title),
-      description: Text(description),
+    // The same card as every other toast. This one was left on
+    // toastification's own style, so "Signed out" arrived as a white card.
+    showToast(
+      title: title,
+      description: description,
       type: type,
-      closeOnClick: true,
-      autoCloseDuration: autoClose ? const Duration(seconds: 3) : null,
-      icon: const AppMark(size: 24),
-      callbacks: ToastificationCallbacks(
-        onTap: (_) {
-          if (onTap != null) {
-            onTap();
-          }
-        },
-      ),
+      autoClose: autoClose,
+      onTap: onTap ?? () {},
     );
   }
 
