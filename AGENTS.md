@@ -273,6 +273,38 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
 - Never commit generated-file changes (`*.g.dart`, `lib/src/rust/`, `frb_generated.rs`) separately
   from the source change that produced them.
 
+## Keeping the docs true
+
+Docs drift one small change at a time, so they are kept true the same way: **the doc
+changes in the commit that makes it wrong**, not in a clean-up later. This holds in every
+Rift repository — the siblings have no AGENTS.md of their own, so this is the rule there too.
+
+| When you change… | …update |
+|---|---|
+| the shape of the system, a trust boundary, or who can see what | `ARCHITECTURE.md` (and its threat table) |
+| an endpoint, an RPC's inputs or a refusal code | `API.md` in `rift-self-host` |
+| a byte format another implementation must match | `WIRE.md`, then regenerate with `tool/gen_wire_vectors.dart`, which writes the SDK's copy too |
+| what a bot may see, hear or say | `BOTS.md` |
+| a convention this code follows | this file, or `CODE_STYLE.md` |
+| something you verified by driving the real app | `MANUAL_TESTING.md` — what was checked, and what was not |
+| what a server operator runs or can rely on | `rift-self-host/README.md`, and the docs in `rift-website` |
+| the set of repositories | the repo table in every README that has one — they are copies |
+
+Write docs so they do not go stale by themselves:
+
+- **Name the thing, not where it sits.** Cite a table, policy, function or trigger
+  (`messages_select`, `refuse_ineligible_keyring`), never a migration file number or a
+  line — the files are split by kind and get rewritten in place.
+- **No counts that grow** — tests, files, endpoints. Say how to get the number instead.
+- **No machine paths** (`/home/…`, `~/dev/…`). Refer to a repository by name.
+- **Say when something was proven, and how** ("verified Sep 27 with two clients"),
+  so a reader can tell a claim from a hope — and move a "not yet proved" line the day
+  it is proved.
+
+Before finishing a change, search the docs for what you renamed, removed or made
+untrue (`grep -rn` across the sibling repos), and fix any stale line you notice in a
+file you are already editing.
+
 ## Commands
 
 ```
@@ -298,22 +330,24 @@ A `test/` suite covers **pure, deterministic logic**:
   `public_server_test.dart`) — JSON round-trips, token-freshness and unread math, the
   `signedPayload` binding, permission defaults, the structured message body (attachment
   round-trip + legacy plain-text compatibility), reaction parsing + `ChatMessage.copyWith`,
-  and the directory row plus the tag rules it mirrors from central migration 007.
+  and the directory row plus the tag rules it mirrors from central's schema.
 - **Storage isolation** (`storage_namespace_test.dart`) — `RIFT_PROFILE` namespacing.
 
-One deliberate exception to the "no widget tests" rule below:
-`chat_composer_alignment_test.dart` pins the composer's layout invariants (every
-control on one centre line, the bar's height unchanged by emoji input, multi-line
-growth). It exists because that alignment regressed twice; it pumps only the
-composer with an in-memory `HydratedBloc` storage, so it stays pure and fast.
+- **Layout and interaction invariants** — widget tests, for what regressed before or
+  cannot be seen by reading the widget tree: the composer's centre line
+  (`chat_composer_alignment_test.dart`), a field's tap target
+  (`field_hit_area_test.dart`), ink that actually paints (`hover_feedback_test.dart`),
+  the hand cursor (`clickable_cursor_test.dart`). Each pumps only the widget, with an
+  in-memory `HydratedBloc` storage, so it stays pure and fast.
 
 Run with `flutter test`; it must pass (alongside `flutter analyze`) before committing.
 
 Keep tests pure and fast: no network, Supabase, platform channels, or a running app.
 Good targets are repository *pure functions* (crypto, encoding), cubit `State` classes
-(unread math, `copyWith` invariants), and model `fromJson`/`toJson`. Don't add widget or
-integration tests, and don't mock the backend, unless asked — backend behaviour is
-verified against the local stack (see `LOCAL_DEV.md`), not with mocks. When you fix a
+(unread math, `copyWith` invariants), model `fromJson`/`toJson`, and a widget's layout
+invariant once it has broken. Don't add integration tests, and don't mock the backend,
+unless asked — backend behaviour is verified against the local stack (see
+`LOCAL_DEV.md`), not with mocks. When you fix a
 logic bug in one of these pure areas, add a case that would have caught it.
 
 **The databases have their own suites, and they are not in this repository.**
