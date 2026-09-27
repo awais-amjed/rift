@@ -58,42 +58,50 @@ class AppToast extends StatelessWidget {
     final theme = context.theme;
     final accent = _accent(context);
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: maxWidth),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.bgElevated,
-          borderRadius: BorderRadius.circular(K.radiusCard),
-          border: Border.all(color: theme.borderElevated),
-          boxShadow: AppShadows.popover,
-        ),
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(_icon, size: K.iconButton, color: accent),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: AppText.strong.copyWith(color: theme.textPrimary),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: AppText.row.copyWith(color: theme.textSecondary),
-                  ),
-                ],
+    // toastification lays every toast out in a column [maxWidth] wide
+    // against the window's right margin, and this one shrinks to its text —
+    // so left to itself a short toast sat at the column's left, up to a
+    // hundred pixels in from where the margin says toasts go. Held to the
+    // column's end, every toast's right edge lines up with the margin.
+    return Align(
+      alignment: AlignmentDirectional.centerEnd,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: maxWidth),
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.bgElevated,
+            borderRadius: BorderRadius.circular(K.radiusCard),
+            border: Border.all(color: theme.borderElevated),
+            boxShadow: AppShadows.popover,
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(_icon, size: K.iconButton, color: accent),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: AppText.strong.copyWith(color: theme.textPrimary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: AppText.row.copyWith(color: theme.textSecondary),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            _CloseButton(onTap: onClose),
-          ],
+              const SizedBox(width: 8),
+              _CloseButton(onTap: onClose),
+            ],
+          ),
         ),
       ),
     );
