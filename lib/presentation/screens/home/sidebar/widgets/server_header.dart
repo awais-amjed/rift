@@ -117,7 +117,8 @@ class ServerHeader extends StatelessWidget {
   Widget _buildSettingsButton(ThemeState themeState) {
     return IconButton(
       tooltip: openReports > 0
-          ? 'Server settings · $openReports open reports'
+          ? 'Server settings · $openReports open '
+                '${openReports == 1 ? 'report' : 'reports'}'
           : 'Server settings',
       visualDensity: VisualDensity.compact,
       onPressed: onOpenSettings,
