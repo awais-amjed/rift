@@ -289,7 +289,7 @@ Rift repository — the siblings have no AGENTS.md of their own, so this is the 
 | a convention this code follows | this file, or `CODE_STYLE.md` |
 | something you verified by driving the real app | its row in `TESTING.md` (and the local `MANUAL_TESTING.md` log) — what was checked, and what was not |
 | what a server operator runs or can rely on | `rift-self-host/README.md`, and the docs in `rift-website` |
-| the set of repositories | the repo table in every README that has one — they are copies |
+| the set of repositories | the *Related repositories* table in each README |
 
 Write docs so they do not go stale by themselves:
 
