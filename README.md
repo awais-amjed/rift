@@ -36,12 +36,12 @@ flutter run -d linux        # or windows, macos, android, chrome
 Linux, Windows, Android and the web are the targets that get exercised; macOS and
 iOS build but are unproven (see `MANUAL_TESTING.md`).
 
-Two dependencies are not ordinary:
+On Linux the tray icon needs the Ayatana AppIndicator library
+(`libayatana-appindicator3-dev` on Debian and Ubuntu, `libayatana-appindicator` on
+Arch) installed before the first build.
 
-- **`livekit_client` is a fork**, pinned by commit in `pubspec.lock`. It carries a
-  patch for a freeze when leaving a call on Linux. A blanket `flutter pub upgrade`
-  will try to move off it; `FORK.md` in that repository covers rebasing onto the
-  next upstream release.
+One dependency is not ordinary:
+
 - **The Rust crate builds itself** through `flutter_rust_bridge` and Cargokit on
   first run. `build_rust_local.sh` is for building it by hand.
 
