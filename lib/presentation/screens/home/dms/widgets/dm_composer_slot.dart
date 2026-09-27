@@ -48,7 +48,7 @@ class DmComposerSlot extends StatelessWidget {
     if (state.blockedIds.contains(peerId)) {
       slot = ComposerNotice(
         icon: Icons.block_rounded,
-        text: 'You blocked $name. They can\'t message you here.',
+        text: 'You blocked $name. They can\'t message or call you here.',
         actionLabel: 'Unblock',
         onAction: () => unawaited(
           context.read<DmCubit>().setBlocked(peerId, blocked: false),

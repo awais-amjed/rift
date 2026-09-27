@@ -175,8 +175,8 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     if (key == null) {
       HelperMethods.showError(
         error:
-            '${call.peerName} has not set up encrypted chat yet, so a call '
-            'cannot be encrypted.',
+            '${call.peerName} hasn\'t set up encrypted chat yet, so you '
+            'can\'t call them.',
       );
       await hangUp();
       return;

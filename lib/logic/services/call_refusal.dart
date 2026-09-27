@@ -10,9 +10,9 @@ class CallRefusal {
   static String? describe(String? code, {required String peerName}) =>
       switch (code) {
         'call_needs_conversation' =>
-          'You can call $peerName once you have a conversation — send them '
-              'a message first, and if they ask first, wait for them to '
-              'accept it.',
+          'You can call $peerName once you\'ve talked. Send them a message '
+              'first, and if it goes as a request, wait for them to accept '
+              'it.',
         'call_not_accepted' =>
           '$peerName isn\'t taking calls from you right now.',
         'call_rate_limited' =>

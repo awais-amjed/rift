@@ -161,7 +161,8 @@ enum ServerPermission {
     PermissionGroup.voice,
     'Mute members',
     'Server-mute somebody in calls, which survives them rejoining, and '
-        'time them out of messages, DMs and reactions for a while.',
+        'time them out, which stops them posting, reacting and starting '
+        'calls for a while.',
   ),
   deafenMembers(
     19,

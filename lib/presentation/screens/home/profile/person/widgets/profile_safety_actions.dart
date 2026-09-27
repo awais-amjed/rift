@@ -27,8 +27,8 @@ class ProfileSafetyActions extends StatelessWidget {
         context: context,
         title: 'Block ${member.displayName}?',
         message:
-            'They can\'t DM you on this server, and any request from them '
-            'goes away. They aren\'t told.',
+            'They can\'t message or call you on this server, and any request '
+            'from them goes away. They aren\'t told.',
         confirmLabel: 'Block',
         icon: Icons.block_rounded,
         isDestructive: true,

@@ -25,8 +25,9 @@ Future<TimeOutLength?> showTimeOutPicker(BuildContext context, String name) {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'They can still read, but can\'t send messages, DMs or '
-              'reactions until it ends. It ends by itself.',
+              'They can still read, but can\'t post, edit, react, pin or '
+              'start calls, in channels or DMs, until it ends. It ends by '
+              'itself.',
               style: AppText.meta.copyWith(color: theme.textTertiary),
             ),
             const SizedBox(height: 10),
