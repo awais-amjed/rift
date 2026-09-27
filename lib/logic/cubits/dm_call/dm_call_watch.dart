@@ -12,8 +12,11 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
   static const _ringFor = Duration(seconds: 30);
 
   /// How often a device in an answered call says it is still there. The
-  /// sweep ends a call nobody has vouched for in three minutes.
-  static const _heartbeat = Duration(minutes: 1);
+  /// sweep ends a call nobody has vouched for in three minutes, and ends it
+  /// *at* the last beat — so this is also how close a call both ends
+  /// dropped out of gets its length. Once a minute recorded a short dropped
+  /// call as lasting no time at all.
+  static const _heartbeat = Duration(seconds: 20);
 
   /// How long the other person may be missing from an answered call before
   /// it is over. Counted from LiveKit taking them out of the room, which it

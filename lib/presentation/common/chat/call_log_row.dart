@@ -50,7 +50,7 @@ class CallLogRow extends StatelessWidget {
             ),
           ),
           Text(
-            DateFormat.jm().format(call.startedAt.toLocal()),
+            DateFormat('HH:mm').format(call.startedAt.toLocal()),
             style: AppText.meta.copyWith(color: theme.textTertiary),
           ),
         ],
