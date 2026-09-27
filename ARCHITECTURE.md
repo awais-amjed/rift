@@ -368,5 +368,9 @@ anyone can download is the wrong place for a door only moderators should see.
 
 ## Speaking indicator
 
-Published as a LiveKit data message rather than inferred from audio levels — the
-frames are encrypted, so nothing downstream can measure them.
+Encrypted frames cannot be measured by anyone without the key, but the level
+travels beside them: each audio packet carries it in an RTP header extension the
+frame encryption does not cover, so LiveKit's active-speaker detection works on
+an encrypted call. Other people's indicators come from that. Your own is decided
+on the device from the microphone's raw level, because the server reports only
+the loudest few speakers on an interval and ordinary speech often never lit it.

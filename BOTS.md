@@ -39,8 +39,8 @@ login, the same JWT, the same RLS.
 That is not a shortcut — it is what stops the bot surface drifting away from the app surface. A
 capability the app has, a bot has, under the same policies.
 
-`tool/headless_member.dart` (253 lines) is already a working proof: it joins a server, keeps its
-keyring healed, and sends messages, using the app's own `CryptoRepository`.
+A headless member written against the app's own `CryptoRepository` was the working proof: it
+joined a server, kept its keyring healed, and sent messages.
 
 ### Adding one
 

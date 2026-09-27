@@ -104,7 +104,7 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
   badged one. Group by `ChatMessage.groupKey`, never by `authorId`.
 - **Keep widget files small — one widget per file wherever possible.** A component gets its own
   folder containing its main file plus one file per helper widget (e.g.
-  `manage/panels/invites_panel.dart` + `invites/widgets/invite_form.dart`). Helper widgets that are
+  `invites/invite_modal.dart` + `invites/widgets/invite_form.dart`). Helper widgets that are
   genuinely a few lines may stay private (`_Foo`) in the same file, but a file approaching a few
   hundred lines with multiple widget classes must be split into a folder. Refactor files toward
   this shape whenever you touch them.
@@ -238,7 +238,8 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
   for every shipped crate and the prebuilt WebRTC in `assets/licenses/`, and fails if a
   dependency brings in a licence `rust/about.toml` does not accept.
 - Local native builds: `./build_rust_local.sh` / `build_rust_local.bat`. CI precompiles binaries
-  via cargokit on pushes to `production`.
+  via cargokit on pushes to `production`. (Actions are off on the
+  Forgejo server until a runner exists, so today that does not run.)
 
 ## Backend
 
