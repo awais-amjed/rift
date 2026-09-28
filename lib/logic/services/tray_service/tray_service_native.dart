@@ -15,7 +15,13 @@ import 'package:window_manager/window_manager.dart';
 /// Desktop only, and quiet when it cannot run: a Linux session with no status
 /// area hands back no icon, and the app has to keep working without one — the
 /// tray is a convenience, never the only route to anything.
-class TrayService {
+///
+/// It also owns quitting on Windows, because the icon has to go first there:
+/// the native tray keeps a function-local static it touches when an icon is
+/// destroyed, and at exit that static is torn down before the handle table
+/// that still owns the icon — so an icon left for exit to destroy crashed
+/// every quit. Freed while the app is still running, it goes quietly.
+class TrayService with WindowListener {
   TrayService._();
 
   static final TrayService instance = TrayService._();
@@ -54,7 +60,7 @@ class TrayService {
       _retained.add(menu);
       _addItem(menu, 'Show Rift', _show);
       menu.addSeparator();
-      _addItem(menu, 'Quit', windowManager.destroy);
+      _addItem(menu, 'Quit', quit);
       icon.setContextMenu(menu);
       // Windows opens nothing on a right click unless told to: the trigger
       // defaults to none, which left the menu — and Quit — unreachable.
@@ -72,7 +78,35 @@ class TrayService {
 
     icon.setVisible(true);
     _icon = icon;
+
+    // Alt+F4 and the taskbar's Close would otherwise end the process with the
+    // icon still alive; route them through [quit] too. The title bar's close
+    // button hides instead and never gets here.
+    if (Platform.isWindows) {
+      windowManager.addListener(this);
+      await windowManager.setPreventClose(true);
+    }
   }
+
+  /// Leaves the app: the icon first, then the window.
+  ///
+  /// Windows closes rather than destroys. window_manager's `destroy` there is
+  /// a bare `PostQuitMessage`, which ends the message loop with the Flutter
+  /// window still open, so the engine is torn down after `wWinMain` has
+  /// returned and faults in flutter_windows.dll. A close goes through
+  /// WM_DESTROY, which shuts the engine down while the loop still runs.
+  Future<void> quit() async {
+    if (!Platform.isWindows) return windowManager.destroy();
+    final icon = _icon;
+    _icon = null;
+    icon?.dispose();
+    windowManager.removeListener(this);
+    await windowManager.setPreventClose(false);
+    await windowManager.close();
+  }
+
+  @override
+  void onWindowClose() => quit();
 
   /// Adds one clickable row, carrying its own action.
   ///
