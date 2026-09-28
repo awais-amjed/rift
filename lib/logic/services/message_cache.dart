@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../data/classes/message_cache_slot.dart';
@@ -182,11 +183,15 @@ class MessageCache {
       try {
         final dir = await _scopeDir(seed, scope);
         if (!await dir.exists()) return;
+        // By name, not full path: `_fileFor` joins with '/', and on Windows
+        // `list()` hands back the same file joined with '\', so comparing
+        // paths matched nothing and deleted every copy in the scope.
         final wanted = {
-          for (final slot in slots) (await _fileFor(seed, slot)).path,
+          for (final slot in slots)
+            p.basename((await _fileFor(seed, slot)).path),
         };
         await for (final entry in dir.list()) {
-          if (entry is File && !wanted.contains(entry.path)) {
+          if (entry is File && !wanted.contains(p.basename(entry.path))) {
             await entry.delete();
           }
         }
