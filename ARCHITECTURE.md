@@ -279,7 +279,11 @@ order it was asked for, and a wipe refuses writes asked for after it. That is
 because the chat cubits save the open conversation the moment they notice it
 closing, and leaving a server is exactly what makes them notice, just after the
 wipe. Not on the web, whose storage is the browser's rather than the platform's
-secure store. See `MessageCache` and `SavedConversation`.
+secure store. Left out of Android's backup and phone-to-phone transfer
+(`res/xml/backup_rules.xml`, `data_extraction_rules.xml`): a copy there would be
+unreadable, because the key comes from the seed in the keystore, and it is only
+a cache. iOS backs up the Documents folder these live in; they are sealed there
+too, but not excluded yet. See `MessageCache` and `SavedConversation`.
 
 ### Decisions locked in for day one
 1. **Every message is Ed25519-signed by the sender** — a shared channel key must not allow

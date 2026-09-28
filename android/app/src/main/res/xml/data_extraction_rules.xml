@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and later: the same exclusions as backup_rules.xml, for both
+     the cloud backup and a transfer to a new phone. On the new phone the seed's
+     keystore key is not there to open them, so they would only be dead weight.
+     See backup_rules.xml for why these files and no others. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="app_flutter/message_cache" />
+        <exclude domain="root" path="app_flutter/rift_dev/message_cache" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="app_flutter/message_cache" />
+        <exclude domain="root" path="app_flutter/rift_dev/message_cache" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What Android's own backup leaves out, up to Android 11. Android 12 and later
+     read data_extraction_rules.xml instead; keep the two lists the same.
+
+     Only the conversations saved on the device (`MessageCache`). They are
+     sealed under a key derived from the seed, which lives in the keystore and
+     is never backed up, so a copy in a backup could not be opened anyway. And
+     they are a cache: the first open of each conversation writes them again.
+
+     `app_flutter` is where getApplicationDocumentsDirectory() points. The
+     second path is a debug build's, which keeps its files under `rift_dev`
+     (see StorageNamespace). Everything else is backed up as before. -->
+<full-backup-content>
+    <exclude domain="root" path="app_flutter/message_cache" />
+    <exclude domain="root" path="app_flutter/rift_dev/message_cache" />
+</full-backup-content>
