@@ -270,7 +270,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
           ),
         ),
       );
-      _saved.noteSent('${data['id']}');
+      _saved.noteSent();
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[Chat] attachment upload failed: $e');
       _failSend(

@@ -216,11 +216,14 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   // Open / close
   // ──────────────────────────────────────────────────────────
 
-  Future<void> openChannel(String channelId) async {
-    if (state.channelId == channelId) return;
+  /// [again] opens the channel that is already on screen — a retry over its
+  /// saved copy — without clearing it first, so the list and the composer
+  /// under it, with whatever was typed, stay where they are.
+  Future<void> openChannel(String channelId, {bool again = false}) async {
+    if (state.channelId == channelId && !again) return;
     // Before anything is awaited: the flush reads the channel being left
     // synchronously, and the next line begins replacing it.
-    unawaited(_saved.flush());
+    unawaited(_saved.flush(leaving: true));
     final generation = ++_openGeneration;
     // The old channel's handlers are detached the moment this is called; only
     // the server's goodbye is waited on, and that waits below the saved copy
@@ -228,9 +231,18 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     // exactly what never comes back.
     final released = _teardownRealtime();
 
-    _resetTo(
-      ChannelChatState(status: ChannelChatStatus.loading, channelId: channelId),
-    );
+    if (again) {
+      emit(
+        state.copyWith(status: ChannelChatStatus.loading, clearFailure: true),
+      );
+    } else {
+      _resetTo(
+        ChannelChatState(
+          status: ChannelChatStatus.loading,
+          channelId: channelId,
+        ),
+      );
+    }
 
     final server = _serverCubit.state.selectedServer;
     _openServerId = server?.id;
@@ -341,7 +353,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   }
 
   Future<void> closeChannel() async {
-    unawaited(_saved.flush());
+    unawaited(_saved.flush(leaving: true));
     _openGeneration++;
     _openServerId = null;
     await _teardownRealtime();
@@ -354,6 +366,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   Future<void> retry() async {
     final channelId = state.channelId;
     if (channelId == null) return;
+    if (state.showingSaved) return openChannel(channelId, again: true);
     _resetTo(const ChannelChatState());
     await openChannel(channelId);
   }
@@ -421,7 +434,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   @override
   Future<void> close() async {
-    await _saved.flush();
+    await _saved.flush(leaving: true);
     _saved.dispose();
     await _serverSub?.cancel();
     await _vaultSub?.cancel();

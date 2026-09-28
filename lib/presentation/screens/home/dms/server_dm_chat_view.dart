@@ -250,7 +250,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     final ready = state.chatStatus == DmChatStatus.ready;
     final composing =
         ready ||
-        (state.showingSaved && state.chatStatus == DmChatStatus.loading);
+        (state.showingSaved &&
+            (state.chatStatus == DmChatStatus.loading ||
+                state.chatStatus == DmChatStatus.error));
     return [
       Expanded(child: _buildBody(context, state, themeState)),
       if (!composing) const MiniCallBar(),

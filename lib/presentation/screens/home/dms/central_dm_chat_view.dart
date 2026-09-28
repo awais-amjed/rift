@@ -87,7 +87,9 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     // The saved copy is on screen while the conversation opens: what goes
     // under it is what will be there once it has, so nothing jumps.
     final opening =
-        state.showingSaved && state.chatStatus == DmChatStatus.loading;
+        state.showingSaved &&
+        (state.chatStatus == DmChatStatus.loading ||
+            state.chatStatus == DmChatStatus.error);
 
     return Column(
       children: [

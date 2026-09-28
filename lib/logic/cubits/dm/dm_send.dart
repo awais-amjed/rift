@@ -141,7 +141,7 @@ mixin _DmSendMixin on Cubit<DmState> {
           ),
         ),
       );
-      _saved.noteSent('${data['id']}');
+      _saved.noteSent();
       unawaited(refreshConversations());
       // A first message may have become a request, and a reply to one is its
       // acceptance. Anything later in an open conversation changes nothing.

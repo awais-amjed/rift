@@ -246,8 +246,19 @@ what was deleted, edited or reacted to since, and merging would keep a message a
 moderator removed. The cost is that a deleted message can show for the moment
 the fetch takes. While the copy is on screen nothing on it can be acted on, and
 the composer takes typing but holds the send until the fetch lands. When the
-fetch fails, the copy stays up and a notice in the composer's place says what
-it is.
+fetch fails, the copy stays up and a notice above the composer says what it is.
+The composer is kept, still holding the send, so whatever was typed survives the
+retry.
+
+**What it costs the server: nothing to open, one read to leave.** Drawing a
+copy asks the server nothing, and the open that follows makes the same requests
+it always did. The one addition is for your own messages: a send answers with an
+id, not a row, so leaving a conversation you sent in reads its newest page once
+more, and that page is what gets saved. The read is the same query an open makes.
+Measured Sep 28 with `pg_stat_statements` over an identical scripted session (open
+three channels, open a DM, send three messages, close it): 83 statements before,
+85 after, all of it that one read. On the device, a copy is opened with the
+same verification as a fresh page, so an open decrypts two pages instead of one.
 
 **Rows, not messages.** What is saved is the rows exactly as the server sent
 them, so a saved row goes back through the same open-or-lock-or-drop path as a

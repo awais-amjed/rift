@@ -150,7 +150,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
           remaining: data['remaining'] as int?,
         ),
       );
-      _saved.noteSent('${data['id']}');
+      _saved.noteSent();
       // A send cannot move the relationship any more — being friends is what
       // made it possible — but it can *reveal* that this device was wrong
       // about it. The server always answers `friends`, so a disagreement here

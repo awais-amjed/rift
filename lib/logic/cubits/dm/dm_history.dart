@@ -27,22 +27,25 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     required String peerId,
     required String peerName,
     required String? peerChatKey,
+    bool again = false,
   }) async {
     if (state.openPeerId == peerId && state.chatStatus == DmChatStatus.ready) {
       return;
     }
     // Before the state moves on: the flush reads the conversation being left.
-    unawaited(_saved.flush());
+    unawaited(_saved.flush(leaving: true));
 
+    // [again] is a retry over the saved copy: it stays on screen, and so does
+    // the composer under it with whatever was typed.
     emit(
       state.copyWith(
         openPeerId: peerId,
         openPeerName: peerName,
         chatStatus: DmChatStatus.loading,
-        messages: const [],
-        hasMoreHistory: false,
+        messages: again ? null : const [],
+        hasMoreHistory: again ? null : false,
         clearError: true,
-        showingSaved: false,
+        showingSaved: again ? null : false,
       ),
     );
 
@@ -89,11 +92,12 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
       peerName: state.openPeerName ?? '',
       // Already worked out when it was first opened.
       peerChatKey: null,
+      again: state.showingSaved,
     );
   }
 
   void closeConversation() {
-    unawaited(_saved.flush());
+    unawaited(_saved.flush(leaving: true));
     _leavePeerTopic();
     emit(state.copyWith(closeConversation: true));
   }
@@ -108,13 +112,20 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
         serverId: server.id,
         peerId: peerId,
       ),
-      rowsAfter: (afterId) async {
+      latestPage: () async {
+        // Only while this is still the selected server: the read goes to the
+        // selected one, and an empty answer from another would be saved as
+        // this conversation having been emptied.
+        final selected = _serverCubit.state.selectedServer;
+        if (selected?.id != server.id ||
+            selected?.supabaseUrl != server.supabaseUrl) {
+          return null;
+        }
         final response = await _serverCubit.listDms(
           peerId: peerId,
-          afterId: afterId,
           limit: ChatMessageOps.pageSize,
         );
-        if (!response.success) return const [];
+        if (!response.success) return null;
         final data = response.data as Map<String, dynamic>;
         return (data['messages'] as List).cast<Map<String, dynamic>>();
       },

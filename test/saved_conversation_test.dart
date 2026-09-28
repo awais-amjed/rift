@@ -54,30 +54,64 @@ void main() {
     },
   );
 
-  test('own sends are fetched once, from the first of them', () async {
-    final asked = <int>[];
+  test('own sends are read in once, when the conversation is left', () async {
+    var asked = 0;
     final saved = SavedConversation(cache: cache);
     await saved.open(
       seed,
       channel('a'),
-      rowsAfter: (afterId) async {
-        asked.add(afterId);
-        return [row(11), row(12)];
+      latestPage: () async {
+        asked++;
+        return [row(12), row(11), row(10)];
       },
     );
     saved.replace([row(10)]);
     saved
-      ..noteSent('12')
-      ..noteSent('11');
-    await saved.flush();
+      ..noteSent()
+      ..noteSent();
 
-    expect(asked, [10]);
+    // Written while still in it: no request, and no own sends yet.
+    await saved.flush();
+    expect(asked, 0);
+    expect(idsIn(await cache.read(seed, channel('a'))), [10]);
+
+    // Left: one request, whatever was sent.
+    await saved.flush(leaving: true);
+    expect(asked, 1);
     expect(idsIn(await cache.read(seed, channel('a'))), [12, 11, 10]);
 
-    // Nothing new sent: the next write does not ask again.
-    saved.merge([row(13)]);
-    await saved.flush();
-    expect(asked, [10]);
+    // Left again with nothing sent since: nothing asked.
+    await saved.flush(leaving: true);
+    expect(asked, 1);
+    saved.dispose();
+  });
+
+  test('a visit spent reading asks for nothing when left', () async {
+    var asked = 0;
+    final saved = SavedConversation(cache: cache);
+    await saved.open(
+      seed,
+      channel('a'),
+      latestPage: () async {
+        asked++;
+        return [];
+      },
+    );
+    saved.replace([row(1)]);
+    await saved.flush(leaving: true);
+    expect(asked, 0);
+    expect(idsIn(await cache.read(seed, channel('a'))), [1]);
+    saved.dispose();
+  });
+
+  test('a page that cannot be read saves the copy as it stood', () async {
+    final saved = SavedConversation(cache: cache);
+    await saved.open(seed, channel('a'), latestPage: () async => null);
+    saved
+      ..replace([row(1)])
+      ..noteSent();
+    await saved.flush(leaving: true);
+    expect(idsIn(await cache.read(seed, channel('a'))), [1]);
     saved.dispose();
   });
 

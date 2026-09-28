@@ -315,7 +315,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
 
   @override
   Future<void> close() async {
-    await _saved.flush();
+    await _saved.flush(leaving: true);
     _saved.dispose();
     PushService.instance.token.removeListener(_onPushToken);
     WindowFocusService.instance.focused.removeListener(_onFocusChanged);

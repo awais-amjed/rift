@@ -4,9 +4,9 @@ import '../../data/classes/message_cache_slot.dart';
 import 'message_cache.dart';
 import 'saved_tail.dart';
 
-/// Fetches a conversation's rows with ids above [afterId], or none when it
-/// cannot. See [SavedConversation.noteSent].
-typedef RowsAfter = Future<List<Map<String, dynamic>>> Function(int afterId);
+/// Fetches a conversation's newest page, newest first, or null when it cannot.
+/// See [SavedConversation.noteSent].
+typedef LatestPage = Future<List<Map<String, dynamic>>?> Function();
 
 /// The saved copy of whichever conversation is open: where it goes, the rows
 /// it will hold, and writing them once a burst of changes settles.
@@ -38,47 +38,47 @@ class SavedConversation {
   MessageCacheSlot? _slot;
   String? _seed;
   Timer? _timer;
-  RowsAfter? _rowsAfter;
+  LatestPage? _latestPage;
 
-  /// The lowest id this device sent since the last write, whose rows the
-  /// tail has not seen — see [noteSent].
-  int? _sentFrom;
+  /// This device sent into the open conversation since it was opened — see
+  /// [noteSent].
+  bool _sent = false;
 
   /// Point at [slot] and read what was saved there, or null.
   ///
-  /// [rowsAfter] fetches the open conversation's rows after an id; it is how
-  /// this device's own messages reach the copy (see [noteSent]).
+  /// [latestPage] reads the conversation's newest page again; it is how this
+  /// device's own messages reach the copy (see [noteSent]).
   ///
   /// Whatever the previous conversation had pending must already be on its
-  /// way — [flush] it before calling this, since from here on everything is
-  /// about [slot].
+  /// way — [flush] it with `leaving: true` before calling this, since from
+  /// here on everything is about [slot].
   Future<Map<String, dynamic>?> open(
     String? seed,
     MessageCacheSlot slot, {
-    RowsAfter? rowsAfter,
+    LatestPage? latestPage,
   }) {
     _timer?.cancel();
     _slot = slot;
     _seed = seed;
-    _rowsAfter = rowsAfter;
-    _sentFrom = null;
+    _latestPage = latestPage;
+    _sent = false;
     _tail.clear();
     if (seed == null) return Future.value();
     return _cache.read(seed, slot);
   }
 
-  /// This device's message was stored as [messageId].
+  /// This device's message was stored.
   ///
-  /// Its row is not fetched on the way in — the sender already drew it, and
-  /// the send answers with an id, not a row. So it is fetched when the copy
-  /// is next written, together with any others sent in the meantime: one
-  /// request for a burst of messages rather than one each. Without it, a copy
-  /// would hold everybody's messages but your own.
-  void noteSent(String messageId) {
-    final id = int.tryParse(messageId);
-    if (id == null) return;
-    final from = _sentFrom;
-    _sentFrom = from == null || id < from ? id : from;
+  /// Its row never comes through the fetches that feed the copy — the sender
+  /// drew it already, and a send answers with an id, not a row. So when the
+  /// conversation is left, the newest page is read once more and saved in
+  /// place of the tail: **one request per visit in which something was
+  /// sent**, however many messages that was, and none for a visit spent
+  /// reading. A visit that ends without being left — the app killed —
+  /// saves a copy missing those sends, which the next open's fresh page puts
+  /// right a moment later.
+  void noteSent() {
+    _sent = true;
     _schedule();
   }
 
@@ -106,32 +106,34 @@ class SavedConversation {
     _schedule();
   }
 
-  /// Write now, if anything changed since the last write.
+  /// Write now, if anything changed since the last write. [leaving] is the
+  /// conversation being left — opened over, closed, or the app shutting down
+  /// — which is the one time this device's own sends are fetched in.
   ///
   /// Everything written is read before the first `await`, so a flush started
   /// just as another conversation opens saves the one being left — its rows,
   /// its slot, and whatever [extras] says about it — not a mixture of two.
-  Future<void> flush() async {
+  Future<void> flush({bool leaving = false}) async {
     _timer?.cancel();
     final slot = _slot;
     final seed = _seed;
-    final sentFrom = _sentFrom;
-    final rowsAfter = _rowsAfter;
-    _sentFrom = null;
+    final latestPage = leaving && _sent ? _latestPage : null;
+    if (latestPage != null) _sent = false;
     final changed = _tail.takeChanged();
-    if (slot == null || seed == null || (!changed && sentFrom == null)) {
+    if (slot == null || seed == null || (!changed && latestPage == null)) {
       return;
     }
     final extras = _extras();
     final canSave = _canSave();
     final rows = SavedTail()..replace(_tail.rows);
 
-    if (sentFrom != null && rowsAfter != null) {
-      final sent = await rowsAfter(sentFrom - 1);
-      rows.merge(sent);
-      // Into the live tail too, if it is still this conversation's, so the
-      // next write does not have to ask again.
-      if (_slot == slot) _tail.merge(sent);
+    if (latestPage != null) {
+      try {
+        final page = await latestPage();
+        if (page != null) rows.replace(page);
+      } catch (_) {
+        // Saved as it stood instead; the next open's fresh page fills in.
+      }
     }
 
     // Nothing left in it: a conversation emptied since, so there is nothing
@@ -150,8 +152,8 @@ class SavedConversation {
   void discard() {
     _timer?.cancel();
     _tail.clear();
-    _sentFrom = null;
-    _rowsAfter = null;
+    _sent = false;
+    _latestPage = null;
     _slot = null;
     _seed = null;
   }

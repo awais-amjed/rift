@@ -172,7 +172,7 @@ class DmCubit extends Cubit<DmState>
   Future<void> _reset() async {
     // Whatever was open is saved to the server it belongs to — read now,
     // before the reset forgets which one that was.
-    unawaited(_saved.flush());
+    unawaited(_saved.flush(leaving: true));
     _readyServerId = null;
     _dmKeys.clear();
     _outbox.clear();
@@ -383,7 +383,7 @@ class DmCubit extends Cubit<DmState>
 
   @override
   Future<void> close() async {
-    await _saved.flush();
+    await _saved.flush(leaving: true);
     _saved.dispose();
     await _serverSub?.cancel();
     await _vaultSub?.cancel();

@@ -91,7 +91,11 @@ class MessageCache {
         final data = json['data'];
         return data is Map<String, dynamic> ? data : null;
       } catch (e) {
-        HelperMethods.printDebug('[MessageCache] unreadable copy: $e');
+        // The type only: a decode error quotes the text it choked on, which
+        // is the decrypted copy.
+        HelperMethods.printDebug(
+          '[MessageCache] unreadable copy: ${e.runtimeType}',
+        );
         return null;
       }
     });

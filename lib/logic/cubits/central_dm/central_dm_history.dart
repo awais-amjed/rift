@@ -27,6 +27,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     required String peerHandle,
     required String? peerChatKey,
     String? peerSigningKey,
+    bool again = false,
   }) async {
     if (state.openPeerId == peerId && state.chatStatus == DmChatStatus.ready) {
       return;
@@ -34,7 +35,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     if (peerChatKey != null) _peerChatKeys[peerId] = peerChatKey;
     if (peerSigningKey != null) _peerSigningKeys[peerId] = peerSigningKey;
     // Before the state moves on: the flush reads the conversation being left.
-    unawaited(_saved.flush());
+    unawaited(_saved.flush(leaving: true));
 
     emit(
       state.copyWith(
@@ -42,10 +43,12 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
         openPeerId: peerId,
         openPeerHandle: peerHandle,
         chatStatus: DmChatStatus.loading,
-        messages: const [],
-        hasMoreHistory: false,
+        // [again] is a retry over the saved copy, which stays on screen with
+        // the composer under it and whatever was typed.
+        messages: again ? null : const [],
+        hasMoreHistory: again ? null : false,
         clearError: true,
-        showingSaved: false,
+        showingSaved: again ? null : false,
       ),
     );
 
@@ -89,11 +92,12 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
       peerHandle: state.openPeerHandle ?? '',
       // Both keys were kept when it was first opened.
       peerChatKey: null,
+      again: state.showingSaved,
     );
   }
 
   void closeConversation() {
-    unawaited(_saved.flush());
+    unawaited(_saved.flush(leaving: true));
     emit(state.copyWith(closeConversation: true, friendsOpen: false));
   }
 
@@ -102,7 +106,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
   /// The only navigation on this tier that is not "open a person", and the
   /// only way back to friends from inside a conversation.
   void openFriends() {
-    unawaited(_saved.flush());
+    unawaited(_saved.flush(leaving: true));
     emit(state.copyWith(closeConversation: true, friendsOpen: true));
   }
 
@@ -110,13 +114,12 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     final saved = await _saved.open(
       _seed,
       MessageCacheSlot.centralDm(peerId: peerId),
-      rowsAfter: (afterId) async {
+      latestPage: () async {
         final response = await _repo.listDms(
           peerId: peerId,
-          afterId: afterId,
           limit: ChatMessageOps.pageSize,
         );
-        if (!response.success) return const [];
+        if (!response.success) return null;
         final data = response.data as Map<String, dynamic>;
         return (data['messages'] as List).cast<Map<String, dynamic>>();
       },

@@ -25,7 +25,7 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
         serverId: server.id,
         channelId: channelId,
       ),
-      rowsAfter: (afterId) => _savedRowsAfter(channelId, afterId),
+      latestPage: () => _savedLatestPage(server, channelId),
     );
     if (saved == null || isClosed || state.channelId != channelId) return;
 
@@ -57,22 +57,33 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
         ),
       );
     } catch (e) {
-      HelperMethods.printDebug('[Chat] saved copy unreadable: $e');
+      // The type only — the message would quote the decrypted copy.
+      HelperMethods.printDebug(
+        '[Chat] saved copy unreadable: ${e.runtimeType}',
+      );
     }
   }
 
-  /// [channelId]'s rows after [afterId] — how this device's own messages
-  /// reach its copy. See [SavedConversation.noteSent].
-  Future<List<Map<String, dynamic>>> _savedRowsAfter(
+  /// [channelId]'s newest page — how this device's own messages reach its
+  /// copy. See [SavedConversation.noteSent].
+  ///
+  /// Null once [server] is no longer the selected one: the read goes to the
+  /// selected server, and a channel it does not have answers with an empty
+  /// page, which would be saved as the channel having been emptied.
+  Future<List<Map<String, dynamic>>?> _savedLatestPage(
+    Server server,
     String channelId,
-    int afterId,
   ) async {
+    final selected = _serverCubit.state.selectedServer;
+    if (selected?.id != server.id ||
+        selected?.supabaseUrl != server.supabaseUrl) {
+      return null;
+    }
     final response = await _serverCubit.listChatMessages(
       channelId: channelId,
-      afterId: afterId,
       limit: ChatMessageOps.pageSize,
     );
-    if (!response.success) return const [];
+    if (!response.success) return null;
     final data = response.data as Map<String, dynamic>;
     return (data['messages'] as List).cast<Map<String, dynamic>>();
   }

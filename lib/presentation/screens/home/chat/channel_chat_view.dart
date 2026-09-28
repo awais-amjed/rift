@@ -84,10 +84,13 @@ class _ChannelChatViewState extends State<ChannelChatView>
         final status = chatState.status;
         // The saved copy is on screen and the channel is still opening: the
         // composer is there to type into, and sends once the keyring lands.
+        // And kept when the open fails, under the notice saying so, so what
+        // was typed while it tried is still there for the retry.
         final opening =
             chatState.showingSaved &&
             (status == ChannelChatStatus.loading ||
-                status == ChannelChatStatus.healingKey);
+                status == ChannelChatStatus.healingKey ||
+                status == ChannelChatStatus.error);
         final composing = status == ChannelChatStatus.ready || opening;
         // No background of its own: the content panel it sits in owns
         // that, and painting over it would break the panel's rounding.
