@@ -176,6 +176,11 @@ class ServerRealtime {
       );
     }
     channel.subscribe((status, [_]) {
+      // Read now. A server can only refuse over an open socket; a failure with
+      // the socket down is the socket's, and the client joins that channel
+      // again by itself once it reconnects, with whatever token `setAuth`
+      // last gave it.
+      final clientRetries = !connection.client.realtime.isConnected;
       // Not handled here and now: when the socket drops, realtime_client
       // calls this from inside its walk over every channel, and a rejoin adds
       // a channel to that list. The walk threw, and the reconnect it schedules
@@ -184,30 +189,40 @@ class ServerRealtime {
         // A replaced channel's last word — the `closed` of its own leave — is
         // not news about the topic.
         if (identical(joined.channel, channel)) {
-          _onStatus(connection, joined, status);
+          _onStatus(connection, joined, status, clientRetries: clientRetries);
         }
       });
     });
   }
 
+  /// [clientRetries] is a failure realtime_client will join again by itself.
+  /// Only one it won't — the server's own refusal — is ours to ask again.
   void _onStatus(
     _Connection connection,
     _Topic joined,
-    RealtimeSubscribeStatus status,
-  ) {
+    RealtimeSubscribeStatus status, {
+    bool clientRetries = false,
+  }) {
     joined.status = status;
+    joined.refused = _Topic.isRefusal(status) && !clientRetries;
     for (final listener in [...joined.statusListeners]) {
       listener(status);
     }
     // Refused under a token that has been replaced since the join went out:
     // the answer was about the old one, so ask again with the new.
-    if (_Topic.isRefusal(status) && joined.joinedWith != connection.token) {
+    if (joined.refused && joined.joinedWith != connection.token) {
       _rejoin(connection, joined);
     }
   }
 
   /// Joins [joined] again on a new channel and drops the refused one. The
   /// topic object — and so every lease and listener on it — stays the same.
+  ///
+  /// Never for a channel that failed with the socket. realtime_client drops a
+  /// channel from its list by `joinRef`, which is empty until a join is sent,
+  /// and a left channel's is emptied too — so dropping one while the socket is
+  /// down drops every join still waiting to go out, this replacement included,
+  /// and the topic sat "joining" on a channel the socket no longer had.
   void _rejoin(_Connection connection, _Topic joined) {
     if (!identical(connection.topics[joined.name], joined)) return;
     final refused = joined.channel;
@@ -222,7 +237,7 @@ class ServerRealtime {
   /// A new token: every topic the old one had been refused on is asked again.
   void _rejoinRefused(_Connection connection) {
     for (final joined in [...connection.topics.values]) {
-      if (joined.status != null && _Topic.isRefusal(joined.status!)) {
+      if (joined.refused) {
         _rejoin(connection, joined);
       }
     }
@@ -438,6 +453,11 @@ class _Topic {
   final Set<String> boundBroadcasts = {};
   final Set<void Function(RealtimeSubscribeStatus status)> statusListeners = {};
   RealtimeSubscribeStatus? status;
+
+  /// The server said no to the current join, and nothing will ask again but
+  /// us. Not every refusal-looking [status]: one the socket caused, the client
+  /// retries itself.
+  bool refused = false;
   int holders = 0;
 
   _Topic(this.name, this.setUp);

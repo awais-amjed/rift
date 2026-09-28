@@ -229,28 +229,44 @@ void main() {
   );
 
   // What a dropped socket does: realtime_client walks its channel list firing
-  // each one's error, and only after the walk schedules the reconnect. A
-  // rejoin that added to the list during the walk threw out of it, so the
-  // reconnect was never scheduled and nothing live arrived again.
-  test('a socket drop that rejoins does not break the error walk', () async {
-    final a = _server('a');
-    final h = _Harness([a]);
-    h.realtime.join(a, 'user:me');
-    h.realtime.join(a, 'server:a');
-    await h.publish([a.copyWith(token: 'jwt-2')]);
-    final first = h.realtime.debugChannelOf('a', 'user:me')!;
+  // each one's error, and only after the walk schedules the reconnect. Two
+  // things went wrong here after a token rotation. A rejoin that added to the
+  // list during the walk threw out of it, so the reconnect was never
+  // scheduled. And replacing a channel while the socket was down lost the
+  // replacement from the socket's list, so the topic never joined again.
+  test(
+    'a socket drop leaves each topic on a channel the socket still has',
+    () async {
+      final a = _server('a');
+      final h = _Harness([a]);
+      h.realtime.join(a, 'user:me');
+      h.realtime.join(a, 'server:a');
+      await h.publish([a.copyWith(token: 'jwt-2')]);
+      final first = h.realtime.debugChannelOf('a', 'user:me')!;
 
-    expect(() {
-      for (final channel in h.realtime.debugSocketChannels('a')) {
-        channel.trigger('phx_error', 'socket closed');
+      expect(() {
+        for (final channel in h.realtime.debugSocketChannels('a')) {
+          channel.trigger('phx_error', 'socket closed');
+        }
+      }, returnsNormally);
+
+      await h.settle();
+      for (final topic in ['user:me', 'server:a']) {
+        final channel = h.realtime.debugChannelOf('a', topic);
+        expect(
+          h.realtime.debugSocketChannels('a'),
+          contains(same(channel)),
+          reason: '$topic must stay on a channel the client will rejoin',
+        );
       }
-    }, returnsNormally);
-
-    await Future<void>.delayed(Duration.zero);
-    expect(h.realtime.debugChannelOf('a', 'user:me'), isNot(same(first)));
-    expect(h.realtime.topicCount('a'), 2);
-    await h.close();
-  });
+      expect(
+        h.realtime.debugChannelOf('a', 'user:me'),
+        same(first),
+        reason: 'the client joins it again by itself, with the new token',
+      );
+      await h.close();
+    },
+  );
 
   test('a joined topic is left alone when the token rotates', () async {
     final a = _server('a');
