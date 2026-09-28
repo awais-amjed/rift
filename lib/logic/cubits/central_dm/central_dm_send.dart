@@ -7,6 +7,7 @@ part of 'central_dm_cubit.dart';
 /// against the same quota, so the meter is refreshed from every send.
 mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   CentralDmRepository get _repo;
+  SavedConversation get _saved;
   CryptoRepository get _crypto;
   Map<String, Uint8List> get _dmKeys;
   String? get _myUserId;
@@ -149,6 +150,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
           remaining: data['remaining'] as int?,
         ),
       );
+      _saved.noteSent('${data['id']}');
       // A send cannot move the relationship any more — being friends is what
       // made it possible — but it can *reveal* that this device was wrong
       // about it. The server always answers `friends`, so a disagreement here

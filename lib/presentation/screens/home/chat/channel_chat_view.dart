@@ -24,6 +24,7 @@ import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
 import '../../../common/chat/polls/create_poll_dialog.dart';
+import '../../../common/chat/saved_copy_notice.dart';
 import '../../../common/chat/time_out_builder.dart';
 import '../../../common/chat/time_out_gate.dart';
 import '../../../common/chat/typing_indicator.dart';
@@ -80,6 +81,14 @@ class _ChannelChatViewState extends State<ChannelChatView>
     );
     return BlocBuilder<ChannelChatCubit, ChannelChatState>(
       builder: (context, chatState) {
+        final status = chatState.status;
+        // The saved copy is on screen and the channel is still opening: the
+        // composer is there to type into, and sends once the keyring lands.
+        final opening =
+            chatState.showingSaved &&
+            (status == ChannelChatStatus.loading ||
+                status == ChannelChatStatus.healingKey);
+        final composing = status == ChannelChatStatus.ready || opening;
         // No background of its own: the content panel it sits in owns
         // that, and painting over it would break the panel's rounding.
         return DefaultTextStyle.merge(
@@ -94,19 +103,23 @@ class _ChannelChatViewState extends State<ChannelChatView>
               Expanded(child: _buildBody(context, chatState)),
               // A phone's way back into the call, just above whatever
               // holds the composer's slot. Nothing on a desktop.
-              if (chatState.status != ChannelChatStatus.ready)
-                const MiniCallBar(),
+              if (!composing) const MiniCallBar(),
               // Sending needs the key too, so read-only gets the banner
               // in the composer's place rather than a composer that would
               // refuse every message typed into it.
               // Waiting keeps the slot too: a composer that is plainly
               // coming says "this will work later", where an absent one
               // says this channel has none.
-              if (chatState.status == ChannelChatStatus.readOnly)
+              if (status == ChannelChatStatus.readOnly)
                 const ChatReadOnlyBanner()
-              else if (chatState.status == ChannelChatStatus.waitingForKey)
-                const ChatReadOnlyBanner(waitingForKey: true),
-              if (chatState.status == ChannelChatStatus.ready) ...[
+              else if (status == ChannelChatStatus.waitingForKey)
+                const ChatReadOnlyBanner(waitingForKey: true)
+              else if (status == ChannelChatStatus.error &&
+                  chatState.showingSaved)
+                SavedCopyNotice(
+                  onRetry: context.read<ChannelChatCubit>().retry,
+                ),
+              if (composing) ...[
                 TypingIndicator(names: chatState.typingUsers.values.toList()),
                 const MiniCallBar(),
                 TimeOutGate(
@@ -114,6 +127,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                     (c) => c.state.selectedServer?.user?.timedOutUntil,
                   ),
                   child: ChatComposer(
+                    canSend: status == ChannelChatStatus.ready,
                     onSend: (text, attachments, preview) =>
                         _send(context, text, attachments, preview),
                     replyingTo: replyingTo,
@@ -323,68 +337,14 @@ class _ChannelChatViewState extends State<ChannelChatView>
       // history rather than as an absence.
       case ChannelChatStatus.ready:
       case ChannelChatStatus.readOnly:
-        syncReplyDraft(chatState.channelId, chatState.messages);
-        // A time-out stops posting, editing, reacting and pinning
-        // (`app.timed_out` in the policies), so none of them is offered while
-        // it lasts — nor Reply, which only leads to the composer the banner
-        // has replaced. They come back by themselves when it runs out.
-        return TimeOutBuilder(
-          until: context.select<ServerCubit, DateTime?>(
-            (c) => c.state.selectedServer?.user?.timedOutUntil,
-          ),
-          builder: (context, timedOut) => ChatMessageList(
-            key: ValueKey(chatState.channelId),
-            messages: chatState.messages,
-            controller: scrollController,
-            attachmentLoader: context.read<ChannelChatCubit>().loadAttachment,
-            onToggleReaction: context.read<ChannelChatCubit>().toggleReaction,
-            onLookUpOriginal: context.read<ChannelChatCubit>().fetchQuoted,
-            onShowAround: context.read<ChannelChatCubit>().showAround,
-            viewingHistory: chatState.hasNewerHistory,
-            onReturnToPresent: context.read<ChannelChatCubit>().returnToPresent,
-            onOpenProfile: (userId, name) => unawaited(
-              showMemberProfile(context, userId: userId, name: name),
-            ),
-            onReply: timedOut ? null : startReply,
-            onForward: timedOut
-                ? null
-                : (message) => _forward(context, message, chatState),
-            onEdit: timedOut
-                ? null
-                : context.read<ChannelChatCubit>().editMessage,
-            onDelete: context.read<ChannelChatCubit>().deleteMessage,
-            onRetry: context.read<ChannelChatCubit>().retrySend,
-            onPanelAction: context.read<ChannelChatCubit>().pressPanelAction,
-            // Channel managers and admins may remove anyone's message.
-            isModerator: _isModerator(context),
-            canReact: !timedOut && _canReact(context),
-            // Only the names these messages actually say, resolved against this
-            // channel — see [ChannelChatState.mentionNames]. `@all` is added
-            // here because it names everybody in the room and so lights up like
-            // a name that reached somebody; nobody can be called it, so it is
-            // never ambiguous between the room and a person.
-            mentionable: {Mentions.everyone, ...chatState.mentionNames.keys},
-            mentionNames: chatState.mentionNames,
-            onReport: (message) =>
-                unawaited(showReportMessageDialog(context, message)),
-            onTogglePin: !timedOut && _canPin(context, chatState.channelId)
-                ? (message) => unawaited(
-                    context.read<ChannelChatCubit>().setPinned(
-                      message,
-                      pinned: !message.isPinned,
-                    ),
-                  )
-                : null,
-            pollTallies: chatState.pollTallies,
-            // Voting needs no key, but a read-only seat is one that cannot send,
-            // and a vote is the one thing here that is sent.
-            onVote: chatState.status == ChannelChatStatus.ready
-                ? context.read<ChannelChatCubit>().vote
-                : null,
-            onClosePoll: context.read<ChannelChatCubit>().closePoll,
-            jumpRequests: _jumpRequests,
-          ),
-        );
+        return _buildList(context, chatState, live: true);
+      // The saved copy, while the channel opens or when it could not: drawn
+      // as it is, with nothing offered that would act on it.
+      case ChannelChatStatus.loading ||
+              ChannelChatStatus.healingKey ||
+              ChannelChatStatus.error
+          when chatState.showingSaved:
+        return _buildList(context, chatState, live: false);
       case ChannelChatStatus.loading:
       // Drawn the same as loading, and that is the whole point: a key being
       // wrapped for a new member is work in progress, not a refusal.
@@ -424,5 +384,82 @@ class _ChannelChatViewState extends State<ChannelChatView>
       case ChannelChatStatus.closed:
         return const SizedBox.shrink();
     }
+  }
+
+  /// The history. [live] is false for the saved copy: every action on a row
+  /// is withheld, since none of it is confirmed and the keys to act with are
+  /// still being fetched.
+  Widget _buildList(
+    BuildContext context,
+    ChannelChatState chatState, {
+    required bool live,
+  }) {
+    final cubit = context.read<ChannelChatCubit>();
+    if (live) syncReplyDraft(chatState.channelId, chatState.messages);
+    // A time-out stops posting, editing, reacting and pinning
+    // (`app.timed_out` in the policies), so none of them is offered while
+    // it lasts — nor Reply, which only leads to the composer the banner
+    // has replaced. They come back by themselves when it runs out.
+    return TimeOutBuilder(
+      until: context.select<ServerCubit, DateTime?>(
+        (c) => c.state.selectedServer?.user?.timedOutUntil,
+      ),
+      builder: (context, timedOut) {
+        final acting = live && !timedOut;
+        return ChatMessageList(
+          // A list of its own for the saved copy. The fresh page then starts
+          // a new one, primed afresh, rather than animating everything sent
+          // since the copy was saved as if it had just arrived.
+          key: ValueKey((chatState.channelId, live)),
+          messages: chatState.messages,
+          controller: scrollController,
+          attachmentLoader: cubit.loadAttachment,
+          // Passed either way: it is also what says this surface shows
+          // reactions at all. [canReact] is what stops the saved copy taking one.
+          onToggleReaction: cubit.toggleReaction,
+          onLookUpOriginal: cubit.fetchQuoted,
+          onShowAround: live ? cubit.showAround : null,
+          viewingHistory: chatState.hasNewerHistory,
+          onReturnToPresent: cubit.returnToPresent,
+          onOpenProfile: (userId, name) =>
+              unawaited(showMemberProfile(context, userId: userId, name: name)),
+          onReply: acting ? startReply : null,
+          onForward: acting
+              ? (message) => _forward(context, message, chatState)
+              : null,
+          onEdit: acting ? cubit.editMessage : null,
+          onDelete: live ? cubit.deleteMessage : null,
+          onRetry: live ? cubit.retrySend : null,
+          onPanelAction: live ? cubit.pressPanelAction : null,
+          // Channel managers and admins may remove anyone's message.
+          isModerator: live && _isModerator(context),
+          canReact: acting && _canReact(context),
+          // Only the names these messages actually say, resolved against this
+          // channel — see [ChannelChatState.mentionNames]. `@all` is added
+          // here because it names everybody in the room and so lights up like
+          // a name that reached somebody; nobody can be called it, so it is
+          // never ambiguous between the room and a person.
+          mentionable: {Mentions.everyone, ...chatState.mentionNames.keys},
+          mentionNames: chatState.mentionNames,
+          onReport: live
+              ? (message) =>
+                    unawaited(showReportMessageDialog(context, message))
+              : null,
+          onTogglePin: acting && _canPin(context, chatState.channelId)
+              ? (message) => unawaited(
+                  cubit.setPinned(message, pinned: !message.isPinned),
+                )
+              : null,
+          pollTallies: chatState.pollTallies,
+          // Voting needs no key, but a read-only seat is one that cannot send,
+          // and a vote is the one thing here that is sent.
+          onVote: chatState.status == ChannelChatStatus.ready
+              ? cubit.vote
+              : null,
+          onClosePoll: live ? cubit.closePoll : null,
+          jumpRequests: _jumpRequests,
+        );
+      },
+    );
   }
 }

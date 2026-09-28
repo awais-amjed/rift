@@ -4,6 +4,7 @@ part of 'dm_cubit.dart';
 /// bytes back for rendering.
 mixin _DmSendMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
+  SavedConversation get _saved;
   CryptoRepository get _crypto;
   Map<String, Uint8List> get _dmKeys;
   Future<ServerIdentity> _vaultIdentityFor(Server server);
@@ -140,6 +141,7 @@ mixin _DmSendMixin on Cubit<DmState> {
           ),
         ),
       );
+      _saved.noteSent('${data['id']}');
       unawaited(refreshConversations());
       // A first message may have become a request, and a reply to one is its
       // acceptance. Anything later in an open conversation changes nothing.

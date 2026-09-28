@@ -7,6 +7,7 @@ part of 'channel_chat_cubit.dart';
 /// Sending into a channel, and fetching attachment bytes back for rendering.
 mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  SavedConversation get _saved;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
@@ -269,6 +270,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
           ),
         ),
       );
+      _saved.noteSent('${data['id']}');
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[Chat] attachment upload failed: $e');
       _failSend(

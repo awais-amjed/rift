@@ -7,6 +7,7 @@ part of 'central_dm_cubit.dart';
 /// quota, and a delete obviously doesn't either.
 mixin _CentralDmEditMixin on Cubit<CentralDmState> {
   CentralDmRepository get _repo;
+  SavedConversation get _saved;
   CryptoRepository get _crypto;
   Map<String, Uint8List> get _dmKeys;
   String? get _myUserId;
@@ -90,6 +91,7 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
         return;
       }
 
+      _saved.remove(messageId);
       emit(
         state.copyWith(
           messages: ChatMessageOps.removeMessage(state.messages, messageId),

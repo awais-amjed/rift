@@ -232,6 +232,44 @@ bucket holds opaque bytes. Deleting a message has to delete its blobs, and
 storage refuses a direct delete — so that path goes through an endpoint holding
 the Storage API rather than any database role.
 
+### Saved on the device [Implemented September 2026]
+
+Each conversation this device opens — a channel, a server DM, a central DM —
+keeps its newest page (`ChatMessageOps.pageSize`) in a file, so the next open
+draws it before asking the server anything, and a conversation can still be read
+with no connection. Before this, the only thing kept locally was the outbox,
+for as long as the app was open.
+
+**A head start, never the answer.** Every open still fetches the newest page and
+replaces the drawn copy outright, never merges into it. A saved copy cannot know
+what was deleted, edited or reacted to since, and merging would keep a message a
+moderator removed. The cost is that a deleted message can show for the moment
+the fetch takes. While the copy is on screen nothing on it can be acted on, and
+the composer takes typing but holds the send until the fetch lands. When the
+fetch fails, the copy stays up and a notice in the composer's place says what
+it is.
+
+**Rows, not messages.** What is saved is the rows exactly as the server sent
+them, so a saved row goes back through the same open-or-lock-or-drop path as a
+fresh one (*Three things a client can do with a row*, above). A channel's keys
+come from the server, so its copy carries the key versions it was sealed under.
+A DM's key is worked out on the device and is not stored.
+
+**Sealed as a whole**, AES-256-GCM under a key from its own rung of the ladder
+(§1), with file and folder names that are HMACs under the same key. The rows are
+mostly ciphertext already, but not all of it: webhook messages, author names,
+times and reactions are in the clear on a row. The file is exactly as readable
+as the seed that can already open the conversations, and no more.
+
+**Wiped with whatever could open it.** Leaving a server removes its channels and
+DMs; signing out of central removes central's; a vault reset removes everything.
+A channel the server stops listing is pruned. Every file operation runs in the
+order it was asked for, and a wipe refuses writes asked for after it. That is
+because the chat cubits save the open conversation the moment they notice it
+closing, and leaving a server is exactly what makes them notice, just after the
+wipe. Not on the web, whose storage is the browser's rather than the platform's
+secure store. See `MessageCache` and `SavedConversation`.
+
 ### Decisions locked in for day one
 1. **Every message is Ed25519-signed by the sender** — a shared channel key must not allow
    member/server forgery. Unsigned history can't be retro-signed, so this ships with message v1.
@@ -329,7 +367,7 @@ rather than a request. The cooldown and length cutoff are applied by the
 | Central server / its host | safe (E2E) | safe (E2E) | n/a | n/a | n/a |
 | Self-hosted server's hosting provider | safe | n/a | safe (E2E) | safe | safe (E2E) |
 | Self-hosted server admin | safe | n/a | readable (they're a member anyway) | **safe** | channel calls: accessible · DM calls: **safe** |
-| Device thief (no password) | Argon2id + secure storage | — | — | — | — |
+| Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*) | same | — |
 
 ---
 

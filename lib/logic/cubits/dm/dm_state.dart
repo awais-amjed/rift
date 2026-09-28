@@ -62,6 +62,10 @@ class DmState {
 
   final String? error;
 
+  /// [messages] are the copy this device saved, not yet replaced by what the
+  /// server says: drawn while the conversation opens, and kept when it cannot.
+  final bool showingSaved;
+
   const DmState({
     this.conversations = const [],
     this.conversationsLoading = false,
@@ -80,6 +84,7 @@ class DmState {
     this.blockedIds = const {},
     this.calls = const [],
     this.error,
+    this.showingSaved = false,
   });
 
   DmState copyWith({
@@ -104,6 +109,7 @@ class DmState {
     String? error,
     bool clearError = false,
     bool closeConversation = false,
+    bool? showingSaved,
   }) {
     return DmState(
       conversations: conversations ?? this.conversations,
@@ -137,6 +143,9 @@ class DmState {
       blockedIds: blockedIds ?? this.blockedIds,
       calls: closeConversation ? const [] : (calls ?? this.calls),
       error: clearError ? null : (error ?? this.error),
+      showingSaved: closeConversation
+          ? false
+          : (showingSaved ?? this.showingSaved),
     );
   }
 }

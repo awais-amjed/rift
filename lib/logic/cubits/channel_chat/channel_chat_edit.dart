@@ -12,6 +12,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
   int get _currentKeyVersion;
+  SavedConversation get _saved;
 
   /// Implemented by [_ChannelChatRowsMixin]. An edit applied here never goes
   /// back through `_decryptRows`, so a name the new text adds would draw as
@@ -115,6 +116,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
         return;
       }
 
+      _saved.remove(messageId);
       emit(
         state.copyWith(
           messages: ChatMessageOps.removeMessage(state.messages, messageId),

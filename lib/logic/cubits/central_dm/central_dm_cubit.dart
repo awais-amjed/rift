@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthState, RealtimeChannel;
+    show AuthChangeEvent, AuthState, RealtimeChannel;
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -13,6 +13,7 @@ import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/friend.dart';
 import '../../../data/classes/friend_buckets.dart';
 import '../../../data/classes/message_body.dart';
+import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/paged.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/enums/app_sound.dart';
@@ -29,11 +30,13 @@ import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/conversation_splice.dart';
 import '../../services/link_preview_fetcher.dart';
+import '../../services/message_cache.dart';
 import '../../services/new_message_notifier.dart';
 import '../../services/outbox.dart';
 import '../../services/pin_ops.dart';
 import '../../services/push_service.dart';
 import '../../services/quote_lookup.dart';
+import '../../services/saved_conversation.dart';
 import '../../services/sound_service.dart';
 import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';
@@ -113,6 +116,16 @@ class CentralDmCubit extends Cubit<CentralDmState>
   @override
   final Outbox _outbox = Outbox();
 
+  /// The open conversation's saved copy. On the class because the history
+  /// mixin draws and feeds it and the edit mixin takes deleted rows out of it
+  /// (CODE_STYLE §5). Nothing is kept beside the rows: both keys a central DM
+  /// needs are already held for the conversation list.
+  @override
+  final SavedConversation _saved = SavedConversation();
+
+  @override
+  String? get _seed => _vaultCubit.state.masterSeed;
+
   CentralDmCubit({
     required VaultCubit vaultCubit,
     required AppCubit appCubit,
@@ -124,7 +137,10 @@ class CentralDmCubit extends Cubit<CentralDmState>
        _repo = repo ?? CentralDmRepository(),
        _crypto = crypto ?? CryptoRepository(),
        super(const CentralDmState()) {
-    _authSub = _repo.authChanges.listen((_) => _ensureReady());
+    _authSub = _repo.authChanges.listen((auth) {
+      _followSavedCopies(auth.event);
+      _ensureReady();
+    });
     _vaultSub = vaultCubit.stream.listen((_) => _ensureReady());
     _appSub = appCubit.stream.listen(_onAppStateChanged);
     WindowFocusService.instance.focused.addListener(_onFocusChanged);
@@ -133,6 +149,24 @@ class CentralDmCubit extends Cubit<CentralDmState>
 
   /// Arriving at Home, or coming back to the window, reads whatever
   /// conversation is open there.
+  /// Central conversations saved on this device belong to the account that
+  /// had them, so signing out wipes them — and a session that merely has not
+  /// been restored yet must not, which is why this answers to the event
+  /// rather than to there being no user.
+  void _followSavedCopies(AuthChangeEvent event) {
+    if (event == AuthChangeEvent.signedIn) {
+      MessageCache.instance.reopenScope(MessageCacheSlot.centralScope);
+      return;
+    }
+    if (event != AuthChangeEvent.signedOut) return;
+    _saved.discard();
+    final seed = _seed;
+    if (seed == null) return;
+    unawaited(
+      MessageCache.instance.forgetScope(seed, MessageCacheSlot.centralScope),
+    );
+  }
+
   void _onAppStateChanged(AppState appState) {
     if (appState.surface == _lastSurface) return;
     _lastSurface = appState.surface;
@@ -281,6 +315,8 @@ class CentralDmCubit extends Cubit<CentralDmState>
 
   @override
   Future<void> close() async {
+    await _saved.flush();
+    _saved.dispose();
     PushService.instance.token.removeListener(_onPushToken);
     WindowFocusService.instance.focused.removeListener(_onFocusChanged);
     await _authSub?.cancel();

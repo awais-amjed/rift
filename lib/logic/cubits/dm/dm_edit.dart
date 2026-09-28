@@ -7,6 +7,7 @@ part of 'dm_cubit.dart';
 /// in place. DM key_version is always 1 — DMs don't rotate.
 mixin _DmEditMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
+  SavedConversation get _saved;
   CryptoRepository get _crypto;
   Map<String, Uint8List> get _dmKeys;
   Future<ServerIdentity> _vaultIdentityFor(Server server);
@@ -101,6 +102,7 @@ mixin _DmEditMixin on Cubit<DmState> {
         return;
       }
 
+      _saved.remove(messageId);
       emit(
         state.copyWith(
           messages: ChatMessageOps.removeMessage(state.messages, messageId),

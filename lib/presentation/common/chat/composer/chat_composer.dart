@@ -91,6 +91,13 @@ class ChatComposer extends StatefulWidget {
   final String hintText;
   final bool enabled;
 
+  /// False holds the send back while the field stays usable: the
+  /// conversation is still opening, so what is typed meanwhile stays in the
+  /// field and goes with the first press once it has. Not [enabled] — a
+  /// greyed field in the second before a conversation is ready reads as
+  /// broken, and people retype into it.
+  final bool canSend;
+
   /// Drawn flush under the bar. It carries its own top spacing, so a footer
   /// that has nothing to show — the quota meter, most of the time — takes no
   /// room and leaves the composer where a channel's sits.
@@ -139,6 +146,7 @@ class ChatComposer extends StatefulWidget {
     this.onTyping,
     this.hintText = 'Send a message',
     this.enabled = true,
+    this.canSend = true,
     this.footer,
     this.canAttach = true,
     this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
@@ -216,7 +224,7 @@ class _ChatComposerState extends State<ChatComposer>
   void _send() {
     // The field holds display names; a mention has to travel as a username.
     final text = MentionSuggestions.toWire(_controller.text, _picked).trim();
-    if (!widget.enabled) return;
+    if (!widget.enabled || !widget.canSend) return;
     if (text.isEmpty && _staged.isEmpty) return;
     final attachments = List<PendingAttachment>.from(_staged);
     final preview = _takePreview();
@@ -377,6 +385,7 @@ class _ChatComposerState extends State<ChatComposer>
               enabled: widget.enabled,
               canSend:
                   widget.enabled &&
+                  widget.canSend &&
                   (_controller.text.trim().isNotEmpty || _staged.isNotEmpty),
               atAttachmentLimit: _atAttachmentLimit,
               canAttach: widget.canAttach,

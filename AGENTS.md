@@ -78,6 +78,13 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
   optional `serverId` and resolves it with `_target()` — reading `state.selectedServer` inside
   such a call is how a form ends up writing to the wrong server.
 - Enums carry their own `fromString` / `toJson` conversions (see `channel_type.dart`).
+- **A conversation's saved copy is fed by the code that fetches its rows.** Each
+  chat cubit holds a `SavedConversation`. A new path that brings rows in at the
+  live end calls `merge`; one that learns a row changed or went away calls
+  `update` or `remove`; an acknowledged send calls `noteSent`. Forget one and the
+  next open draws a stale page for a moment, which is exactly the defect nobody
+  sees in a test. The copy is a head start that the fresh page *replaces*.
+  Never merge it into live state (`ARCHITECTURE.md` §4, *Saved on the device*).
 
 ## Crypto rules
 
@@ -85,7 +92,10 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
   widgets. Argon2id derivation runs in `Isolate.run` to keep the UI thread free; keep any new
   heavy crypto off the main isolate the same way.
 - Secrets at rest go through `SecureStorageRepository` (flutter_secure_storage), never
-  HydratedBloc/JSON state.
+  HydratedBloc/JSON state. The one exception is `MessageCache`: a channel's saved
+  copy holds its keys, in a file sealed under a key derived from the seed. It is
+  therefore no more exposed than the seed in secure storage. Keep it that way:
+  nothing goes in that file unsealed.
 - Anything touching vault export/import must keep backward compatibility with existing
   `BackupFile.version` values.
 

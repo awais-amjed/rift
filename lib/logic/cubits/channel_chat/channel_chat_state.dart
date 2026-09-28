@@ -123,6 +123,12 @@ class ChannelChatState {
   /// answer survives both.
   final Map<String, PollTally> pollTallies;
 
+  /// [messages] are the copy this device saved, not yet replaced by what the
+  /// server says. Drawn while the channel opens, and kept on screen when it
+  /// cannot — read-only, because nothing here is confirmed and sending needs
+  /// the keyring the open is still fetching.
+  final bool showingSaved;
+
   const ChannelChatState({
     this.status = ChannelChatStatus.closed,
     this.channelId,
@@ -136,6 +142,7 @@ class ChannelChatState {
     this.mentionNames = const {},
     this.failure,
     this.pollTallies = const {},
+    this.showingSaved = false,
   });
 
   ChannelChatState copyWith({
@@ -152,6 +159,7 @@ class ChannelChatState {
     ChatFailure? failure,
     bool clearFailure = false,
     Map<String, PollTally>? pollTallies,
+    bool? showingSaved,
   }) {
     return ChannelChatState(
       status: status ?? this.status,
@@ -169,6 +177,7 @@ class ChannelChatState {
       mentionNames: mentionNames ?? this.mentionNames,
       failure: clearFailure ? null : (failure ?? this.failure),
       pollTallies: pollTallies ?? this.pollTallies,
+      showingSaved: showingSaved ?? this.showingSaved,
     );
   }
 }

@@ -18,6 +18,10 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
   /// Implemented by the unread mixin.
   void markOpenConversationRead();
 
+  /// The open conversation's saved copy — see [SavedConversation].
+  SavedConversation get _saved;
+  String? get _seed;
+
   Future<void> openConversation({
     required String peerId,
     required String peerHandle,
@@ -29,6 +33,8 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     }
     if (peerChatKey != null) _peerChatKeys[peerId] = peerChatKey;
     if (peerSigningKey != null) _peerSigningKeys[peerId] = peerSigningKey;
+    // Before the state moves on: the flush reads the conversation being left.
+    unawaited(_saved.flush());
 
     emit(
       state.copyWith(
@@ -39,6 +45,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
         messages: const [],
         hasMoreHistory: false,
         clearError: true,
+        showingSaved: false,
       ),
     );
 
@@ -54,14 +61,39 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
       return;
     }
 
-    await _fetchLatest(peerId);
+    // Both keys are already on this device, so the saved copy opens before
+    // central is asked anything.
+    await _drawSaved(peerId);
     if (state.openPeerId != peerId) return;
+
+    final fetched = await _fetchLatest(peerId);
+    if (state.openPeerId != peerId) return;
+    // Kept on screen when the page could not be fetched, saying so in the
+    // composer's place. Without a saved copy this stays what it always was.
+    if (!fetched && state.showingSaved) {
+      emit(state.copyWith(chatStatus: DmChatStatus.error));
+      return;
+    }
     emit(state.copyWith(chatStatus: DmChatStatus.ready));
     markOpenConversationRead();
     unawaited(refreshQuota());
   }
 
+  /// Open the conversation again after it failed to load — the saved copy's
+  /// "Try again".
+  Future<void> retryOpen() async {
+    final peerId = state.openPeerId;
+    if (peerId == null) return;
+    await openConversation(
+      peerId: peerId,
+      peerHandle: state.openPeerHandle ?? '',
+      // Both keys were kept when it was first opened.
+      peerChatKey: null,
+    );
+  }
+
   void closeConversation() {
+    unawaited(_saved.flush());
     emit(state.copyWith(closeConversation: true, friendsOpen: false));
   }
 
@@ -70,26 +102,62 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
   /// The only navigation on this tier that is not "open a person", and the
   /// only way back to friends from inside a conversation.
   void openFriends() {
+    unawaited(_saved.flush());
     emit(state.copyWith(closeConversation: true, friendsOpen: true));
   }
 
-  Future<void> _fetchLatest(String peerId) async {
+  Future<void> _drawSaved(String peerId) async {
+    final saved = await _saved.open(
+      _seed,
+      MessageCacheSlot.centralDm(peerId: peerId),
+      rowsAfter: (afterId) async {
+        final response = await _repo.listDms(
+          peerId: peerId,
+          afterId: afterId,
+          limit: ChatMessageOps.pageSize,
+        );
+        if (!response.success) return const [];
+        final data = response.data as Map<String, dynamic>;
+        return (data['messages'] as List).cast<Map<String, dynamic>>();
+      },
+    );
+    if (saved == null || state.openPeerId != peerId) return;
+    final messages = await _decryptRows(
+      peerId,
+      SavedConversation.rowsOf(saved),
+    );
+    if (state.openPeerId != peerId ||
+        state.chatStatus != DmChatStatus.loading) {
+      return;
+    }
+    emit(
+      state.copyWith(messages: messages.reversed.toList(), showingSaved: true),
+    );
+  }
+
+  /// Whether the newest page arrived. False leaves whatever was drawn.
+  Future<bool> _fetchLatest(String peerId) async {
     final response = await _repo.listDms(
       peerId: peerId,
       limit: ChatMessageOps.pageSize,
     );
-    if (!response.success || state.openPeerId != peerId) return;
+    if (!response.success || state.openPeerId != peerId) return false;
 
     final data = response.data as Map<String, dynamic>;
     final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
+    _saved.replace(rows);
     final decrypted = await _decryptRows(peerId, rows);
     emit(
       state.copyWith(
         // Anything that failed to send to this peer goes back on the end.
         messages: _outbox.restoreInto(decrypted.reversed.toList(), peerId),
         hasMoreHistory: data['has_more'] as bool? ?? false,
+        // Replaced outright, so what was deleted since the copy was saved is
+        // gone rather than merged back.
+        showingSaved: false,
       ),
     );
+    return true;
   }
 
   Future<void> _fetchAfterLatest() async {
@@ -110,6 +178,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     final rows = ((response.data as Map<String, dynamic>)['messages'] as List)
         .cast<Map<String, dynamic>>();
     if (rows.isEmpty) return;
+    _saved.merge(rows);
 
     final incoming = await _decryptRows(peerId, rows);
     if (incoming.isEmpty) return;
@@ -273,6 +342,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
 
     final row = (response.data as Map<String, dynamic>)['message'];
     if (row == null) {
+      _saved.remove(messageId);
       emit(
         state.copyWith(
           messages: ChatMessageOps.removeMessage(state.messages, messageId),
@@ -281,8 +351,10 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
       return;
     }
 
+    final changed = (row as Map).cast<String, dynamic>();
+    _saved.update(changed);
     final message = await _decryptRow(
-      (row as Map).cast<String, dynamic>(),
+      changed,
       peerId: peerId,
       peerHandle: state.openPeerHandle ?? 'unknown',
     );

@@ -9,6 +9,7 @@ import '../../../data/classes/attachment.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/message_body.dart';
+import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/panel_block.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/poll.dart';
@@ -30,12 +31,14 @@ import '../../services/key_sweep_doorbell.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/mention_name_cache.dart';
 import '../../services/mentions.dart';
+import '../../services/message_cache.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
 import '../../services/pin_ops.dart';
 import '../../services/poll_ops.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/reaction_ops.dart';
+import '../../services/saved_conversation.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
 import '../../services/window_focus_service.dart';
@@ -52,6 +55,7 @@ part 'channel_chat_reactions.dart';
 part 'channel_chat_ready.dart';
 part 'channel_chat_realtime.dart';
 part 'channel_chat_rows.dart';
+part 'channel_chat_saved.dart';
 part 'channel_chat_send.dart';
 part 'channel_chat_state.dart';
 part 'channel_chat_sweep.dart';
@@ -72,6 +76,7 @@ part 'channel_chat_sweep.dart';
 class ChannelChatCubit extends Cubit<ChannelChatState>
     with
         _ChannelChatRowsMixin,
+        _ChannelChatSavedMixin,
         _ChannelChatHistoryMixin,
         _ChannelChatSendMixin,
         _ChannelChatPanelsMixin,
@@ -105,6 +110,20 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   final CryptoRepository _crypto;
 
+  /// See [_ChannelChatSavedMixin].
+  @override
+  final MessageCache _messageCache;
+
+  /// The open channel's saved copy. On the class because the history mixin
+  /// feeds it, the edit mixin takes deleted rows out of it, and the saved
+  /// mixin draws it (CODE_STYLE §5).
+  @override
+  late final SavedConversation _saved = SavedConversation(
+    cache: _messageCache,
+    extras: _savedExtras,
+    canSave: _canSaveChannel,
+  );
+
   StreamSubscription<ServerState>? _serverSub;
 
   /// The open channel's keys.
@@ -119,8 +138,8 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   ///
   /// On the class because two mixins need it: the send mixin holds and takes,
   /// the history mixin restores and drops (CODE_STYLE §5). Not persisted — it
-  /// lives as long as the app is open, which is the whole of what Rift keeps
-  /// locally.
+  /// lives as long as the app is open. The saved copy of a channel holds what
+  /// the server stored, never what failed to reach it.
   @override
   final Outbox _outbox = Outbox();
 
@@ -180,9 +199,11 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     required ServerCubit serverCubit,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
+    MessageCache? messageCache,
   }) : _serverCubit = serverCubit,
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
+       _messageCache = messageCache ?? MessageCache.instance,
        super(const ChannelChatState()) {
     _serverSub = serverCubit.stream.listen(_onServerChanged);
     // The vault unlocks asynchronously at startup — chat readiness (key
@@ -197,8 +218,15 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   Future<void> openChannel(String channelId) async {
     if (state.channelId == channelId) return;
+    // Before anything is awaited: the flush reads the channel being left
+    // synchronously, and the next line begins replacing it.
+    unawaited(_saved.flush());
     final generation = ++_openGeneration;
-    await _teardownRealtime();
+    // The old channel's handlers are detached the moment this is called; only
+    // the server's goodbye is waited on, and that waits below the saved copy
+    // rather than above it. On a connection that has stalled, the goodbye is
+    // exactly what never comes back.
+    final released = _teardownRealtime();
 
     _resetTo(
       ChannelChatState(status: ChannelChatStatus.loading, channelId: channelId),
@@ -207,6 +235,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     final server = _serverCubit.state.selectedServer;
     _openServerId = server?.id;
     if (server == null || server.user == null) {
+      unawaited(released);
       emit(
         state.copyWith(
           status: ChannelChatStatus.error,
@@ -215,6 +244,14 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       );
       return;
     }
+
+    // What this device saved last time, drawn before the first request. The
+    // rest of this method is several round trips, and it replaces what this
+    // draws with what the server says the moment it has an answer.
+    await _drawSaved(server, channelId);
+    if (_isStale(generation)) return;
+    await released;
+    if (_isStale(generation)) return;
 
     await _keyring.ensureChatKeyPublished(server);
     if (_isStale(generation)) return;
@@ -304,6 +341,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   }
 
   Future<void> closeChannel() async {
+    unawaited(_saved.flush());
     _openGeneration++;
     _openServerId = null;
     await _teardownRealtime();
@@ -334,6 +372,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   String? _openServerId;
 
   void _onServerChanged(ServerState serverState) {
+    _pruneSavedIfListChanged(serverState.selectedServer);
     // Switching (or losing) the server closes the open chat.
     final serverId = serverState.selectedServer?.id;
     if (state.channelId != null &&
@@ -382,6 +421,8 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   @override
   Future<void> close() async {
+    await _saved.flush();
+    _saved.dispose();
     await _serverSub?.cancel();
     await _vaultSub?.cancel();
     await _teardownRealtime();

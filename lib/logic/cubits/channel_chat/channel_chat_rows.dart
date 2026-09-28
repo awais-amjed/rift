@@ -44,6 +44,25 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
     String channelId,
     List<Map<String, dynamic>> rows,
   ) async {
+    final result = await _openRows(channelId, rows, _keys);
+    // The names these rows say, resolved in the background — see
+    // [_resolveMentionNames]. Not awaited: a message must render now, and a
+    // mention nobody has resolved yet draws as the text somebody typed.
+    unawaited(_resolveMentionNames(result));
+    // And how the polls among them stand, the same way: a poll draws with no
+    // counts for the moment it takes, rather than holding up the page.
+    unawaited(refreshTalliesFor(result));
+    return result;
+  }
+
+  /// The three outcomes, under [keys] — the open channel's, or the ones a
+  /// saved copy was sealed with. Nothing else: no lookups, so a saved copy
+  /// can be drawn without asking the server anything.
+  Future<List<ChatMessage>> _openRows(
+    String channelId,
+    List<Map<String, dynamic>> rows,
+    Map<int, Uint8List> keys,
+  ) async {
     final localUserId = _serverCubit.state.selectedServer?.user?.id;
     final result = <ChatMessage>[];
 
@@ -81,7 +100,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       // No key for this *version*: ordinary, temporary, and not the message's
       // fault. See [ChatMessage.isLocked] for why this must not share a branch
       // with a bad signature.
-      final key = _keys[keyVersion];
+      final key = keys[keyVersion];
       if (key == null) {
         result.add(_lockedRow(row, localUserId));
         continue;
@@ -124,13 +143,6 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
         HelperMethods.printDebug('[Chat] dropped message ${row['id']}: $e');
       }
     }
-    // The names these rows say, resolved in the background — see
-    // [_resolveMentionNames]. Not awaited: a message must render now, and a
-    // mention nobody has resolved yet draws as the text somebody typed.
-    unawaited(_resolveMentionNames(result));
-    // And how the polls among them stand, the same way: a poll draws with no
-    // counts for the moment it takes, rather than holding up the page.
-    unawaited(refreshTalliesFor(result));
     return result;
   }
 

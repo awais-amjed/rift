@@ -93,6 +93,11 @@ class CentralDmState {
   /// two and the name is a suggestion the user has to confirm or correct.
   final String? handleQuery;
 
+  /// [messages] are the copy this device saved, not yet replaced by what
+  /// central says: drawn while the conversation opens, and kept when it
+  /// cannot.
+  final bool showingSaved;
+
   const CentralDmState({
     this.status = CentralDmStatus.signedOut,
     this.myHandle,
@@ -116,6 +121,7 @@ class CentralDmState {
     this.hasNewerHistory = false,
     this.error,
     this.handleQuery,
+    this.showingSaved = false,
   }) : friends = friends ?? FriendBuckets.empty;
 
   CentralDmState copyWith({
@@ -144,6 +150,7 @@ class CentralDmState {
     bool clearError = false,
     bool clearHandleQuery = false,
     bool closeConversation = false,
+    bool? showingSaved,
   }) {
     return CentralDmState(
       status: status ?? this.status,
@@ -177,6 +184,9 @@ class CentralDmState {
       hasNewerHistory: hasNewerHistory ?? this.hasNewerHistory,
       error: clearError ? null : (error ?? this.error),
       handleQuery: clearHandleQuery ? null : (handleQuery ?? this.handleQuery),
+      showingSaved: closeConversation
+          ? false
+          : (showingSaved ?? this.showingSaved),
     );
   }
 

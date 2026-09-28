@@ -14,6 +14,7 @@ import '../../../data/repositories/server_repository.dart';
 import '../../../logic/helper_methods.dart';
 import '../../../logic/services/attachment_cache.dart';
 import '../../../logic/services/backup_merge.dart';
+import '../../../logic/services/message_cache.dart';
 
 part 'vault_auth.dart';
 part 'vault_backup.dart';
@@ -144,6 +145,9 @@ class VaultCubit extends Cubit<VaultState>
     // Decrypted attachment bytes outlive the cubits that fetched them, so the
     // keys going away has to take the plaintext with it.
     AttachmentCache.instance.clear();
+    // So do the conversations saved on this device, which the seed being
+    // wiped here is the only key to.
+    await MessageCache.instance.clear();
     emit(const VaultState(status: AuthStatus.fresh));
   }
 }

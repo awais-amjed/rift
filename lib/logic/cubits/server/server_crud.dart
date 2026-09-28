@@ -2,6 +2,7 @@ part of 'server_cubit.dart';
 
 mixin _ServerCrudMixin on Cubit<ServerState> {
   void Function()? get _onServersChanged;
+  VaultCubit? get _vaultCubit;
   Future<void> forgetPushDevice(String serverId);
   Future<void> registerPushDevices();
 
@@ -18,6 +19,11 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // Joining again is the answer to having been removed, so the note that
     // kept it out of the rail has to go with it.
     _clearServerGone(supabaseUrl: supabaseUrl, id: newServer.id);
+    // And its conversations may be saved on this device again.
+    MessageCacheSlot.scopesOfServer(
+      supabaseUrl,
+      newServer.id,
+    ).forEach(MessageCache.instance.reopenScope);
     final updated = [...state.servers, newServer];
     emit(state.copyWith(servers: updated, selectedServerId: newServer.id));
     _onServersChanged?.call();
@@ -92,6 +98,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // on being woken for it. Not awaited — leaving must not wait on a server
     // that has already stopped answering.
     unawaited(forgetPushDevice(serverId));
+    _forgetSavedConversations(serverId);
     final updated = state.servers.where((s) => s.id != serverId).toList();
     String? newSelectedId = state.selectedServerId;
     if (newSelectedId == serverId) {
@@ -105,5 +112,20 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
       ),
     );
     _onServersChanged?.call();
+  }
+
+  /// The copies of this server's channels and DMs kept on this device (see
+  /// [MessageCache]). Leaving a server takes them with it: what was saved to
+  /// draw a conversation faster must not outlive being able to open it.
+  void _forgetSavedConversations(String serverId) {
+    final seed = _vaultCubit?.state.masterSeed;
+    final server = state.servers.where((s) => s.id == serverId).firstOrNull;
+    if (seed == null || server == null) return;
+    for (final scope in MessageCacheSlot.scopesOfServer(
+      server.supabaseUrl,
+      server.id,
+    )) {
+      unawaited(MessageCache.instance.forgetScope(seed, scope));
+    }
   }
 }

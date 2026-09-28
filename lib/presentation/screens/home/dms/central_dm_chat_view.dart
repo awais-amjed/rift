@@ -17,6 +17,7 @@ import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
+import '../../../common/chat/saved_copy_notice.dart';
 import '../../../common/loading_block.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -82,6 +83,11 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     final friendship = peerId == null
         ? FriendshipState.none
         : state.stateFor(peerId);
+    final ready = state.chatStatus == DmChatStatus.ready;
+    // The saved copy is on screen while the conversation opens: what goes
+    // under it is what will be there once it has, so nothing jumps.
+    final opening =
+        state.showingSaved && state.chatStatus == DmChatStatus.loading;
 
     return Column(
       children: [
@@ -110,13 +116,16 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
         // every other branch is a sentence saying what would have to change.
         // None of them is a disabled field: a greyed composer with a hint in
         // it reads as something that has broken, and people retype into it.
-        if (state.chatStatus == DmChatStatus.ready && peerId != null)
+        if (state.chatStatus == DmChatStatus.error && state.showingSaved)
+          SavedCopyNotice(onRetry: context.read<CentralDmCubit>().retryOpen),
+        if ((ready || opening) && peerId != null)
           switch (friendship) {
             FriendshipState.friends => ChatComposer(
               hintText: quotaEmpty
                   ? 'Daily limit reached — continue on a shared server'
                   : 'Message @$handle',
               enabled: !quotaEmpty,
+              canSend: ready,
               maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
               footer: const QuotaMeter(),
               onSend: (text, attachments, preview) =>
@@ -224,62 +233,11 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
   Widget _buildBody(CentralDmState state, ThemeState themeState) {
     switch (state.chatStatus) {
       case DmChatStatus.ready:
-        syncReplyDraft(state.openPeerId, state.messages);
-        return ChatMessageList(
-          key: ValueKey(state.openPeerId),
-          messages: state.messages,
-          // The default invites the first message. There is nowhere to type it
-          // unless the two of you are friends, and an invitation printed above
-          // the note explaining that is the screen arguing with itself.
-          emptyMessage: state.canSendToOpen
-              ? 'No messages yet — say hi!'
-              : 'Nothing here yet.',
-          controller: scrollController,
-          attachmentLoader: context.read<CentralDmCubit>().loadAttachment,
-          // No onToggleReaction: central DMs are the first-contact tier and are
-          // kept deliberately thin — reactions live on servers.
-          onLookUpOriginal: context.read<CentralDmCubit>().fetchQuoted,
-          onShowAround: context.read<CentralDmCubit>().showAround,
-          viewingHistory: state.hasNewerHistory,
-          onReturnToPresent: context.read<CentralDmCubit>().returnToPresent,
-          // Only the other person. Your own name here would open a profile
-          // of yourself on a tier that holds one handle and two keys — the
-          // handle panel already says all of it, and says it editably.
-          onOpenProfile: (userId, _) {
-            if (userId != state.openPeerId) return;
-            unawaited(showCentralProfile(context, friend: _peer(state)));
-          },
-          onReply: startReply,
-          // No source server: a central DM's blobs live in central's own
-          // bucket, and that is what null means to the forward service.
-          onForward: (message) => unawaited(
-            showForwardDialog(
-              context,
-              message: message,
-              currentPeerId: state.openPeerId,
-            ),
-          ),
-          onEdit: context.read<CentralDmCubit>().editMessage,
-          onDelete: context.read<CentralDmCubit>().deleteMessage,
-          onRetry: context.read<CentralDmCubit>().retrySend,
-          // Pins change what the other person sees, so they take the same
-          // friendship sending does, and central refuses them without it.
-          onTogglePin: state.canSendToOpen
-              ? (message) => unawaited(
-                  context.read<CentralDmCubit>().setPinned(
-                    message,
-                    pinned: !message.isPinned,
-                  ),
-                )
-              : null,
-          jumpRequests: _jumpRequests,
-          // The only two people who will ever read this. Naming anyone else
-          // would light up a mention that cannot reach them.
-          mentionable: {
-            for (final handle in [state.myHandle, state.openPeerHandle])
-              if (handle != null) handle.toLowerCase(),
-          },
-        );
+        return _buildList(state, live: true);
+      // The saved copy, while the conversation opens or when it could not:
+      // drawn as it is, with nothing offered that would act on it.
+      case DmChatStatus.loading || DmChatStatus.error when state.showingSaved:
+        return _buildList(state, live: false);
       case DmChatStatus.loading:
         return const LoadingBlock();
       case DmChatStatus.error:
@@ -296,5 +254,67 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
       case DmChatStatus.closed:
         return const SizedBox.shrink();
     }
+  }
+
+  /// The history. [live] is false for the saved copy: nothing on it is
+  /// confirmed, so no row offers an action.
+  Widget _buildList(CentralDmState state, {required bool live}) {
+    final cubit = context.read<CentralDmCubit>();
+    if (live) syncReplyDraft(state.openPeerId, state.messages);
+    return ChatMessageList(
+      // Its own list for the saved copy, so the fresh page is primed afresh
+      // instead of animating everything since as an arrival.
+      key: ValueKey((state.openPeerId, live)),
+      messages: state.messages,
+      // The default invites the first message. There is nowhere to type it
+      // unless the two of you are friends, and an invitation printed above
+      // the note explaining that is the screen arguing with itself.
+      emptyMessage: state.canSendToOpen
+          ? 'No messages yet — say hi!'
+          : 'Nothing here yet.',
+      controller: scrollController,
+      attachmentLoader: cubit.loadAttachment,
+      // No onToggleReaction: central DMs are the first-contact tier and are
+      // kept deliberately thin — reactions live on servers.
+      onLookUpOriginal: cubit.fetchQuoted,
+      onShowAround: live ? cubit.showAround : null,
+      viewingHistory: state.hasNewerHistory,
+      onReturnToPresent: cubit.returnToPresent,
+      // Only the other person. Your own name here would open a profile
+      // of yourself on a tier that holds one handle and two keys — the
+      // handle panel already says all of it, and says it editably.
+      onOpenProfile: (userId, _) {
+        if (userId != state.openPeerId) return;
+        unawaited(showCentralProfile(context, friend: _peer(state)));
+      },
+      onReply: live ? startReply : null,
+      // No source server: a central DM's blobs live in central's own
+      // bucket, and that is what null means to the forward service.
+      onForward: live
+          ? (message) => unawaited(
+              showForwardDialog(
+                context,
+                message: message,
+                currentPeerId: state.openPeerId,
+              ),
+            )
+          : null,
+      onEdit: live ? cubit.editMessage : null,
+      onDelete: live ? cubit.deleteMessage : null,
+      onRetry: live ? cubit.retrySend : null,
+      // Pins change what the other person sees, so they take the same
+      // friendship sending does, and central refuses them without it.
+      onTogglePin: live && state.canSendToOpen
+          ? (message) =>
+                unawaited(cubit.setPinned(message, pinned: !message.isPinned))
+          : null,
+      jumpRequests: _jumpRequests,
+      // The only two people who will ever read this. Naming anyone else
+      // would light up a mention that cannot reach them.
+      mentionable: {
+        for (final handle in [state.myHandle, state.openPeerHandle])
+          if (handle != null) handle.toLowerCase(),
+      },
+    );
   }
 }

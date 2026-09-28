@@ -23,6 +23,7 @@ instances with separate identities; the Android client is the emulator.
 
 | Area | Last verified | How |
 |---|---|---|
+| Conversations saved on the device: drawn on open, offline, replaced by the fresh page | Sep 28 2026 | one Linux client, gateway stopped and paused; channels and server DMs. Central DMs and the wipes (leaving, signing out, vault reset) not driven |
 | One-to-one calls in server DMs | Sep 27 2026 | two clients + Android; ringing, answer from anywhere, decline, missed, audio both ways recorded, tracks encrypted |
 | Server moderation: reports, time-outs, bans, DM requests, blocks | Sep 27 2026 | two clients + headless members; security pass probed the database and realtime directly |
 | Wording and UI for moderation and DM calls | Sep 27 2026 | two clients; the time-out menu and banner, including expiry |
@@ -65,6 +66,10 @@ Don't read the table as "everything works". Still owed:
 - **The region probe choosing between genuinely distant nodes** — both test nodes
   were on one machine.
 - **The `studio` profile** of the self-hosted stack.
+- **Saved conversations: central DMs, and the wipes.** Channels and server DMs
+  were driven (Sep 28). Leaving a server, signing out of central and a vault
+  reset removing their files are covered by `test/message_cache_test.dart`
+  only, and so is pruning a channel the server stops listing.
 
 ---
 

@@ -10,6 +10,7 @@ import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/dm_call.dart';
 import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/message_body.dart';
+import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/dm_link_state.dart';
@@ -27,6 +28,7 @@ import '../../services/outbox.dart';
 import '../../services/pin_ops.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/reaction_ops.dart';
+import '../../services/saved_conversation.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
 import '../server/server_cubit.dart';
@@ -96,6 +98,19 @@ class DmCubit extends Cubit<DmState>
   @override
   final Outbox _outbox = Outbox();
 
+  /// The open conversation's saved copy. On the class because the history
+  /// mixin draws and feeds it and the edit mixin takes deleted rows out of it
+  /// (CODE_STYLE §5). A DM keeps nothing beside its rows: its key is worked
+  /// out on this device from the two people's chat keys.
+  @override
+  final SavedConversation _saved = SavedConversation();
+
+  @override
+  Server? get _savedServer => _serverCubit.state.selectedServer;
+
+  @override
+  String? get _seed => _vaultCubit.state.masterSeed;
+
   /// Expiry timer + rate-limit for the typing indicator.
   Timer? _typingTimer;
   DateTime? _lastTypingSent;
@@ -155,6 +170,9 @@ class DmCubit extends Cubit<DmState>
   }
 
   Future<void> _reset() async {
+    // Whatever was open is saved to the server it belongs to — read now,
+    // before the reset forgets which one that was.
+    unawaited(_saved.flush());
     _readyServerId = null;
     _dmKeys.clear();
     _outbox.clear();
@@ -365,6 +383,8 @@ class DmCubit extends Cubit<DmState>
 
   @override
   Future<void> close() async {
+    await _saved.flush();
+    _saved.dispose();
     await _serverSub?.cancel();
     await _vaultSub?.cancel();
     _typingTimer?.cancel();

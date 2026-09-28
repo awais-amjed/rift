@@ -22,6 +22,7 @@ import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
+import '../../../common/chat/saved_copy_notice.dart';
 import '../../../common/chat/time_out_builder.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
@@ -243,32 +244,43 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     BuildContext context,
     DmState state,
     ThemeState themeState,
-  ) => [
-    Expanded(child: _buildBody(state, themeState)),
-    if (state.chatStatus != DmChatStatus.ready) const MiniCallBar(),
-    if (state.chatStatus == DmChatStatus.ready) ...[
-      TypingIndicator(
-        names: state.typingPeerName != null
-            ? [state.typingPeerName!]
-            : const [],
-      ),
-      const MiniCallBar(),
-      DmComposerSlot(
-        state: state,
-        composer: ChatComposer(
-          hintText: 'Message ${state.openPeerName ?? ''}',
-          canAttach: _canAttach(),
-          maxAttachmentBytes: _maxAttachmentBytes(),
-          remainingStorageBytes: _remainingStorage(),
-          onSend: (text, attachments, preview) =>
-              _send(context, text, attachments, preview),
-          replyingTo: replyingTo,
-          onCancelReply: cancelReply,
-          onTyping: () => context.read<DmCubit>().notifyTyping(),
+  ) {
+    // The saved copy is on screen while the conversation opens: the
+    // composer is there to type into, and sends once the fresh page lands.
+    final ready = state.chatStatus == DmChatStatus.ready;
+    final composing =
+        ready ||
+        (state.showingSaved && state.chatStatus == DmChatStatus.loading);
+    return [
+      Expanded(child: _buildBody(context, state, themeState)),
+      if (!composing) const MiniCallBar(),
+      if (state.chatStatus == DmChatStatus.error && state.showingSaved)
+        SavedCopyNotice(onRetry: context.read<DmCubit>().retryOpen),
+      if (composing) ...[
+        TypingIndicator(
+          names: state.typingPeerName != null
+              ? [state.typingPeerName!]
+              : const [],
         ),
-      ),
-    ],
-  ];
+        const MiniCallBar(),
+        DmComposerSlot(
+          state: state,
+          composer: ChatComposer(
+            canSend: ready,
+            hintText: 'Message ${state.openPeerName ?? ''}',
+            canAttach: _canAttach(),
+            maxAttachmentBytes: _maxAttachmentBytes(),
+            remainingStorageBytes: _remainingStorage(),
+            onSend: (text, attachments, preview) =>
+                _send(context, text, attachments, preview),
+            replyingTo: replyingTo,
+            onCancelReply: cancelReply,
+            onTyping: () => context.read<DmCubit>().notifyTyping(),
+          ),
+        ),
+      ],
+    ];
+  }
 
   /// Send, clearing the reply bar with the same press that clears the field.
   ///
@@ -334,64 +346,22 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     };
   }
 
-  Widget _buildBody(DmState state, ThemeState themeState) {
+  /// [context] is the one the conversation is being built under — a
+  /// `LayoutBuilder`'s, beside a call — not this State's: `context.select`
+  /// on the State's context from inside that builder trips the provider's
+  /// build-phase assertion.
+  Widget _buildBody(
+    BuildContext context,
+    DmState state,
+    ThemeState themeState,
+  ) {
     switch (state.chatStatus) {
       case DmChatStatus.ready:
-        syncReplyDraft(state.openPeerId, state.messages);
-        // A time-out stops editing, reacting, pinning and forwarding as well
-        // as sending, so none of them is offered while it lasts — nor Reply,
-        // which only leads to a composer the time-out has taken away. They
-        // come back by themselves when it runs out.
-        return TimeOutBuilder(
-          until: context.select<ServerCubit, DateTime?>(
-            (c) => c.state.selectedServer?.user?.timedOutUntil,
-          ),
-          builder: (context, timedOut) => ChatMessageList(
-            key: ValueKey(state.openPeerId),
-            messages: state.messages,
-            controller: scrollController,
-            attachmentLoader: context.read<DmCubit>().loadAttachment,
-            onToggleReaction: context.read<DmCubit>().toggleReaction,
-            onLookUpOriginal: context.read<DmCubit>().fetchQuoted,
-            onShowAround: context.read<DmCubit>().showAround,
-            viewingHistory: state.hasNewerHistory,
-            onReturnToPresent: context.read<DmCubit>().returnToPresent,
-            onOpenProfile: (userId, name) => unawaited(
-              showMemberProfile(context, userId: userId, name: name),
-            ),
-            onReply: timedOut ? null : startReply,
-            onForward: timedOut
-                ? null
-                : (message) => unawaited(
-                    showForwardDialog(
-                      context,
-                      message: message,
-                      sourceServerId: context
-                          .read<ServerCubit>()
-                          .state
-                          .selectedServer
-                          ?.id,
-                      currentPeerId: state.openPeerId,
-                    ),
-                  ),
-            onEdit: timedOut ? null : context.read<DmCubit>().editMessage,
-            onDelete: context.read<DmCubit>().deleteMessage,
-            onRetry: context.read<DmCubit>().retrySend,
-            canReact: !timedOut,
-            onTogglePin: timedOut
-                ? null
-                : (message) => unawaited(
-                    context.read<DmCubit>().setPinned(
-                      message,
-                      pinned: !message.isPinned,
-                    ),
-                  ),
-            jumpRequests: _jumpRequests,
-            mentionable: _mentionable(state),
-            calls: state.calls,
-            myId: context.read<ServerCubit>().state.selectedServer?.user?.id,
-          ),
-        );
+        return _buildList(context, state, live: true);
+      // The saved copy, while the conversation opens or when it could not:
+      // drawn as it is, with nothing offered that would act on it.
+      case DmChatStatus.loading || DmChatStatus.error when state.showingSaved:
+        return _buildList(context, state, live: false);
       case DmChatStatus.loading:
         return const LoadingBlock();
       case DmChatStatus.error:
@@ -408,5 +378,69 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
       case DmChatStatus.closed:
         return const SizedBox.shrink();
     }
+  }
+
+  /// The history. [live] is false for the saved copy: nothing on it is
+  /// confirmed, so no row offers an action.
+  Widget _buildList(BuildContext context, DmState state, {required bool live}) {
+    final cubit = context.read<DmCubit>();
+    if (live) syncReplyDraft(state.openPeerId, state.messages);
+    // A time-out stops editing, reacting, pinning and forwarding as well
+    // as sending, so none of them is offered while it lasts — nor Reply,
+    // which only leads to a composer the time-out has taken away. They
+    // come back by themselves when it runs out.
+    return TimeOutBuilder(
+      until: context.select<ServerCubit, DateTime?>(
+        (c) => c.state.selectedServer?.user?.timedOutUntil,
+      ),
+      builder: (context, timedOut) {
+        final acting = live && !timedOut;
+        return ChatMessageList(
+          // Its own list for the saved copy, so the fresh page is primed
+          // afresh instead of animating everything since as an arrival.
+          key: ValueKey((state.openPeerId, live)),
+          messages: state.messages,
+          controller: scrollController,
+          attachmentLoader: cubit.loadAttachment,
+          // Passed either way: it is also what says this surface shows
+          // reactions at all. [canReact] is what stops the saved copy taking one.
+          onToggleReaction: cubit.toggleReaction,
+          onLookUpOriginal: cubit.fetchQuoted,
+          onShowAround: live ? cubit.showAround : null,
+          viewingHistory: state.hasNewerHistory,
+          onReturnToPresent: cubit.returnToPresent,
+          onOpenProfile: (userId, name) =>
+              unawaited(showMemberProfile(context, userId: userId, name: name)),
+          onReply: acting ? startReply : null,
+          onForward: acting
+              ? (message) => unawaited(
+                  showForwardDialog(
+                    context,
+                    message: message,
+                    sourceServerId: context
+                        .read<ServerCubit>()
+                        .state
+                        .selectedServer
+                        ?.id,
+                    currentPeerId: state.openPeerId,
+                  ),
+                )
+              : null,
+          onEdit: acting ? cubit.editMessage : null,
+          onDelete: live ? cubit.deleteMessage : null,
+          onRetry: live ? cubit.retrySend : null,
+          canReact: acting,
+          onTogglePin: acting
+              ? (message) => unawaited(
+                  cubit.setPinned(message, pinned: !message.isPinned),
+                )
+              : null,
+          jumpRequests: _jumpRequests,
+          mentionable: _mentionable(state),
+          calls: state.calls,
+          myId: context.read<ServerCubit>().state.selectedServer?.user?.id,
+        );
+      },
+    );
   }
 }

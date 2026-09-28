@@ -10,7 +10,7 @@ part of 'channel_chat_cubit.dart';
 /// What a row *becomes* is `_ChannelChatRowsMixin`'s job — opened, locked or
 /// dropped. Everything here only decides which rows to ask for.
 mixin _ChannelChatHistoryMixin
-    on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
+    on Cubit<ChannelChatState>, _ChannelChatRowsMixin, _ChannelChatSavedMixin {
   /// Called with messages that just arrived live (not the initial backlog and
   /// not our own sends) so the hub can clear typing state and notify.
   void _onFreshIncoming(List<ChatMessage> incoming);
@@ -28,6 +28,7 @@ mixin _ChannelChatHistoryMixin
 
     final data = response.data as Map<String, dynamic>;
     final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
+    _saved.replace(rows);
     // Rows arrive newest-first; decrypt then restore oldest→newest order.
     final decrypted = await _decryptRows(channelId, rows);
     emit(
@@ -37,6 +38,9 @@ mixin _ChannelChatHistoryMixin
         // elsewhere, which is the loss the outbox exists to stop.
         messages: _outbox.restoreInto(decrypted.reversed.toList(), channelId),
         hasMoreHistory: data['has_more'] as bool? ?? false,
+        // What the server just said replaces the saved copy outright, so a
+        // message deleted since it was saved is gone rather than merged back.
+        showingSaved: false,
       ),
     );
   }
@@ -60,6 +64,7 @@ mixin _ChannelChatHistoryMixin
     final data = response.data as Map<String, dynamic>;
     final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
     if (rows.isEmpty) return;
+    _saved.merge(rows);
 
     final incoming = await _decryptRows(channelId, rows); // oldest-first
     if (incoming.isEmpty) return;
@@ -101,9 +106,9 @@ mixin _ChannelChatHistoryMixin
 
     final row = (response.data as Map<String, dynamic>)['message'];
     if (row == null) return; // deleted in the meantime
-    final decrypted = await _decryptRows(channelId, [
-      (row as Map).cast<String, dynamic>(),
-    ]);
+    final fetched = (row as Map).cast<String, dynamic>();
+    _saved.merge([fetched]);
+    final decrypted = await _decryptRows(channelId, [fetched]);
     if (decrypted.isEmpty || state.channelId != channelId) return;
 
     final result = ChatMessageOps.mergeIncoming(
@@ -293,6 +298,7 @@ mixin _ChannelChatHistoryMixin
 
     final row = (response.data as Map<String, dynamic>)['message'];
     if (row == null) {
+      _saved.remove(messageId);
       emit(
         state.copyWith(
           messages: ChatMessageOps.removeMessage(state.messages, messageId),
@@ -301,9 +307,9 @@ mixin _ChannelChatHistoryMixin
       return;
     }
 
-    final decrypted = await _decryptRows(channelId, [
-      (row as Map).cast<String, dynamic>(),
-    ]);
+    final changed = (row as Map).cast<String, dynamic>();
+    _saved.update(changed);
+    final decrypted = await _decryptRows(channelId, [changed]);
     if (decrypted.isEmpty || state.channelId != channelId) return;
     emit(
       state.copyWith(
