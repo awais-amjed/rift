@@ -176,11 +176,17 @@ class ServerRealtime {
       );
     }
     channel.subscribe((status, [_]) {
-      // A replaced channel's last word — the `closed` of its own leave — is
-      // not news about the topic.
-      if (identical(joined.channel, channel)) {
-        _onStatus(connection, joined, status);
-      }
+      // Not handled here and now: when the socket drops, realtime_client
+      // calls this from inside its walk over every channel, and a rejoin adds
+      // a channel to that list. The walk threw, and the reconnect it schedules
+      // after it never was — live updates stopped until a restart.
+      scheduleMicrotask(() {
+        // A replaced channel's last word — the `closed` of its own leave — is
+        // not news about the topic.
+        if (identical(joined.channel, channel)) {
+          _onStatus(connection, joined, status);
+        }
+      });
     });
   }
 
@@ -241,6 +247,12 @@ class ServerRealtime {
   @visibleForTesting
   RealtimeChannel? debugChannelOf(String serverId, String topic) =>
       _connections[serverId]?.topics[topic]?.channel;
+
+  /// The socket's own channel list — what realtime_client walks when the
+  /// socket drops.
+  @visibleForTesting
+  List<RealtimeChannel> debugSocketChannels(String serverId) =>
+      _connections[serverId]?.client.realtime.channels ?? const [];
 
   _Connection? _connectionFor(Server server) {
     final existing = _connections[server.id];
