@@ -85,8 +85,9 @@ RIFT_PROFILE=t2 GDK_BACKEND=x11 ./build/linux/x64/debug/bundle/rift   # after th
 ```
 
 Launch the second from the built bundle: two `flutter run`s contend on
-`.dart_tool/flutter_build`. Each profile's identity lives in the system keyring, so
-copying a profile directory gives a client that cannot sign in; to put one identity on
+`.dart_tool/flutter_build`. A profile's files are in
+`~/.local/share/com.codingfries.rift/rift_<profile>`, but its identity lives in the
+system keyring, so copying a profile directory gives a client that cannot sign in; to put one identity on
 two clients, use **Export to File / Restore from File** in Cloud Backup.
 
 **Input goes through `scripts/uinput_drive.py`, not `xdotool`.** GNOME on Wayland

@@ -40,15 +40,19 @@ class StorageNamespace {
     return suffix.isEmpty ? base : '$base/rift_$suffix';
   }
 
-  /// The app's own documents folder on every platform but Windows, where
-  /// "documents" is the person's Documents folder. That folder is often
-  /// synced to OneDrive, so Rift's state and saved conversations would be
-  /// uploaded, and a release build would scatter its files among the
-  /// person's own. Local AppData
-  /// (`%LOCALAPPDATA%\com.codingfries\rift`) never roams or syncs.
-  /// path_provider calls it the cache directory, but Windows does not clear
-  /// it.
-  static Future<Directory> _baseDirectory() => Platform.isWindows
-      ? getApplicationCacheDirectory()
-      : getApplicationDocumentsDirectory();
+  /// The app's own documents folder on mobile and macOS, which are the
+  /// app's by construction (sandboxed). On Windows and Linux, "documents" is
+  /// the person's own Documents folder. That is somewhere a release build would
+  /// scatter its files among theirs, and on Windows it is often synced to
+  /// OneDrive, which would upload Rift's state and saved conversations.
+  ///
+  /// So Windows uses Local AppData (`%LOCALAPPDATA%\com.codingfries\rift`),
+  /// which never roams or syncs. path_provider calls it the cache directory,
+  /// but Windows does not clear it. Linux uses the XDG data directory
+  /// (`~/.local/share/com.codingfries.rift`).
+  static Future<Directory> _baseDirectory() {
+    if (Platform.isWindows) return getApplicationCacheDirectory();
+    if (Platform.isLinux) return getApplicationSupportDirectory();
+    return getApplicationDocumentsDirectory();
+  }
 }

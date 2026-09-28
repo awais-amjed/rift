@@ -282,9 +282,10 @@ wipe. Not on the web, whose storage is the browser's rather than the platform's
 secure store. Left out of Android's backup and phone-to-phone transfer
 (`res/xml/backup_rules.xml`, `data_extraction_rules.xml`): a copy there would be
 unreadable, because the key comes from the seed in the keystore, and it is only
-a cache. On Windows everything the app stores lives in Local AppData, which
-never roams or syncs, rather than in Documents, which is often a OneDrive
-folder (`StorageNamespace.profileDirectory`). iOS backs up the Documents folder
+a cache. On the desktops, everything the app stores stays out of the person's
+Documents folder, which on Windows is often synced to OneDrive. On Windows it
+lives in Local AppData, which never roams or syncs, and on Linux in
+`~/.local/share` (`StorageNamespace.profileDirectory`). iOS backs up the Documents folder
 these live in; they are sealed there too, but not excluded yet. See
 `MessageCache` and `SavedConversation`.
 
