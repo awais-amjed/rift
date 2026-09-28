@@ -56,11 +56,16 @@ class TrayService {
       menu.addSeparator();
       _addItem(menu, 'Quit', windowManager.destroy);
       icon.setContextMenu(menu);
+      // Windows opens nothing on a right click unless told to: the trigger
+      // defaults to none, which left the menu — and Quit — unreachable.
+      if (Platform.isWindows) {
+        icon.setContextMenuTrigger(ContextMenuTrigger.rightClicked);
+      }
     }
 
     // A left click reopens the window, which is the only thing anyone wants
-    // from this icon. The right click opens the menu by itself. Linux reports
-    // neither — its panel keeps the click and opens the menu on its own.
+    // from this icon. Linux reports neither click — its panel keeps them and
+    // opens the menu on its own.
     icon.addListener((event) {
       if (event is TrayIconClickedEvent) _show();
     });
