@@ -46,10 +46,10 @@ fn spawn_capture_thread(
             log::warn!("audio: could not initialise COM on the capture thread");
             return;
         }
-        let Some(client) = open_client(pid) else {
+        let Some(mut client) = open_client(pid) else {
             return;
         };
-        let Some(capture) = start_capture(&client) else {
+        let Some(capture) = start_capture(&mut client) else {
             return;
         };
 
@@ -94,7 +94,7 @@ fn open_client(pid: Option<u32>) -> Option<AudioClient> {
     }
 }
 
-fn start_capture(client: &AudioClient) -> Option<wasapi::AudioCaptureClient> {
+fn start_capture(client: &mut AudioClient) -> Option<wasapi::AudioCaptureClient> {
     // 48 kHz, 16-bit integer, stereo: what LiveKit's source is created with.
     let format = WaveFormat::new(
         16,
