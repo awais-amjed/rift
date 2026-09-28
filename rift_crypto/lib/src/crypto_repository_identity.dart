@@ -34,6 +34,17 @@ mixin _IdentityCryptoMixin {
   Future<Uint8List> deriveLocalVaultKey(Uint8List masterSeed) =>
       hmacSha256(key: masterSeed, message: 'vault:v1');
 
+  /// Derive the key that seals the conversations this device keeps a copy of.
+  ///
+  /// key = HMAC-SHA256(masterSeed, "local-cache/messages:v1")
+  ///
+  /// A rung of its own rather than [deriveLocalVaultKey], so that nothing which
+  /// can open the vault blob can open these, or the other way round. The `/`
+  /// is there because no host can contain one, so the label cannot meet a
+  /// `"<host>:…"` context however a server is named.
+  Future<Uint8List> deriveMessageCacheKey(Uint8List masterSeed) =>
+      hmacSha256(key: masterSeed, message: 'local-cache/messages:v1');
+
   /// Derive the full server identity from the master seed and host.
   ///
   /// Returns the Ed25519 keypair (for auth/signing) and the stable ID (for
