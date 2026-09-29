@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:path/path.dart' as p;
 
 import '../../data/enums/app_sound.dart';
 import '../helper_methods.dart';
@@ -65,11 +66,14 @@ class NotificationService {
         defaultIcon: AssetsLinuxIcon('assets/images/tray_icon.png'),
       );
       // The GUID matches the installer app id; appUserModelId groups toasts
-      // under the Rift identity in the Windows Action Center.
-      const windows = WindowsInitializationSettings(
+      // under the Rift identity in the Windows Action Center. The icon is a
+      // file path Windows reads itself, so it points at the bundled asset on
+      // disk; without one, toasts and their Action Center group have none.
+      final windows = WindowsInitializationSettings(
         appName: 'Rift',
         appUserModelId: 'CodingFries.Rift',
         guid: '919df387-f79b-5d74-bee3-b08f176b2a14',
+        iconPath: Platform.isWindows ? _windowsIconPath() : null,
       );
       // The launcher icon rather than a dedicated one: Android tints a
       // notification icon to a flat silhouette, so a detailed mark would come
@@ -102,6 +106,16 @@ class NotificationService {
       HelperMethods.printDebug('NotificationService: init failed – $e');
     }
   }
+
+  /// The tray icon as flutter_assets lays it out beside the executable.
+  static String _windowsIconPath() => p.join(
+    p.dirname(Platform.resolvedExecutable),
+    'data',
+    'flutter_assets',
+    'assets',
+    'images',
+    'tray_icon.png',
+  );
 
   /// Asks for permission to post, which Android has required since API 33.
   ///
