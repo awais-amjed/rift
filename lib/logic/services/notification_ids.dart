@@ -36,3 +36,58 @@ class CallNotificationPayload {
     return CallNotificationPayload(parts[1], parts[2]);
   }
 }
+
+/// What a message notification carries, so a press on it can open the
+/// conversation it is about: `chan|<serverId>|<channelId>`,
+/// `sdm|<serverId>|<peerId>` or `cdm||<peerId>`.
+class ConversationNotificationPayload {
+  static const _channel = 'chan';
+  static const _serverDm = 'sdm';
+  static const _centralDm = 'cdm';
+
+  final String _kind;
+
+  /// Empty for a central DM, which belongs to no server.
+  final String serverId;
+
+  /// The channel, or the person on the other end of the DM.
+  final String targetId;
+
+  const ConversationNotificationPayload._(
+    this._kind,
+    this.serverId,
+    this.targetId,
+  );
+
+  const ConversationNotificationPayload.channel(
+    String serverId,
+    String channelId,
+  ) : this._(_channel, serverId, channelId);
+
+  const ConversationNotificationPayload.serverDm(String serverId, String peerId)
+    : this._(_serverDm, serverId, peerId);
+
+  const ConversationNotificationPayload.centralDm(String peerId)
+    : this._(_centralDm, '', peerId);
+
+  bool get isChannel => _kind == _channel;
+  bool get isServerDm => _kind == _serverDm;
+  bool get isCentralDm => _kind == _centralDm;
+
+  String encode() => '$_kind|$serverId|$targetId';
+
+  /// Null for anything that is not a message notification's payload.
+  static ConversationNotificationPayload? decode(String? raw) {
+    final parts = raw?.split('|');
+    if (parts == null || parts.length != 3 || parts[2].isEmpty) return null;
+    final kind = parts[0];
+    if (kind == _centralDm) {
+      return ConversationNotificationPayload.centralDm(parts[2]);
+    }
+    if (parts[1].isEmpty) return null;
+    if (kind == _channel || kind == _serverDm) {
+      return ConversationNotificationPayload._(kind, parts[1], parts[2]);
+    }
+    return null;
+  }
+}

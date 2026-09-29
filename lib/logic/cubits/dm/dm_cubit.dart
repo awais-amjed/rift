@@ -24,6 +24,7 @@ import '../../services/dm_refusal.dart';
 import '../../services/edit_refusal.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/new_message_notifier.dart';
+import '../../services/notification_ids.dart';
 import '../../services/outbox.dart';
 import '../../services/pin_ops.dart';
 import '../../services/quote_lookup.dart';
@@ -374,7 +375,17 @@ class DmCubit extends Cubit<DmState>
 
   @override
   void _notifyFromConversations(List<DmConversation> conversations) {
-    _notifier.scan(conversations, titleFor: (c) => c.peerName);
+    final serverId = _readyServerId;
+    _notifier.scan(
+      conversations,
+      titleFor: (c) => c.peerName,
+      payloadFor: (c) => serverId == null
+          ? null
+          : ConversationNotificationPayload.serverDm(
+              serverId,
+              c.peerId,
+            ).encode(),
+    );
   }
 
   // ──────────────────────────────────────────────────────────

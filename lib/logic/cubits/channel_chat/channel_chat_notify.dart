@@ -55,6 +55,12 @@ mixin _ChatNotifyMixin on Cubit<ChannelChatState> {
       NotificationService.instance.showMessage(
         title: notice.title,
         body: notice.body,
+        payload: server == null
+            ? null
+            : ConversationNotificationPayload.channel(
+                server.id,
+                channelId,
+              ).encode(),
       );
     }
   }

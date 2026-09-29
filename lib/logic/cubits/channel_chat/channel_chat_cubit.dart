@@ -32,6 +32,7 @@ import '../../services/link_preview_fetcher.dart';
 import '../../services/mention_name_cache.dart';
 import '../../services/mentions.dart';
 import '../../services/message_cache.dart';
+import '../../services/notification_ids.dart';
 import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
 import '../../services/pin_ops.dart';

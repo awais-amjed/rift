@@ -9,6 +9,7 @@ import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../services/broadcast_payload.dart';
+import '../../services/notification_ids.dart';
 import '../../services/notification_service.dart';
 import '../../services/per_server_map.dart';
 import '../../services/server_realtime.dart';
@@ -20,11 +21,11 @@ import '../channel_chat/channel_chat_cubit.dart';
 import '../dm/dm_cubit.dart';
 import '../server/server_cubit.dart';
 
+part 'server_notifications_levels.dart';
+part 'server_notifications_names.dart';
+part 'server_notifications_read.dart';
 part 'server_notifications_state.dart';
 part 'server_notifications_subscriptions.dart';
-part 'server_notifications_read.dart';
-part 'server_notifications_names.dart';
-part 'server_notifications_levels.dart';
 
 /// One authenticated Realtime + REST connection **per joined server** to its
 /// `notifications` table (RLS-scoped to `auth.uid()`), so unread badges and OS
@@ -231,6 +232,10 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
         body: channelName != null
             ? 'New message in #$channelName'
             : 'New message',
+        payload: ConversationNotificationPayload.channel(
+          serverId,
+          channelId,
+        ).encode(),
       );
     }
   }
@@ -287,6 +292,10 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     await NotificationService.instance.showMessage(
       title: _serverById(serverId)?.name ?? 'Rift',
       body: name != null ? '$name sent you a message' : 'New direct message',
+      payload: ConversationNotificationPayload.serverDm(
+        serverId,
+        peerId,
+      ).encode(),
     );
   }
 

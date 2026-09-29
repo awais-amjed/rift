@@ -20,6 +20,7 @@ import '../../common/overlay_scrim.dart';
 import '../../responsive/shell_scope.dart';
 import '../../theme/app_motion.dart';
 import 'calls/call_notification_router.dart';
+import 'conversation_notification_router.dart';
 import 'main_content/main_content.dart';
 import 'main_content/widgets/voice_connection_listener.dart';
 import 'members_sidebar/members_sidebar.dart';
@@ -193,11 +194,14 @@ class _HomeScreenState extends State<HomeScreen> {
         body: VoiceConnectionListener(
           // Presses on a call's notification, whichever shell is up.
           child: CallNotificationRouter(
-            // A phone is a different shell, not a squeezed desktop: the list
-            // is the screen and everything else is pushed over it.
-            child: context.layoutMode.isCompact
-                ? _QuickSwitcherShortcut(child: _buildPhone())
-                : _QuickSwitcherShortcut(child: _buildDesktop(context)),
+            // And on a message's: back to the window, into the conversation.
+            child: ConversationNotificationRouter(
+              // A phone is a different shell, not a squeezed desktop: the
+              // list is the screen and everything else is pushed over it.
+              child: context.layoutMode.isCompact
+                  ? _QuickSwitcherShortcut(child: _buildPhone())
+                  : _QuickSwitcherShortcut(child: _buildDesktop(context)),
+            ),
           ),
         ),
       ),

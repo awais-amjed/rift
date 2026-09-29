@@ -32,6 +32,7 @@ import '../../services/conversation_splice.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/message_cache.dart';
 import '../../services/new_message_notifier.dart';
+import '../../services/notification_ids.dart';
 import '../../services/outbox.dart';
 import '../../services/pin_ops.dart';
 import '../../services/push_service.dart';
@@ -259,7 +260,12 @@ class CentralDmCubit extends Cubit<CentralDmState>
   /// the list is built.
   @override
   void _notifyFromConversations(List<DmConversation> conversations) {
-    _notifier.scan(conversations, titleFor: (c) => c.peerName);
+    _notifier.scan(
+      conversations,
+      titleFor: (c) => c.peerName,
+      payloadFor: (c) =>
+          ConversationNotificationPayload.centralDm(c.peerId).encode(),
+    );
   }
 
   /// Seeds the add-friend field and shows the page it lives on — see

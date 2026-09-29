@@ -153,9 +153,23 @@ class NotificationService {
   final StreamController<CallNotificationPress> _callPresses =
       StreamController.broadcast();
 
+  /// Presses on a message notification, carrying the conversation it is
+  /// about — null for one posted without saying. The app brings itself
+  /// forward and opens it (`ConversationNotificationRouter`).
+  Stream<ConversationNotificationPayload?> get messagePresses =>
+      _messagePresses.stream;
+  final StreamController<ConversationNotificationPayload?> _messagePresses =
+      StreamController.broadcast();
+
   void _onResponse(NotificationResponse response) {
     final press = CallNotificationPress.of(response);
-    if (press != null) _callPresses.add(press);
+    if (press != null) {
+      _callPresses.add(press);
+      return;
+    }
+    _messagePresses.add(
+      ConversationNotificationPayload.decode(response.payload),
+    );
   }
 
   /// The press that launched the app from nothing, if it was on a call's
@@ -271,12 +285,14 @@ class NotificationService {
   /// which is right for the in-app paths: they fire once per message, in a
   /// process that is alive to keep counting.
   /// [chime] is false for something that makes its own sound — a call,
-  /// whose ringtone is already playing.
+  /// whose ringtone is already playing. [payload] is what a press on it
+  /// opens: a [ConversationNotificationPayload], encoded.
   Future<void> showMessage({
     required String title,
     required String body,
     int? id,
     bool chime = true,
+    String? payload,
   }) async {
     if (!_ready) return;
     if (kIsWeb) {
@@ -305,6 +321,7 @@ class NotificationService {
         id: id ?? _nextId++,
         title: title,
         body: body,
+        payload: payload,
         notificationDetails: NotificationDetails(
           linux: const LinuxNotificationDetails(suppressSound: true),
           windows: WindowsNotificationDetails(

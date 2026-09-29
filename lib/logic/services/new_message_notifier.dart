@@ -22,10 +22,12 @@ class NewMessageNotifier {
   }
 
   /// Inspect the latest conversation snapshot. [titleFor] builds the
-  /// notification title for a conversation (e.g. its peer name).
+  /// notification title for a conversation (e.g. its peer name), and
+  /// [payloadFor] what a press on it opens.
   void scan(
     Iterable<DmConversation> conversations, {
     required String Function(DmConversation) titleFor,
+    String? Function(DmConversation)? payloadFor,
   }) {
     final fresh = <DmConversation>[];
     for (final convo in conversations) {
@@ -42,6 +44,7 @@ class NewMessageNotifier {
       NotificationService.instance.showMessage(
         title: titleFor(convo),
         body: convo.lastMessage!.text,
+        payload: payloadFor?.call(convo),
       );
     }
   }
