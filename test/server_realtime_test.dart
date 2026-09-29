@@ -16,6 +16,15 @@ Server _server(String id, {String token = 'jwt-1', String? key = 'anon'}) =>
       'supabase_key': key,
     });
 
+/// A JWT whose `exp` is [fromNow] away — in the past when negative. Only the
+/// claims are read on this side; the signature is the server's business.
+String _jwt(Duration fromNow) {
+  String part(Object json) =>
+      base64Url.encode(utf8.encode(jsonEncode(json))).replaceAll('=', '');
+  final exp = DateTime.now().add(fromNow).millisecondsSinceEpoch ~/ 1000;
+  return '${part({'alg': 'HS256'})}.${part({'exp': exp})}.sig';
+}
+
 /// A registry over a server list the test controls. What is under test is the
 /// bookkeeping, not the sockets.
 class _Harness {
@@ -267,6 +276,67 @@ void main() {
       await h.close();
     },
   );
+
+  // A launch finds the token it stored an hour or more ago. Joins sent on it
+  // were refused seconds apart, timed out meanwhile, and the refusals and the
+  // client's own retries of one topic knocked it off the socket for the
+  // session.
+  test('a join waits for a token that has not run out', () async {
+    final stale = _server('a', token: _jwt(const Duration(hours: -3)));
+    final h = _Harness([stale]);
+    h.realtime.join(stale, 'user:me');
+    final channel = h.realtime.debugChannelOf('a', 'user:me')!;
+    expect(
+      h.realtime.debugAwaitingToken('a', 'user:me'),
+      isTrue,
+      reason: 'nothing sent on a dead token',
+    );
+
+    await h.publish([stale.copyWith(token: _jwt(const Duration(hours: 1)))]);
+    expect(h.realtime.debugChannelOf('a', 'user:me'), same(channel));
+    expect(h.realtime.debugAwaitingToken('a', 'user:me'), isFalse);
+    expect(h.realtime.debugSocketChannels('a'), contains(same(channel)));
+    await h.close();
+  });
+
+  test('releasing a waiting topic leaves the others waiting', () async {
+    final stale = _server('a', token: _jwt(const Duration(hours: -3)));
+    final h = _Harness([stale]);
+    final one = h.realtime.join(stale, 'user:me')!;
+    h.realtime.join(stale, 'server:a');
+    await one.release();
+
+    await h.publish([stale.copyWith(token: _jwt(const Duration(hours: 1)))]);
+    final other = h.realtime.debugChannelOf('a', 'server:a')!;
+    expect(h.realtime.debugAwaitingToken('a', 'server:a'), isFalse);
+    expect(h.realtime.debugSocketChannels('a'), [same(other)]);
+    await h.close();
+  });
+
+  test('a token that is not a JWT is not held back', () async {
+    final a = _server('a');
+    final h = _Harness([a]);
+    h.realtime.join(a, 'user:me');
+    expect(h.realtime.debugAwaitingToken('a', 'user:me'), isFalse);
+    await h.close();
+  });
+
+  test('a timed-out join is left to the client to ask again', () async {
+    final a = _server('a');
+    final h = _Harness([a]);
+    h.realtime.join(a, 'user:me');
+    final first = h.realtime.debugChannelOf('a', 'user:me');
+    await h.publish([a.copyWith(token: 'jwt-2')]);
+
+    h.realtime.debugReportStatus(
+      'a',
+      'user:me',
+      RealtimeSubscribeStatus.timedOut,
+    );
+    await h.publish([a.copyWith(token: 'jwt-3')]);
+    expect(h.realtime.debugChannelOf('a', 'user:me'), same(first));
+    await h.close();
+  });
 
   test('a joined topic is left alone when the token rotates', () async {
     final a = _server('a');

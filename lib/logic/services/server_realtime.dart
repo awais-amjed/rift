@@ -167,7 +167,6 @@ class ServerRealtime {
       opts: const RealtimeChannelConfig(private: true),
     );
     joined.channel = channel;
-    joined.joinedWith = connection.token;
     joined.setUp?.call(channel, joined.dispatch);
     for (final event in joined.boundBroadcasts) {
       channel.onBroadcast(
@@ -175,6 +174,25 @@ class ServerRealtime {
         callback: (payload) => joined.dispatch('broadcast:$event', payload),
       );
     }
+    // Not on a token that has already run out — the one a launch finds
+    // stored after the app has been closed for an hour. The server refuses
+    // such joins one at a time, seconds apart, so the later ones time out
+    // first; realtime_client retries a timeout by itself, and the refusals
+    // and retries of one topic ended up fighting over one socket until the
+    // topic fell off it. The refreshed token is about a second away:
+    // [_follow] sends the join when it lands.
+    if (connection.tokenExpired) {
+      joined.awaitingToken = true;
+      return;
+    }
+    _sendJoin(connection, joined);
+  }
+
+  /// Sends [joined]'s join on the channel [_subscribe] prepared.
+  void _sendJoin(_Connection connection, _Topic joined) {
+    joined.awaitingToken = false;
+    joined.joinedWith = connection.token;
+    final channel = joined.channel;
     channel.subscribe((status, [_]) {
       // Read now. A server can only refuse over an open socket; a failure with
       // the socket down is the socket's, and the client joins that channel
@@ -234,6 +252,14 @@ class ServerRealtime {
     }());
   }
 
+  /// A new token that can be used: every join held back for one goes out.
+  void _joinAwaiting(_Connection connection) {
+    if (connection.tokenExpired) return;
+    for (final joined in [...connection.topics.values]) {
+      if (joined.awaitingToken) _sendJoin(connection, joined);
+    }
+  }
+
   /// A new token: every topic the old one had been refused on is asked again.
   void _rejoinRefused(_Connection connection) {
     for (final joined in [...connection.topics.values]) {
@@ -262,6 +288,11 @@ class ServerRealtime {
   @visibleForTesting
   RealtimeChannel? debugChannelOf(String serverId, String topic) =>
       _connections[serverId]?.topics[topic]?.channel;
+
+  /// Whether [topic]'s join is being held for a token that hasn't run out.
+  @visibleForTesting
+  bool debugAwaitingToken(String serverId, String topic) =>
+      _connections[serverId]?.topics[topic]?.awaitingToken ?? false;
 
   /// The socket's own channel list — what realtime_client walks when the
   /// socket drops.
@@ -296,6 +327,7 @@ class ServerRealtime {
       } else {
         final connection = _connections[id]!;
         if (connection.authorise(server.token, key)) {
+          _joinAwaiting(connection);
           _rejoinRefused(connection);
         }
       }
@@ -317,6 +349,13 @@ class ServerRealtime {
     connection.topics.remove(lease._name);
     if (connection.topics.isEmpty) {
       await _close(lease._serverId);
+      return;
+    }
+    // A join never sent has nothing to leave. Leaving it anyway would drop it
+    // from the socket by its empty `joinRef` — and every other join still
+    // waiting for a token with it.
+    if (joined.awaitingToken) {
+      connection.client.realtime.channels.remove(joined.channel);
       return;
     }
     try {
@@ -422,18 +461,43 @@ class _Connection {
 
   String? get token => _token;
 
+  DateTime? _expiresAt;
+
+  /// Whether [token] has run out, by its own `exp`. A token that isn't a JWT
+  /// with one is taken at its word.
+  bool get tokenExpired {
+    final expiresAt = _expiresAt;
+    return expiresAt != null && !DateTime.now().isBefore(expiresAt);
+  }
+
   /// Points REST and Realtime at [token]. A join outlives the token it was
   /// made with only if Realtime is told the new one. True when the token
   /// changed.
   bool authorise(String token, String anonKey) {
     if (token == _token) return false;
     _token = token;
+    _expiresAt = _expiryOf(token);
     client.headers = {
       'apikey': anonKey,
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
     if (token.isNotEmpty) unawaited(client.realtime.setAuth(token));
     return true;
+  }
+
+  static DateTime? _expiryOf(String token) {
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    try {
+      final claims = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      final exp = claims is Map ? claims['exp'] : null;
+      if (exp is! num) return null;
+      return DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000);
+    } catch (_) {
+      return null;
+    }
   }
 }
 
@@ -458,14 +522,21 @@ class _Topic {
   /// us. Not every refusal-looking [status]: one the socket caused, the client
   /// retries itself.
   bool refused = false;
+
+  /// The channel is set up but its join is held for a token that hasn't run
+  /// out ([ServerRealtime._subscribe]).
+  bool awaitingToken = false;
   int holders = 0;
 
   _Topic(this.name, this.setUp);
 
-  /// The server said no, or never answered. Not `closed`, which is a leave.
+  /// The server said no. Not `closed`, which is a leave, and not `timedOut`:
+  /// realtime_client asks again after a timeout by itself, with whatever
+  /// token `setAuth` last gave it, and a replacement channel beside that
+  /// retry is a second join of the same topic on one socket — the server
+  /// closes one of them, and the client's bookkeeping lost both.
   static bool isRefusal(RealtimeSubscribeStatus status) =>
-      status == RealtimeSubscribeStatus.channelError ||
-      status == RealtimeSubscribeStatus.timedOut;
+      status == RealtimeSubscribeStatus.channelError;
 
   void dispatch(String key, RealtimePayload payload) {
     for (final listener in [...?listeners[key]]) {
