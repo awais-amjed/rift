@@ -8,6 +8,7 @@
 
 #include "flutter/generated_plugin_registrant.h"
 #include "global_key_hook.h"
+#include "single_instance.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -86,6 +87,11 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         };
         ptt_event_sink_->Success(flutter::EncodableValue(args));
       }
+      return 0;
+
+    case kWmShowRunningCopy:
+      ::ShowWindow(hwnd, ::IsIconic(hwnd) ? SW_RESTORE : SW_SHOW);
+      ::SetForegroundWindow(hwnd);
       return 0;
   }
 
