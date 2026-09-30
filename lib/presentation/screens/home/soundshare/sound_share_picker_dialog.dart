@@ -139,7 +139,11 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
   Widget _body() {
     final theme = context.theme;
     if (_loading && _sources == null) {
+      // heightFactor 1: a bare Center inside the Flexible below takes every
+      // pixel the dialog may grow to, and the dialog stands at full height
+      // around three dots.
       return Center(
+        heightFactor: 1,
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: LoadingDots(color: context.theme.accentBright, dotSize: 4),
@@ -149,22 +153,29 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
 
     final sources = _sources ?? const <AudioSource>[];
     if (sources.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Column(
-          spacing: 8,
-          children: [
-            Icon(Icons.volume_off_rounded, color: theme.textTertiary),
-            Text(
-              'Nothing is playing',
-              style: AppText.row.copyWith(color: theme.textSecondary),
-            ),
-            Text(
-              'Start playing something in an app, then refresh.',
-              textAlign: TextAlign.center,
-              style: AppText.secondary.copyWith(color: theme.textTertiary),
-            ),
-          ],
+      // Sized to its three lines and centred across the dialog: a Column
+      // defaults to its full height, which left the dialog at its maximum
+      // with the message pinned to the top-left.
+      return SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 8,
+            children: [
+              Icon(Icons.volume_off_rounded, color: theme.textTertiary),
+              Text(
+                'Nothing is playing',
+                style: AppText.row.copyWith(color: theme.textSecondary),
+              ),
+              Text(
+                'Start playing something in an app, then refresh.',
+                textAlign: TextAlign.center,
+                style: AppText.secondary.copyWith(color: theme.textTertiary),
+              ),
+            ],
+          ),
         ),
       );
     }
