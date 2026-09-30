@@ -95,6 +95,20 @@ impl Drop for TimerResolutionGuard {
     }
 }
 
+/// Whether the window behind a Windows capture source has been closed.
+///
+/// libwebrtc's Windows capturer does not report a closed window as a
+/// permanent error — it keeps answering with the last frame it had, so the
+/// share stayed up with a frozen picture and the watchers were never told
+/// (measured Sep 30 2026). A window source's id is its `HWND`, so ask Windows
+/// directly.
+#[cfg(target_os = "windows")]
+fn window_closed(id: u64) -> bool {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::IsWindow;
+    !unsafe { IsWindow(Some(HWND(id as usize as *mut _))) }.as_bool()
+}
+
 fn run(
     request: CaptureRequest,
     first_frame: oneshot::Sender<Result<Size, String>>,
@@ -122,6 +136,8 @@ fn run(
         return;
     };
     log::info!("capture: source [{index}] {}", source.title());
+    #[cfg(target_os = "windows")]
+    let window = (request.source_type == DesktopCaptureSourceType::Window).then(|| source.id());
 
     let (frame_tx, frame_rx) = mpsc::sync_channel::<SendableFrame>(FRAME_QUEUE);
     let _processing = frames::spawn_processing(frame_rx, source_slot, request.max_height);
@@ -160,6 +176,10 @@ fn run(
             Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {
                 capturer.capture_frame();
+                #[cfg(target_os = "windows")]
+                if window.is_some_and(window_closed) {
+                    source_lost.store(true, Ordering::Relaxed);
+                }
                 if source_lost.load(Ordering::Relaxed) {
                     log::info!("capture: source closed, ending the share");
                     crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
